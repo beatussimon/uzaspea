@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Order Confirmation</title>
+</head>
+<body>
+    <h1>Order Confirmation (Order #{{ order.id }})</h1>
+
+    <p>Dear {{ order.user.username }},</p>
+
+    <p>Thank you for your order! Your order (ID: {{ order.id }}) has been placed and is being processed.</p>
+
+    <h2>Order Summary:</h2>
+    <table border="1" cellpadding="5">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in order.orderitem_set.all %}
+            <tr>
+                <td>{{ item.product.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>${{ item.price|floatformat:2 }}</td>
+                <td>${{ item.subtotal|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" align="right"><strong>Total:</strong></td>
+                <td>${{ order.total_amount|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <p>Order Date: {{ order.order_date|date:"F j, Y, g:i a" }}</p>
+
+    <p>You can view your order details here: <a href="{{ request.get_host }}{% url 'order_detail' order.id %}">{{ request.get_host }}{% url 'order_detail' order.id %}</a></p>
+
+    <p>Thanks,<br>
+    The My Marketplace Team</p>
+</body>
+</html>

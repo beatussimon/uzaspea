@@ -1,0 +1,73 @@
+{% extends 'marketplace/base.html' %}
+{% load humanize %}
+
+{% block title %}Seller Dashboard - UZACHUO{% endblock %}
+
+{% block content %}
+<h1>Seller Dashboard</h1>
+
+<h2>Your Products</h2>
+    <a href="{% url 'product_create' %}" class = "btn btn-primary mb-3">Add New Product</a>
+<div class="row">
+    {% for product in products %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+               {% if product.image %}
+                    <a href="{{ product.get_absolute_url }}">
+                        <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
+                    </a>
+                {% else %}
+                    <a href="{{ product.get_absolute_url }}">
+                        <img src="{% static 'images/no_image.png' %}" class="card-img-top" alt="No Image" style="height: 200px; object-fit: cover;">
+                    </a>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h5>
+                     <p class="card-text"><strong>Price:</strong> TSh {{ product.price|floatformat:0|intcomma }}</p>
+                      <p class="card-text"><small class="text-muted">Condition: {{ product.get_condition_display }}</small></p> {# Added condition #}
+                     <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-warning">Edit</a>
+                      <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-danger">Delete</a>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class = "col-12">
+             <p>You haven't listed any products yet.</p>
+        </div>
+
+    {% endfor %}
+</div>
+   <h2>Orders to Fulfill</h2>
+    {% if seller_orders %}
+        <table class = "table">
+        <thead>
+            <tr>
+              <th>Order #</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+          {% for order in seller_orders %}
+             <tr>
+                  <td>{{order.id}}</td>
+                  <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
+                  <td>{{order.user.username}}
+                    {% if order.user.profile.is_verified %}
+                         <span class="badge bg-success">Verified</span>
+                    {% endif %}
+                  </td>
+                  <td>TSh {{ order.total_amount|floatformat:0|intcomma }}</td>
+                  <td>{{order.status}}</td>
+                 <td><a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-sm btn-info">View Details</a></td>
+             </tr>
+          {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+     <p>No orders to fulfill at the moment.</p>
+    {% endif %}
+{% endblock %}

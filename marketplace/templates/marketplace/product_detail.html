@@ -1,0 +1,137 @@
+{% extends 'marketplace/base.html' %}
+{% load humanize %}
+{% load crispy_forms_tags %}
+{% load static %}  {# <-- Load static here (globally) is fine too, BUT... #}
+
+{% block title %}{{ product.name }} - My Marketplace{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-6">
+            <div id="carouselExampleControls" class="carousel slide" data-bs-ride="carousel">
+              <div class="carousel-inner">
+                  {% for image in images %}
+                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                      <img src="{{ image.image.url }}" class="d-block w-100" alt="{{product.name}}">
+                    </div>
+                  {% empty %}
+                    {% load static %}  {# <-- ...load it *here* as well #}
+                     <div class="carousel-item active">
+                        <img src="{% static 'images/no_image.png' %}" class="d-block w-100" alt="No image available">
+                    </div>
+                  {% endfor %}
+              </div>
+                {% if images|length > 1 %}
+                  <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Previous</span>
+                  </button>
+                  <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Next</span>
+                  </button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <h1>{{ product.name }}</h1>
+            <p><strong>Price:</strong> TSh {{ product.price|floatformat:0|intcomma }}</p>
+            <p><strong>Seller:</strong> {{ product.seller.username }}</p>
+            <p><strong>Category:</strong> <a href="{{ product.category.get_absolute_url }}">{{ product.category.name }}</a></p>
+            <p><strong>Description:</strong> {{ product.description }}</p>
+            <p><strong>Stock:</strong> {{ product.stock }}</p>
+            <p><strong>Condition:</strong> {{ product.get_condition_display }}</p>  {# Display condition #}
+             {% if product.average_rating > 0 %}
+                 <p>
+                    Rating:
+                    {% for i in "x"|ljust:product.average_rating %}
+                        <i class="fas fa-star" style="color: gold;"></i>
+                    {% endfor %}
+                    {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
+                         <i class="far fa-star" style="color: gold;"></i>
+                    {% endfor %}
+                     ({{ product.reviews.count }} reviews)
+                </p>
+            {% else %}
+                <p>No reviews yet</p>
+            {% endif %}
+
+            {% if product.seller == user %}
+                <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-warning">Edit Product</a>
+                <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-danger">Delete Product</a>
+            {% elif product.stock > 0 %}
+                 {% if request.user.is_authenticated %}
+                    <form action="{% url 'add_to_cart' slug=product.slug %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                         <div class = "input-group mb-3">
+                        <input type="number" name="quantity" value="1" min="1" max = "{{product.stock}}" class="form-control">
+                        <button type="submit" class="btn btn-primary">Add to Cart</button>
+                         </div>
+                    </form>
+                 {% else %}
+                     <p><a href="{% url 'login' %}?next={{ request.path }}">Login</a> to add to cart.</p>
+                {% endif %}
+            {% else %}
+                <p class="text-danger">Out of Stock</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <hr>
+    <h2>Reviews</h2>
+    {% if request.user.is_authenticated %}
+        {% if has_reviewed %}
+            <p>You have already reviewed this product.</p>
+        {% else %}
+           <form method="post" class="mb-4">
+                {% csrf_token %}
+                {{ review_form|crispy }}
+                 <button type="submit" class="btn btn-primary" name = "review_submit">Submit Review</button>
+            </form>
+        {% endif %}
+    {% else %}
+    <p>Please <a href="{% url 'login' %}?next={{ request.path }}">log in</a> to leave a review.</p>
+    {% endif %}
+
+    {% for review in reviews %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">
+                {% for i in "x"|ljust:review.rating %}
+                <i class="fas fa-star" style="color: gold;"></i>
+                {% endfor %}
+                {% for i in "x"|ljust:5|slice:":-"|add:review.rating %}
+                <i class="far fa-star" style="color: gold;"></i>
+                {% endfor %}
+            </h5>
+            <p class="card-text">{{ review.comment }}</p>
+            <p class="card-text"><small class="text-muted">By {{ review.user.username }} on {{ review.created_at|date:"F d, Y" }}</small></p>
+
+             {% if user.is_authenticated %}
+                <details>
+                    <summary>Reply</summary>
+                    <form method = "post">
+                        {% csrf_token %}
+                        {{reply_form|crispy}}
+                        <input type = "hidden" name = "parent_id" value = "{{review.id}}">
+                        <button class = "btn btn-sm btn-primary" type = "submit" name = "reply_submit">Reply</button>
+                    </form>
+                </details>
+            {% endif %}
+
+            {% comment %} Display replies to this review {% endcomment %}
+            {% for reply in review.replies.all %}
+                <div class="card mb-2 ms-5">
+                    <div class="card-body">
+                        <p class="card-text">{{ reply.comment }}</p>
+                        <p class="card-text"><small class="text-muted">By {{ reply.user.username }} on {{ reply.created_at|date:"F d, Y" }}</small></p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+        {% empty %}
+            <p>No reviews yet.</p>
+        {% endfor %}
+
+{% endblock %}

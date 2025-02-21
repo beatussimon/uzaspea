@@ -1,0 +1,56 @@
+{% extends 'marketplace/base.html' %}
+
+{% block title %}Shopping Cart - My Marketplace{% endblock %}
+
+{% block content %}
+    <h1>Shopping Cart</h1>
+
+    {% if cart_items %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Subtotal</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in cart_items %}
+                    <tr>
+                        <td>
+                            <a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a>
+                        </td>
+                         <td>
+                            <form action="{% url 'update_cart' product_id=item.product.id %}" method="post">
+                                {% csrf_token %}
+                                <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max = "{{ item.product.stock }}" class = "form-control">
+                                <button type="submit" class="btn btn-sm btn-primary">Update</button>
+
+                            </form>
+                        </td>
+                        <td>${{ item.product.price }}</td>
+                        <td>${{ item.subtotal|floatformat:2 }}</td>
+                        <td>
+                            <a href="{% url 'remove_from_cart' product_id=item.product.id %}" class="btn btn-sm btn-danger">Remove</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                    <td>${{ cart_total|floatformat:2 }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <a href="{% url 'checkout' %}" class="btn btn-success">Checkout</a>
+        <a href = "{% url 'product_list' %}" class = "btn btn-primary">Continue Shopping</a>
+    {% else %}
+        <p>Your cart is empty.</p>
+        <a href = "{% url 'product_list' %}" class = "btn btn-primary">Continue Shopping</a>
+    {% endif %}
+{% endblock %}

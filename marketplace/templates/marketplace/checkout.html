@@ -1,0 +1,40 @@
+{% extends 'marketplace/base.html' %}
+
+{% block title %}Checkout - My Marketplace{% endblock %}
+
+{% block content %}
+    <h1>Checkout</h1>
+    <p>Review your order and proceed to payment (not implemented in this example):</p>
+
+    <table class="table">
+      <thead>
+          <th>Product</th>
+          <th>Quantity</th>
+          <th>Price</th>
+          <th>Subtotal</th>
+      </thead>
+      <tbody>
+          {% for item in cart_items %}
+            <tr>
+                <td><a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a></td>
+                <td>{{ item.quantity }}</td>
+                <td>${{ item.product.price }}</td>
+                <td>${{ item.subtotal|floatformat:2 }}</td>
+            </tr>
+        {% endfor %}
+      </tbody>
+         <tfoot>
+        <tr>
+            <td colspan="3" class="text-end"><strong>Total:</strong></td>
+            <td>${{ cart_total|floatformat:2 }}</td>
+        </tr>
+        </tfoot>
+    </table>
+
+     <form action="{% url 'checkout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">Confirm Order</button>
+        <a href="{% url 'view_cart' %}" class="btn btn-secondary">Back to Cart</a>
+    </form>
+
+{% endblock %}
