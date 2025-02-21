@@ -1,0 +1,31 @@
+{% extends 'marketplace/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Update Product - UZACHUO{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="card-title text-center">Update Product: {{ product.name }}</h1>
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <h2 class = "mt-4">Product Images</h2>
+                        {{ formset.management_form }}
+                        {% for form in formset %}
+                            <div class = "image-form-set">
+                                {{form|crispy}}
+                            </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary w-100">Update Product</button>
+                        <a href="{% url 'product_detail' slug=product.slug %}" class="btn btn-secondary w-100 mt-2">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

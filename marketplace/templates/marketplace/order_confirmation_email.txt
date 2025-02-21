@@ -1,0 +1,20 @@
+Subject: Your Order Confirmation (Order #{{ order.id }})
+
+Dear {{ order.user.username }},
+
+Thank you for your order!  Your order (ID: {{ order.id }}) has been placed and is being processed.
+
+Order Summary:
+
+{% for item in order.orderitem_set.all %}
+- {{ item.product.name }} ({{ item.quantity }}) x ${{ item.price|floatformat:2 }} = ${{ item.subtotal|floatformat:2 }}
+{% endfor %}
+
+Total: ${{ order.total_amount|floatformat:2 }}
+
+Order Date: {{ order.order_date|date:"F j, Y, g:i a" }}
+
+You can view your order details here: {{ request.get_host }}{% url 'order_detail' order.id %}
+
+Thanks,
+The UzaChuo Team

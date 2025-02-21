@@ -1,0 +1,5 @@
+Django>=4.2
+crispy-forms>=2.0
+crispy-bootstrap5>=0.7
+pillow>=9.0.0
+# Add other dependencies (e.g., for payment gateways, celery for async tasks, etc.)
