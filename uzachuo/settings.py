@@ -5,7 +5,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-strong-secret-key') # Use environment variable
-DEBUG = True  # Set to False in production!
+DEBUG = False  # Set to False in production!
 ALLOWED_HOSTS = ['*'] # CHANGE THIS IN PRODUCTION
 
 INSTALLED_APPS = [
