@@ -1,7 +1,8 @@
 {% extends 'marketplace/base.html' %}
 {% load humanize %}
 {% load static %}
-{% load crispy_forms_tags %} 
+{% load crispy_forms_tags %}
+
 {% block title %}Product List - UZASPEA{% endblock %}
 
 {% block extra_head %}
@@ -217,13 +218,12 @@
                 <div class="card-header">Subscribe to Newsletter</div>
                 <div class="card-body">
                   <p class = "small text-muted">Get the latest updates and offers.</p>
-                   <form method = "post" action = "{% url 'product_list' %}">  {# Corrected action attribute #}
+                   <form method = "post" action = "{% url 'product_list' %}">
                     {% csrf_token %}
                     <div class="mb-3">
-                        {{ subscription_form.email|as_crispy_field }}  {# Render the email field #}
-                        {{ subscription_form.category|as_crispy_field }} {# Render category field #}
+                      {{ subscription_form|crispy }}
                      </div>
-                      <button type = "submit" class = "btn btn-primary w-100" name = "subscribe_submit">Subscribe</button> {#Added button name#}
+                      <button type = "submit" class = "btn btn-primary w-100" name = "subscribe_submit">Subscribe</button>
                    </form>
                 </div>
             </div>
@@ -260,9 +260,9 @@
                        <div class="card mb-4">
                           <div class="card-header">Special Offers</div>
                             <div class="card-body">
-                                
+                                <ul class = "list-group list-group-flush">
                                   {% for offer in offers %}
-                                    
+                                    <li class = "list-group-item">
                                         {% if offer.image %}
                                          <img src = "{{offer.image.url}}" class = "img-fluid mb-2" alt = "{{offer.title}}">
                                         {% endif %}
@@ -271,12 +271,11 @@
                                         {% if offer.link %}
                                             <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">Learn More</a>
                                         {% endif %}
-                                    
+                                    </li>
                                   {% empty %}
-                                    
-                                    No offers at the moment.
-                                  
-                                {% endfor %}
+                                    <li class="list-group-item">No offers at the moment.</li>
+                                  {% endfor %}
+                                </ul>
                             </div>
                        </div>
                      {% endif %}
@@ -284,21 +283,20 @@
                         <div class="card mb-4">
                             <div class="card-header">Latest News</div>
                             <div class="card-body">
-                              
+                              <ul class = "list-group list-group-flush">
                                 {% for item in news_items %}
-                                    
+                                    <li class = "list-group-item">
                                        <h5>{{ item.title }}</h5>
                                         <p class = "small text-muted">{{item.pub_date|date:"F j, Y"}}</p>
                                         <p>{{ item.content|truncatewords:25 }}</p> {# Limit content#}
                                         {% if item.link %}
                                            <a href = "{{item.link}}" class = "btn btn-sm btn-outline-secondary">Read More</a>
                                         {% endif %}
-                                    
+                                    </li>
                                 {% empty %}
-                                  
-                                  No News at the moment
-                                
+                                  <li class="list-group-item">No News at the moment</li>
                                 {% endfor %}
+                                </ul>
                             </div>
                         </div>
                     {% endif %}
