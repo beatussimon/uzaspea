@@ -1,100 +1,101 @@
 {% extends 'marketplace/base.html' %}
 {% load humanize %}
 {% load static %}
-{% block title %}{{ user.username }}'s Profile - UZACHUO{% endblock %}
+{% block title %}{{ user.username }}'s Profile - UZASPEA{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row">
+<div class="container mt-4">  <div class="row">
         <div class="col-md-4">
             <div class="card mb-4">
                 <div class="card-body">
-                    <h5 class="card-title">{{ user.username }}
+                    <h5 class="card-title d-flex align-items-center"> {{ user.username }}
                         {% if user.profile.is_verified %}
-                            <span class="badge bg-success">Verified</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Not Verified</span>
-                        {% endif %}
+                            <span class="badge bg-success ms-2">Verified</span> {% else %}
+                            <span class="badge bg-secondary ms-2">Not Verified</span> {% endif %}
                     </h5>
-                     <p class="card-text">
+                    <p class="card-text">
                         <strong>Phone:</strong> {{ user.profile.phone_number }}
                     </p>
                     {% if user.profile.instagram_username %}
-                       <p class="card-text">
+                        <p class="card-text">
                         <strong>Instagram:</strong>
-                        <a href="https://instagram.com/{{ user.profile.instagram_username }}" target="_blank">
+                        <a href="https://instagram.com/{{ user.profile.instagram_username }}" target="_blank" rel="noopener noreferrer">
                             {{ user.profile.instagram_username }}
                         </a>
-                       </p>
+                        </p>
                     {% endif %}
                     {% if user.profile.website %}
-                      <p>
-                        <strong>Website:</strong> <a href = "{{user.profile.website}}" target = "_blank">{{user.profile.website}}</a>
-                      </p>
+                        <p>
+                        <strong>Website:</strong> <a href = "{{user.profile.website}}" target = "_blank" rel="noopener noreferrer">{{user.profile.website}}</a>
+                        </p>
                     {% endif %}
                     <p class="card-text"><strong>Email:</strong> {{ user.email }}</p>
+                    </div>
                 </div>
+                {% if user == request.user %}  <a href="{% url 'dashboard' %}" class="btn btn-primary mb-3">Go to Seller Dashboard</a>
+                {% endif %}
             </div>
-             {% if user.is_staff or user.products.all %}
-                <a href="{% url 'dashboard' %}" class="btn btn-primary mb-3">Go to Seller Dashboard</a>
-             {% endif %}
-        </div>
+
         <div class="col-md-8">
-            <h2>Your Products</h2>
-                <a href = "{% url 'product_create' %}" class = "btn btn-primary mb-3">Add New Product</a>
-            {% if user_products %}
-                <div class="row">
-                    {% for product in user_products %}
-                        <div class="col-md-6 mb-4">
-                            <div class="card h-100">
-                                 {% if product.get_first_image %}
-                                        <img src="{{ product.get_first_image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 150px; object-fit: cover;">
+                <h2>Your Products</h2>
+                 {% if user == request.user %} <a href = "{% url 'product_create' %}" class = "btn btn-primary mb-3">Add New Product</a>
+                 {% endif %}
+                {% if user_products %}  <div class="row row-cols-1 row-cols-md-2 g-4"> {% for product in user_products %}
+                        <div class="col"> <div class="card h-100">
+                                {% if product.get_first_image %}
+                                    <a href="{% url 'product_detail' slug=product.slug %}"> <img src="{{ product.get_first_image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;"> </a>
+                                    {% elif product.images.all %}
+                                     <a href="{% url 'product_detail' slug=product.slug %}">
+                                         <img src = "{{ product.images.all.0.image.url }}" class="card-img-top" alt = "{{ product.name }}" style="height: 200px; object-fit: cover;">
+                                     </a>
                                     {% else %}
-                                        <img src="{% static 'images/no_image.png' %}" class="card-img-top" alt="No Image" style="height: 150px; object-fit: cover;">
+                                     <a href="{% url 'product_detail' slug=product.slug %}">
+                                        <img src="{% static 'images/no_image.png' %}" class="card-img-top" alt="No Image" style="height: 200px; object-fit: cover;">
+                                     </a>
                                     {% endif %}
                                 <div class="card-body">
-                                    <h5 class="card-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h5>
-                                    <p class="card-text"><strong>Price:</strong> TSh {{ product.price|floatformat:0|intcomma }}</p>
+                                    <h5 class="card-title"><a href="{% url 'product_detail' slug=product.slug %}">{{ product.name }}</a></h5> <p class="card-text"><strong>Price:</strong> TSh {{ product.price|floatformat:0|intcomma }}</p>
                                      <p class="card-text"><small class="text-muted">Condition: {{ product.get_condition_display }}</small></p>
-                                    <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-sm btn-warning">Edit</a>
-                                    <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-sm btn-danger">Delete</a>
+                                      {% if user == request.user %} <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-sm btn-warning">Edit</a>
+                                        <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-sm btn-danger">Delete</a>
+                                     {% endif %}
                                 </div>
                             </div>
                         </div>
                     {% endfor %}
                 </div>
-            {% else %}
-                <p>You haven't listed any products yet.</p>
-            {% endif %}
+                {% else %}
+                <p>No products listed yet.</p>
+                {% endif %}
 
 
-            <h2>Your Orders</h2>
-            {% if user_orders %}
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Order #</th>
-                            <th>Date</th>
-                            <th>Total</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                         {% for order in user_orders %}
+                <h2>Your Orders</h2>
+                {% if user_orders %}  <div class="table-responsive"> <table class="table">
+                        <thead>
                             <tr>
-                                <td>{{ order.id }}</td>
-                                 <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
-                                <td>TSh {{ order.total_amount|floatformat:0|intcomma }}</td>
-                                <td>{{order.status}}</td>
-                                <td><a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-sm btn-info">View Details</a></td>
+                                <th>Order #</th>
+                                <th>Date</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>You haven't placed any orders yet.</p>
-            {% endif %}
+                        </thead>
+                        <tbody>
+                            {% for order in user_orders %}
+                                <tr>
+                                    <td>{{ order.id }}</td>
+                                     <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
+                            <td>TSh {{ order.total_amount|floatformat:0|intcomma }}</td>
+                                <td>{{order.status}}</td>
+                                    <td><a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-sm btn-info">View Details</a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    </div>
+                {% else %}
+                    <p>You haven't placed any orders yet.</p>
+                {% endif %}
         </div>
     </div>
 </div>
