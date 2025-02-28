@@ -18,6 +18,9 @@ urlpatterns = [
     path('orders/', views.order_list, name='order_list'),
     path('orders/<int:order_id>/', views.order_detail, name='order_detail'),
     path('search/', views.search_results, name='search_results'),
+    path('product/<slug:slug>/related/', views.get_related_products, name='get_related_products'),
+    path('user/products/', views.user_products, name='user_products'), # Add the user_products URL
+
     # path('accounts/', include('django.contrib.auth.urls')),  <- In project urls.py
     #path('subscribe/', views.subscribe, name='subscribe'), # No longer needed
 ]
