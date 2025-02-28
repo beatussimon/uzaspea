@@ -1,5 +1,5 @@
 {% extends 'marketplace/base.html' %}
-
+{% load humanize %}
 {% block title %}Shopping Cart - My Marketplace{% endblock %}
 
 {% block content %}
@@ -30,8 +30,8 @@
 
                             </form>
                         </td>
-                        <td>${{ item.product.price }}</td>
-                        <td>${{ item.subtotal|floatformat:2 }}</td>
+                        <td>Tsh {{ item.product.price|floatformat:0|intcomma }}</td>
+                        <td>Tsh {{ item.subtotal|floatformat:0|intcomma}}</td>
                         <td>
                             <a href="{% url 'remove_from_cart' product_id=item.product.id %}" class="btn btn-sm btn-danger">Remove</a>
                         </td>
@@ -41,7 +41,7 @@
             <tfoot>
                 <tr>
                     <td colspan="3" class="text-end"><strong>Total:</strong></td>
-                    <td>${{ cart_total|floatformat:2 }}</td>
+                    <td>Tsh {{ cart_total|floatformat:2|intcomma}}</td>
                     <td></td>
                 </tr>
             </tfoot>

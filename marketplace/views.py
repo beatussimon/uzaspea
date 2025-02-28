@@ -274,12 +274,14 @@ def user_profile(request):
     }
     return render(request, 'marketplace/user_profile.html', context)
 
-
 @login_required
 def dashboard(request):
     if request.user.is_staff or Product.objects.filter(seller=request.user).exists():
         products = Product.objects.filter(seller=request.user)
-        seller_orders = Order.objects.filter(orderitem_set__product__seller=request.user).distinct().order_by('-order_date')
+        # Corrected related name: orderitem_set
+        seller_orders = Order.objects.filter(
+            orderitem_set__product__seller=request.user
+        ).distinct().order_by('-order_date')
         context = {
             'products': products,
             'seller_orders': seller_orders
@@ -287,7 +289,19 @@ def dashboard(request):
         return render(request, 'marketplace/dashboard.html', context)
     else:
         return redirect('user_profile')
+@login_required
+def order_detail(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    order_items = order.orderitem_set.all()
 
+    # Correctly check if the user is authorized to view the order.
+    if (order.user == request.user or
+        request.user.is_staff or
+        order.orderitem_set.filter(product__seller=request.user).exists()):  # orderitem_set is correct here
+        context = {'order': order, 'order_items': order_items}
+        return render(request, 'marketplace/order_detail.html', context)
+    else:
+        return HttpResponseForbidden("You are not allowed to view this order.")
 
 @login_required
 @require_POST  # Use require_POST decorator, add to cart only with POST
@@ -414,16 +428,6 @@ def order_list(request):
     context = {'orders': orders}
     return render(request, 'marketplace/order_list.html', context)
 
-@login_required
-def order_detail(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-    # Ensure the user viewing the order is the owner or an admin
-    if order.user != request.user and not request.user.is_staff:
-        return HttpResponseForbidden("You are not allowed to view this order.")
-
-    order_items = order.orderitem_set.all()
-    context = {'order': order, 'order_items': order_items}
-    return render(request, 'marketplace/order_detail.html', context)
 
 
 def search_results(request):
