@@ -176,7 +176,7 @@ def product_detail(request, slug):
 
      # --- Related Products (Initial Load - 4 items) ---
     related_products_list = Product.objects.filter(category=product.category, is_available=True).exclude(pk=product.pk)
-    paginator = Paginator(related_products_list, 4)  # Show 4 related products per page
+    paginator = Paginator(related_products_list, 6)  # Show 4 related products per page
     related_products = paginator.get_page(1)  # Get *first* page for initial display
 
 
