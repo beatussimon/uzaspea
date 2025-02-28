@@ -133,89 +133,78 @@ def product_list(request):
         # For initial page load, render the full page.
         return render(request, 'marketplace/product_list.html', context)
 
-
 def product_detail(request, slug):
-    product = get_object_or_404(Product, slug=slug, is_available=True)
-    reviews = product.reviews.filter(parent=None).order_by('-created_at')  # Only top-level reviews.
-    images = product.images.all() # Get all images
-
+    product = get_object_or_404(Product, slug=slug)
+    images = product.images.all()  # Correctly get all images
+    reviews = product.reviews.filter(parent__isnull=True)  # Fetch top-level reviews
+    related_products = Product.objects.filter(category=product.category).exclude(pk=product.pk)[:4]
+    review_form = ReviewForm()
+    reply_form = ReplyForm()
+    # Check if the user has already reviewed the product.
     has_reviewed = False
     if request.user.is_authenticated:
-        has_reviewed = product.reviews.filter(user=request.user, parent=None).exists() # Check for top level reviews only
+         has_reviewed = Review.objects.filter(product=product, user=request.user).exists()
 
-    if request.method == 'POST' and request.user.is_authenticated:
-        # Check if the POST is for a review or a reply
-        if 'review_submit' in request.POST:  # Use a name attribute on submit buttons
+
+    if request.method == 'POST':
+      if 'review_submit' in request.POST: #Check for review submission
+        if request.user.is_authenticated and not has_reviewed:
             review_form = ReviewForm(request.POST)
             if review_form.is_valid():
-                if has_reviewed:
-                    messages.warning(request, "You have already reviewed this product.")
-                else:
-                    review = review_form.save(commit=False)
-                    review.product = product
-                    review.user = request.user
-                    review.save()
-                    messages.success(request, "Review submitted successfully!")
-                return redirect('product_detail', slug=product.slug) # redirect after post
+                review = review_form.save(commit=False)
+                review.product = product
+                review.user = request.user
+                review.save()
+                return redirect('product_detail', slug=product.slug)
 
-        elif 'reply_submit' in request.POST:  #Check submit button
+      elif 'reply_submit' in request.POST: #Check for reply submission
+        if request.user.is_authenticated:
             reply_form = ReplyForm(request.POST)
             if reply_form.is_valid():
                 reply = reply_form.save(commit=False)
-                reply.product = product  # VERY IMPORTANT - set the product
                 reply.user = request.user
-                parent_id = request.POST.get('parent_id')  # Get from hidden field
-                reply.parent = get_object_or_404(Review, id=parent_id)
+                reply.product = product  # Make sure to set the product
+                parent_id = request.POST.get('parent_id')
+                reply.parent = Review.objects.get(id=parent_id)
                 reply.save()
-                messages.success(request,"Reply added.")
-                return redirect('product_detail', slug=product.slug) # redirect
-
-    else:
-        review_form = ReviewForm()
-        reply_form = ReplyForm()  # Create an instance for use in the template.
-
-     # --- Related Products (Initial Load - 4 items) ---
-    related_products_list = Product.objects.filter(category=product.category, is_available=True).exclude(pk=product.pk)
-    paginator = Paginator(related_products_list, 6)  # Show 4 related products per page
-    related_products = paginator.get_page(1)  # Get *first* page for initial display
-
+                return redirect('product_detail', slug=product.slug) # Redirect after POST.
 
     context = {
         'product': product,
+        'images': images,
         'reviews': reviews,
+        'related_products': related_products,
         'review_form': review_form,
-        'has_reviewed': has_reviewed,
-        'images' : images, # Pass to the context
         'reply_form': reply_form,
-        'related_products': related_products,  # Add related products to context
+        'has_reviewed': has_reviewed,
     }
     return render(request, 'marketplace/product_detail.html', context)
 
-# --- AJAX view for loading more related products ---
-def related_products_partial(request, slug):
-    product = get_object_or_404(Product, slug=slug)
-    page_number = request.GET.get('page')
 
-    related_products_list = Product.objects.filter(
+def get_related_products(request, slug):
+    product = get_object_or_404(Product, slug=slug)
+    page = request.GET.get('page', 1)
+
+    related_products = Product.objects.filter(
         category=product.category, is_available=True
     ).exclude(pk=product.pk)
-    paginator = Paginator(related_products_list, 4)  # 4 per page
 
+    paginator = Paginator(related_products, 4)  # 4 per page
     try:
-        related_products = paginator.page(page_number)
+        products_page = paginator.page(page)
     except PageNotAnInteger:
-        related_products = paginator.page(1)  # Default to page 1
+        products_page = paginator.page(1)
     except EmptyPage:
-        return JsonResponse({'has_next': False, 'html': ''})  # No more pages
+        # Return empty response if out of range.  Important for infinite scroll.
+        return HttpResponse('')
 
+    # Render the partial template to a string
     html = render_to_string(
-        'marketplace/includes/related_products_partial.html',  # Render the partial
-        {'related_products': related_products},
-        request=request,
+        'marketplace/includes/related_products_partial.html',  # Path to partial template
+        {'related_products': products_page},  # Context
+        request=request  # Pass the request object!
     )
-    return JsonResponse({'has_next': related_products.has_next(), 'html': html})
-
-
+    return HttpResponse(html)
 
 @login_required
 def product_create(request):
@@ -528,3 +517,9 @@ def search_results(request):
         'results': results,
     }
     return render(request, 'marketplace/search_results.html', context) # Create this template
+
+@login_required
+def user_products(request):
+    """Displays a list of products owned by the currently logged-in user."""
+    products = Product.objects.filter(seller=request.user, is_available=True).order_by('-created_at')
+    return render(request, 'marketplace/user_products.html', {'products': products})

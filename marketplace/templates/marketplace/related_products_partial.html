@@ -1,0 +1,28 @@
+{% load static %}
+{% load humanize %}
+
+{% for related_product in related_products %}
+<div class="col">
+    <div class="card related-product-card h-100">
+        <div class="card-body">
+            {% if related_product.get_first_image %}
+              <a href="{{ related_product.get_absolute_url }}">
+                <img src="{{ related_product.get_first_image.url }}" class="related-product-image" alt="{{ related_product.name }}">
+              </a>
+            {% elif related_product.images.all %}
+              <a href="{{ related_product.get_absolute_url }}">
+                <img src = "{{ related_product.images.all.0.image.url }}" class="related-product-image" alt="{{ related_product.name }}">
+              </a>
+            {% else %}
+              <a href="{{ related_product.get_absolute_url }}">
+                <img src="{% static 'images/no_image.png' %}" class="related-product-image" alt="No Image">
+              </a>
+            {% endif %}
+            <h6 class="related-product-title">
+                <a href="{{ related_product.get_absolute_url }}">{{ related_product.name|truncatechars:30 }}</a>
+            </h6>
+            <p class = "related-product-price"> TSh {{ related_product.price|floatformat:0|intcomma }}</p>
+        </div>
+    </div>
+</div>
+{% endfor %}

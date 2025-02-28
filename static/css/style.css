@@ -402,6 +402,7 @@ body {
 /* product details*/
 .product-details{
   border-left: none;
-  padding-left; 0;
+  padding-left: 0;
   padding-right: 0;
 }
+
