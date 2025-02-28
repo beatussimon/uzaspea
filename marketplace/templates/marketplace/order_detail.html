@@ -1,12 +1,13 @@
 {% extends 'marketplace/base.html' %}
 {% load static %}
+{% load humanize %}
 {% block title %}Order Details - My Marketplace{% endblock %}
 
 {% block content %}
 <h1>Order Details (Order #{{ order.id }})</h1>
     <p><strong>Order Date:</strong> {{ order.order_date|date:"F d, Y H:i" }}</p>
     <p><strong>Status:</strong> {{order.status}}</p>
-<p><strong>Total Amount:</strong> ${{ order.total_amount|floatformat:2 }}</p>
+<p><strong>Total Amount:</strong> Tsh {{ order.total_amount|floatformat:0|intcomma}}</p>
 
 
 <table class="table">
@@ -23,8 +24,8 @@
             <tr>
                 <td><a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a></td>
                 <td>{{ item.quantity }}</td>
-                <td>${{ item.price|floatformat:2 }}</td>
-                <td>${{ item.subtotal|floatformat:2 }}</td>
+                <td>Tsh {{ item.price|floatformat:2|intcomma }}</td>
+                <td>Tsh {{ item.subtotal|floatformat:2|intcomma }}</td>
             </tr>
         {% endfor %}
     </tbody>
