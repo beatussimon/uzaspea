@@ -1,137 +1,505 @@
 {% extends 'marketplace/base.html' %}
 {% load humanize %}
 {% load crispy_forms_tags %}
-{% load static %}  {# <-- Load static here (globally) is fine too, BUT... #}
+{% load static %}
 
-{% block title %}{{ product.name }} - My Marketplace{% endblock %}
+{% block title %}{{ product.name }} - UZASPEA{% endblock %}
+
+{% block extra_head %}
+<style>
+/* --- Common Styles (for all options) --- */
+
+.navbar-brand {
+    font-size: 1.5rem;  /* Increased font size */
+    font-weight: bold;
+    color: #0d6efd;       /* Example color - use your brand color */
+    text-decoration: none; /* Remove underline from link */
+}
+
+.logo-image {
+    width: 45px;        /* Slightly larger logo */
+    height: 45px;
+    margin-right: 0.75rem; /* More space */
+    transition: transform 0.2s ease-in-out; /* Smooth transition for hover effect */
+}
+
+.logo-text {
+    display: inline-block; /* Important for vertical alignment */
+    vertical-align: middle; /* Vertically align with the image */
+    font-family: 'Open Sans', sans-serif; /* Example: Use a more distinctive font */
+    letter-spacing: 0.05em;  /* Subtle letter spacing */
+    transition: transform 0.3s ease-in-out, color 0.3s ease-in-out;
+}
+
+/* --- Option 1: Scaling on Hover (Simplest) --- */
+
+.navbar-brand:hover .logo-image,
+.navbar-brand:hover .logo-text {
+    transform: scale(1.1);  /* Scale up on hover */
+}
+
+
+/* --- General Styles --- */
+body {
+    font-family: 'Nunito', sans-serif; /* Example: A nice, readable font */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f8f9fa;
+    color: #343a40;
+}
+
+.container {
+    max-width: 1200px;
+}
+
+/* --- Navbar Styles --- */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* More subtle shadow*/
+    background-color: #fff;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* .navbar-brand {  <- Removed duplicate definitions
+    font-weight: bold;
+    color: #007bff;
+} */
+.navbar-brand:hover{
+    color: #0056b3  /* Or any hover color you prefer */
+}
+
+.nav-link {
+    color: #343a40;
+    transition: color 0.2s ease-in-out;
+    font-size: 1.1rem;
+}
+
+.nav-link:hover {
+    color: #0d6efd;
+}
+.navbar-toggler{
+    border: none;
+}
+
+
+/* --- Product Detail Page Styles --- */
+.product-image-container {
+    position: relative;
+    overflow: hidden;
+    max-height: 500px; /* Or any suitable maximum height */
+}
+
+.product-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.3s ease; /* Smooth transition */
+    object-fit: contain; /* VERY IMPORTANT */
+    max-height: 500px;
+
+}
+
+.product-image-container:hover .product-image {
+    transform: scale(1.1); /* Zoom on hover */
+}
+
+.product-details {
+    padding: 1rem;
+    /* Removed border-left */
+}
+
+.product-title {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.price {
+    font-size: 1.5rem;
+    color: #dc3545; /* Bootstrap danger color (red) */
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.seller-info {
+    margin-bottom: 0.5rem;
+}
+
+.verified-badge {
+    color: #28a745; /* Bootstrap success color (green) */
+    margin-left: 0.25rem; /* Space between username and icon*/
+}
+.category-link {
+    color: #007bff; /* Bootstrap primary color (blue) */
+    text-decoration: none;
+}
+.category-link:hover {
+    text-decoration: underline;
+}
+.description {
+    margin-bottom: 1rem;
+}
+
+.out-of-stock {
+        color: #dc3545; /* Bootstrap danger color (red) for out of stock */
+        font-weight: bold;
+}
+
+/* --- Review Section Styles --- */
+.review-card {
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;  /* Subtle border */
+    border-radius: 0.5rem;       /* Softer rounded corners */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background-color: #f8f9fa;    /* Light background */
+    border-bottom: 1px solid #dee2e6;
+    border-top-left-radius: 0.5rem; /* Match card radius */
+    border-top-right-radius: 0.5rem;
+}
+.review-author {
+    font-weight: bold;
+}
+
+.review-date {
+    font-size: 0.9rem;
+    color: #6c757d; /* Gray color for less emphasis */
+}
+ .review-rating {
+    color: #ffc107; /* Bootstrap warning color (gold) */
+}
+
+.review-body {
+    padding: 1rem;
+}
+
+.review-comment {
+    margin-bottom: 0.5rem;
+}
+
+.reply-container {
+    margin-left: 2rem;       /* Indent replies */
+    border-left: 2px solid #007bff; /* Vertical line for replies */
+    padding-left: 1rem;       /* Space after the line */
+}
+.reply-card{
+  background-color:#f8f9fa; /* Light background */
+  margin-bottom: 0.5rem;
+
+}
+/* Styling the details tag*/
+details {
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    padding: 0.5em 0.5em 0;
+    margin-bottom: 1rem;
+  }
+
+  summary {
+    font-weight: bold;
+    margin: -0.5em -0.5em 0;
+    padding: 0.5em;
+  }
+
+  details[open] {
+    padding: 0.5em;
+  }
+
+  details[open] summary {
+    border-bottom: 1px solid #aaa;
+    margin-bottom: 0.5em;
+  }
+
+/* --- Related Products Styles --- */
+.related-products-section {
+    padding-left: 1rem; /* Consistent padding */
+}
+
+.related-product-card {
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+}
+
+.related-product-image {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    max-height: 100px; /* Smaller images */
+}
+.related-product-title{
+        font-size: 1rem;
+}
+.related-product-price {
+    font-size: 0.9rem;
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* --- Quantity Selector Styles --- */
+
+.quantity-selector {
+    width: auto; /* Adjust width as needed */
+    display: inline-flex; /* Important for alignment */
+    align-items: center; /* Vertical alignment */
+}
+
+.quantity-input {
+    text-align: center;
+    width: 3em;
+    -moz-appearance: textfield;
+    appearance: textfield; /* Add this line */
+}
+
+/* Remove spin buttons from number input (Chrome/Safari/Edge) */
+.quantity-input::-webkit-outer-spin-button,
+.quantity-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+    /* Style for the quantity buttons.  Important! */
+.quantity-decrement,
+.quantity-increment {
+    cursor: pointer;
+    border-radius: 0; /* Remove rounded corners to make them square */
+    padding: 0.5rem 0.75rem; /* Consistent padding */
+}
+
+/* --- Infinite Scroll --- */
+#sentinel {
+    height: 1px; /* Very small height, almost invisible */
+    width: 100%;
+}
+
+#loading-indicator {
+    display: none; /* Hidden by default */
+    text-align: center;
+    padding: 1rem;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 767.98px) {
+    /* On small screens: stack everything */
+    .product-details,
+    .related-products-section{
+        border-left: none;
+        padding-left: 0;
+        padding-right: 0;
+        margin-bottom: 1.5rem; /* Add some spacing */
+    }
+     .reply-container{
+      margin-left: 0.5rem;
+      padding-left: 0.5rem;
+    }
+}
+    .product-info {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+.product-info i {
+    margin-right: 0.3rem;
+    width: 1.25em;
+    text-align: center;
+}
+
+</style>
+{% endblock %}
 
 {% block content %}
+<div class="container">
     <div class="row">
-        <div class="col-md-6">
-            <div id="carouselExampleControls" class="carousel slide" data-bs-ride="carousel">
-              <div class="carousel-inner">
-                  {% for image in images %}
-                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                      <img src="{{ image.image.url }}" class="d-block w-100" alt="{{product.name}}">
-                    </div>
-                  {% empty %}
-                    {% load static %}  {# <-- ...load it *here* as well #}
-                     <div class="carousel-item active">
-                        <img src="{% static 'images/no_image.png' %}" class="d-block w-100" alt="No image available">
-                    </div>
-                  {% endfor %}
-              </div>
-                {% if images|length > 1 %}
-                  <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="prev">
-                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden">Previous</span>
-                  </button>
-                  <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="next">
-                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden">Next</span>
-                  </button>
-                {% endif %}
-            </div>
-        </div>
-        <div class="col-md-6">
-            <h1>{{ product.name }}</h1>
-            <p><strong>Price:</strong> TSh {{ product.price|floatformat:0|intcomma }}</p>
-            <p><strong>Seller:</strong> {{ product.seller.username }}</p>
-            <p><strong>Category:</strong> <a href="{{ product.category.get_absolute_url }}">{{ product.category.name }}</a></p>
-            <p><strong>Description:</strong> {{ product.description }}</p>
-            <p><strong>Stock:</strong> {{ product.stock }}</p>
-            <p><strong>Condition:</strong> {{ product.get_condition_display }}</p>  {# Display condition #}
-             {% if product.average_rating > 0 %}
-                 <p>
-                    Rating:
-                    {% for i in "x"|ljust:product.average_rating %}
-                        <i class="fas fa-star" style="color: gold;"></i>
-                    {% endfor %}
-                    {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
-                         <i class="far fa-star" style="color: gold;"></i>
-                    {% endfor %}
-                     ({{ product.reviews.count }} reviews)
-                </p>
-            {% else %}
-                <p>No reviews yet</p>
-            {% endif %}
-
-            {% if product.seller == user %}
-                <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-warning">Edit Product</a>
-                <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-danger">Delete Product</a>
-            {% elif product.stock > 0 %}
-                 {% if request.user.is_authenticated %}
-                    <form action="{% url 'add_to_cart' slug=product.slug %}" method="post" class="d-inline">
-                        {% csrf_token %}
-                         <div class = "input-group mb-3">
-                        <input type="number" name="quantity" value="1" min="1" max = "{{product.stock}}" class="form-control">
-                        <button type="submit" class="btn btn-primary">Add to Cart</button>
-                         </div>
-                    </form>
-                 {% else %}
-                     <p><a href="{% url 'login' %}?next={{ request.path }}">Login</a> to add to cart.</p>
-                {% endif %}
-            {% else %}
-                <p class="text-danger">Out of Stock</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <hr>
-    <h2>Reviews</h2>
-    {% if request.user.is_authenticated %}
-        {% if has_reviewed %}
-            <p>You have already reviewed this product.</p>
-        {% else %}
-           <form method="post" class="mb-4">
-                {% csrf_token %}
-                {{ review_form|crispy }}
-                 <button type="submit" class="btn btn-primary" name = "review_submit">Submit Review</button>
-            </form>
-        {% endif %}
-    {% else %}
-    <p>Please <a href="{% url 'login' %}?next={{ request.path }}">log in</a> to leave a review.</p>
-    {% endif %}
-
-    {% for review in reviews %}
-    <div class="card mb-3">
-        <div class="card-body">
-            <h5 class="card-title">
-                {% for i in "x"|ljust:review.rating %}
-                <i class="fas fa-star" style="color: gold;"></i>
-                {% endfor %}
-                {% for i in "x"|ljust:5|slice:":-"|add:review.rating %}
-                <i class="far fa-star" style="color: gold;"></i>
-                {% endfor %}
-            </h5>
-            <p class="card-text">{{ review.comment }}</p>
-            <p class="card-text"><small class="text-muted">By {{ review.user.username }} on {{ review.created_at|date:"F d, Y" }}</small></p>
-
-             {% if user.is_authenticated %}
-                <details>
-                    <summary>Reply</summary>
-                    <form method = "post">
-                        {% csrf_token %}
-                        {{reply_form|crispy}}
-                        <input type = "hidden" name = "parent_id" value = "{{review.id}}">
-                        <button class = "btn btn-sm btn-primary" type = "submit" name = "reply_submit">Reply</button>
-                    </form>
-                </details>
-            {% endif %}
-
-            {% comment %} Display replies to this review {% endcomment %}
-            {% for reply in review.replies.all %}
-                <div class="card mb-2 ms-5">
-                    <div class="card-body">
-                        <p class="card-text">{{ reply.comment }}</p>
-                        <p class="card-text"><small class="text-muted">By {{ reply.user.username }} on {{ reply.created_at|date:"F d, Y" }}</small></p>
+        {# --- Main Product Area (Image and Details) --- #}
+        <div class="col-md-9">
+            <div class="row">
+                <div class="col-md-6">
+                    {# --- Carousel --- #}
+                    <div id="carouselExampleControls" class="carousel slide product-image-container" data-bs-ride="carousel">
+                        <div class="carousel-inner">
+                            {% for image in images %}
+                            <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                <img src="{{ image.image.url }}" class="d-block w-100 product-image" alt="{{ product.name }}">
+                            </div>
+                            {% empty %}
+                                <div class="carousel-item active">
+                                    <img src="{% static 'images/no_image.png' %}" class="d-block w-100 product-image" alt="No image available">
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% if images|length > 1 %}
+                        <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Previous</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Next</span>
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
-            {% endfor %}
-        </div>
-    </div>
-        {% empty %}
-            <p>No reviews yet.</p>
-        {% endfor %}
 
+                <div class="col-md-6 product-details">
+                    <h1 class="product-title">{{ product.name }}</h1>
+                    <p class="price">TSh {{ product.price|floatformat:0|intcomma }}</p>
+
+                    <p class="seller-info">
+                        <i class="fas fa-user"></i> Seller: {{ product.seller.username }}
+                        {% if product.seller.profile.is_verified %}
+                            <span class="badge bg-success">Verified</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Not Verified</span>
+                        {% endif %}
+                    </p>
+                    <p><i class = "fas fa-folder"></i> Category: <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category.name }}</a></p>
+                    <p class = "description"><i class = "fas fa-info-circle"></i> Description: {{ product.description }}</p>
+                    <p><i class="fas fa-boxes"></i> Stock: {{ product.stock }}</p>
+                    <p><i class = "fas fa-tags"></i> Condition: {{ product.get_condition_display }}</p>
+
+                    {% if product.average_rating > 0 %}
+                    <p>
+                        <i class="fas fa-star"></i> Rating:
+                        {% for i in "x"|ljust:product.average_rating %}
+                            <i class="fas fa-star text-warning"></i>
+                        {% endfor %}
+                        {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
+                            <i class="far fa-star text-warning"></i>
+                        {% endfor %}
+                        ({{ product.reviews.count }} reviews)
+                    </p>
+                    {% else %}
+                    <p><i class="fas fa-star"></i> No reviews yet</p>
+                    {% endif %}
+
+                    {% comment %}  Only show edit/delete to seller {% endcomment %}
+                    {% if product.seller == user %}
+                    <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-warning">Edit Product</a>
+                    <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-danger">Delete Product</a>
+                    {% elif product.is_available and product.stock > 0 %}
+                    {% comment %} Show add to cart if logged in and available {% endcomment %}
+                      {% if request.user.is_authenticated %}
+                        <form action="{% url 'add_to_cart' slug=product.slug %}" method="post" class="d-inline" id="add-to-cart-form">
+                            {% csrf_token %}
+                             <div class="input-group quantity-selector">
+                                <button type="button" class="btn btn-outline-secondary quantity-decrement">-</button>
+                                <input type="text" name="quantity" value="1" min="1" max="{{ product.stock }}" class="form-control quantity-input" readonly>
+                                <button type="button" class="btn btn-outline-secondary quantity-increment">+</button>
+                                <button type="submit" class="btn btn-primary ms-2">Add to Cart</button>
+                            </div>
+                        </form>
+                         {% else %}
+                            <p><a href="{% url 'login' %}?next={{ request.path }}">Login</a> to add to cart.</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-danger out-of-stock">Out of Stock</p>
+                    {% endif %}
+                </div>
+            </div>
+            <hr>
+            <h2>Reviews</h2>
+             {% if request.user.is_authenticated %}
+                {% if has_reviewed %}
+                <p>You have already reviewed this product.</p>
+                {% else %}
+                <form method="post" class="mb-4">
+                    {% csrf_token %}
+                    {{ review_form|crispy }}
+                    <button type="submit" class="btn btn-primary" name = "review_submit">Submit Review</button>
+                </form>
+                {% endif %}
+            {% else %}
+            <p>Please <a href="{% url 'login' %}?next={{ request.path }}">log in</a> to leave a review.</p>
+            {% endif %}
+            {% for review in reviews %}
+            <div class="card review-card">
+                <div class="card-header review-header">
+                    <span class = "review-author">{{ review.user.username }}</span>
+                    <span class="review-rating">
+                    {% for i in "x"|ljust:review.rating %}
+                        <i class="fas fa-star"></i>
+                    {% endfor %}
+                    {% for i in "x"|ljust:5|slice:":-"|add:review.rating %}
+                        <i class="far fa-star"></i>
+                    {% endfor %}
+                    </span>
+                    <span class="review-date">{{ review.created_at|date:"F d, Y" }}</span>
+                </div>
+                <div class="card-body review-body">
+                    <p class="card-text review-comment">{{ review.comment }}</p>
+                     {% if user.is_authenticated %}
+                        <details>
+                            <summary>Reply</summary>
+                            <form method="post">
+                                {% csrf_token %}
+                                {{ reply_form|crispy }}
+                                 <input type="hidden" name="parent_id" value="{{ review.id }}">
+                                <button class="btn btn-sm btn-primary" type="submit" name="reply_submit">Reply</button>
+                            </form>
+                        </details>
+                    {% endif %}
+
+                {# Display replies #}
+                {% for reply in review.replies.all %}
+                    <div class="card mb-2 ms-5 reply-container reply-card">
+                        <div class="card-body">
+                            <p class="card-text">{{ reply.comment }}</p>
+                            <p class="card-text"><small class="text-muted">By {{ reply.user.username }} on {{ reply.created_at|date:"F d, Y" }}</small></p>
+                        </div>
+                    </div>
+                {% endfor %}
+                </div>
+            </div>
+            {% empty %}
+            <p>No reviews yet.</p>
+            {% endfor %}
+        </div> {# End col-md-9 #}
+
+        {# --- Related Products (Right Sidebar) --- #}
+        <div class="col-md-3 related-products-section">
+            {% if related_products %}
+                <h4>Related Products</h4>
+                <div class="row row-cols-1 row-cols-md-1 g-3" id="related-products-container"> {# Use row-cols-1 for single column #}
+                    {% for related_product in related_products %}
+                    <div class="col">
+                        <div class="card related-product-card h-100">
+                            <div class="card-body">
+                                {% if related_product.get_first_image %}
+                                <a href="{{ related_product.get_absolute_url }}">
+                                    <img src="{{ related_product.get_first_image.url }}" class="related-product-image" alt="{{related_product.name}}">
+                                </a>
+                                {% elif related_product.images.all %}
+                                <a href="{{ related_product.get_absolute_url }}">
+                                     <img src = "{{ related_product.images.all.0.image.url }}" class="related-product-image" alt="{{ related_product.name }}">
+                                </a>
+                                {% else %}
+                                  <a href="{{ related_product.get_absolute_url }}">
+                                    <img src="{% static 'images/no_image.png' %}" class="related-product-image" alt="No Image">
+                                  </a>
+                                {% endif %}
+                                <h6 class="related-product-title">
+                                    <a href="{{ related_product.get_absolute_url }}">{{ related_product.name|truncatechars:30 }}</a>
+                                </h6>
+                                 <p class="card-text"> TSh {{ related_product.price|floatformat:0|intcomma }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <div id="sentinel"></div>
+                </div>
+            {% else %}
+                <p>No related products found.</p>
+            {% endif %}
+
+        </div>
+    </div>{# End row #}
+</div>
 {% endblock %}

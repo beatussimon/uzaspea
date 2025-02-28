@@ -5,14 +5,18 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib import messages
 from django.db.models import Q, Avg
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponse  # Import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from .utils import send_order_confirmation_email
 from django.db import transaction
-from django.views.decorators.http import require_POST # For add_to_cart
-from django.contrib.auth import login #for login
+from django.forms import inlineformset_factory
+from django.views.decorators.http import require_POST
+from django.contrib.auth import login
 from django.urls import reverse
+from django.template.loader import render_to_string  # Import
+
 
 def product_list(request):
+     #... (The rest of your product_list view - no changes needed here) ...
     products = Product.objects.filter(is_available=True).annotate(avg_rating=Avg('reviews__rating'))
 
     # --- Search ---
@@ -85,7 +89,7 @@ def product_list(request):
     offers = SidebarOffer.objects.filter(active=True)  # Get active offers
     news_items = SidebarNewsItem.objects.filter(active=True)[:3]  # Get top 3 active news items
 
-    # --- Handle Subscription Form ---
+     # --- Handle Subscription Form ---
     if request.method == 'POST' and 'subscribe_submit' in request.POST: # Check for submit button name
         subscription_form = SubscriptionForm(request.POST)
         if subscription_form.is_valid():
@@ -170,6 +174,12 @@ def product_detail(request, slug):
         review_form = ReviewForm()
         reply_form = ReplyForm()  # Create an instance for use in the template.
 
+     # --- Related Products (Initial Load - 4 items) ---
+    related_products_list = Product.objects.filter(category=product.category, is_available=True).exclude(pk=product.pk)
+    paginator = Paginator(related_products_list, 4)  # Show 4 related products per page
+    related_products = paginator.get_page(1)  # Get *first* page for initial display
+
+
     context = {
         'product': product,
         'reviews': reviews,
@@ -177,8 +187,34 @@ def product_detail(request, slug):
         'has_reviewed': has_reviewed,
         'images' : images, # Pass to the context
         'reply_form': reply_form,
+        'related_products': related_products,  # Add related products to context
     }
     return render(request, 'marketplace/product_detail.html', context)
+
+# --- AJAX view for loading more related products ---
+def related_products_partial(request, slug):
+    product = get_object_or_404(Product, slug=slug)
+    page_number = request.GET.get('page')
+
+    related_products_list = Product.objects.filter(
+        category=product.category, is_available=True
+    ).exclude(pk=product.pk)
+    paginator = Paginator(related_products_list, 4)  # 4 per page
+
+    try:
+        related_products = paginator.page(page_number)
+    except PageNotAnInteger:
+        related_products = paginator.page(1)  # Default to page 1
+    except EmptyPage:
+        return JsonResponse({'has_next': False, 'html': ''})  # No more pages
+
+    html = render_to_string(
+        'marketplace/includes/related_products_partial.html',  # Render the partial
+        {'related_products': related_products},
+        request=request,
+    )
+    return JsonResponse({'has_next': related_products.has_next(), 'html': html})
+
 
 
 @login_required
@@ -274,14 +310,12 @@ def user_profile(request):
     }
     return render(request, 'marketplace/user_profile.html', context)
 
+
 @login_required
 def dashboard(request):
     if request.user.is_staff or Product.objects.filter(seller=request.user).exists():
         products = Product.objects.filter(seller=request.user)
-        # Corrected related name: orderitem_set
-        seller_orders = Order.objects.filter(
-            orderitem_set__product__seller=request.user
-        ).distinct().order_by('-order_date')
+        seller_orders = Order.objects.filter(orderitem_set__product__seller=request.user).distinct().order_by('-order_date')
         context = {
             'products': products,
             'seller_orders': seller_orders
@@ -289,19 +323,7 @@ def dashboard(request):
         return render(request, 'marketplace/dashboard.html', context)
     else:
         return redirect('user_profile')
-@login_required
-def order_detail(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-    order_items = order.orderitem_set.all()
 
-    # Correctly check if the user is authorized to view the order.
-    if (order.user == request.user or
-        request.user.is_staff or
-        order.orderitem_set.filter(product__seller=request.user).exists()):  # orderitem_set is correct here
-        context = {'order': order, 'order_items': order_items}
-        return render(request, 'marketplace/order_detail.html', context)
-    else:
-        return HttpResponseForbidden("You are not allowed to view this order.")
 
 @login_required
 @require_POST  # Use require_POST decorator, add to cart only with POST
@@ -340,87 +362,137 @@ def add_to_cart(request, slug):
 def view_cart(request):
     cart = request.session.get('cart', {})
     cart_items = []
-    cart_total = 0
+    total_price = 0
 
-    for product_id, quantity in cart.items():
-        product = get_object_or_404(Product, pk=int(product_id))  # Convert back to int
-        subtotal = product.price * quantity
-        cart_total += subtotal
-        cart_items.append({'product': product, 'quantity': quantity, 'subtotal': subtotal})
+    for product_id_str, quantity in cart.items():
+        try:
+            product = Product.objects.get(id=int(product_id_str))  # Convert back to integer
+            subtotal = product.price * quantity
+            total_price += subtotal
+            cart_items.append({'product': product, 'quantity': quantity, 'subtotal': subtotal})
+        except Product.DoesNotExist:
+            # Handle the case where the product has been deleted.
+            continue
 
     context = {
         'cart_items': cart_items,
-        'cart_total': cart_total,
+        'total_price': total_price,
     }
-    return render(request, 'marketplace/cart.html', context)
+    return render(request, 'marketplace/view_cart.html', context)
 
+@login_required
+@require_POST
+def update_cart(request, product_id):
+    cart = request.session.get('cart', {})
+    product_id_str = str(product_id)  # Convert to string for dictionary key
+
+    if product_id_str in cart:
+        quantity = int(request.POST.get('quantity', 1))
+        try:
+          product = Product.objects.get(id=int(product_id)) # Check for product availability
+        except:
+            messages.warning(request, "Product is no longer available.")
+            del cart[product_id_str]  # Remove from cart if not available
+            request.session['cart'] = cart
+            return redirect('view_cart') # Redirect to cart
+
+        if quantity > 0 and quantity <= product.stock:
+            cart[product_id_str] = quantity
+        elif quantity <= 0:
+            del cart[product_id_str]  # Remove if quantity is zero or less
+            messages.info(request, "Item removed from cart.")
+        else:
+            cart[product_id_str] = product.stock #Set to maximum.
+            messages.warning(request, f"Quantity exceeds available stock. Quantity adjusted to {product.stock}")
+        request.session['cart'] = cart  # ALWAYS update the session
+
+    return redirect('view_cart')
 
 
 @login_required
+@require_POST
 def remove_from_cart(request, product_id):
     cart = request.session.get('cart', {})
-    product_id_str = str(product_id)  # Convert to string
+    product_id_str = str(product_id)
 
     if product_id_str in cart:
         del cart[product_id_str]
         request.session['cart'] = cart  # Update session
-        messages.success(request, "Item removed from cart.")
-
-    return redirect('view_cart') # Redirect back to the cart.
-
-@login_required
-def update_cart(request, product_id):
-    if request.method == 'POST':
-        cart = request.session.get('cart', {})
-        product_id_str = str(product_id)
-        quantity = int(request.POST.get('quantity', 1))
-
-        if product_id_str in cart:
-            if quantity > 0:
-                cart[product_id_str] = quantity
-                # Ensure cart quantity does not exceed the product stock
-                product = get_object_or_404(Product, pk=int(product_id))
-                if quantity > product.stock:
-                    cart[product_id_str] = product.stock
-                    messages.warning(request, "Not enough stock.  Cart quantity adjusted.")
-            else:
-              del cart[product_id_str] # Remove if the quantity is set to 0 or less
-
-            request.session['cart'] = cart
-            messages.success(request, "Cart updated successfully.")
+        messages.info(request, "Item removed from cart.")
 
     return redirect('view_cart')
 
 @login_required
-@transaction.atomic
 def checkout(request):
     cart = request.session.get('cart', {})
     if not cart:
         messages.warning(request, "Your cart is empty.")
-        return redirect('view_cart')
+        return redirect('product_list')  # Redirect to products if cart empty
 
-    order = Order.objects.create(user=request.user)
+    cart_items = []
+    total_price = 0
 
-    for product_id, quantity in cart.items():
-        product = get_object_or_404(Product, pk=int(product_id))
+    for product_id_str, quantity in cart.items():
+        product = get_object_or_404(Product, id=int(product_id_str))
+        subtotal = product.price * quantity
+        total_price += subtotal
+        cart_items.append({'product': product, 'quantity': quantity, 'subtotal': subtotal})
 
-        if product.stock < quantity:
-            messages.error(request, f"Not enough stock available for {product.name}.  Order cancelled.")
-            order.delete()
-            return redirect('view_cart')
+    if request.method == 'POST':
+        with transaction.atomic():  # Use transaction for atomicity
+            order = Order.objects.create(user=request.user, total_price=total_price)
 
-        OrderItem.objects.create(order=order, product=product, quantity=quantity, price=product.price)
-        product.stock -= quantity
-        product.save()
+            for item in cart_items:
+                product = item['product']
+                quantity = item['quantity']
+                # Check stock *again* within the transaction
+                if product.stock < quantity:
+                    raise Exception(f"Not enough stock for {product.name}")  # Rollback
 
-    order.update_total()
-    request.session['cart'] = {}  # Clear the cart
-    request.session.modified = True # Explicitly mark the session as modified.
-    send_order_confirmation_email(order)  # Send confirmation
-    messages.success(request, "Your order has been placed successfully!")
-    return redirect('order_detail', order_id=order.id)
+                OrderItem.objects.create(order=order, product=product, quantity=quantity, price=product.price)
+                product.stock -= quantity
+                product.save()
+
+            # Clear cart *after* successful order creation
+            request.session['cart'] = {}
+            messages.success(request, "Your order has been placed!")
+            send_order_confirmation_email(order)  # Email confirmation
+            return redirect('order_confirmation', order_id=order.id)  # Redirect
+
+    context = {
+        'cart_items': cart_items,
+        'total_price': total_price,
+    }
+    return render(request, 'marketplace/checkout.html', context)
 
 
+@login_required
+def order_confirmation(request, order_id):
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+    order_items = order.orderitem_set.all() # Fetch order items
+    context = {'order': order,
+              'order_items': order_items,
+              }
+    return render(request, 'marketplace/order_confirmation.html', context)
+
+
+def category_list(request):
+    categories = Category.objects.all()
+    context = {
+        'categories': categories,
+    }
+    return render(request, 'marketplace/category_list.html', context)
+
+
+
+def category_products(request, slug):
+    category = get_object_or_404(Category, slug=slug)
+    products = Product.objects.filter(category=category, is_available=True) # Only show if available
+    context = {
+        'category': category,
+        'products': products
+    }
+    return render(request, 'marketplace/category_products.html', context)
 
 @login_required
 def order_list(request):
@@ -428,7 +500,16 @@ def order_list(request):
     context = {'orders': orders}
     return render(request, 'marketplace/order_list.html', context)
 
+# Make *sure* you also have the `order_detail` view:
+@login_required
+def order_detail(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    if order.user != request.user and not request.user.is_staff:
+        return HttpResponseForbidden("You are not allowed to view this order.")
 
+    order_items = order.orderitem_set.all()
+    context = {'order': order, 'order_items': order_items}
+    return render(request, 'marketplace/order_detail.html', context)
 
 def search_results(request):
     query = request.GET.get('q')
@@ -439,11 +520,11 @@ def search_results(request):
             Q(name__icontains=query) |
             Q(description__icontains=query) |
             Q(category__name__icontains=query)|
-            Q(category__parent__name__icontains=query) # Search within parent category names
+            Q(category__parent__name__icontains=query)
         ).distinct()
 
     context = {
         'query': query,
         'results': results,
     }
-    return render(request, 'marketplace/search_results.html', context)
+    return render(request, 'marketplace/search_results.html', context) # Create this template

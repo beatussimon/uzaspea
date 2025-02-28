@@ -361,3 +361,47 @@ body {
 .social-icon:hover .fa-youtube {
     color: #ff0000; /* YouTube red */
 }
+
+/* product_detail.html specific styles */
+.related-products-section {
+    border-left: 1px solid #dee2e6; /* Add a subtle border */
+    padding-left: 1rem; /* Add some padding */
+}
+
+.related-product-card {
+    margin-bottom: 1rem; /* Space between related products */
+    border: 1px solid #dee2e6; /* Consistent border */
+}
+
+.related-product-image {
+    width: 100%;
+    height: auto;
+    object-fit: contain; /* Important for consistent sizing */
+    max-height: 150px; /* Smaller images for related products */
+}
+
+.related-product-title {
+    font-size: 1rem; /* Smaller title */
+    margin-top: 0.5rem; /* Space between image and title */
+    margin-bottom: 0.25rem;
+}
+
+.related-product-price {
+    font-size: 0.9rem; /* Smaller price */
+    color: #dc3545;    /* Consistent price color */
+    font-weight: bold;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 767.98px) {  /* Bootstrap's 'md' breakpoint */
+ .related-products-section {
+        border-left: none; /* Remove border on small screens */
+        padding-left: 0; /* Remove extra padding */
+    }
+}
+/* product details*/
+.product-details{
+  border-left: none;
+  padding-left; 0;
+  padding-right: 0;
+}
