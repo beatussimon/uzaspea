@@ -7,16 +7,17 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/product_list.css' %}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">  {# Use container for proper centering and margins #}
+<div class="container mt-4">
     <h1 class="page-title">Products</h1>
 
     <div class="row">
-        <div class="col-lg-2 col-md-3 mb-4">  {# Left Sidebar - 25% on large, 33% on medium #}
-            <aside class="filter-sidebar">
-                 <div class="card filter-group mb-4">
+        <div class="col-lg-2 col-md-3 mb-4 filter-sidebar">
+            <aside>
+                <div class="card filter-group mb-4">
                     <div class="card-header filter-header">
                         <h6 class="filter-title mb-0">Categories</h6>
                     </div>
@@ -26,18 +27,18 @@
                                 <a href="{% url 'product_list' %}" class="category-link">All Categories</a>
                             </li>
                             {% for category in categories %}
-                            <li class="category-item {% if selected_category == category %}active{% endif %}">
-                                <a href="{{ category.get_absolute_url }}" class="category-link">{{ category.name }}</a>
-                                {% if category.children.all %}
-                                <ul class="mt-2 subcategory-list">
-                                    {% for subcategory in category.children.all %}
-                                    <li class="subcategory-item">
-                                        <a href="{{ subcategory.get_absolute_url }}" class="subcategory-link">{{ subcategory.name }}</a>
-                                    </li>
-                                    {% endfor %}
-                                </ul>
-                                {% endif %}
-                            </li>
+                                <li class="category-item {% if selected_category == category %}active{% endif %}">
+                                    <a href="{{ category.get_absolute_url }}" class="category-link">{{ category.name }}</a>
+                                    {% if category.children.all %}
+                                        <ul class="mt-2 subcategory-list">
+                                            {% for subcategory in category.children.all %}
+                                                <li class="subcategory-item">
+                                                    <a href="{{ subcategory.get_absolute_url }}" class="subcategory-link">{{ subcategory.name }}</a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
+                                </li>
                             {% endfor %}
                         </ul>
                     </div>
@@ -47,7 +48,7 @@
                     <div class="card-header filter-header">
                         <h6 class="filter-title mb-0">Price Range</h6>
                     </div>
-                     <div class="card-body">
+                    <div class="card-body">
                         <form method="get" action="{% url 'product_list' %}" class="filter-form">
                             <div class="mb-3">
                                 <label for="min_price" class="form-label">Min Price:</label>
@@ -105,74 +106,75 @@
                 </div>
             </aside>
         </div>
-        <div class="col-lg-7 col-md-8">  {# Main Content: 7/12 on large, 8/12 on medium #}
-            <div class="row product-grid" id="product-container">  {# No row-cols-* #}
+
+        <div class="col-lg-7 col-md-8 order-md-2">
+            <div class="row product-grid" id="product-container">
                 {% for product in products %}
-                <div class="col">
-                    <div class="card product-card h-100">
-                        <a href="{{ product.get_absolute_url }}" class="product-link">
-                            <div class="product-image-wrapper">
-                                {% if product.get_first_image %}
-                                    <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-                                {% elif product.images.all %}
-                                    <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-                                {% else %}
-                                     <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
-                                {% endif %}
-                                <div class="product-overlay">
-                                    <span class="view-details-btn btn btn-primary">View Details</span>
-                                </div>
-                            </div>
-                        </a>
-                        <div class="card-body product-details">
-                            <h3 class="product-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
-                            <p class="product-description">{{ product.description|truncatewords:25 }}</p>
-
-                            <div class="product-meta">
-                                <span class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</span>
-                                <span class="product-condition badge {% if product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
-                                    {{ product.get_condition_display }}
-                                </span>
-                            </div>
-
-                            <div class="product-meta">
-                                <p class="product-seller">
-                                    <i class="fas fa-user"></i> <a href="{% url 'user_profile' product.seller.username %}" class="seller-link">{{ product.seller.username }}</a>
-                                    {% if product.seller.profile.is_verified %}
-                                       <span class="verified-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
+                    <div class="col-lg-3 col-md-4 col-sm-6 col-12">
+                        <div class="card product-card h-100">
+                            <a href="{{ product.get_absolute_url }}" class="product-link">
+                                <div class="product-image-wrapper">
+                                    {% if product.get_first_image %}
+                                        <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                                    {% elif product.images.all %}
+                                        <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                                    {% else %}
+                                        <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
                                     {% endif %}
-                                </p>
-                                <p class="product-category">
-                                     <i class="fas fa-folder"></i> <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category }}</a>
-                                </p>
-                            </div>
+                                    <div class="product-overlay">
+                                        <span class="view-details-btn btn btn-primary">View Details</span>
+                                    </div>
+                                </div>
+                            </a>
+                            <div class="card-body product-details">
+                                <h3 class="product-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+                                <p class="product-description">{{ product.description|truncatewords:25 }}</p>
 
-                            <div class="product-rating">
-                                {% if product.average_rating > 0 %}
-                                    {% for i in "x"|ljust:product.average_rating %}
-                                        <i class="fas fa-star text-warning"></i>
-                                    {% endfor %}
-                                    {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
-                                        <i class="far fa-star text-warning"></i>
-                                    {% endfor %}
+                                <div class="product-meta">
+                                    <span class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</span>
+                                    <span class="product-condition badge {% if product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {{ product.get_condition_display }}
+                                    </span>
+                                </div>
+
+                                <div class="product-meta">
+                                    <p class="product-seller">
+                                        <i class="bi bi-person"></i> <a href="{% url 'user_profile' product.seller.username %}" class="seller-link">{{ product.seller.username }}</a>
+                                        {% if product.seller.profile.is_verified %}
+                                            <span class="verified-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Verified Seller"><i class="bi bi-check-circle-fill"></i></span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="product-category">
+                                        <i class="bi bi-folder"></i> <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category }}</a>
+                                    </p>
+                                </div>
+
+                                <div class="product-rating">
+                                    {% if product.average_rating > 0 %}
+                                        {% for i in "x"|ljust:product.average_rating %}
+                                            <i class="bi bi-star-fill text-warning"></i>
+                                        {% endfor %}
+                                        {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
+                                          <i class="bi bi-star text-warning"></i>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="text-muted small">No reviews yet</p>
+                                    {% endif %}
+                                </div>
+                                {% if product.is_available and product.stock > 0 %}
+                                    <div class="d-grid mt-auto">
+                                        <a href="{{ product.get_absolute_url }}" class="btn btn-primary btn-view">View Details</a>
+                                    </div>
                                 {% else %}
-                                    <p class="text-muted small">No reviews yet</p>
+                                    <p class="text-danger">Out of Stock</p>
                                 {% endif %}
                             </div>
-                             {% if product.is_available and product.stock > 0 %}
-                            <div class="d-grid mt-auto">
-                                 <a href="{{ product.get_absolute_url }}" class="btn btn-primary btn-view">View Details</a>
-                            </div>
-                           {% else %}
-                              <p class = "text-danger">Out of Stock</p>
-                           {% endif %}
                         </div>
                     </div>
-                </div>
                 {% empty %}
-                <div class="col-12">
-                    <p class="no-products-message">No products found matching your criteria.</p>
-                </div>
+                    <div class="col-12">
+                        <p class="no-products-message">No products found matching your criteria.</p>
+                    </div>
                 {% endfor %}
             </div>
 
@@ -184,9 +186,9 @@
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-4"> {# Right Sidebar #}
-          <div class = "right-sidebar">
-           <div class="card mb-4">
+        <div class="col-lg-3 col-md-4 order-md-3 right-sidebar">
+            <div class="right-sidebar">
+            <div class="card mb-4">
                 <div class="card-header">Subscribe to Newsletter</div>
                 <div class="card-body">
                     <p class="small text-muted">Get the latest updates and offers.</p>
@@ -200,82 +202,82 @@
                 </div>
             </div>
             <div class="card mb-4">
-               <div class="card-header">
-                   Follow Us
-                 </div>
+                <div class="card-header">
+                    Follow Us
+                    </div>
                     <div class="card-body">
-                       <p class="text-muted small">Connect with us:</p>
-                            <div class="row row-cols-2 g-2">  {# Two icons per row on small screens #}
+                        <p class="text-muted small">Connect with us:</p>
+                            <div class="row row-cols-2 g-2">
                                 <div class="col">
-                                   <a href="https://www.facebook.com/yourfacebookpage" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Facebook" target="_blank" rel="noopener noreferrer">
-                                     <i class="fab fa-facebook-f fa-lg"></i>  {# Use fa-lg for slightly larger icons #}
+                                  <a href="https://www.facebook.com/yourfacebookpage" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Facebook" target="_blank" rel="noopener noreferrer">
+                                    <i class="bi bi-facebook"></i>
                                      </a>
-                                 </div>
-                                <div class="col">
-                                    <a href="https://twitter.com/yourtwitterhandle" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Twitter" target="_blank" rel="noopener noreferrer">
-                                    <i class="fab fa-x-twitter fa-lg"></i>
-                                        </a>
-                                         </div>
-                                      <div class="col">
-                                         <a href="https://www.instagram.com/yourinstagramusername/" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Instagram" target="_blank" rel="noopener noreferrer">
-                                      <i class="fab fa-instagram fa-lg"></i>
-                                        </a>
-                                        </div>
-                                    <div class="col">
-                                       <a href="https://www.youtube.com/youryoutubechannel" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="YouTube" target="_blank" rel="noopener noreferrer">
-                                        <i class="fab fa-youtube fa-lg"></i>
+                                   </div>
+                                   <div class="col">
+                                     <a href="https://twitter.com/yourtwitterhandle" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Twitter" target="_blank" rel="noopener noreferrer">
+                                     <i class="bi bi-twitter-x"></i>
                                          </a>
-                                        </div>
-                            </div>
+                                         </div>
+                                         <div class="col">
+                                            <a href="https://www.instagram.com/yourinstagramusername/" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Instagram" target="_blank" rel="noopener noreferrer">
+                                        <i class="bi bi-instagram"></i>
+                                             </a>
+                                             </div>
+                                             <div class="col">
+                                                <a href="https://www.youtube.com/youryoutubechannel" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="YouTube" target="_blank" rel="noopener noreferrer">
+                                             <i class="bi bi-youtube"></i>
+                                                </a>
+                                                </div>
+                                         </div>
                     </div>
             </div>
             {% if offers %}
             <div class="card mb-4">
                 <div class="card-header">Special Offers</div>
                     <div class="card-body">
-                        <ul class = "list-group list-group-flush">
-                           {% for offer in offers %}
-                               <li class = "list-group-item">
-                                  {% if offer.image %}
-                                     <img src = "{{offer.image.url}}" class = "img-fluid mb-2" alt = "{{offer.title}}">
-                                   {% endif %}
-                                      <h5>{{ offer.title }}</h5>
-                                         <p>{{ offer.description|truncatewords:20 }}</p>
-                                           {% if offer.link %}
-                                             <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">Learn More</a>
-                                             {% endif %}
-                                        </li>
-                                {% empty %}
-                                     <li class="list-group-item">No offers at the moment.</li>
-                                {% endfor %}
-                                </ul>
-                        </div>
-                    </div>
+                         <ul class = "list-group list-group-flush">
+                            {% for offer in offers %}
+                                <li class = "list-group-item">
+                                     {% if offer.image %}
+                                        <img src = "{{offer.image.url}}" class = "img-fluid mb-2" alt = "{{offer.title}}">
+                                      {% endif %}
+                                         <h5>{{ offer.title }}</h5>
+                                             <p>{{ offer.description|truncatewords:20 }}</p>
+                                                 {% if offer.link %}
+                                                  <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">Learn More</a>
+                                                   {% endif %}
+                                              </li>
+                                     {% empty %}
+                                             <li class="list-group-item">No offers at the moment.</li>
+                                     {% endfor %}
+                                     </ul>
+                         </div>
+                     </div>
               {% endif %}
               {% if news_items %}
               <div class="card mb-4">
-                    <div class="card-header">Latest News</div>
-                    <div class="card-body">
-                       <ul class = "list-group list-group-flush">
-                          {% for item in news_items %}
-                            <li class = "list-group-item">
-                               <h5>{{ item.title }}</h5>
-                                  <p class = "small text-muted">{{item.pub_date|date:"F j, Y"}}</p>
-                                    <p>{{ item.content|truncatewords:25 }}</p>
-                                      {% if item.link %}
-                                         <a href = "{{item.link}}" class = "btn btn-sm btn-outline-secondary">Read More</a>
-                                         {% endif %}
-                                </li>
-                             {% empty %}
-                                  <li class="list-group-item">No News at the moment</li>
-                                {% endfor %}
-                        </ul>
-                    </div>
-              </div>
+                     <div class="card-header">Latest News</div>
+                     <div class="card-body">
+                        <ul class = "list-group list-group-flush">
+                           {% for item in news_items %}
+                             <li class = "list-group-item">
+                                <h5>{{ item.title }}</h5>
+                                     <p class = "small text-muted">{{item.pub_date|date:"F j, Y"}}</p>
+                                         <p>{{ item.content|truncatewords:25 }}</p>
+                                             {% if item.link %}
+                                              <a href = "{{item.link}}" class = "btn btn-sm btn-outline-secondary">Read More</a>
+                                               {% endif %}
+                                          </li>
+                                 {% empty %}
+                                         <li class="list-group-item">No News at the moment</li>
+                                     {% endfor %}
+                         </ul>
+                     </div>
+                 </div>
               {% endif %}
+         </div>
         </div>
     </div>
-
 </div>
 {% endblock %}
 
@@ -320,7 +322,7 @@
                 // Instead of replacing innerHTML, *append* the new products.
                 productContainer.insertAdjacentHTML('beforeend', data);
                 page++; // Increment page number for next load.
-                  // Re-initialize tooltips after adding new content:
+                 // Re-initialize tooltips after adding new content:
                 var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
                 var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                     return new bootstrap.Tooltip(tooltipTriggerEl)
@@ -347,31 +349,29 @@
                 loadMoreProducts();
             }
         });
-        // Initialize tooltips, this have to be present for all pages
+
+        // Initialize tooltips (must be done on initial page load too!)
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-           return new bootstrap.Tooltip(tooltipTriggerEl)
-        })
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
 
-         //Image Zoom on hover (added this) -  Make this a reusable function
+        // Image Zoom on hover - Reusable function.
         function enableImageZoom() {
             const productImages = document.querySelectorAll('.product-image');
-
             productImages.forEach(image => {
                 image.addEventListener('mouseover', function() {
-                    this.style.transform = 'scale(1.1)';  // Enlarge on hover
+                    this.style.transform = 'scale(1.1)';  // Enlarge
                     this.style.transition = 'transform 0.3s ease'; // Smooth transition
                 });
                 image.addEventListener('mouseout', function() {
-                    this.style.transform = 'scale(1)'; // Reset on mouseout
+                    this.style.transform = 'scale(1)'; // Reset
                     this.style.transition = 'transform 0.3s ease';
                 });
             });
         }
-
-        // Initial call to enable image zoom on page load
+        // Initial call to enable image zoom.
         enableImageZoom();
-
     });
 </script>
 {% endblock %}

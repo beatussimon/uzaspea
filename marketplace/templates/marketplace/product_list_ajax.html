@@ -2,67 +2,69 @@
 {% load static %}
 
 {% for product in products %}
-<div class="product-card">
-    <a href="{{ product.get_absolute_url }}" class="product-link">
-        <div class="product-image-wrapper">
-            {% if product.get_first_image %}
-                <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-            {% elif product.images.all %}
-                <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-            {% else %}
-                <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
-            {% endif %}
-            <div class="product-overlay">
-                <span class="view-details-btn btn btn-primary">View Details</span>
-            </div>
-        </div>
-    </a>
-    <div class="card-body product-details">
-        <h3 class="product-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
-        <p class="product-description">{{ product.description|truncatewords:25 }}</p>
-
-        <div class="product-meta">
-            <span class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</span>
-            <span class="product-condition badge {% if product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
-                {{ product.get_condition_display }}
-            </span>
-        </div>
-
-        <div class="product-meta">
-            <p class="product-seller">
-                <i class="fas fa-user"></i> <a href="{% url 'user_profile' product.seller.username %}" class="seller-link">{{ product.seller.username }}</a>
-                {% if product.seller.profile.is_verified %}
-                   <span class="verified-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
+<div class="col-lg-3 col-md-4 col-sm-6 col-12">
+    <div class="card product-card h-100">
+        <a href="{{ product.get_absolute_url }}" class="product-link">
+            <div class="product-image-wrapper">
+                {% if product.get_first_image %}
+                    <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                {% elif product.images.all %}
+                    <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                {% else %}
+                    <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
                 {% endif %}
-            </p>
-            <p class="product-category">
-                 <i class="fas fa-folder"></i> <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category }}</a>
-            </p>
-        </div>
+                <div class="product-overlay">
+                    <span class="view-details-btn btn btn-primary">View Details</span>
+                </div>
+            </div>
+        </a>
+        <div class="card-body product-details">
+            <h3 class="product-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+            <p class="product-description">{{ product.description|truncatewords:25 }}</p>
 
-        <div class="product-rating">
-            {% if product.average_rating > 0 %}
-                {% for i in "x"|ljust:product.average_rating %}
-                    <i class="fas fa-star text-warning"></i>
-                {% endfor %}
-                {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
-                    <i class="far fa-star text-warning"></i>
-                {% endfor %}
-            {% else %}
-                <p class="text-muted small">No reviews yet</p>
-            {% endif %}
-        </div>
-         {% if product.is_available and product.stock > 0 %}
+            <div class="product-meta">
+                <span class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</span>
+                <span class="product-condition badge {% if product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
+                    {{ product.get_condition_display }}
+                </span>
+            </div>
+
+            <div class="product-meta">
+                <p class="product-seller">
+                    <i class="fas fa-user"></i> <a href="{% url 'user_profile' product.seller.username %}" class="seller-link">{{ product.seller.username }}</a>
+                    {% if product.seller.profile.is_verified %}
+                        <span class="verified-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
+                    {% endif %}
+                </p>
+                <p class="product-category">
+                    <i class="fas fa-folder"></i> <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category }}</a>
+                </p>
+            </div>
+
+            <div class="product-rating">
+                {% if product.average_rating > 0 %}
+                    {% for i in "x"|ljust:product.average_rating %}
+                        <i class="fas fa-star text-warning"></i>
+                    {% endfor %}
+                    {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
+                        <i class="far fa-star text-warning"></i>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted small">No reviews yet</p>
+                {% endif %}
+            </div>
+             {% if product.is_available and product.stock > 0 %}
             <div class="d-grid mt-auto">
                  <a href="{{ product.get_absolute_url }}" class="btn btn-primary btn-view">View Details</a>
             </div>
-        {% else %}
-           <p class = "text-danger">Out of Stock</p>
-        {% endif %}
+           {% else %}
+              <p class = "text-danger">Out of Stock</p>
+           {% endif %}
+        </div>
     </div>
 </div>
 {% empty %}
-    {% if not products and page == 1 %}
-       <p class = "no-products-message">No products found</p>
-    {% endif %}
+    <div class="col-12">
+        <p class="no-products-message">No products found matching your criteria.</p>
+    </div>
 {% endfor %}
