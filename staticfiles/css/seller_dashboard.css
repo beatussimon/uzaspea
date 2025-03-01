@@ -1,0 +1,462 @@
+/* static/css/seller_dashboard.css */
+
+/* General Styles */
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f4f6f9;
+    color: #495057;
+    line-height: 1.6;
+}
+
+.page-wrapper {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Increased max-width for larger screens */
+.container {
+    max-width: 1400px;  /* Was 1200px, now wider */
+    width: 100%;
+    padding-right: 20px;
+    padding-left: 20px;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.main-content {
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+
+/* Header */
+.dashboard-header {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: #fff;
+    padding: 2.5rem 0;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-bottom: 4px solid #004085;
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+}
+
+.dashboard-subtitle {
+    font-size: 1.3rem;
+    font-weight: 400;
+    opacity: 0.9;
+}
+
+/* Sections */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.section-title {
+    font-size: 2.2rem;
+    font-weight: 600;
+    color: #343a40;
+    margin: 0;
+}
+
+/* Product Grid */
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)); /* 4 columns on large */
+    gap: 30px;  /* Increased and consistent gap */
+}
+
+.product-card {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.product-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+.product-image-wrapper {
+    position: relative;
+    overflow: hidden;
+    /* Removed padding-top.  Use aspect-ratio instead */
+    aspect-ratio: 4 / 3;  /* Maintain 4:3 aspect ratio */
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.product-image {
+    position: absolute; /* Still absolutely positioned */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;  /* This is important for consistent sizing */
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+.product-link:hover .product-image{
+     filter: brightness(80%); /* Darken on hover */
+
+}
+
+.product-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+     border-top-left-radius: 12px;   /* Match card radius */
+    border-top-right-radius: 12px;
+}
+.product-link:hover .product-overlay {
+    opacity: 1;
+}
+
+.view-details {
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 10px 20px;
+    border: 2px solid #fff;
+    border-radius: 25px;
+    text-transform: uppercase;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+.view-details:hover{
+    background-color: white;
+    color: #333;
+}
+
+.product-info {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.product-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+    line-height: 1.4;
+}
+
+.product-title a {
+    color: #495057;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.product-title a:hover {
+    color: #007bff;
+}
+
+.product-price {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #28a745;
+    margin-bottom: 0.4rem;
+}
+
+.product-condition {
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.product-actions {
+    margin-top: auto;
+    display: flex;
+    gap: 10px;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+
+/* Table Styles */
+.table-orders {
+    width: 100%;
+    margin-bottom: 1rem;
+    color: #495057;
+    border-collapse: collapse;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.table-orders th,
+.table-orders td {
+    padding: 1rem;
+    vertical-align: top;
+    border-top: 1px solid #dee2e6;
+}
+
+.table-orders thead th {
+    vertical-align: middle;
+    background-color: #343a40;
+    color: #fff;
+    font-weight: 600;
+    border-bottom: none;
+
+}
+
+.table-orders tbody tr:nth-of-type(odd) {
+    background-color: #f8f9fa;
+}
+
+.table-orders tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+/* Badges */
+.badge {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.4rem 0.8rem;
+    border-radius: 15px;
+    text-transform: uppercase;
+}
+
+.badge-condition {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.badge-pending {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.badge-shipped {
+    background-color: #28a745;
+    color: #fff;
+}
+.badge-default{
+    background-color: #6c757d; /* Muted gray */
+    color: #fff;
+}
+/* Alerts */
+.alert {
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+    border: none;
+    border-radius: 8px;
+     box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
+}
+
+.alert-info {
+    background-color: #e2f0fb;
+    color: #0c5460;
+    border-left: 4px solid #0c5460;
+
+}
+
+.alert-success {
+     background-color: #dff0d8;
+    color: #155724;
+      border-left: 4px solid #155724;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    padding: 0.45rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    border-radius: 6px;
+    transition: all 0.2s ease-in-out;
+    text-decoration: none;
+}
+/* Primary Button */
+.btn-add-product {
+  color: #fff;
+  background-color: #28a745; /* Use success color */
+  border: 2px solid #28a745;
+  border-radius: 30px;
+}
+
+.btn-add-product:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+    color: #fff;
+     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+/* Edit Button */
+.btn-edit {
+    color: #212529;
+    background-color: #ffc107;
+    border: 2px solid #ffc107;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.btn-edit:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #212529; /* Keep text color consistent on hover */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Delete Button */
+.btn-delete {
+    color: #fff;
+    background-color: #dc3545;
+    border: 2px solid #dc3545;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* View Order Button */
+.btn-view-order {
+    color: #fff;
+    background-color: #17a2b8;
+    border: 2px solid #17a2b8;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.btn-view-order:hover {
+    background-color: #138496;
+    border-color: #117a8b;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1200px) {  /* Large screens */
+    .product-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)); /* 3 per row */
+    }
+     .container {
+        max-width: 960px; /* Adjust container width */
+    }
+}
+
+@media (max-width: 992px) {  /* Medium screens - tablets */
+    .product-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2 per row */
+    }
+     .container {
+        max-width: 720px;  /*Adjust container width */
+    }
+    .section-title {
+        font-size: 1.8rem;
+    }
+
+    .dashboard-title {
+      font-size: 2.2rem;
+    }
+    .dashboard-subtitle{
+      font-size: 1.1rem;
+    }
+
+    .product-info {
+        padding: 1rem;
+    }
+    .product-actions {
+        flex-direction: column; /* Stack buttons on smaller screens */
+    }
+    .section-header {
+        flex-direction: column; /* Stack title and button on small screens */
+        align-items: flex-start;
+     }
+    .btn-add-product{
+        margin-top: 1rem; /* Add space between button and the heading*/
+        width: 100%; /* Make Add Product button full-width */
+    }
+}
+
+@media (max-width: 768px) { /* Smaller tablets/larger phones */
+   .product-grid {
+       grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+     .container {
+        max-width: 540px; /* Adjust container width*/
+    }
+     .dashboard-title {
+        font-size: 2rem;
+    }
+
+    .dashboard-subtitle{
+        font-size: 1rem;
+    }
+    .section-title {
+        font-size: 1.6rem;
+    }
+     .table-orders th,
+    .table-orders td {
+        padding: 0.75rem; /* Reduce table padding */
+    }
+
+}
+@media (max-width: 576px) {  /* Small screens - phones */
+    .product-grid {
+        grid-template-columns: 1fr; /* 1 per row */
+    }
+    .container {
+        max-width: 100%; /* Full width on small screens */
+         padding-right: 15px; /* Reduce padding on sides */
+        padding-left: 15px;
+    }
+    .dashboard-header{
+        padding: 1.5rem 0; /* Reduce Header padding */
+    }
+
+     .dashboard-title {
+        font-size: 1.8rem;
+    }
+
+    .dashboard-subtitle{
+      font-size: 0.9rem;
+    }
+     .section-title {
+        font-size: 1.4rem; /* Further reduce font size */
+    }
+
+    .product-title {
+        font-size: 1.1rem;
+    }
+      .view-details {
+        font-size: 0.9rem; /* Reduce overlay text size */
+        padding: 8px 14px;
+    }
+
+    .btn {
+        padding: 0.35rem 0.8rem; /* Smaller buttons on mobile */
+        font-size: 0.85rem;
+    }
+
+     .table-orders th,
+    .table-orders td {
+        padding: 0.6rem; /* Even smaller table padding */
+        font-size: 0.9rem;
+    }
+    .product-actions{
+        border-top: none; /* Remove the border on small screen*/
+        padding-top: 0;
+    }
+}

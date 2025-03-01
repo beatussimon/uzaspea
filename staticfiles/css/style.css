@@ -1,0 +1,408 @@
+/* --- Common Styles (for all options) --- */
+
+.navbar-brand {
+    font-size: 1.5rem;  /* Increased font size */
+    font-weight: bold;
+    color: #0d6efd;       /* Example color - use your brand color */
+    text-decoration: none; /* Remove underline from link */
+}
+
+.logo-image {
+    width: 45px;        /* Slightly larger logo */
+    height: 45px;
+    margin-right: 0.75rem; /* More space */
+    transition: transform 0.2s ease-in-out; /* Smooth transition for hover effect */
+}
+
+.logo-text {
+    display: inline-block; /* Important for vertical alignment and transformations */
+    vertical-align: middle; /* Vertically align with the image */
+    font-family: 'Open Sans', sans-serif; /* Example: Use a more distinctive font */
+    letter-spacing: 0.05em;  /* Subtle letter spacing */
+    transition: transform 0.3s ease-in-out, color 0.3s ease-in-out;
+    font-size: 36px;
+}
+
+/* --- Option 1: Scaling on Hover (Simplest) --- */
+
+.navbar-brand:hover .logo-image,
+.navbar-brand:hover .logo-text {
+    transform: scale(1.1);  /* Scale up on hover */
+}
+
+
+/* --- General Styles --- */
+body {
+    font-family: 'Nunito', sans-serif; /* Example: A nice, readable font */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f8f9fa;
+    color: #343a40;
+}
+/* --- Navbar Styles --- */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* More subtle shadow */
+    background-color: #fff;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.navbar-brand:hover{
+    color: #0056b3  /* Or any hover color you prefer */
+}
+
+.nav-link {
+    color: #343a40;
+    transition: color 0.2s ease-in-out;
+    font-size: 1.1rem;
+}
+
+.nav-link:hover {
+    color: #0d6efd;
+}
+
+/* Remove border and box-shadow from toggler */
+.navbar-toggler {
+    border: none;
+    outline: none; /* Remove outline on focus */
+}
+.navbar-toggler:focus {
+    box-shadow: none; /* Remove blue box-shadow */
+}
+/* --- Card Styles --- */
+.card {
+    border: none;
+    border-radius: 0.375rem; /*  Less rounded corners */
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); /* Subtle shadow */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    overflow: hidden; /* prevent image overflow*/
+}
+
+.card:hover {
+    transform: translateY(-5px); /*  Lift */
+    box-shadow: 0 0.3rem 0.6rem rgba(0, 0, 0, 0.15); /*  Slightly stronger shadow */
+}
+/*Consistent Card Heights and Image Aspect Ratio*/
+.card-img-top {
+  width: 100%;
+  aspect-ratio: 4 / 3; /*Use aspect Ration*/
+  object-fit: cover;
+  border-top-left-radius:  0.375rem; /*Match Card Radius */
+  border-top-right-radius: 0.375rem;
+}
+
+
+.card-title a {
+    color: #0d6efd;
+    text-decoration: none;
+     font-size: 1.1rem; /* Reduce title size slightly */
+}
+.card-title a:hover{
+      text-decoration: underline;
+}
+
+.card-body {
+    padding: 1rem;  /* Reduced padding */
+    display: flex;
+    flex-direction: column;
+}
+
+.card-text strong {
+    color: #495057;
+}
+/* Ensure button is at the bottom */
+.card-body > *:last-child {
+    margin-top: auto;
+}
+
+
+/* --- Form Styles --- */
+.form-control {
+    border-radius: 0.375rem;
+    border-color: #ced4da;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.btn {
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
+     transition: all 0.3s ease; /* Add transitions for hover effects*/
+}
+.btn-primary{
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+/* --- Pagination Styles --- */
+.pagination {
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+.page-link {
+    color: #0d6efd;
+    border-color: #dee2e6;
+    transition: all 0.2s ease-in-out;
+}
+
+.page-link:hover {
+    color: #0a58ca;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+.page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+
+/* --- Alert Styles --- */
+.alert {
+     border-radius: 0.375rem; /*Match other elements*/
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* --- Footer Styles --- */
+.footer {
+     background-color: #f8f9fa; /*Match body background*/
+    color: #6c757d;
+     border-top: 1px solid #dee2e6; /* Add a top border */
+}
+
+/* --- Product Grid Styles --- */
+.product-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem; /* Consistent spacing */
+}
+.product-card {
+    margin-bottom: 1rem; /*Consistent bottom margins.*/
+}
+
+
+/* Responsive Adjustments */
+@media (max-width: 992px) { /* Large screens and down*/
+     .product-card {
+        flex: 0 0 calc(33.33% - 1rem); /* 3 columns on large screens */
+        max-width: calc(33.33% - 1rem);
+    }
+}
+
+@media (max-width: 768px) { /* Medium screens (tablets) */
+    .product-card {
+        flex: 0 0 calc(50% - 1rem);  /* 2 columns */
+        max-width: calc(50% - 1rem);
+    }
+}
+
+@media (max-width: 576px) { /* Small screens (phones) */
+    .product-card {
+        flex: 0 0 100%;  /* 1 column */
+        max-width: 100%;
+    }
+    .navbar-brand{
+        font-size: 1rem; /* Smaller font size */
+    }
+    .logo-image{
+        width: 30px;
+        height: 30px;
+    }
+}
+/* Style for image forms*/
+.image-form-set{
+    margin-top: 10px;
+    border: 1px dashed #ccc;
+    padding: 10px;
+
+}
+
+/* Product Info Row Styles */
+.product-info {
+    font-size: 0.9rem; /*  Slightly smaller font */
+    color: #6c757d;     /*  Muted text color */
+    margin-bottom: 0.5rem;
+    display: flex;        /* Make this a flex container */
+    justify-content: space-between; /*  Distribute space evenly */
+    align-items: center;   /*  Vertically center items */
+}
+.product-info i {
+    margin-right: 0.3rem; /* Space between icon and text */
+    width: 1.25em;       /*  Fixed width for icons - VERY IMPORTANT */
+    text-align: center;  /*  Center the icons */
+}
+.card-body p {
+    margin-bottom: 0.25rem; /*  Reduce spacing between lines in card body */
+}
+.card-text.small, .text-muted{
+    font-size: 0.875rem;
+}
+
+/* --- Sticky Sidebar --- */
+ .sticky-sidebar {
+  position: sticky;
+  top: 1rem; /* Adjust as needed for your navbar height */
+  height: calc(100vh - 2rem); /* Adjust for top and any bottom spacing */
+  overflow-y: auto; /* Allow scrolling within the sidebar if content overflows */
+}
+
+/* Right Sidebar Styles - Customize as needed */
+.right-sidebar {
+    background-color: #f8f9fa; /* Light gray background */
+    padding: 1rem;
+    border-left: 1px solid #dee2e6; /* Subtle border */
+}
+.text-decoration-none{
+    text-decoration: none;
+}
+.mt-2{
+    margin-top: 0.5rem;
+}
+.d-grid{
+  display: grid;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: .875rem;
+}
+/* Product Grid Styles. Make it 4 per row*/
+.product-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem; /* Consistent spacing */
+}
+
+.product-card {
+    flex: 0 0 calc(25% - 1rem); /* 4 columns on large screens */
+    max-width: calc(25% - 1rem);
+    margin-bottom: 1rem;
+}
+
+
+/* Responsive Adjustments */
+@media (max-width: 992px) { /* Large screens and down*/
+     .product-card {
+        flex: 0 0 calc(33.33% - 1rem); /* 3 columns on large screens */
+        max-width: calc(33.33% - 1rem);
+    }
+}
+
+@media (max-width: 768px) { /* Medium screens (tablets) */
+    .product-card {
+        flex: 0 0 calc(50% - 1rem);  /* 2 columns */
+        max-width: calc(50% - 1rem);
+    }
+}
+
+@media (max-width: 576px) { /* Small screens (phones) */
+    .product-card {
+        flex: 0 0 100%;  /* 1 column */
+        max-width: 100%;
+    }
+     .navbar-brand{
+        font-size: 1rem;
+    }
+    .logo-image{
+        width: 30px;
+        height: 30px;
+    }
+}
+
+
+/* Social Icons */
+.social-icon {
+    display: inline-flex;  /* Use inline-flex for centering */
+    justify-content: center; /* Center horizontally */
+    align-items: center;     /* Center vertically */
+    width: 2.5rem;           /*  Size */
+    height: 2.5rem;
+    border-radius: 50%;       /*  Circular shape */
+    background-color: #e9ecef;  /* Light gray background */
+    color: #6c757d;             /* Icon color (muted gray) */
+    text-decoration: none;       /* Remove underlines */
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.2s ease; /* Smooth transitions */
+    margin: 0 0.5rem;          /* Add horizontal spacing */
+}
+
+.social-icon:hover {
+    background-color: #0d6efd; /* Example: Bootstrap primary on hover */
+    color: #fff;
+    text-decoration: none; /* Ensure no underline on hover */
+    transform: scale(1.1);   /* Slightly enlarge on hover */
+}
+
+/* Specific hover colors for each icon */
+.social-icon:hover .fa-facebook-f {
+    color: #1877f2; /* Facebook blue */
+}
+.social-icon:hover .fa-x-twitter{
+    color:#000000;
+}
+
+.social-icon:hover .fa-instagram {
+  background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%,#d6249f 60%,#285AEB 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.social-icon:hover .fa-youtube {
+    color: #ff0000; /* YouTube red */
+}
+
+/* product_detail.html specific styles */
+.related-products-section {
+    border-left: 1px solid #dee2e6; /* Add a subtle border */
+    padding-left: 1rem; /* Add some padding */
+}
+
+.related-product-card {
+    margin-bottom: 1rem; /* Space between related products */
+    border: 1px solid #dee2e6; /* Consistent border */
+}
+
+.related-product-image {
+    width: 100%;
+    height: auto;
+    object-fit: contain; /* Important for consistent sizing */
+    max-height: 150px; /* Smaller images for related products */
+}
+
+.related-product-title {
+    font-size: 1rem; /* Smaller title */
+    margin-top: 0.5rem; /* Space between image and title */
+    margin-bottom: 0.25rem;
+}
+
+.related-product-price {
+    font-size: 0.9rem; /* Smaller price */
+    color: #dc3545;    /* Consistent price color */
+    font-weight: bold;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 767.98px) {  /* Bootstrap's 'md' breakpoint */
+ .related-products-section {
+        border-left: none; /* Remove border on small screens */
+        padding-left: 0; /* Remove extra padding */
+    }
+}
+/* product details*/
+.product-details{
+  border-left: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
