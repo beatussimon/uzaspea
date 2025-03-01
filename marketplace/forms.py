@@ -23,6 +23,11 @@ class ProductForm(forms.ModelForm):
                 choices.append((subcategory.pk, "— " + str(subcategory))) # added child.
         self.fields['category'].widget.choices = choices
 
+class ProfileUpdateForm(forms.ModelForm):
+    class Meta:
+        model = UserProfile
+        fields = ['bio', 'location', 'phone_number', 'instagram_username', 'website', 'profile_picture']
+
 
 class ProductImageForm(forms.ModelForm):
     class Meta:

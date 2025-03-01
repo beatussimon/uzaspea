@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Product, Category, Review, Order, OrderItem, UserProfile, ProductImage, SidebarOffer, SidebarNewsItem, Subscription
+from .models import Product, Category, Review, Order, OrderItem, UserProfile, ProductImage, SidebarOffer, SidebarNewsItem, Subscription, Follow
 from .forms import ProductForm, ReviewForm, UserRegistrationForm, ProductImageFormSet, ReplyForm, SubscriptionForm
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -13,7 +13,9 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth import login
 from django.urls import reverse
 from django.template.loader import render_to_string  # Import
-
+from django.contrib.auth import get_user_model  
+from .models import Product, Order, UserProfile
+from .forms import ProfileUpdateForm
 
 def product_list(request):
      #... (The rest of your product_list view - no changes needed here) ...
@@ -235,7 +237,6 @@ def product_create(request):
     context = {'form': form, 'formset': formset}  # Pass *both* to the template
     return render(request, 'marketplace/product_create.html', context)
 
-
 @login_required
 def product_update(request, slug):
     product = get_object_or_404(Product, slug=slug)
@@ -258,7 +259,6 @@ def product_update(request, slug):
     context = {'form': form, 'product': product, 'formset': formset} # Pass formset
     return render(request, 'marketplace/product_update.html', context)
 
-
 @login_required
 def product_delete(request, slug):
     product = get_object_or_404(Product, slug=slug)
@@ -268,10 +268,8 @@ def product_delete(request, slug):
     if request.method == 'POST':
         product.delete()
         messages.success(request, "Product deleted successfully!")
-        return redirect('product_list')
+        return redirect('product_list')  # Or another appropriate URL
     return render(request, 'marketplace/product_delete.html', {'product': product})
-
-
 
 
 def register(request):
@@ -287,31 +285,60 @@ def register(request):
 
     return render(request, 'registration/register.html', {'user_form': user_form,})
 
-
 @login_required
-def user_profile(request):
-    user_products = Product.objects.filter(seller=request.user)
-    user_orders = Order.objects.filter(user=request.user).order_by('-order_date')
+def user_profile(request, username):
+    User = get_user_model()
+    user = get_object_or_404(User, username=username)
+
+    try:
+        user_profile = user.profile
+    except UserProfile.DoesNotExist:
+        # Handle case where profile doesn't exist (shouldn't happen, but good to be safe)
+        return HttpResponse("Profile not found", status=404)
+
+    user_products = Product.objects.filter(seller=user, is_available=True)
+    user_orders = Order.objects.filter(user=user).order_by('-order_date')
+
+    # Check if the current user is following the viewed user
+    is_following = False
+    if request.user.is_authenticated:  # Only check if logged in
+        is_following = request.user.profile.following.filter(id=user.id).exists()
+
     context = {
-        'user_products': user_products,
+        'user_profile': user_profile,  # The profile of the user being viewed
+        'user_products': user_products, # Products of the user being viewed
         'user_orders': user_orders,
-        'user': request.user,  # Pass the user object for profile access
+        'user': user,   # The user object of the *viewed* profile
+        'is_following': is_following, # Whether the current user is following
     }
     return render(request, 'marketplace/user_profile.html', context)
 
+@login_required
+def edit_profile(request):
+    if request.method == 'POST':
+        form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user.profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Your profile has been updated!')
+            return redirect('user_profile', username=request.user.username)  # Redirect using username
+    else:
+        form = ProfileUpdateForm(instance=request.user.profile)
+
+    return render(request, 'marketplace/edit_profile.html', {'form': form})
 
 @login_required
 def dashboard(request):
-    if request.user.is_staff or Product.objects.filter(seller=request.user).exists():
-        products = Product.objects.filter(seller=request.user)
-        seller_orders = Order.objects.filter(orderitem_set__product__seller=request.user).distinct().order_by('-order_date')
-        context = {
-            'products': products,
-            'seller_orders': seller_orders
-        }
-        return render(request, 'marketplace/dashboard.html', context)
-    else:
-        return redirect('user_profile')
+    # Only allow access to the dashboard if the user is staff or is a seller.
+    if not request.user.is_staff and not request.user.products.exists():
+        return HttpResponseForbidden("You are not authorized to view this page.")
+    products = Product.objects.filter(seller=request.user)
+    # Orders that *contain* products sold by this user.
+    seller_orders = Order.objects.filter(orderitem_set__product__seller=request.user).distinct()
+    context = {
+        'products': products,
+        'seller_orders': seller_orders
+    }
+    return render(request, 'marketplace/dashboard.html', context)
 
 
 @login_required
@@ -523,3 +550,27 @@ def user_products(request):
     """Displays a list of products owned by the currently logged-in user."""
     products = Product.objects.filter(seller=request.user, is_available=True).order_by('-created_at')
     return render(request, 'marketplace/user_products.html', {'products': products})
+
+@login_required
+@require_POST # Only accept POST requests for security
+def follow_user(request):
+    username = request.POST.get('username') # Get from POST data
+    user_to_follow = get_object_or_404(get_user_model(), username=username)
+
+    if request.user == user_to_follow:
+        return JsonResponse({'status': 'error', 'message': 'You cannot follow yourself.'})
+
+    try:
+        # Use get_or_create to handle existing/new follows efficiently.
+        follow, created = Follow.objects.get_or_create(follower=request.user, following=user_to_follow.profile)
+        if not created:  # If the follow already existed, we unfollow.
+            follow.delete()
+            return JsonResponse({'status': 'ok', 'action': 'follow'}) # Indicate to follow
+        else:
+             return JsonResponse({'status': 'ok', 'action': 'unfollow'})  # Indicate to unfollow
+
+
+    except UserProfile.DoesNotExist:
+         return JsonResponse({'status': 'error', 'message': 'User profile not found.'}, status=404)
+    except Exception as e: # Catch any unexpected errors.
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400) # Return a JSON error response.

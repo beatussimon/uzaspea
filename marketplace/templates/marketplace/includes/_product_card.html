@@ -1,0 +1,30 @@
+{% load humanize %}
+{% load static %}
+
+<div class="card product-card h-100">
+    <a href="{% url 'product_detail' slug=product.slug %}">
+        <div class="product-image-container">
+            {% if product.get_first_image %}
+            <img src="{{ product.get_first_image.url }}" class="product-image" alt="{{ product.name }}">
+            {% elif product.images.all %}
+            <img src="{{ product.images.all.0.image.url }}" class="product-image" alt="{{ product.name }}">
+            {% else %}
+            <img src="{% static 'images/no_image.png' %}" class="product-image" alt="No Image">
+            {% endif %}
+        </div>
+    </a>
+    <div class="card-body">
+        <h5 class="card-title"><a href="{% url 'product_detail' slug=product.slug %}">{{ product.name }}</a></h5>
+        <p class="card-price">TSh {{ product.price|floatformat:0|intcomma }}</p>
+        <p class="card-text"><small>Condition: {{ product.get_condition_display }}</small></p>
+        <p class="card-text"><small>Category: {{ product.category }}</small></p>
+    </div>
+    {% if show_controls %}
+    <div class="card-footer">
+        <a href="{% url 'product_update' slug=product.slug %}"
+           class="btn btn-sm btn-outline-primary small-button">Edit</a>
+        <a href="{% url 'product_delete' slug=product.slug %}"
+           class="btn btn-sm btn-outline-danger small-button" onclick="return confirm('Are you sure?')">Delete</a>
+    </div>
+    {% endif %}
+</div>

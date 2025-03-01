@@ -1,102 +1,315 @@
 {% extends 'marketplace/base.html' %}
 {% load humanize %}
 {% load static %}
-{% block title %}{{ user.username }}'s Profile - UZASPEA{% endblock %}
+
+{% block title %}{{ user_profile.user.username }}'s Profile - UZASPEA{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* --- Profile Header Styles --- */
+    .profile-image-container {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin-right: 1rem;
+        border: 3px solid #fff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .profile-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .store-name {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .verified-badge {
+        color: #28a745;
+        margin-left: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .profile-header {
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .profile-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .profile-info p {
+        margin-bottom: 0.25rem;
+    }
+ /* --- Product Card Styles (Optimized for Space) --- */
+    .product-card {
+        margin-bottom: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08); /* Subtle shadow */
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        overflow: hidden;
+    }
+
+    .product-card:hover {
+        transform: translateY(-3px); /* Slightly less lift */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .product-image-container {
+        position: relative;
+        overflow: hidden;
+        padding-top: 100%; /* Square images */
+    }
+
+    .product-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .card-body {
+        padding: 0.75rem; /* Reduced padding */
+    }
+
+    .card-title {
+        font-size: 0.9rem; /* Smaller title */
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .card-title a {
+        color: #007bff;
+        text-decoration: none;
+    }
+    .card-title a:hover{
+      text-decoration: underline;
+    }
+
+    .card-price {
+        font-size: 0.8rem;
+        font-weight: bold;
+        color: #28a745;
+        margin-bottom: 0.25rem;
+    }
+
+    .card-text {
+        font-size: 0.7rem; /* Smaller text */
+        color: #6c757d;
+        margin-bottom: 0;
+    }
+
+    .card-footer {
+        padding: 0.5rem 0.75rem; /* Reduced padding */
+        background-color: #f8f9fa;
+        border-top: 1px solid #ddd;
+        text-align: right; /* Align buttons to the right */
+    }
+     /* --- Button Styles --- */
+    .small-button {
+        padding: 0.2rem 0.4rem;  /* Even smaller buttons */
+        font-size: 0.7rem;
+    }
+
+    /* --- Follow Button --- */
+    #follow-button {
+        margin-top: 1rem;
+    }
+
+    /* --- Orders Table --- */
+    .table {
+        margin-bottom: 0; /* Remove bottom margin */
+    }
+
+    .table th,
+    .table td {
+        padding: 0.5rem; /* Reduced padding */
+        vertical-align: middle; /* Vertically center content */
+    }
+
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #ddd;
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(0, 0, 0, 0.03); /* Very subtle striping */
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">  <div class="row">
-        <div class="col-md-4">
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title d-flex align-items-center"> {{ user.username }}
-                        {% if user.profile.is_verified %}
-                            <span class="badge bg-success ms-2">Verified</span> {% else %}
-                            <span class="badge bg-secondary ms-2">Not Verified</span> {% endif %}
-                    </h5>
-                    <p class="card-text">
-                        <strong>Phone:</strong> {{ user.profile.phone_number }}
-                    </p>
-                    {% if user.profile.instagram_username %}
-                        <p class="card-text">
-                        <strong>Instagram:</strong>
-                        <a href="https://instagram.com/{{ user.profile.instagram_username }}" target="_blank" rel="noopener noreferrer">
-                            {{ user.profile.instagram_username }}
-                        </a>
-                        </p>
-                    {% endif %}
-                    {% if user.profile.website %}
-                        <p>
-                        <strong>Website:</strong> <a href = "{{user.profile.website}}" target = "_blank" rel="noopener noreferrer">{{user.profile.website}}</a>
-                        </p>
-                    {% endif %}
-                    <p class="card-text"><strong>Email:</strong> {{ user.email }}</p>
-                    </div>
-                </div>
-                {% if user == request.user %}  <a href="{% url 'dashboard' %}" class="btn btn-primary mb-3">Go to Seller Dashboard</a>
+<div class="container mt-4">
+    <div class="profile-header">
+        <div class="profile-image-container">
+            {% if user_profile.profile_picture %}
+            <img src="{{ user_profile.profile_picture.url }}" alt="{{ user_profile.user.username }}'s Profile Picture"
+                 class="profile-image">
+            {% else %}
+            <img src="{% static 'images/default_profile.png' %}" alt="Default Profile Picture" class="profile-image">
+            {% endif %}
+        </div>
+        <div class="profile-info">
+            <h1 class="store-name">{{ user_profile.user.username }}
+                {% if user_profile.is_verified %}
+                <span class="verified-badge" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
                 {% endif %}
+            </h1>
+            {% if user_profile.bio %}
+            <p>{{ user_profile.bio }}</p>
+            {% else %}
+            <p><em>This user hasn't added a bio yet.</em></p>
+            {% endif %}
+
+            <ul class="list-unstyled">
+                <li><strong>Email:</strong> {{ user_profile.user.email }}</li>
+                {% if user_profile.phone_number %}
+                <li><strong>Phone:</strong> {{ user_profile.phone_number }}</li>
+                {% endif %}
+                {% if user_profile.instagram_username %}
+                <li><strong>Instagram: </strong>
+                    <a href="https://instagram.com/{{ user_profile.instagram_username }}" target="_blank"
+                       rel="noopener noreferrer">
+                        {{ user_profile.instagram_username }}
+                    </a>
+                </li>
+                {% endif %}
+                {% if user_profile.website %}
+                <li><strong>Website:</strong> <a href="{{ user_profile.website }}" target="_blank"
+                                               rel="noopener noreferrer">{{ user_profile.website }}</a></li>
+                {% endif %}
+                <li><strong>Joined:</strong> {{ user_profile.user.date_joined|date:"F j, Y" }}</li>
+                {% if user_profile.location %}
+                <li><strong>Location: </strong>{{ user_profile.location }}</li>
+                {% endif %}
+            </ul>
+             {% if request.user.is_authenticated and request.user != user_profile.user %}
+            <button id="follow-button"
+                    class="btn {% if is_following %} btn-danger {% else %} btn-primary {% endif %}"
+                    data-username="{{ user_profile.user.username }}">
+                {% if is_following %}
+                Unfollow
+                {% else %}
+                Follow
+                {% endif %}
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            {% if request.user == user_profile.user %}
+            <a href="{% url 'edit_profile' %}" class="btn btn-outline-primary btn-sm mb-3 small-button">Edit Profile</a>
+            <a href="{% url 'dashboard' %}" class="btn btn-primary btn-sm mb-3 small-button">Go to Seller
+                Dashboard</a>
+            {% endif %}
+
+            <h2>Products</h2>
+            {% if request.user == user_profile.user %}
+            <a href="{% url 'product_create' %}" class="btn btn-success mb-3 small-button"><i
+                    class="fas fa-plus-circle"></i>Add New Product</a>
+            {% endif %}
+
+            {% if user_products %}
+            <div class="row row-cols-1 row-cols-md-4 g-4">  {# 4 per row on md+, 1 on small #}
+                {% for product in user_products %}
+                <div class="col">
+                    {% include 'marketplace/_product_card.html' with product=product show_controls=user_profile.user == request.user %}
+                </div>
+                {% endfor %}
             </div>
+            {% else %}
+            <p>This user has no products listed yet.</p>
+            {% endif %}
 
-        <div class="col-md-8">
-                <h2>Your Products</h2>
-                 {% if user == request.user %} <a href = "{% url 'product_create' %}" class = "btn btn-primary mb-3">Add New Product</a>
-                 {% endif %}
-                {% if user_products %}  <div class="row row-cols-1 row-cols-md-2 g-4"> {% for product in user_products %}
-                        <div class="col"> <div class="card h-100">
-                                {% if product.get_first_image %}
-                                    <a href="{% url 'product_detail' slug=product.slug %}"> <img src="{{ product.get_first_image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;"> </a>
-                                    {% elif product.images.all %}
-                                     <a href="{% url 'product_detail' slug=product.slug %}">
-                                         <img src = "{{ product.images.all.0.image.url }}" class="card-img-top" alt = "{{ product.name }}" style="height: 200px; object-fit: cover;">
-                                     </a>
-                                    {% else %}
-                                     <a href="{% url 'product_detail' slug=product.slug %}">
-                                        <img src="{% static 'images/no_image.png' %}" class="card-img-top" alt="No Image" style="height: 200px; object-fit: cover;">
-                                     </a>
-                                    {% endif %}
-                                <div class="card-body">
-                                    <h5 class="card-title"><a href="{% url 'product_detail' slug=product.slug %}">{{ product.name }}</a></h5> <p class="card-text"><strong>Price:</strong> TSh {{ product.price|floatformat:0|intcomma }}</p>
-                                     <p class="card-text"><small class="text-muted">Condition: {{ product.get_condition_display }}</small></p>
-                                      {% if user == request.user %} <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-sm btn-warning">Edit</a>
-                                        <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-sm btn-danger">Delete</a>
-                                     {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p>No products listed yet.</p>
-                {% endif %}
-
-
-                <h2>Your Orders</h2>
-                {% if user_orders %}  <div class="table-responsive"> <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Order #</th>
-                                <th>Date</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for order in user_orders %}
-                                <tr>
-                                    <td>{{ order.id }}</td>
-                                     <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
-                            <td>TSh {{ order.total_amount|floatformat:0|intcomma }}</td>
-                                <td>{{order.status}}</td>
-                                    <td><a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-sm btn-info">View Details</a></td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    </div>
-                {% else %}
-                    <p>You haven't placed any orders yet.</p>
-                {% endif %}
+            <h2>Orders</h2>
+             {% if user_orders %}
+            <table class = "table table-striped">
+                <thead>
+                <tr>
+                    <th>Order #</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for order in user_orders %}
+                <tr>
+                    <td>{{ order.id }}</td>
+                    <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
+                    <td>TSh {{ order.total_amount|floatformat:0|intcomma }}</td>
+                    <td>{{ order.status }}</td>
+                    <td><a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-sm btn-info small-button">View
+                        Details</a></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            {% if user_profile.user == request.user %}
+            <p>You haven't placed any orders yet.</p>
+            {% else %}
+            <p>No placed orders yet</p>
+            {% endif %}
+            {% endif %}
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function () {
+        $('#follow-button').click(function () {
+            var username = $(this).data('username');
+            var button = $(this);
+
+            $.ajax({
+                url: "{% url 'follow_user' %}",  // Correct URL
+                type: "POST",
+                data: {
+                    username: username,
+                    csrfmiddlewaretoken: "{{ csrf_token }}"  // Correct CSRF
+                },
+                dataType: "json",
+                success: function (data) {
+                    if (data.status === 'ok') {
+                        if (data.action === 'unfollow') {
+                            button.text('Unfollow').removeClass('btn-primary').addClass('btn-danger');
+                        } else {
+                            button.text('Follow').removeClass('btn-danger').addClass('btn-primary');
+                        }
+                    } else {
+                        alert(data.message);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                    alert("An error occurred.  Please try again.");
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}

@@ -16,7 +16,7 @@
     .product-card {
         margin-bottom: 1rem; /* Consistent spacing between cards */
     }
-     /* Add a class for the info row */
+      /* Add a class for the info row */
     .product-info {
         font-size: 0.9rem; /* Slightly smaller font */
         color: #6c757d;     /* Muted text color */
@@ -27,7 +27,7 @@
         width: 1.25em;      /* Fixed width for icons - VERY IMPORTANT for alignment */
         text-align: center;  /* Center the icons within their space */
     }
-     /* --- Sticky Sidebar --- */
+    /* --- Sticky Sidebar --- */
     .sticky-sidebar {
       position: sticky;
       top: 1rem; /* Adjust as needed for your navbar height */
@@ -41,7 +41,7 @@
         padding: 1rem;
         border-left: 1px solid #dee2e6; /* Subtle border */
     }
-     /* Verified Seller Badge */
+      /* Verified Seller Badge */
     .verified-badge {
         color: #28a745; /* Bootstrap success color (green) */
         margin-left: 0.25rem; /* Space between username and icon*/
@@ -54,8 +54,8 @@
 
     <div class="row">
         <div class="col-lg-2 col-md-3 sticky-sidebar">  {# Left Sidebar - Responsive and Sticky #}
-           {# Category filter, price filter, sort by, and condition filter  #}
-             <div class="card mb-4">
+            {# Category filter, price filter, sort by, and condition filter  #}
+              <div class="card mb-4">
                 <div class="card-header">
                     Categories
                 </div>
@@ -165,7 +165,7 @@
                                 <div><i class="fas fa-box text-secondary me-1"></i> {{ product.get_condition_display }}</div>
                             </div>
                             <div class="product-info d-flex justify-content-between align-items-center mb-2">
-                                <p><i class="fas fa-user text-info me-1"></i> {{ product.seller.username }}
+                                <p><i class="fas fa-user text-info me-1"></i><a href="{% url 'user_profile' product.seller.username %}">{{ product.seller.username }}</a>
                                     {% if product.seller.profile.is_verified %}
                                         <span class="badge bg-success">Verified</span>
                                     {% else %}
@@ -214,17 +214,17 @@
         </div>
         <div class = "col-lg-2 col-md-3 right-sidebar">
         {# Right Sidebar Content #}
-         <div class="card mb-4">
+          <div class="card mb-4">
                 <div class="card-header">Subscribe to Newsletter</div>
                 <div class="card-body">
                   <p class = "small text-muted">Get the latest updates and offers.</p>
-                   <form method = "post" action = "{% url 'product_list' %}">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                      {{ subscription_form|crispy }}
-                     </div>
-                      <button type = "submit" class = "btn btn-outline-primary" name = "subscribe_submit">Subscribe</button>
-                   </form>
+                    <form method = "post" action = "{% url 'product_list' %}">
+                     {% csrf_token %}
+                     <div class="mb-3">
+                       {{ subscription_form|crispy }}
+                       </div>
+                       <button type = "submit" class = "btn btn-outline-primary" name = "subscribe_submit">Subscribe</button>
+                    </form>
                 </div>
             </div>
             <div class="card mb-4">
@@ -256,117 +256,117 @@
                         </div>
                     </div>
                 </div>
-                     {% if offers %}
-                       <div class="card mb-4">
-                          <div class="card-header">Special Offers</div>
-                            <div class="card-body">
-                                <ul class = "list-group list-group-flush">
-                                  {% for offer in offers %}
-                                    <li class = "list-group-item">
-                                        {% if offer.image %}
-                                         <img src = "{{offer.image.url}}" class = "img-fluid mb-2" alt = "{{offer.title}}">
-                                        {% endif %}
-                                       <h5>{{ offer.title }}</h5>
-                                        <p>{{ offer.description|truncatewords:20 }}</p> {# Limit description length #}
-                                        {% if offer.link %}
-                                            <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">Learn More</a>
-                                        {% endif %}
-                                    </li>
-                                  {% empty %}
-                                    <li class="list-group-item">No offers at the moment.</li>
-                                  {% endfor %}
-                                </ul>
-                            </div>
-                       </div>
-                     {% endif %}
-                    {% if news_items %}
-                        <div class="card mb-4">
-                            <div class="card-header">Latest News</div>
-                            <div class="card-body">
-                              <ul class = "list-group list-group-flush">
-                                {% for item in news_items %}
-                                    <li class = "list-group-item">
-                                       <h5>{{ item.title }}</h5>
-                                        <p class = "small text-muted">{{item.pub_date|date:"F j, Y"}}</p>
-                                        <p>{{ item.content|truncatewords:25 }}</p> {# Limit content#}
-                                        {% if item.link %}
-                                           <a href = "{{item.link}}" class = "btn btn-sm btn-outline-secondary">Read More</a>
-                                        {% endif %}
-                                    </li>
-                                {% empty %}
-                                  <li class="list-group-item">No News at the moment</li>
-                                {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-                    {% endif %}
+                </div>
+                {% if offers %}
+                    <div class="card mb-4">
+                       <div class="card-header">Special Offers</div>
+                        <div class="card-body">
+                            <ul class = "list-group list-group-flush">
+                               {% for offer in offers %}
+                                 <li class = "list-group-item">
+                                     {% if offer.image %}
+                                      <img src = "{{offer.image.url}}" class = "img-fluid mb-2" alt = "{{offer.title}}">
+                                     {% endif %}
+                                    <h5>{{ offer.title }}</h5>
+                                    <p>{{ offer.description|truncatewords:20 }}</p> {# Limit description length #}
+                                     {% if offer.link %}
+                                       <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">Learn More</a>
+                                     {% endif %}
+                                  </li>
+                               {% empty %}
+                                 <li class="list-group-item">No offers at the moment.</li>
+                               {% endfor %}
+                              </ul>
+                           </div>
                     </div>
-                  </div>
-            
-            {% endblock %}
-            
-            {% block extra_js %}
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    let loading = false;
-                    let page = 2; // Start with page 2 (page 1 is already loaded)
-                    const productContainer = document.getElementById('product-container');
-                    const loadingIndicator = document.getElementById('loading-indicator');
-                    let noMoreProducts = false;
-            
-                    function loadMoreProducts() {
-                        if (loading || noMoreProducts) return;  // Prevent multiple simultaneous loads
-                        loading = true;
-                        loadingIndicator.style.display = 'block';
-            
-                        // Construct the URL with current filters + the next page
-                        let url = new URL(window.location.href);
-                        url.searchParams.set('page', page);
-            
-            
-                        fetch(url, {  // Use fetch API for AJAX
-                            method: 'GET',
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest', // Signal that this is an AJAX request
-                            }
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                              if (response.status === 404) {
-                                //404 means no more products.
-                                noMoreProducts = true;
-                                throw new Error('No more products');
-                              } else {
-                                throw new Error('Network response was not ok');
-                              }
-                            }
-                            return response.text(); // Get the response as text
-                        })
-                        .then(data => {
-                            // Instead of replacing innerHTML, *append* the new products.
-                            productContainer.insertAdjacentHTML('beforeend', data);
-                            page++; // Increment page number for next load.
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            if (error.message === 'No more products'){
-                                loadingIndicator.style.display = 'none'; // Hide indicator.
-                            }
-            
-                        })
-                        .finally(() => {
-                            loading = false;
-                            loadingIndicator.style.display = 'none';
-                        });
-                    }
-            
-            
-                    window.addEventListener('scroll', function() {
-                        // Check if the user has scrolled to the bottom of the page.
-                        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50) {  // 50px threshold
-                            loadMoreProducts();
+                  {% endif %}
+                  {% if news_items %}
+                    <div class="card mb-4">
+                      <div class="card-header">Latest News</div>
+                      <div class="card-body">
+                          <ul class = "list-group list-group-flush">
+                           {% for item in news_items %}
+                           <li class = "list-group-item">
+                             <h5>{{ item.title }}</h5>
+                              <p class = "small text-muted">{{item.pub_date|date:"F j, Y"}}</p>
+                               <p>{{ item.content|truncatewords:25 }}</p> {# Limit content#}
+                                {% if item.link %}
+                                  <a href = "{{item.link}}" class = "btn btn-sm btn-outline-secondary">Read More</a>
+                                {% endif %}
+                           </li>
+                           {% empty %}
+                               <li class="list-group-item">No News at the moment</li>
+                            {% endfor %}
+                             </ul>
+                         </div>
+                      </div>
+                    {% endif %}
+                        </div>
+                    </div>
+
+                {% endblock %}
+
+                {% block extra_js %}
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        let loading = false;
+                        let page = 2; // Start with page 2 (page 1 is already loaded)
+                        const productContainer = document.getElementById('product-container');
+                        const loadingIndicator = document.getElementById('loading-indicator');
+                        let noMoreProducts = false;
+
+                        function loadMoreProducts() {
+                            if (loading || noMoreProducts) return;  // Prevent multiple simultaneous loads
+                            loading = true;
+                            loadingIndicator.style.display = 'block';
+
+                            // Construct the URL with current filters + the next page
+                            let url = new URL(window.location.href);
+                            url.searchParams.set('page', page);
+
+
+                            fetch(url, {  // Use fetch API for AJAX
+                                method: 'GET',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest', // Signal that this is an AJAX request
+                                }
+                            })
+                            .then(response => {
+                                if (!response.ok) {
+                                  if (response.status === 404) {
+                                    //404 means no more products.
+                                    noMoreProducts = true;
+                                    throw new Error('No more products');
+                                  } else {
+                                    throw new Error('Network response was not ok');
+                                  }
+                                }
+                                return response.text(); // Get the response as text
+                            })
+                            .then(data => {
+                                // Instead of replacing innerHTML, *append* the new products.
+                                productContainer.insertAdjacentHTML('beforeend', data);
+                                page++; // Increment page number for next load.
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                if (error.message === 'No more products'){loadingIndicator.style.display = 'none'; // Hide indicator.
+                                }
+
+                            })
+                            .finally(() => {
+                                loading = false;
+                                loadingIndicator.style.display = 'none';
+                            });
                         }
+
+
+                        window.addEventListener('scroll', function() {
+                            // Check if the user has scrolled to the bottom of the page.
+                            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50) {  // 50px threshold
+                                loadMoreProducts();
+                            }
+                        });
                     });
-                });
-            </script>
-            {% endblock %}
+                </script>
+                {% endblock %}
