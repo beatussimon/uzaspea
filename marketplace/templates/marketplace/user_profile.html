@@ -53,22 +53,61 @@
     .profile-info p {
         margin-bottom: 0.25rem;
     }
- /* --- Product Card Styles (Optimized for Space) --- */
+
+    /* --- Analytics Section --- */
+    .analytics-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        margin-bottom: 1rem;
+    }
+     .analytics-card{
+        border: 1px solid #dee2e6;
+        border-radius: 0.35rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
+        padding: 0.5rem 0.8rem;
+        margin-bottom: 0.5rem;
+        flex-grow:1;
+        margin-right: 5px;
+    }
+
+    .analytics-item {
+        text-align: center;
+        margin: 0.5rem;
+        min-width: 80px; /* Ensure consistent spacing */
+    }
+
+    .analytics-item .value {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #007bff; /* Bootstrap primary color */
+    }
+    .analytics-item .label {
+        font-size: 0.9rem;
+        color: #6c757d;
+
+    }
+
+
+    /* --- Product Card Styles (Optimized for Space) --- */
     .product-card {
         margin-bottom: 1rem;
         border: 1px solid #ddd;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08); /* Subtle shadow */
         transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        overflow: hidden;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
 
     .product-card:hover {
-        transform: translateY(-3px); /* Slightly less lift */
+        transform: translateY(-5px); /* Slightly less lift */
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
     }
 
-    .product-image-container {
+      .product-image-container {
         position: relative;
         overflow: hidden;
         padding-top: 100%; /* Square images */
@@ -85,6 +124,9 @@
 
     .card-body {
         padding: 0.75rem; /* Reduced padding */
+         display: flex;
+        flex-direction: column;
+        flex-grow: 1;
     }
 
     .card-title {
@@ -96,13 +138,13 @@
         white-space: nowrap;
     }
 
-    .card-title a {
-        color: #007bff;
-        text-decoration: none;
+     .card-title a {
+        color: #007bff;  /*Bootstrap primary color*/
+        text-decoration: none; /* Remove underlines */
     }
-    .card-title a:hover{
-      text-decoration: underline;
-    }
+     .card-title a:hover{
+        text-decoration: underline;
+     }
 
     .card-price {
         font-size: 0.8rem;
@@ -115,15 +157,17 @@
         font-size: 0.7rem; /* Smaller text */
         color: #6c757d;
         margin-bottom: 0;
+
+    }
+    /* Make card footer at bottom */
+    .card-footer{
+     margin-top: auto;
+     padding: 0.5rem;
+     background-color: #f8f9fa;
+     border-top: 1px solid #ddd;
     }
 
-    .card-footer {
-        padding: 0.5rem 0.75rem; /* Reduced padding */
-        background-color: #f8f9fa;
-        border-top: 1px solid #ddd;
-        text-align: right; /* Align buttons to the right */
-    }
-     /* --- Button Styles --- */
+    /* --- Button Styles --- */
     .small-button {
         padding: 0.2rem 0.4rem;  /* Even smaller buttons */
         font-size: 0.7rem;
@@ -135,7 +179,7 @@
     }
 
     /* --- Orders Table --- */
-    .table {
+      .table {
         margin-bottom: 0; /* Remove bottom margin */
     }
 
@@ -153,6 +197,167 @@
     .table-striped tbody tr:nth-of-type(odd) {
         background-color: rgba(0, 0, 0, 0.03); /* Very subtle striping */
     }
+
+
+    /* --- Responsive Adjustments --- */
+    @media (max-width: 767.98px) {
+      .profile-header {
+          flex-direction: column; /* Stack on small screens */
+          align-items: flex-start; /* Align to start */
+        }
+      .analytics-item {
+            margin: 0.25rem 0; /* Reduce vertical margin */
+        }
+
+    }
+    @media (max-width: 576px) {
+      .analytics-section{
+          flex-direction: column;
+      }
+    }
+
+    .product-card {
+    width: 100%;
+    max-width: 300px; /* Adjust this value based on your preference */
+    margin: 0 auto; /* Centers the card in its column */
+    height: 400px; /* Fixed height for consistency - adjust as needed */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Ensure images don't stretch awkwardly */
+.product-card img {
+    width: 100%;
+    height: 200px; /* Fixed height for images - adjust as needed */
+    object-fit: cover; /* Prevents distortion */
+}
+
+/* Optional: Ensure content doesn't overflow */
+.product-card .card-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .product-card {
+        max-width: 100%;
+        height: auto;
+    }
+}
+
+.analytics-section {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px; /* Clean, professional spacing */
+    padding: 15px;
+    flex-wrap: nowrap; /* Single row enforced */
+    overflow-x: auto; /* Fallback for extreme cases */
+    width: 100%;
+    background: linear-gradient(135deg, #f5f7fa, #e4e9f0); /* Subtle gradient */
+    border-radius: 8px; /* Soft edges */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Light outer shadow */
+}
+
+.analytics-card {
+    flex: 0 0 23.5%; /* Precise width for 4 cards with gap */
+    min-width: 70px; /* Minimum for small screens */
+    background: #ffffff;
+    border: 1px solid #e9ecef; /* Light border for definition */
+    border-radius: 6px;
+    padding: 12px 8px; /* Balanced padding */
+    transition: all 0.3s ease; /* Smooth hover */
+}
+
+.analytics-card:hover {
+    transform: translateY(-2px); /* Subtle lift */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Enhanced shadow on hover */
+}
+
+.analytics-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.analytics-item i {
+    font-size: 20px; /* Refined icon size */
+    color: #2c3e50; /* Deep slate blue for professionalism */
+    margin-bottom: 6px;
+}
+
+.analytics-item .value {
+    font-size: 24px; /* Bold but not oversized */
+    font-weight: 700; /* Strong emphasis */
+    color: #1a202c; /* Almost black for contrast */
+    font-family: 'Arial', sans-serif; /* Clean, professional font */
+    margin-bottom: 4px;
+}
+
+.analytics-item .label {
+    font-size: 12px; /* Small but legible */
+    font-weight: 500;
+    color: #718096; /* Cool gray for subtlety */
+    font-family: 'Arial', sans-serif;
+    text-transform: uppercase; /* Professional touch */
+    letter-spacing: 0.5px; /* Slight spacing for elegance */
+    white-space: nowrap;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .analytics-section {
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .analytics-card {
+        flex: 0 0 24%; /* Adjusted for tighter fit */
+        min-width: 60px;
+        padding: 10px 6px;
+    }
+
+    .analytics-item i {
+        font-size: 18px;
+    }
+
+    .analytics-item .value {
+        font-size: 20px;
+    }
+
+    .analytics-item .label {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .analytics-section {
+        gap: 6px;
+        padding: 8px;
+    }
+
+    .analytics-card {
+        flex: 0 0 24.5%; /* Maximized space usage */
+        min-width: 50px;
+        padding: 8px 4px;
+    }
+
+    .analytics-item i {
+        font-size: 16px;
+    }
+
+    .analytics-item .value {
+        font-size: 18px;
+    }
+
+    .analytics-item .label {
+        font-size: 9px;
+        letter-spacing: 0.3px;
+    }
+}
+
 </style>
 {% endblock %}
 
@@ -168,7 +373,7 @@
             {% endif %}
         </div>
         <div class="profile-info">
-            <h1 class="store-name">{{ user_profile.user.username }}
+            <h1 class="store-name">{{ user_profile.user.username }}  {# Use user_profile.user #}
                 {% if user_profile.is_verified %}
                 <span class="verified-badge" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
                 {% endif %}
@@ -180,7 +385,7 @@
             {% endif %}
 
             <ul class="list-unstyled">
-                <li><strong>Email:</strong> {{ user_profile.user.email }}</li>
+                <li><strong>Email:</strong> {{ user_profile.user.email }}</li>  {# user_profile.user #}
                 {% if user_profile.phone_number %}
                 <li><strong>Phone:</strong> {{ user_profile.phone_number }}</li>
                 {% endif %}
@@ -196,120 +401,150 @@
                 <li><strong>Website:</strong> <a href="{{ user_profile.website }}" target="_blank"
                                                rel="noopener noreferrer">{{ user_profile.website }}</a></li>
                 {% endif %}
-                <li><strong>Joined:</strong> {{ user_profile.user.date_joined|date:"F j, Y" }}</li>
+                <li><strong>Joined:</strong> {{ user_profile.user.date_joined|date:"F j, Y" }}</li>  {# user_profile.user #}
                 {% if user_profile.location %}
                 <li><strong>Location: </strong>{{ user_profile.location }}</li>
                 {% endif %}
             </ul>
-             {% if request.user.is_authenticated and request.user != user_profile.user %}
+
+            {% comment %}  Show follow button only if logged in and NOT viewing own profile {% endcomment %}
+            {% if request.user.is_authenticated and request.user != user_profile.user %}
             <button id="follow-button"
-                    class="btn {% if is_following %} btn-danger {% else %} btn-primary {% endif %}"
-                    data-username="{{ user_profile.user.username }}">
-                {% if is_following %}
-                Unfollow
-                {% else %}
-                Follow
-                {% endif %}
+                    class="btn {% if is_following %}btn-danger{% else %}btn-primary{% endif %}"
+                    data-username="{{ user_profile.user.username }}">  {# Correct data attribute #}
+                {% if is_following %}Unfollow{% else %}Follow{% endif %}
             </button>
             {% endif %}
         </div>
     </div>
-
+    <div class="analytics-section">
+        <div class="analytics-card">
+            <div class="analytics-item">
+                <i class="fas fa-boxes"></i>
+                <span class="value">2</span>
+                <div class="label">Products</div>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <div class="analytics-item">
+                <i class="fas fa-user-friends"></i>
+                <span class="value">0</span>
+                <div class="label">Followers</div>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <div class="analytics-item">
+                <i class="fas fa-users"></i>
+                <span class="value">1</span>
+                <div class="label">Following</div>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <div class="analytics-item">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="value">1</span>
+                <div class="label">Orders</div> <!-- Shortened for consistency -->
+            </div>
+        </div>
+    </div>
     <div class="row">
         <div class="col-md-12">
+            {% comment %}  Only show edit/dashboard to the profile owner {% endcomment %}
             {% if request.user == user_profile.user %}
-            <a href="{% url 'edit_profile' %}" class="btn btn-outline-primary btn-sm mb-3 small-button">Edit Profile</a>
-            <a href="{% url 'dashboard' %}" class="btn btn-primary btn-sm mb-3 small-button">Go to Seller
-                Dashboard</a>
+                <a href="{% url 'edit_profile' %}" class="btn btn-outline-primary btn-sm mb-3 small-button">Edit Profile</a>
+                <a href="{% url 'dashboard' %}" class="btn btn-primary btn-sm mb-3 small-button">Go to Seller Dashboard</a>
             {% endif %}
 
             <h2>Products</h2>
-            {% if request.user == user_profile.user %}
-            <a href="{% url 'product_create' %}" class="btn btn-success mb-3 small-button"><i
-                    class="fas fa-plus-circle"></i>Add New Product</a>
-            {% endif %}
+              {% if request.user == user_profile.user %}
+              <a href="{% url 'product_create' %}" class = "btn btn-success mb-3 small-button"><i class = "fas fa-plus-circle"></i>Add New Product</a>
+              {% endif %}
 
             {% if user_products %}
-            <div class="row row-cols-1 row-cols-md-4 g-4">  {# 4 per row on md+, 1 on small #}
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
                 {% for product in user_products %}
-                <div class="col">
-                    {% include 'marketplace/_product_card.html' with product=product show_controls=user_profile.user == request.user %}
-                </div>
+                    <div class="col">
+                        {% include 'marketplace/includes/_product_card.html' with product=product show_controls=show_controls %}
+                    </div>
                 {% endfor %}
             </div>
             {% else %}
-            <p>This user has no products listed yet.</p>
+                <p>This user has no products listed yet.</p>
             {% endif %}
 
             <h2>Orders</h2>
-             {% if user_orders %}
-            <table class = "table table-striped">
-                <thead>
-                <tr>
-                    <th>Order #</th>
-                    <th>Date</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for order in user_orders %}
-                <tr>
-                    <td>{{ order.id }}</td>
-                    <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
-                    <td>TSh {{ order.total_amount|floatformat:0|intcomma }}</td>
-                    <td>{{ order.status }}</td>
-                    <td><a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-sm btn-info small-button">View
-                        Details</a></td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            {% if user_profile.user == request.user %}
-            <p>You haven't placed any orders yet.</p>
-            {% else %}
-            <p>No placed orders yet</p>
-            {% endif %}
+                {% if user_orders %}
+                <div class = "table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Date</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in user_orders %}
+                                <tr>
+                                    <td>{{ order.id }}</td>
+                                     <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
+                                    <td>TSh {{ order.total_amount|floatformat:0|intcomma }}</td>
+                                    <td>{{order.status}}</td>
+                                    <td><a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-sm btn-info small-button">View Details</a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                 </div>
+                {% else %}
+                 {% if user_profile.user == request.user %}
+                    <p>You haven't placed any orders yet.</p>
+                    {% else %}
+                    <p>No placed orders yet.</p>
+                 {% endif %}
             {% endif %}
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block javascript %}
 <script>
-    $(document).ready(function () {
-        $('#follow-button').click(function () {
-            var username = $(this).data('username');
-            var button = $(this);
+    $(document).ready(function() {
+      $('#follow-button').click(function() {
+        var username = $(this).data('username');
+        var button = $(this);
 
-            $.ajax({
-                url: "{% url 'follow_user' %}",  // Correct URL
-                type: "POST",
-                data: {
-                    username: username,
-                    csrfmiddlewaretoken: "{{ csrf_token }}"  // Correct CSRF
-                },
-                dataType: "json",
-                success: function (data) {
-                    if (data.status === 'ok') {
-                        if (data.action === 'unfollow') {
-                            button.text('Unfollow').removeClass('btn-primary').addClass('btn-danger');
-                        } else {
-                            button.text('Follow').removeClass('btn-danger').addClass('btn-primary');
-                        }
+        $.ajax({
+            url: "{% url 'follow_user' %}", // Correct URL
+            type: 'POST',
+            data: {
+                'username': username,  // Pass the *username*
+                csrfmiddlewaretoken: '{{ csrf_token }}' // Correct CSRF
+            },
+            dataType: 'json',
+            success: function(data) {
+                if (data.status === 'ok') {
+                    if (data.action === 'unfollow') {
+                        button.text('Unfollow').removeClass('btn-primary').addClass('btn-danger');
                     } else {
-                        alert(data.message);
+                        button.text('Follow').removeClass('btn-danger').addClass('btn-primary');
                     }
-                },
-                error: function (xhr, status, error) {
-                    console.error("AJAX Error:", status, error);
-                    alert("An error occurred.  Please try again.");
+                     // Update follower count (if you're displaying it)
+                    $('.analytics-item .value:eq(1)').text(data.followers);
+                } else {
+                    alert(data.message);
                 }
-            });
+            },
+            error: function(xhr, status, error) {
+                console.error("AJAX Error:", status, error);
+                alert("An error occurred.  Please try again.");
+            }
         });
     });
+});
+
 </script>
 {% endblock %}

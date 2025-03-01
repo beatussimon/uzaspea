@@ -7,236 +7,247 @@
 
 {% block extra_head %}
 <style>
-/* --- Product Image Styles --- */
-.product-image-container {
-    position: relative;
-    overflow: hidden;
-    max-height: 500px; /* Or whatever max height you want */
-}
+    /* --- Product Image Styles --- */
+    .product-image-container {
+        position: relative;
+        overflow: hidden;
+        max-height: 500px; /* Or whatever max height you want */
+    }
 
-.product-image {
-    width: 100%;
-    height: auto;
-    display: block; /* Important for consistent spacing */
-    transition: transform 0.3s ease; /* Smooth zoom */
-    object-fit: contain; /* Or cover, depending on your preference */
-    max-height: 500px;
-}
-.product-image-container:hover .product-image {
-    transform: scale(1.1); /* Zoom on hover */
-}
+    .product-image {
+        width: 100%;
+        height: auto;
+        display: block; /* Important for consistent spacing */
+        transition: transform 0.3s ease; /* Smooth zoom */
+        object-fit: contain; /* or 'cover', if you prefer */
+        max-height: 500px;
+    }
+    .product-image-container:hover .product-image {
+        transform: scale(1.1); /* Zoom on hover */
+    }
 
-.product-details {
-    padding: 1rem;
-    /* Removed border-left: No longer needed with three-column layout */
-}
+    .product-details {
+        padding: 1rem;
+        /* Removed border-left */
+    }
 
-.product-title {
-    font-size: 1.8rem; /* Larger title */
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-}
-.verified-badge {
-  color: #28a745; /* Bootstrap success color (green) */
-  margin-left: 0.25rem; /* Space between username and icon*/
-}
+    .product-title {
+        font-size: 1.8rem; /* Larger title */
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
 
-.price {
-    font-size: 1.5rem;
-    color: #dc3545; /* Bootstrap danger color (red) - but use for price */
-    font-weight: bold;
-    margin-bottom: 1rem;
-}
+    .price {
+        font-size: 1.5rem;
+        color: #dc3545; /* Bootstrap danger color (red) - but use for price */
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
 
-.seller-info {
-    margin-bottom: 0.5rem;
-}
+    .seller-info {
+        margin-bottom: 0.5rem;
+    }
+    .seller-info a{
+      color: inherit;
+      text-decoration: none;
 
-.category-link {
-    color: #007bff; /* Bootstrap primary color (blue) */
-    text-decoration: none; /* Remove underline */
-}
-.category-link:hover {
-    text-decoration: underline; /* Add underline on hover */
-}
+    }
 
-.description {
-    margin-bottom: 1rem;
-}
-.out-of-stock {
-    color: #dc3545; /* Bootstrap danger color (red) for out of stock */
-    font-weight: bold;
-}
+    .verified-badge {
+        color: #28a745; /* Bootstrap success color (green) */
+        margin-left: 0.25rem;
+    }
 
-/* --- Review Section Styles --- */
-.review-card {
-  margin-bottom: 1rem;
-  border: 1px solid #dee2e6;
-  border-radius: 0.5rem; /* Softer rounded corners*/
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+    .category-link {
+        color: #007bff; /* Bootstrap primary color (blue) */
+        text-decoration: none;
+    }
+    .category-link:hover {
+        text-decoration: underline;
+    }
 
-.review-header {
-  display: flex;          /* Flexbox for alignment */
-  justify-content: space-between; /* Space out items */
-  align-items: center;    /* Vertically center */
-  padding: 0.75rem 1rem;
-  background-color: #f8f9fa; /* Light background */
-  border-bottom: 1px solid #dee2e6;
-  border-top-left-radius: 0.5rem; /* Match card radius */
-  border-top-right-radius: 0.5rem;
-}
-.review-author {
-    font-weight: bold;
-}
+    .description {
+        margin-bottom: 1rem;
+    }
 
-.review-date {
-    font-size: 0.9rem; /* Slightly smaller text */
-    color: #6c757d;  /* Gray color for less emphasis */
-}
-.review-rating {
-    color: #ffc107;
-}
-.review-body {
-    padding: 1rem;
-}
-.review-comment {
-    margin-bottom: 0.5rem; /* Space below comment */
-}
+    .out-of-stock {
+        color: #dc3545; /* Bootstrap danger color for out of stock */
+        font-weight: bold;
+    }
+     .product-info {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+        display: flex;        /* Use flexbox */
+        justify-content: space-between;  /* Distribute space evenly */
+        align-items: center;    /* Vertically center items */
+    }
 
-.reply-container {
-    margin-left: 2rem;  /* Indent replies */
-    border-left: 2px solid #007bff; /* Visual cue for replies */
-    padding-left: 1rem; /* Space after the border */
-}
-.reply-card{
-    background-color:#f8f9fa;
-    margin-bottom: 0.5rem;
-}
+    .product-info i {
+        margin-right: 0.3rem;
+        width: 1.25em;
+        text-align: center;
+    }
 
-/* --- Quantity Selector Styles --- */
+    /* --- Review Section Styles --- */
+    .review-card {
+      margin-bottom: 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.5rem; /* Softer rounded corners */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
+    }
+    .review-header {
+        display: flex;          /* Flexbox for alignment */
+        justify-content: space-between; /* Space out items */
+        align-items: center;    /* Vertically center */
+        padding: 0.75rem 1rem;
+        background-color: #f8f9fa; /* Light background */
+        border-bottom: 1px solid #dee2e6; /* Border */
+        border-top-left-radius: 0.5rem; /* Match card radius */
+        border-top-right-radius: 0.5rem;
+    }
+    .review-author {
+        font-weight: bold;
+    }
+    .review-date {
+        font-size: 0.9rem;  /*Slightly smaller text */
+        color: #6c757d;  /* Gray color */
+    }
+      .review-rating {
+        color: #ffc107; /* Bootstrap warning color (gold) */
+    }
 
-.quantity-selector {
-    width: auto; /* Adjust width as needed */
-    display: inline-flex; /* Important for alignment */
-    align-items: center; /* Vertical alignment */
-}
+    .review-body {
+        padding: 1rem;
+    }
 
-.quantity-input {
+    .review-comment {
+        margin-bottom: 0.5rem;
+    }
+
+    .reply-container {
+      margin-left: 2rem;
+      border-left: 3px solid #007bff;
+      padding-left: 1rem;
+    }
+      .reply-card{
+      background-color:#f8f9fa; /* Light background */
+      margin-bottom: 0.5rem;
+
+    }
+    /* Styling the details tag*/
+    details {
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      padding: 0.5em 0.5em 0;
+       margin-bottom: 1rem;
+    }
+
+    summary {
+      font-weight: bold;
+      margin: -0.5em -0.5em 0;
+      padding: 0.5em;
+    }
+
+    details[open] {
+      padding: 0.5em;
+    }
+
+    details[open] summary {
+      border-bottom: 1px solid #aaa;
+      margin-bottom: 0.5em;
+    }
+
+    /* --- Related Products Styles --- */
+    .related-products-section {
+        padding-left: 1rem;  /* Consistent padding */
+    }
+
+    .related-product-card {
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.075);
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+     .related-product-card:hover {
+        transform: translateY(-5px);  /* Slightly lift the card on hover */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);  /* Slightly stronger shadow on hover */
+    }
+
+
+    .related-product-image {
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+        max-height: 100px; /* Smaller images */
+         border-top-left-radius: 0.375rem;
+        border-top-right-radius: 0.375rem;
+    }
+
+    .related-product-title {
+        font-size: 1rem; /* Smaller title */
+        margin-top: 0.5rem;
+        margin-bottom: 0.25rem; /* Less bottom margin */
+        font-weight: bold;
+    }
+    .related-product-price {
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: #28a745; /* Bootstrap success color (green) */
+    }
+     /* --- Quantity Selector Styles --- */
+
+    .quantity-selector {
+        width: auto; /* Adjust width as needed */
+        display: inline-flex; /* Important for alignment */
+        align-items: center; /* Vertical alignment */
+    }
+
+    .quantity-input {
     text-align: center;
     width: 3em;
     -moz-appearance: textfield;
     appearance: textfield; /* Add this line */
 }
+     /* Remove spin buttons from number input (Chrome/Safari/Edge) */
+    .quantity-input::-webkit-outer-spin-button,
+    .quantity-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+      /* Style for the quantity buttons.  Important! */
+    .quantity-decrement,
+    .quantity-increment {
+        cursor: pointer;
+        border-radius: 0; /* Remove rounded corners */
+        padding: 0.5rem 0.75rem;
+    }
 
-/* Remove spin buttons from number input (Chrome/Safari/Edge) */
-.quantity-input::-webkit-outer-spin-button,
-.quantity-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-.quantity-decrement,
-.quantity-increment {
-    cursor: pointer;
-    border-radius: 0; /* Remove rounded corners to make them square */
-    padding: 0.5rem 0.75rem; /* Consistent padding */
-}
+     /* --- Infinite Scroll --- */
+     #loading-indicator {
+        display: none;
+        text-align: center;
+        margin: 1rem 0;
+        color: #007bff;
+    }
 
-.product-info {
-    font-size: 0.9rem;
-    color: #6c757d;
-    margin-bottom: 0.5rem;
-    display: flex;        /* Use flexbox */
-    justify-content: space-between; /* Distribute space evenly */
-    align-items: center;   /* Vertically center items */
-}
-
-.product-info i {
-    margin-right: 0.3rem;
-    width: 1.25em;
-    text-align: center;
-}
-
-/* Related Products Styles */
-.related-products-section {
-    border-left: 1px solid #dee2e6;
-    padding-left: 1.5rem; /* Add some padding */
-}
-
-.related-product-card {
-    margin-bottom: 1rem;
-    border: 1px solid #dee2e6;
-    border-radius: 0.5rem; /* Consistent rounded corners */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.075); /*Subtle shadow*/
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    height: 100%;
-}
- .related-product-card:hover{
-    transform: translateY(-5px);
-    box-shadow: 0 4px 8px rgba(0,0,0, 0.2);
-}
-
-.related-product-image {
-    width: 100%;
-    height: auto;
-    max-height:150px; /* Smaller images */
-    object-fit: contain;
-    border-top-left-radius: 0.5rem;  /* Match card radius */
-    border-top-right-radius: 0.5rem;
-}
-
-.related-product-title {
-    font-size: 1rem; /* Smaller title */
-    margin-top: 0.5rem;
-    margin-bottom: 0.25rem; /* Less bottom margin */
-    font-weight: bold;
-}
-.related-product-title a{
-  color: #007bff;
-  text-decoration: none;
-}
-
- .related-product-price{
-    font-size: 0.9rem;
-    font-weight: bold;
-    color: #dc3545;
- }
-/* --- Infinite Scroll --- */
-#loading-indicator {
-    display: none;
-    text-align: center;
-    margin-top: 1rem;
-    margin-bottom: 1rem;
-}
- details {
-    border: 1px solid #aaa;
-    border-radius: 4px;
-    padding: 0.5em 0.5em 0;
-    margin-bottom: 1rem;
-  }
-
-  summary {
-    font-weight: bold;
-    margin: -0.5em -0.5em 0;
-    padding: 0.5em;
-  }
-
-  details[open] {
-    padding: 0.5em;
-  }
-
-  details[open] summary {
-    border-bottom: 1px solid #aaa;
-    margin-bottom: 0.5em;
-  }
-    /* Mobile responsiveness */
-     @media (max-width: 767.98px) {
-        .product-details,
-        .related-products-section {
-            border-left: none;  /*Remove border on small screens*/
-            padding-left: 0;   /*Remove padding on small screens */
+    /* --- Responsive Adjustments --- */
+    @media (max-width: 767.98px) { /* Bootstrap's md breakpoint and down */
+       .product-details,
+       .related-products-section {
+            border-left: none;      /* Remove vertical borders */
+            padding-left: 0;      /* Reset padding */
             padding-right: 0;
-            margin-bottom: 1.5rem; /* Add some spacing */
+            margin-bottom: 1rem;   /* Add spacing between sections */
+       }
+       .reply-container{
+          margin-left: 0.5rem;
+          padding-left: 0.5rem;
         }
     }
 </style>
@@ -280,32 +291,33 @@
                     <p class="price">TSh {{ product.price|floatformat:0|intcomma }}</p>
 
                     <p class="seller-info">
-                        <i class="fas fa-user"></i> Seller: {{ product.seller.username }}
-                      {% if product.seller.profile.is_verified %}
-                          <span class="badge bg-success">Verified</span>
-                      {% else %}
-                          <span class="badge bg-secondary">Not Verified</span>
-                      {% endif %}
+                        <i class="fas fa-user"></i> Seller: <a href="{% url 'user_profile' product.seller.username %}">{{ product.seller.username }}</a>
+                        {% if product.seller.profile.is_verified %}
+                            <span class="badge bg-success">Verified</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Not Verified</span>
+                        {% endif %}
                     </p>
                     <p><i class = "fas fa-folder"></i> Category: <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category.name }}</a></p>
                     <p class = "description"><i class = "fas fa-info-circle"></i> Description: {{ product.description }}</p>
                     <p><i class="fas fa-boxes"></i> Stock: {{ product.stock }}</p>
                     <p><i class = "fas fa-tags"></i> Condition: {{ product.get_condition_display }}</p>
 
-                    {% if product.average_rating > 0 %}
-                    <p>
-                        <i class="fas fa-star"></i> Rating:
-                        {% for i in "x"|ljust:product.average_rating|stringformat:"i" %}
-                            <i class="fas fa-star text-warning"></i>
-                        {% endfor %}
-                        {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
-                            <i class="far fa-star text-warning"></i>
-                        {% endfor %}
-                        ({{ product.reviews.count }} reviews)
-                    </p>
-                    {% else %}
-                    <p><i class="fas fa-star"></i> No reviews yet</p>
-                    {% endif %}
+
+                      {% if product.average_rating > 0 %}
+                      <p>
+                          <i class="fas fa-star"></i> Rating:
+                          {% for i in "x"|ljust:product.average_rating|stringformat:"i" %}
+                              <i class="fas fa-star text-warning"></i>
+                          {% endfor %}
+                          {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
+                              <i class="far fa-star text-warning"></i>
+                          {% endfor %}
+                          ({{ product.reviews.count }} reviews)
+                      </p>
+                      {% else %}
+                      <p><i class="fas fa-star"></i> No reviews yet</p>
+                      {% endif %}
 
                     {% comment %}  Only show edit/delete to seller {% endcomment %}
                     {% if product.seller == user %}
@@ -314,13 +326,13 @@
                     {% elif product.is_available and product.stock > 0 %}
                     {% comment %} Show add to cart if logged in and available {% endcomment %}
                       {% if request.user.is_authenticated %}
-                        <form action="{% url 'add_to_cart' slug=product.slug %}" method="post" class="d-inline" id="add-to-cart-form">
+                        <form action="{% url 'add_to_cart' slug=product.slug %}" method="post" class="d-inline" id="add-to-cart-form" data-slug="{{ product.slug }}">
                             {% csrf_token %}
                              <div class="input-group quantity-selector">
                                 <button type="button" class="btn btn-outline-secondary quantity-decrement">-</button>
                                 <input type="text" name="quantity" value="1" min="1" max="{{ product.stock }}" class="form-control quantity-input" readonly>
                                 <button type="button" class="btn btn-outline-secondary quantity-increment">+</button>
-                                 <button type="submit" class="btn btn-primary ms-2">Add to Cart</button>
+                                <button type = "submit" class = "btn btn-primary ms-2">Add to Cart</button>
                             </div>
 
                         </form>
@@ -333,275 +345,266 @@
                 </div>
             </div>
             <hr>
-             <h2>Reviews</h2>
-                {% if request.user.is_authenticated %}
-                    {% if has_reviewed %}
-                        <p>You have already reviewed this product.</p>
-                        {%else%}
-                        <form method="post" class = "mb-4">
-                            {% csrf_token %}
-                            {{review_form|crispy}}
-                            <button type = "submit" class = "btn btn-primary" name = "review_submit">Submit Review</button>
-                        </form>
-                    {% endif %}
+
+           <h2>Reviews</h2>
+           {% if request.user.is_authenticated %}
+                {% if has_reviewed %}
+                <p>You have already reviewed this product.</p>
                 {% else %}
-                <p>Please <a href="{% url 'login' %}?next={{ request.path }}">log in</a> to leave a review.</p>
+                <form method="post" class="mb-4">
+                    {% csrf_token %}
+                    {{ review_form|crispy }}
+                    <button type="submit" class="btn btn-primary" name = "review_submit">Submit Review</button>
+                </form>
                 {% endif %}
+            {% else %}
+            <p>Please <a href="{% url 'login' %}?next={{ request.path }}">log in</a> to leave a review.</p>
+            {% endif %}
+             {% for review in reviews %}
+            <div class="card review-card">
+                <div class="card-header review-header">
+                    <span class = "review-author">{{ review.user.username }}</span>
+                    <span class="review-rating">
+                      {% for i in "x"|ljust:review.rating %}
+                        <i class="fas fa-star"></i>
+                      {% endfor %}
+                      {% for i in "x"|ljust:5|slice:":-"|add:review.rating %}
+                        <i class="far fa-star"></i>
+                      {% endfor %}
+                    </span>
+                    <span class="review-date">{{ review.created_at|date:"F d, Y" }}</span>
+                </div>
+                <div class="card-body review-body">
+                    <p class="card-text review-comment">{{ review.comment }}</p>
 
-                {% for review in reviews %}
-                <div class = "card review-card">
-                    <div class = "card-header review-header">
-                        <span class = "review-author">{{review.user.username}}</span>
-                         <span class="review-rating">
-                          {% for i in "x"|ljust:review.rating %}
-                            <i class="fas fa-star"></i>
-                          {% endfor %}
-                          {% for i in "x"|ljust:5|slice:":-"|add:review.rating %}
-                            <i class="far fa-star"></i>
-                          {% endfor %}
-                        </span>
-                        <span class = "review-date">{{review.created_at|date:"F d, Y"}}</span>
+                     {% if user.is_authenticated %}
+                    <details>
+                        <summary>Reply</summary>
+                        <form method="post">
+                            {% csrf_token %}
+                            {{ reply_form|crispy }}
+                             <input type="hidden" name="parent_id" value="{{ review.id }}">
+                            <button class="btn btn-sm btn-primary" type="submit" name="reply_submit">Reply</button>
+                        </form>
+                    </details>
+                     {% endif %}
+                   {# Display replies #}
+                   {% for reply in review.replies.all %}
+                        <div class="card mb-2 ms-5 reply-container reply-card">
+                            <div class="card-body">
+                                <p class="card-text">{{ reply.comment }}</p>
+                                <p class="card-text"><small class="text-muted">By {{ reply.user.username }} on {{ reply.created_at|date:"F d, Y" }}</small></p>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
-                    <div class = "card-body review-body">
-                        <p class = "card-text review-comment">{{review.comment}}</p>
+                </div>
+                {% empty %}
+                <p>No reviews yet.</p>
+                {% endfor %}
+            </div> {# End col-md-8 #}
+    
+            {# --- Related Products (Right Sidebar) --- #}
+            <div class="col-md-4 related-products-section">
+                {% if related_products %}
+                <h4>Related Products</h4>
+                <div class="row row-cols-1 row-cols-md-1 g-3" id="related-products-container">
+                   {% for related_product in related_products %}
+                        <div class="col">
+                            <div class="card related-product-card h-100">
+                                <div class="card-body">
+                                <a href = "{{related_product.get_absolute_url}}">
+                                {% if related_product.get_first_image %}
+                                    <img src="{{ related_product.get_first_image.url}}" class ="related-product-image" alt = "{{related_product.name}}">
+    
+                                {% elif related_product.images.all %}
+                                    <img src = "{{ related_product.images.all.0.image.url }}" class="related-product-image" alt="{{ related_product.name }}">
+                                {% else %}
+                                    <img src="{% static 'images/no_image.png' %}" class="related-product-image" alt="No Image">
+                                {% endif %}
+                                </a>
+                                    <h6 class = "related-product-title">
+                                        <a href="{{ related_product.get_absolute_url }}">{{ related_product.name|truncatechars:30 }}</a>
+                                     </h6>
+                                     <p class = "card-text"> TSh {{ related_product.price|floatformat:0|intcomma }}</p>
+    
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    <div id="sentinel"></div>  {# Add a sentinel element for infinite scroll #}
+                </div>
+                {% else %}
+                <p>No related products found.</p>
+                {% endif %}
+            </div>
+        </div> {# End row #}
+    </div>
+    {% endblock %}
+    
+    {% block javascript %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- AJAX Add to Cart ---
+    const addToCartForm = document.getElementById('add-to-cart-form');
 
-                         {% if user.is_authenticated %}
-                            <details>
-                                <summary>Reply</summary>
-                                <form method = "post">
-                                     {% csrf_token %}
-                                    {{ reply_form|crispy }}
-                                     <input type = "hidden" name = "parent_id" value = "{{review.id}}">
-                                     <button class="btn btn-sm btn-primary" type = "submit" name = "reply_submit">Reply</button>
-                                </form>
-                            </details>
-                         {% endif %}
-                         {# Display replies #}
-                        {% for reply in review.replies.all %}
-                         <div class = "card mb-2 ms-5 reply-container reply-card">
-                            <div class = "card-body">
-                                 <p class = "card-text">{{ reply.comment }}</p>
-                                 <p class="card-text"><small class="text-muted">By {{ reply.user.username }} on {{ reply.created_at|date:"F d, Y" }}</small></p>
-                             </div>
-                          </div>
-                         {% endfor %}
-                     </div>
-                 </div>
-                 {% empty %}
-                     <p>No reviews yet.</p>
-                 {% endfor %}
- 
-         </div>{# Closed col-md-8 #}
- 
-         {# --- Related Products (Right Sidebar) --- #}
-         <div class="col-md-4 related-products-section">
-             {% if related_products %}
-                 <h4>Related Products</h4>
-                  <div class="row row-cols-1 g-3" id="related-products-container">
-                       {% for related_product in related_products %}
-                       <div class = "col">
-                         <div class="card related-product-card h-100">
-                             <div class="card-body">
-                                 {% if related_product.get_first_image %}
-                                   <a href="{{ related_product.get_absolute_url }}">
-                                     <img src="{{ related_product.get_first_image.url }}" class="related-product-image" alt="{{related_product.name}}">
-                                    </a>
-                                 {% elif related_product.images.all %}
-                                  <a href="{{ related_product.get_absolute_url }}">
-                                     <img src = "{{ related_product.images.all.0.image.url }}" class="related-product-image" alt="{{ related_product.name }}">
-                                  </a>
-                                 {% else %}
-                                   <a href="{{ related_product.get_absolute_url }}">
-                                     <img src="{% static 'images/no_image.png' %}" class="related-product-image" alt="No Image">
-                                   </a>
-                                 {% endif %}
-                                 <h6 class="related-product-title">
-                                     <a href="{{ related_product.get_absolute_url }}">{{ related_product.name|truncatechars:30 }}</a>
-                                 </h6>
-                                  <p class = "related-product-price"> TSh {{ related_product.price|floatformat:0|intcomma }}</p>
- 
-                             </div>
-                          </div>
-                         </div>
-                         {% endfor %}
-                       <div id="sentinel"></div>  {#Add a sentinel element for infinite scroll#}
- 
-                     </div>
-                 {% else %}
-                     <p>No related products found.</p>
-                 {% endif %}
-         </div>
-     </div>
- </div>
-     <div id="loading-indicator">Loading...</div> {#Add a loading indicator#}
- {% endblock %}
- 
- {% block javascript %}
- <script>
-     document.addEventListener('DOMContentLoaded', function() {
-         // --- Quantity Selector ---
-         const quantityDecrementButtons = document.querySelectorAll('.quantity-decrement');
-         const quantityIncrementButtons = document.querySelectorAll('.quantity-increment');
-         const quantityInputs = document.querySelectorAll('.quantity-input');
- 
-         quantityDecrementButtons.forEach(button => {
-             button.addEventListener('click', function() {
-                 const input = this.parentElement.querySelector('.quantity-input');
-                 let currentValue = parseInt(input.value);
-                 if (currentValue > parseInt(input.min)) {
-                     input.value = currentValue - 1;
-                 }
-             });
-         });
- 
-         quantityIncrementButtons.forEach(button => {
-             button.addEventListener('click', function() {
-                 const input = this.parentElement.querySelector('.quantity-input');
-                 let currentValue = parseInt(input.value);
-                 let maxValue = parseInt(input.max)
-                 if (currentValue < maxValue) {
-                     input.value = currentValue + 1;
-                 }
-             });
-         });
- 
-         // Optional:  Prevent non-numeric input
-         quantityInputs.forEach(input => {
-             input.addEventListener('keydown', function(event){
-                if(!((event.key >= '0' && event.key <= '9') || event.key === 'Backspace' || event.key === 'Delete' || event.key === 'ArrowLeft' || event.key === "ArrowRight")){
-                     event.preventDefault();
-                 }
-             });
-         });
- 
- 
-         // --- AJAX Add to Cart ---
-         const addToCartForm = document.getElementById('add-to-cart-form');
- 
-         if (addToCartForm) {
-             addToCartForm.addEventListener('submit', function(event) {
-             event.preventDefault();
- 
-             const formData = new FormData(this);
- 
-                 fetch(this.action, {
-                     method: 'POST',
-                     body: formData,
-                     headers: {
-                         'X-Requested-With': 'XMLHttpRequest', // Important for Django to recognize AJAX
-                          'X-CSRFToken': formData.get('csrfmiddlewaretoken'), // Include CSRF token
-                     },
-                 })
-                 .then(response => {
-                     if (!response.ok) {
-                         // Handle non-200 responses.  This catches 400 status.
-                         return response.json().then(errData => {  // Parse JSON error response
-                             throw new Error(errData.message || 'Failed to add to cart.');
-                         });
-                     }
-                     return response.json(); // Parse JSON for successful responses
-                 })
-                 .then(data => {
-                     if (data.success) {
-                         // Update the cart icon (assuming you have this element)
-                         const cartCountElement = document.querySelector('.fa-shopping-cart + .badge'); // Locate badge
-                         if (cartCountElement) {
-                             cartCountElement.textContent = data.cart_count; // Update count
-                         }
-                         // Display a success message
-                         const successMessage = document.createElement('div');
-                         successMessage.classList.add('alert', 'alert-success', 'alert-dismissible', 'fade', 'show');
-                         successMessage.setAttribute('role', 'alert');
-                         successMessage.innerHTML = `
-                             ${data.message}
-                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                         `;
-                         document.querySelector('.container').prepend(successMessage); // Add to container
- 
-                         // Automatically hide after a few seconds (optional)
-                         setTimeout(() => {
-                             successMessage.remove();
-                         }, 3000); // 3 seconds
- 
-                     } else {
-                         alert(data.message)
-                     }
-                 })
-                 .catch(error => {
-                     console.error('Error:', error);
-                       const errorMessage = document.createElement('div');
-                       errorMessage.classList.add('alert', 'alert-danger', 'alert-dismissible', 'fade', 'show');
-                       errorMessage.setAttribute('role', 'alert');
-                       errorMessage.textContent = error.message;  // Display the error message
-                       document.querySelector('.container').prepend(errorMessage); // Put it at the top
- 
-                         // Remove the error message after a few seconds
-                         setTimeout(() => {
-                             errorMessage.remove();
-                         }, 5000); // Remove after 5 seconds (adjust as needed)
- 
-                 });
-             });
-         }
-         //-------
- 
-         // --- Infinite Scroll for RELATED PRODUCTS ---
-         let loading = false;
-         let nextPage = 2;  // Start with page 2 (page 1 is already loaded)
-         const relatedProductsContainer = document.getElementById('related-products-container');
-         const sentinel = document.getElementById('sentinel');
-         const productSlug = "{{ product.slug }}"; // Get the product slug
-         const loadingIndicator = document.getElementById('loading-indicator'); // Get loading element
- 
-         function loadMoreRelatedProducts() {
-             if (loading) return;  // Prevent multiple simultaneous loads
-             loading = true;
-             loadingIndicator.style.display = 'block'; // Show loading indicator
- 
-             const url = `/marketplace/product/${productSlug}/related/?page=${nextPage}`;
- 
-             fetch(url, {
+    if (addToCartForm) {
+       addToCartForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+           // Use the data-slug attribute to get slug:
+            const slug = this.dataset.slug;
+            const url = `/marketplace/cart/add/${slug}/`;
+
+            fetch(url, {
+                method: 'POST',
+                body: formData,
                  headers: {
-                     'X-Requested-With': 'XMLHttpRequest'  // Important for AJAX
-                 }
-             })
-             .then(response => {
-                 if (!response.ok) {
-                     throw new Error('Network response was not ok');
-                 }
-                 return response.text(); // Get response as text (HTML)
-             })
-             .then(data => {
-                 if (data.trim() === '') { // Check for an empty response
-                     // No more related products, hide sentinel and stop.
-                     sentinel.style.display = 'none';
-                     return;
-                 }
-                 relatedProductsContainer.insertAdjacentHTML('beforeend', data); // Append new products
-                 nextPage++;
-                 loading = false;
-                 loadingIndicator.style.display = 'none'; // Hide indicator
- 
-             })
-             .catch(error => {
-                 console.error('Error:', error);
-                 loading = false;
-                 loadingIndicator.style.display = 'none'; // Hide on error
-             });
-         }
- 
-         // Use Intersection Observer for better performance
-         const observer = new IntersectionObserver(entries => {
-             if (entries[0].isIntersecting && !loading) {
-                 loadMoreRelatedProducts();
-             }
-         }, {
-             rootMargin: '100px 0px 0px 0px' // Trigger earlier
-         });
- 
-         if (sentinel) { // Only observe if sentinel exists
-             observer.observe(sentinel);
-         }
-     });
- </script>
- {% endblock %}
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+            })
+            .then(response => {
+                if (!response.ok) {
+                     return response.json().then(errData => {
+                            throw new Error(errData.message || 'Failed to add to cart.');
+                        });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    const cartCountElement = document.querySelector('.fa-shopping-cart + .badge');
+                    if (cartCountElement) {
+                        cartCountElement.textContent = data.cart_items_count;
+                    }
+                    const successMessage = document.createElement('div');
+                    successMessage.classList.add('alert', 'alert-success', 'alert-dismissible', 'fade', 'show');
+                    successMessage.setAttribute('role', 'alert');
+                    successMessage.innerHTML = `
+                        ${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    document.querySelector('.container').prepend(successMessage);
+
+                    setTimeout(() => {
+                        successMessage.remove();
+                    }, 3000);
+
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const errorMessage = document.createElement('div');
+                errorMessage.classList.add('alert', 'alert-danger', 'alert-dismissible', 'fade', 'show');
+                errorMessage.setAttribute('role', 'alert');
+                errorMessage.textContent = error.message;
+                document.querySelector('.container').prepend(errorMessage);
+                setTimeout(() => {
+                    errorMessage.remove();
+                 }, 5000);
+            });
+        });
+    }
+
+     // --- Quantity Selector and other JavaScript ---
+    // (Keep the rest of your JavaScript - quantity selector, etc. - as is)
+    // ... (rest of your existing JavaScript) ...
+    // Quantity selector functionality
+      const quantityDecrementButtons = document.querySelectorAll('.quantity-decrement');
+      const quantityIncrementButtons = document.querySelectorAll('.quantity-increment');
+      const quantityInputs = document.querySelectorAll('.quantity-input');
+
+      quantityDecrementButtons.forEach(button => {
+          button.addEventListener('click', function() {
+              const input = this.parentElement.querySelector('.quantity-input');
+              let currentValue = parseInt(input.value);
+              if (currentValue > parseInt(input.min)) {
+                  input.value = currentValue - 1;
+              }
+          });
+      });
+
+      quantityIncrementButtons.forEach(button => {
+          button.addEventListener('click', function() {
+              const input = this.parentElement.querySelector('.quantity-input');
+              let currentValue = parseInt(input.value);
+              let maxValue = parseInt(input.max)
+              if (currentValue < maxValue) {
+                  input.value = currentValue + 1;
+              }
+          });
+      });
+
+      // Optional:  Prevent non-numeric input (though readonly helps a lot)
+      quantityInputs.forEach(input => {
+          input.addEventListener('keydown', function(event){
+              if(!((event.key >= '0' && event.key <= '9') || event.key === 'Backspace' || event.key === 'Delete' || event.key === 'ArrowLeft' || event.key === "ArrowRight")){
+                  event.preventDefault();
+              }
+          });
+      });
+    // --- Infinite Scroll for RELATED PRODUCTS ---
+    let loading = false;
+    let nextPage = 2;  // Start with page 2 (page 1 is already loaded)
+    const relatedProductsContainer = document.getElementById('related-products-container');
+    const sentinel = document.getElementById('sentinel');
+    const productSlug = "{{ product.slug }}"; // Get the product slug.  CRITICAL.
+
+    function loadMoreRelatedProducts() {
+        if (loading) return;  // Prevent multiple simultaneous loads
+        loading = true;
+
+        const url = `/marketplace/product/${productSlug}/related/?page=${nextPage}`; // Correct URL
+
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'  // Important for AJAX detection
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text(); // Get the response as text
+        })
+        .then(data => {
+            if (data.trim() === '') { // Check for empty response
+                // No more related products, stop observing
+                observer.unobserve(sentinel);
+                return; // Stop if no more products
+            }
+            relatedProductsContainer.insertAdjacentHTML('beforeend', data); // Append new products
+            nextPage++; // Increment page number for next load.
+            loading = false; // Reset loading after successful fetch
+
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            loading = false; // Reset loading on error
+
+        });
+    }
+    // Use Intersection Observer for better performance
+    const observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && !loading) {
+            loadMoreRelatedProducts();
+        }
+    }, {
+        rootMargin: '100px 0px 0px 0px' // Trigger earlier (100px before the bottom)
+    });
+
+    if (sentinel) { // Only observe if sentinel exists
+        observer.observe(sentinel);
+    }
+    // Initialize tooltips (Bootstrap 5)
+     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+     return new bootstrap.Tooltip(tooltipTriggerEl)
+     })
+
+});
+</script>
+{% endblock %}

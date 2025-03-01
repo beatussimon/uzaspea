@@ -1,0 +1,7 @@
+{% load static %}
+
+<button class="like-button {% if liked %}unlike{% else %}like{% endif %}" data-product-id="{{ product.id }}">
+    <span class="like-text">{% if liked %}Unlike{% else %}Like{% endif %}</span>
+    <span class="like-count">{{ product.get_like_count }}</span>
+    <i class="fas fa-heart"></i>  {# Font Awesome heart icon #}
+</button>
