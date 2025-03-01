@@ -4,12 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="UZASPEA - Your premier online marketplace for buying and selling in Tanzania. Discover a wide range of products and connect with sellers.">
-    <meta name="keywords" content="marketplace, online shopping, buy, sell, products, ecommerce, UZASPEA, deals, Tanzania, online store, classifieds">
+    <meta name="description" content="UZASPEA - Your premier online marketplace for buying and selling in Tanzania.">
+    <meta name="keywords" content="marketplace, online shopping, buy, sell, Tanzania, ecommerce, UZASPEA, deals, online store, classifieds, products">
     <title>{% block title %}UZASPEA - Online Marketplace{% endblock %}</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,89 +22,93 @@
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
 
     {% block extra_head %}{% endblock %}
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-white py-3 shadow-sm">  {# Added shadow and padding #}
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="{% url 'product_list' %}">
-                <img src="{% static 'images/logo.png' %}" alt="UZASPEA Logo" class="logo-image me-2">  {# Added me-2 class #}
-                <span class="logo-text">UZASPEA</span>
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+<body class="d-flex flex-column min-vh-100">
 
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">  {# Changed to me-auto for left alignment #}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" aria-current="page" href="{% url 'product_list' %}">Home</a>  {# Added aria-current #}
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'products' in request.path %}active{% endif %}" href="{% url 'user_profile' username=user.username %}">My Store</a>
-                    </li>
-                    {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'product/create' in request.path %}active{% endif %}" href="{% url 'product_create' %}">Sell Product</a>
-                    </li>
-                    {% endif %}
-                </ul>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm py-3">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center" href="{% url 'product_list' %}">
+                    <img src="{% static 'images/logo.png' %}" alt="UZASPEA Logo" class="logo-image me-2">
+                    <span class="logo-text">UZASPEA</span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
 
-                <ul class="navbar-nav ms-auto">  {# Kept ms-auto for right alignment #}
-                    <li class="nav-item">
-                        <form class="d-flex search-form" action="{% url 'search_results' %}" method="get">
-                            <input class="form-control search-input" type="search" placeholder="Search products..." aria-label="Search" name="q" value="{{ query }}">
-                            <button class="btn btn-primary search-button" type="submit"><i class="fas fa-search"></i></button>  {# Icon inside button #}
-                        </form>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link cart-icon position-relative" href="{% url 'view_cart' %}">  {# Added position-relative #}
-                            <i class="fas fa-shopping-cart"></i>
-                            {% if cart_items_count > 0 %}
-                            <span class="cart-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">  {# Bootstrap badge classes #}
-                                {{ cart_items_count }}
-                                <span class="visually-hidden">unread messages</span>  {# For screen readers #}
-                            </span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    {% if user.is_authenticated %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            {{ user.username }}
-                            {% if user.profile.is_verified %}
-                                <span class="verified-badge text-success"><i class="fas fa-check-circle"></i></span>  {# Inline styling removed #}
-                            {% endif %}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">  {# dropdown-menu-end #}
-                            <li><a class="dropdown-item" href="{% url 'user_profile' username=user.username %}">Profile</a></li>
-                            {% if user.is_staff or user.products.all %}
-                            <li><a class="dropdown-item" href="{% url 'dashboard' %}">Dashboard</a></li>
-                            {% endif %}
-                            <li><a class="dropdown-item" href="{% url 'order_list' %}">Orders</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <form action="{% url 'logout' %}" method="post">
-                                    {% csrf_token %}
-                                    <button type="submit" class="dropdown-item">Logout</button>
-                                </form>
-                            </li>
-                        </ul>
-                    </li>
-                    {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{% url 'login' %}">Login</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'register' in request.path %}active{% endif %}" href="{% url 'register' %}">Register</a>
-                    </li>
-                    {% endif %}
-                </ul>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/' %}active{% endif %}" aria-current="page" href="{% url 'product_list' %}">Home</a>
+                        </li>
+                        {% if user.is_authenticated %}  {#  WRAP THIS LINK #}
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'products' in request.path %}active{% endif %}" href="{% url 'user_profile' username=user.username %}">My Store</a>
+                        </li>
+                        {% endif %}
+                        {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'product/create' in request.path %}active{% endif %}" href="{% url 'product_create' %}">Sell Product</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <form class="d-flex search-form" action="{% url 'search_results' %}" method="get">
+                                <input class="form-control search-input" type="search" placeholder="Search products..." aria-label="Search" name="q" value="{{ query }}">
+                                <button class="btn btn-primary search-button" type="submit"><i class="fas fa-search"></i></button>
+                            </form>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link cart-icon position-relative" href="{% url 'view_cart' %}">
+                                <i class="fas fa-shopping-cart"></i>
+                                {% if cart_items_count > 0 %}
+                                <span class="cart-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    {{ cart_items_count }}
+                                    <span class="visually-hidden">unread messages</span>
+                                </span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                {{ user.username }}
+                                {% if user.profile.is_verified %}
+                                    <span class="verified-badge text-success"><i class="fas fa-check-circle"></i></span>
+                                {% endif %}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                                <li><a class="dropdown-item" href="{% url 'user_profile' username=user.username %}">Profile</a></li>
+                                {% if user.is_staff or user.products.all %}
+                                <li><a class="dropdown-item" href="{% url 'dashboard' %}">Dashboard</a></li>
+                                {% endif %}
+                                <li><a class="dropdown-item" href="{% url 'order_list' %}">Orders</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form action="{% url 'logout' %}" method="post">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item">Logout</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                        {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{% url 'login' %}">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'register' in request.path %}active{% endif %}" href="{% url 'register' %}">Register</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
+    </header>
 
-    <main class="container my-4">  {# Added container and vertical margin #}
+    <main class="container my-4">
         {% if messages %}
           {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
@@ -118,35 +121,35 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="footer bg-light py-4 mt-auto">  {# Added mt-auto for sticky footer, changed bg-color #}
+    <footer class="footer bg-light py-4 mt-auto">
         <div class="container">
             <div class="row">
-                <div class="col-md-4 mb-3">  {# Added mb-3 for spacing #}
-                    <h5 class="text-uppercase mb-3">About UZASPEA</h5>  {# Added text-uppercase and mb-3 #}
-                    <p>Your premier online marketplace for buying and selling in Tanzania.</p>
+                <div class="col-md-4 mb-3">
+                    <h5 class="footer-heading">About UZASPEA</h5>
+                    <p class="text-muted">Your premier online marketplace for buying and selling in Tanzania.</p>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <h5 class="text-uppercase mb-3">Quick Links</h5>
-                    <ul class="list-unstyled">  {# Used Bootstrap list-unstyled class #}
-                        <li><a href="{% url 'product_list' %}" class="text-decoration-none text-muted">Home</a></li>  {# Added text-decoration-none and text-muted #}
-                        <li><a href="{% url 'product_list' %}" class="text-decoration-none text-muted">Products</a></li>
-                        <li><a href="#" class="text-decoration-none text-muted">Contact Us</a></li>
-                        <li><a href="#" class="text-decoration-none text-muted">Terms & Conditions</a></li>
+                    <h5 class="footer-heading">Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="{% url 'product_list' %}" class="footer-link">Home</a></li>
+                        <li><a href="{% url 'product_list' %}" class="footer-link">Products</a></li>
+                        <li><a href="#" class="footer-link">Contact Us</a></li>
+                        <li><a href="#" class="footer-link">Terms & Conditions</a></li>
                     </ul>
                 </div>
                 <div class="col-md-4">
-                    <h5 class="text-uppercase mb-3">Connect With Us</h5>
+                    <h5 class="footer-heading">Connect With Us</h5>
                       <div class="social-icons">
-                          <a href="#" aria-label="Facebook" class="text-decoration-none me-3"><i class="fab fa-facebook-f"></i></a>  {# Added me-3 and fa-facebook-f #}
-                          <a href="#" aria-label="Twitter" class="text-decoration-none me-3"><i class="fab fa-twitter"></i></a>  {# Added me-3, changed to fa-twitter #}
-                          <a href="#" aria-label="Instagram" class="text-decoration-none me-3"><i class="fab fa-instagram"></i></a>
-                          <a href="#" aria-label="YouTube" class="text-decoration-none"><i class="fab fa-youtube"></i></a>
+                          <a href="#" aria-label="Facebook" class="social-icon"><i class="fab fa-facebook-f"></i></a>
+                          <a href="#" aria-label="Twitter" class="social-icon"><i class="fab fa-twitter"></i></a>
+                          <a href="#" aria-label="Instagram" class="social-icon"><i class="fab fa-instagram"></i></a>
+                          <a href="#" aria-label="YouTube" class="social-icon"><i class="fab fa-youtube"></i></a>
                       </div>
                 </div>
             </div>
-            <div class="row mt-3">  {# Added mt-3 #}
-                <div class="col-12 text-center">  {# Added text-center #}
-                   <p class="text-muted small">&copy; {% now "Y" %} UZASPEA. All rights reserved.</p>  {# Added text-muted and small #}
+            <div class="row mt-3">
+                <div class="col-12 text-center">
+                   <p class="text-muted small mb-0">&copy; {% now "Y" %} UZASPEA. All rights reserved.</p>
                 </div>
             </div>
         </div>
@@ -154,6 +157,5 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
     {% block extra_js %}{% endblock %}
-
 </body>
 </html>
