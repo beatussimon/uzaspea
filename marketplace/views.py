@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Product, Category, Review, Order, OrderItem, UserProfile, ProductImage, SidebarOffer, SidebarNewsItem, Subscription, Follow
+from .models import Product, Category, Review, Order, OrderItem, UserProfile, ProductImage, SidebarOffer, SidebarNewsItem, Subscription, Follow, Like
 from .forms import ProductForm, ReviewForm, UserRegistrationForm, ProductImageFormSet, ReplyForm, SubscriptionForm
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -10,7 +10,7 @@ from .utils import send_order_confirmation_email
 from django.db import transaction
 from django.forms import inlineformset_factory
 from django.views.decorators.http import require_POST
-from django.contrib.auth import login
+from django.contrib.auth import login, get_user_model
 from django.urls import reverse
 from django.template.loader import render_to_string  # Import
 from django.contrib.auth import get_user_model  
@@ -288,28 +288,44 @@ def register(request):
 @login_required
 def user_profile(request, username):
     User = get_user_model()
-    user = get_object_or_404(User, username=username)
+    user = get_object_or_404(User, username=username) #get user by username
 
     try:
-        user_profile = user.profile
+        user_profile = user.profile # Use the related_name
     except UserProfile.DoesNotExist:
-        # Handle case where profile doesn't exist (shouldn't happen, but good to be safe)
+        # Handle the case where a profile doesn't exist
         return HttpResponse("Profile not found", status=404)
 
     user_products = Product.objects.filter(seller=user, is_available=True)
-    user_orders = Order.objects.filter(user=user).order_by('-order_date')
+    # Orders, only if looking at own profile.
+    if request.user == user:
+         user_orders = Order.objects.filter(user=user).order_by('-order_date')
+    else:
+        user_orders = None
 
     # Check if the current user is following the viewed user
     is_following = False
-    if request.user.is_authenticated:  # Only check if logged in
-        is_following = request.user.profile.following.filter(id=user.id).exists()
+    if request.user.is_authenticated:
+        is_following = request.user.following.filter(following=user.profile).exists()
+
+    # ---  Analytics ---
+    total_products = user_products.count()
+    total_followers = user.followers.count()  # Count of users following *this* user
+    total_following = request.user.following.count()
+    total_orders_received = 0
+    if request.user == user:
+        total_orders_received = Order.objects.filter(orderitem_set__product__seller=request.user).distinct().count()
 
     context = {
-        'user_profile': user_profile,  # The profile of the user being viewed
-        'user_products': user_products, # Products of the user being viewed
+        'user_profile': user_profile,
+        'user_products': user_products,
         'user_orders': user_orders,
-        'user': user,   # The user object of the *viewed* profile
-        'is_following': is_following, # Whether the current user is following
+        'user': user,  # The user whose profile is being viewed.
+        'is_following': is_following,  # Pass the follow status
+        'total_products': total_products,
+        'total_followers': total_followers,
+        'total_following': total_following,
+        'total_orders_received':total_orders_received,
     }
     return render(request, 'marketplace/user_profile.html', context)
 
@@ -320,9 +336,9 @@ def edit_profile(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Your profile has been updated!')
-            return redirect('user_profile', username=request.user.username)  # Redirect using username
+            return redirect('user_profile', username=request.user.username)  # Redirect to profile
     else:
-        form = ProfileUpdateForm(instance=request.user.profile)
+        form = ProfileUpdateForm(instance=request.user.profile)  # Use request.user
 
     return render(request, 'marketplace/edit_profile.html', {'form': form})
 
@@ -336,44 +352,39 @@ def dashboard(request):
     seller_orders = Order.objects.filter(orderitem_set__product__seller=request.user).distinct()
     context = {
         'products': products,
-        'seller_orders': seller_orders
+        'seller_orders': seller_orders,
     }
     return render(request, 'marketplace/dashboard.html', context)
 
 
 @login_required
-@require_POST  # Use require_POST decorator, add to cart only with POST
+@require_POST
 def add_to_cart(request, slug):
-    product = get_object_or_404(Product, slug=slug)
-    quantity = int(request.POST.get('quantity', 1))  # Get quantity, default to 1
+    product = get_object_or_404(Product, slug=slug, is_available=True)
+    quantity = int(request.POST.get('quantity', 1))
 
-    if quantity < 1:
-        quantity = 1
-        messages.warning(request, "Quantity must be at least 1.")  # Use messages framework
-    elif quantity > product.stock:
-        quantity = product.stock
-        messages.warning(request,"Not enough stock available. Quantity adjusted to available stock.")
-
+    if quantity <= 0:
+        messages.warning(request, "Quantity must be greater than zero.")
+        return redirect('product_detail', slug=product.slug)
+    if quantity > product.stock:
+        messages.warning(request, "Requested quantity exceeds available stock.")
+        return redirect('product_detail', slug=product.slug)
     cart = request.session.get('cart', {})
-    product_id_str = str(product.id)  # Convert to string for dictionary key
+    product_id_str = str(product.id)
 
     if product_id_str in cart:
-        cart[product_id_str] += quantity  # Add to existing quantity
+        new_quantity = cart[product_id_str] + quantity
+        if new_quantity > product.stock:
+             messages.warning(request, f"Adding {quantity} exceeds available stock.  Cart not updated.")
+             return redirect('product_detail', slug=product.slug)
+        cart[product_id_str] = new_quantity
     else:
-        cart[product_id_str] = quantity
-
-    if cart[product_id_str] > product.stock: # Ensure cart quantity doesn't exceed stock
-        cart[product_id_str] = product.stock
+         cart[product_id_str] = quantity
 
     request.session['cart'] = cart
-    messages.success(request, f"{product.name} (x{quantity}) added to cart.")  # Show success message
-
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return JsonResponse({'success': True, 'message': f"{product.name} (x{quantity}) added to cart.", 'cart_count': len(cart)})
-    else:
-      return redirect('product_detail', slug=product.slug)
-
-
+    messages.success(request, f"{quantity} x {product.name} added to cart.")
+    return redirect('product_detail', slug=product.slug)
+    
 @login_required
 def view_cart(request):
     cart = request.session.get('cart', {})
@@ -552,25 +563,53 @@ def user_products(request):
     return render(request, 'marketplace/user_products.html', {'products': products})
 
 @login_required
-@require_POST # Only accept POST requests for security
+@require_POST  # Only accept POST requests for security
 def follow_user(request):
     username = request.POST.get('username') # Get from POST data
     user_to_follow = get_object_or_404(get_user_model(), username=username)
 
     if request.user == user_to_follow:
-        return JsonResponse({'status': 'error', 'message': 'You cannot follow yourself.'})
+        return JsonResponse({'status': 'error', 'message': 'You cannot follow yourself'})
 
     try:
         # Use get_or_create to handle existing/new follows efficiently.
         follow, created = Follow.objects.get_or_create(follower=request.user, following=user_to_follow.profile)
         if not created:  # If the follow already existed, we unfollow.
             follow.delete()
-            return JsonResponse({'status': 'ok', 'action': 'follow'}) # Indicate to follow
+            action = 'follow'
         else:
-             return JsonResponse({'status': 'ok', 'action': 'unfollow'})  # Indicate to unfollow
+            action = 'unfollow'
+
+        followers_count = user_to_follow.followers.count() #get the updated count
+        return JsonResponse({'status': 'ok', 'action': action, 'followers':followers_count})
 
 
     except UserProfile.DoesNotExist:
-         return JsonResponse({'status': 'error', 'message': 'User profile not found.'}, status=404)
+        return JsonResponse({'status': 'error', 'message': 'User profile not found'}, status=404)
     except Exception as e: # Catch any unexpected errors.
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400) # Return a JSON error response.
+
+
+
+
+@login_required
+@require_POST # Only allow POST requests
+def like_product(request, product_id):
+    product = get_object_or_404(Product, pk=product_id, is_available=True)
+    like, created = Like.objects.get_or_create(user=request.user, product=product)
+
+    if not created:
+        # User already liked the product, so unlike it
+        like.delete()
+        liked = False
+    else:
+        liked = True
+
+    # Return the new like count and whether the user likes the product or not.
+    like_count = product.likes.count()
+     # Prepare data for JSON response.
+    data = {
+        'liked': liked,
+        'like_count': like_count,
+    }
+    return JsonResponse(data) # Return data as JSON.

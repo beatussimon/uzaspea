@@ -18,6 +18,7 @@ class Category(models.Model):
         verbose_name_plural = "Categories"
 
     def save(self, *args, **kwargs):
+        from django.utils.text import slugify  # Import here
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
@@ -57,10 +58,12 @@ class Product(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     condition = models.CharField(max_length=4, choices=CONDITION_CHOICES, default='New')
 
+
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
-        super().save(*args, **kwargs)
+      from django.utils.text import slugify # Add this
+      if not self.slug:
+          self.slug = slugify(self.name)
+      super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -68,16 +71,21 @@ class Product(models.Model):
     def get_absolute_url(self):
         return reverse('product_detail', kwargs={'slug': self.slug})
 
-    @property
+    # Use a regular method, *not* a property, for compatibility with annotation
     def average_rating(self):
         reviews = self.reviews.all()
         if reviews:
-            return reviews.aggregate(Avg('rating'))['rating__avg']
+          # Use the 'rating' field directly; aggregate returns a dictionary
+          return int(reviews.aggregate(Avg('rating'))['rating__avg'])
         return 0
 
     def get_first_image(self):
         first_image = self.images.first()
         return first_image.image if first_image else None
+    #Return like count
+    def get_like_count(self):
+        return self.likes.count()
+
 
 
 class ProductImage(models.Model):
@@ -95,6 +103,7 @@ class Review(models.Model):
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
+    approved = models.BooleanField(default=False)  # Add this line
 
     def __str__(self):
         return f"Review by {self.user.username} for {self.product.name}"
@@ -139,35 +148,22 @@ class OrderItem(models.Model):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    is_verified = models.BooleanField(default=False)  # Seller verification
+    is_verified = models.BooleanField(default=False, db_index=True)  # Add db_index=True!
     phone_number = models.CharField(max_length=20, blank=True, validators=[RegexValidator(r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")]) #added a validator
     instagram_username = models.CharField(max_length=30, blank=True)
     website = models.URLField(blank=True)
     bio = models.TextField(max_length=500, blank=True)  # Add bio field
-    location = models.CharField(max_length=100, blank=True)  # Add location field
+    location = models.CharField(max_length=100, blank=True)  # Add location
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
     following = models.ManyToManyField(User, related_name='followers', blank=True, symmetrical=False) # Add following
 
     def __str__(self):
         return self.user.username
-
-    def get_absolute_url(self):
-        return reverse('user_profile', args=[self.user.username])
-
     def get_followers_count(self):
         return self.user.followers.count()
 
     def get_following_count(self):
         return self.user.following.count()
-
-
-# Signal to create/update UserProfile automatically
-@receiver(post_save, sender=User)
-def create_or_update_user_profile(sender, instance, created, **kwargs):
-    if created:
-        UserProfile.objects.create(user=instance)
-    instance.profile.save()
-
 
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
@@ -183,6 +179,7 @@ class SidebarOffer(models.Model):
     image = models.ImageField(upload_to='sidebar_offers/', blank=True, null=True)
     link = models.URLField(blank=True)  # Link to a product page, category, or external site
     active = models.BooleanField(default=True) # to show or hide.
+    image = models.ImageField(upload_to='sidebar_offers/', blank=True, null=True)  # Add Image
 
     def __str__(self):
         return self.title
@@ -193,6 +190,8 @@ class SidebarNewsItem(models.Model):
     pub_date = models.DateTimeField(auto_now_add=True)
     link = models.URLField(blank=True) # Link to readmore.
     active = models.BooleanField(default = True)
+    image = models.ImageField(upload_to='sidebar_news/', blank = True, null = True)
+
 
     class Meta:
         ordering = ['-pub_date'] # Show recent first.
@@ -214,14 +213,29 @@ class Subscription(models.Model):
             return f"{self.email} (Category: {self.category.name})"
         return f"{self.email} (All Categories)"
 
-# NEW - Follow Model
+# --- Follow Model ---
 class Follow(models.Model):
-    follower = models.ForeignKey(User, on_delete=models.CASCADE, related_name='following')  # Who is following
-    following = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='followers') # Who is being followed
-    created_at = models.DateTimeField(auto_now_add=True)
+     follower = models.ForeignKey(User, related_name='following', on_delete=models.CASCADE)
+     following = models.ForeignKey(UserProfile, related_name='followers', on_delete=models.CASCADE)
+     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        unique_together = ('follower', 'following')  # Prevent duplicate follows
+     class Meta:
+         unique_together = ('follower', 'following') #Prevent duplicate follows
+         ordering = ['-created_at']
 
-    def __str__(self):
-        return f'{self.follower.username} follows {self.following.user.username}'
+
+     def __str__(self):
+         return f'{self.follower.username} follows {self.following.user.username}'
+
+#Like model
+class Like(models.Model):
+     user = models.ForeignKey(User, related_name='likes', on_delete=models.CASCADE)
+     product = models.ForeignKey(Product, related_name='likes', on_delete=models.CASCADE)
+     created_at = models.DateTimeField(auto_now_add=True)
+
+     class Meta:
+         unique_together = ('user', 'product') # Prevent duplicate likes
+         ordering = ['-created_at']
+
+     def __str__(self):
+         return f'{self.user.username} likes {self.product.name}'

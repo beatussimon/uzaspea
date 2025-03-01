@@ -28,7 +28,10 @@
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}"> {# Include a .ico file for max compatibility #}
 
 
-    {% block extra_head %}{% endblock %}  {# Block for extra head content #}
+    {% block extra_head %}{% endblock %} 
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+
+    {# Block for extra head content #}
      <style>
       /* Global styles, applies to all pages using this base template */
       body {
@@ -226,7 +229,7 @@
                         <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'product_list' %}">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if 'products' in request.path %}active{% endif %}" href="{% url 'product_list' %}">My store</a>
+                        <a class="nav-link {% if 'products' in request.path %}active{% endif %}" href="{% url 'user_profile' username=user.username %}">My store</a>
                     </li>
                     {% if user.is_authenticated %}
                     <li class="nav-item">

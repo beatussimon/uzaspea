@@ -7,7 +7,7 @@ urlpatterns = [
     # User Profile and related URLs
     path('user/<str:username>/', views.user_profile, name='user_profile'),  # For viewing ANY user's profile
     path('profile/edit/', views.edit_profile, name='edit_profile'),  # For editing the CURRENT user's profile
-    path('follow_user/', views.follow_user, name='follow_user'), #keep this line for follow user.
+    path('follow/', views.follow_user, name='follow_user'), #keep this line for follow user.
     path('dashboard/', views.dashboard, name='dashboard'),
 
     # Product related URLs
@@ -16,14 +16,13 @@ urlpatterns = [
     path('product/<slug:slug>/update/', views.product_update, name='product_update'),
     path('product/<slug:slug>/delete/', views.product_delete, name='product_delete'),
     path('product/<slug:slug>/related/', views.get_related_products, name='get_related_products'),
-    path('user/products/', views.user_products, name='user_products'), # No longer needed, handled by user_profile
-
+    # path('user/products/', views.user_products, name='user_products'), # No longer needed
 
     # Cart and Checkout URLs
-    path('cart/add/<slug:slug>/', views.add_to_cart, name='add_to_cart'),
+    path('cart/add/<slug:slug>/', views.add_to_cart, name='add_to_cart'),  # Uses slug
     path('cart/', views.view_cart, name='view_cart'),
-    path('cart/remove/<int:product_id>/', views.remove_from_cart, name='remove_from_cart'),
-    path('cart/update/<int:product_id>/', views.update_cart, name='update_cart'),
+    path('cart/remove/<int:product_id>/', views.remove_from_cart, name='remove_from_cart'), # Uses product_id
+    path('cart/update/<int:product_id>/', views.update_cart, name='update_cart'), # Uses product_id
     path('checkout/', views.checkout, name='checkout'),
 
     # Order related URLs
@@ -32,11 +31,9 @@ urlpatterns = [
 
     # Search URL
     path('search/', views.search_results, name='search_results'),
+    #path('search/ajax/', views.search_results_ajax, name='search_results_ajax'), #add ajax search
 
-    #path('profile/', views.user_profile, name='user_profile'),  Removed, covered by user/<str:username>
+    #Liking the product 
+    path('like/<int:product_id>/', views.like_product, name='like_product'), # Add this line
 
-    # accounts/ is typically included in the *project-level* urls.py, not the app-level one
-    # path('accounts/', include('django.contrib.auth.urls')),   <- Project urls.py
-
-    #path('subscribe/', views.subscribe, name='subscribe'),  # Removed, handled in product_list
 ]
