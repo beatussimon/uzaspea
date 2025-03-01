@@ -2,68 +2,67 @@
 {% load static %}
 
 {% for product in products %}
-<div class="col product-card">
-    <div class="card h-100 d-flex flex-column">
-        {% if product.get_first_image %}
-        <a href="{{ product.get_absolute_url }}">
-            <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-        </a>
-        {% elif product.images.all %}
-        <a href="{{ product.get_absolute_url }}">
-            <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-        </a>
-        {% else %}
-        <a href="{{ product.get_absolute_url }}">
-            <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image">
-        </a>
-        {% endif %}
-
-        <div class="card-body d-flex flex-column">
-            <h5 class="card-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h5>
-            <p class="card-text small">{{ product.description|truncatewords:20 }}</p>
-
-            <div class="product-info d-flex justify-content-between align-items-center mb-2">
-                <div><i class="fas fa-tag text-primary me-1"></i> TSh {{ product.price|floatformat:0|intcomma }}</div>
-                <div><i class="fas fa-box text-secondary me-1"></i> {{ product.get_condition_display }}</div>
+<div class="product-card">
+    <a href="{{ product.get_absolute_url }}" class="product-link">
+        <div class="product-image-wrapper">
+            {% if product.get_first_image %}
+                <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+            {% elif product.images.all %}
+                <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+            {% else %}
+                <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
+            {% endif %}
+            <div class="product-overlay">
+                <span class="view-details-btn btn btn-primary">View Details</span>
             </div>
-            <div class="product-info d-flex justify-content-between align-items-center mb-2">
-                <p class="mb-0"><i class="fas fa-user text-info me-1"></i> {{ product.seller.username }}
-                    {% if product.seller.profile.is_verified %}
-                    <span class="badge bg-success">Verified</span>
-                    {% else %}
-                    <span class="badge bg-secondary">Not Verified</span>
-                    {% endif %}
-                </p>
-                <p class="mb-0"> <i class="fas fa-folder text-warning me-1"></i><a class="text-decoration-none"
-                        href="{{ product.category.get_absolute_url }}">{{ product.category }}</a></p>
-            </div>
+        </div>
+    </a>
+    <div class="card-body product-details">
+        <h3 class="product-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+        <p class="product-description">{{ product.description|truncatewords:25 }}</p>
 
+        <div class="product-meta">
+            <span class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</span>
+            <span class="product-condition badge {% if product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
+                {{ product.get_condition_display }}
+            </span>
+        </div>
+
+        <div class="product-meta">
+            <p class="product-seller">
+                <i class="fas fa-user"></i> <a href="{% url 'user_profile' product.seller.username %}" class="seller-link">{{ product.seller.username }}</a>
+                {% if product.seller.profile.is_verified %}
+                   <span class="verified-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
+                {% endif %}
+            </p>
+            <p class="product-category">
+                 <i class="fas fa-folder"></i> <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category }}</a>
+            </p>
+        </div>
+
+        <div class="product-rating">
             {% if product.average_rating > 0 %}
-            <div class="mb-3">
                 {% for i in "x"|ljust:product.average_rating %}
-                <i class="fas fa-star text-warning"></i>
+                    <i class="fas fa-star text-warning"></i>
                 {% endfor %}
                 {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
-                <i class="far fa-star text-warning"></i>
+                    <i class="far fa-star text-warning"></i>
                 {% endfor %}
-            </div>
             {% else %}
-            <p class="card-text text-muted small">No reviews yet</p>
-            {% endif %}
-
-            {% if product.is_available and product.stock > 0 %}
-            <div class="d-grid">
-                <a href="{{ product.get_absolute_url }}" class="btn btn-primary mt-auto">View Details</a>
-            </div>
-            {% else %}
-            <p class="text-danger">Out of Stock</p>
+                <p class="text-muted small">No reviews yet</p>
             {% endif %}
         </div>
+         {% if product.is_available and product.stock > 0 %}
+            <div class="d-grid mt-auto">
+                 <a href="{{ product.get_absolute_url }}" class="btn btn-primary btn-view">View Details</a>
+            </div>
+        {% else %}
+           <p class = "text-danger">Out of Stock</p>
+        {% endif %}
     </div>
 </div>
-
 {% empty %}
-<div class="col-12">
-    <p>No products found.</p>
-</div>
+    {% if not products and page == 1 %}
+       <p class = "no-products-message">No products found</p>
+    {% endif %}
 {% endfor %}

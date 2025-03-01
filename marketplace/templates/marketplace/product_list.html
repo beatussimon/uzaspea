@@ -6,367 +6,293 @@
 {% block title %}Product List - UZASPEA{% endblock %}
 
 {% block extra_head %}
-<style>
-    /* Loading indicator styles */
-    #loading-indicator {
-        display: none; /* Hidden by default */
-        text-align: center;
-        padding: 1rem;
-    }
-    .product-card {
-        margin-bottom: 1rem; /* Consistent spacing between cards */
-    }
-      /* Add a class for the info row */
-    .product-info {
-        font-size: 0.9rem; /* Slightly smaller font */
-        color: #6c757d;     /* Muted text color */
-        margin-bottom: 0.5rem; /* Space above the rating/button */
-    }
-    .product-info i {
-        margin-right: 0.3rem; /* Space between icon and text */
-        width: 1.25em;      /* Fixed width for icons - VERY IMPORTANT for alignment */
-        text-align: center;  /* Center the icons within their space */
-    }
-    /* --- Sticky Sidebar --- */
-    .sticky-sidebar {
-      position: sticky;
-      top: 1rem; /* Adjust as needed for your navbar height */
-      height: calc(100vh - 2rem); /* Adjust for top and any bottom spacing */
-      overflow-y: auto; /* Allow scrolling within the sidebar if content overflows */
-    }
-
-    /* Right Sidebar Styles - Customize as needed */
-    .right-sidebar {
-        background-color: #f8f9fa; /* Light gray background */
-        padding: 1rem;
-        border-left: 1px solid #dee2e6; /* Subtle border */
-    }
-      /* Verified Seller Badge */
-    .verified-badge {
-        color: #28a745; /* Bootstrap success color (green) */
-        margin-left: 0.25rem; /* Space between username and icon*/
-    }
-</style>
+<link rel="stylesheet" href="{% static 'css/product_list.css' %}">
 {% endblock %}
 
 {% block content %}
-    <h1>Products</h1>
+<div class="container mt-4">
+    <h1 class="page-title">Products</h1>
 
     <div class="row">
-        <div class="col-lg-2 col-md-3 sticky-sidebar">  {# Left Sidebar - Responsive and Sticky #}
-            {# Category filter, price filter, sort by, and condition filter  #}
-              <div class="card mb-4">
-                <div class="card-header">
-                    Categories
-                </div>
-                <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item {% if not selected_category %}active{% endif %}">
-                            <a href="{% url 'product_list' %}">All Categories</a>
-                        </li>
-                        {% for category in categories %}
-                        <li class="list-group-item {% if selected_category == category %}active{% endif %}">
-                            <a href="{{ category.get_absolute_url }}">{{ category.name }}</a>
-                            {% if category.children.all %}
-                                <ul class = "mt-2">
-                                {% for subcategory in category.children.all %}
-                                   <li><a href = "{{ subcategory.get_absolute_url }}">{{subcategory.name}}</a></li>
-                                {% endfor %}
-                                </ul>
-                            {% endif %}
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-
-            <div class="card mb-4">
-               <div class="card-header">Price Range</div>
-                <div class="card-body">
-                   <form method="get" action="{% url 'product_list' %}">
-                      <div class="mb-3">
-                        <label for="min_price" class="form-label">Min Price:</label>
-                        <input type="number" class="form-control" id="min_price" name="min_price" value="{{ min_price }}" min="0">
+        <div class="col-lg-3 col-md-4 mb-4">
+            <aside class="filter-sidebar">
+                <div class="card filter-group mb-4">
+                    <div class="card-header filter-header">
+                        <h6 class="filter-title mb-0">Categories</h6>
                     </div>
-                      <div class="mb-3">
-                          <label for="max_price" class="form-label">Max Price:</label>
-                        <input type="number" class="form-control" id="max_price" name="max_price" value="{{ max_price }}" min="0">
-                       </div>
-                      <button type="submit" class="btn btn-primary">Filter</button>
-                    <a href="{% url 'product_list' %}" class="btn btn-secondary">Clear</a>
-                  </form>
-                </div>
-            </div>
-
-            <div class="card mb-4">
-                    <div class="card-header">Sort By</div>
                     <div class="card-body">
-                       <form method="get" action="{% url 'product_list' %}">
-                           <select class="form-select" name="sort_by" onchange="this.form.submit()">
-                            <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>Newest</option>
-                            <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Price (Low to High)</option>
-                            <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Price (High to Low)</option>
-                             <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Rating</option>
-                        </select>
+                        <ul class="list-unstyled category-list">
+                            <li class="category-item {% if not selected_category %}active{% endif %}">
+                                <a href="{% url 'product_list' %}" class="category-link">All Categories</a>
+                            </li>
+                            {% for category in categories %}
+                            <li class="category-item {% if selected_category == category %}active{% endif %}">
+                                <a href="{{ category.get_absolute_url }}" class="category-link">{{ category.name }}</a>
+                                {% if category.children.all %}
+                                <ul class="mt-2 subcategory-list">
+                                    {% for subcategory in category.children.all %}
+                                    <li class="subcategory-item">
+                                        <a href="{{ subcategory.get_absolute_url }}" class="subcategory-link">{{ subcategory.name }}</a>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
 
-                           {% comment %} Keep the other filter params {% endcomment %}
-                        <input type="hidden" name="category" value="{{ selected_category_slug }}">
-                        <input type="hidden" name="min_price" value="{{ min_price }}">
-                        <input type="hidden" name="max_price" value="{{ max_price }}">
-                        <input type="hidden" name = "condition" value = "{{condition}}">
+                <div class="card filter-group mb-4">
+                    <div class="card-header filter-header">
+                        <h6 class="filter-title mb-0">Price Range</h6>
+                    </div>
+                     <div class="card-body">
+                        <form method="get" action="{% url 'product_list' %}" class="filter-form">
+                            <div class="mb-3">
+                                <label for="min_price" class="form-label">Min Price:</label>
+                                <input type="number" class="form-control" id="min_price" name="min_price" value="{{ min_price }}" min="0" placeholder="Min">
+                            </div>
+                            <div class="mb-3">
+                                <label for="max_price" class="form-label">Max Price:</label>
+                                <input type="number" class="form-control" id="max_price" name="max_price" value="{{ max_price }}" min="0" placeholder="Max">
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-filter">Filter</button>
+                            <a href="{% url 'product_list' %}" class="btn btn-secondary btn-clear">Clear</a>
                         </form>
                     </div>
-            </div>
-             <div class="card mb-4">
-                <div class="card-header">
-                    Condition
                 </div>
-                 <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                         <li class="list-group-item {% if not condition %}active{% endif %}">
-                            <a href="{% url 'product_list' %}">All Conditions</a>
-                        </li>
-                        <li class="list-group-item {% if condition == 'New' %}active{% endif %}">
-                            <a href="{% url 'product_list' %}?condition=New">New</a>
-                        </li>
-                        <li class="list-group-item  {% if condition == 'Used' %}active{% endif %}">
-                           <a href="{% url 'product_list' %}?condition=Used">Used</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
 
-        <div class="col-md-7 col-lg-8">  {# Main content area - Adjusted for responsiveness #}
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3 product-grid" id="product-container">
-                {% for product in products %}
-                <div class="col product-card">
-                    <div class="card h-100 d-flex flex-column">
-                        {% if product.get_first_image %}
-                            <a href="{{ product.get_absolute_url }}">
-                            <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-                            </a>
-                        {% elif product.images.all %}
-                            <a href="{{ product.get_absolute_url }}">
-                                <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
-                            </a>
-                        {% else %}
-                        <a href="{{ product.get_absolute_url }}">
-                            <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image">
-                            </a>
-                        {% endif %}
+                <div class="card filter-group mb-4">
+                    <div class="card-header filter-header">
+                        <h6 class="filter-title mb-0">Sort By</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" action="{% url 'product_list' %}" class="filter-form">
+                            <select class="form-select sort-select" name="sort_by" onchange="this.form.submit()">
+                                <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>Newest</option>
+                                <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Price (Low to High)</option>
+                                <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Price (High to Low)</option>
+                                <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Rating</option>
+                            </select>
 
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h5>
-                            <p class="card-text small">{{ product.description|truncatewords:20 }}</p>
-
-                            <div class="product-info d-flex justify-content-between align-items-center mb-2">
-                                <div><i class="fas fa-tag text-primary me-1"></i> TSh {{ product.price|floatformat:0|intcomma }}</div>
-                                <div><i class="fas fa-box text-secondary me-1"></i> {{ product.get_condition_display }}</div>
-                            </div>
-                            <div class="product-info d-flex justify-content-between align-items-center mb-2">
-                                <p><i class="fas fa-user text-info me-1"></i><a href="{% url 'user_profile' product.seller.username %}">{{ product.seller.username }}</a>
-                                    {% if product.seller.profile.is_verified %}
-                                        <span class="badge bg-success">Verified</span>
-                                    {% else %}
-                                         <span class="badge bg-secondary">Not Verified</span>
-                                    {% endif %}
-                                </p>
-                                 <p> <i class="fas fa-folder text-warning me-1"></i><a  class = "text-decoration-none" href="{{ product.category.get_absolute_url }}">{{ product.category }}</a></p>
-                            </div>
-
-                            {% if product.average_rating > 0 %}
-                            <div class="mb-3">
-                                {% for i in "x"|ljust:product.average_rating %}
-                                    <i class="fas fa-star text-warning"></i>
-                                {% endfor %}
-                                {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
-                                     <i class="far fa-star text-warning"></i>
-                                {% endfor %}
-                            </div>
-                            {% else %}
-                                <p class="card-text text-muted small">No reviews yet</p>
-                            {% endif %}
-
-                            {% if product.is_available and product.stock > 0 %}
-                            <div class="d-grid">
-                                <a href="{{ product.get_absolute_url }}" class="btn btn-primary mt-auto">View Details</a>
-                            </div>
-                            {% else %}
-                                <p class = "text-danger">Out of Stock</p>
-                            {% endif %}
-                        </div>
+                            {# Keep the other filter params #}
+                            <input type="hidden" name="category" value="{{ selected_category_slug }}">
+                            <input type="hidden" name="min_price" value="{{ min_price }}">
+                            <input type="hidden" name="max_price" value="{{ max_price }}">
+                            <input type="hidden" name="condition" value="{{ condition }}">
+                        </form>
                     </div>
                 </div>
-            {% empty %}
-                <div class="col-12">
-                    <p>No products found.</p>
+
+                <div class="card filter-group mb-4">
+                    <div class="card-header filter-header">
+                        <h6 class="filter-title mb-0">Condition</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled condition-list">
+                            <li class="condition-item {% if not condition %}active{% endif %}">
+                                <a href="{% url 'product_list' %}" class="condition-link">All Conditions</a>
+                            </li>
+                            <li class="condition-item {% if condition == 'New' %}active{% endif %}">
+                                <a href="{% url 'product_list' %}?condition=New" class="condition-link">New</a>
+                            </li>
+                            <li class="condition-item {% if condition == 'Used' %}active{% endif %}">
+                                <a href="{% url 'product_list' %}?condition=Used" class="condition-link">Used</a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
-            {% endfor %}
+            </aside>
+        </div>
+
+
+        <div class="col-lg-6 col-md-8">
+            <div class="product-grid" id="product-container">
+                {% include 'marketplace/product_list_ajax.html' %}
             </div>
 
-            <div id="loading-indicator" class="mt-3">
+            <div id="loading-indicator" class="mt-4 text-center" style="display: none;">
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
-                <p>Loading more products...</p>
+                <p class="loading-message">Loading more products...</p>
             </div>
         </div>
-        <div class = "col-lg-2 col-md-3 right-sidebar">
-        {# Right Sidebar Content #}
-          <div class="card mb-4">
+
+        <div class="col-lg-3 col-md-4">
+          <div class = "right-sidebar">
+           <div class="card mb-4">
                 <div class="card-header">Subscribe to Newsletter</div>
                 <div class="card-body">
-                  <p class = "small text-muted">Get the latest updates and offers.</p>
-                    <form method = "post" action = "{% url 'product_list' %}">
-                     {% csrf_token %}
-                     <div class="mb-3">
-                       {{ subscription_form|crispy }}
-                       </div>
-                       <button type = "submit" class = "btn btn-outline-primary" name = "subscribe_submit">Subscribe</button>
+                    <p class="small text-muted">Get the latest updates and offers.</p>
+                     <form method="post" action="{% url 'product_list' %}">
+                         {% csrf_token %}
+                        <div class="mb-3">
+                            {{ subscription_form|crispy }}
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary" name="subscribe_submit">Subscribe</button>
                     </form>
                 </div>
             </div>
             <div class="card mb-4">
-                <div class="card-header">
-                    Follow Us
-                </div>
-                <div class="card-body">
-                    <p class="text-muted small">Connect with us:</p>
-                    <div class="row row-cols-2 g-2">
-                        <div class="col">
-                            <a href="https://www.facebook.com/yourfacebookpage" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Facebook" target="_blank" rel="noopener noreferrer">
-                                <i class="fab fa-facebook-f fa-2x"></i>
-                            </a>
-                        </div>
-                        <div class="col">
-                            <a href="https://twitter.com/yourtwitterhandle" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Twitter" target="_blank" rel="noopener noreferrer">
-                                <i class="fab fa-x-twitter fa-2x"></i>
-                            </a>
-                        </div>
-                        <div class="col">
-                            <a href="https://www.instagram.com/yourinstagramusername/" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Instagram" target="_blank" rel="noopener noreferrer">
-                                <i class="fab fa-instagram fa-2x"></i>
-                            </a>
-                        </div>
-                        <div class="col">
-                            <a href="https://www.youtube.com/youryoutubechannel" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="YouTube" target="_blank" rel="noopener noreferrer">
-                                <i class="fab fa-youtube fa-2x"></i>
-                            </a>
+               <div class="card-header">
+                   Follow Us
+                 </div>
+                    <div class="card-body">
+                       <p class="text-muted small">Connect with us:</p>
+                            <div class="row row-cols-4 g-2">
+                                <div class="col">
+                                   <a href="https://www.facebook.com/yourfacebookpage" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Facebook" target="_blank" rel="noopener noreferrer">
+                                     <i class="fab fa-facebook-f fa-2x"></i>
+                                     </a>
+                                 </div>
+                                <div class="col">
+                                    <a href="https://twitter.com/yourtwitterhandle" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Twitter" target="_blank" rel="noopener noreferrer">
+                                    <i class="fab fa-x-twitter fa-2x"></i>
+                                        </a>
+                                         </div>
+                                      <div class="col">
+                                         <a href="https://www.instagram.com/yourinstagramusername/" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Instagram" target="_blank" rel="noopener noreferrer">
+                                      <i class="fab fa-instagram fa-2x"></i>
+                                        </a>
+                                        </div>
+                                    <div class="col">
+                                       <a href="https://www.youtube.com/youryoutubechannel" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="YouTube" target="_blank" rel="noopener noreferrer">
+                                        <i class="fab fa-youtube fa-2x"></i>
+                                         </a>
+                                        </div>
+                            </div>
+                    </div>
+            </div>
+            {% if offers %}
+            <div class="card mb-4">
+                <div class="card-header">Special Offers</div>
+                    <div class="card-body">
+                        <ul class = "list-group list-group-flush">
+                           {% for offer in offers %}
+                               <li class = "list-group-item">
+                                  {% if offer.image %}
+                                     <img src = "{{offer.image.url}}" class = "img-fluid mb-2" alt = "{{offer.title}}">
+                                   {% endif %}
+                                      <h5>{{ offer.title }}</h5>
+                                         <p>{{ offer.description|truncatewords:20 }}</p>
+                                           {% if offer.link %}
+                                             <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">Learn More</a>
+                                             {% endif %}
+                                        </li>
+                                {% empty %}
+                                     <li class="list-group-item">No offers at the moment.</li>
+                                {% endfor %}
+                                </ul>
                         </div>
                     </div>
-                </div>
-                </div>
-                {% if offers %}
-                    <div class="card mb-4">
-                       <div class="card-header">Special Offers</div>
-                        <div class="card-body">
-                            <ul class = "list-group list-group-flush">
-                               {% for offer in offers %}
-                                 <li class = "list-group-item">
-                                     {% if offer.image %}
-                                      <img src = "{{offer.image.url}}" class = "img-fluid mb-2" alt = "{{offer.title}}">
-                                     {% endif %}
-                                    <h5>{{ offer.title }}</h5>
-                                    <p>{{ offer.description|truncatewords:20 }}</p> {# Limit description length #}
-                                     {% if offer.link %}
-                                       <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">Learn More</a>
-                                     {% endif %}
-                                  </li>
-                               {% empty %}
-                                 <li class="list-group-item">No offers at the moment.</li>
-                               {% endfor %}
-                              </ul>
-                           </div>
+              {% endif %}
+              {% if news_items %}
+              <div class="card mb-4">
+                    <div class="card-header">Latest News</div>
+                    <div class="card-body">
+                       <ul class = "list-group list-group-flush">
+                          {% for item in news_items %}
+                            <li class = "list-group-item">
+                               <h5>{{ item.title }}</h5>
+                                  <p class = "small text-muted">{{item.pub_date|date:"F j, Y"}}</p>
+                                    <p>{{ item.content|truncatewords:25 }}</p>
+                                      {% if item.link %}
+                                         <a href = "{{item.link}}" class = "btn btn-sm btn-outline-secondary">Read More</a>
+                                         {% endif %}
+                                </li>
+                             {% empty %}
+                                  <li class="list-group-item">No News at the moment</li>
+                                {% endfor %}
+                        </ul>
                     </div>
-                  {% endif %}
-                  {% if news_items %}
-                    <div class="card mb-4">
-                      <div class="card-header">Latest News</div>
-                      <div class="card-body">
-                          <ul class = "list-group list-group-flush">
-                           {% for item in news_items %}
-                           <li class = "list-group-item">
-                             <h5>{{ item.title }}</h5>
-                              <p class = "small text-muted">{{item.pub_date|date:"F j, Y"}}</p>
-                               <p>{{ item.content|truncatewords:25 }}</p> {# Limit content#}
-                                {% if item.link %}
-                                  <a href = "{{item.link}}" class = "btn btn-sm btn-outline-secondary">Read More</a>
-                                {% endif %}
-                           </li>
-                           {% empty %}
-                               <li class="list-group-item">No News at the moment</li>
-                            {% endfor %}
-                             </ul>
-                         </div>
-                      </div>
-                    {% endif %}
-                        </div>
-                    </div>
+              </div>
+              {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-                {% endblock %}
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let loading = false;
+        let page = 2; // Start with page 2 (page 1 is loaded by the initial request)
+        const productContainer = document.getElementById('product-container');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        let noMoreProducts = false;
 
-                {% block extra_js %}
-                <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        let loading = false;
-                        let page = 2; // Start with page 2 (page 1 is already loaded)
-                        const productContainer = document.getElementById('product-container');
-                        const loadingIndicator = document.getElementById('loading-indicator');
-                        let noMoreProducts = false;
+        function loadMoreProducts() {
+            if (loading || noMoreProducts) return;
+            loading = true;
+            loadingIndicator.style.display = 'block';
 
-                        function loadMoreProducts() {
-                            if (loading || noMoreProducts) return;  // Prevent multiple simultaneous loads
-                            loading = true;
-                            loadingIndicator.style.display = 'block';
+            let url = new URL(window.location.href);
+            url.searchParams.set('page', page); // Add the page parameter
 
-                            // Construct the URL with current filters + the next page
-                            let url = new URL(window.location.href);
-                            url.searchParams.set('page', page);
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest', // Crucial for Django to recognize AJAX
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        noMoreProducts = true; // No more pages
+                    }
+                    throw new Error('Network response was not ok');
+                }
+                return response.text(); // Get the HTML content
+            })
+            .then(data => {
+                if (data.trim() === "") { // Check for empty response
+                    noMoreProducts = true;
+                    return;
+                }
+                productContainer.insertAdjacentHTML('beforeend', data); // Append new products
+                page++;
+                 var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl)
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
 
+            })
+            .finally(() => {
+                loading = false;
+                loadingIndicator.style.display = 'none';
+            });
+        }
 
-                            fetch(url, {  // Use fetch API for AJAX
-                                method: 'GET',
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest', // Signal that this is an AJAX request
-                                }
-                            })
-                            .then(response => {
-                                if (!response.ok) {
-                                  if (response.status === 404) {
-                                    //404 means no more products.
-                                    noMoreProducts = true;
-                                    throw new Error('No more products');
-                                  } else {
-                                    throw new Error('Network response was not ok');
-                                  }
-                                }
-                                return response.text(); // Get the response as text
-                            })
-                            .then(data => {
-                                // Instead of replacing innerHTML, *append* the new products.
-                                productContainer.insertAdjacentHTML('beforeend', data);
-                                page++; // Increment page number for next load.
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                                if (error.message === 'No more products'){loadingIndicator.style.display = 'none'; // Hide indicator.
-                                }
+        window.addEventListener('scroll', function() {
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50 && !loading && !noMoreProducts) {
+                loadMoreProducts();
+            }
+        });
 
-                            })
-                            .finally(() => {
-                                loading = false;
-                                loadingIndicator.style.display = 'none';
-                            });
-                        }
+        // Initialize tooltips (for any dynamically added content)
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
 
+         //Image Zoom on hover
+        const productImages = document.querySelectorAll('.product-image');
 
-                        window.addEventListener('scroll', function() {
-                            // Check if the user has scrolled to the bottom of the page.
-                            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50) {  // 50px threshold
-                                loadMoreProducts();
-                            }
-                        });
-                    });
-                </script>
-                {% endblock %}
+        productImages.forEach(image => {
+            image.addEventListener('mouseover', function() {
+                this.style.transform = 'scale(1.1)';
+                this.style.transition = 'transform 0.3s ease';
+            });
+            image.addEventListener('mouseout', function() {
+                this.style.transform = 'scale(1)';
+                this.style.transition = 'transform 0.3s ease';
+            });
+        });
+    });
+</script>
+{% endblock %}

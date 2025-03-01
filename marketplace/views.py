@@ -18,7 +18,6 @@ from .models import Product, Order, UserProfile
 from .forms import ProfileUpdateForm
 
 def product_list(request):
-     #... (The rest of your product_list view - no changes needed here) ...
     products = Product.objects.filter(is_available=True).annotate(avg_rating=Avg('reviews__rating'))
 
     # --- Search ---
@@ -42,15 +41,7 @@ def product_list(request):
     if category_slug:
         selected_category = get_object_or_404(Category, slug=category_slug)
         # Get all descendant categories (including sub-subcategories, etc.)
-        categories = [selected_category] + list(selected_category.children.all())
-
-        # Get children and children of children and ... (Recursive function)
-        def get_descendants(category, descendants_list):
-            for child in category.children.all():
-                descendants_list.append(child)
-                get_descendants(child, descendants_list)  # Recursion!
-        get_descendants(selected_category, categories)
-
+        categories = [selected_category] + list(selected_category.get_descendants(include_self=True))
         products = products.filter(category__in=categories)  # Filter by this set
 
     if min_price:
@@ -72,43 +63,53 @@ def product_list(request):
 
 
     # --- Pagination/Infinite Scroll ---
-    # We *still* paginate, but with a smaller page size for AJAX
-    paginator = Paginator(products, 8)  # Show 8 products per page (for infinite scroll)
-    page = request.GET.get('page')
+    # AJAX request handling *before* standard pagination
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        page = request.GET.get('page')
+        paginator = Paginator(products, 8)  # 8 products per page for AJAX loads
+        try:
+            products = paginator.page(page)
+        except PageNotAnInteger:
+            return HttpResponse('')  # Return empty response for invalid page
+        except EmptyPage:
+            return HttpResponse('')   # Return empty if out of pages.  JavaScript will stop.
+
+        return render(request, 'marketplace/product_list_ajax.html', {'products': products, 'page': int(page)+1}) # Pass the page number.  Important!
+
+
+    # --- Standard Pagination (for initial page load) ---
+    paginator = Paginator(products, 12)  # 12 products on the first page load.
+    page = request.GET.get('page', 1)  # Default to page 1
     try:
         products = paginator.page(page)
     except PageNotAnInteger:
         products = paginator.page(1)  # If page is not an integer, deliver first page.
     except EmptyPage:
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            # Important:  Return an empty response for AJAX requests when out of pages
-            return HttpResponse('')  # No more products, return empty response
-        products = paginator.page(paginator.num_pages)
+        products = paginator.page(paginator.num_pages)  # If out of range, deliver last page.
+
 
     categories = Category.objects.filter(parent=None)  # Only top-level categories for sidebar
 
     # --- Get data for the right sidebar ---
-    offers = SidebarOffer.objects.filter(active=True)  # Get active offers
+    offers = SidebarOffer.objects.filter(active=True)[:3]  # Get active offers, limit to 3
     news_items = SidebarNewsItem.objects.filter(active=True)[:3]  # Get top 3 active news items
 
-     # --- Handle Subscription Form ---
+    # --- Handle Subscription Form ---
     if request.method == 'POST' and 'subscribe_submit' in request.POST: # Check for submit button name
         subscription_form = SubscriptionForm(request.POST)
         if subscription_form.is_valid():
             email = subscription_form.cleaned_data['email']
             category = subscription_form.cleaned_data['category']
-
+            # subscription.save()
             # Create subscription. The unique_together in the model prevents duplicates.
             try:
-              Subscription.objects.get_or_create(email=email, category=category)
-              messages.success(request, "You have successfully subscribed!")
+                Subscription.objects.get_or_create(email=email, category=category)
+                messages.success(request, "You have successfully subscribed!")
             except Exception as e:
                 messages.warning(request, "Something went wrong")
 
-
             # Best practice: Redirect after POST to prevent resubmission
             return redirect('product_list')  # Redirect to the product list
-
 
     else:
         subscription_form = SubscriptionForm() # Create a form
@@ -117,23 +118,19 @@ def product_list(request):
     context = {
         'products': products,
         'categories': categories,
-        'query': query,
+        'query': query,  # For search term persistence
         'selected_category': selected_category,
+        'selected_category_slug' : category_slug,
         'min_price': min_price,
         'max_price': max_price,
         'sort_by': sort_by,
         'condition': condition,
-        'offers': offers,        # Add offers to the context
-        'news_items': news_items, # Add news items to the context
-        'subscription_form': subscription_form,  # Add form to context
+        'offers': offers,
+        'news_items': news_items,
+        'subscription_form': subscription_form,
+        'page': page,  # Pass the current page number
     }
-
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        # For AJAX requests, render *only* the product list items, NOT the whole page.
-        return render(request, 'marketplace/product_list_ajax.html', context)
-    else:
-        # For initial page load, render the full page.
-        return render(request, 'marketplace/product_list.html', context)
+    return render(request, 'marketplace/product_list.html', context)
 
 def product_detail(request, slug):
     product = get_object_or_404(Product, slug=slug)
