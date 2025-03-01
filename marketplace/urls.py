@@ -3,24 +3,40 @@ from . import views
 
 urlpatterns = [
     path('', views.product_list, name='product_list'),
+    path('register/', views.register, name='register'),
+    # User Profile and related URLs
+    path('user/<str:username>/', views.user_profile, name='user_profile'),  # For viewing ANY user's profile
+    path('profile/edit/', views.edit_profile, name='edit_profile'),  # For editing the CURRENT user's profile
+    path('follow_user/', views.follow_user, name='follow_user'), #keep this line for follow user.
+    path('dashboard/', views.dashboard, name='dashboard'),
+
+    # Product related URLs
     path('product/create/', views.product_create, name='product_create'),
     path('product/<slug:slug>/', views.product_detail, name='product_detail'),
     path('product/<slug:slug>/update/', views.product_update, name='product_update'),
     path('product/<slug:slug>/delete/', views.product_delete, name='product_delete'),
-    path('register/', views.register, name='register'),
-    path('profile/', views.user_profile, name='user_profile'),
-    path('dashboard/', views.dashboard, name='dashboard'),
+    path('product/<slug:slug>/related/', views.get_related_products, name='get_related_products'),
+    path('user/products/', views.user_products, name='user_products'), # No longer needed, handled by user_profile
+
+
+    # Cart and Checkout URLs
     path('cart/add/<slug:slug>/', views.add_to_cart, name='add_to_cart'),
     path('cart/', views.view_cart, name='view_cart'),
     path('cart/remove/<int:product_id>/', views.remove_from_cart, name='remove_from_cart'),
     path('cart/update/<int:product_id>/', views.update_cart, name='update_cart'),
     path('checkout/', views.checkout, name='checkout'),
+
+    # Order related URLs
     path('orders/', views.order_list, name='order_list'),
     path('orders/<int:order_id>/', views.order_detail, name='order_detail'),
-    path('search/', views.search_results, name='search_results'),
-    path('product/<slug:slug>/related/', views.get_related_products, name='get_related_products'),
-    path('user/products/', views.user_products, name='user_products'), # Add the user_products URL
 
-    # path('accounts/', include('django.contrib.auth.urls')),  <- In project urls.py
-    #path('subscribe/', views.subscribe, name='subscribe'), # No longer needed
+    # Search URL
+    path('search/', views.search_results, name='search_results'),
+
+    #path('profile/', views.user_profile, name='user_profile'),  Removed, covered by user/<str:username>
+
+    # accounts/ is typically included in the *project-level* urls.py, not the app-level one
+    # path('accounts/', include('django.contrib.auth.urls')),   <- Project urls.py
+
+    #path('subscribe/', views.subscribe, name='subscribe'),  # Removed, handled in product_list
 ]

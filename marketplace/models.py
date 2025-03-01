@@ -1,11 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.urls import reverse
-from django.utils.text import slugify
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
 from django.db.models import Avg
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils.text import slugify
 
 
 class Category(models.Model):
@@ -139,13 +139,35 @@ class OrderItem(models.Model):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    is_verified = models.BooleanField(default=False)
-    phone_number = models.CharField(max_length=20, validators=[RegexValidator(r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")])
+    is_verified = models.BooleanField(default=False)  # Seller verification
+    phone_number = models.CharField(max_length=20, blank=True, validators=[RegexValidator(r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")]) #added a validator
     instagram_username = models.CharField(max_length=30, blank=True)
     website = models.URLField(blank=True)
+    bio = models.TextField(max_length=500, blank=True)  # Add bio field
+    location = models.CharField(max_length=100, blank=True)  # Add location field
+    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
+    following = models.ManyToManyField(User, related_name='followers', blank=True, symmetrical=False) # Add following
 
     def __str__(self):
         return self.user.username
+
+    def get_absolute_url(self):
+        return reverse('user_profile', args=[self.user.username])
+
+    def get_followers_count(self):
+        return self.user.followers.count()
+
+    def get_following_count(self):
+        return self.user.following.count()
+
+
+# Signal to create/update UserProfile automatically
+@receiver(post_save, sender=User)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
+    instance.profile.save()
+
 
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
@@ -181,12 +203,25 @@ class SidebarNewsItem(models.Model):
 # Model for subscriptions
 
 class Subscription(models.Model):
-    email = models.EmailField(unique=True)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True, blank=True)
+    email = models.EmailField(unique=True)  # Ensure unique emails
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True, blank=True) # Allow no specific category
     created_at = models.DateTimeField(auto_now_add=True)
+
     class Meta:
-        unique_together = ('email', 'category')
+        unique_together = ('email', 'category') # Prevent duplicate subscription
     def __str__(self):
         if self.category:
             return f"{self.email} (Category: {self.category.name})"
         return f"{self.email} (All Categories)"
+
+# NEW - Follow Model
+class Follow(models.Model):
+    follower = models.ForeignKey(User, on_delete=models.CASCADE, related_name='following')  # Who is following
+    following = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='followers') # Who is being followed
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('follower', 'following')  # Prevent duplicate follows
+
+    def __str__(self):
+        return f'{self.follower.username} follows {self.following.user.username}'
