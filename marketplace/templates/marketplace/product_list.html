@@ -11,12 +11,12 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-
+<div class="container-fluid mt-4">
+    <h1 class="page-title">Products</h1>
 
     <!-- Toggle Buttons for Mobile (at the top) -->
     <div class="d-lg-none toggle-section">
-        <button class="btn btn-toggle-sidebar mb-3 me-2" type="button" data-bs-toggle="collapse" data-bs-target="#rightCollapse">News and offers</button>
+        <button class="btn btn-toggle-sidebar mb-3 me-2" type="button" data-bs-toggle="collapse" data-bs-target="#rightCollapse">Sidebar</button>
         <button class="btn btn-toggle-sidebar mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">Filters</button>
     </div>
 
@@ -97,7 +97,7 @@
                     </div>
                     <div class="card-body">
                         <ul class="list-unstyled condition-list">
-                            <li class="condition-item {% if not condition %}active{% endif %}">
+                            <li class="category-item {% if not condition %}active{% endif %}">
                                 <a href="{% url 'product_list' %}" class="condition-link">All Conditions</a>
                             </li>
                             <li class="condition-item {% if condition == 'New' %}active{% endif %}">
@@ -127,9 +127,6 @@
                                     {% else %}
                                         <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
                                     {% endif %}
-                                    <div class="product-overlay">
-                                        <span class="view-details-btn btn btn-primary">View Details</span>
-                                    </div>
                                 </div>
                             </a>
                             <div class="card-body product-details">
@@ -143,13 +140,15 @@
                                 </div>
                                 <div class="product-meta seller-category">
                                     <p class="product-seller">
-                                        <i class="bi bi-person"></i> <a href="{% url 'user_profile' product.seller.username %}" class="seller-link">{{ product.seller.username }}</a>
+                                        <i class="bi bi-person me-1"></i> 
+                                        <a href="{% url 'user_profile' product.seller.username %}" class="seller-link">{{ product.seller.username }}</a>
                                         {% if product.seller.profile.is_verified %}
-                                            <span class="verified-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Verified Seller"><i class="bi bi-check-circle-fill"></i></span>
+                                            <span class="verified-badge text-success ms-1"><i class="bi bi-check-circle-fill"></i></span>
                                         {% endif %}
                                     </p>
                                     <p class="product-category">
-                                        <i class="bi bi-folder"></i> <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category }}</a>
+                                        <i class="bi bi-folder me-1"></i> 
+                                        <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category }}</a>
                                     </p>
                                 </div>
                                 <div class="product-rating">
