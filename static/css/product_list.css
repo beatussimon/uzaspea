@@ -5,6 +5,13 @@
     font-weight: 600;
 }
 
+/* Toggle Section for Mobile */
+.toggle-section {
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
 /* Filter Sidebar (Left Section) */
 .filter-sidebar {
     position: sticky;
@@ -12,12 +19,12 @@
     height: calc(100vh - 40px);
     overflow-y: auto;
     z-index: 1;
-    scrollbar-width: thin; /* Firefox */
-    scrollbar-color: #ccc #f8f9fa; /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #ccc #f8f9fa;
 }
 
 .filter-sidebar::-webkit-scrollbar {
-    width: 6px; /* Chrome, Safari */
+    width: 6px;
 }
 
 .filter-sidebar::-webkit-scrollbar-thumb {
@@ -78,7 +85,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: 400px; /* Reduced height */
+    height: 360px; /* Further reduced height */
     transition: box-shadow 0.3s ease;
 }
 
@@ -89,7 +96,7 @@
 .product-image-wrapper {
     position: relative;
     overflow: hidden;
-    padding-top: 60%; /* Adjusted aspect ratio for smaller height */
+    padding-top: 50%; /* Adjusted for smaller height */
     flex-shrink: 0;
 }
 
@@ -123,18 +130,19 @@
 
 .view-details-btn {
     color: white;
-    padding: 8px 16px; /* Smaller button */
+    padding: 6px 12px; /* Smaller button */
     border: none;
-    border-radius: 5px;
+    border-radius: 4px;
     cursor: pointer;
+    font-size: 0.85rem;
 }
 
 .product-details {
-    padding: 10px; /* Reduced padding */
+    padding: 8px;
     display: flex;
     flex-direction: column;
     flex-grow: 1;
-    text-align: left;
+    gap: 6px; /* Consistent spacing between elements */
 }
 
 .product-title {
@@ -173,32 +181,34 @@
 }
 
 .product-meta {
-    margin-bottom: 5px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
 }
 
 .product-price {
     font-weight: bold;
     color: #007bff;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
 .product-condition {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+    padding: 2px 6px;
 }
 
 .seller-category {
-    margin-bottom: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     flex-shrink: 0;
 }
 
 .product-seller, .product-category {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #777;
-    margin-bottom: 2px;
+    margin: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -214,12 +224,26 @@
 }
 
 .product-rating {
-    margin-bottom: 5px;
     display: flex;
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+}
+
+.product-action {
+    margin-top: auto; /* Pushes action to bottom */
+    text-align: center;
+}
+
+.product-action .btn-view {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    width: 100%;
+}
+
+.product-action .text-danger {
+    font-size: 0.85rem;
 }
 
 .no-products-message {
@@ -238,12 +262,12 @@
     height: calc(100vh - 40px);
     overflow-y: auto;
     z-index: 1;
-    scrollbar-width: thin; /* Firefox */
-    scrollbar-color: #ccc #f8f9fa; /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #ccc #f8f9fa;
 }
 
 .right-sidebar::-webkit-scrollbar {
-    width: 6px; /* Chrome, Safari */
+    width: 6px;
 }
 
 .right-sidebar::-webkit-scrollbar-thumb {
@@ -267,7 +291,7 @@
 }
 
 .social-icon {
-    width: 36px; /* Slightly smaller */
+    width: 36px;
     height: 36px;
     border: 1px solid #ddd;
     border-radius: 50%;
@@ -314,12 +338,8 @@
     }
 
     .btn-toggle-sidebar {
-        width: 100%;
-        background-color: #f8f9fa;
-        border: 1px solid #ddd;
-        margin-bottom: 15px;
-        font-size: 1rem;
-        padding: 10px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
     }
 
     .product-grid .col-md-4 {
@@ -327,11 +347,11 @@
     }
 
     .right-sidebar {
-        margin-bottom: 20px;
+        margin-bottom: 15px;
     }
 
     .product-card {
-        height: 380px; /* Slightly smaller on tablets */
+        height: 340px; /* Slightly smaller on tablets */
     }
 }
 
@@ -341,18 +361,19 @@
     }
 
     .product-card {
-        height: 360px; /* Even smaller on mobile */
+        height: 320px; /* Even smaller on mobile */
     }
 
     .product-image-wrapper {
-        padding-top: 50%; /* Adjusted for smaller cards */
+        padding-top: 45%;
     }
 
     .product-details {
-        padding: 8px;
+        padding: 6px;
     }
 
-    .view-details-btn {
-        padding: 6px 12px;
+    .view-details-btn, .product-action .btn-view {
+        padding: 5px 10px;
+        font-size: 0.8rem;
     }
 }
