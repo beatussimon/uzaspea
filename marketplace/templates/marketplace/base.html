@@ -45,8 +45,6 @@
                         <li class="nav-item">
                             <a class="nav-link {% if 'products' in request.path %}active{% endif %}" href="{% url 'user_profile' username=user.username %}">My Store</a>
                         </li>
-                        {% endif %}
-                        {% if user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link {% if 'product/create' in request.path %}active{% endif %}" href="{% url 'product_create' %}">Sell Product</a>
                         </li>
@@ -79,17 +77,17 @@
                                     <span class="verified-badge text-success"><i class="fas fa-check-circle"></i></span>
                                 {% endif %}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                                <li><a class="dropdown-item" href="{% url 'user_profile' username=user.username %}">Profile</a></li>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="navbarDropdown">
+                                <li><a class="dropdown-item py-2" href="{% url 'user_profile' username=user.username %}"><i class="fas fa-user me-2"></i>Profile</a></li>
                                 {% if user.is_staff or user.products.all %}
-                                <li><a class="dropdown-item" href="{% url 'dashboard' %}">Dashboard</a></li>
+                                <li><a class="dropdown-item py-2" href="{% url 'dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
                                 {% endif %}
-                                <li><a class="dropdown-item" href="{% url 'order_list' %}">Orders</a></li>
-                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item py-2" href="{% url 'order_list' %}"><i class="fas fa-shopping-bag me-2"></i>Orders</a></li>
+                                <li><hr class="dropdown-divider my-1"></li>
                                 <li>
                                     <form action="{% url 'logout' %}" method="post">
                                         {% csrf_token %}
-                                        <button type="submit" class="dropdown-item">Logout</button>
+                                        <button type="submit" class="dropdown-item py-2"><i class="fas fa-sign-out-alt me-2"></i>Logout</button>
                                     </form>
                                 </li>
                             </ul>

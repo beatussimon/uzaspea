@@ -65,7 +65,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .navbar-brand:hover .logo-image,
 .navbar-brand:hover .logo-text {
-    transform: scale(1.05); /* Subtle scale effect */
+    transform: scale(1.05);
 }
 
 .nav-link {
@@ -98,15 +98,34 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
 }
 
-/* Dropdown */
+/* Dropdown (Improved for collapsed state) */
+.dropdown-menu {
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0;
+    background-color: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
 .dropdown-item {
     color: #343a40;
-    transition: background-color 0.2s ease;
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .dropdown-item:hover {
     background-color: #f8f9fa;
     color: #0056b3;
+}
+
+.dropdown-item i {
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+.dropdown-divider {
+    margin: 0.25rem 0;
 }
 
 /* Search Bar */
@@ -153,7 +172,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .verified-badge {
     vertical-align: middle;
-    font-size: 1rem; /* Slightly smaller for better alignment */
+    font-size: 1rem;
     margin-left: 5px;
 }
 
@@ -162,7 +181,7 @@ h1, h2, h3, h4, h5, h6 {
     background-color: #f8f9fa;
     padding: 2rem 0;
     color: #6c757d;
-    border-top: 1px solid #e9ecef; /* Subtle top border */
+    border-top: 1px solid #e9ecef;
 }
 
 .footer-heading {
@@ -192,7 +211,7 @@ h1, h2, h3, h4, h5, h6 {
 .social-icons {
     margin-top: 1rem;
     display: flex;
-    gap: 10px; /* Better spacing */
+    gap: 10px;
 }
 
 .social-icon {
@@ -230,15 +249,18 @@ h1, h2, h3, h4, h5, h6 {
     .logo-text { font-size: 1.4rem; }
     .search-form { margin-top: 0.5rem; width: 100%; }
     .search-input, .search-button { width: 100%; }
-    .navbar-nav { padding-top: 0.5rem; }
+    .navbar-nav { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+    .navbar-nav .nav-item { margin-right: 0; margin-bottom: 0.5rem; }
+    .navbar-nav .nav-link { padding: 0.75rem 1rem; font-size: 1rem; }
     .footer { text-align: center; }
     .social-icons { justify-content: center; }
-    .dropdown-menu { text-align: left; }
+    .dropdown-menu { text-align: left; width: 100%; }
 }
 
 @media (min-width: 576px) and (max-width: 991.98px) {
     .logo-text { font-size: 1.5rem; }
     .search-form { width: 100%; }
+    .navbar-nav .nav-item { margin-bottom: 0.5rem; }
 }
 
 @media (min-width: 992px) {
