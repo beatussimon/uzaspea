@@ -53,15 +53,15 @@
                         {% endif %}
                     </ul>
 
-                    <ul class="navbar-nav ms-auto">
+                    <ul class="navbar-nav ms-auto align-items-lg-center">
                         <li class="nav-item">
-                            <form class="d-flex search-form" action="{% url 'search_results' %}" method="get">
-                                <input class="form-control search-input" type="search" placeholder="Search products..." aria-label="Search" name="q" value="{{ query }}">
+                            <form class="d-flex search-form my-2 my-lg-0" action="{% url 'search_results' %}" method="get">
+                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." aria-label="Search" name="q" value="{{ query }}">
                                 <button class="btn btn-primary search-button" type="submit"><i class="fas fa-search"></i></button>
                             </form>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link cart-icon position-relative" href="{% url 'view_cart' %}">
+                            <a class="nav-link cart-icon position-relative my-2 my-lg-0" href="{% url 'view_cart' %}">
                                 <i class="fas fa-shopping-cart"></i>
                                 {% if cart_items_count > 0 %}
                                 <span class="cart-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
@@ -73,7 +73,7 @@
                         </li>
                         {% if user.is_authenticated %}
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle my-2 my-lg-0" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 {{ user.username }}
                                 {% if user.profile.is_verified %}
                                     <span class="verified-badge text-success"><i class="fas fa-check-circle"></i></span>
@@ -96,10 +96,10 @@
                         </li>
                         {% else %}
                         <li class="nav-item">
-                            <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{% url 'login' %}">Login</a>
+                            <a class="nav-link {% if 'login' in request.path %}active{% endif %} my-2 my-lg-0" href="{% url 'login' %}">Login</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if 'register' in request.path %}active{% endif %}" href="{% url 'register' %}">Register</a>
+                            <a class="nav-link {% if 'register' in request.path %}active{% endif %} my-2 my-lg-0" href="{% url 'register' %}">Register</a>
                         </li>
                         {% endif %}
                     </ul>
@@ -108,12 +108,14 @@
         </nav>
     </header>
 
-    <main class="my-4">  {# REMOVED container from here #}
+    <main class="my-4 flex-grow-1">
         {% if messages %}
           {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <div class="container">
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
             </div>
           {% endfor %}
         {% endif %}
@@ -123,7 +125,7 @@
 
     <footer class="footer bg-light py-4 mt-auto">
         <div class="container">
-            <div class="row">
+            <div class="row align-items-start">
                 <div class="col-md-4 mb-3">
                     <h5 class="footer-heading">About UZASPEA</h5>
                     <p class="text-muted">Your premier online marketplace for buying and selling in Tanzania.</p>
@@ -137,19 +139,19 @@
                         <li><a href="#" class="footer-link">Terms & Conditions</a></li>
                     </ul>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4 mb-3">
                     <h5 class="footer-heading">Connect With Us</h5>
-                      <div class="social-icons">
-                          <a href="#" aria-label="Facebook" class="social-icon"><i class="fab fa-facebook-f"></i></a>
-                          <a href="#" aria-label="Twitter" class="social-icon"><i class="fab fa-twitter"></i></a>
-                          <a href="#" aria-label="Instagram" class="social-icon"><i class="fab fa-instagram"></i></a>
-                          <a href="#" aria-label="YouTube" class="social-icon"><i class="fab fa-youtube"></i></a>
-                      </div>
+                    <div class="social-icons">
+                        <a href="#" aria-label="Facebook" class="social-icon"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" aria-label="Twitter" class="social-icon"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="Instagram" class="social-icon"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="YouTube" class="social-icon"><i class="fab fa-youtube"></i></a>
+                    </div>
                 </div>
             </div>
             <div class="row mt-3">
                 <div class="col-12 text-center">
-                   <p class="text-muted small mb-0">&copy; {% now "Y" %} UZASPEA. All rights reserved.</p>
+                    <p class="text-muted small mb-0">© {% now "Y" %} UZASPEA. All rights reserved.</p>
                 </div>
             </div>
         </div>
