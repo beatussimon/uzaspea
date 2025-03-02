@@ -15,7 +15,8 @@
     <h1 class="page-title">Products</h1>
 
     <div class="row">
-        <div class="col-lg-2 col-md-3 mb-4 filter-sidebar">
+        <!-- Left Sidebar (Filter Sidebar) -->
+        <div class="col-lg-2 col-md-3 mb-4 order-2 filter-sidebar">
             <button class="btn btn-toggle-sidebar d-lg-none mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">Filters</button>
             <aside id="filterCollapse" class="collapse d-lg-block">
                 <div class="card filter-group mb-4">
@@ -106,7 +107,8 @@
             </aside>
         </div>
 
-        <div class="col-lg-8 col-md-6 order-md-2">
+        <!-- Main Section -->
+        <div class="col-lg-8 col-md-6 order-md-2 order-3 main-content">
             <div class="row product-grid" id="product-container">
                 {% for product in products %}
                     <div class="col-lg-3 col-md-4 col-sm-6 col-12">
@@ -182,7 +184,8 @@
             </div>
         </div>
 
-        <div class="col-lg-2 col-md-3 order-md-3 right-sidebar scrollable">
+        <!-- Right Sidebar -->
+        <div class="col-lg-2 col-md-3 order-md-3 order-1 right-sidebar">
             <button class="btn btn-toggle-sidebar d-lg-none mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#rightCollapse">Sidebar</button>
             <div id="rightCollapse" class="collapse d-lg-block sidebar-content">
                 <div class="card mb-4">
@@ -314,16 +317,6 @@
         window.addEventListener('scroll', function() {
             if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50 && !loading && !noMoreProducts) {
                 loadMoreProducts();
-            }
-        });
-
-        // Right Sidebar Fix on Scroll End
-        const rightSidebar = document.querySelector('.right-sidebar.scrollable');
-        rightSidebar.addEventListener('scroll', function() {
-            if (this.scrollHeight - this.scrollTop <= this.clientHeight + 1) {
-                this.classList.add('fixed');
-            } else {
-                this.classList.remove('fixed');
             }
         });
 
