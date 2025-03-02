@@ -12,12 +12,17 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1 class="page-title">Products</h1>
+
+
+    <!-- Toggle Buttons for Mobile (at the top) -->
+    <div class="d-lg-none toggle-section">
+        <button class="btn btn-toggle-sidebar mb-3 me-2" type="button" data-bs-toggle="collapse" data-bs-target="#rightCollapse">News and offers</button>
+        <button class="btn btn-toggle-sidebar mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">Filters</button>
+    </div>
 
     <div class="row">
         <!-- Left Sidebar (Filter Sidebar) -->
         <div class="col-lg-2 col-md-3 mb-4 order-2 filter-sidebar">
-            <button class="btn btn-toggle-sidebar d-lg-none mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">Filters</button>
             <aside id="filterCollapse" class="collapse d-lg-block">
                 <div class="card filter-group mb-4">
                     <div class="card-header filter-header">
@@ -112,7 +117,7 @@
             <div class="row product-grid" id="product-container">
                 {% for product in products %}
                     <div class="col-lg-3 col-md-4 col-sm-6 col-12">
-                        <div class="card product-card h-100">
+                        <div class="card product-card">
                             <a href="{{ product.get_absolute_url }}" class="product-link">
                                 <div class="product-image-wrapper">
                                     {% if product.get_first_image %}
@@ -159,13 +164,13 @@
                                         <span class="text-muted small">No reviews</span>
                                     {% endif %}
                                 </div>
-                                {% if product.is_available and product.stock > 0 %}
-                                    <div class="d-grid mt-auto">
+                                <div class="product-action">
+                                    {% if product.is_available and product.stock > 0 %}
                                         <a href="{{ product.get_absolute_url }}" class="btn btn-primary btn-view">View Details</a>
-                                    </div>
-                                {% else %}
-                                    <p class="text-danger mt-auto">Out of Stock</p>
-                                {% endif %}
+                                    {% else %}
+                                        <span class="text-danger">Out of Stock</span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -186,7 +191,6 @@
 
         <!-- Right Sidebar -->
         <div class="col-lg-2 col-md-3 order-md-3 order-1 right-sidebar">
-            <button class="btn btn-toggle-sidebar d-lg-none mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#rightCollapse">Sidebar</button>
             <div id="rightCollapse" class="collapse d-lg-block sidebar-content">
                 <div class="card mb-4">
                     <div class="card-header">Subscribe to Newsletter</div>
