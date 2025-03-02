@@ -22,7 +22,7 @@
 
     <div class="row">
         <!-- Left Sidebar (Filter Sidebar) -->
-        <div class="col-lg-2 col-md-3 mb-4 order-2 filter-sidebar">
+        <div class="col-lg-2 col-md-3 mb-4 order-2 filter-sidebar d-lg-block">
             <aside id="filterCollapse" class="collapse d-lg-block">
                 <div class="card filter-group mb-4">
                     <div class="card-header filter-header">
@@ -97,7 +97,7 @@
                     </div>
                     <div class="card-body">
                         <ul class="list-unstyled condition-list">
-                            <li class="category-item {% if not condition %}active{% endif %}">
+                            <li class="condition-item {% if not condition %}active{% endif %}">
                                 <a href="{% url 'product_list' %}" class="condition-link">All Conditions</a>
                             </li>
                             <li class="condition-item {% if condition == 'New' %}active{% endif %}">
@@ -115,6 +115,45 @@
         <!-- Main Section -->
         <div class="col-lg-8 col-md-6 order-md-2 order-3 main-content">
             <div class="row product-grid" id="product-container">
+                <!-- Specific Element -->
+                <div class="col-lg-3 col-md-4 col-sm-6 col-12">
+                    <div class="card product-card">
+                        <a href="/product/injector-pump/" class="product-link">
+                            <div class="product-image-wrapper">
+                                <img src="/media/product_images/_MG_8907.JPG" class="card-img-top product-image" alt="Injector pump">
+                            </div>
+                        </a>
+                        <div class="card-body product-details">
+                            <h3 class="product-title"><a href="/product/injector-pump/">Injector pump</a></h3>
+                            <p class="product-description">New injector pumps for the new ford mustang</p>
+                            <div class="product-meta">
+                                <span class="product-price">TSh 78,000</span>
+                                <span class="product-condition badge bg-success">New</span>
+                            </div>
+                            <div class="product-meta seller-category">
+                                <p class="product-seller">
+                                    <i class="bi bi-person me-1"></i> 
+                                    <a href="/user/bsans/" class="seller-link">bsans</a>
+                                    <span class="verified-badge text-success ms-1"><i class="bi bi-check-circle-fill"></i></span>
+                                </p>
+                                <p class="product-category">
+                                    <i class="bi bi-folder me-1"></i> 
+                                    <a href="/?category=cars" class="category-link">Cars</a>
+                                </p>
+                            </div>
+                            <div class="product-rating justify-content-center">
+                                <i class="bi bi-star-fill text-warning"></i>
+                                <i class="bi bi-star-fill text-warning"></i>
+                                <i class="bi bi-star-fill text-warning"></i>
+                                <i class="bi bi-star-fill text-warning"></i>
+                            </div>
+                            <div class="product-action">
+                                <span class="text-danger">Out of Stock</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Rest of the products -->
                 {% for product in products %}
                     <div class="col-lg-3 col-md-4 col-sm-6 col-12">
                         <div class="card product-card">
@@ -148,10 +187,10 @@
                                     </p>
                                     <p class="product-category">
                                         <i class="bi bi-folder me-1"></i> 
-                                        <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category }}</a>
+                                        <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category.name }}</a>
                                     </p>
                                 </div>
-                                <div class="product-rating">
+                                <div class="product-rating justify-content-center">
                                     {% if product.average_rating > 0 %}
                                         {% for i in "x"|ljust:product.average_rating %}
                                             <i class="bi bi-star-fill text-warning"></i>
@@ -189,7 +228,7 @@
         </div>
 
         <!-- Right Sidebar -->
-        <div class="col-lg-2 col-md-3 order-md-3 order-1 right-sidebar">
+        <div class="col-lg-2 col-md-3 order-md-3 order-1 right-sidebar d-lg-block">
             <div id="rightCollapse" class="collapse d-lg-block sidebar-content">
                 <div class="card mb-4">
                     <div class="card-header">Subscribe to Newsletter</div>
@@ -324,7 +363,7 @@
         });
 
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        tooltipTriggerList = tooltipTriggerList.map(function(tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
 
