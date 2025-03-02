@@ -129,14 +129,14 @@
                             </a>
                             <div class="card-body product-details">
                                 <h3 class="product-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
-                                <p class="product-description">{{ product.description|truncatewords:25 }}</p>
+                                <p class="product-description">{{ product.description|truncatewords:15 }}</p>
                                 <div class="product-meta">
                                     <span class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</span>
                                     <span class="product-condition badge {% if product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
                                         {{ product.get_condition_display }}
                                     </span>
                                 </div>
-                                <div class="product-meta">
+                                <div class="product-meta seller-category">
                                     <p class="product-seller">
                                         <i class="bi bi-person"></i> <a href="{% url 'user_profile' product.seller.username %}" class="seller-link">{{ product.seller.username }}</a>
                                         {% if product.seller.profile.is_verified %}
@@ -156,7 +156,7 @@
                                             <i class="bi bi-star text-warning"></i>
                                         {% endfor %}
                                     {% else %}
-                                        <p class="text-muted small">No reviews yet</p>
+                                        <span class="text-muted small">No reviews</span>
                                     {% endif %}
                                 </div>
                                 {% if product.is_available and product.stock > 0 %}
@@ -164,7 +164,7 @@
                                         <a href="{{ product.get_absolute_url }}" class="btn btn-primary btn-view">View Details</a>
                                     </div>
                                 {% else %}
-                                    <p class="text-danger">Out of Stock</p>
+                                    <p class="text-danger mt-auto">Out of Stock</p>
                                 {% endif %}
                             </div>
                         </div>
