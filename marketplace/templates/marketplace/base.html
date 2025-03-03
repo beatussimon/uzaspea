@@ -128,12 +128,15 @@
                         {% endif %}
                     </ul>
 
-                    <ul class="navbar-nav ms-auto mb-2 mb-lg-0 d-none d-lg-flex align-items-lg-center">
-                        {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link my-2 my-lg-0" href="{% url 'search_results' %}" aria-label="Search">
-                                <i class="fas fa-search"></i>
-                            </a>
+                    <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
+                        <li class="nav-item nav-search d-none d-lg-block">
+                            <form class="d-flex search-form my-2 my-lg-0" action="{% url 'search_results' %}" method="get">
+                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
+                                       aria-label="Search" name="q" value="{{ query }}">
+                                <button class="btn btn-primary search-button" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link cart-icon position-relative my-2 my-lg-0" href="{% url 'view_cart' %}" 
@@ -145,15 +148,16 @@
                                 </sup>
                             </a>
                         </li>
-                        <li class="nav-item">
+                        {% if user.is_authenticated %}
+                        <li class="nav-item d-none d-lg-block">
                             <a class="nav-link profile-icon my-2 my-lg-0" href="{% url 'user_profile' username=user.username %}"
                                aria-label="User Profile">
                                 <i class="fas fa-user-circle"></i>
                             </a>
                         </li>
-                        <li class="nav-item dropdown">
+                        <li class="nav-item dropdown d-none d-lg-block">
                             <a class="nav-link dropdown-toggle my-2 my-lg-0" href="#" id="navbarDropdown" 
-                               role="button" data hikay-bs-toggle="dropdown" aria-expanded="false">
+                               role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 {{ user.username }}
                                 {% if user.profile.is_verified %}
                                     <span class="verified-badge text-success"><i class="fas fa-check-circle"></i></span>
@@ -180,14 +184,14 @@
                         </li>
                         {% else %}
                         <li class="nav-item">
-                            <a class="nav-link my-2 my-lg-0" href="{% url 'search_results' %}" aria-label="Search">
-                                <i class="fas fa-search"></i>
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link btn btn-primary text-white my-2 my-lg-0 {% if 'login' in request.path %}active{% endif %}" 
                                href="{% url 'login' %}" aria-label="Login">
                                 Login
+                            </a>
+                        </li>
+                        <li class="nav-item d-lg-none">
+                            <a class="nav-link {% if 'register' in request.path %}active{% endif %}" href="{% url 'register' %}">
+                                <i class="fas fa-user-plus me-1"></i>Register
                             </a>
                         </li>
                         {% endif %}
