@@ -181,6 +181,7 @@ def product_detail(request, slug):
 
 
 def get_related_products(request, slug):
+    print(f"Fetching related products for slug: {slug}") 
     product = get_object_or_404(Product, slug=slug)
     page = request.GET.get('page', 1)
 
@@ -352,8 +353,6 @@ def dashboard(request):
         'seller_orders': seller_orders,
     }
     return render(request, 'marketplace/dashboard.html', context)
-
-
 @login_required
 @require_POST
 def add_to_cart(request, slug):
@@ -361,27 +360,43 @@ def add_to_cart(request, slug):
     quantity = int(request.POST.get('quantity', 1))
 
     if quantity <= 0:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'Quantity must be greater than zero.'}, status=400)
         messages.warning(request, "Quantity must be greater than zero.")
         return redirect('product_detail', slug=product.slug)
+
     if quantity > product.stock:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'Requested quantity exceeds available stock.'}, status=400)
         messages.warning(request, "Requested quantity exceeds available stock.")
         return redirect('product_detail', slug=product.slug)
+
     cart = request.session.get('cart', {})
     product_id_str = str(product.id)
 
     if product_id_str in cart:
         new_quantity = cart[product_id_str] + quantity
         if new_quantity > product.stock:
-             messages.warning(request, f"Adding {quantity} exceeds available stock.  Cart not updated.")
-             return redirect('product_detail', slug=product.slug)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'error', 'message': f'Adding {quantity} exceeds available stock. Cart not updated.'}, status=400)
+            messages.warning(request, f"Adding {quantity} exceeds available stock. Cart not updated.")
+            return redirect('product_detail', slug=product.slug)
         cart[product_id_str] = new_quantity
     else:
-         cart[product_id_str] = quantity
+        cart[product_id_str] = quantity
 
     request.session['cart'] = cart
-    messages.success(request, f"{quantity} x {product.name} added to cart.")
-    return redirect('product_detail', slug=product.slug)
-    
+    cart_items_count = sum(cart.values())
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'status': 'success',
+            'message': f"{quantity} x {product.name} added to cart.",
+            'cart_items_count': cart_items_count
+        })
+    else:
+        messages.success(request, f"{quantity} x {product.name} added to cart.")
+        return redirect('product_detail', slug=product.slug)
 @login_required
 def view_cart(request):
     cart = request.session.get('cart', {})
@@ -441,8 +456,19 @@ def remove_from_cart(request, product_id):
 
     if product_id_str in cart:
         del cart[product_id_str]
-        request.session['cart'] = cart  # Update session
-        messages.info(request, "Item removed from cart.")
+        request.session['cart'] = cart
+        message = "Item removed from cart."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'status': 'success',
+                'message': message,
+                'cart_items_count': sum(cart.values())
+            })
+        messages.info(request, message)
+    else:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'Item not in cart.'}, status=400)
+        messages.warning(request, "Item not in cart.")
 
     return redirect('view_cart')
 
