@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'marketplace',  # Your app
     'crispy_forms',
     'crispy_bootstrap5',
+     'django_extensions',
 ]
 
 MIDDLEWARE = [

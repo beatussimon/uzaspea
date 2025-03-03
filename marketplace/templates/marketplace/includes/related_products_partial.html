@@ -1,28 +1,56 @@
+{% for related_product in related_products %}
 {% load static %}
 {% load humanize %}
-
-{% for related_product in related_products %}
-<div class="col">
-    <div class="card related-product-card h-100">
-        <div class="card-body">
-            {% if related_product.get_first_image %}
-              <a href="{{ related_product.get_absolute_url }}">
-                <img src="{{ related_product.get_first_image.url }}" class="related-product-image" alt="{{ related_product.name }}">
-              </a>
-            {% elif related_product.images.all %}
-              <a href="{{ related_product.get_absolute_url }}">
-                <img src = "{{ related_product.images.all.0.image.url }}" class="related-product-image" alt="{{ related_product.name }}">
-              </a>
-            {% else %}
-              <a href="{{ related_product.get_absolute_url }}">
-                <img src="{% static 'images/no_image.png' %}" class="related-product-image" alt="No Image">
-              </a>
-            {% endif %}
-            <h6 class="related-product-title">
-                <a href="{{ related_product.get_absolute_url }}">{{ related_product.name|truncatechars:30 }}</a>
-            </h6>
-            <p class = "related-product-price"> TSh {{ related_product.price|floatformat:0|intcomma }}</p>
+    <div class="col">
+        <div class="card related-product-card h-100">
+            <a href="{{ related_product.get_absolute_url }}" class="product-link">
+                <div class="product-image-wrapper">
+                    {% if related_product.get_first_image %}
+                        <img src="{{ related_product.get_first_image.url }}" class="card-img-top product-image" alt="{{ related_product.name }}">
+                    {% elif related_product.images.all %}
+                        <img src="{{ related_product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ related_product.name }}">
+                    {% else %}
+                        <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
+                    {% endif %}
+                </div>
+            </a>
+            <div class="card-body product-details">
+                <h3 class="related-product-title">
+                    <a href="{{ related_product.get_absolute_url }}">{{ related_product.name }}</a>
+                </h3>
+                <p class="product-description">{{ related_product.description|truncatewords:15 }}</p>
+                <div class="product-meta">
+                    <span class="product-price">TSh {{ related_product.price|floatformat:0|intcomma }}</span>
+                    <span class="product-condition badge {% if related_product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
+                        {{ related_product.get_condition_display }}
+                    </span>
+                </div>
+                <div class="product-meta seller-category">
+                    <p class="product-seller">
+                        <i class="bi bi-person me-1"></i>
+                        <a href="{% url 'user_profile' related_product.seller.username %}" class="seller-link">{{ related_product.seller.username }}</a>
+                        {% if related_product.seller.profile.is_verified %}
+                            <span class="verified-badge text-success ms-1"><i class="bi bi-check-circle-fill"></i></span>
+                        {% endif %}
+                    </p>
+                    <p class="product-category">
+                        <i class="bi bi-folder me-1"></i>
+                        <a href="{{ related_product.category.get_absolute_url }}" class="category-link">{{ related_product.category.name }}</a>
+                    </p>
+                </div>
+                <div class="product-rating justify-content-center">
+                    {% if related_product.average_rating > 0 %}
+                        {% for i in "x"|ljust:related_product.average_rating %}
+                            <i class="bi bi-star-fill text-warning"></i>
+                        {% endfor %}
+                        {% for i in "x"|ljust:5|slice:":-"|add:related_product.average_rating %}
+                            <i class="bi bi-star text-warning"></i>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted small">No reviews</span>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
-</div>
 {% endfor %}

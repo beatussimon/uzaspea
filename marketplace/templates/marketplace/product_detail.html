@@ -2,17 +2,71 @@
 {% load humanize %}
 {% load crispy_forms_tags %}
 {% load static %}
-
 {% block title %}{{ product.name }} - UZASPEA{% endblock %}
-
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/product_detail.css' %}">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{% static 'css/product_detail.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        /* Enhanced Add to Cart Styling */
+        .quantity-selector {
+            max-width: 250px;
+            border-radius: 25px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .quantity-input {
+            text-align: center;
+            font-weight: bold;
+            background-color: #f8f9fa;
+            border: none;
+        }
+        .quantity-decrement, .quantity-increment {
+            background-color: #e9ecef;
+            transition: background-color 0.3s;
+        }
+        .quantity-decrement:hover, .quantity-increment:hover {
+            background-color: #dee2e6;
+        }
+        .btn-add-to-cart {
+            background-color: #28a745;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn-add-to-cart:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+        .btn-add-to-cart i {
+            margin-right: 5px;
+        }
+
+        /* Enhanced Rating Styling */
+        .rating-stars {
+            display: inline-flex;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .rating-stars i {
+            font-size: 1.2rem;
+            transition: color 0.2s;
+        }
+        .rating-stars i:hover,
+        .rating-stars i.active {
+            color: #ffc107 !important;
+        }
+        .review-rating {
+            margin-left: 10px;
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
+<div class="container-fluid mt-4">
+    <div class="row main-content">
         {# --- Main Product Area (Image and Details) --- #}
         <div class="col-lg-8">
             <div class="row">
@@ -42,41 +96,43 @@
                         {% endif %}
                     </div>
                 </div>
-
                 <div class="col-md-6 product-details">
                     <h1 class="product-title">{{ product.name }}</h1>
                     <p class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</p>
 
                     <div class="product-info">
-                        <span class="seller-info">
-                            <i class="bi bi-person me-1"></i>
-                            Seller: <a href="{% url 'user_profile' product.seller.username %}">{{ product.seller.username }}</a>
-                            {% if product.seller.profile.is_verified %}
-                                <span class="verified-badge"><i class="bi bi-check-circle-fill"></i></span>
-                            {% endif %}
-                        </span>
-                        <span class="product-category">
-                            <i class="bi bi-folder me-1"></i>
-                            <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category.name }}</a>
-                        </span>
+                        <div class="info-row">
+                            <span class="seller-info">
+                                <i class="bi bi-person me-1"></i>
+                                Seller: <a href="{% url 'user_profile' product.seller.username %}">{{ product.seller.username }}</a>
+                                {% if product.seller.profile.is_verified %}
+                                    <span class="verified-badge"><i class="bi bi-check-circle-fill"></i></span>
+                                {% endif %}
+                            </span>
+                            <span class="product-category">
+                                <i class="bi bi-folder me-1"></i>
+                                <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category.name }}</a>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="stock-item"><i class="bi bi-boxes me-1"></i>Stock: {{ product.stock }}</span>
+                            <span class="condition-item"><i class="bi bi-tags me-1"></i>{{ product.get_condition_display }}</span>
+                        </div>
                     </div>
 
                     <p class="product-description"><i class="bi bi-info-circle me-1"></i>{{ product.description }}</p>
 
-                    <div class="product-stock-info">
-                        <span class="stock-item"><i class="bi bi-boxes me-1"></i>Stock: {{ product.stock }}</span>
-                        <span class="condition-item"><i class="bi bi-tags me-1"></i>{{ product.get_condition_display }}</span>
-                    </div>
-
                     {% if product.average_rating > 0 %}
                         <p class="product-rating">
-                            <i class="bi bi-star-fill me-1 text-warning"></i>
-                            {% for i in "x"|ljust:product.average_rating|stringformat:"i" %}
-                                <i class="bi bi-star-fill text-warning"></i>
-                            {% endfor %}
-                            {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
-                                <i class="bi bi-star text-warning"></i>
-                            {% endfor %}
+                            <span class="rating-stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= product.average_rating|floatformat:0 %}
+                                        <i class="bi bi-star-fill text-warning"></i>
+                                    {% else %}
+                                        <i class="bi bi-star text-warning"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </span>
                             ({{ product.reviews.count }} reviews)
                         </p>
                     {% else %}
@@ -96,8 +152,8 @@
                                     <button type="button" class="btn btn-outline-secondary quantity-decrement">-</button>
                                     <input type="text" name="quantity" value="1" min="1" max="{{ product.stock }}" class="form-control quantity-input" readonly>
                                     <button type="button" class="btn btn-outline-secondary quantity-increment">+</button>
-                                    <button type="submit" class="btn btn-primary ms-2">Add to Cart</button>
                                 </div>
+                                <button type="submit" class="btn btn-add-to-cart ms-2"><i class="bi bi-cart-plus"></i> Add to Cart</button>
                             </form>
                         {% else %}
                             <p class="mt-3"><a href="{% url 'login' %}?next={{ request.path }}" class="text-primary">Login</a> to add to cart.</p>
@@ -118,6 +174,12 @@
                     <form method="post" class="mb-4 review-form">
                         {% csrf_token %}
                         {{ review_form|crispy }}
+                        <div class="rating-stars mb-3">
+                            <input type="hidden" name="rating" id="rating-value" value="0">
+                            {% for i in "12345" %}
+                                <i class="bi bi-star text-warning" data-rating="{{ forloop.counter }}"></i>
+                            {% endfor %}
+                        </div>
                         <button type="submit" class="btn btn-primary" name="review_submit">Submit Review</button>
                     </form>
                 {% endif %}
@@ -129,11 +191,12 @@
                     <div class="card-header review-header">
                         <span class="review-author">{{ review.user.username }}</span>
                         <span class="review-rating">
-                            {% for i in "x"|ljust:review.rating %}
-                                <i class="bi bi-star-fill text-warning"></i>
-                            {% endfor %}
-                            {% for i in "x"|ljust:5|slice:":-"|add:review.rating %}
-                                <i class="bi bi-star text-warning"></i>
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= review.rating %}
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                {% else %}
+                                    <i class="bi bi-star text-warning"></i>
+                                {% endif %}
                             {% endfor %}
                         </span>
                         <span class="review-date text-muted small">{{ review.created_at|date:"F d, Y" }}</span>
@@ -213,11 +276,12 @@
                                     </div>
                                     <div class="product-rating justify-content-center">
                                         {% if related_product.average_rating > 0 %}
-                                            {% for i in "x"|ljust:related_product.average_rating %}
-                                                <i class="bi bi-star-fill text-warning"></i>
-                                            {% endfor %}
-                                            {% for i in "x"|ljust:5|slice:":-"|add:related_product.average_rating %}
-                                                <i class="bi bi-star text-warning"></i>
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= related_product.average_rating|floatformat:0 %}
+                                                    <i class="bi bi-star-fill text-warning"></i>
+                                                {% else %}
+                                                    <i class="bi bi-star text-warning"></i>
+                                                {% endif %}
                                             {% endfor %}
                                         {% else %}
                                             <span class="text-muted small">No reviews</span>
@@ -247,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
             event.preventDefault();
             const formData = new FormData(this);
             const slug = this.dataset.slug;
-            const url = `/marketplace/cart/add/${slug}/`;
+            const url = `/cart/add/${slug}/`;
 
             fetch(url, {
                 method: 'POST',
@@ -260,29 +324,15 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.ok ? response.json() : response.json().then(errData => Promise.reject(errData)))
             .then(data => {
                 if (data.status === 'success') {
-                    const cartCountElement = document.querySelector('.bi-cart + .badge');
-                    if (cartCountElement) cartCountElement.textContent = data.cart_items_count;
-
-                    const successMessage = document.createElement('div');
-                    successMessage.classList.add('alert', 'alert-success', 'alert-dismissible', 'fade', 'show');
-                    successMessage.setAttribute('role', 'alert');
-                    successMessage.innerHTML = `
-                        ${data.message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    `;
-                    document.querySelector('.container').prepend(successMessage);
-                    setTimeout(() => successMessage.remove(), 3000);
+                    updateCartCount(data.cart_items_count); // Use global function
+                    showAlert(data.message, 'success'); // Use global function
                 } else {
-                    alert(data.message);
+                    showAlert(data.message, 'danger');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                const errorMessage = document.createElement('div');
-                errorMessage.classList.add('alert', 'alert-danger', 'alert-dismissible', 'fade', 'show');
-                errorMessage.textContent = error.message || 'Failed to add to cart.';
-                document.querySelector('.container').prepend(errorMessage);
-                setTimeout(() => errorMessage.remove(), 5000);
+                showAlert(error.message || 'Failed to add to cart.', 'danger');
             });
         });
     }
@@ -305,6 +355,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // --- Rating Stars Interaction ---
+    const ratingStars = document.querySelectorAll('.rating-stars i');
+    const ratingInput = document.getElementById('rating-value');
+    ratingStars.forEach(star => {
+        star.addEventListener('click', () => {
+            const rating = parseInt(star.dataset.rating);
+            if (rating >= 0 && rating <= 5) {
+                ratingInput.value = rating;
+                ratingStars.forEach(s => {
+                    s.classList.toggle('bi-star-fill', parseInt(s.dataset.rating) <= rating);
+                    s.classList.toggle('bi-star', parseInt(s.dataset.rating) > rating);
+                });
+            }
+        });
+    });
+
     // --- Infinite Scroll for Related Products ---
     let loading = false;
     let nextPage = 2;
@@ -316,22 +382,32 @@ document.addEventListener('DOMContentLoaded', function() {
         if (loading) return;
         loading = true;
 
-        const url = `/marketplace/product/${productSlug}/related/?page=${nextPage}`;
+        const url = `/related-products/${productSlug}/?page=${nextPage}`;
         fetch(url, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(response => response.ok ? response.text() : Promise.reject('Network error'))
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 404) {
+                    observer.unobserve(sentinel);
+                    return Promise.resolve('');
+                }
+                return Promise.reject('Network error');
+            }
+            return response.text();
+        })
         .then(data => {
             if (!data.trim()) {
                 observer.unobserve(sentinel);
-                return;
+            } else {
+                relatedProductsContainer.insertAdjacentHTML('beforeend', data);
+                nextPage++;
             }
-            relatedProductsContainer.insertAdjacentHTML('beforeend', data);
-            nextPage++;
             loading = false;
         })
         .catch(error => {
-            console.error('Error:', error);
+            console.error('Error loading related products:', error);
+            showAlert('Failed to load more related products.', 'warning');
             loading = false;
         });
     }
