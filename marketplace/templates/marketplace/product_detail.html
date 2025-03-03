@@ -64,8 +64,8 @@
                     <p class="product-description"><i class="bi bi-info-circle me-1"></i>{{ product.description }}</p>
 
                     <div class="product-stock-info">
-                        <span><i class="bi bi-boxes me-1"></i>Stock: {{ product.stock }}</span>
-                        <span><i class="bi bi-tags me-1"></i>{{ product.get_condition_display }}</span>
+                        <span class="stock-item"><i class="bi bi-boxes me-1"></i>Stock: {{ product.stock }}</span>
+                        <span class="condition-item"><i class="bi bi-tags me-1"></i>{{ product.get_condition_display }}</span>
                     </div>
 
                     {% if product.average_rating > 0 %}
