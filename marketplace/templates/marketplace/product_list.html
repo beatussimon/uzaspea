@@ -12,9 +12,7 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
-    <h1 class="page-title">Products</h1>
-
-    <!-- Toggle Buttons for Mobile (at the top) -->
+     <!-- Toggle Buttons for Mobile (at the top) -->
     <div class="d-lg-none toggle-section">
         <button class="btn btn-toggle-sidebar mb-3 me-2" type="button" data-bs-toggle="collapse" data-bs-target="#rightCollapse">Sidebar</button>
         <button class="btn btn-toggle-sidebar mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">Filters</button>
@@ -116,44 +114,6 @@
         <div class="col-lg-8 col-md-6 order-md-2 order-3 main-content">
             <div class="row product-grid" id="product-container">
                 <!-- Specific Element -->
-                <div class="col-lg-3 col-md-4 col-sm-6 col-12">
-                    <a href="/product/injector-pump/" class="product-link">
-                        <div class="card product-card">
-                            <div class="product-image-wrapper">
-                                <img src="/media/product_images/_MG_8907.JPG" class="card-img-top product-image" alt="Injector pump">
-                            </div>
-                            <div class="card-body product-details">
-                                <h3 class="product-title">Injector pump</h3>
-                                <p class="product-description">New injector pumps for the new ford mustang</p>
-                                <div class="product-meta">
-                                    <span class="product-price">TSh 78,000</span>
-                                    <span class="product-condition badge bg-success">New</span>
-                                </div>
-                                <div class="product-meta seller-category">
-                                    <p class="product-seller">
-                                        <i class="bi bi-person me-1"></i> 
-                                        <span class="seller-link">bsans</span>
-                                        <span class="verified-badge text-success ms-1"><i class="bi bi-check-circle-fill"></i></span>
-                                    </p>
-                                    <p class="product-category">
-                                        <i class="bi bi-folder me-1"></i> 
-                                        <span class="category-link">Cars</span>
-                                    </p>
-                                </div>
-                                <div class="product-rating justify-content-center">
-                                    <i class="bi bi-star-fill text-warning"></i>
-                                    <i class="bi bi-star-fill text-warning"></i>
-                                    <i class="bi bi-star-fill text-warning"></i>
-                                    <i class="bi bi-star-fill text-warning"></i>
-                                </div>
-                                <div class="product-interactions d-lg-block d-none">
-                                    <span class="interaction-item"><i class="bi bi-heart me-1"></i> 5</span>
-                                    <span class="interaction-item"><i class="bi bi-chat-dots me-1"></i> 3</span>
-                                </div>
-                            </div>
-                        </div>
-                    </a>
-                </div>
                 <!-- Rest of the products -->
                 {% for product in products %}
                     <div class="col-lg-3 col-md-4 col-sm-6 col-12">
