@@ -104,16 +104,6 @@
                                 </li>
                             </ul>
                         </li>
-                        <li class="nav-item d-lg-none">
-                            <a class="nav-link cart-icon {% if 'view_cart' in request.path %}active{% endif %}" href="{% url 'view_cart' %}" 
-                               aria-label="Shopping Cart">
-                                <i class="fas fa-shopping-cart me-1"></i>Cart
-                                <sup class="cart-badge badge bg-danger rounded-pill" 
-                                     data-cart-count="{{ request.session.cart|length|default:0 }}">
-                                    {{ request.session.cart|length|default:0 }}
-                                </sup>
-                            </a>
-                        </li>
                         {% else %}
                         <li class="nav-item d-lg-none">
                             <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{% url 'login' %}">
@@ -139,13 +129,20 @@
                             </form>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link search-icon d-lg-none my-2 my-lg-0" href="{% url 'search_results' %}" 
+                               aria-label="Search">
+                                <i class="fas fa-search"></i>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link cart-icon position-relative my-2 my-lg-0" href="{% url 'view_cart' %}" 
                                aria-label="Shopping Cart">
                                 <i class="fas fa-shopping-cart"></i>
-                                <sup class="cart-badge badge bg-danger rounded-pill" 
-                                     data-cart-count="{{ request.session.cart|length|default:0 }}">
+                                <span class="cart-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" 
+                                      data-cart-count="{{ request.session.cart|length|default:0 }}">
                                     {{ request.session.cart|length|default:0 }}
-                                </sup>
+                                    <span class="visually-hidden">items in cart</span>
+                                </span>
                             </a>
                         </li>
                         {% if user.is_authenticated %}
