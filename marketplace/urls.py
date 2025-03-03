@@ -15,7 +15,8 @@ urlpatterns = [
     path('product/<slug:slug>/', views.product_detail, name='product_detail'),
     path('product/<slug:slug>/update/', views.product_update, name='product_update'),
     path('product/<slug:slug>/delete/', views.product_delete, name='product_delete'),
-    path('product/<slug:slug>/related/', views.get_related_products, name='get_related_products'),
+    path('related-products/<slug:slug>/', views.get_related_products, name='related_products'),
+
     # path('user/products/', views.user_products, name='user_products'), # No longer needed
 
     # Cart and Checkout URLs
