@@ -39,6 +39,28 @@
 
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        {% if user.is_authenticated %}
+                        <li class="nav-item nav-search d-lg-none">
+                            <form class="d-flex search-form my-2" action="{% url 'search_results' %}" method="get">
+                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
+                                       aria-label="Search" name="q" value="{{ query }}">
+                                <button class="btn btn-primary search-button" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% endif %}
+                        {% if not user.is_authenticated %}
+                        <li class="nav-item nav-search d-lg-none">
+                            <form class="d-flex search-form my-2" action="{% url 'search_results' %}" method="get">
+                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
+                                       aria-label="Search" name="q" value="{{ query }}">
+                                <button class="btn btn-primary search-button" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% endif %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'product_list' %}">
                                 <i class="fas fa-home me-1"></i>Home
@@ -82,58 +104,45 @@
                                 </li>
                             </ul>
                         </li>
-                        <li class="nav-item nav-search d-lg-none">
-                            <form class="d-flex search-form my-2" action="{% url 'search_results' %}" method="get">
-                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
-                                       aria-label="Search" name="q" value="{{ query }}">
-                                <button class="btn btn-primary search-button" type="submit">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </form>
-                        </li>
                         <li class="nav-item d-lg-none">
-                            <a class="nav-link cart-icon position-relative" href="{% url 'view_cart' %}" aria-label="Shopping Cart">
-                                <i class="fas fa-shopping-cart"></i>
-                                <span class="cart-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" 
-                                      data-cart-count="{{ request.session.cart|length|default:0 }}">
+                            <a class="nav-link cart-icon {% if 'view_cart' in request.path %}active{% endif %}" href="{% url 'view_cart' %}" 
+                               aria-label="Shopping Cart">
+                                <i class="fas fa-shopping-cart me-1"></i>Cart
+                                <sup class="cart-badge badge bg-danger rounded-pill" 
+                                     data-cart-count="{{ request.session.cart|length|default:0 }}">
                                     {{ request.session.cart|length|default:0 }}
-                                    <span class="visually-hidden">items in cart</span>
-                                </span>
+                                </sup>
                             </a>
                         </li>
                         {% else %}
-                        <li class="nav-item nav-search d-lg-none">
-                            <form class="d-flex search-form my-2" action="{% url 'search_results' %}" method="get">
-                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
-                                       aria-label="Search" name="q" value="{{ query }}">
-                                <button class="btn btn-primary search-button" type="submit">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </form>
+                        <li class="nav-item d-lg-none">
+                            <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{% url 'login' %}">
+                                <i class="fas fa-sign-in-alt me-1"></i>Login
+                            </a>
+                        </li>
+                        <li class="nav-item d-lg-none">
+                            <a class="nav-link {% if 'register' in request.path %}active{% endif %}" href="{% url 'register' %}">
+                                <i class="fas fa-user-plus me-1"></i>Register
+                            </a>
                         </li>
                         {% endif %}
                     </ul>
 
                     <ul class="navbar-nav ms-auto mb-2 mb-lg-0 d-none d-lg-flex align-items-lg-center">
                         {% if user.is_authenticated %}
-                        <li class="nav-item nav-search">
-                            <form class="d-flex search-form my-2 my-lg-0" action="{% url 'search_results' %}" method="get">
-                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
-                                       aria-label="Search" name="q" value="{{ query }}">
-                                <button class="btn btn-primary search-button" type="submit">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </form>
+                        <li class="nav-item">
+                            <a class="nav-link my-2 my-lg-0" href="{% url 'search_results' %}" aria-label="Search">
+                                <i class="fas fa-search"></i>
+                            </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link cart-icon position-relative my-2 my-lg-0" href="{% url 'view_cart' %}" 
                                aria-label="Shopping Cart">
                                 <i class="fas fa-shopping-cart"></i>
-                                <span class="cart-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" 
-                                      data-cart-count="{{ request.session.cart|length|default:0 }}">
+                                <sup class="cart-badge badge bg-danger rounded-pill" 
+                                     data-cart-count="{{ request.session.cart|length|default:0 }}">
                                     {{ request.session.cart|length|default:0 }}
-                                    <span class="visually-hidden">items in cart</span>
-                                </span>
+                                </sup>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -144,7 +153,7 @@
                         </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle my-2 my-lg-0" href="#" id="navbarDropdown" 
-                               role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                               role="button" data hikay-bs-toggle="dropdown" aria-expanded="false">
                                 {{ user.username }}
                                 {% if user.profile.is_verified %}
                                     <span class="verified-badge text-success"><i class="fas fa-check-circle"></i></span>
@@ -176,13 +185,9 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if 'login' in request.path %}active{% endif %} my-2 my-lg-0" href="{% url 'login' %}">
+                            <a class="nav-link btn btn-primary text-white my-2 my-lg-0 {% if 'login' in request.path %}active{% endif %}" 
+                               href="{% url 'login' %}" aria-label="Login">
                                 Login
-                            </a>
-                        </li>
-                        <li class="nav-item d-lg-none">
-                            <a class="nav-link {% if 'register' in request.path %}active{% endif %} my-2 my-lg-0" href="{% url 'register' %}">
-                                <i class="fas fa-user-plus me-1"></i>Register
                             </a>
                         </li>
                         {% endif %}
