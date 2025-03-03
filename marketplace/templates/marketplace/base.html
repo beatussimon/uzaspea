@@ -21,8 +21,14 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{% static 'images/favicon-16x16.png' %}">
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
 
+    
     {% block extra_head %}{% endblock %}
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <style>
+        .login-button-styles{
+            background-color: green;
+        }
+    </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
     <header class="site-header">
@@ -128,12 +134,7 @@
                                 </button>
                             </form>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link search-icon d-lg-none my-2 my-lg-0" href="{% url 'search_results' %}" 
-                               aria-label="Search">
-                                <i class="fas fa-search"></i>
-                            </a>
-                        </li>
+                        {% if user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link cart-icon position-relative my-2 my-lg-0" href="{% url 'view_cart' %}" 
                                aria-label="Shopping Cart">
@@ -145,6 +146,7 @@
                                 </span>
                             </a>
                         </li>
+                        {% endif %}
                         {% if user.is_authenticated %}
                         <li class="nav-item d-none d-lg-block">
                             <a class="nav-link profile-icon my-2 my-lg-0" href="{% url 'user_profile' username=user.username %}"
@@ -181,16 +183,12 @@
                         </li>
                         {% else %}
                         <li class="nav-item">
-                            <a class="nav-link btn btn-primary text-white my-2 my-lg-0 {% if 'login' in request.path %}active{% endif %}" 
+                            <a class="login-button-styles nav-link btn btn-primary text-white my-2 my-lg-0 d-none d-lg-block {% if 'login' in request.path %}active{% endif %}" 
                                href="{% url 'login' %}" aria-label="Login">
                                 Login
                             </a>
                         </li>
-                        <li class="nav-item d-lg-none">
-                            <a class="nav-link {% if 'register' in request.path %}active{% endif %}" href="{% url 'register' %}">
-                                <i class="fas fa-user-plus me-1"></i>Register
-                            </a>
-                        </li>
+                        
                         {% endif %}
                     </ul>
                 </div>
