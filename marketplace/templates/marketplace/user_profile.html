@@ -9,24 +9,24 @@
     /* --- Profile Header Styles --- */
     .profile-header {
         background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-        padding: 1.5rem;
+        padding: 2rem 1.5rem; /* Increased padding for elegance */
         border-radius: 0.5rem;
-        border-bottom: 1px solid #dee2e6;
-        margin-bottom: 1.5rem;
+        margin-bottom: 2rem; /* More spacing */
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 1rem;
+        text-align: center;
         box-shadow: var(--shadow-light);
     }
 
     .profile-image-container {
-        width: 150px;
-        height: 150px;
+        width: 200px; /* Larger size for prominence */
+        height: 200px;
         border-radius: 50%;
         overflow: hidden;
-        border: 3px solid #fff;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        flex-shrink: 0;
+        border: 4px solid #fff; /* Slightly thicker border */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1rem; /* Space below photo */
         transition: transform var(--transition-speed) ease-in-out;
     }
 
@@ -41,39 +41,48 @@
     }
 
     .store-name {
-        font-size: 1.75rem;
+        font-size: 2rem; /* Larger for prominence */
         font-weight: 700;
         font-family: 'Roboto', sans-serif;
-        margin-bottom: 0.5rem;
         color: #343a40;
+        margin-bottom: 0.75rem;
+    }
+
+    .full-name {
+        font-size: 1.25rem;
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 1rem;
     }
 
     .verified-badge {
         color: #28a745;
         margin-left: 0.5rem;
-        font-size: 1rem;
+        font-size: 1.25rem;
         vertical-align: middle;
     }
 
     .profile-info {
         display: flex;
         flex-direction: column;
+        width: 100%;
+        max-width: 600px; /* Constrain width for elegance */
     }
 
     .profile-info p {
-        margin-bottom: 0.25rem;
-        font-size: 0.95rem;
+        font-size: 1rem;
         color: #495057;
+        margin-bottom: 0.5rem;
     }
 
     .profile-info ul {
         padding-left: 0;
         list-style: none;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
     }
 
     .profile-info ul li {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
     }
 
     .profile-info ul li strong {
@@ -84,29 +93,31 @@
     .analytics-section {
         display: flex;
         justify-content: space-between;
-        gap: 10px;
-        padding: 15px;
+        gap: 15px;
+        padding: 1.5rem;
         flex-wrap: nowrap;
         overflow-x: auto;
         width: 100%;
+        max-width: 1200px; /* Constrain for large screens */
         background: linear-gradient(135deg, #f5f7fa, #e4e9f0);
-        border-radius: 8px;
+        border-radius: 12px;
         box-shadow: var(--shadow-light);
-        margin-bottom: 1.5rem;
+        margin: 0 auto 2rem; /* Centered with spacing */
     }
 
     .analytics-card {
-        flex: 0 0 23.5%;
-        min-width: 70px;
+        flex: 1;
+        min-width: 120px; /* Ensures readability on small screens */
         background: #fff;
         border: 1px solid #e9ecef;
-        border-radius: 6px;
-        padding: 12px 8px;
+        border-radius: 8px;
+        padding: 1rem;
         transition: all var(--transition-speed) ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
     .analytics-card:hover {
-        transform: translateY(-2px);
+        transform: translateY(-3px);
         box-shadow: var(--shadow-dark);
     }
 
@@ -118,21 +129,21 @@
     }
 
     .analytics-item i {
-        font-size: 20px;
+        font-size: 1.5rem;
         color: #2c3e50;
-        margin-bottom: 6px;
+        margin-bottom: 0.5rem;
     }
 
     .analytics-item .value {
-        font-size: 24px;
+        font-size: 1.75rem;
         font-weight: 700;
         color: #1a202c;
         font-family: 'Arial', sans-serif;
-        margin-bottom: 4px;
+        margin-bottom: 0.25rem;
     }
 
     .analytics-item .label {
-        font-size: 12px;
+        font-size: 0.85rem;
         font-weight: 500;
         color: #718096;
         text-transform: uppercase;
@@ -231,9 +242,9 @@
 
     /* --- Button Styles --- */
     .small-button {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-        transition: transform var(--transition-speed) ease-in-out;
+        padding: 0.25rem 0.75rem; /* Adjusted for better click area */
+        font-size: 0.85rem; /* Slightly larger for readability */
+        transition: transform var(--transition-speed) ease-in-out, background-color var(--transition-speed) ease-in-out;
     }
 
     .small-button:hover {
@@ -243,6 +254,7 @@
     /* --- Orders Table --- */
     .table-responsive {
         overflow-x: auto;
+        margin-bottom: 2rem;
     }
 
     .table {
@@ -250,6 +262,10 @@
         border-collapse: separate;
         border-spacing: 0;
         width: 100%;
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: var(--shadow-light);
     }
 
     .table th,
@@ -275,15 +291,49 @@
     /* --- Responsive Adjustments --- */
     @media (max-width: 991.98px) {
         .profile-header {
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 1rem;
+            padding: 1.5rem 1rem;
         }
 
         .profile-image-container {
-            width: 120px;
-            height: 120px;
-            margin-bottom: 1rem;
+            width: 160px;
+            height: 160px;
+        }
+
+        .store-name {
+            font-size: 1.75rem;
+        }
+
+        .full-name {
+            font-size: 1.1rem;
+        }
+
+        .analytics-section {
+            gap: 10px;
+            padding: 1rem;
+        }
+
+        .analytics-card {
+            min-width: 100px;
+            padding: 0.75rem;
+        }
+
+        .analytics-item i {
+            font-size: 1.25rem;
+        }
+
+        .analytics-item .value {
+            font-size: 1.5rem;
+        }
+
+        .analytics-item .label {
+            font-size: 0.75rem;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .profile-image-container {
+            width: 140px;
+            height: 140px;
         }
 
         .store-name {
@@ -291,51 +341,15 @@
         }
 
         .analytics-section {
+            flex-wrap: wrap;
             gap: 8px;
-            padding: 10px;
+            padding: 0.75rem;
         }
 
         .analytics-card {
-            flex: 0 0 24%;
-            min-width: 60px;
-            padding: 10px 6px;
-        }
-
-        .analytics-item i {
-            font-size: 18px;
-        }
-
-        .analytics-item .value {
-            font-size: 20px;
-        }
-
-        .analytics-item .label {
-            font-size: 10px;
-        }
-
-        .card-title {
-            font-size: 0.85rem;
-        }
-
-        .card-price {
-            font-size: 0.8rem;
-        }
-
-        .card-text {
-            font-size: 0.7rem;
-        }
-    }
-
-    @media (max-width: 767.98px) {
-        .analytics-section {
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .analytics-card {
-            flex: 1 0 100%;
+            flex: 0 0 48%;
             min-width: 0;
-            padding: 12px 8px;
+            padding: 0.75rem;
         }
 
         .product-card {
@@ -352,21 +366,39 @@
 
     @media (max-width: 575.98px) {
         .profile-image-container {
-            width: 100px;
-            height: 100px;
+            width: 120px;
+            height: 120px;
         }
 
         .store-name {
             font-size: 1.25rem;
         }
 
+        .full-name {
+            font-size: 1rem;
+        }
+
+        .profile-info p {
+            font-size: 0.9rem;
+        }
+
         .profile-info ul {
             font-size: 0.85rem;
         }
 
+        .analytics-section {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .analytics-card {
+            flex: 1 0 100%;
+            padding: 0.75rem;
+        }
+
         .small-button {
-            padding: 0.2rem 0.4rem;
-            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.75rem;
         }
     }
 </style>
@@ -383,13 +415,20 @@
                 <img src="{% static 'images/default_profile.png' %}" alt="Default Profile Picture" class="profile-image">
             {% endif %}
         </div>
+        <h1 class="store-name">
+            {{ user_profile.user.username }}
+            {% if user_profile.is_verified %}
+                <span class="verified-badge" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
+            {% endif %}
+        </h1>
+        <div class="full-name">
+            {% if user_profile.user.first_name or user_profile.user.last_name %}
+                {{ user_profile.user.get_full_name }}
+            {% else %}
+                <em>No full name provided</em>
+            {% endif %}
+        </div>
         <div class="profile-info">
-            <h1 class="store-name">
-                {{ user_profile.user.username }}
-                {% if user_profile.is_verified %}
-                    <span class="verified-badge" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
-                {% endif %}
-            </h1>
             {% if user_profile.bio %}
                 <p>{{ user_profile.bio }}</p>
             {% else %}
@@ -462,7 +501,7 @@
     <div class="row">
         <div class="col-12">
             {% if request.user == user_profile.user %}
-                <div class="d-flex flex-wrap gap-2 mb-3">
+                <div class="d-flex flex-wrap gap-2 mb-4">
                     <a href="{% url 'edit_profile' %}" class="btn btn-outline-primary small-button">Edit Profile</a>
                     <a href="{% url 'dashboard' %}" class="btn btn-primary small-button">Seller Dashboard</a>
                     <a href="{% url 'product_create' %}" class="btn btn-success small-button">
@@ -473,7 +512,7 @@
 
             <h2 class="mb-3">Products</h2>
             {% if user_products %}
-                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
                     {% for product in user_products %}
                         <div class="col">
                             {% include 'marketplace/includes/_product_card.html' with product=product show_controls=show_controls %}
@@ -484,7 +523,7 @@
                 <p class="text-muted">This user has no products listed yet.</p>
             {% endif %}
 
-            <h2 class="mt-4 mb-3">Orders</h2>
+            <h2 class="mt-5 mb-3">Orders</h2>
             {% if user_orders %}
                 <div class="table-responsive">
                     <table class="table table-striped">
