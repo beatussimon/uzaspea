@@ -7,14 +7,31 @@
 {% block extra_head %}
 <style>
     /* --- Profile Header Styles --- */
+    .profile-header {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: var(--shadow-light);
+    }
+
     .profile-image-container {
         width: 150px;
         height: 150px;
         border-radius: 50%;
         overflow: hidden;
-        margin-right: 1rem;
         border: 3px solid #fff;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        flex-shrink: 0;
+        transition: transform var(--transition-speed) ease-in-out;
+    }
+
+    .profile-image-container:hover {
+        transform: scale(1.05);
     }
 
     .profile-image {
@@ -24,25 +41,18 @@
     }
 
     .store-name {
-        font-size: 1.5rem;
-        font-weight: bold;
+        font-size: 1.75rem;
+        font-weight: 700;
+        font-family: 'Roboto', sans-serif;
         margin-bottom: 0.5rem;
+        color: #343a40;
     }
 
     .verified-badge {
         color: #28a745;
         margin-left: 0.5rem;
         font-size: 1rem;
-    }
-
-    .profile-header {
-        background-color: #f8f9fa;
-        padding: 1.5rem;
-        border-bottom: 1px solid #dee2e6;
-        margin-bottom: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
+        vertical-align: middle;
     }
 
     .profile-info {
@@ -52,65 +62,105 @@
 
     .profile-info p {
         margin-bottom: 0.25rem;
+        font-size: 0.95rem;
+        color: #495057;
+    }
+
+    .profile-info ul {
+        padding-left: 0;
+        list-style: none;
+        font-size: 0.9rem;
+    }
+
+    .profile-info ul li {
+        margin-bottom: 0.5rem;
+    }
+
+    .profile-info ul li strong {
+        color: #343a40;
     }
 
     /* --- Analytics Section --- */
     .analytics-section {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap; /* Allow wrapping on smaller screens */
-        margin-bottom: 1rem;
+        gap: 10px;
+        padding: 15px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        width: 100%;
+        background: linear-gradient(135deg, #f5f7fa, #e4e9f0);
+        border-radius: 8px;
+        box-shadow: var(--shadow-light);
+        margin-bottom: 1.5rem;
     }
-     .analytics-card{
-        border: 1px solid #dee2e6;
-        border-radius: 0.35rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
-        padding: 0.5rem 0.8rem;
-        margin-bottom: 0.5rem;
-        flex-grow:1;
-        margin-right: 5px;
+
+    .analytics-card {
+        flex: 0 0 23.5%;
+        min-width: 70px;
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 12px 8px;
+        transition: all var(--transition-speed) ease;
+    }
+
+    .analytics-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-dark);
     }
 
     .analytics-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         text-align: center;
-        margin: 0.5rem;
-        min-width: 80px; /* Ensure consistent spacing */
+    }
+
+    .analytics-item i {
+        font-size: 20px;
+        color: #2c3e50;
+        margin-bottom: 6px;
     }
 
     .analytics-item .value {
-        font-size: 1.2rem;
-        font-weight: bold;
-        color: #007bff; /* Bootstrap primary color */
+        font-size: 24px;
+        font-weight: 700;
+        color: #1a202c;
+        font-family: 'Arial', sans-serif;
+        margin-bottom: 4px;
     }
+
     .analytics-item .label {
-        font-size: 0.9rem;
-        color: #6c757d;
-
+        font-size: 12px;
+        font-weight: 500;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-
-    /* --- Product Card Styles (Optimized for Space) --- */
+    /* --- Product Card Styles --- */
     .product-card {
-        margin-bottom: 1rem;
-        border: 1px solid #ddd;
+        border: 1px solid #dee2e6;
         border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08); /* Subtle shadow */
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        box-shadow: var(--shadow-light);
+        transition: transform var(--transition-speed) ease-in-out, box-shadow var(--transition-speed) ease-in-out;
         height: 100%;
         display: flex;
         flex-direction: column;
+        background: #fff;
+        overflow: hidden;
     }
 
     .product-card:hover {
-        transform: translateY(-5px); /* Slightly less lift */
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-dark);
     }
 
-      .product-image-container {
+    .product-image-container {
         position: relative;
+        padding-top: 100%;
         overflow: hidden;
-        padding-top: 100%; /* Square images */
     }
 
     .product-image {
@@ -120,361 +170,323 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
+        transition: transform var(--transition-speed) ease-in-out;
+    }
+
+    .product-card:hover .product-image {
+        transform: scale(1.05);
     }
 
     .card-body {
-        padding: 0.75rem; /* Reduced padding */
-         display: flex;
+        padding: 0.75rem;
+        display: flex;
         flex-direction: column;
         flex-grow: 1;
     }
 
     .card-title {
-        font-size: 0.9rem; /* Smaller title */
-        font-weight: bold;
+        font-size: 0.9rem;
+        font-weight: 700;
         margin-bottom: 0.25rem;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        color: #343a40;
     }
 
-     .card-title a {
-        color: #007bff;  /*Bootstrap primary color*/
-        text-decoration: none; /* Remove underlines */
+    .card-title a {
+        color: var(--primary-color);
+        text-decoration: none;
     }
-     .card-title a:hover{
+
+    .card-title a:hover {
         text-decoration: underline;
-     }
+    }
 
     .card-price {
-        font-size: 0.8rem;
-        font-weight: bold;
+        font-size: 0.85rem;
+        font-weight: 600;
         color: #28a745;
         margin-bottom: 0.25rem;
     }
 
     .card-text {
-        font-size: 0.7rem; /* Smaller text */
+        font-size: 0.75rem;
         color: #6c757d;
         margin-bottom: 0;
-
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
     }
-    /* Make card footer at bottom */
-    .card-footer{
-     margin-top: auto;
-     padding: 0.5rem;
-     background-color: #f8f9fa;
-     border-top: 1px solid #ddd;
+
+    .card-footer {
+        margin-top: auto;
+        padding: 0.5rem;
+        background-color: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+        font-size: 0.75rem;
     }
 
     /* --- Button Styles --- */
     .small-button {
-        padding: 0.2rem 0.4rem;  /* Even smaller buttons */
-        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        transition: transform var(--transition-speed) ease-in-out;
     }
 
-    /* --- Follow Button --- */
-    #follow-button {
-        margin-top: 1rem;
+    .small-button:hover {
+        transform: scale(1.05);
     }
 
     /* --- Orders Table --- */
-      .table {
-        margin-bottom: 0; /* Remove bottom margin */
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .table {
+        margin-bottom: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
     }
 
     .table th,
     .table td {
-        padding: 0.5rem; /* Reduced padding */
-        vertical-align: middle; /* Vertically center content */
+        padding: 0.75rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #dee2e6;
     }
 
     .table thead th {
         background-color: #f8f9fa;
-        border-bottom: 2px solid #ddd;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+        color: #343a40;
+        text-transform: uppercase;
+        font-size: 0.85rem;
     }
 
     .table-striped tbody tr:nth-of-type(odd) {
-        background-color: rgba(0, 0, 0, 0.03); /* Very subtle striping */
+        background-color: rgba(0, 0, 0, 0.03);
     }
-
 
     /* --- Responsive Adjustments --- */
+    @media (max-width: 991.98px) {
+        .profile-header {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 1rem;
+        }
+
+        .profile-image-container {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 1rem;
+        }
+
+        .store-name {
+            font-size: 1.5rem;
+        }
+
+        .analytics-section {
+            gap: 8px;
+            padding: 10px;
+        }
+
+        .analytics-card {
+            flex: 0 0 24%;
+            min-width: 60px;
+            padding: 10px 6px;
+        }
+
+        .analytics-item i {
+            font-size: 18px;
+        }
+
+        .analytics-item .value {
+            font-size: 20px;
+        }
+
+        .analytics-item .label {
+            font-size: 10px;
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+        }
+
+        .card-price {
+            font-size: 0.8rem;
+        }
+
+        .card-text {
+            font-size: 0.7rem;
+        }
+    }
+
     @media (max-width: 767.98px) {
-      .profile-header {
-          flex-direction: column; /* Stack on small screens */
-          align-items: flex-start; /* Align to start */
-        }
-      .analytics-item {
-            margin: 0.25rem 0; /* Reduce vertical margin */
+        .analytics-section {
+            flex-direction: column;
+            gap: 10px;
         }
 
-    }
-    @media (max-width: 576px) {
-      .analytics-section{
-          flex-direction: column;
-      }
-    }
+        .analytics-card {
+            flex: 1 0 100%;
+            min-width: 0;
+            padding: 12px 8px;
+        }
 
-    .product-card {
-    width: 100%;
-    max-width: 300px; /* Adjust this value based on your preference */
-    margin: 0 auto; /* Centers the card in its column */
-    height: 400px; /* Fixed height for consistency - adjust as needed */
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
+        .product-card {
+            max-width: 100%;
+            height: auto;
+        }
 
-/* Ensure images don't stretch awkwardly */
-.product-card img {
-    width: 100%;
-    height: 200px; /* Fixed height for images - adjust as needed */
-    object-fit: cover; /* Prevents distortion */
-}
-
-/* Optional: Ensure content doesn't overflow */
-.product-card .card-body {
-    flex: 1;
-    overflow-y: auto;
-}
-
-/* Responsive adjustments */
-@media (max-width: 992px) {
-    .product-card {
-        max-width: 100%;
-        height: auto;
-    }
-}
-
-.analytics-section {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px; /* Clean, professional spacing */
-    padding: 15px;
-    flex-wrap: nowrap; /* Single row enforced */
-    overflow-x: auto; /* Fallback for extreme cases */
-    width: 100%;
-    background: linear-gradient(135deg, #f5f7fa, #e4e9f0); /* Subtle gradient */
-    border-radius: 8px; /* Soft edges */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Light outer shadow */
-}
-
-.analytics-card {
-    flex: 0 0 23.5%; /* Precise width for 4 cards with gap */
-    min-width: 70px; /* Minimum for small screens */
-    background: #ffffff;
-    border: 1px solid #e9ecef; /* Light border for definition */
-    border-radius: 6px;
-    padding: 12px 8px; /* Balanced padding */
-    transition: all 0.3s ease; /* Smooth hover */
-}
-
-.analytics-card:hover {
-    transform: translateY(-2px); /* Subtle lift */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Enhanced shadow on hover */
-}
-
-.analytics-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-}
-
-.analytics-item i {
-    font-size: 20px; /* Refined icon size */
-    color: #2c3e50; /* Deep slate blue for professionalism */
-    margin-bottom: 6px;
-}
-
-.analytics-item .value {
-    font-size: 24px; /* Bold but not oversized */
-    font-weight: 700; /* Strong emphasis */
-    color: #1a202c; /* Almost black for contrast */
-    font-family: 'Arial', sans-serif; /* Clean, professional font */
-    margin-bottom: 4px;
-}
-
-.analytics-item .label {
-    font-size: 12px; /* Small but legible */
-    font-weight: 500;
-    color: #718096; /* Cool gray for subtlety */
-    font-family: 'Arial', sans-serif;
-    text-transform: uppercase; /* Professional touch */
-    letter-spacing: 0.5px; /* Slight spacing for elegance */
-    white-space: nowrap;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .analytics-section {
-        gap: 8px;
-        padding: 10px;
+        .table th,
+        .table td {
+            padding: 0.5rem;
+            font-size: 0.8rem;
+        }
     }
 
-    .analytics-card {
-        flex: 0 0 24%; /* Adjusted for tighter fit */
-        min-width: 60px;
-        padding: 10px 6px;
-    }
+    @media (max-width: 575.98px) {
+        .profile-image-container {
+            width: 100px;
+            height: 100px;
+        }
 
-    .analytics-item i {
-        font-size: 18px;
-    }
+        .store-name {
+            font-size: 1.25rem;
+        }
 
-    .analytics-item .value {
-        font-size: 20px;
-    }
+        .profile-info ul {
+            font-size: 0.85rem;
+        }
 
-    .analytics-item .label {
-        font-size: 10px;
+        .small-button {
+            padding: 0.2rem 0.4rem;
+            font-size: 0.7rem;
+        }
     }
-}
-
-@media (max-width: 480px) {
-    .analytics-section {
-        gap: 6px;
-        padding: 8px;
-    }
-
-    .analytics-card {
-        flex: 0 0 24.5%; /* Maximized space usage */
-        min-width: 50px;
-        padding: 8px 4px;
-    }
-
-    .analytics-item i {
-        font-size: 16px;
-    }
-
-    .analytics-item .value {
-        font-size: 18px;
-    }
-
-    .analytics-item .label {
-        font-size: 9px;
-        letter-spacing: 0.3px;
-    }
-}
-
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mt-4">
+    <!-- Profile Header -->
     <div class="profile-header">
         <div class="profile-image-container">
             {% if user_profile.profile_picture %}
-            <img src="{{ user_profile.profile_picture.url }}" alt="{{ user_profile.user.username }}'s Profile Picture"
-                 class="profile-image">
+                <img src="{{ user_profile.profile_picture.url }}" alt="{{ user_profile.user.username }}'s Profile Picture" class="profile-image">
             {% else %}
-            <img src="{% static 'images/default_profile.png' %}" alt="Default Profile Picture" class="profile-image">
+                <img src="{% static 'images/default_profile.png' %}" alt="Default Profile Picture" class="profile-image">
             {% endif %}
         </div>
         <div class="profile-info">
-            <h1 class="store-name">{{ user_profile.user.username }}  {# Use user_profile.user #}
+            <h1 class="store-name">
+                {{ user_profile.user.username }}
                 {% if user_profile.is_verified %}
-                <span class="verified-badge" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
+                    <span class="verified-badge" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
                 {% endif %}
             </h1>
             {% if user_profile.bio %}
-            <p>{{ user_profile.bio }}</p>
+                <p>{{ user_profile.bio }}</p>
             {% else %}
-            <p><em>This user hasn't added a bio yet.</em></p>
+                <p><em>This user hasn't added a bio yet.</em></p>
             {% endif %}
-
             <ul class="list-unstyled">
-                <li><strong>Email:</strong> {{ user_profile.user.email }}</li>  {# user_profile.user #}
+                <li><strong>Email:</strong> {{ user_profile.user.email }}</li>
                 {% if user_profile.phone_number %}
-                <li><strong>Phone:</strong> {{ user_profile.phone_number }}</li>
+                    <li><strong>Phone:</strong> {{ user_profile.phone_number }}</li>
                 {% endif %}
                 {% if user_profile.instagram_username %}
-                <li><strong>Instagram: </strong>
-                    <a href="https://instagram.com/{{ user_profile.instagram_username }}" target="_blank"
-                       rel="noopener noreferrer">
-                        {{ user_profile.instagram_username }}
-                    </a>
-                </li>
+                    <li><strong>Instagram:</strong> 
+                        <a href="https://instagram.com/{{ user_profile.instagram_username }}" target="_blank" rel="noopener noreferrer">
+                            {{ user_profile.instagram_username }}
+                        </a>
+                    </li>
                 {% endif %}
                 {% if user_profile.website %}
-                <li><strong>Website:</strong> <a href="{{ user_profile.website }}" target="_blank"
-                                               rel="noopener noreferrer">{{ user_profile.website }}</a></li>
+                    <li><strong>Website:</strong> 
+                        <a href="{{ user_profile.website }}" target="_blank" rel="noopener noreferrer">{{ user_profile.website }}</a>
+                    </li>
                 {% endif %}
-                <li><strong>Joined:</strong> {{ user_profile.user.date_joined|date:"F j, Y" }}</li>  {# user_profile.user #}
+                <li><strong>Joined:</strong> {{ user_profile.user.date_joined|date:"F j, Y" }}</li>
                 {% if user_profile.location %}
-                <li><strong>Location: </strong>{{ user_profile.location }}</li>
+                    <li><strong>Location:</strong> {{ user_profile.location }}</li>
                 {% endif %}
             </ul>
-
-            {% comment %}  Show follow button only if logged in and NOT viewing own profile {% endcomment %}
             {% if request.user.is_authenticated and request.user != user_profile.user %}
-            <button id="follow-button"
-                    class="btn {% if is_following %}btn-danger{% else %}btn-primary{% endif %}"
-                    data-username="{{ user_profile.user.username }}">  {# Correct data attribute #}
-                {% if is_following %}Unfollow{% else %}Follow{% endif %}
-            </button>
+                <button id="follow-button" class="btn {% if is_following %}btn-danger{% else %}btn-primary{% endif %} small-button"
+                        data-username="{{ user_profile.user.username }}">
+                    {% if is_following %}Unfollow{% else %}Follow{% endif %}
+                </button>
             {% endif %}
         </div>
     </div>
+
+    <!-- Analytics Section -->
     <div class="analytics-section">
         <div class="analytics-card">
             <div class="analytics-item">
                 <i class="fas fa-boxes"></i>
-                <span class="value">2</span>
+                <span class="value">{{ user_products|length }}</span>
                 <div class="label">Products</div>
             </div>
         </div>
         <div class="analytics-card">
             <div class="analytics-item">
                 <i class="fas fa-user-friends"></i>
-                <span class="value">0</span>
+                <span class="value">{{ user_profile.followers.count }}</span>
                 <div class="label">Followers</div>
             </div>
         </div>
         <div class="analytics-card">
             <div class="analytics-item">
                 <i class="fas fa-users"></i>
-                <span class="value">1</span>
+                <span class="value">{{ user_profile.user.following.count }}</span>
                 <div class="label">Following</div>
             </div>
         </div>
         <div class="analytics-card">
             <div class="analytics-item">
                 <i class="fas fa-shopping-cart"></i>
-                <span class="value">1</span>
-                <div class="label">Orders</div> <!-- Shortened for consistency -->
+                <span class="value">{{ user_orders|length }}</span>
+                <div class="label">Orders</div>
             </div>
         </div>
     </div>
+
+    <!-- Products and Orders -->
     <div class="row">
-        <div class="col-md-12">
-            {% comment %}  Only show edit/dashboard to the profile owner {% endcomment %}
+        <div class="col-12">
             {% if request.user == user_profile.user %}
-                <a href="{% url 'edit_profile' %}" class="btn btn-outline-primary btn-sm mb-3 small-button">Edit Profile</a>
-                <a href="{% url 'dashboard' %}" class="btn btn-primary btn-sm mb-3 small-button">Go to Seller Dashboard</a>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <a href="{% url 'edit_profile' %}" class="btn btn-outline-primary small-button">Edit Profile</a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-primary small-button">Seller Dashboard</a>
+                    <a href="{% url 'product_create' %}" class="btn btn-success small-button">
+                        <i class="fas fa-plus-circle me-1"></i>Add Product
+                    </a>
+                </div>
             {% endif %}
 
-            <h2>Products</h2>
-              {% if request.user == user_profile.user %}
-              <a href="{% url 'product_create' %}" class = "btn btn-success mb-3 small-button"><i class = "fas fa-plus-circle"></i>Add New Product</a>
-              {% endif %}
-
+            <h2 class="mb-3">Products</h2>
             {% if user_products %}
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
-                {% for product in user_products %}
-                    <div class="col">
-                        {% include 'marketplace/includes/_product_card.html' with product=product show_controls=show_controls %}
-                    </div>
-                {% endfor %}
-            </div>
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+                    {% for product in user_products %}
+                        <div class="col">
+                            {% include 'marketplace/includes/_product_card.html' with product=product show_controls=show_controls %}
+                        </div>
+                    {% endfor %}
+                </div>
             {% else %}
-                <p>This user has no products listed yet.</p>
+                <p class="text-muted">This user has no products listed yet.</p>
             {% endif %}
 
-            <h2>Orders</h2>
-                {% if user_orders %}
-                <div class = "table-responsive">
+            <h2 class="mt-4 mb-3">Orders</h2>
+            {% if user_orders %}
+                <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
                             <tr>
@@ -489,62 +501,66 @@
                             {% for order in user_orders %}
                                 <tr>
                                     <td>{{ order.id }}</td>
-                                     <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
+                                    <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
                                     <td>TSh {{ order.total_amount|floatformat:0|intcomma }}</td>
-                                    <td>{{order.status}}</td>
-                                    <td><a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-sm btn-info small-button">View Details</a></td>
+                                    <td>{{ order.status }}</td>
+                                    <td>
+                                        <a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-info small-button">View</a>
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                 </div>
-                {% else %}
-                 {% if user_profile.user == request.user %}
-                    <p>You haven't placed any orders yet.</p>
+                </div>
+            {% else %}
+                <p class="text-muted">
+                    {% if user_profile.user == request.user %}
+                        You haven't placed any orders yet.
                     {% else %}
-                    <p>No placed orders yet.</p>
-                 {% endif %}
+                        No orders placed yet.
+                    {% endif %}
+                </p>
             {% endif %}
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block javascript %}
+{% block extra_js %}
 <script>
     $(document).ready(function() {
-      $('#follow-button').click(function() {
-        var username = $(this).data('username');
-        var button = $(this);
+        $('#follow-button').on('click', function() {
+            const $button = $(this);
+            const username = $button.data('username');
+            const action = $button.hasClass('btn-danger') ? 'unfollow' : 'follow';
 
-        $.ajax({
-            url: "{% url 'follow_user' %}", // Correct URL
-            type: 'POST',
-            data: {
-                'username': username,  // Pass the *username*
-                csrfmiddlewaretoken: '{{ csrf_token }}' // Correct CSRF
-            },
-            dataType: 'json',
-            success: function(data) {
-                if (data.status === 'ok') {
-                    if (data.action === 'unfollow') {
-                        button.text('Unfollow').removeClass('btn-primary').addClass('btn-danger');
+            $.ajax({
+                url: "{% url 'follow_user' %}",
+                type: 'POST',
+                data: {
+                    'username': username,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                dataType: 'json',
+                success: function(data) {
+                    if (data.status === 'ok') {
+                        if (data.action === 'unfollow') {
+                            $button.text('Follow').removeClass('btn-danger').addClass('btn-primary');
+                        } else {
+                            $button.text('Unfollow').removeClass('btn-primary').addClass('btn-danger');
+                        }
+                        $('.analytics-item .value:eq(1)').text(data.followers);
                     } else {
-                        button.text('Follow').removeClass('btn-danger').addClass('btn-primary');
+                        console.error('Follow/Unfollow failed:', data.message);
+                        alert(data.message || 'An error occurred.');
                     }
-                     // Update follower count (if you're displaying it)
-                    $('.analytics-item .value:eq(1)').text(data.followers);
-                } else {
-                    alert(data.message);
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error:', status, error);
+                    alert('An error occurred while processing your request.');
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error("AJAX Error:", status, error);
-                alert("An error occurred.  Please try again.");
-            }
+            });
         });
     });
-});
-
 </script>
 {% endblock %}
