@@ -9,24 +9,27 @@
     /* --- Profile Header Styles --- */
     .profile-header {
         background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-        padding: 2rem 1.5rem; /* Increased padding for elegance */
-        border-radius: 0.5rem;
-        margin-bottom: 2rem; /* More spacing */
+        padding: 2.5rem 2rem; /* Enhanced padding */
+        border-radius: 0.75rem; /* Softer edges */
+        margin-bottom: 2.5rem; /* More breathing room */
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
         box-shadow: var(--shadow-light);
+        max-width: 900px; /* Constrained width for sophistication */
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .profile-image-container {
-        width: 200px; /* Larger size for prominence */
+        width: 200px;
         height: 200px;
         border-radius: 50%;
         overflow: hidden;
-        border: 4px solid #fff; /* Slightly thicker border */
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        margin-bottom: 1rem; /* Space below photo */
+        border: 4px solid #fff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Slightly deeper shadow */
+        margin-bottom: 1.5rem; /* Increased spacing below */
         transition: transform var(--transition-speed) ease-in-out;
     }
 
@@ -41,18 +44,18 @@
     }
 
     .store-name {
-        font-size: 2rem; /* Larger for prominence */
+        font-size: 2rem;
         font-weight: 700;
         font-family: 'Roboto', sans-serif;
         color: #343a40;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.5rem;
     }
 
     .full-name {
         font-size: 1.25rem;
         font-weight: 500;
         color: #495057;
-        margin-bottom: 1rem;
+        margin-bottom: 1.25rem; /* More space below */
     }
 
     .verified-badge {
@@ -66,13 +69,12 @@
         display: flex;
         flex-direction: column;
         width: 100%;
-        max-width: 600px; /* Constrain width for elegance */
     }
 
     .profile-info p {
         font-size: 1rem;
         color: #495057;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem; /* Adjusted padding */
     }
 
     .profile-info ul {
@@ -93,32 +95,34 @@
     .analytics-section {
         display: flex;
         justify-content: space-between;
-        gap: 15px;
-        padding: 1.5rem;
-        flex-wrap: nowrap;
+        gap: 20px; /* Sophisticated spacing */
+        padding: 2rem; /* Enhanced padding */
+        flex-wrap: nowrap; /* Enforced single row */
         overflow-x: auto;
         width: 100%;
-        max-width: 1200px; /* Constrain for large screens */
-        background: linear-gradient(135deg, #f5f7fa, #e4e9f0);
+        max-width: 900px; /* Matches profile header */
+        background: linear-gradient(135deg, #ffffff, #f5f7fa); /* Subtle, clean gradient */
         border-radius: 12px;
         box-shadow: var(--shadow-light);
-        margin: 0 auto 2rem; /* Centered with spacing */
+        margin: 0 auto 2.5rem; /* Centered with perfect spacing */
+        border: 1px solid #e9ecef; /* Light border for definition */
     }
 
     .analytics-card {
         flex: 1;
-        min-width: 120px; /* Ensures readability on small screens */
+        min-width: 140px; /* Ensures readability */
         background: #fff;
         border: 1px solid #e9ecef;
-        border-radius: 8px;
-        padding: 1rem;
+        border-radius: 10px;
+        padding: 1.25rem; /* Perfect padding */
         transition: all var(--transition-speed) ease;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); /* Subtle inner shadow */
     }
 
     .analytics-card:hover {
         transform: translateY(-3px);
         box-shadow: var(--shadow-dark);
+        border-color: #d1d9e6; /* Sophisticated hover border */
     }
 
     .analytics-item {
@@ -129,25 +133,26 @@
     }
 
     .analytics-item i {
-        font-size: 1.5rem;
+        font-size: 1.75rem; /* Larger icons for impact */
         color: #2c3e50;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
     }
 
     .analytics-item .value {
-        font-size: 1.75rem;
+        font-size: 2rem; /* Bold and prominent */
         font-weight: 700;
         color: #1a202c;
         font-family: 'Arial', sans-serif;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.5rem;
     }
 
     .analytics-item .label {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         font-weight: 500;
         color: #718096;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px; /* Refined spacing */
+        font-family: 'Arial', sans-serif;
     }
 
     /* --- Product Card Styles --- */
@@ -189,16 +194,16 @@
     }
 
     .card-body {
-        padding: 0.75rem;
+        padding: 1rem; /* Slightly more padding */
         display: flex;
         flex-direction: column;
         flex-grow: 1;
     }
 
     .card-title {
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         font-weight: 700;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.5rem;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -215,14 +220,14 @@
     }
 
     .card-price {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         font-weight: 600;
         color: #28a745;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.5rem;
     }
 
     .card-text {
-        font-size: 0.75rem;
+        font-size: 0.8rem;
         color: #6c757d;
         margin-bottom: 0;
         overflow: hidden;
@@ -234,16 +239,16 @@
 
     .card-footer {
         margin-top: auto;
-        padding: 0.5rem;
+        padding: 0.75rem;
         background-color: #f8f9fa;
         border-top: 1px solid #dee2e6;
-        font-size: 0.75rem;
+        font-size: 0.8rem;
     }
 
     /* --- Button Styles --- */
     .small-button {
-        padding: 0.25rem 0.75rem; /* Adjusted for better click area */
-        font-size: 0.85rem; /* Slightly larger for readability */
+        padding: 0.35rem 1rem; /* Enhanced padding */
+        font-size: 0.9rem; /* Slightly larger */
         transition: transform var(--transition-speed) ease-in-out, background-color var(--transition-speed) ease-in-out;
     }
 
@@ -254,7 +259,7 @@
     /* --- Orders Table --- */
     .table-responsive {
         overflow-x: auto;
-        margin-bottom: 2rem;
+        margin-bottom: 2.5rem;
     }
 
     .table {
@@ -270,7 +275,7 @@
 
     .table th,
     .table td {
-        padding: 0.75rem;
+        padding: 1rem; /* Perfect padding */
         vertical-align: middle;
         border-bottom: 1px solid #dee2e6;
     }
@@ -281,7 +286,7 @@
         font-weight: 600;
         color: #343a40;
         text-transform: uppercase;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
     }
 
     .table-striped tbody tr:nth-of-type(odd) {
@@ -289,6 +294,24 @@
     }
 
     /* --- Responsive Adjustments --- */
+    @media (max-width: 1199.98px) {
+        .profile-header {
+            padding: 2rem 1.5rem;
+            max-width: 700px;
+        }
+
+        .analytics-section {
+            max-width: 700px;
+            gap: 15px;
+            padding: 1.5rem;
+        }
+
+        .analytics-card {
+            min-width: 120px;
+            padding: 1rem;
+        }
+    }
+
     @media (max-width: 991.98px) {
         .profile-header {
             padding: 1.5rem 1rem;
@@ -318,15 +341,15 @@
         }
 
         .analytics-item i {
-            font-size: 1.25rem;
-        }
-
-        .analytics-item .value {
             font-size: 1.5rem;
         }
 
+        .analytics-item .value {
+            font-size: 1.75rem;
+        }
+
         .analytics-item .label {
-            font-size: 0.75rem;
+            font-size: 0.85rem;
         }
     }
 
@@ -340,16 +363,20 @@
             font-size: 1.5rem;
         }
 
+        .full-name {
+            font-size: 1rem;
+        }
+
         .analytics-section {
             flex-wrap: wrap;
-            gap: 8px;
-            padding: 0.75rem;
+            gap: 12px;
+            padding: 1rem;
         }
 
         .analytics-card {
             flex: 0 0 48%;
             min-width: 0;
-            padding: 0.75rem;
+            padding: 1rem;
         }
 
         .product-card {
@@ -359,15 +386,20 @@
 
         .table th,
         .table td {
-            padding: 0.5rem;
-            font-size: 0.8rem;
+            padding: 0.75rem;
+            font-size: 0.85rem;
         }
     }
 
     @media (max-width: 575.98px) {
+        .profile-header {
+            padding: 1.25rem 0.75rem;
+        }
+
         .profile-image-container {
             width: 120px;
             height: 120px;
+            margin-bottom: 1rem;
         }
 
         .store-name {
@@ -375,7 +407,8 @@
         }
 
         .full-name {
-            font-size: 1rem;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
         }
 
         .profile-info p {
@@ -389,6 +422,7 @@
         .analytics-section {
             flex-direction: column;
             gap: 10px;
+            padding: 0.75rem;
         }
 
         .analytics-card {
@@ -397,15 +431,21 @@
         }
 
         .small-button {
-            padding: 0.2rem 0.5rem;
-            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.5rem;
+            font-size: 0.8rem;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-5"> <!-- Adjusted top margin -->
     <!-- Profile Header -->
     <div class="profile-header">
         <div class="profile-image-container">
@@ -501,7 +541,7 @@
     <div class="row">
         <div class="col-12">
             {% if request.user == user_profile.user %}
-                <div class="d-flex flex-wrap gap-2 mb-4">
+                <div class="d-flex flex-wrap gap-3 mb-4"> <!-- Improved gap -->
                     <a href="{% url 'edit_profile' %}" class="btn btn-outline-primary small-button">Edit Profile</a>
                     <a href="{% url 'dashboard' %}" class="btn btn-primary small-button">Seller Dashboard</a>
                     <a href="{% url 'product_create' %}" class="btn btn-success small-button">
@@ -510,7 +550,7 @@
                 </div>
             {% endif %}
 
-            <h2 class="mb-3">Products</h2>
+            <h2 class="mb-4">Products</h2>
             {% if user_products %}
                 <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
                     {% for product in user_products %}
@@ -520,10 +560,10 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <p class="text-muted">This user has no products listed yet.</p>
+                <p class="text-muted mb-4">This user has no products listed yet.</p>
             {% endif %}
 
-            <h2 class="mt-5 mb-3">Orders</h2>
+            <h2 class="mt-5 mb-4">Orders</h2>
             {% if user_orders %}
                 <div class="table-responsive">
                     <table class="table table-striped">
