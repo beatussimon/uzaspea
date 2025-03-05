@@ -48,7 +48,7 @@
                         {% if user.is_authenticated %}
                         <li class="nav-item nav-search d-lg-none">
                             <form class="d-flex search-form my-2" action="{% url 'search_results' %}" method="get">
-                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
+                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." autofocus
                                        aria-label="Search" name="q" value="{{ query }}">
                                 <button class="btn btn-primary search-button" type="submit">
                                     <i class="fas fa-search"></i>
