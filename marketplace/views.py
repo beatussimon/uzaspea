@@ -9,13 +9,14 @@ from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from .utils import send_order_confirmation_email
 from django.db import transaction
 from django.forms import inlineformset_factory
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.contrib.auth import login, get_user_model
 from django.urls import reverse
 from django.template.loader import render_to_string  # Import
 from django.contrib.auth import get_user_model  
 from .models import Product, Order, UserProfile
 from .forms import ProfileUpdateForm
+import logging
 
 def product_list(request):
     products = Product.objects.filter(is_available=True).annotate(avg_rating=Avg('reviews__rating'))
@@ -561,23 +562,62 @@ def order_detail(request, order_id):
     context = {'order': order, 'order_items': order_items}
     return render(request, 'marketplace/order_detail.html', context)
 
+logger = logging.getLogger(__name__)
+
+@require_GET
 def search_results(request):
-    query = request.GET.get('q')
-    results = []
+    """
+    Handle product search requests and render search results.
+    
+    Args:
+        request: HTTP request object containing query parameters
+    
+    Returns:
+        Rendered HTML response with search results
+    """
+    try:
+        query = request.GET.get('q', '').strip()
+        
+        # Initialize empty context
+        context = {
+            'query': query,
+            'results': [],
+            'page_obj': None,
+        }
 
-    if query:
-        results = Product.objects.filter(
-            Q(name__icontains=query) |
-            Q(description__icontains=query) |
-            Q(category__name__icontains=query)|
-            Q(category__parent__name__icontains=query)
-        ).distinct()
+        if query:
+            # Optimize query with select_related and prefetch_related
+            results = Product.objects.select_related(
+                'seller', 'category', 'seller__profile'
+            ).prefetch_related(
+                'category__parent'
+            ).filter(
+                Q(name__icontains=query) |
+                Q(description__icontains=query) |
+                Q(category__name__icontains=query) |
+                Q(category__parent__name__icontains=query)
+            ).distinct()
 
-    context = {
-        'query': query,
-        'results': results,
-    }
-    return render(request, 'marketplace/search_results.html', context) # Create this template
+            # Add pagination
+            paginator = Paginator(results, 12)  # 12 items per page
+            page = request.GET.get('page')
+            
+            try:
+                page_obj = paginator.page(page)
+            except PageNotAnInteger:
+                page_obj = paginator.page(1)
+            except EmptyPage:
+                page_obj = paginator.page(paginator.num_pages)
+
+            context['results'] = page_obj
+            context['page_obj'] = page_obj
+
+        return render(request, 'marketplace/search_results.html', context)
+
+    except Exception as e:
+        logger.error(f"Error in search_results: {str(e)}")
+        context['error'] = "An unexpected error occurred. Please try again later."
+        return render(request, 'marketplace/search_results.html', context)
 
 @login_required
 def user_products(request):
