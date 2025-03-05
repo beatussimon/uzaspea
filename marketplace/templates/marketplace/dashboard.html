@@ -81,7 +81,7 @@
         gap: 0.5rem;
     }
 
-    .btn-add-product, .btn-edit, .btn-delete, .btn-view-order {
+    .btn-small {
         padding: 0.4rem 0.75rem;
         font-size: 0.85rem;
         border-radius: 4px;
@@ -92,52 +92,13 @@
         line-height: 1;
     }
 
-    .btn-add-product {
-        background-color: var(--success-color);
-        color: #fff;
-    }
-
-    .btn-add-product:hover {
-        background-color: #218838; /* Darker success shade */
+    .btn-small:hover {
         transform: translateY(-1px);
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        color: #fff;
     }
 
-    .btn-edit {
-        background-color: var(--primary-color);
-        color: #fff;
-    }
-
-    .btn-edit:hover {
-        background-color: #0056b3; /* Matches user_profile.html link hover */
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        color: #fff;
-    }
-
-    .btn-delete {
-        background-color: #f8d7da; /* Matches status-cancelled */
-        color: #721c24;
-    }
-
-    .btn-delete:hover {
-        background-color: #f5c6cb; /* Lighter shade of status-cancelled */
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        color: #721c24;
-    }
-
-    .btn-view-order {
-        background-color: #cce5ff; /* Matches status-processing */
-        color: #004085;
-    }
-
-    .btn-view-order:hover {
-        background-color: #b8d8ff; /* Lighter shade of status-processing */
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        color: #004085;
+    .btn-small i {
+        font-size: 0.85rem;
     }
 
     .product-grid {
@@ -280,12 +241,12 @@
     }
 
     .alert-info {
-        background-color: #cce5ff; /* Matches status-processing */
+        background-color: #cce5ff;
         color: #004085;
     }
 
     .alert-success {
-        background-color: #d4edda; /* Matches status-shipped */
+        background-color: #d4edda;
         color: #155724;
     }
 
@@ -323,8 +284,8 @@
         font-weight: 500;
     }
 
-    .badge-pending { background-color: #fff3cd; color: #856404; } /* Matches status-pending */
-    .badge-shipped { background-color: #d4edda; color: #155724; } /* Matches status-shipped */
+    .badge-pending { background-color: #fff3cd; color: #856404; }
+    .badge-shipped { background-color: #d4edda; color: #155724; }
     .badge-default { background-color: #e9ecef; color: #495057; }
 
     /* Responsive Adjustments */
@@ -349,7 +310,7 @@
         .dashboard-title { font-size: 1.1rem; }
         .dashboard-subtitle { font-size: 0.8rem; }
         .section-title { font-size: 1rem; }
-        .btn-add-product, .btn-edit, .btn-delete, .btn-view-order { padding: 0.3rem 0.5rem; font-size: 0.8rem; }
+        .btn-small { padding: 0.3rem 0.5rem; font-size: 0.8rem; }
         .product-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
         .alert { font-size: 0.85rem; }
         .section-header { margin-bottom: 1rem; }
@@ -369,7 +330,7 @@
         <section class="products-section">
             <div class="section-header">
                 <h2 class="section-title"><i class="fas fa-boxes"></i> Your Products</h2>
-                <a href="{% url 'product_create' %}" class="btn btn-add-product">
+                <a href="{% url 'product_create' %}" class="btn btn-success btn-small">
                     <i class="fas fa-plus"></i> Add New Product
                 </a>
             </div>
@@ -397,10 +358,10 @@
                         <p class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</p>
                         <p class="product-condition">Condition: <span class="badge badge-condition">{{ product.get_condition_display }}</span></p>
                         <div class="product-actions">
-                            <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-edit">
+                            <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-primary btn-small">
                                 <i class="fas fa-edit"></i> Edit
                             </a>
-                            <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-delete" onclick="return confirm('Are you sure you want to delete this product?');">
+                            <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-danger btn-small" onclick="return confirm('Are you sure you want to delete this product?');">
                                 <i class="fas fa-trash-alt"></i> Delete
                             </a>
                         </div>
@@ -445,7 +406,7 @@
                                 </span>
                             </td>
                             <td>
-                                <a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-view-order">
+                                <a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-info btn-small">
                                     <i class="fas fa-eye"></i> View
                                 </a>
                             </td>
