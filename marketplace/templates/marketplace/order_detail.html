@@ -1,34 +1,183 @@
 {% extends 'marketplace/base.html' %}
-{% load static %}
-{% load humanize %}
-{% block title %}Order Details - My Marketplace{% endblock %}
+{% load static humanize %}
+
+{% block title %}Order #{{ order.id }} Details - UZASPEA{% endblock %}
+
+{% block extra_head %}
+    <style>
+        .order-details-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .order-header {
+            background-color: #fff;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .order-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .order-info p {
+            margin: 0;
+            padding: 0.5rem 0;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .order-info strong {
+            color: #343a40;
+            font-weight: 600;
+        }
+
+        .order-items-table {
+            background-color: #fff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+
+        .order-items-table th {
+            background-color: #f8f9fa;
+            padding: 1.25rem 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: #343a40;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .order-items-table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .order-items-table a {
+            color: #0d6efd;
+            text-decoration: none;
+            transition: color 0.2s ease-in-out;
+        }
+
+        .order-items-table a:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.9rem;
+            border-radius: 2rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-block;
+            text-transform: capitalize;
+        }
+
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-processing { background-color: #cce5ff; color: #004085; }
+        .status-shipped { background-color: #d4edda; color: #155724; }
+        .status-delivered { background-color: #d1ecf1; color: #0c5460; }
+        .status-cancelled { background-color: #f8d7da; color: #721c24; }
+
+        @media (max-width: 767.98px) {
+            .order-items-table {
+                display: block;
+                overflow-x: auto;
+            }
+            .order-items-table th, .order-items-table td {
+                min-width: 150px;
+            }
+            .order-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+{% endblock %}
 
 {% block content %}
-<h1>Order Details (Order #{{ order.id }})</h1>
-    <p><strong>Order Date:</strong> {{ order.order_date|date:"F d, Y H:i" }}</p>
-    <p><strong>Status:</strong> {{order.status}}</p>
-<p><strong>Total Amount:</strong> Tsh {{ order.total_amount|floatformat:0|intcomma}}</p>
+<div class="order-details-container">
+    <h1 class="mb-4">Order #{{ order.id }} Details</h1>
+    
+    <div class="order-header">
+        <div class="order-info">
+            <p>
+                <strong>Order Date:</strong>
+                <span>{{ order.order_date|date:"F d, Y H:i" }}</span>
+            </p>
+            <p>
+                <strong>Status:</strong>
+                <span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span>
+            </p>
+            <p>
+                <strong>Total Amount:</strong>
+                <span>Tsh {{ order.total_amount|floatformat:0|intcomma }}</span>
+            </p>
+        </div>
+    </div>
 
+    <div class="table-responsive">
+        <table class="table order-items-table mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col">Quantity</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order_items %}
+                    <tr>
+                        <td>
+                            <a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a>
+                        </td>
+                        <td>{{ item.quantity }}</td>
+                        <td>Tsh {{ item.price|floatformat:2|intcomma }}</td>
+                        <td>Tsh {{ item.subtotal|floatformat:2|intcomma }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="text-end fw-bold">Total:</td>
+                    <td class="fw-bold">Tsh {{ order.total_amount|floatformat:0|intcomma }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Product</th>
-            <th>Quantity</th>
-            <th>Price</th>
-            <th>Subtotal</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for item in order_items %}
-            <tr>
-                <td><a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a></td>
-                <td>{{ item.quantity }}</td>
-                <td>Tsh {{ item.price|floatformat:2|intcomma }}</td>
-                <td>Tsh {{ item.subtotal|floatformat:2|intcomma }}</td>
-            </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <div class="mt-4">
+        <a href="{% url 'order_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Orders
+        </a>
+    </div>
+</div>
+{% endblock %}
 
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const rows = document.querySelectorAll('.order-items-table tbody tr');
+            rows.forEach(row => {
+                row.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f8f9fa';
+                    this.style.transition = 'background-color 0.2s ease';
+                });
+                row.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = '';
+                });
+            });
+        });
+    </script>
 {% endblock %}

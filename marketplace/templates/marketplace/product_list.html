@@ -226,7 +226,7 @@
                                     <h5>{{ offer.title }}</h5>
                                     <p>{{ offer.description|truncatewords:20 }}</p>
                                     {% if offer.link %}
-                                        <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">Learn More</a>
+                                        <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">{{ offer.button_text }}</a>
                                     {% endif %}
                                 </li>
                             {% empty %}

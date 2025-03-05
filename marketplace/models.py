@@ -178,8 +178,12 @@ class SidebarOffer(models.Model):
     description = models.TextField()
     image = models.ImageField(upload_to='sidebar_offers/', blank=True, null=True)
     link = models.URLField(blank=True)  # Link to a product page, category, or external site
-    active = models.BooleanField(default=True) # to show or hide.
-    image = models.ImageField(upload_to='sidebar_offers/', blank=True, null=True)  # Add Image
+    active = models.BooleanField(default=True)  # to show or hide
+    button_text = models.CharField(
+        max_length=50,
+        default="Learn More",
+        help_text="Custom text for the offer button"
+    )
 
     def __str__(self):
         return self.title
