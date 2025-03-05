@@ -8,23 +8,369 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <link rel="stylesheet" href="{% static 'css/seller_dashboard.css' %}">
+<style>
+    :root {
+        --primary-color: #0d6efd;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --shadow-light: 0 2px 4px rgba(0,0,0,0.05);
+        --shadow-dark: 0 4px 8px rgba(0,0,0,0.1);
+        --transition-speed: 0.2s;
+    }
+
+    .page-wrapper {
+        max-width: 1140px;
+        margin: 1.5rem auto;
+        padding: 0 1rem;
+    }
+
+    .dashboard-header {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: var(--shadow-light);
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .dashboard-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        font-family: 'Roboto', sans-serif;
+        color: #343a40;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .dashboard-subtitle {
+        font-size: 0.9rem;
+        color: #495057;
+        margin: 0.25rem 0 0;
+        line-height: 1.4;
+    }
+
+    .main-content {
+        padding: 0;
+    }
+
+    .products-section, .orders-section {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: var(--shadow-light);
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.25rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #343a40;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-add-product, .btn-edit, .btn-delete, .btn-view-order {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        transition: all var(--transition-speed) ease-in-out;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        line-height: 1;
+    }
+
+    .btn-add-product {
+        background-color: var(--success-color);
+        color: #fff;
+    }
+
+    .btn-add-product:hover {
+        background-color: #218838; /* Darker success shade */
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: #fff;
+    }
+
+    .btn-edit {
+        background-color: var(--primary-color);
+        color: #fff;
+    }
+
+    .btn-edit:hover {
+        background-color: #0056b3; /* Matches user_profile.html link hover */
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: #fff;
+    }
+
+    .btn-delete {
+        background-color: #f8d7da; /* Matches status-cancelled */
+        color: #721c24;
+    }
+
+    .btn-delete:hover {
+        background-color: #f5c6cb; /* Lighter shade of status-cancelled */
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: #721c24;
+    }
+
+    .btn-view-order {
+        background-color: #cce5ff; /* Matches status-processing */
+        color: #004085;
+    }
+
+    .btn-view-order:hover {
+        background-color: #b8d8ff; /* Lighter shade of status-processing */
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: #004085;
+    }
+
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 0;
+    }
+
+    .product-card {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        box-shadow: var(--shadow-light);
+        transition: all var(--transition-speed) ease-in-out;
+        background: #fff;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .product-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-dark);
+    }
+
+    .product-link {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .product-image-wrapper {
+        position: relative;
+        width: 100%;
+        padding-top: 75%;
+        overflow: hidden;
+    }
+
+    .product-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform var(--transition-speed) ease-in-out;
+    }
+
+    .product-card:hover .product-image {
+        transform: scale(1.05);
+    }
+
+    .product-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity var(--transition-speed) ease-in-out;
+    }
+
+    .product-card:hover .product-overlay {
+        opacity: 1;
+    }
+
+    .view-details {
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .product-info {
+        padding: 0.75rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .product-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #343a40;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .product-title a {
+        color: var(--primary-color);
+        text-decoration: none;
+        transition: color var(--transition-speed) ease-in-out;
+    }
+
+    .product-title a:hover {
+        color: #0056b3;
+    }
+
+    .product-price {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--success-color);
+        margin: 0;
+    }
+
+    .product-condition {
+        font-size: 0.85rem;
+        color: var(--secondary-color);
+        margin: 0;
+    }
+
+    .badge-condition {
+        background-color: #e9ecef;
+        color: #495057;
+        padding: 0.25rem 0.6rem;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .product-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: auto;
+    }
+
+    .alert {
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0;
+    }
+
+    .alert-info {
+        background-color: #cce5ff; /* Matches status-processing */
+        color: #004085;
+    }
+
+    .alert-success {
+        background-color: #d4edda; /* Matches status-shipped */
+        color: #155724;
+    }
+
+    .table-orders {
+        width: 100%;
+        border-collapse: collapse;
+        border-radius: 8px;
+        box-shadow: var(--shadow-light);
+        border: 1px solid #e9ecef;
+        background: #fff;
+    }
+
+    .table-orders th {
+        background: #f8f9fa;
+        padding: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        color: #343a40;
+        border-bottom: 2px solid #dee2e6;
+        text-align: left;
+    }
+
+    .table-orders td {
+        padding: 0.75rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 0.85rem;
+    }
+
+    .badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .badge-pending { background-color: #fff3cd; color: #856404; } /* Matches status-pending */
+    .badge-shipped { background-color: #d4edda; color: #155724; } /* Matches status-shipped */
+    .badge-default { background-color: #e9ecef; color: #495057; }
+
+    /* Responsive Adjustments */
+    @media (max-width: 991.98px) {
+        .dashboard-title { font-size: 1.25rem; }
+        .dashboard-subtitle { font-size: 0.85rem; }
+        .section-title { font-size: 1.1rem; }
+        .product-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+        .table-orders th, .table-orders td { padding: 0.5rem; font-size: 0.75rem; }
+    }
+
+    @media (max-width: 767.98px) {
+        .page-wrapper { padding: 0 0.75rem; }
+        .dashboard-header, .products-section, .orders-section { padding: 0.75rem; }
+        .section-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+        .product-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+        .product-actions { flex-direction: column; gap: 0.25rem; }
+    }
+
+    @media (max-width: 575.98px) {
+        .page-wrapper { margin: 1rem auto; padding: 0 0.5rem; }
+        .dashboard-title { font-size: 1.1rem; }
+        .dashboard-subtitle { font-size: 0.8rem; }
+        .section-title { font-size: 1rem; }
+        .btn-add-product, .btn-edit, .btn-delete, .btn-view-order { padding: 0.3rem 0.5rem; font-size: 0.8rem; }
+        .product-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
+        .alert { font-size: 0.85rem; }
+        .section-header { margin-bottom: 1rem; }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="page-wrapper">
     <header class="dashboard-header">
         <div class="container">
-            <h1 class="dashboard-title"><i class="fas fa-tachometer-alt me-2"></i> Seller Dashboard</h1>
+            <h1 class="dashboard-title"><i class="fas fa-tachometer-alt"></i> Seller Dashboard</h1>
             <p class="dashboard-subtitle">Effortlessly manage your products, track orders, and grow your business.</p>
         </div>
     </header>
-
-    <main class="container main-content">
+    <main class="main-content">
         <section class="products-section">
             <div class="section-header">
-                <h2 class="section-title"><i class="fas fa-boxes me-2"></i> Your Products</h2>
+                <h2 class="section-title"><i class="fas fa-boxes"></i> Your Products</h2>
                 <a href="{% url 'product_create' %}" class="btn btn-add-product">
-                    <i class="fas fa-plus-circle me-2"></i> Add New Product
+                    <i class="fas fa-plus"></i> Add New Product
                 </a>
             </div>
 
@@ -64,18 +410,18 @@
             </div>
             {% else %}
             <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i> You haven't listed any products yet. Click "Add New Product" to get started!
+                <i class="fas fa-info-circle"></i> You haven't listed any products yet. Click "Add New Product" to get started!
             </div>
             {% endif %}
         </section>
 
         <section class="orders-section">
-             <div class="section-header">
-            <h2 class="section-title"><i class="fas fa-clipboard-list me-2"></i> Orders to Fulfill</h2>
-             </div>
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-clipboard-list"></i> Orders to Fulfill</h2>
+            </div>
             {% if seller_orders %}
             <div class="table-responsive">
-                <table class="table table-orders">
+                <table class="table-orders">
                     <thead>
                         <tr>
                             <th>Order #</th>
@@ -90,7 +436,7 @@
                         {% for order in seller_orders %}
                         <tr>
                             <td>#{{ order.id }}</td>
-                            <td>{{ order.order_date|date:"M d, Y, H:i" }}</td>
+                            <td>{{ order.order_date|date:"F d, Y" }}</td>
                             <td>{{ order.user.username }}</td>
                             <td>TSh {{ order.total_amount|floatformat:0|intcomma }}</td>
                             <td>
@@ -110,7 +456,7 @@
             </div>
             {% else %}
             <div class="alert alert-success">
-                <i class="fas fa-check-circle me-2"></i> No orders to fulfill at the moment. Check back later!
+                <i class="fas fa-check-circle"></i> No orders to fulfill at the moment. Check back later!
             </div>
             {% endif %}
         </section>
@@ -121,17 +467,21 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const cards = document.querySelectorAll('.product-card');
-
         cards.forEach((card, index) => {
             card.style.opacity = '0';
             card.style.transform = 'translateY(20px)';
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                    card.style.opacity = '1';
-                    card.style.transform = 'translateY(0)';
-                }, index * 100); // Staggered animation
-            });
+            setTimeout(() => {
+                card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+
+        document.querySelectorAll('img').forEach(img => {
+            img.onerror = function() {
+                this.src = "{% static 'images/no_image.png' %}";
+                this.alt = 'Image unavailable';
+            };
         });
     });
 </script>
