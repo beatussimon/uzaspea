@@ -1,34 +1,171 @@
 {% extends 'marketplace/base.html' %}
+{% load humanize %}
+{% block title %}My Orders - UZASPEA{% endblock %}
 
-{% block title %}My Orders - My Marketplace{% endblock %}
+{% block extra_head %}
+    <style>
+        .orders-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .orders-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .orders-table {
+            background-color: #fff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+
+        .orders-table th {
+            background-color: #f8f9fa;
+            padding: 1.25rem 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: #343a40;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .orders-table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.9rem;
+            border-radius: 2rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-block;
+            text-transform: capitalize;
+        }
+
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-processing { background-color: #cce5ff; color: #004085; }
+        .status-shipped { background-color: #d4edda; color: #155724; }
+        .status-delivered { background-color: #d1ecf1; color: #0c5460; }
+        .status-cancelled { background-color: #f8d7da; color: #721c24; }
+
+        .btn-view-details {
+            padding: 0.5rem 1.25rem;
+            font-size: 0.9rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .btn-view-details:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .no-orders {
+            text-align: center;
+            padding: 4rem 2rem;
+            background-color: #fff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 767.98px) {
+            .orders-table {
+                display: block;
+                overflow-x: auto;
+            }
+            .orders-table th, .orders-table td {
+                min-width: 150px;
+            }
+            .orders-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+{% endblock %}
 
 {% block content %}
-<h1>My Orders</h1>
+<div class="orders-container">
+    <div class="orders-header">
+        <h1 class="mb-0">My Orders</h1>
+        {% if orders %}
+            <a href="{% url 'product_list' %}" class="btn btn-outline-primary">
+                <i class="fas fa-shopping-cart me-1"></i> Continue Shopping
+            </a>
+        {% endif %}
+    </div>
 
-{% if orders %}
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Order #</th>
-                <th>Date</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for order in orders %}
-                <tr>
-                    <td>{{ order.id }}</td>
-                    <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
-                    <td>${{ order.total_amount|floatformat:2 }}</td>
-                    <td>{{order.status}}</td>
-                    <td><a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-sm btn-info">View Details</a></td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% else %}
-    <p>You have not placed any orders yet.</p>
-{% endif %}
+    {% if orders %}
+        <div class="table-responsive">
+            <table class="table orders-table mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Order #</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">Total</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                        <tr>
+                            <td>#{{ order.id }}</td>
+                            <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
+                            <td>Tsh {{ order.total_amount|floatformat:0|intcomma }}</td>
+                            <td>
+                                <span class="status-badge status-{{ order.status|lower }}">
+                                    {{ order.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'order_detail' order_id=order.id %}" 
+                                   class="btn btn-sm btn-info btn-view-details">
+                                    <i class="fas fa-eye me-1"></i> View Details
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="no-orders">
+            <i class="fas fa-shopping-bag fa-4x text-muted mb-3"></i>
+            <h3 class="mb-3">No Orders Yet</h3>
+            <p class="text-muted mb-4">Start exploring our marketplace and place your first order!</p>
+            <a href="{% url 'product_list' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-shopping-cart me-2"></i> Start Shopping
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const rows = document.querySelectorAll('.orders-table tbody tr');
+            rows.forEach(row => {
+                row.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f8f9fa';
+                    this.style.transition = 'background-color 0.2s ease';
+                });
+                row.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = '';
+                });
+            });
+        });
+    </script>
 {% endblock %}
