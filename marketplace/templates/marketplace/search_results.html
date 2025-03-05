@@ -1,47 +1,154 @@
+{# marketplace/search_results.html #}
 {% extends 'marketplace/base.html' %}
-{% load humanize %}  {% block title %}Search Results - UZACHUO{% endblock %}
+{% load humanize %}
 {% load static %}
+
+{% block title %}
+    Search Results for "{{ query|escape }}" - UZACHUO
+{% endblock %}
+
 {% block content %}
-<h1>Search Results for "{{ query }}"</h1>
+    <div class="container py-4">
+        <header class="mb-4">
+            <h1 class="display-5 fw-bold">Search Results for "{{ query|escape }}"</h1>
+        </header>
 
-{% if results %}
-<div class="row">
-    {% for product in results %}
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                 {% if product.image %}
-                      <a href="{{ product.get_absolute_url }}">
-                        <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
-                        </a>
-                    {% else %}
-                    <a href="{{ product.get_absolute_url }}">
-                        <img src="{% static 'images/no_image.png' %}" class="card-img-top" alt="No Image" style="height: 200px; object-fit: cover;">
-                        </a>
-                    {% endif %}
-                <div class="card-body">
-                    <h5 class="card-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h5>
-                    <p class="card-text">{{ product.description|truncatewords:20 }}</p>
-                    <p class="card-text"><strong>Price:</strong> TSh {{ product.price|floatformat:0|intcomma }}</p>
-                    <p class="card-text"><small class="text-muted">Condition: {{ product.get_condition_display }}</small></p> {# Added condition #}
-                    <p class="card-text"><small class="text-muted">Seller: {{ product.seller.username }}
-                      {% if product.seller.profile.is_verified %}
-                        <span class="badge bg-success">Verified</span>
-                      {% endif %}
-                    </small></p>
-                     <p class="card-text"><small class="text-muted">Category:
-                        {% for ancestor in product.category.get_ancestors %}
-                            <a href="{{ ancestor.get_absolute_url }}">{{ ancestor.name }}</a> &gt;
-                        {% endfor %}
-                        <a href="{{product.category.get_absolute_url}}">{{ product.category.name }}</a></small></p>
-                    <a href="{{ product.get_absolute_url }}" class="btn btn-primary">View Details</a>
-                </div>
+        {% if results %}
+            <div class="row row-cols-1 row-cols-md-3 g-4">
+                {% for product in results %}
+                    <div class="col">
+                        <div class="card h-100 shadow-sm transition-hover">
+                            <div class="card-img-wrapper">
+                                {% if product.image %}
+                                    <a href="{{ product.get_absolute_url }}">
+                                        <img src="{{ product.image.url }}" 
+                                             class="card-img-top" 
+                                             alt="{{ product.name|escape }}"
+                                             loading="lazy"
+                                             style="height: 200px; object-fit: cover;">
+                                    </a>
+                                {% else %}
+                                    <a href="{{ product.get_absolute_url }}">
+                                        <img src="{% static 'images/no_image.png' %}" 
+                                             class="card-img-top" 
+                                             alt="No image available"
+                                             loading="lazy"
+                                             style="height: 200px; object-fit: cover;">
+                                    </a>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="card-body">
+                                <h5 class="card-title mb-2">
+                                    <a href="{{ product.get_absolute_url }}" 
+                                       class="text-decoration-none text-dark">
+                                        {{ product.name|truncatechars:50 }}
+                                    </a>
+                                </h5>
+                                
+                                <p class="card-text text-muted small mb-3">
+                                    {{ product.description|truncatewords:20 }}
+                                </p>
+                                
+                                <div class="mb-2">
+                                    <strong class="text-success">
+                                        TSh {{ product.price|floatformat:0|intcomma }}
+                                    </strong>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        Condition: {{ product.get_condition_display }}
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <small class="text-muted">
+                                        Seller: {{ product.seller.username }}
+                                        {% if product.seller.profile.is_verified %}
+                                            <span class="badge bg-success ms-1">Verified</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <small class="text-muted">
+                                        Category: 
+                                        {% for ancestor in product.category.get_ancestors %}
+                                            <a href="{{ ancestor.get_absolute_url }}" 
+                                               class="text-muted text-decoration-none">
+                                                {{ ancestor.name }}
+                                            </a> >
+                                        {% endfor %}
+                                        <a href="{{ product.category.get_absolute_url }}" 
+                                           class="text-muted text-decoration-none">
+                                            {{ product.category.name }}
+                                        </a>
+                                    </small>
+                                </div>
+                                
+                                <a href="{{ product.get_absolute_url }}" 
+                                   class="btn btn-primary btn-sm w-100">
+                                    View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
             </div>
-        </div>
-    {% endfor %}
-</div>
-{% else %}
-    <p>No results found for "{{ query }}".</p>
-{% endif %}
+        {% else %}
+            <div class="alert alert-info" role="alert">
+                No results found for "{{ query|escape }}". Try adjusting your search terms.
+            </div>
+        {% endif %}
 
-<a href="{% url 'product_list' %}" class="btn btn-secondary">Back to Product List</a>
+
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ query }}&page={{ page_obj.previous_page_number }}">Previous</a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                        <a class="page-link" href="?q={{ query }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ query }}&page={{ page_obj.next_page_number }}">Next</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+
+
+        <div class="mt-4">
+            <a href="{% url 'product_list' %}" 
+               class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Products
+            </a>
+        </div>
+    </div>
+
+    {% block extra_css %}
+        <style>
+            .transition-hover {
+                transition: transform 0.2s ease-in-out;
+            }
+            .transition-hover:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1) !important;
+            }
+            .card-img-wrapper {
+                overflow: hidden;
+                background: #f8f9fa;
+            }
+        </style>
+    {% endblock %}
 {% endblock %}
