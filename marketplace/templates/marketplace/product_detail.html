@@ -2,85 +2,31 @@
 {% load humanize %}
 {% load crispy_forms_tags %}
 {% load static %}
+
 {% block title %}{{ product.name }} - UZASPEA{% endblock %}
+
 {% block extra_head %}
     <link rel="stylesheet" href="{% static 'css/product_detail.css' %}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <style>
-        /* Enhanced Add to Cart Styling */
-        .quantity-selector {
-            max-width: 250px;
-            border-radius: 25px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        .quantity-input {
-            text-align: center;
-            font-weight: bold;
-            background-color: #f8f9fa;
-            border: none;
-        }
-        .quantity-decrement, .quantity-increment {
-            background-color: #e9ecef;
-            transition: background-color 0.3s;
-        }
-        .quantity-decrement:hover, .quantity-increment:hover {
-            background-color: #dee2e6;
-        }
-        .btn-add-to-cart {
-            background-color: #28a745;
-            border: none;
-            border-radius: 25px;
-            padding: 10px 20px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-        .btn-add-to-cart:hover {
-            background-color: #218838;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-        }
-        .btn-add-to-cart i {
-            margin-right: 5px;
-        }
-
-        /* Enhanced Rating Styling */
-        .rating-stars {
-            display: inline-flex;
-            gap: 5px;
-            cursor: pointer;
-        }
-        .rating-stars i {
-            font-size: 1.2rem;
-            transition: color 0.2s;
-        }
-        .rating-stars i:hover,
-        .rating-stars i.active {
-            color: #ffc107 !important;
-        }
-        .review-rating {
-            margin-left: 10px;
-        }
-    </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="row main-content">
-        {# --- Main Product Area (Image and Details) --- #}
+        {# Main Product Area (Image and Details) #}
         <div class="col-lg-8">
             <div class="row">
                 <div class="col-md-6">
-                    {# --- Image Carousel --- #}
+                    {# Image Carousel #}
                     <div id="productCarousel" class="carousel slide product-image-container" data-bs-ride="carousel">
                         <div class="carousel-inner">
                             {% for image in images %}
                                 <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                                    <img src="{{ image.image.url }}" class="d-block w-100 product-image" alt="{{ product.name }}">
+                                    <img src="{{ image.image.url }}" class="product-image" alt="{{ product.name }}">
                                 </div>
                             {% empty %}
                                 <div class="carousel-item active">
-                                    <img src="{% static 'images/no_image.png' %}" class="d-block w-100 product-image" alt="No image available">
+                                    <img src="{% static 'images/no_image.png' %}" class="product-image" alt="No image available">
                                 </div>
                             {% endfor %}
                         </div>
@@ -165,7 +111,7 @@
             </div>
             <hr class="my-4">
 
-            {# --- Reviews Section --- #}
+            {# Reviews Section #}
             <h2 class="section-title">Reviews</h2>
             {% if request.user.is_authenticated %}
                 {% if has_reviewed %}
@@ -231,7 +177,7 @@
             {% endfor %}
         </div>
 
-        {# --- Related Products (Right Sidebar) --- #}
+        {# Related Products (Right Sidebar) #}
         <div class="col-lg-4 related-products-section">
             {% if related_products %}
                 <h4 class="section-title">Related Products</h4>
@@ -242,11 +188,11 @@
                                 <a href="{{ related_product.get_absolute_url }}" class="product-link">
                                     <div class="product-image-wrapper">
                                         {% if related_product.get_first_image %}
-                                            <img src="{{ related_product.get_first_image.url }}" class="card-img-top product-image" alt="{{ related_product.name }}">
+                                            <img src="{{ related_product.get_first_image.url }}" class="product-image" alt="{{ related_product.name }}">
                                         {% elif related_product.images.all %}
-                                            <img src="{{ related_product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ related_product.name }}">
+                                            <img src="{{ related_product.images.all.0.image.url }}" class="product-image" alt="{{ related_product.name }}">
                                         {% else %}
-                                            <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
+                                            <img src="{% static 'images/no_image.png' %}" class="product-image" alt="No Image Available">
                                         {% endif %}
                                     </div>
                                 </a>
@@ -304,7 +250,7 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // --- AJAX Add to Cart ---
+    // AJAX Add to Cart
     const addToCartForm = document.getElementById('add-to-cart-form');
     if (addToCartForm) {
         addToCartForm.addEventListener('submit', function(event) {
@@ -324,8 +270,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.ok ? response.json() : response.json().then(errData => Promise.reject(errData)))
             .then(data => {
                 if (data.status === 'success') {
-                    updateCartCount(data.cart_items_count); // Use global function
-                    showAlert(data.message, 'success'); // Use global function
+                    updateCartCount(data.cart_items_count);
+                    showAlert(data.message, 'success');
                 } else {
                     showAlert(data.message, 'danger');
                 }
@@ -337,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // --- Quantity Selector ---
+    // Quantity Selector
     const quantityInputs = document.querySelectorAll('.quantity-input');
     quantityInputs.forEach(input => {
         const decrement = input.parentElement.querySelector('.quantity-decrement');
@@ -355,7 +301,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // --- Rating Stars Interaction ---
+    // Rating Stars Interaction
     const ratingStars = document.querySelectorAll('.rating-stars i');
     const ratingInput = document.getElementById('rating-value');
     ratingStars.forEach(star => {
@@ -371,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // --- Infinite Scroll for Related Products ---
+    // Infinite Scroll for Related Products
     let loading = false;
     let nextPage = 2;
     const relatedProductsContainer = document.getElementById('related-products-container');
@@ -418,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (sentinel) observer.observe(sentinel);
 
-    // --- Tooltips ---
+    // Tooltips
     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
     tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
 });
