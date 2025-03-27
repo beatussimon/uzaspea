@@ -108,9 +108,12 @@
 .product-image-wrapper {
     position: relative;
     overflow: hidden;
-    padding-top: 50%; /* Consistent across all sizes */
+    aspect-ratio: 4 / 3; /* Professional, consistent aspect ratio */
     flex-shrink: 0;
-    background-color: #f8f9fa;
+    background-color: #f8f9fa; /* Light gray fallback for empty states */
+    border-radius: 8px 8px 0 0; /* Matches card's top corners */
+    width: 100%; /* Ensures full width of the card */
+    contain: content; /* Optimizes rendering performance */
 }
 
 .product-image {
@@ -119,8 +122,10 @@
     left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
+    object-fit: cover; /* Ensures images fill the space without distortion */
+    object-position: center; /* Centers the image for consistent display */
+    transition: transform 0.3s ease; /* Smooth zoom effect on hover */
+    border-radius: 8px 8px 0 0; /* Matches wrapper for seamless look */
 }
 
 .product-details {
