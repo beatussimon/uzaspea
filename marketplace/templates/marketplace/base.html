@@ -48,19 +48,8 @@
                         {% if user.is_authenticated %}
                         <li class="nav-item nav-search d-lg-none">
                             <form class="d-flex search-form my-2" action="{% url 'search_results' %}" method="get">
-                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." autofocus
-                                       aria-label="Search" name="q" value="{{ query }}">
-                                <button class="btn btn-primary search-button" type="submit">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </form>
-                        </li>
-                        {% endif %}
-                        {% if not user.is_authenticated %}
-                        <li class="nav-item nav-search d-lg-none">
-                            <form class="d-flex search-form my-2" action="{% url 'search_results' %}" method="get">
                                 <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
-                                       aria-label="Search" name="q" value="{{ query }}">
+                                       aria-label="Search" name="q" value="{{ query|default:'' }}">
                                 <button class="btn btn-primary search-button" type="submit">
                                     <i class="fas fa-search"></i>
                                 </button>
@@ -73,15 +62,16 @@
                             </a>
                         </li>
                         {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'products' in request.path %}active{% endif %}" href="{% url 'user_profile' username=user.username %}">
-                                <i class="fas fa-store me-1"></i>My Store
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="sellDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-store me-1"></i>Selling
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'product/create' in request.path %}active{% endif %}" href="{% url 'product_create' %}">
-                                <i class="fas fa-plus-circle me-1"></i>Sell Product
-                            </a>
+                            <ul class="dropdown-menu shadow-sm" aria-labelledby="sellDropdown">
+                                <li><a class="dropdown-item py-2" href="{% url 'user_profile' username=user.username %}">
+                                    <i class="fas fa-store me-2"></i>My Store</a></li>
+                                <li><a class="dropdown-item py-2" href="{% url 'product_create' %}">
+                                    <i class="fas fa-plus-circle me-2"></i>Sell Product</a></li>
+                            </ul>
                         </li>
                         <li class="nav-item dropdown d-lg-none">
                             <a class="nav-link dropdown-toggle {% if 'user_profile' in request.path or 'dashboard' in request.path or 'order_list' in request.path %}active{% endif %}" 
@@ -111,6 +101,15 @@
                             </ul>
                         </li>
                         {% else %}
+                        <li class="nav-item nav-search d-lg-none">
+                            <form class="d-flex search-form my-2" action="{% url 'search_results' %}" method="get">
+                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
+                                       aria-label="Search" name="q" value="{{ query|default:'' }}">
+                                <button class="btn btn-primary search-button" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </li>
                         <li class="nav-item d-lg-none">
                             <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{% url 'login' %}">
                                 <i class="fas fa-sign-in-alt me-1"></i>Login
@@ -128,7 +127,7 @@
                         <li class="nav-item nav-search d-none d-lg-block">
                             <form class="d-flex search-form my-2 my-lg-0" action="{% url 'search_results' %}" method="get">
                                 <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
-                                       aria-label="Search" name="q" value="{{ query }}">
+                                       aria-label="Search" name="q" value="{{ query|default:'' }}">
                                 <button class="btn btn-primary search-button" type="submit">
                                     <i class="fas fa-search"></i>
                                 </button>
