@@ -1,0 +1,3299 @@
+================================================================================
+FILE: marketplace/templates/marketplace/password_reset_form.html
+================================================================================
+
+
+
+================================================================================
+FILE: marketplace/templates/marketplace/product_list.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load humanize %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Product List - UZASPEA{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/product_list.css' %}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+     <!-- Toggle Buttons for Mobile (at the top) -->
+    <div class="d-lg-none toggle-section">
+        <button class="btn btn-toggle-sidebar mb-3 me-2" type="button" data-bs-toggle="collapse" data-bs-target="#rightCollapse">Sidebar</button>
+        <button class="btn btn-toggle-sidebar mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">Filters</button>
+    </div>
+
+    <div class="row">
+        <!-- Left Sidebar (Filter Sidebar) -->
+        <div class="col-lg-2 col-md-3 mb-4 order-2 filter-sidebar d-lg-block">
+            <aside id="filterCollapse" class="collapse d-lg-block">
+                <div class="card filter-group mb-4">
+                    <div class="card-header filter-header">
+                        <h6 class="filter-title mb-0">Categories</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled category-list">
+                            <li class="category-item {% if not selected_category %}active{% endif %}">
+                                <a href="{% url 'product_list' %}" class="category-link">All Categories</a>
+                            </li>
+                            {% for category in categories %}
+                                <li class="category-item {% if selected_category == category %}active{% endif %}">
+                                    <a href="{{ category.get_absolute_url }}" class="category-link">{{ category.name }}</a>
+                                    {% if category.children.all %}
+                                        <ul class="mt-2 subcategory-list">
+                                            {% for subcategory in category.children.all %}
+                                                <li class="subcategory-item">
+                                                    <a href="{{ subcategory.get_absolute_url }}" class="subcategory-link">{{ subcategory.name }}</a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card filter-group mb-4">
+                    <div class="card-header filter-header">
+                        <h6 class="filter-title mb-0">Price Range</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" action="{% url 'product_list' %}" class="filter-form">
+                            <div class="mb-3">
+                                <label for="min_price" class="form-label">Min Price:</label>
+                                <input type="number" class="form-control" id="min_price" name="min_price" value="{{ min_price }}" min="0" placeholder="Min">
+                            </div>
+                            <div class="mb-3">
+                                <label for="max_price" class="form-label">Max Price:</label>
+                                <input type="number" class="form-control" id="max_price" name="max_price" value="{{ max_price }}" min="0" placeholder="Max">
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-filter">Filter</button>
+                            <a href="{% url 'product_list' %}" class="btn btn-secondary btn-clear">Clear</a>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card filter-group mb-4">
+                    <div class="card-header filter-header">
+                        <h6 class="filter-title mb-0">Sort By</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" action="{% url 'product_list' %}" class="filter-form">
+                            <select class="form-select sort-select" name="sort_by" onchange="this.form.submit()">
+                                <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>Newest</option>
+                                <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Price (Low to High)</option>
+                                <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Price (High to Low)</option>
+                                <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Rating</option>
+                            </select>
+                            <input type="hidden" name="category" value="{{ selected_category_slug }}">
+                            <input type="hidden" name="min_price" value="{{ min_price }}">
+                            <input type="hidden" name="max_price" value="{{ max_price }}">
+                            <input type="hidden" name="condition" value="{{ condition }}">
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card filter-group mb-4">
+                    <div class="card-header filter-header">
+                        <h6 class="filter-title mb-0">Condition</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled condition-list">
+                            <li class="condition-item {% if not condition %}active{% endif %}">
+                                <a href="{% url 'product_list' %}" class="condition-link">All Conditions</a>
+                            </li>
+                            <li class="condition-item {% if condition == 'New' %}active{% endif %}">
+                                <a href="{% url 'product_list' %}?condition=New" class="condition-link">New</a>
+                            </li>
+                            <li class="condition-item {% if condition == 'Used' %}active{% endif %}">
+                                <a href="{% url 'product_list' %}?condition=Used" class="condition-link">Used</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Main Section -->
+        <div class="col-lg-8 col-md-6 order-md-2 order-3 main-content">
+            <div class="row product-grid" id="product-container">
+                <!-- Specific Element -->
+                <!-- Rest of the products -->
+                {% for product in products %}
+                    <div class="col-lg-3 col-md-4 col-sm-6 col-12">
+                        <a href="{{ product.get_absolute_url }}" class="product-link">
+                            <div class="card product-card">
+                                <div class="product-image-wrapper">
+                                    {% if product.get_first_image %}
+                                        <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                                    {% elif product.images.all %}
+                                        <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                                    {% else %}
+                                        <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
+                                    {% endif %}
+                                </div>
+                                <div class="card-body product-details">
+                                    <h3 class="product-title">{{ product.name }}</h3>
+                                    <p class="product-description">{{ product.description|truncatewords:15 }}</p>
+                                    <div class="product-meta">
+                                        <span class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</span>
+                                        <span class="product-condition badge {% if product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ product.get_condition_display }}
+                                        </span>
+                                    </div>
+                                    <div class="product-meta seller-category">
+                                        <p class="product-seller">
+                                            <i class="bi bi-person me-1"></i> 
+                                            <span class="seller-link">{{ product.seller.username }}</span>
+                                            {% if product.seller.profile.is_verified %}
+                                                <span class="verified-badge text-success ms-1"><i class="bi bi-check-circle-fill"></i></span>
+                                            {% endif %}
+                                        </p>
+                                        <p class="product-category">
+                                            <i class="bi bi-folder me-1"></i> 
+                                            <span class="category-link">{{ product.category.name }}</span>
+                                        </p>
+                                    </div>
+                                    <div class="product-rating justify-content-center">
+                                        {% if product.average_rating > 0 %}
+                                            {% for i in "x"|ljust:product.average_rating %}
+                                                <i class="bi bi-star-fill text-warning"></i>
+                                            {% endfor %}
+                                            {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
+                                                <i class="bi bi-star text-warning"></i>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted small">No reviews</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                {% empty %}
+                    <div class="col-12">
+                        <p class="no-products-message">No products found matching your criteria.</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div id="loading-indicator" class="mt-4 text-center" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="loading-message">Loading more products...</p>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="col-lg-2 col-md-3 order-md-3 order-1 right-sidebar d-lg-block">
+            <div id="rightCollapse" class="collapse d-lg-block sidebar-content">
+                <div class="card mb-4">
+                    <div class="card-header">Subscribe to Newsletter</div>
+                    <div class="card-body">
+                        <p class="small text-muted">Get the latest updates and offers.</p>
+                        <form method="post" action="{% url 'product_list' %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                {{ subscription_form|crispy }}
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary" name="subscribe_submit">Subscribe</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card mb-4">
+                    <div class="card-header">Follow Us</div>
+                    <div class="card-body">
+                        <p class="text-muted small">Connect with us:</p>
+                        <div class="row row-cols-2 g-2">
+                            <div class="col"><a href="https://www.facebook.com/yourfacebookpage" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Facebook" target="_blank" rel="noopener noreferrer"><i class="bi bi-facebook"></i></a></div>
+                            <div class="col"><a href="https://twitter.com/yourtwitterhandle" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Twitter" target="_blank" rel="noopener noreferrer"><i class="bi bi-twitter-x"></i></a></div>
+                            <div class="col"><a href="https://www.instagram.com/yourinstagramusername/" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="Instagram" target="_blank" rel="noopener noreferrer"><i class="bi bi-instagram"></i></a></div>
+                            <div class="col"><a href="https://www.youtube.com/youryoutubechannel" class="social-icon d-flex justify-content-center align-items-center" data-bs-toggle="tooltip" data-bs-title="YouTube" target="_blank" rel="noopener noreferrer"><i class="bi bi-youtube"></i></a></div>
+                        </div>
+                    </div>
+                </div>
+                {% if offers %}
+                <div class="card mb-4">
+                    <div class="card-header">Special Offers</div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for offer in offers %}
+                                <li class="list-group-item">
+                                    {% if offer.image %}
+                                        <img src="{{offer.image.url}}" class="img-fluid mb-2" alt="{{offer.title}}">
+                                    {% endif %}
+                                    <h5>{{ offer.title }}</h5>
+                                    <p>{{ offer.description|truncatewords:20 }}</p>
+                                    {% if offer.link %}
+                                        <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">{{ offer.button_text }}</a>
+                                    {% endif %}
+                                </li>
+                            {% empty %}
+                                <li class="list-group-item">No offers at the moment.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+                {% if news_items %}
+                <div class="card mb-4">
+                    <div class="card-header">Latest News</div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for item in news_items %}
+                                <li class="list-group-item">
+                                    <h5>{{ item.title }}</h5>
+                                    <p class="small text-muted">{{item.pub_date|date:"F j, Y"}}</p>
+                                    <p>{{ item.content|truncatewords:25 }}</p>
+                                    {% if item.link %}
+                                        <a href="{{item.link}}" class="btn btn-sm btn-outline-secondary">Read More</a>
+                                    {% endif %}
+                                </li>
+                            {% empty %}
+                                <li class="list-group-item">No News at the moment</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let loading = false;
+        let page = 2;
+        const productContainer = document.getElementById('product-container');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        let noMoreProducts = false;
+
+        function loadMoreProducts() {
+            if (loading || noMoreProducts) return;
+            loading = true;
+            loadingIndicator.style.display = 'block';
+
+            let url = new URL(window.location.href);
+            url.searchParams.set('page', page);
+
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        noMoreProducts = true;
+                        throw new Error('No more products');
+                    }
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(data => {
+                productContainer.insertAdjacentHTML('beforeend', data);
+                page++;
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function(tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+                enableImageZoom();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            })
+            .finally(() => {
+                loading = false;
+                loadingIndicator.style.display = 'none';
+            });
+        }
+
+        window.addEventListener('scroll', function() {
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50 && !loading && !noMoreProducts) {
+                loadMoreProducts();
+            }
+        });
+
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        function enableImageZoom() {
+            const productImages = document.querySelectorAll('.product-image');
+            productImages.forEach(image => {
+                image.addEventListener('mouseover', function() {
+                    this.style.transform = 'scale(1.1)';
+                    this.style.transition = 'transform 0.3s ease';
+                });
+                image.addEventListener('mouseout', function() {
+                    this.style.transform = 'scale(1)';
+                    this.style.transition = 'transform 0.3s ease';
+                });
+            });
+        }
+        enableImageZoom();
+    });
+</script>
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/product_detail.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load humanize %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}{{ product.name }} - UZASPEA{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'css/product_detail.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row main-content">
+        {# Main Product Area (Image and Details) #}
+        <div class="col-lg-8">
+            <div class="row">
+                <div class="col-md-6">
+                    {# Image Carousel #}
+                    <div id="productCarousel" class="carousel slide product-image-container" data-bs-ride="carousel">
+                        <div class="carousel-inner">
+                            {% for image in images %}
+                                <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                    <img src="{{ image.image.url }}" class="product-image" alt="{{ product.name }}">
+                                </div>
+                            {% empty %}
+                                <div class="carousel-item active">
+                                    <img src="{% static 'images/no_image.png' %}" class="product-image" alt="No image available">
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% if images|length > 1 %}
+                            <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6 product-details">
+                    <h1 class="product-title">{{ product.name }}</h1>
+                    <p class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</p>
+
+                    <div class="product-info">
+                        <div class="info-row">
+                            <span class="seller-info">
+                                <i class="bi bi-person me-1"></i>
+                                Seller: <a href="{% url 'user_profile' product.seller.username %}">{{ product.seller.username }}</a>
+                                {% if product.seller.profile.is_verified %}
+                                    <span class="verified-badge"><i class="bi bi-check-circle-fill"></i></span>
+                                {% endif %}
+                            </span>
+                            <span class="product-category">
+                                <i class="bi bi-folder me-1"></i>
+                                <a href="{{ product.category.get_absolute_url }}" class="category-link">{{ product.category.name }}</a>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="stock-item"><i class="bi bi-boxes me-1"></i>Stock: {{ product.stock }}</span>
+                            <span class="condition-item"><i class="bi bi-tags me-1"></i>{{ product.get_condition_display }}</span>
+                        </div>
+                    </div>
+
+                    <p class="product-description"><i class="bi bi-info-circle me-1"></i>{{ product.description }}</p>
+
+                    {% if product.average_rating > 0 %}
+                        <p class="product-rating">
+                            <span class="rating-stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= product.average_rating|floatformat:0 %}
+                                        <i class="bi bi-star-fill text-warning"></i>
+                                    {% else %}
+                                        <i class="bi bi-star text-warning"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </span>
+                            ({{ product.reviews.count }} reviews)
+                        </p>
+                    {% else %}
+                        <p class="product-rating"><i class="bi bi-star me-1"></i>No reviews yet</p>
+                    {% endif %}
+
+                    {% if product.seller == user %}
+                        <div class="product-actions mt-3">
+                            <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-warning me-2">Edit Product</a>
+                            <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-danger">Delete Product</a>
+                        </div>
+                    {% elif product.is_available and product.stock > 0 %}
+                        {% if request.user.is_authenticated %}
+                            <form action="{% url 'add_to_cart' slug=product.slug %}" method="post" class="d-inline mt-3" id="add-to-cart-form" data-slug="{{ product.slug }}">
+                                {% csrf_token %}
+                                <div class="input-group quantity-selector">
+                                    <button type="button" class="btn btn-outline-secondary quantity-decrement">-</button>
+                                    <input type="text" name="quantity" value="1" min="1" max="{{ product.stock }}" class="form-control quantity-input" readonly>
+                                    <button type="button" class="btn btn-outline-secondary quantity-increment">+</button>
+                                </div>
+                                <button type="submit" class="btn btn-add-to-cart ms-2"><i class="bi bi-cart-plus"></i> Add to Cart</button>
+                            </form>
+                        {% else %}
+                            <p class="mt-3"><a href="{% url 'login' %}?next={{ request.path }}" class="text-primary">Login</a> to add to cart.</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="out-of-stock mt-3">Out of Stock</p>
+                    {% endif %}
+                </div>
+            </div>
+            <hr class="my-4">
+
+            {# Reviews Section #}
+            <h2 class="section-title">Reviews</h2>
+            {% if request.user.is_authenticated %}
+                {% if has_reviewed %}
+                    <p class="text-muted">You have already reviewed this product.</p>
+                {% else %}
+                    <form method="post" class="mb-4 review-form">
+                        {% csrf_token %}
+                        {{ review_form|crispy }}
+                        <div class="rating-stars mb-3">
+                            <input type="hidden" name="rating" id="rating-value" value="0">
+                            {% for i in "12345" %}
+                                <i class="bi bi-star text-warning" data-rating="{{ forloop.counter }}"></i>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-primary" name="review_submit">Submit Review</button>
+                    </form>
+                {% endif %}
+            {% else %}
+                <p class="text-muted">Please <a href="{% url 'login' %}?next={{ request.path }}" class="text-primary">log in</a> to leave a review.</p>
+            {% endif %}
+            {% for review in reviews %}
+                <div class="card review-card mb-3">
+                    <div class="card-header review-header">
+                        <span class="review-author">{{ review.user.username }}</span>
+                        <span class="review-rating">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= review.rating %}
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                {% else %}
+                                    <i class="bi bi-star text-warning"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </span>
+                        <span class="review-date text-muted small">{{ review.created_at|date:"F d, Y" }}</span>
+                    </div>
+                    <div class="card-body review-body">
+                        <p class="review-comment">{{ review.comment }}</p>
+                        {% if user.is_authenticated %}
+                            <details class="reply-form">
+                                <summary>Reply</summary>
+                                <form method="post" class="mt-2">
+                                    {% csrf_token %}
+                                    {{ reply_form|crispy }}
+                                    <input type="hidden" name="parent_id" value="{{ review.id }}">
+                                    <button class="btn btn-sm btn-primary" type="submit" name="reply_submit">Reply</button>
+                                </form>
+                            </details>
+                        {% endif %}
+                        {% for reply in review.replies.all %}
+                            <div class="reply-container mt-2">
+                                <div class="card reply-card">
+                                    <div class="card-body">
+                                        <p class="card-text">{{ reply.comment }}</p>
+                                        <p class="card-text"><small class="text-muted">By {{ reply.user.username }} on {{ reply.created_at|date:"F d, Y" }}</small></p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% empty %}
+                <p class="text-muted">No reviews yet.</p>
+            {% endfor %}
+        </div>
+
+        {# Related Products (Right Sidebar) #}
+        <div class="col-lg-4 related-products-section">
+            {% if related_products %}
+                <h4 class="section-title">Related Products</h4>
+                <div class="row row-cols-1 g-3" id="related-products-container">
+                    {% for related_product in related_products %}
+                        <div class="col">
+                            <div class="card related-product-card h-100">
+                                <a href="{{ related_product.get_absolute_url }}" class="product-link">
+                                    <div class="product-image-wrapper">
+                                        {% if related_product.get_first_image %}
+                                            <img src="{{ related_product.get_first_image.url }}" class="product-image" alt="{{ related_product.name }}">
+                                        {% elif related_product.images.all %}
+                                            <img src="{{ related_product.images.all.0.image.url }}" class="product-image" alt="{{ related_product.name }}">
+                                        {% else %}
+                                            <img src="{% static 'images/no_image.png' %}" class="product-image" alt="No Image Available">
+                                        {% endif %}
+                                    </div>
+                                </a>
+                                <div class="card-body product-details">
+                                    <h3 class="related-product-title">
+                                        <a href="{{ related_product.get_absolute_url }}">{{ related_product.name }}</a>
+                                    </h3>
+                                    <p class="product-description">{{ related_product.description|truncatewords:15 }}</p>
+                                    <div class="product-meta">
+                                        <span class="product-price">TSh {{ related_product.price|floatformat:0|intcomma }}</span>
+                                        <span class="product-condition badge {% if related_product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ related_product.get_condition_display }}
+                                        </span>
+                                    </div>
+                                    <div class="product-meta seller-category">
+                                        <p class="product-seller">
+                                            <i class="bi bi-person me-1"></i>
+                                            <a href="{% url 'user_profile' related_product.seller.username %}" class="seller-link">{{ related_product.seller.username }}</a>
+                                            {% if related_product.seller.profile.is_verified %}
+                                                <span class="verified-badge text-success ms-1"><i class="bi bi-check-circle-fill"></i></span>
+                                            {% endif %}
+                                        </p>
+                                        <p class="product-category">
+                                            <i class="bi bi-folder me-1"></i>
+                                            <a href="{{ related_product.category.get_absolute_url }}" class="category-link">{{ related_product.category.name }}</a>
+                                        </p>
+                                    </div>
+                                    <div class="product-rating justify-content-center">
+                                        {% if related_product.average_rating > 0 %}
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= related_product.average_rating|floatformat:0 %}
+                                                    <i class="bi bi-star-fill text-warning"></i>
+                                                {% else %}
+                                                    <i class="bi bi-star text-warning"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted small">No reviews</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    <div id="sentinel"></div>
+                </div>
+            {% else %}
+                <p class="text-muted">No related products found.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // AJAX Add to Cart
+    const addToCartForm = document.getElementById('add-to-cart-form');
+    if (addToCartForm) {
+        addToCartForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const slug = this.dataset.slug;
+            const url = `/cart/add/${slug}/`;
+
+            fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+            })
+            .then(response => response.ok ? response.json() : response.json().then(errData => Promise.reject(errData)))
+            .then(data => {
+                if (data.status === 'success') {
+                    updateCartCount(data.cart_items_count);
+                    showAlert(data.message, 'success');
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert(error.message || 'Failed to add to cart.', 'danger');
+            });
+        });
+    }
+
+    // Quantity Selector
+    const quantityInputs = document.querySelectorAll('.quantity-input');
+    quantityInputs.forEach(input => {
+        const decrement = input.parentElement.querySelector('.quantity-decrement');
+        const increment = input.parentElement.querySelector('.quantity-increment');
+        
+        decrement.addEventListener('click', () => {
+            let value = parseInt(input.value);
+            if (value > parseInt(input.min)) input.value = value - 1;
+        });
+        
+        increment.addEventListener('click', () => {
+            let value = parseInt(input.value);
+            let max = parseInt(input.max);
+            if (value < max) input.value = value + 1;
+        });
+    });
+
+    // Rating Stars Interaction
+    const ratingStars = document.querySelectorAll('.rating-stars i');
+    const ratingInput = document.getElementById('rating-value');
+    ratingStars.forEach(star => {
+        star.addEventListener('click', () => {
+            const rating = parseInt(star.dataset.rating);
+            if (rating >= 0 && rating <= 5) {
+                ratingInput.value = rating;
+                ratingStars.forEach(s => {
+                    s.classList.toggle('bi-star-fill', parseInt(s.dataset.rating) <= rating);
+                    s.classList.toggle('bi-star', parseInt(s.dataset.rating) > rating);
+                });
+            }
+        });
+    });
+
+    // Infinite Scroll for Related Products
+    let loading = false;
+    let nextPage = 2;
+    const relatedProductsContainer = document.getElementById('related-products-container');
+    const sentinel = document.getElementById('sentinel');
+    const productSlug = "{{ product.slug | escapejs }}";
+
+    function loadMoreRelatedProducts() {
+        if (loading) return;
+        loading = true;
+
+        const url = `/related-products/${productSlug}/?page=${nextPage}`;
+        fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 404) {
+                    observer.unobserve(sentinel);
+                    return Promise.resolve('');
+                }
+                return Promise.reject('Network error');
+            }
+            return response.text();
+        })
+        .then(data => {
+            if (!data.trim()) {
+                observer.unobserve(sentinel);
+            } else {
+                relatedProductsContainer.insertAdjacentHTML('beforeend', data);
+                nextPage++;
+            }
+            loading = false;
+        })
+        .catch(error => {
+            console.error('Error loading related products:', error);
+            showAlert('Failed to load more related products.', 'warning');
+            loading = false;
+        });
+    }
+
+    const observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && !loading) loadMoreRelatedProducts();
+    }, { rootMargin: '100px' });
+
+    if (sentinel) observer.observe(sentinel);
+
+    // Tooltips
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/base.html
+================================================================================
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="UZASPEA - Your premier online marketplace for buying and selling.">
+    <meta name="keywords" content="marketplace, online shopping, buy, sell, UZASPEA, Tanzania">
+    <title>{% block title %}UZASPEA - Online Marketplace{% endblock %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'images/favicon-16x16.png' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+
+    
+    {% block extra_head %}{% endblock %}
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <style>
+        .login-button-styles{
+            background-color: green;
+        }
+    </style>
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <header class="site-header">
+        <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm fixed-top" id="mainNav">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center" href="{% url 'product_list' %}">
+                    <img src="{% static 'images/logo.png' %}" alt="UZASPEA Logo" class="logo-image me-2">
+                    <span class="logo-text">UZASPEA</span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        {% if user.is_authenticated %}
+                        <li class="nav-item nav-search d-lg-none">
+                            <form class="d-flex search-form my-2" action="{% url 'search_results' %}" method="get">
+                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
+                                       aria-label="Search" name="q" value="{{ query|default:'' }}">
+                                <button class="btn btn-primary search-button" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'product_list' %}">
+                                <i class="fas fa-home me-1"></i>Home
+                            </a>
+                        </li>
+                        {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="sellDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-store me-1"></i>Selling
+                            </a>
+                            <ul class="dropdown-menu shadow-sm" aria-labelledby="sellDropdown">
+                                <li><a class="dropdown-item py-2" href="{% url 'user_profile' username=user.username %}">
+                                    <i class="fas fa-store me-2"></i>My Store</a></li>
+                                <li><a class="dropdown-item py-2" href="{% url 'product_create' %}">
+                                    <i class="fas fa-plus-circle me-2"></i>Sell Product</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown d-lg-none">
+                            <a class="nav-link dropdown-toggle {% if 'user_profile' in request.path or 'dashboard' in request.path or 'order_list' in request.path %}active{% endif %}" 
+                               href="#" id="mobileProfileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user me-1"></i>{{ user.username }}
+                                {% if user.profile.is_verified %}
+                                    <span class="verified-badge text-success"><i class="fas fa-check-circle"></i></span>
+                                {% endif %}
+                            </a>
+                            <ul class="dropdown-menu shadow-sm" aria-labelledby="mobileProfileDropdown">
+                                <li><a class="dropdown-item py-2" href="{% url 'user_profile' username=user.username %}">
+                                    <i class="fas fa-user me-2"></i>Profile</a></li>
+                                {% if user.is_staff or user.products.all %}
+                                <li><a class="dropdown-item py-2" href="{% url 'dashboard' %}">
+                                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                                {% endif %}
+                                <li><a class="dropdown-item py-2" href="{% url 'order_list' %}">
+                                    <i class="fas fa-shopping-bag me-2"></i>Orders</a></li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <form action="{% url 'logout' %}" method="post">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item py-2">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Logout</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                        {% else %}
+                        <li class="nav-item nav-search d-lg-none">
+                            <form class="d-flex search-form my-2" action="{% url 'search_results' %}" method="get">
+                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
+                                       aria-label="Search" name="q" value="{{ query|default:'' }}">
+                                <button class="btn btn-primary search-button" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </li>
+                        <li class="nav-item d-lg-none">
+                            <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{% url 'login' %}">
+                                <i class="fas fa-sign-in-alt me-1"></i>Login
+                            </a>
+                        </li>
+                        <li class="nav-item d-lg-none">
+                            <a class="nav-link {% if 'register' in request.path %}active{% endif %}" href="{% url 'register' %}">
+                                <i class="fas fa-user-plus me-1"></i>Register
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+
+                    <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
+                        <li class="nav-item nav-search d-none d-lg-block">
+                            <form class="d-flex search-form my-2 my-lg-0" action="{% url 'search_results' %}" method="get">
+                                <input class="form-control search-input me-2" type="search" placeholder="Search products..." 
+                                       aria-label="Search" name="q" value="{{ query|default:'' }}">
+                                <button class="btn btn-primary search-button" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link cart-icon position-relative my-2 my-lg-0" href="{% url 'view_cart' %}" 
+                               aria-label="Shopping Cart">
+                                <i class="fas fa-shopping-cart"></i>
+                                <span class="cart-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" 
+                                      data-cart-count="{{ request.session.cart|length|default:0 }}">
+                                    {{ request.session.cart|length|default:0 }}
+                                    <span class="visually-hidden">items in cart</span>
+                                </span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if user.is_authenticated %}
+                        
+                        <li class="nav-item dropdown d-none d-lg-block">
+                            <a class="nav-link dropdown-toggle my-2 my-lg-0" href="#" id="navbarDropdown" 
+                               role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                {{ user.username }}
+                                {% if user.profile.is_verified %}
+                                    <span class="verified-badge text-success"><i class="fas fa-check-circle"></i></span>
+                                {% endif %}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="navbarDropdown">
+                                <li><a class="dropdown-item py-2" href="{% url 'user_profile' username=user.username %}">
+                                    <i class="fas fa-user me-2"></i>Profile</a></li>
+                                {% if user.is_staff or user.products.all %}
+                                <li><a class="dropdown-item py-2" href="{% url 'dashboard' %}">
+                                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                                {% endif %}
+                                <li><a class="dropdown-item py-2" href="{% url 'order_list' %}">
+                                    <i class="fas fa-shopping-bag me-2"></i>Orders</a></li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <form action="{% url 'logout' %}" method="post">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item py-2">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Logout</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                        {% else %}
+                        <li class="nav-item">
+                            <a class="login-button-styles nav-link btn btn-primary text-white my-2 my-lg-0 d-none d-lg-block {% if 'login' in request.path %}active{% endif %}" 
+                               href="{% url 'login' %}" aria-label="Login">
+                                Login
+                            </a>
+                        </li>
+                        
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="my-4 flex-grow-1" id="main-content">
+        {% if messages %}
+          {% for message in messages %}
+            <div class="container">
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </div>
+          {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer bg-light py-4 mt-auto">
+        <div class="container">
+            <div class="row align-items-start">
+                <div class="col-md-4 mb-3">
+                    <h5 class="footer-heading">About UZASPEA</h5>
+                    <p class="text-muted">Your premier online marketplace for buying and selling in Tanzania.</p>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h5 class="footer-heading">Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="{% url 'product_list' %}" class="footer-link">Home</a></li>
+                        <li><a href="{% url 'product_list' %}" class="footer-link">Products</a></li>
+                        <li><a href="#" class="footer-link">Contact Us</a></li>
+                        <li><a href="#" class="footer-link">Terms & Conditions</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h5 class="footer-heading">Connect With Us</h5>
+                    <div class="social-icons">
+                        <a href="#" aria-label="Facebook" class="social-icon"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" aria-label="Twitter" class="social-icon"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="Instagram" class="social-icon"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="YouTube" class="social-icon"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12 text-center">
+                    <p class="text-muted small mb-0">© {% now "Y" %} UZASPEA. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script src="{% static 'js/cart.js' %}"></script>
+    {% block extra_js %}
+    <script>
+        (function() {
+            'use strict';
+
+            // Navbar scroll behavior
+            let lastScroll = 0;
+            const navbar = document.getElementById('mainNav');
+            const headerHeight = navbar.offsetHeight;
+
+            function handleScroll() {
+                const currentScroll = window.pageYOffset;
+
+                if (currentScroll <= 0) {
+                    navbar.classList.remove('navbar-hidden');
+                    navbar.classList.add('navbar-visible');
+                    return;
+                }
+
+                if (currentScroll > lastScroll && currentScroll > headerHeight) {
+                    navbar.classList.add('navbar-hidden');
+                    navbar.classList.remove('navbar-visible');
+                } else {
+                    navbar.classList.remove('navbar-hidden');
+                    navbar.classList.add('navbar-visible');
+                }
+                lastScroll = currentScroll;
+            }
+
+            // Debounce scroll event
+            let ticking = false;
+            window.addEventListener('scroll', function() {
+                if (!ticking) {
+                    window.requestAnimationFrame(function() {
+                        handleScroll();
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            });
+
+            // Hamburger menu enhancements
+            const navbarCollapse = document.getElementById('navbarNav');
+            const toggleButton = document.querySelector('.navbar-toggler');
+            
+            document.addEventListener('click', function(event) {
+                if (!navbarCollapse.contains(event.target) && 
+                    !toggleButton.contains(event.target) && 
+                    navbarCollapse.classList.contains('show')) {
+                    bootstrap.Collapse.getInstance(navbarCollapse).hide();
+                }
+            });
+
+            // Accessibility: Keyboard navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        this.click();
+                    }
+                });
+            });
+        })();
+    </script>
+    {% endblock %}
+</body>
+</html>
+
+================================================================================
+FILE: marketplace/templates/marketplace/search_results.html
+================================================================================
+
+{# marketplace/search_results.html #}
+{% extends 'marketplace/base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}
+    Search Results for "{{ query|escape }}" - UZACHUO
+{% endblock %}
+
+{% block content %}
+    <div class="container py-4">
+        <header class="mb-4">
+            <h1 class="display-5 fw-bold">Search Results for "{{ query|escape }}"</h1>
+        </header>
+
+        {% if results %}
+            <div class="row row-cols-1 row-cols-md-3 g-4">
+                {% for product in results %}
+                    <div class="col">
+                        <div class="card h-100 shadow-sm transition-hover">
+                            <div class="card-img-wrapper">
+                                {% if product.image %}
+                                    <a href="{{ product.get_absolute_url }}">
+                                        <img src="{{ product.image.url }}" 
+                                             class="card-img-top" 
+                                             alt="{{ product.name|escape }}"
+                                             loading="lazy"
+                                             style="height: 200px; object-fit: cover;">
+                                    </a>
+                                {% else %}
+                                    <a href="{{ product.get_absolute_url }}">
+                                        <img src="{% static 'images/no_image.png' %}" 
+                                             class="card-img-top" 
+                                             alt="No image available"
+                                             loading="lazy"
+                                             style="height: 200px; object-fit: cover;">
+                                    </a>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="card-body">
+                                <h5 class="card-title mb-2">
+                                    <a href="{{ product.get_absolute_url }}" 
+                                       class="text-decoration-none text-dark">
+                                        {{ product.name|truncatechars:50 }}
+                                    </a>
+                                </h5>
+                                
+                                <p class="card-text text-muted small mb-3">
+                                    {{ product.description|truncatewords:20 }}
+                                </p>
+                                
+                                <div class="mb-2">
+                                    <strong class="text-success">
+                                        TSh {{ product.price|floatformat:0|intcomma }}
+                                    </strong>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        Condition: {{ product.get_condition_display }}
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <small class="text-muted">
+                                        Seller: {{ product.seller.username }}
+                                        {% if product.seller.profile.is_verified %}
+                                            <span class="badge bg-success ms-1">Verified</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <small class="text-muted">
+                                        Category: 
+                                        {% for ancestor in product.category.get_ancestors %}
+                                            <a href="{{ ancestor.get_absolute_url }}" 
+                                               class="text-muted text-decoration-none">
+                                                {{ ancestor.name }}
+                                            </a> >
+                                        {% endfor %}
+                                        <a href="{{ product.category.get_absolute_url }}" 
+                                           class="text-muted text-decoration-none">
+                                            {{ product.category.name }}
+                                        </a>
+                                    </small>
+                                </div>
+                                
+                                <a href="{{ product.get_absolute_url }}" 
+                                   class="btn btn-primary btn-sm w-100">
+                                    View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info" role="alert">
+                No results found for "{{ query|escape }}". Try adjusting your search terms.
+            </div>
+        {% endif %}
+
+
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ query }}&page={{ page_obj.previous_page_number }}">Previous</a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                        <a class="page-link" href="?q={{ query }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ query }}&page={{ page_obj.next_page_number }}">Next</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+
+
+        <div class="mt-4">
+            <a href="{% url 'product_list' %}" 
+               class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Products
+            </a>
+        </div>
+    </div>
+
+    {% block extra_css %}
+        <style>
+            .transition-hover {
+                transition: transform 0.2s ease-in-out;
+            }
+            .transition-hover:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1) !important;
+            }
+            .card-img-wrapper {
+                overflow: hidden;
+                background: #f8f9fa;
+            }
+        </style>
+    {% endblock %}
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/order_confirmation_email.txt
+================================================================================
+
+Subject: Your Order Confirmation (Order #{{ order.id }})
+
+Dear {{ order.user.username }},
+
+Thank you for your order!  Your order (ID: {{ order.id }}) has been placed and is being processed.
+
+Order Summary:
+
+{% for item in order.orderitem_set.all %}
+- {{ item.product.name }} ({{ item.quantity }}) x ${{ item.price|floatformat:2 }} = ${{ item.subtotal|floatformat:2 }}
+{% endfor %}
+
+Total: ${{ order.total_amount|floatformat:2 }}
+
+Order Date: {{ order.order_date|date:"F j, Y, g:i a" }}
+
+You can view your order details here: {{ request.get_host }}{% url 'order_detail' order.id %}
+
+Thanks,
+The UzaChuo Team
+
+================================================================================
+FILE: marketplace/templates/marketplace/password_reset_confirm.html
+================================================================================
+
+
+
+================================================================================
+FILE: marketplace/templates/marketplace/user_profile.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}{{ user_profile.user.username }}'s Profile - UZASPEA{% endblock %}
+
+{% block extra_head %}
+<style>
+    :root {
+        --primary-color: #0d6efd;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --shadow-light: 0 2px 4px rgba(0,0,0,0.05);
+        --shadow-dark: 0 4px 8px rgba(0,0,0,0.1);
+        --transition-speed: 0.2s;
+    }
+
+    .profile-container {
+        max-width: 1140px;
+        margin: 1.5rem auto;
+        padding: 0 1rem;
+    }
+
+    /* Profile Header */
+    .profile-header {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: var(--shadow-light);
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 1.25rem;
+        align-items: center;
+        border: 1px solid #e9ecef;
+    }
+
+    .profile-image-container {
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 3px solid #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        transition: transform var(--transition-speed) ease-in-out;
+    }
+
+    .profile-image-container:hover {
+        transform: scale(1.03);
+    }
+
+    .profile-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .profile-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .store-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        font-family: 'Roboto', sans-serif;
+        color: #343a40;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .verified-badge {
+        color: var(--success-color);
+        font-size: 1.1rem;
+    }
+
+    .full-name {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--secondary-color);
+        margin: 0;
+    }
+
+    .bio {
+        font-size: 0.9rem;
+        color: #495057;
+        margin: 0.25rem 0 0;
+        line-height: 1.4;
+    }
+
+    .profile-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.5rem 1rem;
+        font-size: 0.85rem;
+        color: #495057;
+        margin-top: 0.5rem;
+    }
+
+    .profile-details div {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .profile-details strong {
+        color: #343a40;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .profile-details a {
+        color: var(--primary-color);
+        text-decoration: none;
+        transition: color var(--transition-speed) ease-in-out;
+    }
+
+    .profile-details a:hover {
+        color: #0056b3;
+        text-decoration: underline;
+    }
+
+    /* Analytics Section (Reduced Size) */
+    .analytics-section {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: var(--shadow-light);
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .analytics-card {
+        flex: 1;
+        padding: 0.5rem;
+        text-align: center;
+        transition: all var(--transition-speed) ease;
+    }
+
+    .analytics-card:hover {
+        background: #f8f9fa;
+        box-shadow: var(--shadow-dark);
+    }
+
+    .analytics-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .analytics-item i {
+        font-size: 1.25rem;
+        color: #2c3e50;
+    }
+
+    .analytics-item .value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1a202c;
+    }
+
+    .analytics-item .label {
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Section Headers */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.25rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #343a40;
+        margin: 0;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    /* Products Section */
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .product-card {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        box-shadow: var(--shadow-light);
+        transition: all var(--transition-speed) ease-in-out;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .product-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-dark);
+    }
+
+    .product-image-container {
+        width: 100%;
+        padding-top: 75%; /* 4:3 aspect ratio */
+        position: relative;
+        overflow: hidden;
+    }
+
+    .product-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform var(--transition-speed) ease-in-out;
+    }
+
+    .product-card:hover .product-image {
+        transform: scale(1.05);
+    }
+
+    .card-body {
+        padding: 0.75rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .card-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #343a40;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .card-title a {
+        color: var(--primary-color);
+        text-decoration: none;
+        transition: color var(--transition-speed) ease-in-out;
+    }
+
+    .card-title a:hover {
+        color: #0056b3;
+        text-decoration: underline;
+    }
+
+    .card-price {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--success-color);
+        margin: 0;
+    }
+
+    .card-text {
+        font-size: 0.85rem;
+        color: var(--secondary-color);
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    /* Orders Table */
+    .orders-table {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: var(--shadow-light);
+        overflow: hidden;
+        border: 1px solid #e9ecef;
+        width: 100%;
+        margin-bottom: 1.5rem;
+    }
+
+    .orders-table th {
+        background: #f8f9fa;
+        padding: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        color: #343a40;
+        border-bottom: 2px solid #dee2e6;
+        text-align: left;
+    }
+
+    .orders-table td {
+        padding: 0.75rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 0.85rem;
+    }
+
+    .status-badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        display: inline-block;
+    }
+
+    .status-pending { background-color: #fff3cd; color: #856404; }
+    .status-processing { background-color: #cce5ff; color: #004085; }
+    .status-shipped { background-color: #d4edda; color: #155724; }
+    .status-delivered { background-color: #d1ecf1; color: #0c5460; }
+    .status-cancelled { background-color: #f8d7da; color: #721c24; }
+
+    .btn-small {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        transition: all var(--transition-speed) ease-in-out;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        line-height: 1;
+    }
+
+    .btn-small:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .btn-small i {
+        font-size: 0.85rem;
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 991.98px) {
+        .profile-header { grid-template-columns: 140px 1fr; padding: 1rem; gap: 1rem; }
+        .profile-image-container { width: 140px; height: 140px; }
+        .store-name { font-size: 1.25rem; }
+        .full-name { font-size: 0.9rem; }
+        .bio { font-size: 0.85rem; }
+        .profile-details { gap: 0.5rem 0.75rem; font-size: 0.8rem; }
+        .analytics-section { gap: 0.5rem; padding: 0.5rem; }
+        .analytics-card { padding: 0.5rem; }
+        .analytics-item i { font-size: 1rem; }
+        .analytics-item .value { font-size: 1.1rem; }
+        .product-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+        .section-header h2 { font-size: 1.1rem; }
+    }
+
+    @media (max-width: 767.98px) {
+        .profile-header {
+            grid-template-columns: 1fr;
+            text-align: center;
+            gap: 1.25rem;
+            padding: 0.75rem;
+        }
+        .profile-image-container { width: 100px; height: 100px; margin: 0 auto; }
+        .store-name { font-size: 1.1rem; justify-content: center; }
+        .profile-details { grid-template-columns: 1fr; gap: 0.5rem; }
+        .analytics-section { gap: 0.25rem; padding: 0.5rem; }
+        .analytics-card { padding: 0.25rem; }
+        .orders-table th, .orders-table td { padding: 0.5rem; font-size: 0.75rem; }
+        .button-group { flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
+    }
+
+    @media (max-width: 575.98px) {
+        .profile-container { margin: 1rem auto; padding: 0 0.5rem; }
+        .bio { font-size: 0.8rem; }
+        .profile-details { font-size: 0.75rem; }
+        .analytics-item i { font-size: 0.9rem; }
+        .analytics-item .value { font-size: 1rem; }
+        .analytics-item .label { font-size: 0.65rem; }
+        .product-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
+        .btn-small { padding: 0.3rem 0.5rem; font-size: 0.8rem; }
+        .section-header h2 { font-size: 1rem; }
+        .section-header { margin-bottom: 1rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <!-- Profile Header -->
+    <div class="profile-header">
+        <div class="profile-image-container">
+            {% if user_profile.profile_picture and user_profile.profile_picture.url %}
+                <img src="{{ user_profile.profile_picture.url }}" alt="{{ user_profile.user.username }}'s Profile Picture" class="profile-image">
+            {% else %}
+                <img src="{% static 'images/default_profile.png' %}" alt="Default Profile Picture" class="profile-image">
+            {% endif %}
+        </div>
+        <div class="profile-info">
+            <h1 class="store-name">
+                {{ user_profile.user.username }}
+                {% if user_profile.is_verified %}
+                    <span class="verified-badge" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
+                {% endif %}
+            </h1>
+            <div class="full-name">
+                {% if user_profile.user.first_name or user_profile.user.last_name %}
+                    {{ user_profile.user.get_full_name }}
+                {% else %}
+                    <em>No full name provided</em>
+                {% endif %}
+            </div>
+            <p class="bio">{{ user_profile.bio|default:"<em>No bio provided</em>"|safe }}</p>
+            <div class="profile-details">
+                <div><strong>Email:</strong> {{ user_profile.user.email }}</div>
+                {% if user_profile.phone_number %}<div><strong>Phone:</strong> {{ user_profile.phone_number }}</div>{% endif %}
+                {% if user_profile.instagram_username %}
+                    <div><strong>Instagram:</strong> <a href="https://instagram.com/{{ user_profile.instagram_username }}" target="_blank" rel="noopener noreferrer">{{ user_profile.instagram_username }}</a></div>
+                {% endif %}
+                {% if user_profile.website %}
+                    <div><strong>Website:</strong> <a href="{{ user_profile.website }}" target="_blank" rel="noopener noreferrer">{{ user_profile.website }}</a></div>
+                {% endif %}
+                <div><strong>Joined:</strong> {{ user_profile.user.date_joined|date:"F j, Y" }}</div>
+                {% if user_profile.location %}<div><strong>Location:</strong> {{ user_profile.location }}</div>{% endif %}
+            </div>
+            {% if request.user.is_authenticated and request.user != user_profile.user %}
+                <button id="follow-button" class="btn {% if is_following %}btn-danger{% else %}btn-primary{% endif %} btn-small mt-2"
+                        data-username="{{ user_profile.user.username }}">
+                    {% if is_following %}Unfollow{% else %}Follow{% endif %}
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Analytics Section (Reduced Size) -->
+    <div class="analytics-section">
+        <div class="analytics-card">
+            <div class="analytics-item">
+                <i class="fas fa-boxes"></i>
+                <span class="value">{{ user_products|length }}</span>
+                <div class="label">Products</div>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <div class="analytics-item">
+                <i class="fas fa-user-friends"></i>
+                <span class="value">{{ user_profile.followers.count }}</span>
+                <div class="label">Followers</div>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <div class="analytics-item">
+                <i class="fas fa-users"></i>
+                <span class="value">{{ user_profile.user.following.count }}</span>
+                <div class="label">Following</div>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <div class="analytics-item">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="value">{{ user_orders|length }}</span>
+                <div class="label">Orders</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Section -->
+    {% if request.user == user_profile.user %}
+        <div class="section-header">
+            <h2>Products</h2>
+            <div class="button-group">
+                <a href="{% url 'edit_profile' %}" class="btn btn-outline-primary btn-small">Edit Profile</a>
+                <a href="{% url 'dashboard' %}" class="btn btn-primary btn-small">Dashboard</a>
+                <a href="{% url 'product_create' %}" class="btn btn-success btn-small">
+                    <i class="fas fa-plus"></i> Add Product
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <div class="section-header"><h2>Products</h2></div>
+    {% endif %}
+
+    {% if user_products %}
+        <div class="product-grid">
+            {% for product in user_products %}
+                <div class="product-card">
+                    <div class="product-image-container">
+                        {% if product.image and product.image.url %}
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image">
+                        {% else %}
+                            <img src="{% static 'images/no_image.png' %}" alt="Default Product Image" class="product-image">
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <h3 class="card-title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+                        <div class="card-price">Tsh {{ product.price|floatformat:0|intcomma }}</div>
+                        <p class="card-text">{{ product.description|default:"No description available" }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted mb-2">No products listed yet.</p>
+    {% endif %}
+
+    <!-- Orders Section -->
+    <div class="section-header"><h2>Orders</h2></div>
+    {% if user_orders %}
+        <div class="table-responsive">
+            <table class="table orders-table">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Date</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in user_orders %}
+                        <tr>
+                            <td>#{{ order.id }}</td>
+                            <td>{{ order.order_date|date:"F d, Y" }}</td>
+                            <td>Tsh {{ order.total_amount|floatformat:0|intcomma }}</td>
+                            <td><span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span></td>
+                            <td>
+                                <a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-info btn-small">View</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted mb-2">
+            {% if user_profile.user == request.user %}No orders placed yet.{% else %}No orders available.{% endif %}
+        </p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Follow/Unfollow functionality
+        $('#follow-button').on('click', function() {
+            const $button = $(this);
+            const username = $button.data('username');
+            const action = $button.hasClass('btn-danger') ? 'unfollow' : 'follow';
+
+            $.ajax({
+                url: "{% url 'follow_user' %}",
+                type: 'POST',
+                data: {
+                    'username': username,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                dataType: 'json',
+                success: function(data) {
+                    if (data.status === 'ok') {
+                        $button.toggleClass('btn-primary btn-danger')
+                              .text(data.action === 'unfollow' ? 'Follow' : 'Unfollow');
+                        $('.analytics-item .value:eq(1)').text(data.followers);
+                    } else {
+                        console.error('Error:', data.message);
+                        alert(data.message || 'An error occurred while processing your request.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error:', status, error);
+                    alert('An error occurred while processing your request.');
+                }
+            });
+        });
+
+        // Image error handling
+        $('img').on('error', function() {
+            const defaultSrc = $(this).hasClass('profile-image')
+                ? "{% static 'images/no_image.png' %}"
+                : "{% static 'images/no_image.png' %}";
+            $(this).attr('src', defaultSrc).attr('alt', 'Image unavailable');
+        });
+    });
+</script>
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/product_update.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Update Product - UZACHUO{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="card-title text-center">Update Product: {{ product.name }}</h1>
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <h2 class = "mt-4">Product Images</h2>
+                        {{ formset.management_form }}
+                        {% for form in formset %}
+                            <div class = "image-form-set">
+                                {{form|crispy}}
+                            </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary w-100">Update Product</button>
+                        <a href="{% url 'product_detail' slug=product.slug %}" class="btn btn-secondary w-100 mt-2">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/password_reset_complete.html
+================================================================================
+
+
+
+================================================================================
+FILE: marketplace/templates/marketplace/order_detail.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load static humanize %}
+
+{% block title %}Order #{{ order.id }} Details - UZASPEA{% endblock %}
+
+{% block extra_head %}
+    <style>
+        .order-details-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .order-header {
+            background-color: #fff;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .order-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .order-info p {
+            margin: 0;
+            padding: 0.5rem 0;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .order-info strong {
+            color: #343a40;
+            font-weight: 600;
+        }
+
+        .order-items-table {
+            background-color: #fff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+
+        .order-items-table th {
+            background-color: #f8f9fa;
+            padding: 1.25rem 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: #343a40;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .order-items-table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .order-items-table a {
+            color: #0d6efd;
+            text-decoration: none;
+            transition: color 0.2s ease-in-out;
+        }
+
+        .order-items-table a:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.9rem;
+            border-radius: 2rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-block;
+            text-transform: capitalize;
+        }
+
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-processing { background-color: #cce5ff; color: #004085; }
+        .status-shipped { background-color: #d4edda; color: #155724; }
+        .status-delivered { background-color: #d1ecf1; color: #0c5460; }
+        .status-cancelled { background-color: #f8d7da; color: #721c24; }
+
+        @media (max-width: 767.98px) {
+            .order-items-table {
+                display: block;
+                overflow-x: auto;
+            }
+            .order-items-table th, .order-items-table td {
+                min-width: 150px;
+            }
+            .order-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="order-details-container">
+    <h1 class="mb-4">Order #{{ order.id }} Details</h1>
+    
+    <div class="order-header">
+        <div class="order-info">
+            <p>
+                <strong>Order Date:</strong>
+                <span>{{ order.order_date|date:"F d, Y H:i" }}</span>
+            </p>
+            <p>
+                <strong>Status:</strong>
+                <span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span>
+            </p>
+            <p>
+                <strong>Total Amount:</strong>
+                <span>Tsh {{ order.total_amount|floatformat:0|intcomma }}</span>
+            </p>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table order-items-table mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col">Quantity</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order_items %}
+                    <tr>
+                        <td>
+                            <a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a>
+                        </td>
+                        <td>{{ item.quantity }}</td>
+                        <td>Tsh {{ item.price|floatformat:2|intcomma }}</td>
+                        <td>Tsh {{ item.subtotal|floatformat:2|intcomma }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="text-end fw-bold">Total:</td>
+                    <td class="fw-bold">Tsh {{ order.total_amount|floatformat:0|intcomma }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'order_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Orders
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const rows = document.querySelectorAll('.order-items-table tbody tr');
+            rows.forEach(row => {
+                row.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f8f9fa';
+                    this.style.transition = 'background-color 0.2s ease';
+                });
+                row.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = '';
+                });
+            });
+        });
+    </script>
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/checkout.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+
+{% block title %}Checkout - My Marketplace{% endblock %}
+
+{% block content %}
+    <h1>Checkout</h1>
+    <p>Review your order and proceed to payment (not implemented in this example):</p>
+
+    <table class="table">
+      <thead>
+          <th>Product</th>
+          <th>Quantity</th>
+          <th>Price</th>
+          <th>Subtotal</th>
+      </thead>
+      <tbody>
+          {% for item in cart_items %}
+            <tr>
+                <td><a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a></td>
+                <td>{{ item.quantity }}</td>
+                <td>${{ item.product.price }}</td>
+                <td>${{ item.subtotal|floatformat:2 }}</td>
+            </tr>
+        {% endfor %}
+      </tbody>
+         <tfoot>
+        <tr>
+            <td colspan="3" class="text-end"><strong>Total:</strong></td>
+            <td>${{ cart_total|floatformat:2 }}</td>
+        </tr>
+        </tfoot>
+    </table>
+
+     <form action="{% url 'checkout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">Confirm Order</button>
+        <a href="{% url 'view_cart' %}" class="btn btn-secondary">Back to Cart</a>
+    </form>
+
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/password_reset_done.html
+================================================================================
+
+
+
+================================================================================
+FILE: marketplace/templates/marketplace/dashboard.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Seller Dashboard - UZASPEA{% endblock %}
+
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="stylesheet" href="{% static 'css/seller_dashboard.css' %}">
+<style>
+    :root {
+        --primary-color: #0d6efd;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --shadow-light: 0 2px 4px rgba(0,0,0,0.05);
+        --shadow-dark: 0 4px 8px rgba(0,0,0,0.1);
+        --transition-speed: 0.2s;
+    }
+
+    .page-wrapper {
+        max-width: 1140px;
+        margin: 1.5rem auto;
+        padding: 0 1rem;
+    }
+
+    .dashboard-header {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: var(--shadow-light);
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .dashboard-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        font-family: 'Roboto', sans-serif;
+        color: #343a40;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .dashboard-subtitle {
+        font-size: 0.9rem;
+        color: #495057;
+        margin: 0.25rem 0 0;
+        line-height: 1.4;
+    }
+
+    .main-content {
+        padding: 0;
+    }
+
+    .products-section, .orders-section {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: var(--shadow-light);
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.25rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #343a40;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-small {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        transition: all var(--transition-speed) ease-in-out;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        line-height: 1;
+    }
+
+    .btn-small:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .btn-small i {
+        font-size: 0.85rem;
+    }
+
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 0;
+    }
+
+    .product-card {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        box-shadow: var(--shadow-light);
+        transition: all var(--transition-speed) ease-in-out;
+        background: #fff;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .product-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-dark);
+    }
+
+    .product-link {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .product-image-wrapper {
+        position: relative;
+        width: 100%;
+        padding-top: 75%;
+        overflow: hidden;
+    }
+
+    .product-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform var(--transition-speed) ease-in-out;
+    }
+
+    .product-card:hover .product-image {
+        transform: scale(1.05);
+    }
+
+    .product-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity var(--transition-speed) ease-in-out;
+    }
+
+    .product-card:hover .product-overlay {
+        opacity: 1;
+    }
+
+    .view-details {
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .product-info {
+        padding: 0.75rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .product-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #343a40;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .product-title a {
+        color: var(--primary-color);
+        text-decoration: none;
+        transition: color var(--transition-speed) ease-in-out;
+    }
+
+    .product-title a:hover {
+        color: #0056b3;
+    }
+
+    .product-price {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--success-color);
+        margin: 0;
+    }
+
+    .product-condition {
+        font-size: 0.85rem;
+        color: var(--secondary-color);
+        margin: 0;
+    }
+
+    .badge-condition {
+        background-color: #e9ecef;
+        color: #495057;
+        padding: 0.25rem 0.6rem;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .product-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: auto;
+    }
+
+    .alert {
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0;
+    }
+
+    .alert-info {
+        background-color: #cce5ff;
+        color: #004085;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .table-orders {
+        width: 100%;
+        border-collapse: collapse;
+        border-radius: 8px;
+        box-shadow: var(--shadow-light);
+        border: 1px solid #e9ecef;
+        background: #fff;
+    }
+
+    .table-orders th {
+        background: #f8f9fa;
+        padding: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        color: #343a40;
+        border-bottom: 2px solid #dee2e6;
+        text-align: left;
+    }
+
+    .table-orders td {
+        padding: 0.75rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 0.85rem;
+    }
+
+    .badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .badge-pending { background-color: #fff3cd; color: #856404; }
+    .badge-shipped { background-color: #d4edda; color: #155724; }
+    .badge-default { background-color: #e9ecef; color: #495057; }
+
+    /* Responsive Adjustments */
+    @media (max-width: 991.98px) {
+        .dashboard-title { font-size: 1.25rem; }
+        .dashboard-subtitle { font-size: 0.85rem; }
+        .section-title { font-size: 1.1rem; }
+        .product-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+        .table-orders th, .table-orders td { padding: 0.5rem; font-size: 0.75rem; }
+    }
+
+    @media (max-width: 767.98px) {
+        .page-wrapper { padding: 0 0.75rem; }
+        .dashboard-header, .products-section, .orders-section { padding: 0.75rem; }
+        .section-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+        .product-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+        .product-actions { flex-direction: column; gap: 0.25rem; }
+    }
+
+    @media (max-width: 575.98px) {
+        .page-wrapper { margin: 1rem auto; padding: 0 0.5rem; }
+        .dashboard-title { font-size: 1.1rem; }
+        .dashboard-subtitle { font-size: 0.8rem; }
+        .section-title { font-size: 1rem; }
+        .btn-small { padding: 0.3rem 0.5rem; font-size: 0.8rem; }
+        .product-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
+        .alert { font-size: 0.85rem; }
+        .section-header { margin-bottom: 1rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+    <header class="dashboard-header">
+        <div class="container">
+            <h1 class="dashboard-title"><i class="fas fa-tachometer-alt"></i> Seller Dashboard</h1>
+            <p class="dashboard-subtitle">Effortlessly manage your products, track orders, and grow your business.</p>
+        </div>
+    </header>
+    <main class="main-content">
+        <section class="products-section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-boxes"></i> Your Products</h2>
+                <a href="{% url 'product_create' %}" class="btn btn-success btn-small">
+                    <i class="fas fa-plus"></i> Add New Product
+                </a>
+            </div>
+
+            {% if products %}
+            <div class="product-grid">
+                {% for product in products %}
+                <div class="product-card">
+                    <a href="{% url 'product_detail' slug=product.slug %}" class="product-link">
+                        <div class="product-image-wrapper">
+                            {% if product.images.all %}
+                            <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}" class="product-image">
+                            {% else %}
+                            <img src="{% static 'images/no_image.png' %}" alt="No Image Available" class="product-image">
+                            {% endif %}
+                            <div class="product-overlay">
+                                <span class="view-details">View Details</span>
+                            </div>
+                        </div>
+                    </a>
+                    <div class="product-info">
+                        <h3 class="product-title">
+                            <a href="{% url 'product_detail' slug=product.slug %}">{{ product.name }}</a>
+                        </h3>
+                        <p class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</p>
+                        <p class="product-condition">Condition: <span class="badge badge-condition">{{ product.get_condition_display }}</span></p>
+                        <div class="product-actions">
+                            <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-primary btn-small">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-danger btn-small" onclick="return confirm('Are you sure you want to delete this product?');">
+                                <i class="fas fa-trash-alt"></i> Delete
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> You haven't listed any products yet. Click "Add New Product" to get started!
+            </div>
+            {% endif %}
+        </section>
+
+        <section class="orders-section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-clipboard-list"></i> Orders to Fulfill</h2>
+            </div>
+            {% if seller_orders %}
+            <div class="table-responsive">
+                <table class="table-orders">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in seller_orders %}
+                        <tr>
+                            <td>#{{ order.id }}</td>
+                            <td>{{ order.order_date|date:"F d, Y" }}</td>
+                            <td>{{ order.user.username }}</td>
+                            <td>TSh {{ order.total_amount|floatformat:0|intcomma }}</td>
+                            <td>
+                                <span class="badge {% if order.status == 'Pending' %}badge-pending{% elif order.status == 'Shipped' %}badge-shipped{% else %}badge-default{% endif %}">
+                                    {{ order.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'order_detail' order_id=order.id %}" class="btn btn-info btn-small">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> No orders to fulfill at the moment. Check back later!
+            </div>
+            {% endif %}
+        </section>
+    </main>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.product-card');
+        cards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+
+        document.querySelectorAll('img').forEach(img => {
+            img.onerror = function() {
+                this.src = "{% static 'images/no_image.png' %}";
+                this.alt = 'Image unavailable';
+            };
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/order_confirmation_email.html
+================================================================================
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Order Confirmation</title>
+</head>
+<body>
+    <h1>Order Confirmation (Order #{{ order.id }})</h1>
+
+    <p>Dear {{ order.user.username }},</p>
+
+    <p>Thank you for your order! Your order (ID: {{ order.id }}) has been placed and is being processed.</p>
+
+    <h2>Order Summary:</h2>
+    <table border="1" cellpadding="5">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in order.orderitem_set.all %}
+            <tr>
+                <td>{{ item.product.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>${{ item.price|floatformat:2 }}</td>
+                <td>${{ item.subtotal|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" align="right"><strong>Total:</strong></td>
+                <td>${{ order.total_amount|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <p>Order Date: {{ order.order_date|date:"F j, Y, g:i a" }}</p>
+
+    <p>You can view your order details here: <a href="{{ request.get_host }}{% url 'order_detail' order.id %}">{{ request.get_host }}{% url 'order_detail' order.id %}</a></p>
+
+    <p>Thanks,<br>
+    The My Marketplace Team</p>
+</body>
+</html>
+
+================================================================================
+FILE: marketplace/templates/marketplace/product_create.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Create Product - UZACHUO{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="card-title text-center">Create Product</h1>
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <h2 class = "mt-4">Upload Images (Up to 5)</h2>
+                        {{ formset.management_form }}  {% for form in formset %}
+                            {{form|crispy}}
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary w-100">Create Product</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/order_list.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load humanize %}
+{% block title %}My Orders - UZASPEA{% endblock %}
+
+{% block extra_head %}
+    <style>
+        .orders-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .orders-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .orders-table {
+            background-color: #fff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+
+        .orders-table th {
+            background-color: #f8f9fa;
+            padding: 1.25rem 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: #343a40;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .orders-table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.9rem;
+            border-radius: 2rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-block;
+            text-transform: capitalize;
+        }
+
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-processing { background-color: #cce5ff; color: #004085; }
+        .status-shipped { background-color: #d4edda; color: #155724; }
+        .status-delivered { background-color: #d1ecf1; color: #0c5460; }
+        .status-cancelled { background-color: #f8d7da; color: #721c24; }
+
+        .btn-view-details {
+            padding: 0.5rem 1.25rem;
+            font-size: 0.9rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .btn-view-details:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .no-orders {
+            text-align: center;
+            padding: 4rem 2rem;
+            background-color: #fff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 767.98px) {
+            .orders-table {
+                display: block;
+                overflow-x: auto;
+            }
+            .orders-table th, .orders-table td {
+                min-width: 150px;
+            }
+            .orders-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="orders-container">
+    <div class="orders-header">
+        <h1 class="mb-0">My Orders</h1>
+        {% if orders %}
+            <a href="{% url 'product_list' %}" class="btn btn-outline-primary">
+                <i class="fas fa-shopping-cart me-1"></i> Continue Shopping
+            </a>
+        {% endif %}
+    </div>
+
+    {% if orders %}
+        <div class="table-responsive">
+            <table class="table orders-table mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Order #</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">Total</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                        <tr>
+                            <td>#{{ order.id }}</td>
+                            <td>{{ order.order_date|date:"F d, Y H:i" }}</td>
+                            <td>Tsh {{ order.total_amount|floatformat:0|intcomma }}</td>
+                            <td>
+                                <span class="status-badge status-{{ order.status|lower }}">
+                                    {{ order.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'order_detail' order_id=order.id %}" 
+                                   class="btn btn-sm btn-info btn-view-details">
+                                    <i class="fas fa-eye me-1"></i> View Details
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="no-orders">
+            <i class="fas fa-shopping-bag fa-4x text-muted mb-3"></i>
+            <h3 class="mb-3">No Orders Yet</h3>
+            <p class="text-muted mb-4">Start exploring our marketplace and place your first order!</p>
+            <a href="{% url 'product_list' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-shopping-cart me-2"></i> Start Shopping
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const rows = document.querySelectorAll('.orders-table tbody tr');
+            rows.forEach(row => {
+                row.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f8f9fa';
+                    this.style.transition = 'background-color 0.2s ease';
+                });
+                row.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = '';
+                });
+            });
+        });
+    </script>
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/view_cart.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}Shopping Cart - UZASPEA{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .cart-table { border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); }
+        .cart-table th, .cart-table td { vertical-align: middle; }
+        .quantity-selector { max-width: 150px; border-radius: 20px; overflow: hidden; }
+        .quantity-input { text-align: center; border: none; background-color: #f8f9fa; }
+        .btn-quantity { background-color: #e9ecef; transition: background-color 0.3s; }
+        .btn-quantity:hover { background-color: #dee2e6; }
+        .btn-remove { transition: all 0.3s ease; }
+        .btn-remove:hover { background-color: #c82333; transform: scale(1.05); }
+        .cart-footer { display: flex; justify-content: space-between; align-items: center; padding: 20px; }
+        .alert-dismissible { position: fixed; top: 20px; right: 20px; z-index: 1050; }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4 text-center">Shopping Cart</h1>
+
+    {% if cart_items %}
+        <div class="table-responsive">
+            <table class="table table-striped cart-table">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Quantity</th>
+                        <th>Subtotal</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in cart_items %}
+                        <tr data-product-id="{{ item.product.id }}">
+                            <td>
+                                <a href="{{ item.product.get_absolute_url }}" class="text-primary">{{ item.product.name }}</a>
+                            </td>
+                            <td>TSh {{ item.product.price|floatformat:0|intcomma }}</td>
+                            <td>
+                                <form class="update-cart-form d-flex align-items-center" action="{% url 'update_cart' product_id=item.product.id %}" method="post" data-product-id="{{ item.product.id }}">
+                                    {% csrf_token %}
+                                    <div class="input-group quantity-selector">
+                                        <button type="button" class="btn btn-outline-secondary btn-quantity quantity-decrement">-</button>
+                                        <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" class="form-control quantity-input" readonly>
+                                        <button type="button" class="btn btn-outline-secondary btn-quantity quantity-increment">+</button>
+                                    </div>
+                                </form>
+                            </td>
+                            <td>TSh {{ item.subtotal|floatformat:0|intcomma }}</td>
+                            <td>
+                                <form class="remove-cart-form" action="{% url 'remove_from_cart' product_id=item.product.id %}" method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-danger btn-remove"><i class="bi bi-trash"></i> Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-end fw-bold">Total:</td>
+                        <td colspan="2" class="fw-bold">TSh {{ total_price|floatformat:0|intcomma }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="cart-footer">
+            <a href="{% url 'product_list' %}" class="btn btn-primary"><i class="bi bi-arrow-left"></i> Continue Shopping</a>
+            <a href="{% url 'checkout' %}" class="btn btn-success"><i class="bi bi-check-circle"></i> Proceed to Checkout</a>
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-cart-x display-4 text-muted"></i>
+            <p class="mt-3">Your cart is empty.</p>
+            <a href="{% url 'product_list' %}" class="btn btn-primary"><i class="bi bi-shop"></i> Start Shopping</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Helper Function to Show Alerts ---
+    function showAlert(message, type = 'success') {
+        const alert = document.createElement('div');
+        alert.classList.add('alert', `alert-${type}`, 'alert-dismissible', 'fade', 'show');
+        alert.setAttribute('role', 'alert');
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        document.body.appendChild(alert);
+        setTimeout(() => alert.remove(), 3000);
+    }
+
+    // --- Quantity Selector ---
+    document.querySelectorAll('.quantity-input').forEach(input => {
+        const decrement = input.parentElement.querySelector('.quantity-decrement');
+        const increment = input.parentElement.querySelector('.quantity-increment');
+        
+        decrement.addEventListener('click', () => {
+            let value = parseInt(input.value);
+            if (value > parseInt(input.min)) {
+                input.value = value - 1;
+                updateCart(input.closest('form'));
+            }
+        });
+        
+        increment.addEventListener('click', () => {
+            let value = parseInt(input.value);
+            let max = parseInt(input.max);
+            if (value < max) {
+                input.value = value + 1;
+                updateCart(input.closest('form'));
+            }
+        });
+    });
+
+    // --- Update Cart via AJAX ---
+    function updateCart(form) {
+        const formData = new FormData(form);
+        const productId = form.dataset.productId;
+        const url = form.action;
+
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' || data.status === 'warning') {
+                showAlert(data.message, data.status === 'success' ? 'success' : 'warning');
+                if (data.status === 'success' && parseInt(formData.get('quantity')) === 0) {
+                    form.closest('tr').remove();
+                } else {
+                    const subtotalCell = form.closest('tr').querySelector('td:nth-child(4)');
+                    subtotalCell.textContent = `TSh ${(parseInt(formData.get('quantity')) * parseFloat(form.closest('tr').querySelector('td:nth-child(2)').textContent.replace(/TSh |,/g, ''))).toLocaleString()}`;
+                    updateTotal();
+                }
+                updateCartCount(data.cart_items_count);
+            } else {
+                showAlert(data.message, 'danger');
+            }
+        })
+        .catch(error => showAlert('Error updating cart.', 'danger'));
+    }
+
+    // --- Remove from Cart via AJAX ---
+    document.querySelectorAll('.remove-cart-form').forEach(form => {
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const url = this.action;
+
+            fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert(data.message, 'success');
+                    form.closest('tr').remove();
+                    updateTotal();
+                    updateCartCount(data.cart_items_count);
+                    if (!document.querySelector('tbody tr')) {
+                        location.reload(); // Refresh if cart is empty
+                    }
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+            })
+            .catch(error => showAlert('Error removing item.', 'danger'));
+        });
+    });
+
+    // --- Update Total Price ---
+    function updateTotal() {
+        let total = 0;
+        document.querySelectorAll('tbody tr').forEach(row => {
+            const subtotal = parseFloat(row.querySelector('td:nth-child(4)').textContent.replace(/TSh |,/g, ''));
+            total += subtotal;
+        });
+        document.querySelector('tfoot td:nth-child(2)').textContent = `TSh ${total.toLocaleString()}`;
+    }
+
+    // --- Update Cart Count Badge ---
+    function updateCartCount(count) {
+        const badge = document.querySelector('.bi-cart + .badge');
+        if (badge) badge.textContent = count;
+    }
+});
+</script>
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/_like_button.html
+================================================================================
+
+{% load static %}
+
+<button class="like-button {% if liked %}unlike{% else %}like{% endif %}" data-product-id="{{ product.id }}">
+    <span class="like-text">{% if liked %}Unlike{% else %}Like{% endif %}</span>
+    <span class="like-count">{{ product.get_like_count }}</span>
+    <i class="fas fa-heart"></i>  {# Font Awesome heart icon #}
+</button>
+
+================================================================================
+FILE: marketplace/templates/marketplace/edit_profile.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Edit Profile - UZASPEA{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Edit Profile</h1>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{% url 'user_profile' username=user.username %}" class="btn btn-secondary">Cancel</a>
+
+    </form>
+</div>
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/product_list_ajax.html
+================================================================================
+
+{% load humanize %}
+{% load static %}
+
+{% for product in products %}
+<div class="col-lg-3 col-md-4 col-sm-6 col-12">
+    <a href="{{ product.get_absolute_url }}" class="product-link">
+        <div class="card product-card">
+            <div class="product-image-wrapper">
+                {% if product.get_first_image %}
+                    <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                {% elif product.images.all %}
+                    <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                {% else %}
+                    <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
+                {% endif %}
+            </div>
+            <div class="card-body product-details">
+                <h3 class="product-title">{{ product.name }}</h3>
+                <p class="product-description">{{ product.description|truncatewords:15 }}</p>
+                <div class="product-meta">
+                    <span class="product-price">TSh {{ product.price|floatformat:0|intcomma }}</span>
+                    <span class="product-condition badge {% if product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
+                        {{ product.get_condition_display }}
+                    </span>
+                </div>
+                <div class="product-meta seller-category">
+                    <p class="product-seller">
+                        <i class="bi bi-person me-1"></i> 
+                        <span class="seller-link">{{ product.seller.username }}</span>
+                        {% if product.seller.profile.is_verified %}
+                            <span class="verified-badge text-success ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Verified Seller"><i class="bi bi-check-circle-fill"></i></span>
+                        {% endif %}
+                    </p>
+                    <p class="product-category">
+                        <i class="bi bi-folder me-1"></i> 
+                        <span class="category-link">{{ product.category.name }}</span>
+                    </p>
+                </div>
+                <div class="product-rating justify-content-center">
+                    {% if product.average_rating > 0 %}
+                        {% for i in "x"|ljust:product.average_rating %}
+                            <i class="bi bi-star-fill text-warning"></i>
+                        {% endfor %}
+                        {% for i in "x"|ljust:5|slice:":-"|add:product.average_rating %}
+                            <i class="bi bi-star text-warning"></i>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted small">No reviews</span>
+                    {% endif %}
+                </div>
+                <div class="product-interactions d-lg-none"> <span class="interaction-item"><i class="bi bi-heart me-1"></i> {{ product.wishlist_count|default:0 }}</span>
+                    <span class="interaction-item"><i class="bi bi-chat-dots me-1"></i> {{ product.comments_count|default:0 }}</span>
+                </div>
+            </div>
+        </div>
+    </a>
+</div>
+{% empty %}
+    <div class="col-12">
+        <p class="no-products-message">No products found matching your criteria.</p>
+    </div>
+{% endfor %}
+
+================================================================================
+FILE: marketplace/templates/marketplace/includes/_product_card.html
+================================================================================
+
+{% load static %}
+{% load humanize %}
+
+<div class="card product-card h-100">
+    <a href="{% url 'product_detail' product.slug %}">
+        <div class="product-image-container">
+            {% if product.get_first_image %}
+            <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+            {% elif product.images.all %}
+            <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+            {% else %}
+            <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image">
+            {% endif %}
+        </div>
+    </a>
+    <div class="card-body d-flex flex-column">
+        <h5 class="card-title"><a href="{% url 'product_detail' slug=product.slug %}">{{ product.name }}</a></h5>
+        <p class="card-price">TSh {{ product.price|floatformat:0|intcomma }}</p>
+        <p class="card-text small">Condition: {{ product.get_condition_display }}</p>
+        {% if product.category %}
+        <p class="card-text small">Category: {{ product.category }}</p>
+        {% endif %}
+        {% if show_controls %}
+            <div class="card-footer">
+                <a href="{% url 'product_update' slug=product.slug %}" class="btn btn-sm btn-outline-primary small-button">Edit</a>
+                <a href="{% url 'product_delete' slug=product.slug %}" class="btn btn-sm btn-outline-danger small-button" onclick="return confirm('Are you sure?')">Delete</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+================================================================================
+FILE: marketplace/templates/marketplace/includes/related_products_partial.html
+================================================================================
+
+{% for related_product in related_products %}
+{% load static %}
+{% load humanize %}
+    <div class="col">
+        <div class="card related-product-card h-100">
+            <a href="{{ related_product.get_absolute_url }}" class="product-link">
+                <div class="product-image-wrapper">
+                    {% if related_product.get_first_image %}
+                        <img src="{{ related_product.get_first_image.url }}" class="card-img-top product-image" alt="{{ related_product.name }}">
+                    {% elif related_product.images.all %}
+                        <img src="{{ related_product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ related_product.name }}">
+                    {% else %}
+                        <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
+                    {% endif %}
+                </div>
+            </a>
+            <div class="card-body product-details">
+                <h3 class="related-product-title">
+                    <a href="{{ related_product.get_absolute_url }}">{{ related_product.name }}</a>
+                </h3>
+                <p class="product-description">{{ related_product.description|truncatewords:15 }}</p>
+                <div class="product-meta">
+                    <span class="product-price">TSh {{ related_product.price|floatformat:0|intcomma }}</span>
+                    <span class="product-condition badge {% if related_product.condition == 'New' %}bg-success{% else %}bg-secondary{% endif %}">
+                        {{ related_product.get_condition_display }}
+                    </span>
+                </div>
+                <div class="product-meta seller-category">
+                    <p class="product-seller">
+                        <i class="bi bi-person me-1"></i>
+                        <a href="{% url 'user_profile' related_product.seller.username %}" class="seller-link">{{ related_product.seller.username }}</a>
+                        {% if related_product.seller.profile.is_verified %}
+                            <span class="verified-badge text-success ms-1"><i class="bi bi-check-circle-fill"></i></span>
+                        {% endif %}
+                    </p>
+                    <p class="product-category">
+                        <i class="bi bi-folder me-1"></i>
+                        <a href="{{ related_product.category.get_absolute_url }}" class="category-link">{{ related_product.category.name }}</a>
+                    </p>
+                </div>
+                <div class="product-rating justify-content-center">
+                    {% if related_product.average_rating > 0 %}
+                        {% for i in "x"|ljust:related_product.average_rating %}
+                            <i class="bi bi-star-fill text-warning"></i>
+                        {% endfor %}
+                        {% for i in "x"|ljust:5|slice:":-"|add:related_product.average_rating %}
+                            <i class="bi bi-star text-warning"></i>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted small">No reviews</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+
+================================================================================
+FILE: marketplace/templates/registration/register.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Register - UZACHUO{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title text-center">Register</h2>
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ user_form|crispy }}
+                        {{ profile_form|crispy }}
+                        <button type="submit" class="btn btn-primary w-100">Register</button>
+                    </form>
+                    <p class="mt-3 text-center">Already have an account? <a href="{% url 'login' %}">Login here</a>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+================================================================================
+FILE: marketplace/templates/registration/login.html
+================================================================================
+
+{% extends 'marketplace/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Login - My Marketplace{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title text-center">Login</h2>
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+                     <p class="mt-3 text-center">Don't have an account? <a href="{% url 'register' %}">Register here</a>.</p>
+                    <p class="text-center"><a href="{% url 'password_reset' %}">Forgot Password?</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

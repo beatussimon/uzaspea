@@ -121,11 +121,11 @@
                             <div class="card product-card">
                                 <div class="product-image-wrapper">
                                     {% if product.get_first_image %}
-                                        <img loading="lazy" src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                                        <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
                                     {% elif product.images.all %}
-                                        <img loading="lazy" src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+                                        <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
                                     {% else %}
-                                        <img loading="lazy" src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
+                                        <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
                                     {% endif %}
                                 </div>
                                 <div class="card-body product-details">
@@ -218,7 +218,7 @@
                             {% for offer in offers %}
                                 <li class="list-group-item">
                                     {% if offer.image %}
-                                        <img loading="lazy" src="{{offer.image.url}}" class="img-fluid mb-2" alt="{{offer.title}}">
+                                        <img src="{{offer.image.url}}" class="img-fluid mb-2" alt="{{offer.title}}">
                                     {% endif %}
                                     <h5>{{ offer.title }}</h5>
                                     <p>{{ offer.description|truncatewords:20 }}</p>

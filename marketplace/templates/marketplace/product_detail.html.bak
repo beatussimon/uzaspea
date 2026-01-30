@@ -22,11 +22,11 @@
                         <div class="carousel-inner">
                             {% for image in images %}
                                 <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                                    <img loading="lazy" src="{{ image.image.url }}" class="product-image" alt="{{ product.name }}">
+                                    <img src="{{ image.image.url }}" class="product-image" alt="{{ product.name }}">
                                 </div>
                             {% empty %}
                                 <div class="carousel-item active">
-                                    <img loading="lazy" src="{% static 'images/no_image.png' %}" class="product-image" alt="No image available">
+                                    <img src="{% static 'images/no_image.png' %}" class="product-image" alt="No image available">
                                 </div>
                             {% endfor %}
                         </div>
@@ -188,11 +188,11 @@
                                 <a href="{{ related_product.get_absolute_url }}" class="product-link">
                                     <div class="product-image-wrapper">
                                         {% if related_product.get_first_image %}
-                                            <img loading="lazy" src="{{ related_product.get_first_image.url }}" class="product-image" alt="{{ related_product.name }}">
+                                            <img src="{{ related_product.get_first_image.url }}" class="product-image" alt="{{ related_product.name }}">
                                         {% elif related_product.images.all %}
-                                            <img loading="lazy" src="{{ related_product.images.all.0.image.url }}" class="product-image" alt="{{ related_product.name }}">
+                                            <img src="{{ related_product.images.all.0.image.url }}" class="product-image" alt="{{ related_product.name }}">
                                         {% else %}
-                                            <img loading="lazy" src="{% static 'images/no_image.png' %}" class="product-image" alt="No Image Available">
+                                            <img src="{% static 'images/no_image.png' %}" class="product-image" alt="No Image Available">
                                         {% endif %}
                                     </div>
                                 </a>
