@@ -404,9 +404,9 @@
     <div class="profile-header">
         <div class="profile-image-container">
             {% if user_profile.profile_picture and user_profile.profile_picture.url %}
-                <img loading="lazy" src="{{ user_profile.profile_picture.url }}" alt="{{ user_profile.user.username }}'s Profile Picture" class="profile-image">
+                <img src="{{ user_profile.profile_picture.url }}" alt="{{ user_profile.user.username }}'s Profile Picture" class="profile-image">
             {% else %}
-                <img loading="lazy" src="{% static 'images/default_profile.png' %}" alt="Default Profile Picture" class="profile-image">
+                <img src="{% static 'images/default_profile.png' %}" alt="Default Profile Picture" class="profile-image">
             {% endif %}
         </div>
         <div class="profile-info">
@@ -499,9 +499,9 @@
                 <div class="product-card">
                     <div class="product-image-container">
                         {% if product.image and product.image.url %}
-                            <img loading="lazy" src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image">
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image">
                         {% else %}
-                            <img loading="lazy" src="{% static 'images/no_image.png' %}" alt="Default Product Image" class="product-image">
+                            <img src="{% static 'images/no_image.png' %}" alt="Default Product Image" class="product-image">
                         {% endif %}
                     </div>
                     <div class="card-body">

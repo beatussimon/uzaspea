@@ -6,11 +6,11 @@
             <a href="{{ related_product.get_absolute_url }}" class="product-link">
                 <div class="product-image-wrapper">
                     {% if related_product.get_first_image %}
-                        <img loading="lazy" src="{{ related_product.get_first_image.url }}" class="card-img-top product-image" alt="{{ related_product.name }}">
+                        <img src="{{ related_product.get_first_image.url }}" class="card-img-top product-image" alt="{{ related_product.name }}">
                     {% elif related_product.images.all %}
-                        <img loading="lazy" src="{{ related_product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ related_product.name }}">
+                        <img src="{{ related_product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ related_product.name }}">
                     {% else %}
-                        <img loading="lazy" src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
+                        <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image Available">
                     {% endif %}
                 </div>
             </a>

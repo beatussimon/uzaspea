@@ -5,11 +5,11 @@
     <a href="{% url 'product_detail' product.slug %}">
         <div class="product-image-container">
             {% if product.get_first_image %}
-            <img loading="lazy" src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+            <img src="{{ product.get_first_image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
             {% elif product.images.all %}
-            <img loading="lazy" src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
+            <img src="{{ product.images.all.0.image.url }}" class="card-img-top product-image" alt="{{ product.name }}">
             {% else %}
-            <img loading="lazy" src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image">
+            <img src="{% static 'images/no_image.png' %}" class="card-img-top product-image" alt="No Image">
             {% endif %}
         </div>
     </a>
