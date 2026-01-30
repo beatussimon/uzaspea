@@ -342,9 +342,9 @@
                     <a href="{% url 'product_detail' slug=product.slug %}" class="product-link">
                         <div class="product-image-wrapper">
                             {% if product.images.all %}
-                            <img loading="lazy" src="{{ product.images.first.image.url }}" alt="{{ product.name }}" class="product-image">
+                            <img src="{{ product.images.first.image.url }}" alt="{{ product.name }}" class="product-image">
                             {% else %}
-                            <img loading="lazy" src="{% static 'images/no_image.png' %}" alt="No Image Available" class="product-image">
+                            <img src="{% static 'images/no_image.png' %}" alt="No Image Available" class="product-image">
                             {% endif %}
                             <div class="product-overlay">
                                 <span class="view-details">View Details</span>
