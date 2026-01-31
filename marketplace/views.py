@@ -1,3 +1,27 @@
+from django.contrib import messages
+from django.shortcuts import redirect
+def select_tier(request):
+    if not request.user.is_authenticated:
+        messages.error(request, "You must be logged in to select a tier.")
+        return redirect('subscription_tiers')
+    profile = request.user.profile
+    if profile.is_verified:
+        messages.info(request, "You are already verified.")
+        return redirect('product_list')
+    if request.method == "POST":
+        tier = request.POST.get('tier')
+        if tier in ['standard', 'premium']:
+            profile.tier = tier
+            profile.save()
+            messages.success(request, f"Tier selected: {tier.capitalize()}. Please pay via Lipa Namba and contact us to activate verification.")
+            return redirect('subscription_tiers')
+        else:
+            messages.error(request, "Invalid tier selection.")
+            return redirect('subscription_tiers')
+    return redirect('subscription_tiers')
+from django.shortcuts import render
+def subscription_tiers(request):
+    return render(request, 'marketplace/subscription_tiers.html')
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import Product, Category, Review, Order, OrderItem, UserProfile, ProductImage, SidebarOffer, SidebarNewsItem, Subscription, Follow, Like
 from .forms import ProductForm, ReviewForm, UserRegistrationForm, ProductImageFormSet, ReplyForm, SubscriptionForm
@@ -39,11 +63,15 @@ def product_list(request):
     condition = request.GET.get('condition')
 
     selected_category = None
-    if category_slug:
-        selected_category = get_object_or_404(Category, slug=category_slug)
-        # Get all descendant categories (including sub-subcategories, etc.)
-        categories = [selected_category] + list(selected_category.get_descendants(include_self=True))
-        products = products.filter(category__in=categories)  # Filter by this set
+    if category_slug and category_slug not in ["", "None", None]:
+        try:
+            selected_category = Category.objects.get(slug=category_slug)
+            # Get all descendant categories (including sub-subcategories, etc.)
+            categories = [selected_category] + list(selected_category.get_descendants(include_self=True))
+            products = products.filter(category__in=categories)  # Filter by this set
+        except Category.DoesNotExist:
+            selected_category = None
+            # Ignore category filter if not found
 
     if min_price:
         products = products.filter(price__gte=min_price)
@@ -169,6 +197,13 @@ def product_detail(request, slug):
                 reply.save()
                 return redirect('product_detail', slug=product.slug) # Redirect after POST.
 
+    # Add user profile info for sidebar verification card
+    user_profile = None
+    if request.user.is_authenticated:
+        try:
+            user_profile = request.user.profile
+        except Exception:
+            user_profile = None
     context = {
         'product': product,
         'images': images,
@@ -177,6 +212,8 @@ def product_detail(request, slug):
         'review_form': review_form,
         'reply_form': reply_form,
         'has_reviewed': has_reviewed,
+        'user': request.user,
+        'profile': user_profile,
     }
     return render(request, 'marketplace/product_detail.html', context)
 
