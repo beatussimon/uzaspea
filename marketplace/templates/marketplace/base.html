@@ -85,7 +85,11 @@
                                href="#" id="mobileProfileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-user me-1"></i>{{ user.username }}
                                 {% if user.profile.is_verified %}
-                                    <span class="verified-badge text-success"><i class="fas fa-check-circle"></i></span>
+                                    {% if user.profile.tier == 'premium' %}
+                                        <span class="verified-badge ms-1 d-inline-flex align-items-center" title="Premium Seller"><img src="{% static 'images/gold_checkmark.png' %}" alt="Premium Badge" style="height:1.7em;width:1.7em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
+                                    {% else %}
+                                        <span class="verified-badge ms-1 d-inline-flex align-items-center" title="Verified Seller"><img src="{% static 'images/greeen_ckeckmark.png' %}" alt="Verified Badge" style="height:1.7em;width:1.7em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
+                                    {% endif %}
                                 {% endif %}
                             </a>
                             <ul class="dropdown-menu shadow-sm" aria-labelledby="mobileProfileDropdown">
@@ -172,7 +176,11 @@
                                role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 {{ user.username }}
                                 {% if user.profile.is_verified %}
-                                    <span class="verified-badge text-success"><i class="fas fa-check-circle"></i></span>
+                                    {% if user.profile.tier == 'premium' %}
+                                        <span class="verified-badge ms-1" title="Premium Seller"><img src="{% static 'images/gold_checkmark.png' %}" alt="Premium Badge" style="height:1.7em;width:1.7em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
+                                    {% else %}
+                                        <span class="verified-badge ms-1" title="Verified Seller"><img src="{% static 'images/greeen_ckeckmark.png' %}" alt="Verified Badge" style="height:1.7em;width:1.7em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
+                                    {% endif %}
                                 {% endif %}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="navbarDropdown">

@@ -52,7 +52,11 @@
                                 <i class="bi bi-person me-1"></i>
                                 Seller: <a href="{% url 'user_profile' product.seller.username %}">{{ product.seller.username }}</a>
                                 {% if product.seller.profile.is_verified %}
-                                    <span class="verified-badge"><i class="bi bi-check-circle-fill"></i></span>
+                                    {% if product.seller.profile.tier == 'premium' %}
+                                        <span class="verified-badge ms-1 d-inline-flex align-items-center" title="Premium Seller"><img src="{% static 'images/gold_checkmark.png' %}" alt="Premium Badge" style="height:1.25em;width:1.25em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
+                                    {% else %}
+                                        <span class="verified-badge ms-1 d-inline-flex align-items-center" title="Verified Seller"><img src="{% static 'images/greeen_ckeckmark.png' %}" alt="Verified Badge" style="height:1.25em;width:1.25em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
+                                    {% endif %}
                                 {% endif %}
                             </span>
                             <span class="product-category">
@@ -212,7 +216,11 @@
                                             <i class="bi bi-person me-1"></i>
                                             <a href="{% url 'user_profile' related_product.seller.username %}" class="seller-link">{{ related_product.seller.username }}</a>
                                             {% if related_product.seller.profile.is_verified %}
-                                                <span class="verified-badge text-success ms-1"><i class="bi bi-check-circle-fill"></i></span>
+                                                {% if related_product.seller.profile.tier == 'premium' %}
+                                                    <span class="verified-badge ms-1 d-inline-flex align-items-center" title="Premium Seller"><img src="{% static 'images/gold_checkmark.png' %}" alt="Premium Badge" style="height:1.25em;width:1.25em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
+                                                {% else %}
+                                                    <span class="verified-badge ms-1 d-inline-flex align-items-center" title="Verified Seller"><img src="{% static 'images/greeen_ckeckmark.png' %}" alt="Verified Badge" style="height:1.25em;width:1.25em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
+                                                {% endif %}
                                             {% endif %}
                                         </p>
                                         <p class="product-category">
