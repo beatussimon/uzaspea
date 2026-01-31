@@ -324,44 +324,43 @@ def register(request):
 @login_required
 def user_profile(request, username):
     User = get_user_model()
-    user = get_object_or_404(User, username=username) #get user by username
+    profile_user = get_object_or_404(User, username=username)  # The user whose profile is being viewed
 
     try:
-        user_profile = user.profile # Use the related_name
+        user_profile = profile_user.profile
     except UserProfile.DoesNotExist:
-        # Handle the case where a profile doesn't exist
         return HttpResponse("Profile not found", status=404)
 
-    user_products = Product.objects.filter(seller=user, is_available=True)
+    user_products = Product.objects.filter(seller=profile_user, is_available=True)
     # Orders, only if looking at own profile.
-    if request.user == user:
-         user_orders = Order.objects.filter(user=user).order_by('-order_date')
+    if request.user == profile_user:
+        user_orders = Order.objects.filter(user=profile_user).order_by('-order_date')
     else:
         user_orders = None
 
     # Check if the current user is following the viewed user
     is_following = False
     if request.user.is_authenticated:
-        is_following = request.user.following.filter(following=user.profile).exists()
+        is_following = request.user.following.filter(following=profile_user.profile).exists()
 
     # ---  Analytics ---
     total_products = user_products.count()
-    total_followers = user.followers.count()  # Count of users following *this* user
+    total_followers = profile_user.followers.count()  # Count of users following *this* user
     total_following = request.user.following.count()
     total_orders_received = 0
-    if request.user == user:
+    if request.user == profile_user:
         total_orders_received = Order.objects.filter(orderitem_set__product__seller=request.user).distinct().count()
 
     context = {
-        'user_profile': user_profile,
+        'user_profile': user_profile,  # Profile being viewed
         'user_products': user_products,
         'user_orders': user_orders,
-        'user': user,  # The user whose profile is being viewed.
-        'is_following': is_following,  # Pass the follow status
+        # Do NOT pass 'user': profile_user here!
+        'is_following': is_following,
         'total_products': total_products,
         'total_followers': total_followers,
         'total_following': total_following,
-        'total_orders_received':total_orders_received,
+        'total_orders_received': total_orders_received,
     }
     return render(request, 'marketplace/user_profile.html', context)
 
