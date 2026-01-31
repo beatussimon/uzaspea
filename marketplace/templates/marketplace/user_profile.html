@@ -413,7 +413,11 @@
             <h1 class="store-name">
                 {{ user_profile.user.username }}
                 {% if user_profile.is_verified %}
-                    <span class="verified-badge" title="Verified Seller"><i class="fas fa-check-circle"></i></span>
+                    {% if user_profile.tier == 'premium' %}
+                        <span class="verified-badge ms-1 d-inline-flex align-items-center" title="Premium Seller"><img src="{% static 'images/gold_checkmark.png' %}" alt="Premium Badge" style="height:1.25em;width:1.25em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
+                    {% else %}
+                        <span class="verified-badge ms-1 d-inline-flex align-items-center" title="Verified Seller"><img src="{% static 'images/greeen_ckeckmark.png' %}" alt="Verified Badge" style="height:1.25em;width:1.25em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
+                    {% endif %}
                 {% endif %}
             </h1>
             <div class="full-name">

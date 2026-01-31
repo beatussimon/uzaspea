@@ -11,7 +11,7 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name_plural = 'Profile'
-    fields = ('phone_number', 'is_verified', 'profile_picture', 'bio', 'location', 'instagram_username', 'website')
+    fields = ('phone_number', 'is_verified', 'tier', 'profile_picture', 'bio', 'location', 'instagram_username', 'website')
     readonly_fields = ('image_preview',)
 
     def image_preview(self, obj):
