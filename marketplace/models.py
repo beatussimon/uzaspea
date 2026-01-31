@@ -166,7 +166,8 @@ class UserProfile(models.Model):
     phone_number = models.CharField(max_length=20, blank=True, validators=[RegexValidator(r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")]) #added a validator
     instagram_username = models.CharField(max_length=30, blank=True)
     website = models.URLField(blank=True)
-    bio = models.TextField(max_length=500, blank=True)  # Add bio field
+    bio = models.TextField(blank=True, null=True)
+    tier = models.CharField(max_length=20, choices=[('standard', 'Standard'), ('premium', 'Premium')], default='standard')
     location = models.CharField(max_length=100, blank=True)  # Add location
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
     following = models.ManyToManyField(User, related_name='followers', blank=True, symmetrical=False) # Add following
@@ -198,6 +199,11 @@ class SidebarOffer(models.Model):
         default="Learn More",
         help_text="Custom text for the offer button"
     )
+    VISIBILITY_CHOICES = [
+        ('public', 'Public'),
+        ('subscribed', 'Subscribed'),
+    ]
+    visibility = models.CharField(max_length=20, choices=VISIBILITY_CHOICES, default='public')
 
     def __str__(self):
         return self.title

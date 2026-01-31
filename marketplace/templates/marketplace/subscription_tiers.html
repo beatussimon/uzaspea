@@ -1,0 +1,70 @@
+{% extends 'marketplace/base.html' %}
+{% load static %}
+{% block title %}Seller Verification & Subscription{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Choose Your Seller Tier</h2>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card border-success h-100">
+                <div class="card-header bg-success text-white d-flex align-items-center">
+                    <i class="bi bi-patch-check-fill me-2"></i>
+                    <span class="fs-5">Standard Seller</span>
+                </div>
+                <div class="card-body">
+                    <h4 class="card-title text-success">Affordable</h4>
+                    <ul class="list-unstyled mb-3">
+                        <li><i class="bi bi-check-circle-fill text-success me-2"></i>Green verified badge</li>
+                        <li><i class="bi bi-arrow-up-circle text-success me-2"></i>Increased trust & visibility</li>
+                        <li><i class="bi bi-list-ul text-success me-2"></i>List more vehicles/spare parts</li>
+                        <li><i class="bi bi-search text-success me-2"></i>Appear higher in search results</li>
+                    </ul>
+                    <form method="post" action="{% url 'select_tier' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="tier" value="standard">
+                        <button type="submit" class="btn btn-success w-100">Choose Standard Seller</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-warning h-100">
+                <div class="card-header bg-warning text-dark d-flex align-items-center">
+                    <i class="bi bi-patch-check-fill me-2" style="color:gold;"></i>
+                    <span class="fs-5">Premium Dealer</span>
+                </div>
+                <div class="card-body">
+                    <h4 class="card-title text-warning">Premium</h4>
+                    <ul class="list-unstyled mb-3">
+                        <li><i class="bi bi-check-circle-fill text-warning me-2"></i>Gold verified badge</li>
+                        <li><i class="bi bi-star-fill text-warning me-2"></i>Maximum listing limits</li>
+                        <li><i class="bi bi-arrow-up-circle text-warning me-2"></i>Priority placement in search</li>
+                        <li><i class="bi bi-lightning-fill text-warning me-2"></i>Featured dealer highlight</li>
+                        <li><i class="bi bi-bar-chart-fill text-warning me-2"></i>Dealer analytics</li>
+                        <li><i class="bi bi-headset text-warning me-2"></i>Priority support</li>
+                    </ul>
+                    <form method="post" action="{% url 'select_tier' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="tier" value="premium">
+                        <button type="submit" class="btn btn-warning w-100">Choose Premium Dealer</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mt-5">
+        <h4>How to Pay (Lipa Namba)</h4>
+        <div class="d-flex align-items-center gap-3 mb-2">
+            <img src="{% static 'images/mpesa.png' %}" alt="M-Pesa" height="32">
+            <img src="{% static 'images/airtel.png' %}" alt="Airtel" height="32">
+            <img src="{% static 'images/tigo.png' %}" alt="Tigo" height="32">
+            <img src="{% static 'images/halopesa.png' %}" alt="HaloPesa" height="32">
+        </div>
+        <p class="mb-2">After choosing your tier, you will see payment instructions. Payment is manual/offline.</p>
+        <div class="alert alert-info">
+            <strong>After payment:</strong> Contact us to confirm and activate your verification. <br>
+            <span class="fw-bold">Your verification will be activated after you contact us to confirm payment.</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

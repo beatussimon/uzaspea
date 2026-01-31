@@ -28,6 +28,13 @@
         .login-button-styles{
             background-color: green;
         }
+        .premium-highlight {
+            color: #d4af37;
+            font-weight: 600;
+            border-radius: 6px;
+            padding: 0 0.3em;
+            background: rgba(255,245,200,0.12);
+        }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -146,8 +153,20 @@
                             </a>
                         </li>
                         {% endif %}
+                        {% if user.is_authenticated and not user.profile.is_verified %}
+                        <li class="nav-item">
+                            <a class="nav-link my-2 my-lg-0 ms-2 px-3 fw-bold upgrade-navbar-hint" href="{% url 'subscription_tiers' %}" title="Upgrade your account">
+                                Upgrade
+                            </a>
+                        </li>
+                        {% elif user.is_authenticated and user.profile.is_verified and user.profile.tier == 'standard' %}
+                        <li class="nav-item">
+                            <a class="nav-link my-2 my-lg-0 ms-2 px-3 fw-bold premium-highlight" href="{% url 'subscription_tiers' %}" title="Premium subscription">
+                                Premium
+                            </a>
+                        </li>
+                        {% endif %}
                         {% if user.is_authenticated %}
-                        
                         <li class="nav-item dropdown d-none d-lg-block">
                             <a class="nav-link dropdown-toggle my-2 my-lg-0" href="#" id="navbarDropdown" 
                                role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -182,7 +201,6 @@
                                 Login
                             </a>
                         </li>
-                        
                         {% endif %}
                     </ul>
                 </div>

@@ -9,6 +9,136 @@
 <link rel="stylesheet" href="{% static 'css/product_list.css' %}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 {% endblock %}
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let loading = false;
+        let page = 2;
+        const productContainer = document.getElementById('product-container');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        let noMoreProducts = false;
+
+        function loadMoreProducts() {
+            if (loading || noMoreProducts) return;
+            loading = true;
+            loadingIndicator.style.display = 'block';
+
+            let url = new URL(window.location.href);
+            url.searchParams.set('page', page);
+
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        noMoreProducts = true;
+                        document.getElementById('end-of-scroll-message').style.display = 'block';
+                        throw new Error('No more products');
+                    }
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(data => {
+                productContainer.insertAdjacentHTML('beforeend', data);
+                page++;
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function(tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+                enableImageZoom();
+            })
+            .catch(error => {
+                if (noMoreProducts) {
+                    document.getElementById('end-of-scroll-message').style.display = 'block';
+                }
+                console.error('Error:', error);
+            })
+            .finally(() => {
+                loading = false;
+                loadingIndicator.style.display = 'none';
+            });
+        }
+
+        window.addEventListener('scroll', function() {
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50 && !loading && !noMoreProducts) {
+                loadMoreProducts();
+            }
+        });
+
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        function enableImageZoom() {
+            const productImages = document.querySelectorAll('.product-image');
+            productImages.forEach(image => {
+                image.addEventListener('mouseover', function() {
+                    this.style.transform = 'scale(1.1)';
+                    this.style.transition = 'transform 0.3s ease';
+                });
+                image.addEventListener('mouseout', function() {
+                    this.style.transform = 'scale(1)';
+                    this.style.transition = 'transform 0.3s ease';
+                });
+            });
+        }
+        enableImageZoom();
+
+        // Sidebar dropdowns: use Bootstrap's collapse API for reliability
+        document.querySelectorAll('.category-chevron-btn').forEach(function(btn) {
+            var target = btn.getAttribute('data-bs-target');
+            var chevron = btn.querySelector('.category-chevron');
+            var collapseEl = document.querySelector(target);
+            if (collapseEl && chevron) {
+                // Set initial state
+                if (collapseEl.classList.contains('show')) {
+                    chevron.classList.add('rotate-180');
+                    btn.setAttribute('aria-expanded', 'true');
+                } else {
+                    chevron.classList.remove('rotate-180');
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+                // Listen for Bootstrap collapse events
+                collapseEl.addEventListener('show.bs.collapse', function() {
+                    chevron.classList.add('rotate-180');
+                    btn.setAttribute('aria-expanded', 'true');
+                });
+                collapseEl.addEventListener('hide.bs.collapse', function() {
+                    chevron.classList.remove('rotate-180');
+                    btn.setAttribute('aria-expanded', 'false');
+                });
+                // Click handler: use Bootstrap's API
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, {toggle: false});
+                    if (collapseEl.classList.contains('show')) {
+                        bsCollapse.hide();
+                    } else {
+                        // Close all others
+                        document.querySelectorAll('.category-chevron-btn').forEach(function(otherBtn) {
+                            var otherTarget = otherBtn.getAttribute('data-bs-target');
+                            var otherCollapse = document.querySelector(otherTarget);
+                            if (otherCollapse && otherCollapse !== collapseEl) {
+                                var otherBsCollapse = bootstrap.Collapse.getOrCreateInstance(otherCollapse, {toggle: false});
+                                otherBsCollapse.hide();
+                            }
+                        });
+                        bsCollapse.show();
+                    }
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
@@ -142,8 +272,10 @@
                                         <p class="product-seller">
                                             <i class="bi bi-person me-1"></i> 
                                             <span class="seller-link">{{ product.seller.username }}</span>
-                                            {% if product.seller.profile.is_verified %}
-                                                <span class="verified-badge text-success ms-1"><i class="bi bi-check-circle-fill"></i></span>
+                                            {% if product.seller.profile.is_verified and product.seller.profile.tier == 'premium' %}
+                                                <span class="verified-badge text-warning ms-1" title="Premium Seller"><i class="bi bi-check-circle-fill"></i></span>
+                                            {% elif product.seller.profile.is_verified %}
+                                                <span class="verified-badge text-success ms-1" title="Verified Seller"><i class="bi bi-check-circle-fill"></i></span>
                                             {% endif %}
                                         </p>
                                         <p class="product-category">
@@ -204,6 +336,48 @@
                         </div>
                     </div>
                 {% endif %}
+                <!-- Verification Card -->
+                {% if user.is_authenticated and profile %}
+                    {% if not profile.is_verified %}
+                        <div class="card mb-4 border-info">
+                            <div class="card-header bg-info text-dark d-flex align-items-center">
+                                <i class="bi bi-patch-question me-2"></i>
+                                <span class="fw-bold">Get Verified</span>
+                                <span class="ms-2"><i class="bi bi-check-square-fill text-success"></i></span>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-2">Upgrade your account to unlock more features!</p>
+                                <a href="{% url 'subscription_tiers' %}" class="btn btn-info w-100">Upgrade</a>
+                            </div>
+                        </div>
+                    {% elif profile.tier == 'standard' %}
+                        <div class="card mb-4 border-success">
+                            <div class="card-header bg-success text-white d-flex align-items-center">
+                                <i class="bi bi-patch-check-fill me-2"></i>
+                                <span class="fw-bold">Verified Seller</span>
+                            </div>
+                            <div class="card-body">
+                                <span class="verified-badge text-success fs-5"><i class="bi bi-check-circle-fill"></i></span>
+                                <span class="ms-2">You are verified. Your listings have increased trust and visibility.</span>
+                                <div class="mt-2">
+                                    <a href="{% url 'subscription_tiers' %}" class="premium-highlight btn btn-sm" style="font-weight:600;">Premium</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% elif profile.tier == 'premium' %}
+                        <div class="card mb-4 border-warning">
+                            <div class="card-header bg-warning text-dark d-flex align-items-center">
+                                <i class="bi bi-patch-check-fill me-2" style="color:gold;"></i>
+                                <span class="fw-bold">Premium Dealer</span>
+                            </div>
+                            <div class="card-body">
+                                <span class="verified-badge text-warning fs-5"><i class="bi bi-check-circle-fill"></i></span>
+                                <span class="ms-2">You are a Premium Dealer. Enjoy maximum marketplace benefits!</span>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endif %}
+                <!-- ...existing social card... -->
                 <div class="card mb-4">
                     <div class="card-header">Follow Us</div>
                     <div class="card-body">
@@ -260,137 +434,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-// ...existing code...
-{% block extra_js %}
-{{ block.super }}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Infinite scroll and image zoom (existing code)
-        let loading = false;
-        let page = 2;
-        const productContainer = document.getElementById('product-container');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        let noMoreProducts = false;
-
-        function loadMoreProducts() {
-            if (loading || noMoreProducts) return;
-            loading = true;
-            loadingIndicator.style.display = 'block';
-
-            let url = new URL(window.location.href);
-            url.searchParams.set('page', page);
-
-            fetch(url, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        noMoreProducts = true;
-                        document.getElementById('end-of-scroll-message').style.display = 'block';
-                        throw new Error('No more products');
-                    }
-                    throw new Error('Network response was not ok');
-                }
-                return response.text();
-            })
-            .then(data => {
-                productContainer.insertAdjacentHTML('beforeend', data);
-                page++;
-                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                tooltipTriggerList.map(function(tooltipTriggerEl) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl);
-                });
-                enableImageZoom();
-            })
-            .catch(error => {
-                if (noMoreProducts) {
-                    document.getElementById('end-of-scroll-message').style.display = 'block';
-                }
-                console.error('Error:', error);
-            })
-            .finally(() => {
-                loading = false;
-                loadingIndicator.style.display = 'none';
-            });
-        }
-
-        window.addEventListener('scroll', function() {
-            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50 && !loading && !noMoreProducts) {
-                loadMoreProducts();
-            }
-        });
-
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList = tooltipTriggerList.map(function(tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-
-        function enableImageZoom() {
-            const productImages = document.querySelectorAll('.product-image');
-            productImages.forEach(image => {
-                image.addEventListener('mouseover', function() {
-                    this.style.transform = 'scale(1.1)';
-                    this.style.transition = 'transform 0.3s ease';
-                });
-                image.addEventListener('mouseout', function() {
-                    this.style.transform = 'scale(1)';
-                    this.style.transition = 'transform 0.3s ease';
-                });
-            });
-        }
-        enableImageZoom();
-
-        // Sidebar dropdowns: use Bootstrap's collapse API for reliability
-        document.querySelectorAll('.category-chevron-btn').forEach(function(btn) {
-            var target = btn.getAttribute('data-bs-target');
-            var chevron = btn.querySelector('.category-chevron');
-            var collapseEl = document.querySelector(target);
-            if (collapseEl && chevron) {
-                // Set initial state
-                if (collapseEl.classList.contains('show')) {
-                    chevron.classList.add('rotate-180');
-                    btn.setAttribute('aria-expanded', 'true');
-                } else {
-                    chevron.classList.remove('rotate-180');
-                    btn.setAttribute('aria-expanded', 'false');
-                }
-                // Listen for Bootstrap collapse events
-                collapseEl.addEventListener('show.bs.collapse', function() {
-                    chevron.classList.add('rotate-180');
-                    btn.setAttribute('aria-expanded', 'true');
-                });
-                collapseEl.addEventListener('hide.bs.collapse', function() {
-                    chevron.classList.remove('rotate-180');
-                    btn.setAttribute('aria-expanded', 'false');
-                });
-                // Click handler: use Bootstrap's API
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, {toggle: false});
-                    if (collapseEl.classList.contains('show')) {
-                        bsCollapse.hide();
-                    } else {
-                        // Close all others
-                        document.querySelectorAll('.category-chevron-btn').forEach(function(otherBtn) {
-                            var otherTarget = otherBtn.getAttribute('data-bs-target');
-                            var otherCollapse = document.querySelector(otherTarget);
-                            if (otherCollapse && otherCollapse !== collapseEl) {
-                                var otherBsCollapse = bootstrap.Collapse.getOrCreateInstance(otherCollapse, {toggle: false});
-                                otherBsCollapse.hide();
-                            }
-                        });
-                        bsCollapse.show();
-                    }
-                });
-            }
-        });
-    });
-</script>
 {% endblock %}
