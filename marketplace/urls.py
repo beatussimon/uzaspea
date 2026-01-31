@@ -2,6 +2,7 @@ from django.urls import path, include
 from . import views
 
 urlpatterns = [
+    path('select-tier/', views.select_tier, name='select_tier'),
     path('', views.product_list, name='product_list'),
     path('register/', views.register, name='register'),
     # User Profile and related URLs
@@ -34,7 +35,7 @@ urlpatterns = [
     path('search/', views.search_results, name='search_results'),
     #path('search/ajax/', views.search_results_ajax, name='search_results_ajax'), #add ajax search
 
-    #Liking the product 
+    # Liking the product 
     path('like/<int:product_id>/', views.like_product, name='like_product'), # Add this line
-
+    path('subscription-tiers/', views.subscription_tiers, name='subscription_tiers'),  # New URL for subscription tiers
 ]

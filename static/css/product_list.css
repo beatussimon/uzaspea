@@ -45,6 +45,9 @@
 .filter-title {
     font-weight: 600;
     color: #343a40;
+    font-size: 0.98em;
+    letter-spacing: 0.01em;
+    margin-bottom: 0.25em;
 }
 
 .category-list, .subcategory-list, .condition-list {
