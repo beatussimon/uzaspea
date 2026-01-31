@@ -1,8 +1,61 @@
 from django.db import models
-from django.contrib.auth.models import User
 from django.urls import reverse
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
-from django.db.models import Avg
+from django.contrib.auth.models import User
+from django.conf import settings
+from django.utils import timezone
+
+class SubscriptionTier(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    benefits = models.TextField(help_text="Comma-separated list or HTML for display")
+    duration = models.PositiveIntegerField(help_text="Duration in days")
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.price})"
+
+class MobileNetwork(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    image = models.ImageField(upload_to='mobile-networks/')
+
+    def __str__(self):
+        return self.name
+
+class LipaNumber(models.Model):
+    network = models.ForeignKey(MobileNetwork, related_name='lipa_numbers', on_delete=models.CASCADE)
+    number = models.CharField(max_length=30)
+    name = models.CharField(max_length=50, help_text="Account or payee name")
+
+    def __str__(self):
+        return f"{self.network.name}: {self.number} ({self.name})"
+
+class Subscription(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='subscriptions')
+    tier = models.ForeignKey(SubscriptionTier, on_delete=models.PROTECT)
+    start_date = models.DateTimeField(null=True, blank=True)
+    end_date = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.tier.name} ({'Active' if self.is_active else 'Inactive'})"
+
+class PaymentConfirmation(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='payment_confirmations')
+    tier = models.ForeignKey(SubscriptionTier, on_delete=models.PROTECT)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    reference = models.CharField(max_length=100)
+    proof = models.ImageField(upload_to='payment_proofs/', blank=True, null=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.tier.name} ({self.status})"
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.text import slugify
@@ -263,3 +316,5 @@ class Like(models.Model):
 
      def __str__(self):
          return f'{self.user.username} likes {self.product.name}'
+
+# --- Subscription & Payment Models ---

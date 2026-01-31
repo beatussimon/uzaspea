@@ -1,70 +1,124 @@
 {% extends 'marketplace/base.html' %}
 {% load static %}
-{% block title %}Seller Verification & Subscription{% endblock %}
+{% load string_filters %}
+
+{% block title %}Choose Subscription Tier{% endblock %}
+
+{% block extra_css %}
+<style>
+/* --- Card hover animation --- */
+.card-hover {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+}
+.card-hover:hover {
+    transform: scale(1.05);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+
+/* --- Card body bigger --- */
+.card-body {
+    padding: 2rem;
+}
+
+/* --- Benefits list spacing --- */
+.card-body ul li {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+/* --- Current tier badge --- */
+.badge-current {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* --- Card headers bigger --- */
+.card-header h5 {
+    font-size: 1.25rem;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-    <h2 class="mb-4">Choose Your Seller Tier</h2>
-    <div class="row g-4">
-        <div class="col-md-6">
-            <div class="card border-success h-100">
-                <div class="card-header bg-success text-white d-flex align-items-center">
-                    <i class="bi bi-patch-check-fill me-2"></i>
-                    <span class="fs-5">Standard Seller</span>
+<div class="container py-5">
+    <h2 class="mb-4 text-center">Choose Your Subscription Tier</h2>
+
+    <p class="text-center fw-semibold mb-5">
+        After selecting your tier, you will be directed to the payment page with the available options.
+        Payment is manual via the numbers set by the admin in the backend.
+    </p>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {# --- Free / default tier --- #}
+        <div class="col">
+            <div class="card h-100 border-secondary shadow-sm card-hover">
+                <div class="card-header bg-secondary text-white text-center">
+                    <h5 class="mb-0">Free</h5>
                 </div>
-                <div class="card-body">
-                    <h4 class="card-title text-success">Affordable</h4>
+                <div class="card-body d-flex flex-column">
+                    <div class="mb-3 text-center">
+                        <p class="fw-bold mb-1">Price: Free</p>
+                        <p class="mb-0">Duration: Unlimited</p>
+                    </div>
+                    <h6 class="fw-semibold mb-2">Benefits:</h6>
                     <ul class="list-unstyled mb-3">
-                        <li><i class="bi bi-check-circle-fill text-success me-2"></i>Green verified badge</li>
-                        <li><i class="bi bi-arrow-up-circle text-success me-2"></i>Increased trust & visibility</li>
-                        <li><i class="bi bi-list-ul text-success me-2"></i>List more vehicles/spare parts</li>
-                        <li><i class="bi bi-search text-success me-2"></i>Appear higher in search results</li>
+                        <li>✔ Basic access</li>
+                        <li>❌ Verified badge</li>
+                        <li>❌ Priority offers</li>
+                        <li>❌ Featured placement</li>
                     </ul>
-                    <form method="post" action="{% url 'select_tier' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="tier" value="standard">
-                        <button type="submit" class="btn btn-success w-100">Choose Standard Seller</button>
-                    </form>
+
+                    {% if not user.subscription_tier %}
+                        <span class="badge bg-info text-dark w-100 text-center py-2 badge-current">Current Tier</span>
+                    {% else %}
+                        <a href="{% url 'subscription_choose_tier' %}" class="btn btn-secondary mt-auto w-100">
+                            Upgrade
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card border-warning h-100">
-                <div class="card-header bg-warning text-dark d-flex align-items-center">
-                    <i class="bi bi-patch-check-fill me-2" style="color:gold;"></i>
-                    <span class="fs-5">Premium Dealer</span>
+
+        {# --- Dynamic tiers --- #}
+        {% for tier in tiers %}
+        <div class="col">
+            <div class="card h-100 
+                        {% if tier.name|lower == 'premium' %}border-warning{% else %}border-primary{% endif %} 
+                        shadow-sm card-hover">
+                <div class="card-header 
+                            {% if tier.name|lower == 'premium' %}bg-warning text-dark{% else %}bg-primary text-white{% endif %} 
+                            text-center">
+                    <h5 class="mb-0">{{ tier.name|title }}</h5>
                 </div>
-                <div class="card-body">
-                    <h4 class="card-title text-warning">Premium</h4>
+                <div class="card-body d-flex flex-column">
+                    <div class="mb-3 text-center">
+                        <p class="fw-bold mb-1">Price: Tsh {{ tier.price }}</p>
+                        <p class="mb-0">Duration: {{ tier.duration }} days</p>
+                    </div>
+
+                    <h6 class="fw-semibold mb-2">Benefits:</h6>
                     <ul class="list-unstyled mb-3">
-                        <li><i class="bi bi-check-circle-fill text-warning me-2"></i>Gold verified badge</li>
-                        <li><i class="bi bi-star-fill text-warning me-2"></i>Maximum listing limits</li>
-                        <li><i class="bi bi-arrow-up-circle text-warning me-2"></i>Priority placement in search</li>
-                        <li><i class="bi bi-lightning-fill text-warning me-2"></i>Featured dealer highlight</li>
-                        <li><i class="bi bi-bar-chart-fill text-warning me-2"></i>Dealer analytics</li>
-                        <li><i class="bi bi-headset text-warning me-2"></i>Priority support</li>
+                        {% for benefit in tier.benefits|split:"," %}
+                            <li>✔ {{ benefit|trim }}</li>
+                        {% empty %}
+                            <li>No benefits listed</li>
+                        {% endfor %}
                     </ul>
-                    <form method="post" action="{% url 'select_tier' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="tier" value="premium">
-                        <button type="submit" class="btn btn-warning w-100">Choose Premium Dealer</button>
-                    </form>
+
+                    {# Dynamic current tier check #}
+                    {% if user.subscription_tier and user.subscription_tier.id == tier.id %}
+                        <span class="badge bg-info text-dark w-100 text-center py-2 badge-current">Current Tier</span>
+                    {% else %}
+                        <a href="{% url 'subscription_payment' %}?tier={{ tier.id }}" 
+                           class="btn {% if tier.name|lower == 'premium' %}btn-warning{% else %}btn-primary{% endif %} mt-auto w-100">
+                            Choose {{ tier.name|title }}
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
-    </div>
-    <div class="mt-5">
-        <h4>How to Pay (Lipa Namba)</h4>
-        <div class="d-flex align-items-center gap-3 mb-2">
-            <img src="{% static 'images/mpesa.png' %}" alt="M-Pesa" height="32">
-            <img src="{% static 'images/airtel.png' %}" alt="Airtel" height="32">
-            <img src="{% static 'images/tigo.png' %}" alt="Tigo" height="32">
-            <img src="{% static 'images/halopesa.png' %}" alt="HaloPesa" height="32">
-        </div>
-        <p class="mb-2">After choosing your tier, you will see payment instructions. Payment is manual/offline.</p>
-        <div class="alert alert-info">
-            <strong>After payment:</strong> Contact us to confirm and activate your verification. <br>
-            <span class="fw-bold">Your verification will be activated after you contact us to confirm payment.</span>
-        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

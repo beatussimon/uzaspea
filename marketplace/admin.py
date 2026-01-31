@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import UserProfile, Product, Category, Review, Order, OrderItem, SidebarOffer, SidebarNewsItem, Subscription, Like, Follow, ProductImage
+from .models import UserProfile, Product, Category, Review, Order, OrderItem, SidebarOffer, SidebarNewsItem, Subscription, Like, Follow, ProductImage, SubscriptionTier, MobileNetwork, LipaNumber
 from django.utils.html import format_html
 
 # Unregister the default User admin to avoid AlreadyRegistered exception
@@ -14,11 +14,13 @@ class UserProfileInline(admin.StackedInline):
     fields = ('phone_number', 'is_verified', 'tier', 'profile_picture', 'bio', 'location', 'instagram_username', 'website')
     readonly_fields = ('image_preview',)
 
+    @admin.display(description="Image")
     def image_preview(self, obj):
-        if obj.profile_picture:
-            return format_html('<img src="{}" width="150" height="auto" />', obj.profile_picture.url)
+        first_image = obj.get_first_image()  # <-- corrected: obj, not obj.product
+        if first_image:
+            return format_html('<img src="{}" width="50" height="auto" />', first_image.url)
         return "No Image"
-    image_preview.short_description = 'Profile Picture Preview'
+
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
@@ -29,21 +31,20 @@ class UserAdmin(BaseUserAdmin):
     ordering = ('username',)
     readonly_fields = ('last_login', 'date_joined')
 
+    @admin.display(boolean=True, description='Verified')
     def get_is_verified(self, obj):
         return obj.profile.is_verified
-    get_is_verified.short_description = 'Verified'
-    get_is_verified.boolean = True  # Displays as a green checkmark or red cross in the admin
 
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 1
     readonly_fields = ('image_preview',)
 
+    @admin.display(description='Image Preview')
     def image_preview(self, obj):
         if obj.image:
             return format_html('<img src="{}" width="100" height="auto" />', obj.image.url)
         return "No Image"
-    image_preview.short_description = 'Image Preview'
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
@@ -51,20 +52,21 @@ class OrderItemInline(admin.TabularInline):
     raw_id_fields = ('product',)
     readonly_fields = ('subtotal', 'product_name', 'product_price', 'product_image')
 
+    @admin.display(description='Product Name')
     def product_name(self, obj):
         return obj.product.name
-    product_name.short_description = 'Product Name'
 
+    @admin.display(description='Price')
     def product_price(self, obj):
         return obj.product.price
-    product_price.short_description = 'Price'
 
+    @admin.display(description='Image')
     def product_image(self, obj):
         first_image = obj.product.get_first_image()
         if first_image:
             return format_html('<img src="{}" width="50" height="auto" />', first_image.url)
         return "No Image"
-    product_image.short_description = 'Image'
+
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -79,13 +81,14 @@ class ProductAdmin(admin.ModelAdmin):
     inlines = [ProductImageInline]
     list_per_page = 20
 
+    @admin.display(description='Image')  # <-- replaces .short_description
     def image_preview(self, obj):
         first_image = obj.product.get_first_image()
         if first_image:
             return format_html('<img src="{}" width="50" height="auto" />', first_image.url)
         return 'No Image'
 
-    image_preview.short_description = 'Image'
+
     fieldsets = (
         (None, {
             'fields': ('name', 'slug', 'description', 'price', 'stock', 'category', 'seller', 'is_available', 'condition')
@@ -114,9 +117,9 @@ class ReviewAdmin(admin.ModelAdmin):
     actions = ['approve_reviews']
     list_per_page = 20
 
+    @admin.action(description="Mark selected reviews as approved")
     def approve_reviews(self, request, queryset):
         queryset.update(approved=True)
-    approve_reviews.short_description = "Mark selected reviews as approved"
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
@@ -136,11 +139,11 @@ class OrderAdmin(admin.ModelAdmin):
         }),
     )
 
+    @admin.display(description='Shipping Address')
     def shipping_address_display(self, obj):
         if obj.shipping_address:
             return f"{obj.shipping_address.address_line_1}, {obj.shipping_address.city}"
         return "-"
-    shipping_address_display.short_description = 'Shipping Address'
 
 @admin.register(SidebarOffer)
 class SidebarOfferAdmin(admin.ModelAdmin):
@@ -149,11 +152,12 @@ class SidebarOfferAdmin(admin.ModelAdmin):
     search_fields = ('title', 'description')
     readonly_fields = ('image_preview',)
 
+    @admin.display(description='Image Preview')
     def image_preview(self, obj):
         if obj.image:
             return format_html('<img src="{}" width="100" height="auto" />', obj.image.url)
         return "No Image"
-    image_preview.short_description = 'Image Preview'
+
 
 @admin.register(SidebarNewsItem)
 class SidebarNewsItemAdmin(admin.ModelAdmin):
@@ -162,11 +166,12 @@ class SidebarNewsItemAdmin(admin.ModelAdmin):
     search_fields = ('title', 'content')
     readonly_fields = ('pub_date', 'image_preview')
 
+    @admin.display(description='Image Preview')
     def image_preview(self, obj):
         if obj.image:
             return format_html('<img src="{}" width="100" height="auto" />', obj.image.url)
         return "No Image"
-    image_preview.short_description = 'Image Preview'
+
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
@@ -188,3 +193,35 @@ class FollowAdmin(admin.ModelAdmin):
     list_filter = ('follower', 'following', 'created_at')
     search_fields = ('follower__username', 'following__username')
     raw_id_fields = ('follower', 'following')
+
+# --- Subscription & Payment Admin ---
+
+class LipaNumberInline(admin.TabularInline):
+    model = LipaNumber
+    extra = 1
+
+@admin.register(MobileNetwork)
+class MobileNetworkAdmin(admin.ModelAdmin):
+    list_display = ("name", "image_tag")
+    inlines = [LipaNumberInline]
+    readonly_fields = ("image_tag",)
+
+    @admin.display(description="Image Preview")
+    def image_tag(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height:40px;max-width:80px;object-fit:contain;" />', 
+                obj.image.url
+            )
+        return "-"
+
+
+@admin.register(SubscriptionTier)
+class SubscriptionTierAdmin(admin.ModelAdmin):
+    list_display = ("name", "price")
+    search_fields = ("name",)
+
+@admin.register(LipaNumber)
+class LipaNumberAdmin(admin.ModelAdmin):
+    list_display = ("network", "number")
+    search_fields = ("number", "network__name")
