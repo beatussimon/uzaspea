@@ -9,6 +9,20 @@ from django.utils.text import slugify
 
 
 class Category(models.Model):
+    def get_descendants(self, include_self=False):
+        """
+        Returns a queryset of all descendant categories (children, grandchildren, etc.).
+        If include_self is True, includes the current category as well.
+        """
+        descendants = set()
+        def add_children(cat):
+            for child in cat.children.all():
+                descendants.add(child)
+                add_children(child)
+        add_children(self)
+        if include_self:
+            descendants.add(self)
+        return Category.objects.filter(id__in=[c.id for c in descendants])
     name = models.CharField(max_length=255, unique=True)
     slug = models.SlugField(unique=True, blank=True)
     description = models.TextField(blank=True)
