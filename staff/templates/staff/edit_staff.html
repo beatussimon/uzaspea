@@ -1,0 +1,30 @@
+{% extends "staff/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block page_title %}Edit Staff - Staff Management{% endblock %}
+
+{% block staff_content %}
+<div class="staff-card" style="max-width: 600px; margin: 0 auto;">
+    <div class="staff-card-header">
+        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-user-edit me-2"></i>Edit Staff: {{ profile.user.username }}
+        </h3>
+    </div>
+    <div class="staff-card-body">
+        <form method="post">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <div class="staff-btn-group staff-mt-3">
+                <button type="submit" class="staff-btn staff-btn-primary">
+                    <i class="fas fa-save"></i>
+                    Save Changes
+                </button>
+                <a href="{% url 'staff:manage_staff' %}" class="staff-btn staff-btn-secondary">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

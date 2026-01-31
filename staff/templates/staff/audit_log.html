@@ -1,0 +1,65 @@
+{% extends "staff/base.html" %}
+
+{% block page_title %}Audit Log - Staff Management{% endblock %}
+
+{% block staff_content %}
+<div class="staff-card">
+    <div class="staff-card-header">
+        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-history me-2"></i>Audit Log
+        </h3>
+        <form method="get" class="staff-btn-group">
+            <select name="action" class="staff-form-control" style="width: auto;">
+                <option value="">All Actions</option>
+                {% for value, label in action_choices %}
+                <option value="{{ value }}" {% if request.GET.action == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="staff-btn staff-btn-primary">
+                <i class="fas fa-filter"></i>
+                Filter
+            </button>
+            <a href="{% url 'staff:audit_log' %}" class="staff-btn staff-btn-secondary">
+                <i class="fas fa-times"></i>
+                Clear
+            </a>
+        </form>
+    </div>
+    <div class="staff-card-body" style="padding: 0;">
+        {% if logs %}
+            <div class="staff-table-wrapper">
+                <table class="staff-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Description</th>
+                            <th>Target</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td class="staff-text-small">{{ log.timestamp|date:"M d, Y H:i:s" }}</td>
+                            <td>{{ log.user|default:"<span class='staff-text-muted'>System</span>" }}</td>
+                            <td>{{ log.get_action_display }}</td>
+                            <td class="staff-text-small">{{ log.description|truncatewords:8 }}</td>
+                            <td class="staff-text-small">{{ log.target_user|default:"-"|truncatechars:15 }}</td>
+                            <td class="staff-text-small staff-text-muted">{{ log.ip_address|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="staff-empty">
+                <i class="fas fa-history"></i>
+                <h5>No Logs Found</h5>
+                <p>System activity will appear here.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

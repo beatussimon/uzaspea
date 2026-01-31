@@ -1,0 +1,115 @@
+{% extends "staff/base.html" %}
+
+{% block page_title %}View Task - Staff Management{% endblock %}
+
+{% block staff_content %}
+<div class="staff-card">
+    <div class="staff-card-header">
+        <div>
+            <h3 class="staff-heading staff-heading-4" style="margin: 0;">{{ task.title }}</h3>
+            <div class="staff-btn-group staff-mt-1">
+                <span class="staff-badge staff-badge-{% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}primary{% elif task.status == 'pending' %}warning{% else %}info{% endif %}">
+                    {{ task.get_status_display }}
+                </span>
+                <span class="staff-badge staff-badge-{% if task.priority == 'urgent' %}danger{% elif task.priority == 'high' %}warning{% elif task.priority == 'medium' %}info{% else %}success{% endif %}">
+                    {{ task.get_priority_display }} Priority
+                </span>
+            </div>
+        </div>
+        <a href="{% url 'staff:edit_task' task.id %}" class="staff-btn staff-btn-primary">
+            <i class="fas fa-edit"></i>
+            Edit
+        </a>
+    </div>
+    <div class="staff-card-body">
+        <div class="staff-grid staff-grid-2 staff-mb-3">
+            <div>
+                <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Category</div>
+                <div style="font-weight: 500;">{{ task.category|default:"-" }}</div>
+            </div>
+            <div>
+                <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Assigned To</div>
+                <div style="font-weight: 500;">{{ task.assigned_to|default:"Unassigned" }}</div>
+            </div>
+            <div>
+                <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Created By</div>
+                <div style="font-weight: 500;">{{ task.created_by.username }}</div>
+            </div>
+            <div>
+                <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Due Date</div>
+                <div style="font-weight: 500;">{% if task.due_date %}{{ task.due_date|date:"M d, Y H:i" }}{% else %}No due date{% endif %}</div>
+            </div>
+        </div>
+        
+        <div class="staff-mb-3">
+            <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Description</div>
+            <p style="margin: 0;">{{ task.description }}</p>
+        </div>
+        
+        <div class="staff-mb-3">
+            <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Timeline</div>
+            <div class="staff-grid staff-grid-3">
+                <div>
+                    <div class="staff-text staff-text-small staff-text-muted">Created</div>
+                    <div style="font-weight: 500;">{{ task.created_at|date:"M d, Y H:i" }}</div>
+                </div>
+                <div>
+                    <div class="staff-text staff-text-small staff-text-muted">Last Updated</div>
+                    <div style="font-weight: 500;">{{ task.updated_at|date:"M d, Y H:i" }}</div>
+                </div>
+                <div>
+                    <div class="staff-text staff-text-small staff-text-muted">Completed</div>
+                    <div style="font-weight: 500;">{{ task.completed_at|date:"M d, Y H:i"|default:"-" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions History -->
+<div class="staff-card">
+    <div class="staff-card-header">
+        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-history me-2"></i>Actions History
+        </h3>
+    </div>
+    <div class="staff-card-body" style="padding: 0;">
+        {% if actions %}
+            <div class="staff-table-wrapper">
+                <table class="staff-table">
+                    <thead>
+                        <tr>
+                            <th>Performed By</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for action in actions %}
+                        <tr>
+                            <td>{{ action.performed_by.username }}</td>
+                            <td>{{ action.get_action_type_display }}</td>
+                            <td>{{ action.description }}</td>
+                            <td>
+                                <span class="staff-badge staff-badge-{% if action.status == 'approved' %}success{% elif action.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                    {{ action.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="staff-text-small">{{ action.performed_at|date:"M d, H:i" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="staff-empty">
+                <i class="fas fa-history"></i>
+                <h5>No Actions Yet</h5>
+                <p>Actions performed on this task will appear here.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
