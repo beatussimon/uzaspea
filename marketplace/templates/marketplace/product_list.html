@@ -22,91 +22,92 @@
         <!-- Left Sidebar (Filter Sidebar) -->
         <div class="col-lg-2 col-md-3 mb-4 order-2 filter-sidebar d-lg-block">
             <aside id="filterCollapse" class="collapse d-lg-block">
-                <div class="card filter-group mb-4">
-                    <div class="card-header filter-header">
-                        <h6 class="filter-title mb-0">Categories</h6>
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-unstyled category-list">
-                            <li class="category-item {% if not selected_category %}active{% endif %}">
-                                <a href="{% url 'product_list' %}" class="category-link">All Categories</a>
-                            </li>
-                            {% for category in categories %}
-                                <li class="category-item {% if selected_category == category %}active{% endif %}">
-                                    <a href="{{ category.get_absolute_url }}" class="category-link">{{ category.name }}</a>
-                                    {% if category.children.all %}
-                                        <ul class="mt-2 subcategory-list">
+                <nav class="category-nav mb-3">
+                    <div class="category-title px-2 pt-2 pb-1 fw-bold text-uppercase small" style="letter-spacing:1.2px; font-size:1em; border-bottom:1px solid #e9ecef; background:transparent; color:#222;">Product Categories</div>
+                    <ul class="category-list nav flex-column mb-2" style="overflow-x:hidden;">
+                        <li class="nav-item category-item {% if not selected_category %}active{% endif %}" style="border-radius:4px;">
+                            <a href="{% url 'product_list' %}" class="nav-link category-link d-flex align-items-center px-2 py-1 fw-semibold text-dark" style="background: none;">
+                                <i class="bi bi-grid me-2"></i> <span>All</span>
+                            </a>
+                        </li>
+                        {% for category in categories %}
+                            <li class="nav-item category-item {% if selected_category == category %}active{% endif %}" style="border-radius:4px;">
+                                <div class="d-flex align-items-center px-2 py-1">
+                                    <div class="d-flex align-items-center w-100">
+                                        <a href="{{ category.get_absolute_url }}" class="nav-link category-link flex-grow-1 fw-normal text-dark d-flex align-items-center" style="font-size:0.98em; white-space:normal; overflow:hidden; text-overflow:ellipsis;">
+                                            <i class="bi bi-folder2-open me-2" style="color:#888;"></i>
+                                            <span class="flex-shrink-1 category-name-text" style="min-width:0;">{{ category.name }}</span>
+                                        </a>
+                                        {% if category.children.all %}
+                                            <button class="btn btn-link btn-sm p-0 ms-1 category-chevron-btn" type="button" data-bs-toggle="collapse" data-bs-target="#cat-{{ category.id }}-sub" aria-expanded="false" aria-controls="cat-{{ category.id }}-sub" tabindex="-1" style="color:#888; align-items:center;" onclick="event.preventDefault(); event.stopPropagation();">
+                                                <span style="display:inline-flex; align-items:center;">
+                                                    <i class="bi bi-chevron-down small category-chevron" id="chevron-{{ category.id }}"></i>
+                                                </span>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if category.children.all %}
+                                    <div class="collapse{% for subcategory in category.children.all %}{% if selected_category == subcategory %} show{% endif %}{% endfor %}" id="cat-{{ category.id }}-sub" data-bs-parent=".category-list">
+                                        <ul class="subcategory-list nav flex-column ps-3 mb-1">
                                             {% for subcategory in category.children.all %}
-                                                <li class="subcategory-item">
-                                                    <a href="{{ subcategory.get_absolute_url }}" class="subcategory-link">{{ subcategory.name }}</a>
+                                                <li class="nav-item subcategory-item" style="border-radius:3px;">
+                                                    <span class="d-flex align-items-center w-100">
+                                                        <i class="bi bi-chevron-right small me-1 subcategory-chevron" style="color:#bbb; min-width:18px;"></i>
+                                                        <a href="{{ subcategory.get_absolute_url }}" class="nav-link subcategory-link flex-grow-1 text-dark" style="font-size:0.96em; min-width:0; white-space:normal; overflow:hidden; text-overflow:ellipsis;">
+                                                            <span class="flex-shrink-1 category-name-text" style="min-width:0;">{{ subcategory.name }}</span>
+                                                        </a>
+                                                    </span>
                                                 </li>
                                             {% endfor %}
                                         </ul>
-                                    {% endif %}
-                                </li>
-                            {% endfor %}
-                        </ul>
+                                    </div>
+                                {% endif %}
+                            <style>
+                                .rotate-180 { transform: rotate(180deg); transition: transform 0.2s; }
+                                .category-chevron { font-size: 1.1em; transition: transform 0.2s; }
+                                .category-name-text { display: inline-block; max-width: 140px; white-space: normal; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+                                .category-chevron-btn { min-width: 24px; min-height: 24px; }
+                            </style>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </nav>
+                <form method="get" action="{% url 'product_list' %}" class="filter-form px-2">
+                    <div class="row g-1 mb-2 align-items-center">
+                        <div class="col-5">
+                            <input type="number" class="form-control form-control-sm w-100" id="min_price" name="min_price" value="{{ min_price }}" min="0" placeholder="Min" style="background:#f8f9fa;">
+                        </div>
+                        <div class="col-2 d-flex align-items-center justify-content-center px-0">
+                            <span class="mx-1 text-muted">-</span>
+                        </div>
+                        <div class="col-5">
+                            <input type="number" class="form-control form-control-sm w-100" id="max_price" name="max_price" value="{{ max_price }}" min="0" placeholder="Max" style="background:#f8f9fa;">
+                        </div>
                     </div>
-                </div>
-
-                <div class="card filter-group mb-4">
-                    <div class="card-header filter-header">
-                        <h6 class="filter-title mb-0">Price Range</h6>
-                    </div>
-                    <div class="card-body">
-                        <form method="get" action="{% url 'product_list' %}" class="filter-form">
-                            <div class="mb-3">
-                                <label for="min_price" class="form-label">Min Price:</label>
-                                <input type="number" class="form-control" id="min_price" name="min_price" value="{{ min_price }}" min="0" placeholder="Min">
-                            </div>
-                            <div class="mb-3">
-                                <label for="max_price" class="form-label">Max Price:</label>
-                                <input type="number" class="form-control" id="max_price" name="max_price" value="{{ max_price }}" min="0" placeholder="Max">
-                            </div>
-                            <button type="submit" class="btn btn-primary btn-filter">Filter</button>
-                            <a href="{% url 'product_list' %}" class="btn btn-secondary btn-clear">Clear</a>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="card filter-group mb-4">
-                    <div class="card-header filter-header">
-                        <h6 class="filter-title mb-0">Sort By</h6>
-                    </div>
-                    <div class="card-body">
-                        <form method="get" action="{% url 'product_list' %}" class="filter-form">
-                            <select class="form-select sort-select" name="sort_by" onchange="this.form.submit()">
+                    <div class="row g-1 mb-2 align-items-center">
+                        <div class="col-6">
+                            <select class="form-select form-select-sm w-100" name="condition" style="background:#f8f9fa;">
+                                <option value="" {% if not condition %}selected{% endif %}>All</option>
+                                <option value="New" {% if condition == 'New' %}selected{% endif %}>New</option>
+                                <option value="Used" {% if condition == 'Used' %}selected{% endif %}>Used</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select form-select-sm w-100" name="sort_by" onchange="this.form.submit()" style="background:#f8f9fa;">
                                 <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>Newest</option>
-                                <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Price (Low to High)</option>
-                                <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Price (High to Low)</option>
+                                <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Price ↑</option>
+                                <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Price ↓</option>
                                 <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Rating</option>
                             </select>
-                            <input type="hidden" name="category" value="{{ selected_category_slug }}">
-                            <input type="hidden" name="min_price" value="{{ min_price }}">
-                            <input type="hidden" name="max_price" value="{{ max_price }}">
-                            <input type="hidden" name="condition" value="{{ condition }}">
-                        </form>
+                        </div>
                     </div>
-                </div>
-
-                <div class="card filter-group mb-4">
-                    <div class="card-header filter-header">
-                        <h6 class="filter-title mb-0">Condition</h6>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1" style="font-weight:500;">Apply</button>
+                        <a href="{% url 'product_list' %}" class="btn btn-secondary btn-sm flex-grow-1" style="font-weight:500;">Clear</a>
                     </div>
-                    <div class="card-body">
-                        <ul class="list-unstyled condition-list">
-                            <li class="condition-item {% if not condition %}active{% endif %}">
-                                <a href="{% url 'product_list' %}" class="condition-link">All Conditions</a>
-                            </li>
-                            <li class="condition-item {% if condition == 'New' %}active{% endif %}">
-                                <a href="{% url 'product_list' %}?condition=New" class="condition-link">New</a>
-                            </li>
-                            <li class="condition-item {% if condition == 'Used' %}active{% endif %}">
-                                <a href="{% url 'product_list' %}?condition=Used" class="condition-link">Used</a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+                    <input type="hidden" name="category" value="{{ selected_category_slug }}">
+                </form>
             </aside>
         </div>
 
@@ -180,24 +181,29 @@
                 </div>
                 <p class="loading-message">Loading more products...</p>
             </div>
+            <div id="end-of-scroll-message" class="mt-4 text-center alert alert-info" style="display: none; position:sticky; bottom:0; z-index:10;">
+                <i class="bi bi-check-circle me-2"></i>You've reached the end of the product list.
+            </div>
         </div>
 
         <!-- Right Sidebar -->
         <div class="col-lg-2 col-md-3 order-md-3 order-1 right-sidebar d-lg-block">
             <div id="rightCollapse" class="collapse d-lg-block sidebar-content">
-                <div class="card mb-4">
-                    <div class="card-header">Subscribe to Newsletter</div>
-                    <div class="card-body">
-                        <p class="small text-muted">Get the latest updates and offers.</p>
-                        <form method="post" action="{% url 'product_list' %}">
-                            {% csrf_token %}
-                            <div class="mb-3">
-                                {{ subscription_form|crispy }}
-                            </div>
-                            <button type="submit" class="btn btn-outline-primary" name="subscribe_submit">Subscribe</button>
-                        </form>
+                {% if not user.is_authenticated %}
+                    <div class="card mb-4">
+                        <div class="card-header">Subscribe to Newsletter</div>
+                        <div class="card-body">
+                            <p class="small text-muted">Get the latest updates and offers.</p>
+                            <form method="post" action="{% url 'product_list' %}">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    {{ subscription_form|crispy }}
+                                </div>
+                                <button type="submit" class="btn btn-outline-primary" name="subscribe_submit">Subscribe</button>
+                            </form>
+                        </div>
                     </div>
-                </div>
+                {% endif %}
                 <div class="card mb-4">
                     <div class="card-header">Follow Us</div>
                     <div class="card-body">
@@ -210,45 +216,41 @@
                         </div>
                     </div>
                 </div>
-                {% if offers %}
-                <div class="card mb-4">
-                    <div class="card-header">Special Offers</div>
-                    <div class="card-body">
+                {% if offers and offers|length > 0 %}
+                <div class="card mb-4" style="font-size:0.92em;">
+                    <div class="card-header" style="font-size:1em;">Special Offers</div>
+                    <div class="card-body p-2">
                         <ul class="list-group list-group-flush">
                             {% for offer in offers %}
-                                <li class="list-group-item">
+                                <li class="list-group-item p-2">
                                     {% if offer.image %}
-                                        <img loading="lazy" src="{{offer.image.url}}" class="img-fluid mb-2" alt="{{offer.title}}">
+                                        <img loading="lazy" src="{{offer.image.url}}" class="img-fluid mb-2" alt="{{offer.title}}" style="max-height:70px;object-fit:cover;">
                                     {% endif %}
-                                    <h5>{{ offer.title }}</h5>
-                                    <p>{{ offer.description|truncatewords:20 }}</p>
+                                    <h6 class="mb-1" style="font-size:1em;">{{ offer.title }}</h6>
+                                    <p class="mb-1" style="font-size:0.95em;line-height:1.3;">{{ offer.description|truncatewords:20 }}</p>
                                     {% if offer.link %}
-                                        <a href="{{ offer.link }}" class="btn btn-sm btn-outline-primary">{{ offer.button_text }}</a>
+                                        <a href="{{ offer.link }}" class="btn btn-xs btn-outline-primary" style="font-size:0.85em;padding:2px 8px;">{{ offer.button_text }}</a>
                                     {% endif %}
                                 </li>
-                            {% empty %}
-                                <li class="list-group-item">No offers at the moment.</li>
                             {% endfor %}
                         </ul>
                     </div>
                 </div>
                 {% endif %}
-                {% if news_items %}
-                <div class="card mb-4">
-                    <div class="card-header">Latest News</div>
-                    <div class="card-body">
+                {% if news_items and news_items|length > 0 %}
+                <div class="card mb-4" style="font-size:0.92em;">
+                    <div class="card-header" style="font-size:1em;">Latest News</div>
+                    <div class="card-body p-2">
                         <ul class="list-group list-group-flush">
                             {% for item in news_items %}
-                                <li class="list-group-item">
-                                    <h5>{{ item.title }}</h5>
-                                    <p class="small text-muted">{{item.pub_date|date:"F j, Y"}}</p>
-                                    <p>{{ item.content|truncatewords:25 }}</p>
+                                <li class="list-group-item p-2">
+                                    <h6 class="mb-1" style="font-size:1em;">{{ item.title }}</h6>
+                                    <p class="small text-muted mb-1">{{item.pub_date|date:"F j, Y"}}</p>
+                                    <p class="mb-1" style="font-size:0.95em;line-height:1.3;">{{ item.content|truncatewords:25 }}</p>
                                     {% if item.link %}
-                                        <a href="{{item.link}}" class="btn btn-sm btn-outline-secondary">Read More</a>
+                                        <a href="{{item.link}}" class="btn btn-xs btn-outline-secondary" style="font-size:0.85em;padding:2px 8px;">Read More</a>
                                     {% endif %}
                                 </li>
-                            {% empty %}
-                                <li class="list-group-item">No News at the moment</li>
                             {% endfor %}
                         </ul>
                     </div>
@@ -260,9 +262,12 @@
 </div>
 {% endblock %}
 
+// ...existing code...
 {% block extra_js %}
+{{ block.super }}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Infinite scroll and image zoom (existing code)
         let loading = false;
         let page = 2;
         const productContainer = document.getElementById('product-container');
@@ -287,6 +292,7 @@
                 if (!response.ok) {
                     if (response.status === 404) {
                         noMoreProducts = true;
+                        document.getElementById('end-of-scroll-message').style.display = 'block';
                         throw new Error('No more products');
                     }
                     throw new Error('Network response was not ok');
@@ -303,6 +309,9 @@
                 enableImageZoom();
             })
             .catch(error => {
+                if (noMoreProducts) {
+                    document.getElementById('end-of-scroll-message').style.display = 'block';
+                }
                 console.error('Error:', error);
             })
             .finally(() => {
@@ -336,6 +345,52 @@
             });
         }
         enableImageZoom();
+
+        // Sidebar dropdowns: use Bootstrap's collapse API for reliability
+        document.querySelectorAll('.category-chevron-btn').forEach(function(btn) {
+            var target = btn.getAttribute('data-bs-target');
+            var chevron = btn.querySelector('.category-chevron');
+            var collapseEl = document.querySelector(target);
+            if (collapseEl && chevron) {
+                // Set initial state
+                if (collapseEl.classList.contains('show')) {
+                    chevron.classList.add('rotate-180');
+                    btn.setAttribute('aria-expanded', 'true');
+                } else {
+                    chevron.classList.remove('rotate-180');
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+                // Listen for Bootstrap collapse events
+                collapseEl.addEventListener('show.bs.collapse', function() {
+                    chevron.classList.add('rotate-180');
+                    btn.setAttribute('aria-expanded', 'true');
+                });
+                collapseEl.addEventListener('hide.bs.collapse', function() {
+                    chevron.classList.remove('rotate-180');
+                    btn.setAttribute('aria-expanded', 'false');
+                });
+                // Click handler: use Bootstrap's API
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, {toggle: false});
+                    if (collapseEl.classList.contains('show')) {
+                        bsCollapse.hide();
+                    } else {
+                        // Close all others
+                        document.querySelectorAll('.category-chevron-btn').forEach(function(otherBtn) {
+                            var otherTarget = otherBtn.getAttribute('data-bs-target');
+                            var otherCollapse = document.querySelector(otherTarget);
+                            if (otherCollapse && otherCollapse !== collapseEl) {
+                                var otherBsCollapse = bootstrap.Collapse.getOrCreateInstance(otherCollapse, {toggle: false});
+                                otherBsCollapse.hide();
+                            }
+                        });
+                        bsCollapse.show();
+                    }
+                });
+            }
+        });
     });
 </script>
 {% endblock %}
