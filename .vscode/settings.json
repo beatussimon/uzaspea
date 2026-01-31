@@ -1,0 +1,16 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^python3 manage\\.py shell < assign_network_images\\.py$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^source uzaspeavenv/bin/activate && python3 manage\\.py shell < assign_network_images\\.py$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^source uzaspeavenv/bin/activate && python3 manage\\.py shell$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

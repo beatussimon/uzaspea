@@ -1,14 +1,15 @@
 from django.urls import path, include
 from . import views
+from .views import subscription_payment_view, follow_user, subscription_choose_tier
 
 urlpatterns = [
-    path('select-tier/', views.select_tier, name='select_tier'),
+    # path('select-tier/', views.select_tier, name='select_tier'), # Removed: view does not exist
     path('', views.product_list, name='product_list'),
     path('register/', views.register, name='register'),
     # User Profile and related URLs
     path('user/<str:username>/', views.user_profile, name='user_profile'),  # For viewing ANY user's profile
     path('profile/edit/', views.edit_profile, name='edit_profile'),  # For editing the CURRENT user's profile
-    path('follow/', views.follow_user, name='follow_user'), #keep this line for follow user.
+    path('follow/', follow_user, name='follow_user'), #keep this line for follow user.
     path('dashboard/', views.dashboard, name='dashboard'),
 
     # Product related URLs
@@ -37,5 +38,11 @@ urlpatterns = [
 
     # Liking the product 
     path('like/<int:product_id>/', views.like_product, name='like_product'), # Add this line
-    path('subscription-tiers/', views.subscription_tiers, name='subscription_tiers'),  # New URL for subscription tiers
+    # path('subscription-tiers/', views.subscription_tiers, name='subscription_tiers'),  # Removed: view does not exist
+
+    # Subscription system (clean user-facing flow)
+    path('subscription/upgrade/', views.subscription_choose_tier, name='subscription_choose_tier'),
+    path('subscription/payment/', views.subscription_payment_view, name='subscription_payment'),
+    path('subscription/confirm/', views.subscription_confirm_payment, name='subscription_confirm_payment'),
+    path('subscription/status/', views.subscription_status, name='subscription_status'),
 ]

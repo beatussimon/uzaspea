@@ -1,47 +1,43 @@
-from django.contrib import messages
-from django.shortcuts import redirect
-def select_tier(request):
-    if not request.user.is_authenticated:
-        messages.error(request, "You must be logged in to select a tier.")
-        return redirect('subscription_tiers')
-    profile = request.user.profile
-    if profile.is_verified:
-        messages.info(request, "You are already verified.")
-        return redirect('product_list')
-    if request.method == "POST":
-        tier = request.POST.get('tier')
-        if tier in ['standard', 'premium']:
-            profile.tier = tier
-            profile.save()
-            messages.success(request, f"Tier selected: {tier.capitalize()}. Please pay via Lipa Namba and contact us to activate verification.")
-            return redirect('subscription_tiers')
-        else:
-            messages.error(request, "Invalid tier selection.")
-            return redirect('subscription_tiers')
-    return redirect('subscription_tiers')
-from django.shortcuts import render
-def subscription_tiers(request):
-    return render(request, 'marketplace/subscription_tiers.html')
-from django.shortcuts import render, get_object_or_404, redirect
-from .models import Product, Category, Review, Order, OrderItem, UserProfile, ProductImage, SidebarOffer, SidebarNewsItem, Subscription, Follow, Like
-from .forms import ProductForm, ReviewForm, UserRegistrationForm, ProductImageFormSet, ReplyForm, SubscriptionForm
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import MobileNetwork, SubscriptionTier, LipaNumber, Subscription, PaymentConfirmation
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q, Avg
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
-from .utils import send_order_confirmation_email
-from django.db import transaction
-from django.forms import inlineformset_factory
+from django.template.loader import render_to_string
+from django.contrib.auth import get_user_model, login
 from django.views.decorators.http import require_POST, require_GET
-from django.contrib.auth import login, get_user_model
-from django.urls import reverse
-from django.template.loader import render_to_string  # Import
-from django.contrib.auth import get_user_model  
-from .models import Product, Order, UserProfile
-from .forms import ProfileUpdateForm
 import logging
+from .models import Product, Category, Review, Like, Order, OrderItem, ProductImage, SidebarOffer, SidebarNewsItem, UserProfile, Follow
+from .forms import ProductForm, ProductImageFormSet, ReviewForm, ReplyForm, SubscriptionForm, ProfileUpdateForm, UserRegistrationForm
+from django.db import transaction
+from .utils import send_order_confirmation_email
 
+@login_required
+def subscription_choose_tier(request):
+    tiers = SubscriptionTier.objects.filter(is_active=True)
+    return render(request, 'marketplace/subscription_tiers.html', {'tiers': tiers})
+
+@login_required
+def subscription_payment_view(request):
+    tier_id = request.GET.get('tier')
+    tier = get_object_or_404(SubscriptionTier, pk=tier_id, is_active=True)
+    networks = MobileNetwork.objects.prefetch_related('lipa_numbers').all()
+    return render(request, 'marketplace/subscription_payment.html', {'tier': tier, 'networks': networks})
+
+@login_required
+def subscription_confirm_payment(request):
+    # Implement payment confirmation logic here
+    return render(request, 'marketplace/subscription_confirm_payment.html')
+
+@login_required
+def subscription_status(request):
+    # Implement status logic here
+    return render(request, 'marketplace/subscription_status.html')
+
+from django.shortcuts import render
 def product_list(request):
     products = Product.objects.filter(is_available=True).annotate(avg_rating=Avg('reviews__rating'))
 
@@ -163,12 +159,19 @@ def product_list(request):
 
 def product_detail(request, slug):
     product = get_object_or_404(Product, slug=slug)
-    images = product.images.all()  # Correctly get all images
-    reviews = product.reviews.filter(parent__isnull=True)  # Fetch top-level reviews
+    images = getattr(product, 'images', None)
+    if images is not None:
+        images = images.all()
+    else:
+        images = []
+    reviews = getattr(product, 'reviews', None)
+    if reviews is not None:
+        reviews = reviews.filter(parent__isnull=True)
+    else:
+        reviews = []
     related_products = Product.objects.filter(category=product.category).exclude(pk=product.pk)[:4]
     review_form = ReviewForm()
     reply_form = ReplyForm()
-    # Check if the user has already reviewed the product.
     has_reviewed = False
     if request.user.is_authenticated:
          has_reviewed = Review.objects.filter(product=product, user=request.user).exists()
@@ -324,38 +327,54 @@ def register(request):
 @login_required
 def user_profile(request, username):
     User = get_user_model()
-    profile_user = get_object_or_404(User, username=username)  # The user whose profile is being viewed
-
+    profile_user = get_object_or_404(User, username=username)
     try:
-        user_profile = profile_user.profile
-    except UserProfile.DoesNotExist:
+        user_profile = getattr(profile_user, 'profile', None)
+        if user_profile is None:
+            return HttpResponse("Profile not found", status=404)
+    except Exception:
         return HttpResponse("Profile not found", status=404)
-
     user_products = Product.objects.filter(seller=profile_user, is_available=True)
-    # Orders, only if looking at own profile.
     if request.user == profile_user:
         user_orders = Order.objects.filter(user=profile_user).order_by('-order_date')
     else:
         user_orders = None
-
-    # Check if the current user is following the viewed user
     is_following = False
     if request.user.is_authenticated:
-        is_following = request.user.following.filter(following=profile_user.profile).exists()
-
-    # ---  Analytics ---
+        try:
+            req_profile = getattr(request.user, 'profile', None)
+            if req_profile is not None:
+                is_following = req_profile.following.filter(following=user_profile).exists()
+        except Exception:
+            is_following = False
     total_products = user_products.count()
-    total_followers = profile_user.followers.count()  # Count of users following *this* user
-    total_following = request.user.following.count()
+    try:
+        followers_attr = getattr(user_profile, 'followers', None)
+        if followers_attr is not None and hasattr(followers_attr, 'count'):
+            total_followers = followers_attr.count()
+        else:
+            total_followers = 0
+    except Exception:
+        total_followers = 0
+    try:
+        req_profile = getattr(request.user, 'profile', None)
+        if req_profile is not None:
+            following_attr = getattr(req_profile, 'following', None)
+            if following_attr is not None and hasattr(following_attr, 'count'):
+                total_following = following_attr.count()
+            else:
+                total_following = 0
+        else:
+            total_following = 0
+    except Exception:
+        total_following = 0
     total_orders_received = 0
     if request.user == profile_user:
         total_orders_received = Order.objects.filter(orderitem_set__product__seller=request.user).distinct().count()
-
     context = {
-        'user_profile': user_profile,  # Profile being viewed
+        'user_profile': user_profile,
         'user_products': user_products,
         'user_orders': user_orders,
-        # Do NOT pass 'user': profile_user here!
         'is_following': is_following,
         'total_products': total_products,
         'total_followers': total_followers,
@@ -409,7 +428,7 @@ def add_to_cart(request, slug):
         return redirect('product_detail', slug=product.slug)
 
     cart = request.session.get('cart', {})
-    product_id_str = str(product.id)
+    product_id_str = str(product.pk)
 
     if product_id_str in cart:
         new_quantity = cart[product_id_str] + quantity
@@ -514,54 +533,45 @@ def checkout(request):
     cart = request.session.get('cart', {})
     if not cart:
         messages.warning(request, "Your cart is empty.")
-        return redirect('product_list')  # Redirect to products if cart empty
-
+        return redirect('product_list')
     cart_items = []
     total_price = 0
-
     for product_id_str, quantity in cart.items():
-        product = get_object_or_404(Product, id=int(product_id_str))
+        product = get_object_or_404(Product, pk=int(product_id_str))
         subtotal = product.price * quantity
         total_price += subtotal
         cart_items.append({'product': product, 'quantity': quantity, 'subtotal': subtotal})
-
     if request.method == 'POST':
-        with transaction.atomic():  # Use transaction for atomicity
+        with transaction.atomic():
             order = Order.objects.create(user=request.user, total_price=total_price)
-
             for item in cart_items:
                 product = item['product']
                 quantity = item['quantity']
-                # Check stock *again* within the transaction
                 if product.stock < quantity:
-                    raise Exception(f"Not enough stock for {product.name}")  # Rollback
-
+                    raise Exception(f"Not enough stock for {product.name}")
                 OrderItem.objects.create(order=order, product=product, quantity=quantity, price=product.price)
                 product.stock -= quantity
                 product.save()
-
-            # Clear cart *after* successful order creation
             request.session['cart'] = {}
             messages.success(request, "Your order has been placed!")
-            send_order_confirmation_email(order)  # Email confirmation
-            return redirect('order_confirmation', order_id=order.id)  # Redirect
-
+            send_order_confirmation_email(order)
+            return redirect('order_confirmation', order_id=order.pk)
     context = {
         'cart_items': cart_items,
         'total_price': total_price,
     }
     return render(request, 'marketplace/checkout.html', context)
 
-
 @login_required
 def order_confirmation(request, order_id):
-    order = get_object_or_404(Order, id=order_id, user=request.user)
-    order_items = order.orderitem_set.all() # Fetch order items
-    context = {'order': order,
-              'order_items': order_items,
-              }
+    order = get_object_or_404(Order, pk=order_id, user=request.user)
+    order_items = getattr(order, 'orderitem_set', None)
+    if order_items is not None:
+        order_items = order_items.all()
+    else:
+        order_items = []
+    context = {'order': order, 'order_items': order_items}
     return render(request, 'marketplace/order_confirmation.html', context)
-
 
 def category_list(request):
     categories = Category.objects.all()
@@ -590,11 +600,14 @@ def order_list(request):
 # Make *sure* you also have the `order_detail` view:
 @login_required
 def order_detail(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
+    order = get_object_or_404(Order, pk=order_id)
     if order.user != request.user and not request.user.is_staff:
         return HttpResponseForbidden("You are not allowed to view this order.")
-
-    order_items = order.orderitem_set.all()
+    order_items = getattr(order, 'orderitem_set', None)
+    if order_items is not None:
+        order_items = order_items.all()
+    else:
+        order_items = []
     context = {'order': order, 'order_items': order_items}
     return render(request, 'marketplace/order_detail.html', context)
 
@@ -671,44 +684,43 @@ def follow_user(request):
         return JsonResponse({'status': 'error', 'message': 'You cannot follow yourself'})
 
     try:
-        # Use get_or_create to handle existing/new follows efficiently.
-        follow, created = Follow.objects.get_or_create(follower=request.user, following=user_to_follow.profile)
-        if not created:  # If the follow already existed, we unfollow.
+        user_to_follow_profile = getattr(user_to_follow, 'profile', None)
+        if user_to_follow_profile is None:
+            return JsonResponse({'status': 'error', 'message': 'User profile not found'}, status=404)
+        follow, created = Follow.objects.get_or_create(follower=request.user, following=user_to_follow_profile)
+        if not created:
             follow.delete()
             action = 'follow'
         else:
             action = 'unfollow'
-
-        followers_count = user_to_follow.followers.count() #get the updated count
-        return JsonResponse({'status': 'ok', 'action': action, 'followers':followers_count})
-
-
+        followers_attr = getattr(user_to_follow_profile, 'followers', None)
+        if followers_attr is not None and hasattr(followers_attr, 'count'):
+            followers_count = followers_attr.count()
+        else:
+            followers_count = 0
+        return JsonResponse({'status': 'ok', 'action': action, 'followers': followers_count})
     except UserProfile.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'User profile not found'}, status=404)
-    except Exception as e: # Catch any unexpected errors.
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400) # Return a JSON error response.
-
-
-
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 @login_required
-@require_POST # Only allow POST requests
+@require_POST
 def like_product(request, product_id):
     product = get_object_or_404(Product, pk=product_id, is_available=True)
     like, created = Like.objects.get_or_create(user=request.user, product=product)
-
     if not created:
-        # User already liked the product, so unlike it
         like.delete()
         liked = False
     else:
         liked = True
-
-    # Return the new like count and whether the user likes the product or not.
-    like_count = product.likes.count()
-     # Prepare data for JSON response.
+    likes = getattr(product, 'likes', None)
+    if likes is not None:
+        like_count = likes.count()
+    else:
+        like_count = 0
     data = {
         'liked': liked,
         'like_count': like_count,
     }
-    return JsonResponse(data) # Return data as JSON.
+    return JsonResponse(data)
