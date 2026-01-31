@@ -347,7 +347,7 @@
                             </div>
                             <div class="card-body">
                                 <p class="mb-2">Upgrade your account to unlock more features!</p>
-                                <a href="{% url 'subscription_tiers' %}" class="btn btn-info w-100">Upgrade</a>
+                                <a href="{% url 'subscription_choose_tier' %}" class="btn btn-info w-100">Upgrade</a>
                             </div>
                         </div>
                     {% elif profile.tier == 'standard' %}
@@ -360,7 +360,7 @@
                                 <span class="verified-badge ms-1 d-inline-flex align-items-center" title="Verified Seller"><img src="{% static 'images/greeen_ckeckmark.png' %}" alt="Verified Badge" style="height:1.25em;width:1.25em;object-fit:contain;vertical-align:middle;display:inline-block;"></span>
                                 <span class="ms-2">You are verified. Your listings have increased trust and visibility.</span>
                                 <div class="mt-2">
-                                    <a href="{% url 'subscription_tiers' %}" class="premium-highlight btn btn-sm" style="font-weight:600;">Premium</a>
+                                    <a href="{% url 'subscription_choose_tier' %}" class="premium-highlight btn btn-sm" style="font-weight:600;">Premium</a>
                                 </div>
                             </div>
                         </div>
