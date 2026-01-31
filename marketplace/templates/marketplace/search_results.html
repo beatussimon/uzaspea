@@ -14,86 +14,9 @@
         </header>
 
         {% if results %}
-            <div class="row row-cols-1 row-cols-md-3 g-4">
+            <div class="row product-grid" id="product-container">
                 {% for product in results %}
-                    <div class="col">
-                        <div class="card h-100 shadow-sm transition-hover">
-                            <div class="card-img-wrapper">
-                                {% if product.image %}
-                                    <a href="{{ product.get_absolute_url }}">
-                                        <img src="{{ product.image.url }}" 
-                                             class="card-img-top" 
-                                             alt="{{ product.name|escape }}"
-                                             loading="lazy"
-                                             style="height: 200px; object-fit: cover;">
-                                    </a>
-                                {% else %}
-                                    <a href="{{ product.get_absolute_url }}">
-                                        <img src="{% static 'images/no_image.png' %}" 
-                                             class="card-img-top" 
-                                             alt="No image available"
-                                             loading="lazy"
-                                             style="height: 200px; object-fit: cover;">
-                                    </a>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="card-body">
-                                <h5 class="card-title mb-2">
-                                    <a href="{{ product.get_absolute_url }}" 
-                                       class="text-decoration-none text-dark">
-                                        {{ product.name|truncatechars:50 }}
-                                    </a>
-                                </h5>
-                                
-                                <p class="card-text text-muted small mb-3">
-                                    {{ product.description|truncatewords:20 }}
-                                </p>
-                                
-                                <div class="mb-2">
-                                    <strong class="text-success">
-                                        TSh {{ product.price|floatformat:0|intcomma }}
-                                    </strong>
-                                </div>
-                                
-                                <div class="mb-2">
-                                    <small class="text-muted">
-                                        Condition: {{ product.get_condition_display }}
-                                    </small>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <small class="text-muted">
-                                        Seller: {{ product.seller.username }}
-                                        {% if product.seller.profile.is_verified %}
-                                            <span class="badge bg-success ms-1">Verified</span>
-                                        {% endif %}
-                                    </small>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <small class="text-muted">
-                                        Category: 
-                                        {% for ancestor in product.category.get_ancestors %}
-                                            <a href="{{ ancestor.get_absolute_url }}" 
-                                               class="text-muted text-decoration-none">
-                                                {{ ancestor.name }}
-                                            </a> >
-                                        {% endfor %}
-                                        <a href="{{ product.category.get_absolute_url }}" 
-                                           class="text-muted text-decoration-none">
-                                            {{ product.category.name }}
-                                        </a>
-                                    </small>
-                                </div>
-                                
-                                <a href="{{ product.get_absolute_url }}" 
-                                   class="btn btn-primary btn-sm w-100">
-                                    View Details
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+                    {% include 'marketplace/_product_card.html' %}
                 {% endfor %}
             </div>
         {% else %}
