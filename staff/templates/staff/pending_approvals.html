@@ -1,0 +1,77 @@
+{% extends "staff/base.html" %}
+
+{% block page_title %}Pending Approvals - Staff Management{% endblock %}
+
+{% block staff_content %}
+<div class="staff-grid staff-grid-2">
+    <!-- Pending Actions -->
+    <div class="staff-card">
+        <div class="staff-card-header">
+            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-clock me-2"></i>Pending Task Actions
+                {% if pending_actions %}<span class="staff-badge staff-badge-warning staff-ml-1">{{ pending_actions.count }}</span>{% endif %}
+            </h3>
+        </div>
+        <div class="staff-card-body">
+            {% if pending_actions %}
+                <ul class="staff-list">
+                    {% for action in pending_actions %}
+                    <li class="staff-list-item">
+                        <div>
+                            <div style="font-weight: 500;">{{ action.task.title }}</div>
+                            <div class="staff-text staff-text-small staff-text-muted">
+                                {{ action.get_action_type_display }} by {{ action.performed_by.username }}
+                            </div>
+                            <p class="staff-text staff-text-small staff-mt-1" style="margin-bottom: 0;">{{ action.description|truncatewords:20 }}</p>
+                        </div>
+                        <a href="{% url 'staff:review_action' action.id %}" class="staff-btn staff-btn-primary">
+                            <i class="fas fa-check"></i>
+                            Review
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="staff-empty">
+                    <i class="fas fa-check-circle" style="color: #22c55e;"></i>
+                    <h5>All Clear!</h5>
+                    <p>No pending actions to review.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Pending Approvals -->
+    <div class="staff-card">
+        <div class="staff-card-header">
+            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-check-double me-2"></i>Pending Approvals
+                {% if pending_approvals %}<span class="staff-badge staff-badge-info staff-ml-1">{{ pending_approvals.count }}</span>{% endif %}
+            </h3>
+        </div>
+        <div class="staff-card-body">
+            {% if pending_approvals %}
+                <ul class="staff-list">
+                    {% for approval in pending_approvals %}
+                    <li class="staff-list-item">
+                        <div>
+                            <div style="font-weight: 500;">{{ approval.title }}</div>
+                            <div class="staff-text staff-text-small staff-text-muted">
+                                {{ approval.get_approval_type_display }} by {{ approval.submitted_by.username }}
+                            </div>
+                            <p class="staff-text staff-text-small staff-mt-1" style="margin-bottom: 0;">{{ approval.description|truncatewords:15 }}</p>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="staff-empty">
+                    <i class="fas fa-check-circle" style="color: #22c55e;"></i>
+                    <h5>All Clear!</h5>
+                    <p>No pending approvals.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

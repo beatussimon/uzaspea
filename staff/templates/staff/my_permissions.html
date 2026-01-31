@@ -1,0 +1,68 @@
+{% extends "staff/base.html" %}
+
+{% block page_title %}My Permissions - Staff Management{% endblock %}
+
+{% block staff_content %}
+<div class="staff-grid staff-grid-2">
+    <!-- Custom Permissions -->
+    <div class="staff-card">
+        <div class="staff-card-header">
+            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-key me-2"></i>Custom Permissions
+            </h3>
+        </div>
+        <div class="staff-card-body">
+            {% if custom_permissions %}
+                <ul class="staff-list">
+                    {% for perm in custom_permissions %}
+                    <li class="staff-list-item">
+                        <div>
+                            <div style="font-weight: 500;">{{ perm.get_permission_display }}</div>
+                            {% if perm.expires_at %}
+                            <div class="staff-text staff-text-small staff-text-muted">
+                                Expires: {{ perm.expires_at|date:"M d, Y" }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <span class="staff-badge staff-badge-success">Active</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="staff-empty">
+                    <i class="fas fa-key"></i>
+                    <h5>No Custom Permissions</h5>
+                    <p>You don't have any custom permissions assigned.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Group Permissions -->
+    <div class="staff-card">
+        <div class="staff-card-header">
+            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-users me-2"></i>Group Permissions
+            </h3>
+        </div>
+        <div class="staff-card-body">
+            {% if group_permissions %}
+                <ul class="staff-list">
+                    {% for perm in group_permissions %}
+                    <li class="staff-list-item">
+                        <div style="font-weight: 500;">{{ perm|cut:"can_"|title }}</div>
+                        <span class="staff-badge staff-badge-primary">Group</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="staff-empty">
+                    <i class="fas fa-users"></i>
+                    <h5>No Group Permissions</h5>
+                    <p>You don't belong to any groups with permissions.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

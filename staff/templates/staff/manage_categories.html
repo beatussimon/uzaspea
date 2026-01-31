@@ -1,0 +1,82 @@
+{% extends "staff/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block page_title %}Manage Categories - Staff Management{% endblock %}
+
+{% block staff_content %}
+<div class="staff-grid staff-grid-3">
+    <!-- Create Category -->
+    <div class="staff-card">
+        <div class="staff-card-header">
+            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-folder-plus me-2"></i>Create Category
+            </h3>
+        </div>
+        <div class="staff-card-body">
+            <form method="post">
+                {% csrf_token %}
+                {{ form|crispy }}
+                <button type="submit" class="staff-btn staff-btn-primary" style="width: 100%;">
+                    <i class="fas fa-plus"></i>
+                    Create Category
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Categories List -->
+    <div class="staff-card" style="grid-column: span 2;">
+        <div class="staff-card-header">
+            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-folders me-2"></i>Categories
+            </h3>
+        </div>
+        <div class="staff-card-body" style="padding: 0;">
+            {% if categories %}
+                <div class="staff-table-wrapper">
+                    <table class="staff-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Requires Approval</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for category in categories %}
+                            <tr>
+                                <td style="font-weight: 500;">{{ category.name }}</td>
+                                <td>
+                                    {% if category.requires_approval %}
+                                    <span class="staff-badge staff-badge-warning">Yes</span>
+                                    {% else %}
+                                    <span class="staff-badge staff-badge-success">No</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="staff-btn-group">
+                                        <a href="{% url 'staff:edit_category' category.id %}" class="staff-btn staff-btn-sm staff-btn-outline">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'staff:delete_category' category.id %}" class="staff-btn staff-btn-sm staff-btn-outline"
+                                           onclick="return confirm('Are you sure?');">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="staff-empty">
+                    <i class="fas fa-folders"></i>
+                    <h5>No Categories</h5>
+                    <p>Create your first category.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
