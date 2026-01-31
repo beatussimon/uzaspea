@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('staff/', include('staff.urls')),
     path('', include('marketplace.urls')),
     path('accounts/', include('django.contrib.auth.urls')),  # Includes password reset URLs
 ] 

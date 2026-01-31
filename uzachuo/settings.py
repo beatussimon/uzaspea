@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',  # For intcomma
     'marketplace',  # Your app
+    'staff',  # Staff Delegation & Approval Module
     'crispy_forms',
     'crispy_bootstrap5',
      'django_extensions',

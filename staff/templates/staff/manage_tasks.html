@@ -1,0 +1,118 @@
+{% extends "staff/base.html" %}
+
+{% block page_title %}Manage Tasks - Staff Management{% endblock %}
+
+{% block staff_content %}
+<div class="staff-card">
+    <div class="staff-card-header">
+        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-clipboard-list me-2"></i>All Tasks
+        </h3>
+        <a href="{% url 'staff:create_task' %}" class="staff-btn staff-btn-primary">
+            <i class="fas fa-plus"></i>
+            Create Task
+        </a>
+    </div>
+    <div class="staff-card-body">
+        <!-- Filter Form -->
+        <form method="get" class="staff-grid staff-grid-4 staff-mb-3">
+            <div class="staff-form-group" style="margin-bottom: 0;">
+                <label class="staff-form-label">Status</label>
+                <select name="status" class="staff-form-control">
+                    <option value="">All Statuses</option>
+                    {% for value, label in filter_form.fields.status.choices %}{% if value %}
+                    <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endif %}{% endfor %}
+                </select>
+            </div>
+            <div class="staff-form-group" style="margin-bottom: 0;">
+                <label class="staff-form-label">Priority</label>
+                <select name="priority" class="staff-form-control">
+                    <option value="">All Priorities</option>
+                    {% for value, label in filter_form.fields.priority.choices %}{% if value %}
+                    <option value="{{ value }}" {% if request.GET.priority == value %}selected{% endif %}>{{ label }}</option>
+                    {% endif %}{% endfor %}
+                </select>
+            </div>
+            <div class="staff-form-group" style="margin-bottom: 0;">
+                <label class="staff-form-label">Assigned To</label>
+                {{ filter_form.assigned_to }}
+            </div>
+            <div class="staff-form-group" style="margin-bottom: 0;">
+                <label class="staff-form-label">Category</label>
+                {{ filter_form.category }}
+            </div>
+            <div class="staff-form-group" style="grid-column: span 2; margin-bottom: 0;">
+                <label class="staff-form-label">&nbsp;</label>
+                <div class="staff-btn-group">
+                    <button type="submit" class="staff-btn staff-btn-primary">
+                        <i class="fas fa-filter"></i>
+                        Filter
+                    </button>
+                    <a href="{% url 'staff:manage_tasks' %}" class="staff-btn staff-btn-secondary">
+                        <i class="fas fa-times"></i>
+                        Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="staff-card-body" style="padding: 0;">
+        {% if tasks %}
+            <div class="staff-table-wrapper">
+                <table class="staff-table">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Category</th>
+                            <th>Assigned To</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Due Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks %}
+                        <tr>
+                            <td style="font-weight: 500;">{{ task.title }}</td>
+                            <td>{{ task.category|default:"-" }}</td>
+                            <td>{{ task.assigned_to|default:"Unassigned" }}</td>
+                            <td>
+                                <span class="staff-badge staff-badge-{% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}primary{% elif task.status == 'pending' %}warning{% else %}info{% endif %}">
+                                    {{ task.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="staff-badge staff-badge-{% if task.priority == 'urgent' %}danger{% elif task.priority == 'high' %}warning{% elif task.priority == 'medium' %}info{% else %}success{% endif %}">
+                                    {{ task.get_priority_display }}
+                                </span>
+                            </td>
+                            <td class="staff-text-small staff-text-muted">
+                                {% if task.due_date %}{{ task.due_date|date:"M d, H:i" }}{% else %}-{% endif %}
+                            </td>
+                            <td>
+                                <div class="staff-btn-group">
+                                    <a href="{% url 'staff:view_task' task.id %}" class="staff-btn staff-btn-sm staff-btn-outline">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'staff:edit_task' task.id %}" class="staff-btn staff-btn-sm staff-btn-outline">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="staff-empty">
+                <i class="fas fa-clipboard"></i>
+                <h5>No Tasks Found</h5>
+                <p>Create a task to get started.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

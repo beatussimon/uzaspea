@@ -1,0 +1,681 @@
+{% extends "marketplace/base.html" %}
+{% load static %}
+
+{% block title %}Staff Management - UZASPEA{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ============================================
+       LAYOUT & CONTAINER SYSTEM
+       ============================================ */
+    .staff-layout {
+        --container-width: 1200px;
+        --section-spacing: 2rem;
+        --element-spacing: 1rem;
+        --border-radius: 12px;
+        --transition-speed: 0.2s;
+    }
+
+    .staff-container {
+        padding: var(--section-spacing);
+        background: #f8f9fa;
+        min-height: calc(100vh - 76px);
+    }
+
+    .staff-wrapper {
+        max-width: var(--container-width);
+        margin: 0 auto;
+        padding: 0 var(--element-spacing);
+    }
+
+    .staff-content-area {
+        background: transparent;
+    }
+
+    /* ============================================
+       TYPOGRAPHY SYSTEM
+       ============================================ */
+    .staff-heading {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-weight: 700;
+        color: #1a1a2e;
+        line-height: 1.3;
+        margin-bottom: 0.5rem;
+    }
+
+    .staff-heading-1 { font-size: 2rem; }
+    .staff-heading-2 { font-size: 1.5rem; }
+    .staff-heading-3 { font-size: 1.25rem; }
+    .staff-heading-4 { font-size: 1.125rem; }
+
+    .staff-text {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #4a5568;
+        line-height: 1.6;
+    }
+
+    .staff-text-muted { color: #718096; }
+    .staff-text-small { font-size: 0.875rem; }
+
+    /* ============================================
+       SPACING SCALE
+       ============================================ */
+    .staff-mb-1 { margin-bottom: 0.5rem; }
+    .staff-mb-2 { margin-bottom: 1rem; }
+    .staff-mb-3 { margin-bottom: 1.5rem; }
+    .staff-mb-4 { margin-bottom: 2rem; }
+    
+    .staff-mt-1 { margin-top: 0.5rem; }
+    .staff-mt-2 { margin-top: 1rem; }
+    .staff-mt-3 { margin-top: 1.5rem; }
+    .staff-mt-4 { margin-top: 2rem; }
+
+    .staff-p-1 { padding: 0.5rem; }
+    .staff-p-2 { padding: 1rem; }
+    .staff-p-3 { padding: 1.5rem; }
+    .staff-p-4 { padding: 2rem; }
+
+    /* ============================================
+       NAVIGATION
+       ============================================ */
+    .staff-nav-card {
+        background: white;
+        border-radius: var(--border-radius);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        padding: 1rem;
+        margin-bottom: var(--section-spacing);
+    }
+
+    .staff-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .staff-nav li a {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #4a5568;
+        font-weight: 500;
+        font-size: 0.875rem;
+        transition: all var(--transition-speed);
+        background: transparent;
+    }
+
+    .staff-nav li a:hover {
+        background: #f1f5f9;
+        color: #3b82f6;
+    }
+
+    .staff-nav li a.active {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+    }
+
+    .staff-nav li a i {
+        font-size: 14px;
+        width: 18px;
+        text-align: center;
+    }
+
+    .staff-nav-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        margin-left: auto;
+    }
+
+    /* ============================================
+       CARDS
+       ============================================ */
+    .staff-card {
+        background: white;
+        border-radius: var(--border-radius);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        margin-bottom: var(--section-spacing);
+        overflow: hidden;
+    }
+
+    .staff-card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #fafbfc;
+    }
+
+    .staff-card-body {
+        padding: 1.5rem;
+    }
+
+    .staff-card-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e2e8f0;
+        background: #fafbfc;
+    }
+
+    /* ============================================
+       BUTTONS
+       ============================================ */
+    .staff-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border: none;
+        cursor: pointer;
+        transition: all var(--transition-speed);
+        text-decoration: none;
+        line-height: 1.4;
+    }
+
+    .staff-btn-primary {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+    }
+
+    .staff-btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+        color: white;
+    }
+
+    .staff-btn-secondary {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .staff-btn-secondary:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+
+    .staff-btn-outline {
+        background: transparent;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+    }
+
+    .staff-btn-outline:hover {
+        border-color: #3b82f6;
+        color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .staff-btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .staff-btn-group {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    /* ============================================
+       FORM ELEMENTS
+       ============================================ */
+    .staff-form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .staff-form-label {
+        display: block;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .staff-form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.9375rem;
+        color: #1e293b;
+        background: white;
+        transition: all var(--transition-speed);
+    }
+
+    .staff-form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .staff-form-control::placeholder {
+        color: #94a3b8;
+    }
+
+    /* ============================================
+       TABLES
+       ============================================ */
+    .staff-table-wrapper {
+        overflow-x: auto;
+        margin: -1.5rem;
+        padding: 0 1.5rem;
+    }
+
+    .staff-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    .staff-table thead th {
+        background: #f8fafc;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.75rem;
+        padding: 1rem 1rem;
+        text-align: left;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .staff-table tbody td {
+        padding: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        color: #475569;
+        vertical-align: middle;
+    }
+
+    .staff-table tbody tr {
+        transition: background var(--transition-speed);
+    }
+
+    .staff-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .staff-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* ============================================
+       BADGES & LABELS
+       ============================================ */
+    .staff-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 1.4;
+    }
+
+    .staff-badge-primary { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
+    .staff-badge-success { background: rgba(34, 197, 94, 0.1); color: #16a34a; }
+    .staff-badge-warning { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+    .staff-badge-danger { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
+    .staff-badge-info { background: rgba(6, 182, 212, 0.1); color: #0891b2; }
+
+    /* ============================================
+       STAT CARDS (DASHBOARD)
+       ============================================ */
+    .staff-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .staff-stat-card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        transition: all var(--transition-speed);
+    }
+
+    .staff-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+
+    .staff-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        margin-bottom: 1rem;
+    }
+
+    .staff-stat-value {
+        font-size: 1.875rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1.2;
+    }
+
+    .staff-stat-label {
+        font-size: 0.8125rem;
+        color: #64748b;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 0.25rem;
+    }
+
+    /* ============================================
+       EMPTY STATES
+       ============================================ */
+    .staff-empty {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        color: #94a3b8;
+    }
+
+    .staff-empty i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .staff-empty h5 {
+        color: #64748b;
+        margin-bottom: 0.5rem;
+    }
+
+    .staff-empty p {
+        font-size: 0.875rem;
+        margin: 0;
+    }
+
+    /* ============================================
+       ALERTS
+       ============================================ */
+    .staff-alert {
+        padding: 1rem 1.25rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .staff-alert-warning {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 1px solid #fcd34d;
+        color: #92400e;
+    }
+
+    .staff-alert-info {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border: 1px solid #93c5fd;
+        color: #1e40af;
+    }
+
+    .staff-alert-success {
+        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+        border: 1px solid #86efac;
+        color: #166534;
+    }
+
+    .staff-alert i:first-child {
+        font-size: 1.25rem;
+        margin-top: 2px;
+    }
+
+    /* ============================================
+       LIST GROUPS
+       ============================================ */
+    .staff-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .staff-list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .staff-list-item:last-child {
+        border-bottom: none;
+    }
+
+    /* ============================================
+       GRID SYSTEM
+       ============================================ */
+    .staff-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .staff-grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .staff-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .staff-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+    @media (max-width: 992px) {
+        .staff-grid-4 { grid-template-columns: repeat(2, 1fr); }
+        .staff-grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+        .staff-grid-4,
+        .staff-grid-3,
+        .staff-grid-2 { grid-template-columns: 1fr; }
+        
+        .staff-heading-1 { font-size: 1.5rem; }
+        .staff-heading-2 { font-size: 1.25rem; }
+        
+        .staff-nav {
+            flex-direction: column;
+        }
+        
+        .staff-nav li a {
+            width: 100%;
+        }
+    }
+
+    /* ============================================
+       LOGIN REQUIRED STATE
+       ============================================ */
+    .staff-login-required {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+    }
+
+    .staff-login-box {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 3rem;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+        text-align: center;
+        max-width: 400px;
+        width: 100%;
+    }
+
+    .staff-login-box i {
+        font-size: 4rem;
+        color: #94a3b8;
+        margin-bottom: 1.5rem;
+    }
+
+    .staff-login-box h4 {
+        margin-bottom: 0.75rem;
+        color: #1e293b;
+    }
+
+    .staff-login-box p {
+        color: #64748b;
+        margin-bottom: 1.5rem;
+    }
+
+    /* ============================================
+       AUTHENTICATED USER CHECK
+       ============================================ */
+    .staff-user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .staff-user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="staff-layout">
+    {% if user.is_authenticated %}
+    <!-- Staff Navigation -->
+    <div class="staff-container">
+        <div class="staff-wrapper">
+            <nav class="staff-nav-card">
+                <ul class="staff-nav">
+                    {% if user.is_superuser %}
+                    <li>
+                        <a class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" 
+                           href="{% url 'staff:admin_dashboard' %}">
+                            <i class="fas fa-tachometer-alt"></i>
+                            Admin
+                        </a>
+                    </li>
+                    <li>
+                        <a class="{% if 'manage_staff' in request.resolver_match.url_name %}active{% endif %}" 
+                           href="{% url 'staff:manage_staff' %}">
+                            <i class="fas fa-users"></i>
+                            Staff
+                        </a>
+                    </li>
+                    <li>
+                        <a class="{% if request.resolver_match.url_name == 'manage_tasks' %}active{% endif %}" 
+                           href="{% url 'staff:manage_tasks' %}">
+                            <i class="fas fa-clipboard-list"></i>
+                            Tasks
+                        </a>
+                    </li>
+                    <li>
+                        <a class="{% if request.resolver_match.url_name == 'pending_approvals' %}active{% endif %}" 
+                           href="{% url 'staff:pending_approvals' %}">
+                            <i class="fas fa-check-double"></i>
+                            Approvals
+                        </a>
+                    </li>
+                    <li>
+                        <a class="{% if request.resolver_match.url_name == 'audit_log' %}active{% endif %}" 
+                           href="{% url 'staff:audit_log' %}">
+                            <i class="fas fa-history"></i>
+                            Audit
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a class="{% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}" 
+                           href="{% url 'staff:staff_dashboard' %}">
+                            <i class="fas fa-user-shield"></i>
+                            My Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a class="{% if request.resolver_match.url_name == 'my_tasks' %}active{% endif %}" 
+                           href="{% url 'staff:my_tasks' %}">
+                            <i class="fas fa-tasks"></i>
+                            My Tasks
+                        </a>
+                    </li>
+                    <li>
+                        <a class="{% if request.resolver_match.url_name == 'my_permissions' %}active{% endif %}" 
+                           href="{% url 'staff:my_permissions' %}">
+                            <i class="fas fa-key"></i>
+                            Permissions
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Page Header -->
+            <div class="d-flex justify-content-between align-items-center staff-mb-3">
+                <div>
+                    {% block page_title %}
+                    <h1 class="staff-heading staff-heading-2">Staff Management</h1>
+                    {% endblock %}
+                </div>
+                <div class="staff-user-info">
+                    <div class="staff-user-avatar">
+                        {{ user.username|slice:":2"|upper }}
+                    </div>
+                    <div>
+                        <div class="staff-text" style="font-weight: 500;">{{ user.username }}</div>
+                        <div class="staff-text staff-text-small staff-text-muted">Staff Member</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            {% if messages %}
+            <div class="staff-mb-3">
+                {% for message in messages %}
+                <div class="staff-alert staff-alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}">
+                    <i class="fas {% if message.tags == 'error' %}fa-times-circle{% elif message.tags == 'success' %}fa-check-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %}"></i>
+                    <span>{{ message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Main Content -->
+            <div class="staff-content-area">
+                {% block staff_content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Login Required -->
+    <div class="staff-container">
+        <div class="staff-wrapper">
+            <div class="staff-login-required">
+                <div class="staff-login-box">
+                    <i class="fas fa-lock"></i>
+                    <h4>Authentication Required</h4>
+                    <p>Please log in to access the staff portal.</p>
+                    <a href="{% url 'login' %}" class="staff-btn staff-btn-primary">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Login
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

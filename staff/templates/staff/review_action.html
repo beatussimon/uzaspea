@@ -1,0 +1,66 @@
+{% extends "staff/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block page_title %}Review Action - Staff Management{% endblock %}
+
+{% block staff_content %}
+<div class="staff-card" style="max-width: 700px; margin: 0 auto;">
+    <div class="staff-card-header">
+        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-check-double me-2"></i>Review Action
+        </h3>
+    </div>
+    <div class="staff-card-body">
+        <!-- Action Info -->
+        <div class="staff-alert staff-alert-info">
+            <i class="fas fa-info-circle"></i>
+            <div>
+                <strong>{{ action.task.title }}</strong>
+                <div class="staff-text staff-text-small">{{ action.get_action_type_display }} by {{ action.performed_by.username }}</div>
+            </div>
+        </div>
+
+        <div class="staff-mb-3">
+            <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Description</div>
+            <p style="margin: 0;">{{ action.description }}</p>
+        </div>
+
+        <div class="staff-grid staff-grid-2 staff-mb-3">
+            <div class="staff-card" style="margin: 0;">
+                <div class="staff-card-header" style="padding: 0.75rem 1rem;">
+                    <span class="staff-text staff-text-small" style="font-weight: 500;">Previous Value</span>
+                </div>
+                <div class="staff-card-body" style="padding: 1rem;">
+                    {{ action.previous_value|default:"-"|linebreaks }}
+                </div>
+            </div>
+            <div class="staff-card" style="margin: 0;">
+                <div class="staff-card-header" style="padding: 0.75rem 1rem;">
+                    <span class="staff-text staff-text-small" style="font-weight: 500;">New Value</span>
+                </div>
+                <div class="staff-card-body" style="padding: 1rem;">
+                    {{ action.new_value|linebreaks }}
+                </div>
+            </div>
+        </div>
+
+        <hr style="margin: 1.5rem 0; border-color: #e2e8f0;">
+
+        <!-- Review Form -->
+        <form method="post">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <div class="staff-btn-group staff-mt-3">
+                <button type="submit" class="staff-btn staff-btn-primary">
+                    <i class="fas fa-check"></i>
+                    Submit Decision
+                </button>
+                <a href="{% url 'staff:pending_approvals' %}" class="staff-btn staff-btn-secondary">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
