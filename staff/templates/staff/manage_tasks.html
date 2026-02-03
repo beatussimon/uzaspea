@@ -3,81 +3,134 @@
 {% block page_title %}Manage Tasks - Staff Management{% endblock %}
 
 {% block staff_content %}
-<div class="staff-card">
-    <div class="staff-card-header">
-        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-            <i class="fas fa-clipboard-list me-2"></i>All Tasks
-        </h3>
+<!-- Breadcrumb Navigation -->
+<nav class="staff-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'staff:admin_dashboard' %}"><i class="fas fa-home"></i> Dashboard</a>
+    <span class="staff-breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+    <span class="staff-breadcrumb-current">Manage Tasks</span>
+</nav>
+
+<!-- Page Header -->
+<div class="staff-page-header">
+    <div class="staff-page-header-content">
+        <h1 class="staff-heading staff-heading-2" style="margin-bottom: 0.25rem;">
+            <i class="fas fa-clipboard-list me-2" aria-hidden="true"></i>
+            All Tasks
+        </h1>
+        <p class="staff-text">View and manage all tasks across the system</p>
+    </div>
+    <div class="staff-page-header-actions">
         <a href="{% url 'staff:create_task' %}" class="staff-btn staff-btn-primary">
-            <i class="fas fa-plus"></i>
+            <i class="fas fa-plus" aria-hidden="true"></i>
             Create Task
         </a>
     </div>
+</div>
+
+<!-- Tasks Card with Filters -->
+<div class="staff-card">
+    <!-- Filter Form Section -->
+    <!-- UX NOTE: Inline filters allow quick data refinement without page reload -->
     <div class="staff-card-body">
-        <!-- Filter Form -->
-        <form method="get" class="staff-grid staff-grid-4 staff-mb-3">
+        <form method="get" class="staff-grid staff-grid-4 staff-gap-3" role="search">
+            <!-- Search input -->
+            <div class="staff-form-group staff-search" style="grid-column: span 2; margin-bottom: 0;">
+                <label class="staff-form-label" for="id_search">Search</label>
+                <i class="fas fa-search staff-search-icon"></i>
+                <input type="text" name="search" id="id_search" class="staff-form-control staff-search-input" 
+                       placeholder="Search tasks..." value="{{ request.GET.search|default:'' }}">
+            </div>
+            
+            <!-- Status filter -->
             <div class="staff-form-group" style="margin-bottom: 0;">
-                <label class="staff-form-label">Status</label>
-                <select name="status" class="staff-form-control">
+                <label class="staff-form-label" for="id_status">Status</label>
+                <select name="status" id="id_status" class="staff-form-control">
                     <option value="">All Statuses</option>
-                    {% for value, label in filter_form.fields.status.choices %}{% if value %}
-                    <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endif %}{% endfor %}
+                    {% for value, label in filter_form.fields.status.choices %}
+                        {% if value %}
+                        <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endif %}
+                    {% endfor %}
                 </select>
             </div>
+            <!-- Priority filter -->
             <div class="staff-form-group" style="margin-bottom: 0;">
-                <label class="staff-form-label">Priority</label>
-                <select name="priority" class="staff-form-control">
+                <label class="staff-form-label" for="id_priority">Priority</label>
+                <select name="priority" id="id_priority" class="staff-form-control">
                     <option value="">All Priorities</option>
-                    {% for value, label in filter_form.fields.priority.choices %}{% if value %}
-                    <option value="{{ value }}" {% if request.GET.priority == value %}selected{% endif %}>{{ label }}</option>
-                    {% endif %}{% endfor %}
+                    {% for value, label in filter_form.fields.priority.choices %}
+                        {% if value %}
+                        <option value="{{ value }}" {% if request.GET.priority == value %}selected{% endif %}>{{ label }}</option>
+                        {% endif %}
+                    {% endfor %}
                 </select>
             </div>
+            <!-- Assigned to filter -->
             <div class="staff-form-group" style="margin-bottom: 0;">
-                <label class="staff-form-label">Assigned To</label>
+                <label class="staff-form-label" for="id_assigned_to">Assigned To</label>
                 {{ filter_form.assigned_to }}
             </div>
+            <!-- Category filter -->
             <div class="staff-form-group" style="margin-bottom: 0;">
-                <label class="staff-form-label">Category</label>
+                <label class="staff-form-label" for="id_category">Category</label>
                 {{ filter_form.category }}
             </div>
+            <!-- Filter actions - span full width on smaller screens -->
             <div class="staff-form-group" style="grid-column: span 2; margin-bottom: 0;">
-                <label class="staff-form-label">&nbsp;</label>
+                <label class="staff-form-label" style="visibility: hidden;">Actions</label>
                 <div class="staff-btn-group">
                     <button type="submit" class="staff-btn staff-btn-primary">
-                        <i class="fas fa-filter"></i>
+                        <i class="fas fa-filter" aria-hidden="true"></i>
                         Filter
                     </button>
                     <a href="{% url 'staff:manage_tasks' %}" class="staff-btn staff-btn-secondary">
-                        <i class="fas fa-times"></i>
+                        <i class="fas fa-times" aria-hidden="true"></i>
                         Clear
                     </a>
                 </div>
             </div>
         </form>
     </div>
+    
+    <!-- Tasks Table -->
     <div class="staff-card-body" style="padding: 0;">
         {% if tasks %}
             <div class="staff-table-wrapper">
-                <table class="staff-table">
+                <table class="staff-table" aria-label="All tasks">
                     <thead>
                         <tr>
-                            <th>Task</th>
-                            <th>Category</th>
-                            <th>Assigned To</th>
-                            <th>Status</th>
-                            <th>Priority</th>
-                            <th>Due Date</th>
-                            <th>Actions</th>
+                            <th scope="col">Task</th>
+                            <th scope="col">Category</th>
+                            <th scope="col">Assigned To</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Priority</th>
+                            <th scope="col">Due Date</th>
+                            <th scope="col" class="staff-row-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for task in tasks %}
-                        <tr>
+                        <tr onclick="window.location.href='{% url 'staff:view_task' task.id %}'" style="cursor: pointer;">
                             <td style="font-weight: 500;">{{ task.title }}</td>
-                            <td>{{ task.category|default:"-" }}</td>
-                            <td>{{ task.assigned_to|default:"Unassigned" }}</td>
+                            <td>
+                                {% if task.category %}
+                                <span class="staff-badge staff-badge-gray">{{ task.category.name }}</span>
+                                {% else %}
+                                <span class="staff-text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if task.assigned_to %}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="staff-avatar staff-avatar-sm" aria-hidden="true">
+                                            {{ task.assigned_to.username|slice:":2"|upper }}
+                                        </div>
+                                        {{ task.assigned_to.username }}
+                                    </div>
+                                {% else %}
+                                    <span class="staff-text-muted">Unassigned</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <span class="staff-badge staff-badge-{% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}primary{% elif task.status == 'pending' %}warning{% else %}info{% endif %}">
                                     {{ task.get_status_display }}
@@ -89,15 +142,29 @@
                                 </span>
                             </td>
                             <td class="staff-text-small staff-text-muted">
-                                {% if task.due_date %}{{ task.due_date|date:"M d, H:i" }}{% else %}-{% endif %}
+                                {% if task.due_date %}
+                                    {% if task.is_overdue %}
+                                    <span style="color: var(--staff-danger);">
+                                        <i class="fas fa-exclamation-circle me-1"></i>{{ task.due_date|date:"M d, H:i" }}
+                                    </span>
+                                    {% else %}
+                                    {{ task.due_date|date:"M d, H:i" }}
+                                    {% endif %}
+                                {% else %}
+                                -
+                                {% endif %}
                             </td>
-                            <td>
-                                <div class="staff-btn-group">
-                                    <a href="{% url 'staff:view_task' task.id %}" class="staff-btn staff-btn-sm staff-btn-outline">
-                                        <i class="fas fa-eye"></i>
+                            <td class="staff-row-actions" onclick="event.stopPropagation();">
+                                <div class="staff-btn-group" role="group" aria-label="Task actions">
+                                    <a href="{% url 'staff:view_task' task.id %}" 
+                                       class="staff-btn staff-btn-sm staff-btn-outline"
+                                       aria-label="View {{ task.title }}">
+                                        <i class="fas fa-eye" aria-hidden="true"></i>
                                     </a>
-                                    <a href="{% url 'staff:edit_task' task.id %}" class="staff-btn staff-btn-sm staff-btn-outline">
-                                        <i class="fas fa-edit"></i>
+                                    <a href="{% url 'staff:edit_task' task.id %}" 
+                                       class="staff-btn staff-btn-sm staff-btn-outline"
+                                       aria-label="Edit {{ task.title }}">
+                                        <i class="fas fa-edit" aria-hidden="true"></i>
                                     </a>
                                 </div>
                             </td>
@@ -107,10 +174,12 @@
                 </table>
             </div>
         {% else %}
-            <div class="staff-empty">
-                <i class="fas fa-clipboard"></i>
+            <div class="staff-empty" role="status">
+                <div class="staff-empty-icon-container">
+                    <i class="fas fa-search staff-empty-icon"></i>
+                </div>
                 <h5>No Tasks Found</h5>
-                <p>Create a task to get started.</p>
+                <p>Try adjusting your filters or <a href="{% url 'staff:create_task' %}" class="staff-link">create a new task</a>.</p>
             </div>
         {% endif %}
     </div>

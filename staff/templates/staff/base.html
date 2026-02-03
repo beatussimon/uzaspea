@@ -6,484 +6,955 @@
 {% block extra_css %}
 <style>
     /* ============================================
-       LAYOUT & CONTAINER SYSTEM
+       STAFF MANAGEMENT UI SYSTEM
+       A comprehensive design system for staff management
+       ============================================ */
+    
+    /* ============================================
+       1. CSS CUSTOM PROPERTIES (DESIGN TOKENS)
+       ============================================ */
+    :root {
+        /* Colors - Semantic naming for consistency */
+        --staff-primary: #3b82f6;
+        --staff-primary-dark: #1d4ed8;
+        --staff-primary-light: #eff6ff;
+        
+        --staff-success: #22c55e;
+        --staff-success-light: #f0fdf4;
+        
+        --staff-warning: #f59e0b;
+        --staff-warning-light: #fffbeb;
+        
+        --staff-danger: #ef4444;
+        --staff-danger-light: #fef2f2;
+        
+        --staff-info: #06b6d4;
+        --staff-info-light: #ecfeff;
+        
+        --staff-gray-50: #f8fafc;
+        --staff-gray-100: #f1f5f9;
+        --staff-gray-200: #e2e8f0;
+        --staff-gray-300: #cbd5e1;
+        --staff-gray-400: #94a3b8;
+        --staff-gray-500: #64748b;
+        --staff-gray-600: #475569;
+        --staff-gray-700: #334155;
+        --staff-gray-800: #1e293b;
+        --staff-gray-900: #0f172a;
+        
+        /* Spacing scale - 8pt grid system */
+        --staff-space-1: 0.25rem;
+        --staff-space-2: 0.5rem;
+        --staff-space-3: 0.75rem;
+        --staff-space-4: 1rem;
+        --staff-space-5: 1.25rem;
+        --staff-space-6: 1.5rem;
+        --staff-space-8: 2rem;
+        --staff-space-10: 2.5rem;
+        --staff-space-12: 3rem;
+        --staff-space-16: 4rem;
+        
+        /* Typography */
+        --staff-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --staff-font-mono: 'SF Mono', 'Fira Code', monospace;
+        
+        /* Sizing */
+        --staff-radius-sm: 6px;
+        --staff-radius-md: 8px;
+        --staff-radius-lg: 12px;
+        --staff-radius-xl: 16px;
+        
+        /* Shadows */
+        --staff-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+        --staff-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --staff-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --staff-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        
+        /* Transitions */
+        --staff-transition-fast: 150ms ease;
+        --staff-transition-normal: 200ms ease;
+        --staff-transition-slow: 300ms ease;
+    }
+    
+    /* ============================================
+       2. LAYOUT & CONTAINER SYSTEM
        ============================================ */
     .staff-layout {
-        --container-width: 1200px;
-        --section-spacing: 2rem;
-        --element-spacing: 1rem;
-        --border-radius: 12px;
-        --transition-speed: 0.2s;
+        font-family: var(--staff-font-sans);
+        color: var(--staff-gray-700);
+        line-height: 1.6;
     }
-
+    
+    /* Main container with proper max-width and centering */
     .staff-container {
-        padding: var(--section-spacing);
-        background: #f8f9fa;
+        padding: var(--staff-space-8);
+        background: var(--staff-gray-50);
         min-height: calc(100vh - 76px);
     }
-
+    
+    /* Wrapper for consistent margins and max-width */
     .staff-wrapper {
-        max-width: var(--container-width);
+        max-width: 1280px;
         margin: 0 auto;
-        padding: 0 var(--element-spacing);
+        padding: 0 var(--staff-space-4);
     }
-
+    
+    /* Content area for primary content */
     .staff-content-area {
         background: transparent;
     }
-
+    
+    /* Section divider for visual separation */
+    .staff-section-divider {
+        height: 1px;
+        background: var(--staff-gray-200);
+        margin: var(--staff-space-8) 0;
+    }
+    
     /* ============================================
-       TYPOGRAPHY SYSTEM
+       3. TYPOGRAPHY SYSTEM
+       Hierarchy: h1 > h2 > h3 > h4 > body > small
        ============================================ */
     .staff-heading {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-family: var(--staff-font-sans);
         font-weight: 700;
-        color: #1a1a2e;
+        color: var(--staff-gray-900);
         line-height: 1.3;
-        margin-bottom: 0.5rem;
+        margin-bottom: var(--staff-space-2);
     }
-
-    .staff-heading-1 { font-size: 2rem; }
-    .staff-heading-2 { font-size: 1.5rem; }
-    .staff-heading-3 { font-size: 1.25rem; }
-    .staff-heading-4 { font-size: 1.125rem; }
-
-    .staff-text {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        color: #4a5568;
-        line-height: 1.6;
-    }
-
-    .staff-text-muted { color: #718096; }
-    .staff-text-small { font-size: 0.875rem; }
-
-    /* ============================================
-       SPACING SCALE
-       ============================================ */
-    .staff-mb-1 { margin-bottom: 0.5rem; }
-    .staff-mb-2 { margin-bottom: 1rem; }
-    .staff-mb-3 { margin-bottom: 1.5rem; }
-    .staff-mb-4 { margin-bottom: 2rem; }
     
-    .staff-mt-1 { margin-top: 0.5rem; }
-    .staff-mt-2 { margin-top: 1rem; }
-    .staff-mt-3 { margin-top: 1.5rem; }
-    .staff-mt-4 { margin-top: 2rem; }
-
-    .staff-p-1 { padding: 0.5rem; }
-    .staff-p-2 { padding: 1rem; }
-    .staff-p-3 { padding: 1.5rem; }
-    .staff-p-4 { padding: 2rem; }
-
+    /* Page-level heading - largest, most prominent */
+    .staff-heading-1 {
+        font-size: 2rem;
+        letter-spacing: -0.025em;
+    }
+    
+    /* Section heading - for card headers and major sections */
+    .staff-heading-2 {
+        font-size: 1.5rem;
+        letter-spacing: -0.025em;
+    }
+    
+    /* Subsection heading - for card subheaders */
+    .staff-heading-3 {
+        font-size: 1.25rem;
+        letter-spacing: -0.015em;
+    }
+    
+    /* Detail heading - for minor headings within sections */
+    .staff-heading-4 {
+        font-size: 1.125rem;
+        letter-spacing: -0.01em;
+    }
+    
+    /* Body text - primary content text */
+    .staff-text {
+        font-family: var(--staff-font-sans);
+        color: var(--staff-gray-600);
+        line-height: 1.6;
+        font-size: 0.9375rem;
+    }
+    
+    /* Muted/secondary text - less important information */
+    .staff-text-muted {
+        color: var(--staff-gray-500);
+        font-weight: 500;
+    }
+    
+    /* Small text - metadata, labels, timestamps */
+    .staff-text-small {
+        font-size: 0.8125rem;
+        line-height: 1.5;
+    }
+    
     /* ============================================
-       NAVIGATION
+       4. SPACING UTILITIES
+       Consistent spacing scale based on 8pt grid
+       ============================================ */
+    /* Margin bottom utilities */
+    .staff-mb-0-5 { margin-bottom: var(--staff-space-1); }
+    .staff-mb-1 { margin-bottom: var(--staff-space-2); }
+    .staff-mb-1-5 { margin-bottom: var(--staff-space-3); }
+    .staff-mb-2 { margin-bottom: var(--staff-space-4); }
+    .staff-mb-2-5 { margin-bottom: var(--staff-space-5); }
+    .staff-mb-3 { margin-bottom: var(--staff-space-6); }
+    .staff-mb-4 { margin-bottom: var(--staff-space-8); }
+    .staff-mb-6 { margin-bottom: var(--staff-space-12); }
+    
+    /* Margin top utilities */
+    .staff-mt-0-5 { margin-top: var(--staff-space-1); }
+    .staff-mt-1 { margin-top: var(--staff-space-2); }
+    .staff-mt-1-5 { margin-top: var(--staff-space-3); }
+    .staff-mt-2 { margin-top: var(--staff-space-4); }
+    .staff-mt-2-5 { margin-top: var(--staff-space-5); }
+    .staff-mt-3 { margin-top: var(--staff-space-6); }
+    .staff-mt-4 { margin-top: var(--staff-space-8); }
+    
+    /* Padding utilities */
+    .staff-p-1 { padding: var(--staff-space-2); }
+    .staff-p-2 { padding: var(--staff-space-4); }
+    .staff-p-3 { padding: var(--staff-space-6); }
+    .staff-p-4 { padding: var(--staff-space-8); }
+    
+    /* Gap utilities for flex/grid */
+    .staff-gap-1 { gap: var(--staff-space-2); }
+    .staff-gap-2 { gap: var(--staff-space-4); }
+    .staff-gap-3 { gap: var(--staff-space-6); }
+    .staff-gap-4 { gap: var(--staff-space-8); }
+    
+    /* ============================================
+       5. NAVIGATION COMPONENT
+       Tab-style navigation for staff management sections
        ============================================ */
     .staff-nav-card {
         background: white;
-        border-radius: var(--border-radius);
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        padding: 1rem;
-        margin-bottom: var(--section-spacing);
+        border-radius: var(--staff-radius-lg);
+        box-shadow: var(--staff-shadow-sm);
+        padding: var(--staff-space-2);
+        margin-bottom: var(--staff-space-6);
     }
-
+    
+    /* Navigation list - flex container for nav items */
     .staff-nav {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.5rem;
+        gap: var(--staff-space-1);
         list-style: none;
         padding: 0;
         margin: 0;
     }
-
+    
+    /* Individual nav item link */
     .staff-nav li a {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        border-radius: 8px;
+        gap: var(--staff-space-2);
+        padding: var(--staff-space-2-5) var(--staff-space-4);
+        border-radius: var(--staff-radius-md);
         text-decoration: none;
-        color: #4a5568;
+        color: var(--staff-gray-600);
         font-weight: 500;
         font-size: 0.875rem;
-        transition: all var(--transition-speed);
+        transition: all var(--staff-transition-fast);
         background: transparent;
+        border: 1px solid transparent;
     }
-
+    
+    /* Hover state - subtle background change */
     .staff-nav li a:hover {
-        background: #f1f5f9;
-        color: #3b82f6;
+        background: var(--staff-gray-100);
+        color: var(--staff-primary);
+        border-color: var(--staff-gray-200);
     }
-
+    
+    /* Active/current page state - prominent visual indicator */
     .staff-nav li a.active {
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        background: linear-gradient(135deg, var(--staff-primary) 0%, var(--staff-primary-dark) 100%);
         color: white;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+        box-shadow: var(--staff-shadow-md);
+        border-color: transparent;
     }
-
+    
+    /* Nav icon styling */
     .staff-nav li a i {
         font-size: 14px;
         width: 18px;
         text-align: center;
+        flex-shrink: 0;
     }
-
+    
+    /* Badge pill for counts/notifications */
     .staff-nav-badge {
-        background: rgba(255,255,255,0.2);
-        padding: 2px 8px;
+        background: rgba(255, 255, 255, 0.25);
+        padding: 2px 10px;
         border-radius: 12px;
         font-size: 0.75rem;
+        font-weight: 600;
         margin-left: auto;
     }
-
+    
     /* ============================================
-       CARDS
+       6. CARD COMPONENT
+       Primary container for content sections
        ============================================ */
     .staff-card {
         background: white;
-        border-radius: var(--border-radius);
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        margin-bottom: var(--section-spacing);
+        border-radius: var(--staff-radius-lg);
+        box-shadow: var(--staff-shadow-sm);
+        margin-bottom: var(--staff-space-6);
         overflow: hidden;
+        border: 1px solid var(--staff-gray-100);
     }
-
+    
+    /* Card header - contains title and actions */
     .staff-card-header {
-        padding: 1.25rem 1.5rem;
-        border-bottom: 1px solid #e2e8f0;
+        padding: var(--staff-space-5) var(--staff-space-6);
+        border-bottom: 1px solid var(--staff-gray-200);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: #fafbfc;
+        background: linear-gradient(to bottom, white, var(--staff-gray-50));
+        flex-wrap: wrap;
+        gap: var(--staff-space-4);
     }
-
+    
+    /* Card body - primary content area */
     .staff-card-body {
-        padding: 1.5rem;
+        padding: var(--staff-space-6);
     }
-
+    
+    /* Card footer - for actions, pagination, etc. */
     .staff-card-footer {
-        padding: 1rem 1.5rem;
-        border-top: 1px solid #e2e8f0;
-        background: #fafbfc;
+        padding: var(--staff-space-4) var(--staff-space-6);
+        border-top: 1px solid var(--staff-gray-200);
+        background: var(--staff-gray-50);
     }
-
+    
+    /* Card with gradient header - for hero/welcome sections */
+    .staff-card-gradient {
+        background: linear-gradient(135deg, var(--staff-gray-800) 0%, var(--staff-gray-900) 100%);
+        color: white;
+    }
+    
+    .staff-card-gradient .staff-card-header {
+        background: transparent;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .staff-card-gradient .staff-heading {
+        color: white;
+    }
+    
+    .staff-card-gradient .staff-text {
+        color: rgba(255, 255, 255, 0.85);
+    }
+    
     /* ============================================
-       BUTTONS
+       7. BUTTON COMPONENT
+       Primary and secondary action buttons
        ============================================ */
     .staff-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.5rem;
-        padding: 0.625rem 1.25rem;
-        border-radius: 8px;
+        gap: var(--staff-space-2);
+        padding: var(--staff-space-2-5) var(--staff-space-5);
+        border-radius: var(--staff-radius-md);
         font-weight: 500;
         font-size: 0.875rem;
-        border: none;
+        border: 1px solid transparent;
         cursor: pointer;
-        transition: all var(--transition-speed);
+        transition: all var(--staff-transition-fast);
         text-decoration: none;
         line-height: 1.4;
+        white-space: nowrap;
+        font-family: var(--staff-font-sans);
     }
-
+    
+    /* Primary button - main call-to-action */
     .staff-btn-primary {
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        background: linear-gradient(135deg, var(--staff-primary) 0%, var(--staff-primary-dark) 100%);
         color: white;
-        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+        box-shadow: var(--staff-shadow-sm);
+        border-color: var(--staff-primary);
     }
-
+    
     .staff-btn-primary:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+        box-shadow: var(--staff-shadow-md);
+        background: linear-gradient(135deg, var(--staff-primary-dark) 0%, #1e40af 100%);
         color: white;
     }
-
+    
+    /* Secondary button - alternative actions */
     .staff-btn-secondary {
-        background: #f1f5f9;
-        color: #475569;
+        background: white;
+        color: var(--staff-gray-700);
+        border-color: var(--staff-gray-300);
     }
-
+    
     .staff-btn-secondary:hover {
-        background: #e2e8f0;
-        color: #1e293b;
+        background: var(--staff-gray-50);
+        color: var(--staff-gray-800);
+        border-color: var(--staff-gray-400);
     }
-
+    
+    /* Outline button - subtle actions */
     .staff-btn-outline {
         background: transparent;
-        border: 1px solid #e2e8f0;
-        color: #475569;
+        color: var(--staff-gray-600);
+        border-color: var(--staff-gray-300);
     }
-
+    
     .staff-btn-outline:hover {
-        border-color: #3b82f6;
-        color: #3b82f6;
-        background: #eff6ff;
+        background: var(--staff-gray-100);
+        color: var(--staff-primary);
+        border-color: var(--staff-primary);
     }
-
+    
+    /* Danger button - destructive actions */
+    .staff-btn-danger {
+        background: linear-gradient(135deg, var(--staff-danger) 0%, #dc2626 100%);
+        color: white;
+        border-color: var(--staff-danger);
+    }
+    
+    .staff-btn-danger:hover {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        color: white;
+    }
+    
+    /* Success button - positive actions */
+    .staff-btn-success {
+        background: linear-gradient(135deg, var(--staff-success) 0%, #16a34a 100%);
+        color: white;
+        border-color: var(--staff-success);
+    }
+    
+    .staff-btn-success:hover {
+        background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+        color: white;
+    }
+    
+    /* Small button */
     .staff-btn-sm {
-        padding: 0.375rem 0.75rem;
+        padding: var(--staff-space-1-5) var(--staff-space-3);
         font-size: 0.8125rem;
     }
-
-    .staff-btn-group {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
+    
+    /* Large button */
+    .staff-btn-lg {
+        padding: var(--staff-space-3) var(--staff-space-6);
+        font-size: 1rem;
     }
-
+    
+    /* Block button - full width */
+    .staff-btn-block {
+        width: 100%;
+    }
+    
+    /* Button group - container for related buttons */
+    .staff-btn-group {
+        display: inline-flex;
+        gap: var(--staff-space-2);
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    /* Vertical button group */
+    .staff-btn-group-vertical {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .staff-btn-group-vertical .staff-btn {
+        justify-content: flex-start;
+    }
+    
+    /* Icon-only button */
+    .staff-btn-icon {
+        padding: var(--staff-space-2-5);
+        width: 36px;
+        height: 36px;
+    }
+    
+    /* Disabled button state */
+    .staff-btn:disabled,
+    .staff-btn.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+    
     /* ============================================
-       FORM ELEMENTS
+       8. FORM ELEMENTS
+       Consistent input styling with focus states
        ============================================ */
     .staff-form-group {
-        margin-bottom: 1.25rem;
+        margin-bottom: var(--staff-space-5);
     }
-
+    
+    .staff-form-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Form label */
     .staff-form-label {
         display: block;
-        font-weight: 500;
-        color: #374151;
-        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--staff-gray-700);
+        margin-bottom: var(--staff-space-2);
         font-size: 0.875rem;
     }
-
+    
+    /* Required field indicator */
+    .staff-form-label-required::after {
+        content: " *";
+        color: var(--staff-danger);
+    }
+    
+    /* Help text below field */
+    .staff-form-help {
+        margin-top: var(--staff-space-1);
+        font-size: 0.8125rem;
+        color: var(--staff-gray-500);
+    }
+    
+    /* Error message */
+    .staff-form-error {
+        margin-top: var(--staff-space-1);
+        font-size: 0.8125rem;
+        color: var(--staff-danger);
+        font-weight: 500;
+    }
+    
+    /* Primary form input */
     .staff-form-control {
         width: 100%;
-        padding: 0.75rem 1rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
+        padding: var(--staff-space-3) var(--staff-space-4);
+        border: 1px solid var(--staff-gray-300);
+        border-radius: var(--staff-radius-md);
         font-size: 0.9375rem;
-        color: #1e293b;
+        color: var(--staff-gray-800);
         background: white;
-        transition: all var(--transition-speed);
+        transition: all var(--staff-transition-fast);
+        font-family: var(--staff-font-sans);
     }
-
+    
+    .staff-form-control:hover {
+        border-color: var(--staff-gray-400);
+    }
+    
     .staff-form-control:focus {
         outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        border-color: var(--staff-primary);
+        box-shadow: 0 0 0 3px var(--staff-primary-light);
     }
-
+    
     .staff-form-control::placeholder {
-        color: #94a3b8;
+        color: var(--staff-gray-400);
     }
-
+    
+    .staff-form-control:disabled {
+        background: var(--staff-gray-100);
+        cursor: not-allowed;
+    }
+    
+    /* Select dropdown styling */
+    .staff-form-control select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right var(--staff-space-4) center;
+        padding-right: var(--staff-space-10);
+    }
+    
+    /* Textarea styling */
+    textarea.staff-form-control {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    /* Checkbox and radio styling */
+    .staff-form-check {
+        display: flex;
+        align-items: center;
+        gap: var(--staff-space-2);
+        margin-bottom: var(--staff-space-2);
+    }
+    
+    .staff-form-check-input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--staff-primary);
+    }
+    
+    .staff-form-check-label {
+        font-size: 0.9375rem;
+        color: var(--staff-gray-700);
+    }
+    
     /* ============================================
-       TABLES
+       9. TABLE COMPONENT
+       Data tables with hover states and sorting
        ============================================ */
     .staff-table-wrapper {
         overflow-x: auto;
-        margin: -1.5rem;
-        padding: 0 1.5rem;
+        margin: calc(var(--staff-space-6) * -1);
+        padding: 0 var(--staff-space-6);
     }
-
+    
+    /* Table base styles */
     .staff-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 0.875rem;
     }
-
+    
+    /* Table header */
     .staff-table thead th {
-        background: #f8fafc;
-        color: #64748b;
+        background: var(--staff-gray-50);
+        color: var(--staff-gray-600);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         font-size: 0.75rem;
-        padding: 1rem 1rem;
+        padding: var(--staff-space-4);
         text-align: left;
-        border-bottom: 2px solid #e2e8f0;
+        border-bottom: 2px solid var(--staff-gray-200);
+        white-space: nowrap;
     }
-
+    
+    /* Table body */
     .staff-table tbody td {
-        padding: 1rem;
-        border-bottom: 1px solid #f1f5f9;
-        color: #475569;
+        padding: var(--staff-space-4);
+        border-bottom: 1px solid var(--staff-gray-100);
+        color: var(--staff-gray-700);
         vertical-align: middle;
     }
-
+    
+    /* Table row hover state */
     .staff-table tbody tr {
-        transition: background var(--transition-speed);
+        transition: background var(--staff-transition-fast);
     }
-
+    
     .staff-table tbody tr:hover {
-        background: #f8fafc;
+        background: var(--staff-gray-50);
     }
-
+    
+    /* Last row no border */
     .staff-table tbody tr:last-child td {
         border-bottom: none;
     }
-
+    
     /* ============================================
-       BADGES & LABELS
+       10. BADGE COMPONENT
+       Status indicators and labels
        ============================================ */
     .staff-badge {
         display: inline-flex;
         align-items: center;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
+        padding: var(--staff-space-1) var(--staff-space-3);
+        border-radius: 9999px;
         font-size: 0.75rem;
-        font-weight: 500;
+        font-weight: 600;
         line-height: 1.4;
+        white-space: nowrap;
     }
-
-    .staff-badge-primary { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
-    .staff-badge-success { background: rgba(34, 197, 94, 0.1); color: #16a34a; }
-    .staff-badge-warning { background: rgba(245, 158, 11, 0.1); color: #d97706; }
-    .staff-badge-danger { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
-    .staff-badge-info { background: rgba(6, 182, 212, 0.1); color: #0891b2; }
-
+    
+    /* Badge variants - semantic colors */
+    .staff-badge-primary {
+        background: var(--staff-primary-light);
+        color: var(--staff-primary);
+    }
+    
+    .staff-badge-success {
+        background: var(--staff-success-light);
+        color: #15803d;
+    }
+    
+    .staff-badge-warning {
+        background: var(--staff-warning-light);
+        color: #d97706;
+    }
+    
+    .staff-badge-danger {
+        background: var(--staff-danger-light);
+        color: #dc2626;
+    }
+    
+    .staff-badge-info {
+        background: var(--staff-info-light);
+        color: #0891b2;
+    }
+    
+    .staff-badge-gray {
+        background: var(--staff-gray-100);
+        color: var(--staff-gray-600);
+    }
+    
+    /* Badge outline variant */
+    .staff-badge-outline {
+        background: transparent;
+        border: 1px solid currentColor;
+    }
+    
+    /* Badge sizes */
+    .staff-badge-sm {
+        padding: 2px 8px;
+        font-size: 0.6875rem;
+    }
+    
+    .staff-badge-lg {
+        padding: var(--staff-space-1-5) var(--staff-space-4);
+        font-size: 0.8125rem;
+    }
+    
     /* ============================================
-       STAT CARDS (DASHBOARD)
+       11. STAT CARD COMPONENT
+       Dashboard statistics display
        ============================================ */
     .staff-stat-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
+        gap: var(--staff-space-5);
+        margin-bottom: var(--staff-space-6);
     }
-
+    
     .staff-stat-card {
         background: white;
-        border-radius: var(--border-radius);
-        padding: 1.5rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        transition: all var(--transition-speed);
+        border-radius: var(--staff-radius-lg);
+        padding: var(--staff-space-6);
+        box-shadow: var(--staff-shadow-sm);
+        border: 1px solid var(--staff-gray-100);
+        transition: all var(--staff-transition-normal);
     }
-
+    
     .staff-stat-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        box-shadow: var(--staff-shadow-lg);
     }
-
+    
     .staff-stat-icon {
         width: 48px;
         height: 48px;
-        border-radius: 10px;
+        border-radius: var(--staff-radius-md);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 20px;
-        margin-bottom: 1rem;
+        margin-bottom: var(--staff-space-4);
     }
-
+    
+    .staff-stat-icon-primary {
+        background: var(--staff-primary-light);
+        color: var(--staff-primary);
+    }
+    
+    .staff-stat-icon-success {
+        background: var(--staff-success-light);
+        color: var(--staff-success);
+    }
+    
+    .staff-stat-icon-warning {
+        background: var(--staff-warning-light);
+        color: var(--staff-warning);
+    }
+    
+    .staff-stat-icon-danger {
+        background: var(--staff-danger-light);
+        color: var(--staff-danger);
+    }
+    
+    .staff-stat-icon-info {
+        background: var(--staff-info-light);
+        color: var(--staff-info);
+    }
+    
     .staff-stat-value {
-        font-size: 1.875rem;
+        font-size: 2rem;
         font-weight: 700;
-        color: #1e293b;
+        color: var(--staff-gray-900);
         line-height: 1.2;
+        margin-bottom: var(--staff-space-1);
     }
-
+    
     .staff-stat-label {
         font-size: 0.8125rem;
-        color: #64748b;
+        color: var(--staff-gray-500);
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-top: 0.25rem;
     }
-
+    
     /* ============================================
-       EMPTY STATES
+       12. EMPTY STATE COMPONENT
+       Shown when no data is available
        ============================================ */
     .staff-empty {
         text-align: center;
-        padding: 3rem 1.5rem;
-        color: #94a3b8;
+        padding: var(--staff-space-12) var(--staff-space-6);
+        color: var(--staff-gray-400);
     }
-
-    .staff-empty i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
+    
+    .staff-empty-icon {
+        font-size: 3.5rem;
+        margin-bottom: var(--staff-space-4);
         opacity: 0.5;
     }
-
+    
     .staff-empty h5 {
-        color: #64748b;
-        margin-bottom: 0.5rem;
+        color: var(--staff-gray-600);
+        margin-bottom: var(--staff-space-2);
+        font-weight: 600;
     }
-
+    
     .staff-empty p {
-        font-size: 0.875rem;
+        font-size: 0.9375rem;
         margin: 0;
+        color: var(--staff-gray-400);
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
     }
-
+    
+    .staff-empty-action {
+        margin-top: var(--staff-space-5);
+    }
+    
     /* ============================================
-       ALERTS
+       13. ALERT COMPONENT
+       Notification and feedback messages
        ============================================ */
     .staff-alert {
-        padding: 1rem 1.25rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
+        padding: var(--staff-space-4) var(--staff-space-5);
+        border-radius: var(--staff-radius-md);
+        margin-bottom: var(--staff-space-5);
         display: flex;
         align-items: flex-start;
-        gap: 0.75rem;
+        gap: var(--staff-space-3);
+        border-left: 4px solid;
     }
-
-    .staff-alert-warning {
-        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-        border: 1px solid #fcd34d;
-        color: #92400e;
-    }
-
+    
     .staff-alert-info {
-        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-        border: 1px solid #93c5fd;
-        color: #1e40af;
+        background: var(--staff-primary-light);
+        border-color: var(--staff-primary);
+        color: var(--staff-primary-dark);
     }
-
+    
     .staff-alert-success {
-        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-        border: 1px solid #86efac;
+        background: var(--staff-success-light);
+        border-color: var(--staff-success);
         color: #166534;
     }
-
-    .staff-alert i:first-child {
+    
+    .staff-alert-warning {
+        background: var(--staff-warning-light);
+        border-color: var(--staff-warning);
+        color: #92400e;
+    }
+    
+    .staff-alert-danger {
+        background: var(--staff-danger-light);
+        border-color: var(--staff-danger);
+        color: #b91c1c;
+    }
+    
+    .staff-alert-icon {
         font-size: 1.25rem;
+        flex-shrink: 0;
         margin-top: 2px;
     }
-
+    
+    .staff-alert-content {
+        flex: 1;
+    }
+    
+    .staff-alert-title {
+        font-weight: 600;
+        margin-bottom: var(--staff-space-1);
+    }
+    
+    .staff-alert-message {
+        font-size: 0.9375rem;
+        margin: 0;
+    }
+    
     /* ============================================
-       LIST GROUPS
+       14. LIST GROUP COMPONENT
+       For lists of items with actions
        ============================================ */
     .staff-list {
         list-style: none;
         padding: 0;
         margin: 0;
     }
-
+    
     .staff-list-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 1rem 0;
-        border-bottom: 1px solid #f1f5f9;
+        padding: var(--staff-space-4);
+        border-bottom: 1px solid var(--staff-gray-100);
+        gap: var(--staff-space-4);
     }
-
+    
     .staff-list-item:last-child {
         border-bottom: none;
     }
-
+    
+    .staff-list-item-content {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .staff-list-item-title {
+        font-weight: 500;
+        color: var(--staff-gray-800);
+        margin-bottom: var(--staff-space-1);
+    }
+    
+    .staff-list-item-subtitle {
+        font-size: 0.8125rem;
+        color: var(--staff-gray-500);
+    }
+    
     /* ============================================
-       GRID SYSTEM
+       15. GRID SYSTEM
+       Responsive grid layout utilities
        ============================================ */
     .staff-grid {
         display: grid;
-        gap: 1.5rem;
+        gap: var(--staff-space-5);
     }
-
+    
+    .staff-grid-1 { grid-template-columns: 1fr; }
     .staff-grid-2 { grid-template-columns: repeat(2, 1fr); }
     .staff-grid-3 { grid-template-columns: repeat(3, 1fr); }
     .staff-grid-4 { grid-template-columns: repeat(4, 1fr); }
-
-    @media (max-width: 992px) {
-        .staff-grid-4 { grid-template-columns: repeat(2, 1fr); }
-        .staff-grid-3 { grid-template-columns: repeat(2, 1fr); }
+    
+    /* Responsive breakpoints */
+    @media (max-width: 1200px) {
+        .staff-grid-4 {
+            grid-template-columns: repeat(3, 1fr);
+        }
     }
-
+    
+    @media (max-width: 992px) {
+        .staff-grid-4,
+        .staff-grid-3 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
     @media (max-width: 768px) {
+        .staff-container {
+            padding: var(--staff-space-4);
+        }
+        
         .staff-grid-4,
         .staff-grid-3,
-        .staff-grid-2 { grid-template-columns: 1fr; }
+        .staff-grid-2 {
+            grid-template-columns: 1fr;
+        }
         
-        .staff-heading-1 { font-size: 1.5rem; }
-        .staff-heading-2 { font-size: 1.25rem; }
+        .staff-heading-1 {
+            font-size: 1.5rem;
+        }
+        
+        .staff-heading-2 {
+            font-size: 1.25rem;
+        }
+        
+        .staff-card-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .staff-btn-group {
+            width: 100%;
+            justify-content: flex-start;
+        }
         
         .staff-nav {
             flex-direction: column;
@@ -491,191 +962,595 @@
         
         .staff-nav li a {
             width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .staff-stat-value {
+            font-size: 1.5rem;
+        }
+        
+        .staff-table-wrapper {
+            margin: calc(var(--staff-space-4) * -1);
+            padding: 0 var(--staff-space-4);
+        }
+        
+        .staff-table thead th,
+        .staff-table tbody td {
+            padding: var(--staff-space-3);
         }
     }
-
+    
+    @media (max-width: 480px) {
+        .staff-container {
+            padding: var(--staff-space-3);
+        }
+        
+        .staff-stat-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .staff-card-body {
+            padding: var(--staff-space-4);
+        }
+    }
+    
     /* ============================================
-       LOGIN REQUIRED STATE
+       16. AVATAR COMPONENT
+       User profile images and initials
        ============================================ */
-    .staff-login-required {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 400px;
-    }
-
-    .staff-login-box {
-        background: white;
-        border-radius: var(--border-radius);
-        padding: 3rem;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.1);
-        text-align: center;
-        max-width: 400px;
-        width: 100%;
-    }
-
-    .staff-login-box i {
-        font-size: 4rem;
-        color: #94a3b8;
-        margin-bottom: 1.5rem;
-    }
-
-    .staff-login-box h4 {
-        margin-bottom: 0.75rem;
-        color: #1e293b;
-    }
-
-    .staff-login-box p {
-        color: #64748b;
-        margin-bottom: 1.5rem;
-    }
-
-    /* ============================================
-       AUTHENTICATED USER CHECK
-       ============================================ */
-    .staff-user-info {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .staff-user-avatar {
+    .staff-avatar {
         width: 40px;
         height: 40px;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 600;
+        font-size: 0.875rem;
+        background: var(--staff-primary-light);
+        color: var(--staff-primary);
+        flex-shrink: 0;
+    }
+    
+    .staff-avatar-sm {
+        width: 32px;
+        height: 32px;
+        font-size: 0.75rem;
+    }
+    
+    .staff-avatar-lg {
+        width: 56px;
+        height: 56px;
+        font-size: 1.25rem;
+    }
+    
+    .staff-avatar-xl {
+        width: 80px;
+        height: 80px;
+        font-size: 1.5rem;
+    }
+    
+    .staff-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: inherit;
+    }
+    
+    /* ============================================
+       17. UTILITY CLASSES
+       Common helper classes
+       ============================================ */
+    .staff-text-center { text-align: center; }
+    .staff-text-right { text-align: right; }
+    .staff-text-left { text-align: left; }
+    
+    .staff-flex { display: flex; }
+    .staff-flex-wrap { flex-wrap: wrap; }
+    .staff-items-center { align-items: center; }
+    .staff-justify-between { justify-content: space-between; }
+    .staff-justify-center { justify-content: center; }
+    .staff-flex-1 { flex: 1; }
+    
+    .staff-hidden { display: none; }
+    .staff-visible { display: block; }
+    
+    .staff-w-full { width: 100%; }
+    .staff-h-full { height: 100%; }
+    
+    .staff-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    /* Links that look like text */
+    .staff-link {
+        color: var(--staff-primary);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    
+    .staff-link:hover {
+        text-decoration: underline;
+    }
+    
+    /* Horizontal rule */
+    .staff-hr {
+        border: none;
+        border-top: 1px solid var(--staff-gray-200);
+        margin: var(--staff-space-5) 0;
+    }
+    
+    /* Loading spinner */
+    .staff-spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid var(--staff-gray-200);
+        border-top-color: var(--staff-primary);
+        border-radius: 50%;
+        animation: staff-spin 0.8s linear infinite;
+    }
+    
+    @keyframes staff-spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Skeleton loading placeholder */
+    .staff-skeleton {
+        background: linear-gradient(90deg, var(--staff-gray-200) 25%, var(--staff-gray-100) 50%, var(--staff-gray-200) 75%);
+        background-size: 200% 100%;
+        animation: staff-shimmer 1.5s infinite;
+        border-radius: var(--staff-radius-md);
+    }
+    
+    @keyframes staff-shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    
+    /* ============================================
+       18. ACCESSIBILITY
+       Focus states and screen reader support
+       ============================================ */
+    /* Focus visible for keyboard navigation */
+    .staff-btn:focus-visible,
+    .staff-form-control:focus-visible,
+    .staff-nav li a:focus-visible {
+        outline: 2px solid var(--staff-primary);
+        outline-offset: 2px;
+    }
+    
+    /* Reduced motion for accessibility */
+    @media (prefers-reduced-motion: reduce) {
+        .staff-btn,
+        .staff-stat-card,
+        .staff-nav li a,
+        .staff-table tbody tr {
+            transition: none;
+        }
+        
+        .staff-skeleton {
+            animation: none;
+        }
+        
+        .staff-spinner {
+            animation: none;
+        }
+    }
+    
+    /* High contrast mode support */
+    @media (prefers-contrast: high) {
+        .staff-card {
+            border: 2px solid var(--staff-gray-900);
+        }
+        
+        .staff-btn {
+            border-width: 2px;
+        }
+        
+        .staff-form-control {
+            border-width: 2px;
+        }
+    }
+    
+    /* ============================================
+       19. LOGIN REQUIRED STATE
+       Shown when user needs to authenticate
+       ============================================ */
+    .staff-login-required {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        text-align: center;
+        padding: var(--staff-space-8);
+    }
+    
+    .staff-login-required-icon {
+        font-size: 4rem;
+        color: var(--staff-gray-300);
+        margin-bottom: var(--staff-space-5);
+    }
+    
+    .staff-login-required h3 {
+        color: var(--staff-gray-700);
+        margin-bottom: var(--staff-space-2);
+    }
+    
+    .staff-login-required p {
+        color: var(--staff-gray-500);
+        margin-bottom: var(--staff-space-5);
+    }
+    
+    /* Screen reader only - for accessibility */
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+    
+    /* ============================================
+       20. BREADCRUMB COMPONENT
+       Navigation hierarchy indicator
+       ============================================ */
+    .staff-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: var(--staff-space-2);
+        font-size: 0.875rem;
+        color: var(--staff-gray-500);
+        margin-bottom: var(--staff-space-4);
+        flex-wrap: wrap;
+    }
+    
+    .staff-breadcrumb a {
+        color: var(--staff-gray-500);
+        text-decoration: none;
+        transition: color var(--staff-transition-fast);
+    }
+    
+    .staff-breadcrumb a:hover {
+        color: var(--staff-primary);
+    }
+    
+    .staff-breadcrumb-separator {
+        color: var(--staff-gray-300);
+    }
+    
+    .staff-breadcrumb-current {
+        color: var(--staff-gray-700);
+        font-weight: 500;
+    }
+    
+    /* ============================================
+       21. TOAST NOTIFICATIONS
+       Action feedback messages
+       ============================================ */
+    .staff-toast-container {
+        position: fixed;
+        top: var(--staff-space-4);
+        right: var(--staff-space-4);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: var(--staff-space-3);
+    }
+    
+    .staff-toast {
+        background: white;
+        border-radius: var(--staff-radius-md);
+        box-shadow: var(--staff-shadow-lg);
+        padding: var(--staff-space-4);
+        display: flex;
+        align-items: flex-start;
+        gap: var(--staff-space-3);
+        min-width: 300px;
+        max-width: 400px;
+        animation: staff-slide-in 0.3s ease;
+        border-left: 4px solid;
+    }
+    
+    .staff-toast-success { border-color: var(--staff-success); }
+    .staff-toast-error { border-color: var(--staff-danger); }
+    .staff-toast-warning { border-color: var(--staff-warning); }
+    .staff-toast-info { border-color: var(--staff-info); }
+    
+    @keyframes staff-slide-in {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    .staff-toast-close {
+        background: none;
+        border: none;
+        color: var(--staff-gray-400);
+        cursor: pointer;
+        padding: 0;
+        margin-left: auto;
+        font-size: 1.25rem;
+        line-height: 1;
+    }
+    
+    .staff-toast-close:hover {
+        color: var(--staff-gray-600);
+    }
+    
+    /* ============================================
+       22. SEARCH BAR COMPONENT
+       Search input with icon
+       ============================================ */
+    .staff-search {
+        position: relative;
+    }
+    
+    .staff-search-input {
+        padding-left: var(--staff-space-10);
+    }
+    
+    .staff-search-icon {
+        position: absolute;
+        left: var(--staff-space-4);
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--staff-gray-400);
+        pointer-events: none;
+    }
+    
+    .staff-search-clear {
+        position: absolute;
+        right: var(--staff-space-3);
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: var(--staff-gray-400);
+        cursor: pointer;
+        padding: var(--staff-space-1);
+    }
+    
+    .staff-search-clear:hover {
+        color: var(--staff-gray-600);
+    }
+    
+    /* ============================================
+       23. PAGE HEADER COMPONENT
+       Title with actions bar
+       ============================================ */
+    .staff-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: var(--staff-space-4);
+        margin-bottom: var(--staff-space-6);
+    }
+    
+    .staff-page-header-content {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .staff-page-header-actions {
+        display: flex;
+        gap: var(--staff-space-2);
+        flex-wrap: wrap;
+    }
+    
+    /* ============================================
+       24. TABLE ROW ACTIONS
+       Actions visible on row hover
+       ============================================ */
+    .staff-row-actions {
+        opacity: 0;
+        transition: opacity var(--staff-transition-fast);
+    }
+    
+    .staff-table tbody tr:hover .staff-row-actions {
+        opacity: 1;
+    }
+    
+    /* ============================================
+       25. STATUS INDICATOR
+       Dot indicator for live status
+       ============================================ */
+    .staff-status-dot {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--staff-space-2);
+    }
+    
+    .staff-status-dot::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        animation: staff-pulse 2s infinite;
+    }
+    
+    .staff-status-dot-online::before { background: var(--staff-success); }
+    .staff-status-dot-offline::before { background: var(--staff-gray-400); }
+    .staff-status-dot-busy::before { background: var(--staff-warning); }
+    
+    @keyframes staff-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    /* ============================================
+       26. ENHANCED CARD EFFECTS
+       More interactive card states
+       ============================================ */
+    .staff-card-interactive {
+        cursor: pointer;
+        transition: all var(--staff-transition-normal);
+    }
+    
+    .staff-card-interactive:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--staff-shadow-lg);
+    }
+    
+    .staff-card-interactive:active {
+        transform: translateY(0);
+    }
+    
+    /* ============================================
+       27. FILTER BAR COMPONENT
+       Horizontal filter controls
+       ============================================ */
+    .staff-filter-bar {
+        display: flex;
+        align-items: center;
+        gap: var(--staff-space-3);
+        flex-wrap: wrap;
+        padding: var(--staff-space-4);
+        background: var(--staff-gray-50);
+        border-radius: var(--staff-radius-md);
+        margin-bottom: var(--staff-space-5);
+    }
+    
+    .staff-filter-item {
+        display: flex;
+        align-items: center;
+        gap: var(--staff-space-2);
+    }
+    
+    .staff-filter-label {
+        font-size: 0.8125rem;
+        color: var(--staff-gray-500);
+        font-weight: 500;
+    }
+    
+    /* ============================================
+       28. DELETED/DISABLED STATES
+       Visual indicators for inactive items
+       ============================================ */
+    .staff-disabled,
+    .staff-inactive {
+        opacity: 0.6;
+    }
+    
+    .staff-disabled-text {
+        color: var(--staff-gray-400);
+        font-style: italic;
+    }
+    
+    /* ============================================
+       29. ACTION CARD COMPONENT
+       For review/approval actions
+       ============================================ */
+    .staff-action-card {
+        background: white;
+        border-radius: var(--staff-radius-lg);
+        border: 1px solid var(--staff-gray-200);
+        padding: var(--staff-space-5);
+        transition: all var(--staff-transition-fast);
+    }
+    
+    .staff-action-card:hover {
+        border-color: var(--staff-primary);
+        box-shadow: var(--staff-shadow-md);
+    }
+    
+    .staff-action-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: var(--staff-space-3);
+    }
+    
+    .staff-action-card-body {
+        margin-bottom: var(--staff-space-4);
+    }
+    
+    .staff-action-card-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--staff-space-2);
+        padding-top: var(--staff-space-4);
+        border-top: 1px solid var(--staff-gray-100);
+    }
+    
+    /* ============================================
+       30. TIMELINE COMPONENT
+       Vertical timeline for activity/history
+       ============================================ */
+    .staff-timeline {
+        position: relative;
+        padding-left: var(--staff-space-8);
+    }
+    
+    .staff-timeline::before {
+        content: '';
+        position: absolute;
+        left: var(--staff-space-3);
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--staff-gray-200);
+    }
+    
+    .staff-timeline-item {
+        position: relative;
+        padding-bottom: var(--staff-space-5);
+    }
+    
+    .staff-timeline-item:last-child {
+        padding-bottom: 0;
+    }
+    
+    .staff-timeline-dot {
+        position: absolute;
+        left: calc(var(--staff-space-8) * -1 + var(--staff-space-1));
+        top: var(--staff-space-1);
+        width: var(--staff-space-5);
+        height: var(--staff-space-5);
+        border-radius: 50%;
+        background: white;
+        border: 2px solid var(--staff-primary);
+    }
+    
+    .staff-timeline-dot-success { border-color: var(--staff-success); }
+    .staff-timeline-dot-danger { border-color: var(--staff-danger); }
+    .staff-timeline-dot-warning { border-color: var(--staff-warning); }
+    
+    .staff-timeline-content {
+        background: var(--staff-gray-50);
+        border-radius: var(--staff-radius-md);
+        padding: var(--staff-space-4);
+    }
+    
+    .staff-timeline-time {
+        font-size: 0.75rem;
+        color: var(--staff-gray-500);
+        margin-bottom: var(--staff-space-1);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="staff-layout">
-    {% if user.is_authenticated %}
-    <!-- Staff Navigation -->
-    <div class="staff-container">
-        <div class="staff-wrapper">
-            <nav class="staff-nav-card">
-                <ul class="staff-nav">
-                    {% if user.is_superuser %}
-                    <li>
-                        <a class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" 
-                           href="{% url 'staff:admin_dashboard' %}">
-                            <i class="fas fa-tachometer-alt"></i>
-                            Admin
-                        </a>
-                    </li>
-                    <li>
-                        <a class="{% if 'manage_staff' in request.resolver_match.url_name %}active{% endif %}" 
-                           href="{% url 'staff:manage_staff' %}">
-                            <i class="fas fa-users"></i>
-                            Staff
-                        </a>
-                    </li>
-                    <li>
-                        <a class="{% if request.resolver_match.url_name == 'manage_tasks' %}active{% endif %}" 
-                           href="{% url 'staff:manage_tasks' %}">
-                            <i class="fas fa-clipboard-list"></i>
-                            Tasks
-                        </a>
-                    </li>
-                    <li>
-                        <a class="{% if request.resolver_match.url_name == 'pending_approvals' %}active{% endif %}" 
-                           href="{% url 'staff:pending_approvals' %}">
-                            <i class="fas fa-check-double"></i>
-                            Approvals
-                        </a>
-                    </li>
-                    <li>
-                        <a class="{% if request.resolver_match.url_name == 'audit_log' %}active{% endif %}" 
-                           href="{% url 'staff:audit_log' %}">
-                            <i class="fas fa-history"></i>
-                            Audit
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li>
-                        <a class="{% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}" 
-                           href="{% url 'staff:staff_dashboard' %}">
-                            <i class="fas fa-user-shield"></i>
-                            My Dashboard
-                        </a>
-                    </li>
-                    <li>
-                        <a class="{% if request.resolver_match.url_name == 'my_tasks' %}active{% endif %}" 
-                           href="{% url 'staff:my_tasks' %}">
-                            <i class="fas fa-tasks"></i>
-                            My Tasks
-                        </a>
-                    </li>
-                    <li>
-                        <a class="{% if request.resolver_match.url_name == 'my_permissions' %}active{% endif %}" 
-                           href="{% url 'staff:my_permissions' %}">
-                            <i class="fas fa-key"></i>
-                            Permissions
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-
-            <!-- Page Header -->
-            <div class="d-flex justify-content-between align-items-center staff-mb-3">
-                <div>
-                    {% block page_title %}
-                    <h1 class="staff-heading staff-heading-2">Staff Management</h1>
-                    {% endblock %}
-                </div>
-                <div class="staff-user-info">
-                    <div class="staff-user-avatar">
-                        {{ user.username|slice:":2"|upper }}
-                    </div>
-                    <div>
-                        <div class="staff-text" style="font-weight: 500;">{{ user.username }}</div>
-                        <div class="staff-text staff-text-small staff-text-muted">Staff Member</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Messages -->
-            {% if messages %}
-            <div class="staff-mb-3">
-                {% for message in messages %}
-                <div class="staff-alert staff-alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}">
-                    <i class="fas {% if message.tags == 'error' %}fa-times-circle{% elif message.tags == 'success' %}fa-check-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %}"></i>
-                    <span>{{ message }}</span>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-
-            <!-- Main Content -->
-            <div class="staff-content-area">
-                {% block staff_content %}{% endblock %}
-            </div>
+<!-- Staff Management Content Wrapper -->
+<div class="staff-container">
+    <div class="staff-wrapper">
+        <div class="staff-content-area">
+            {% block staff_content %}
+            <!-- Child templates will override this block -->
+            {% endblock %}
         </div>
     </div>
-
-    {% else %}
-    <!-- Login Required -->
-    <div class="staff-container">
-        <div class="staff-wrapper">
-            <div class="staff-login-required">
-                <div class="staff-login-box">
-                    <i class="fas fa-lock"></i>
-                    <h4>Authentication Required</h4>
-                    <p>Please log in to access the staff portal.</p>
-                    <a href="{% url 'login' %}" class="staff-btn staff-btn-primary">
-                        <i class="fas fa-sign-in-alt"></i>
-                        Login
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}

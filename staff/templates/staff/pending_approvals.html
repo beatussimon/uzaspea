@@ -3,37 +3,73 @@
 {% block page_title %}Pending Approvals - Staff Management{% endblock %}
 
 {% block staff_content %}
-<div class="staff-grid staff-grid-2">
-    <!-- Pending Actions -->
+<!-- Breadcrumb Navigation -->
+<nav class="staff-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'staff:admin_dashboard' %}"><i class="fas fa-home"></i> Dashboard</a>
+    <span class="staff-breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+    <span class="staff-breadcrumb-current">Pending Approvals</span>
+</nav>
+
+<!-- Page Header -->
+<div class="staff-page-header">
+    <div class="staff-page-header-content">
+        <h1 class="staff-heading staff-heading-2">
+            <i class="fas fa-check-double me-2" aria-hidden="true"></i>
+            Pending Approvals
+        </h1>
+        <p class="staff-text staff-mt-1">Review and approve staff actions before they take effect</p>
+    </div>
+</div>
+
+<!-- Two Column Layout -->
+<div class="staff-grid staff-grid-2 staff-gap-4">
+    
+    <!-- Pending Task Actions -->
     <div class="staff-card">
         <div class="staff-card-header">
-            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-                <i class="fas fa-clock me-2"></i>Pending Task Actions
-                {% if pending_actions %}<span class="staff-badge staff-badge-warning staff-ml-1">{{ pending_actions.count }}</span>{% endif %}
-            </h3>
+            <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-clock me-2" aria-hidden="true"></i>
+                Pending Task Actions
+                {% if pending_actions %}
+                <span class="staff-badge staff-badge-warning staff-ml-1" aria-label="{{ pending_actions.count }} pending">
+                    {{ pending_actions.count }}
+                </span>
+                {% endif %}
+            </h2>
         </div>
-        <div class="staff-card-body">
+        <div class="staff-card-body" style="padding: 0;">
             {% if pending_actions %}
-                <ul class="staff-list">
+                <div class="staff-timeline">
                     {% for action in pending_actions %}
-                    <li class="staff-list-item">
-                        <div>
-                            <div style="font-weight: 500;">{{ action.task.title }}</div>
-                            <div class="staff-text staff-text-small staff-text-muted">
-                                {{ action.get_action_type_display }} by {{ action.performed_by.username }}
+                    <div class="staff-timeline-item">
+                        <div class="staff-timeline-dot"></div>
+                        <div class="staff-timeline-content staff-action-card" onclick="window.location.href='{% url 'staff:review_action' action.id %}'" style="cursor: pointer;">
+                            <div class="staff-action-card-header">
+                                <div>
+                                    <h4 class="staff-heading staff-heading-4" style="margin: 0;">{{ action.task.title }}</h4>
+                                    <span class="staff-text staff-text-small staff-text-muted">
+                                        {{ action.get_action_type_display }} by {{ action.performed_by.username }}
+                                    </span>
+                                </div>
+                                <span class="staff-badge staff-badge-warning">Pending</span>
                             </div>
-                            <p class="staff-text staff-text-small staff-mt-1" style="margin-bottom: 0;">{{ action.description|truncatewords:20 }}</p>
+                            <div class="staff-action-card-body">
+                                <p class="staff-text staff-text-small" style="margin-bottom: 0;">
+                                    {{ action.description|truncatewords:20 }}
+                                </p>
+                            </div>
+                            <div class="staff-timeline-time">
+                                <i class="fas fa-clock me-1"></i>{{ action.performed_at|naturaltime }}
+                            </div>
                         </div>
-                        <a href="{% url 'staff:review_action' action.id %}" class="staff-btn staff-btn-primary">
-                            <i class="fas fa-check"></i>
-                            Review
-                        </a>
-                    </li>
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
             {% else %}
-                <div class="staff-empty">
-                    <i class="fas fa-check-circle" style="color: #22c55e;"></i>
+                <div class="staff-empty" role="status">
+                    <div class="staff-empty-icon-container">
+                        <i class="fas fa-check-circle staff-empty-icon" style="color: var(--staff-success);"></i>
+                    </div>
                     <h5>All Clear!</h5>
                     <p>No pending actions to review.</p>
                 </div>
@@ -44,29 +80,38 @@
     <!-- Pending Approvals -->
     <div class="staff-card">
         <div class="staff-card-header">
-            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-                <i class="fas fa-check-double me-2"></i>Pending Approvals
-                {% if pending_approvals %}<span class="staff-badge staff-badge-info staff-ml-1">{{ pending_approvals.count }}</span>{% endif %}
-            </h3>
+            <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-clipboard-check me-2" aria-hidden="true"></i>
+                Pending Approvals
+                {% if pending_approvals %}
+                <span class="staff-badge staff-badge-info staff-ml-1" aria-label="{{ pending_approvals.count }} pending">
+                    {{ pending_approvals.count }}
+                </span>
+                {% endif %}
+            </h2>
         </div>
-        <div class="staff-card-body">
+        <div class="staff-card-body" style="padding: 0;">
             {% if pending_approvals %}
-                <ul class="staff-list">
+                <ul class="staff-list" role="list" aria-label="Pending approvals">
                     {% for approval in pending_approvals %}
                     <li class="staff-list-item">
-                        <div>
-                            <div style="font-weight: 500;">{{ approval.title }}</div>
-                            <div class="staff-text staff-text-small staff-text-muted">
+                        <div class="staff-list-item-content">
+                            <div class="staff-list-item-title">{{ approval.title }}</div>
+                            <div class="staff-list-item-subtitle">
                                 {{ approval.get_approval_type_display }} by {{ approval.submitted_by.username }}
                             </div>
-                            <p class="staff-text staff-text-small staff-mt-1" style="margin-bottom: 0;">{{ approval.description|truncatewords:15 }}</p>
+                            <p class="staff-text staff-text-small staff-mt-1" style="margin-bottom: 0;">
+                                {{ approval.description|truncatewords:15 }}
+                            </p>
                         </div>
                     </li>
                     {% endfor %}
                 </ul>
             {% else %}
-                <div class="staff-empty">
-                    <i class="fas fa-check-circle" style="color: #22c55e;"></i>
+                <div class="staff-empty" role="status">
+                    <div class="staff-empty-icon-container">
+                        <i class="fas fa-check-circle staff-empty-icon" style="color: var(--staff-success);"></i>
+                    </div>
                     <h5>All Clear!</h5>
                     <p>No pending approvals.</p>
                 </div>
