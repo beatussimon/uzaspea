@@ -4,23 +4,35 @@
 {% block page_title %}Edit Category - Staff Management{% endblock %}
 
 {% block staff_content %}
+<!-- Page Header -->
+<div class="staff-mb-4">
+    <h1 class="staff-heading staff-heading-2">
+        <i class="fas fa-folder-edit me-2" aria-hidden="true"></i>
+        Edit Category
+    </h1>
+    <p class="staff-text staff-mt-1">Update category details</p>
+</div>
+
+<!-- Form Card -->
 <div class="staff-card" style="max-width: 500px; margin: 0 auto;">
     <div class="staff-card-header">
-        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-            <i class="fas fa-folder-edit me-2"></i>Edit Category: {{ category.name }}
-        </h3>
+        <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-folder me-2" aria-hidden="true"></i>
+            {{ category.name }}
+        </h2>
     </div>
     <div class="staff-card-body">
-        <form method="post">
+        <form method="post" novalidate>
             {% csrf_token %}
             {{ form|crispy }}
-            <div class="staff-btn-group staff-mt-3">
+            
+            <div class="staff-btn-group staff-mt-4" role="group" aria-label="Form actions">
                 <button type="submit" class="staff-btn staff-btn-primary">
-                    <i class="fas fa-save"></i>
+                    <i class="fas fa-save" aria-hidden="true"></i>
                     Save Changes
                 </button>
                 <a href="{% url 'staff:manage_categories' %}" class="staff-btn staff-btn-secondary">
-                    <i class="fas fa-times"></i>
+                    <i class="fas fa-times" aria-hidden="true"></i>
                     Cancel
                 </a>
             </div>

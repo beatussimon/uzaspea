@@ -5,52 +5,67 @@
 {% block page_title %}My Dashboard - Staff Management{% endblock %}
 
 {% block staff_content %}
-<!-- Welcome Card -->
-<div class="staff-card" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white;">
+<!-- Breadcrumb Navigation -->
+<nav class="staff-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'staff:staff_dashboard' %}"><i class="fas fa-home"></i> Dashboard</a>
+    <span class="staff-breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+    <span class="staff-breadcrumb-current">Overview</span>
+</nav>
+
+<!-- Welcome Card - Hero section with gradient background -->
+<!-- UX NOTE: Hero card provides immediate context and sets the tone for the dashboard -->
+<div class="staff-card staff-card-gradient" role="banner">
     <div class="staff-card-body">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 1rem;">
             <div>
-                <h2 class="staff-heading staff-heading-2" style="color: white; margin-bottom: 0.5rem;">
-                    <i class="fas fa-user-shield me-2"></i>Welcome back, {{ request.user.username }}!
-                </h2>
-                <p style="opacity: 0.9; margin: 0;">Here's your staff dashboard for {% now "F j, Y" %}</p>
+                <!-- Page heading using semantic heading hierarchy -->
+                <h1 class="staff-heading staff-heading-2" style="color: white; margin-bottom: 0.5rem;">
+                    <i class="fas fa-user-shield me-2" aria-hidden="true"></i>
+                    Welcome back, {{ request.user.username }}!
+                </h1>
+                <p class="staff-text" style="opacity: 0.9; margin: 0;">
+                    Here's your staff dashboard for {% now "F j, Y" %}
+                </p>
             </div>
+            <!-- Hidden on mobile to prioritize content -->
             <div class="text-end d-none d-md-block">
-                <div style="font-size: 2.5rem; font-weight: 700;">{{ my_tasks.count }}</div>
-                <div style="opacity: 0.9;">Total Tasks</div>
+                <div style="font-size: 2.5rem; font-weight: 700; line-height: 1;">{{ my_tasks.count }}</div>
+                <div style="opacity: 0.9; font-size: 0.875rem;">Total Tasks</div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Stats Grid -->
-<div class="staff-stat-grid">
-    <div class="staff-stat-card">
-        <div class="staff-stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+<!-- Statistics Grid - Key metrics at a glance -->
+<!-- UX NOTE: Statistics provide immediate visibility into workload and status -->
+<div class="staff-stat-grid" role="region" aria-label="Task statistics">
+    <!-- Stat card with icon and value - consistent layout across all cards -->
+    <div class="staff-stat-card staff-card-interactive" tabindex="0" onclick="window.location.href='{% url 'staff:my_tasks' %}'">
+        <div class="staff-stat-icon staff-stat-icon-primary" aria-hidden="true">
             <i class="fas fa-tasks"></i>
         </div>
         <div class="staff-stat-value">{{ my_tasks.count }}</div>
         <div class="staff-stat-label">My Tasks</div>
     </div>
     
-    <div class="staff-stat-card">
-        <div class="staff-stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+    <div class="staff-stat-card staff-card-interactive" tabindex="0" onclick="window.location.href='{% url 'staff:my_tasks' %}?status=pending'">
+        <div class="staff-stat-icon staff-stat-icon-warning" aria-hidden="true">
             <i class="fas fa-clock"></i>
         </div>
         <div class="staff-stat-value">{{ my_pending_actions.count }}</div>
         <div class="staff-stat-label">Pending Actions</div>
     </div>
     
-    <div class="staff-stat-card">
-        <div class="staff-stat-icon" style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">
+    <div class="staff-stat-card staff-card-interactive" tabindex="0">
+        <div class="staff-stat-icon staff-stat-icon-success" aria-hidden="true">
             <i class="fas fa-check-circle"></i>
         </div>
         <div class="staff-stat-value">{{ my_reviewed_actions.count }}</div>
         <div class="staff-stat-label">Reviewed</div>
     </div>
     
-    <div class="staff-stat-card">
-        <div class="staff-stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+    <div class="staff-stat-card staff-card-interactive" tabindex="0" onclick="window.location.href='{% url 'staff:my_tasks' %}?priority=urgent'">
+        <div class="staff-stat-icon staff-stat-icon-danger" aria-hidden="true">
             <i class="fas fa-exclamation-triangle"></i>
         </div>
         <div class="staff-stat-value">{{ urgent_tasks.count }}</div>
@@ -58,49 +73,65 @@
     </div>
 </div>
 
-<!-- Alert for Urgent Tasks -->
+<!-- Alert for Urgent Tasks - Immediate attention required -->
+<!-- UX NOTE: Alert banner draws attention to critical items that need action -->
 {% if urgent_tasks %}
-<div class="staff-alert staff-alert-warning">
-    <i class="fas fa-exclamation-triangle"></i>
-    <div>
-        <strong>Attention Required!</strong> You have {{ urgent_tasks.count }} urgent task{{ urgent_tasks.count|pluralize }} requiring immediate attention.
+<div class="staff-alert staff-alert-warning" role="alert" aria-live="polite">
+    <i class="fas fa-exclamation-triangle staff-alert-icon" aria-hidden="true"></i>
+    <div class="staff-alert-content">
+        <div class="staff-alert-title">Attention Required!</div>
+        <p class="staff-alert-message">
+            You have {{ urgent_tasks.count }} urgent task{{ urgent_tasks.count|pluralize }} requiring immediate attention.
+        </p>
     </div>
+    <a href="{% url 'staff:my_tasks' %}?priority=urgent" class="staff-btn staff-btn-sm staff-btn-warning" style="margin-left: auto;">
+        View Tasks <i class="fas fa-arrow-right ms-1"></i>
+    </a>
 </div>
 {% endif %}
 
-<!-- Main Content Grid -->
-<div class="staff-grid staff-grid-2">
-    <!-- My Tasks Section -->
+<!-- Main Content Grid - Two column layout for desktop -->
+<!-- UX NOTE: Grid layout organizes content hierarchically with primary and secondary information -->
+<div class="staff-grid staff-grid-2 staff-gap-4">
+    
+    <!-- Primary Content: My Tasks Section -->
     <div class="staff-card">
         <div class="staff-card-header">
-            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-                <i class="fas fa-clipboard-list me-2"></i>My Tasks
-            </h3>
+            <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-clipboard-list me-2" aria-hidden="true"></i>
+                My Tasks
+            </h2>
+            <!-- Action button to view all tasks -->
             <a href="{% url 'staff:my_tasks' %}" class="staff-btn staff-btn-sm staff-btn-outline">
+                <i class="fas fa-arrow-right me-1" aria-hidden="true"></i>
                 View All
             </a>
         </div>
         <div class="staff-card-body" style="padding: 0;">
             {% if my_tasks %}
+                <!-- Data table with task information -->
+                <!-- UX NOTE: Tables provide structured data presentation with clear column headers -->
                 <div class="staff-table-wrapper">
-                    <table class="staff-table">
+                    <table class="staff-table" aria-label="My tasks">
                         <thead>
                             <tr>
-                                <th>Task</th>
-                                <th>Status</th>
-                                <th>Priority</th>
-                                <th>Due</th>
+                                <th scope="col">Task</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Priority</th>
+                                <th scope="col">Due</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for task in my_tasks|slice:":5" %}
-                            <tr>
+                            <tr onclick="window.location.href='{% url 'staff:task_detail' task.id %}'" style="cursor: pointer;">
                                 <td>
-                                    <a href="{% url 'staff:task_detail' task.id %}" style="color: #1e293b; text-decoration: none; font-weight: 500;">
+                                    <!-- Link with clear visual feedback -->
+                                    <div class="staff-link" style="color: var(--staff-gray-800); font-weight: 500;">
                                         {{ task.title }}
-                                    </a>
+                                    </div>
                                 </td>
                                 <td>
+                                    <!-- Status badge with semantic color coding -->
                                     <span class="staff-badge staff-badge-{% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}primary{% elif task.status == 'pending' %}warning{% else %}info{% endif %}">
                                         {{ task.get_status_display }}
                                     </span>
@@ -113,12 +144,14 @@
                                 <td class="staff-text-small staff-text-muted">
                                     {% if task.due_date %}
                                         {% if task.is_overdue %}
-                                        <span style="color: #ef4444;">{{ task.due_date|date:"M d, H:i" }} (Overdue)</span>
+                                        <span style="color: var(--staff-danger);" aria-label="Overdue since {{ task.due_date|date:'M d, H:i' }}">
+                                            {{ task.due_date|date:"M d, H:i" }} (Overdue)
+                                        </span>
                                         {% else %}
                                         {{ task.due_date|date:"M d, H:i" }}
                                         {% endif %}
                                     {% else %}
-                                    -
+                                    <span aria-label="No due date">-</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -127,42 +160,55 @@
                     </table>
                 </div>
             {% else %}
-                <div class="staff-empty">
-                    <i class="fas fa-clipboard"></i>
+                <!-- Empty state with helpful guidance -->
+                <!-- UX NOTE: Empty states should be friendly and provide clear next steps -->
+                <div class="staff-empty" role="status">
+                    <div class="staff-empty-icon-container">
+                        <i class="fas fa-clipboard-list staff-empty-icon"></i>
+                    </div>
                     <h5>No Tasks Yet</h5>
-                    <p>You don't have any tasks assigned to you.</p>
+                    <p>You don't have any tasks assigned to you at the moment.</p>
+                    <div class="staff-empty-action">
+                        <a href="{% url 'staff:admin_dashboard' %}" class="staff-btn staff-btn-primary">
+                            <i class="fas fa-plus me-2"></i>Check Available Tasks
+                        </a>
+                    </div>
                 </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Sidebar Content -->
-    <div>
-        <!-- Pending Actions -->
+    <!-- Secondary Content: Sidebar widgets -->
+    <div class="staff-flex staff-flex-column" style="gap: 1.5rem;">
+        
+        <!-- Pending Actions Widget -->
         <div class="staff-card">
             <div class="staff-card-header">
-                <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-                    <i class="fas fa-hourglass-half me-2"></i>Pending Actions
-                </h3>
+                <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+                    <i class="fas fa-hourglass-half me-2" aria-hidden="true"></i>
+                    Pending Actions
+                </h2>
             </div>
-            <div class="staff-card-body">
+            <div class="staff-card-body" style="padding: 0;">
                 {% if my_pending_actions %}
-                    <ul class="staff-list">
+                    <ul class="staff-list" role="list" aria-label="Pending actions">
                         {% for action in my_pending_actions %}
-                        <li class="staff-list-item">
-                            <div>
-                                <div style="font-weight: 500;">{{ action.task.title }}</div>
-                                <div class="staff-text staff-text-small staff-text-muted">
+                        <li class="staff-list-item staff-card-interactive" onclick="window.location.href='{% url 'staff:review_action' action.id %}'">
+                            <div class="staff-list-item-content">
+                                <div class="staff-list-item-title">{{ action.task.title }}</div>
+                                <div class="staff-list-item-subtitle">
                                     {{ action.get_action_type_display }}
                                 </div>
                             </div>
-                            <span class="staff-badge staff-badge-warning">Pending</span>
+                            <span class="staff-badge staff-badge-warning" aria-label="Status: Pending">Pending</span>
                         </li>
                         {% endfor %}
                     </ul>
                 {% else %}
-                    <div class="staff-empty">
-                        <i class="fas fa-check-circle" style="color: #22c55e;"></i>
+                    <div class="staff-empty" role="status">
+                        <div class="staff-empty-icon-container">
+                            <i class="fas fa-check-circle staff-empty-icon" style="color: var(--staff-success);"></i>
+                        </div>
                         <h5>All Clear!</h5>
                         <p>No pending actions to review.</p>
                     </div>
@@ -170,33 +216,37 @@
             </div>
         </div>
 
-        <!-- Recent Activity -->
+        <!-- Recent Activity Widget -->
         <div class="staff-card">
             <div class="staff-card-header">
-                <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-                    <i class="fas fa-history me-2"></i>Recent Activity
-                </h3>
+                <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+                    <i class="fas fa-history me-2" aria-hidden="true"></i>
+                    Recent Activity
+                </h2>
             </div>
-            <div class="staff-card-body">
+            <div class="staff-card-body" style="padding: 0;">
                 {% if my_reviewed_actions %}
-                    <ul class="staff-list">
+                    <ul class="staff-list" role="list" aria-label="Recent activity">
                         {% for action in my_reviewed_actions %}
                         <li class="staff-list-item">
-                            <div>
-                                <div style="font-weight: 500;">{{ action.get_action_type_display }}</div>
-                                <div class="staff-text staff-text-small staff-text-muted">
+                            <div class="staff-list-item-content">
+                                <div class="staff-list-item-title">{{ action.get_action_type_display }}</div>
+                                <div class="staff-list-item-subtitle">
                                     {{ action.performed_at|naturaltime }}
                                 </div>
                             </div>
-                            <span class="staff-badge staff-badge-{% if action.status == 'approved' %}success{% else %}danger{% endif %}">
+                            <span class="staff-badge staff-badge-{% if action.status == 'approved' %}success{% else %}danger{% endif %}" 
+                                  aria-label="Status: {{ action.get_status_display }}">
                                 {{ action.get_status_display }}
                             </span>
                         </li>
                         {% endfor %}
                     </ul>
                 {% else %}
-                    <div class="staff-empty">
-                        <i class="fas fa-clock"></i>
+                    <div class="staff-empty" role="status">
+                        <div class="staff-empty-icon-container">
+                            <i class="fas fa-clock staff-empty-icon"></i>
+                        </div>
                         <h5>No Recent Activity</h5>
                         <p>Your activity will appear here.</p>
                     </div>
@@ -204,26 +254,27 @@
             </div>
         </div>
 
-        <!-- Quick Actions -->
+        <!-- Quick Actions Widget -->
         <div class="staff-card">
             <div class="staff-card-header">
-                <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-                    <i class="fas fa-bolt me-2"></i>Quick Actions
-                </h3>
+                <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+                    <i class="fas fa-bolt me-2" aria-hidden="true"></i>
+                    Quick Actions
+                </h2>
             </div>
             <div class="staff-card-body">
-                <div class="staff-btn-group">
+                <div class="staff-btn-group staff-flex-wrap" role="group" aria-label="Quick actions">
                     <a href="{% url 'staff:my_tasks' %}" class="staff-btn staff-btn-primary">
-                        <i class="fas fa-list"></i>
+                        <i class="fas fa-list" aria-hidden="true"></i>
                         My Tasks
                     </a>
                     <a href="{% url 'staff:my_permissions' %}" class="staff-btn staff-btn-secondary">
-                        <i class="fas fa-key"></i>
+                        <i class="fas fa-key" aria-hidden="true"></i>
                         Permissions
                     </a>
                     {% if request.user.is_superuser %}
                     <a href="{% url 'staff:admin_dashboard' %}" class="staff-btn staff-btn-outline">
-                        <i class="fas fa-cog"></i>
+                        <i class="fas fa-cog" aria-hidden="true"></i>
                         Admin Panel
                     </a>
                     {% endif %}

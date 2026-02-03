@@ -4,11 +4,12 @@
 {% block page_title %}{{ task.title }} - Staff Management{% endblock %}
 
 {% block staff_content %}
+<!-- Task Details Card -->
 <div class="staff-card">
     <div class="staff-card-header">
         <div>
-            <h3 class="staff-heading staff-heading-4" style="margin: 0;">{{ task.title }}</h3>
-            <div class="staff-btn-group staff-mt-1">
+            <h1 class="staff-heading staff-heading-4" style="margin: 0;">{{ task.title }}</h1>
+            <div class="staff-btn-group staff-mt-1" style="margin-top: 0.5rem;">
                 <span class="staff-badge staff-badge-{% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}primary{% elif task.status == 'pending' %}warning{% else %}info{% endif %}">
                     {{ task.get_status_display }}
                 </span>
@@ -17,21 +18,27 @@
                 </span>
             </div>
         </div>
-        <form method="post" action="{% url 'staff:update_task_status' task.id %}" class="staff-btn-group">
+        <!-- Status update form -->
+        <form method="post" action="{% url 'staff:update_task_status' task.id %}" 
+              class="staff-btn-group" 
+              role="form" 
+              aria-label="Update task status">
             {% csrf_token %}
-            <select name="status" class="staff-form-control" style="width: auto;">
+            <label for="status-select" class="staff-sr-only">Update status</label>
+            <select name="status" id="status-select" class="staff-form-control" style="width: auto;">
                 {% for value, label in task.STATUS_CHOICES %}
                 <option value="{{ value }}">{{ label }}</option>
                 {% endfor %}
             </select>
             <button type="submit" class="staff-btn staff-btn-primary">
-                <i class="fas fa-sync"></i>
+                <i class="fas fa-sync" aria-hidden="true"></i>
                 Update Status
             </button>
         </form>
     </div>
     <div class="staff-card-body">
-        <div class="staff-grid staff-grid-2 staff-mb-3">
+        <!-- Task details grid -->
+        <div class="staff-grid staff-grid-2 staff-gap-4 staff-mb-4">
             <div>
                 <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Category</div>
                 <div style="font-weight: 500;">{{ task.category|default:"-" }}</div>
@@ -42,54 +49,63 @@
             </div>
             <div>
                 <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Due Date</div>
-                <div style="font-weight: 500;">{% if task.due_date %}{{ task.due_date|date:"M d, Y H:i" }}{% else %}No due date{% endif %}</div>
+                <div style="font-weight: 500;">
+                    {% if task.due_date %}
+                        {{ task.due_date|date:"M d, Y H:i" }}
+                    {% else %}
+                        No due date
+                    {% endif %}
+                </div>
             </div>
         </div>
         
-        <div class="staff-mb-3">
+        <!-- Description section -->
+        <div class="staff-mb-4">
             <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Description</div>
-            <p style="margin: 0;">{{ task.description }}</p>
+            <p style="margin: 0; line-height: 1.6;">{{ task.description }}</p>
         </div>
     </div>
 </div>
 
-<!-- Submit Action Form -->
+<!-- Submit Action Form Card -->
 <div class="staff-card">
     <div class="staff-card-header">
-        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-            <i class="fas fa-paper-plane me-2"></i>Submit Action
-        </h3>
+        <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-paper-plane me-2" aria-hidden="true"></i>
+            Submit Action
+        </h2>
     </div>
     <div class="staff-card-body">
-        <form method="post">
+        <form method="post" novalidate aria-label="Submit action form">
             {% csrf_token %}
             {{ form|crispy }}
             <button type="submit" class="staff-btn staff-btn-primary staff-mt-2">
-                <i class="fas fa-paper-plane"></i>
+                <i class="fas fa-paper-plane" aria-hidden="true"></i>
                 Submit for Approval
             </button>
         </form>
     </div>
 </div>
 
-<!-- Actions History -->
+<!-- Actions History Card -->
 <div class="staff-card">
     <div class="staff-card-header">
-        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-            <i class="fas fa-history me-2"></i>Actions History
-        </h3>
+        <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-history me-2" aria-hidden="true"></i>
+            Actions History
+        </h2>
     </div>
     <div class="staff-card-body" style="padding: 0;">
         {% if actions %}
             <div class="staff-table-wrapper">
-                <table class="staff-table">
+                <table class="staff-table" aria-label="Actions history">
                     <thead>
                         <tr>
-                            <th>Performed By</th>
-                            <th>Type</th>
-                            <th>Description</th>
-                            <th>Status</th>
-                            <th>Date</th>
+                            <th scope="col">Performed By</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Description</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -110,12 +126,29 @@
                 </table>
             </div>
         {% else %}
-            <div class="staff-empty">
-                <i class="fas fa-history"></i>
+            <div class="staff-empty" role="status">
+                <i class="fas fa-history staff-empty-icon" aria-hidden="true"></i>
                 <h5>No Actions Yet</h5>
                 <p>Actions performed will appear here.</p>
             </div>
         {% endif %}
     </div>
 </div>
+
+<!-- Screen reader only heading for accessibility -->
+<h2 class="staff-sr-only">Additional Information</h2>
+<style>
+    /* Utility class for screen reader only content */
+    .staff-sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+</style>
 {% endblock %}

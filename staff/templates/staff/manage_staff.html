@@ -4,96 +4,153 @@
 {% block page_title %}Manage Staff - Staff Management{% endblock %}
 
 {% block staff_content %}
-<div class="staff-grid staff-grid-3">
-    <!-- Promote Staff Form -->
+<!-- Breadcrumb Navigation -->
+<nav class="staff-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'staff:admin_dashboard' %}"><i class="fas fa-home"></i> Dashboard</a>
+    <span class="staff-breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+    <span class="staff-breadcrumb-current">Manage Staff</span>
+</nav>
+
+<!-- Page Header -->
+<div class="staff-page-header">
+    <div class="staff-page-header-content">
+        <h1 class="staff-heading staff-heading-2">Manage Staff</h1>
+        <p class="staff-text staff-mt-1">Promote users to staff roles and manage their permissions</p>
+    </div>
+    <div class="staff-page-header-actions">
+        <a href="{% url 'staff:audit_log' %}" class="staff-btn staff-btn-secondary">
+            <i class="fas fa-history me-2"></i>Activity Log
+        </a>
+    </div>
+</div>
+
+<!-- Two Column Layout: Form + Staff List -->
+<!-- UX NOTE: Side-by-side layout allows quick reference while managing staff -->
+<div class="staff-grid staff-grid-3 staff-gap-4">
+    
+    <!-- Left Column: Promote Staff Form -->
     <div class="staff-card">
         <div class="staff-card-header">
-            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-                <i class="fas fa-user-plus me-2"></i>Promote to Staff
-            </h3>
+            <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-user-plus me-2" aria-hidden="true"></i>
+                Promote to Staff
+            </h2>
         </div>
         <div class="staff-card-body">
-            <form method="post">
+            <form method="post" novalidate>
                 {% csrf_token %}
+                <!-- Form rendering with proper error handling -->
+                <!-- UX NOTE: Each field has clear label, input, and error message placement -->
                 {% for field in form %}
                 <div class="staff-form-group">
-                    <label class="staff-form-label">{{ field.label }}</label>
+                    <!-- Label with required indicator -->
+                    <label class="staff-form-label {% if field.field.required %}staff-form-label-required{% endif %}">
+                        {{ field.label }}
+                    </label>
+                    <!-- Form input with proper styling -->
                     {{ field }}
+                    <!-- Help text for additional guidance -->
                     {% if field.help_text %}
-                    <div class="staff-text staff-text-small staff-text-muted staff-mt-1">{{ field.help_text }}</div>
+                    <div class="staff-form-help">{{ field.help_text }}</div>
                     {% endif %}
+                    <!-- Error messages with proper styling -->
                     {% for error in field.errors %}
-                    <div class="staff-text staff-text-small" style="color: #ef4444;">{{ error }}</div>
+                    <div class="staff-form-error" role="alert">{{ error }}</div>
                     {% endfor %}
                 </div>
                 {% endfor %}
-                <button type="submit" class="staff-btn staff-btn-primary" style="width: 100%;">
-                    <i class="fas fa-user-check"></i>
+                <!-- Submit button with full width for emphasis -->
+                <button type="submit" class="staff-btn staff-btn-primary staff-btn-block">
+                    <i class="fas fa-user-check" aria-hidden="true"></i>
                     Promote to Staff
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- Staff List -->
+    <!-- Right Column (spans 2): Staff Members List -->
     <div class="staff-card" style="grid-column: span 2;">
         <div class="staff-card-header">
-            <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-                <i class="fas fa-users me-2"></i>Staff Members
-            </h3>
+            <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+                <i class="fas fa-users me-2" aria-hidden="true"></i>
+                Staff Members
+                <span class="staff-badge staff-badge-gray staff-ml-1" aria-label="{{ staff_members.count }} total">
+                    {{ staff_members.count }}
+                </span>
+            </h2>
         </div>
         <div class="staff-card-body" style="padding: 0;">
             {% if staff_members %}
+                <!-- Data table with user information -->
                 <div class="staff-table-wrapper">
-                    <table class="staff-table">
+                    <table class="staff-table" aria-label="Staff members list">
                         <thead>
                             <tr>
-                                <th>User</th>
-                                <th>Email</th>
-                                <th>Department</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th scope="col">User</th>
+                                <th scope="col">Email</th>
+                                <th scope="col">Department</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for profile in staff_members %}
                             <tr>
                                 <td>
+                                    <!-- User avatar with initials -->
                                     <div class="d-flex align-items-center gap-2">
-                                        <div class="staff-user-avatar" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                                        <div class="staff-avatar staff-avatar-sm" aria-hidden="true">
                                             {{ profile.user.username|slice:":2"|upper }}
                                         </div>
                                         <div>
                                             <div style="font-weight: 500;">{{ profile.user.username }}</div>
                                             {% if profile.user.is_superuser %}
-                                            <span class="staff-badge staff-badge-danger">Admin</span>
+                                            <span class="staff-badge staff-badge-danger staff-badge-sm">Admin</span>
                                             {% endif %}
                                         </div>
                                     </div>
                                 </td>
-                                <td>{{ profile.user.email }}</td>
+                                <td>
+                                    <a href="mailto:{{ profile.user.email }}" class="staff-link">
+                                        {{ profile.user.email }}
+                                    </a>
+                                </td>
                                 <td>{{ profile.department|default:"-" }}</td>
                                 <td>
                                     {% if profile.is_active %}
-                                    <span class="staff-badge staff-badge-success">Active</span>
+                                    <div class="staff-status-dot staff-status-dot-online">
+                                        <span>Active</span>
+                                    </div>
                                     {% else %}
-                                    <span class="staff-badge staff-badge-warning">Inactive</span>
+                                    <div class="staff-status-dot staff-status-dot-offline">
+                                        <span>Inactive</span>
+                                    </div>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <div class="staff-btn-group">
-                                        <a href="{% url 'staff:edit_staff' profile.id %}" class="staff-btn staff-btn-sm staff-btn-outline">
-                                            <i class="fas fa-edit"></i>
+                                    <!-- Action buttons with proper grouping -->
+                                    <div class="staff-btn-group" role="group" aria-label="Staff actions for {{ profile.user.username }}">
+                                        <!-- Edit button -->
+                                        <a href="{% url 'staff:edit_staff' profile.id %}" 
+                                           class="staff-btn staff-btn-sm staff-btn-outline"
+                                           aria-label="Edit {{ profile.user.username }}">
+                                            <i class="fas fa-edit" aria-hidden="true"></i>
                                         </a>
+                                        <!-- Activity log button -->
+                                        <a href="{% url 'staff:staff_activity' profile.user.id %}" 
+                                           class="staff-btn staff-btn-sm staff-btn-outline"
+                                           aria-label="View activity for {{ profile.user.username }}">
+                                            <i class="fas fa-history" aria-hidden="true"></i>
+                                        </a>
+                                        <!-- Demote button (only for non-superusers) -->
                                         {% if not profile.user.is_superuser %}
-                                        <a href="{% url 'staff:demote_staff' profile.id %}" class="staff-btn staff-btn-sm staff-btn-outline" 
-                                           onclick="return confirm('Are you sure you want to demote this user?');">
-                                            <i class="fas fa-user-times"></i>
+                                        <a href="{% url 'staff:demote_staff' profile.id %}" 
+                                           class="staff-btn staff-btn-sm staff-btn-outline"
+                                           aria-label="Demote {{ profile.user.username }}"
+                                           onclick="return confirm('Are you sure you want to demote this user from staff?');">
+                                            <i class="fas fa-user-times" aria-hidden="true"></i>
                                         </a>
                                         {% endif %}
-                                        <a href="{% url 'staff:staff_activity' profile.user.id %}" class="staff-btn staff-btn-sm staff-btn-outline">
-                                            <i class="fas fa-history"></i>
-                                        </a>
                                     </div>
                                 </td>
                             </tr>
@@ -102,10 +159,13 @@
                     </table>
                 </div>
             {% else %}
-                <div class="staff-empty">
-                    <i class="fas fa-users"></i>
+                <!-- Empty state with guidance -->
+                <div class="staff-empty" role="status">
+                    <div class="staff-empty-icon-container">
+                        <i class="fas fa-users staff-empty-icon"></i>
+                    </div>
                     <h5>No Staff Members</h5>
-                    <p>Promote users to staff using the form.</p>
+                    <p>Promote users to staff using the form on the left.</p>
                 </div>
             {% endif %}
         </div>

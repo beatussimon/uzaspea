@@ -4,23 +4,62 @@
 {% block page_title %}Edit Task - Staff Management{% endblock %}
 
 {% block staff_content %}
+<!-- Breadcrumb Navigation -->
+<nav class="staff-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'staff:manage_tasks' %}"><i class="fas fa-tasks"></i> Tasks</a>
+    <span class="staff-breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+    <span class="staff-breadcrumb-current">Edit: {{ task.title|truncatewords:3 }}</span>
+</nav>
+
+<!-- Page Header -->
+<div class="staff-page-header">
+    <div class="staff-page-header-content">
+        <h1 class="staff-heading staff-heading-2">
+            <i class="fas fa-edit me-2" aria-hidden="true"></i>
+            Edit Task
+        </h1>
+        <p class="staff-text staff-mt-1">Update task details and assignments</p>
+    </div>
+</div>
+
+<!-- Form Card -->
 <div class="staff-card" style="max-width: 700px; margin: 0 auto;">
     <div class="staff-card-header">
-        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-            <i class="fas fa-edit me-2"></i>Edit Task: {{ task.title }}
-        </h3>
+        <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-clipboard me-2" aria-hidden="true"></i>
+            Task: {{ task.title }}
+        </h2>
     </div>
     <div class="staff-card-body">
-        <form method="post">
+        <form method="post" novalidate>
             {% csrf_token %}
-            {{ form|crispy }}
-            <div class="staff-btn-group staff-mt-3">
+            
+            <div class="staff-form">
+                {% for field in form %}
+                <div class="staff-form-group">
+                    <label class="staff-form-label {% if field.field.required %}staff-form-label-required{% endif %}" for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <div class="staff-form-help">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% for error in field.errors %}
+                    <div class="staff-form-error" role="alert">
+                        <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="staff-btn-group staff-mt-4" role="group" aria-label="Form actions">
                 <button type="submit" class="staff-btn staff-btn-primary">
-                    <i class="fas fa-save"></i>
+                    <i class="fas fa-save" aria-hidden="true"></i>
                     Save Changes
                 </button>
-                <a href="{% url 'staff:manage_tasks' %}" class="staff-btn staff-btn-secondary">
-                    <i class="fas fa-times"></i>
+                <a href="{% url 'staff:view_task' task.id %}" class="staff-btn staff-btn-secondary">
+                    <i class="fas fa-times" aria-hidden="true"></i>
                     Cancel
                 </a>
             </div>
