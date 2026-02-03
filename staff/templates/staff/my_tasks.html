@@ -3,37 +3,92 @@
 {% block page_title %}My Tasks - Staff Management{% endblock %}
 
 {% block staff_content %}
-<div class="staff-card">
-    <div class="staff-card-header">
-        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-            <i class="fas fa-tasks me-2"></i>My Tasks
-        </h3>
-        <div class="staff-btn-group">
-            <a href="?status=pending" class="staff-btn staff-btn-sm staff-btn-outline">Pending</a>
-            <a href="?status=in_progress" class="staff-btn staff-btn-sm staff-btn-outline">In Progress</a>
-            <a href="?status=completed" class="staff-btn staff-btn-sm staff-btn-outline">Completed</a>
-            <a href="{% url 'staff:my_tasks' %}" class="staff-btn staff-btn-sm staff-btn-outline">All</a>
-        </div>
+<!-- Breadcrumb Navigation -->
+<nav class="staff-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'staff:staff_dashboard' %}"><i class="fas fa-home"></i> Dashboard</a>
+    <span class="staff-breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+    <span class="staff-breadcrumb-current">My Tasks</span>
+</nav>
+
+<!-- Page Header with Title and Actions -->
+<div class="staff-page-header">
+    <div class="staff-page-header-content">
+        <h1 class="staff-heading staff-heading-2" style="margin-bottom: 0.25rem;">
+            <i class="fas fa-tasks me-2" aria-hidden="true"></i>
+            My Tasks
+        </h1>
+        <p class="staff-text">View and manage tasks assigned to you</p>
     </div>
+    <div class="staff-page-header-actions">
+        <!-- Search form -->
+        <form method="get" class="staff-search" style="min-width: 250px;">
+            <i class="fas fa-search staff-search-icon"></i>
+            <input type="text" name="search" class="staff-form-control staff-search-input" 
+                   placeholder="Search tasks..." value="{{ request.GET.search|default:'' }}"
+                   aria-label="Search tasks">
+            {% if request.GET.search %}
+            <a href="{% url 'staff:my_tasks' %}" class="staff-search-clear">
+                <i class="fas fa-times"></i>
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="staff-filter-bar" role="group" aria-label="Filter tasks by status">
+    <span class="staff-filter-label">Filter:</span>
+    <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}status=pending" 
+       class="staff-btn staff-btn-sm {% if request.GET.status == 'pending' %}staff-btn-primary{% else %}staff-btn-outline' %}">
+        <i class="fas fa-clock me-1"></i>Pending
+    </a>
+    <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}status=in_progress" 
+       class="staff-btn staff-btn-sm {% if request.GET.status == 'in_progress' %}staff-btn-primary{% else %}staff-btn-outline' %}">
+        <i class="fas fa-spinner me-1"></i>In Progress
+    </a>
+    <a href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}status=completed" 
+       class="staff-btn staff-btn-sm {% if request.GET.status == 'completed' %}staff-btn-primary{% else %}staff-btn-outline' %}">
+        <i class="fas fa-check me-1"></i>Completed
+    </a>
+    <a href="{% url 'staff:my_tasks' %}{% if request.GET.search %}?search={{ request.GET.search }}{% endif %}" 
+       class="staff-btn staff-btn-sm {% if not request.GET.status %}staff-btn-primary{% else %}staff-btn-outline' %}">
+        <i class="fas fa-list me-1"></i>All
+    </a>
+    
+    {% if request.GET.status or request.GET.search %}
+    <a href="{% url 'staff:my_tasks' %}" class="staff-btn staff-btn-sm staff-btn-secondary">
+        <i class="fas fa-times me-1"></i>Clear Filters
+    </a>
+    {% endif %}
+</div>
+
+<!-- Tasks Card -->
+<div class="staff-card">
     <div class="staff-card-body" style="padding: 0;">
         {% if tasks %}
             <div class="staff-table-wrapper">
-                <table class="staff-table">
+                <table class="staff-table" aria-label="My tasks">
                     <thead>
                         <tr>
-                            <th>Task</th>
-                            <th>Category</th>
-                            <th>Status</th>
-                            <th>Priority</th>
-                            <th>Due Date</th>
-                            <th>Actions</th>
+                            <th scope="col">Task</th>
+                            <th scope="col">Category</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Priority</th>
+                            <th scope="col">Due Date</th>
+                            <th scope="col" class="staff-row-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for task in tasks %}
-                        <tr>
+                        <tr onclick="window.location.href='{% url 'staff:task_detail' task.id %}'" style="cursor: pointer;">
                             <td style="font-weight: 500;">{{ task.title }}</td>
-                            <td>{{ task.category|default:"-" }}</td>
+                            <td>
+                                {% if task.category %}
+                                <span class="staff-badge staff-badge-gray">{{ task.category.name }}</span>
+                                {% else %}
+                                <span class="staff-text-muted">-</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <span class="staff-badge staff-badge-{% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}primary{% elif task.status == 'pending' %}warning{% else %}info{% endif %}">
                                     {{ task.get_status_display }}
@@ -47,17 +102,21 @@
                             <td class="staff-text-small staff-text-muted">
                                 {% if task.due_date %}
                                     {% if task.is_overdue %}
-                                    <span style="color: #ef4444;">{{ task.due_date|date:"M d, H:i" }} (Overdue)</span>
+                                    <span style="color: var(--staff-danger);" aria-label="Overdue since {{ task.due_date|date:'M d, H:i' }}">
+                                        <i class="fas fa-exclamation-circle me-1"></i>{{ task.due_date|date:"M d, H:i" }}
+                                    </span>
                                     {% else %}
                                     {{ task.due_date|date:"M d, H:i" }}
                                     {% endif %}
                                 {% else %}
-                                -
+                                <span aria-label="No due date">-</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <a href="{% url 'staff:task_detail' task.id %}" class="staff-btn staff-btn-sm staff-btn-primary">
-                                    <i class="fas fa-eye"></i>
+                            <td class="staff-row-actions" onclick="event.stopPropagation();">
+                                <a href="{% url 'staff:task_detail' task.id %}" 
+                                   class="staff-btn staff-btn-sm staff-btn-primary"
+                                   aria-label="View task: {{ task.title }}">
+                                    <i class="fas fa-eye me-1" aria-hidden="true"></i>
                                     View
                                 </a>
                             </td>
@@ -67,10 +126,20 @@
                 </table>
             </div>
         {% else %}
-            <div class="staff-empty">
-                <i class="fas fa-clipboard"></i>
+            <!-- Empty state with contextual message -->
+            <div class="staff-empty" role="status">
+                <div class="staff-empty-icon-container">
+                    <i class="fas fa-clipboard-check staff-empty-icon"></i>
+                </div>
                 <h5>No Tasks Found</h5>
-                <p>{% if request.GET.status %}No tasks with that status.{% else %}You don't have any tasks assigned.{% endif %}</p>
+                <p>
+                    {% if request.GET.status or request.GET.search %}
+                    No tasks match your filters. Try adjusting your search or 
+                    <a href="{% url 'staff:my_tasks' %}" class="staff-link">view all tasks</a>.
+                    {% else %}
+                    You don't have any tasks assigned to you at the moment.
+                    {% endif %}
+                </p>
             </div>
         {% endif %}
     </div>

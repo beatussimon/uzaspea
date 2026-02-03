@@ -3,39 +3,58 @@
 {% block page_title %}Activity Log - Staff Management{% endblock %}
 
 {% block staff_content %}
+<!-- Page Header -->
+<div class="staff-mb-4">
+    <h1 class="staff-heading staff-heading-2">
+        <i class="fas fa-history me-2" aria-hidden="true"></i>
+        Activity Log
+    </h1>
+    <p class="staff-text staff-mt-1">Activity history for {{ staff_user.username }}</p>
+</div>
+
+<!-- Activity Log Table -->
 <div class="staff-card">
     <div class="staff-card-header">
-        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-            <i class="fas fa-history me-2"></i>Activity Log: {{ staff_user.username }}
-        </h3>
+        <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-user-clock me-2" aria-hidden="true"></i>
+            {{ staff_user.username }}'s Activity
+        </h2>
+        <a href="{% url 'staff:manage_staff' %}" class="staff-btn staff-btn-secondary">
+            <i class="fas fa-arrow-left me-1" aria-hidden="true"></i>
+            Back to Staff
+        </a>
     </div>
     <div class="staff-card-body" style="padding: 0;">
         {% if logs %}
             <div class="staff-table-wrapper">
-                <table class="staff-table">
+                <table class="staff-table" aria-label="Staff activity log">
                     <thead>
                         <tr>
-                            <th>Time</th>
-                            <th>Action</th>
-                            <th>Description</th>
-                            <th>Task</th>
+                            <th scope="col">Time</th>
+                            <th scope="col">Action</th>
+                            <th scope="col">Description</th>
+                            <th scope="col">Task</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for log in logs %}
                         <tr>
                             <td class="staff-text-small">{{ log.timestamp|date:"M d, Y H:i" }}</td>
-                            <td>{{ log.get_action_display }}</td>
+                            <td>
+                                <span class="staff-badge staff-badge-gray">{{ log.get_action_display }}</span>
+                            </td>
                             <td class="staff-text-small">{{ log.description }}</td>
-                            <td class="staff-text-small">{{ log.task.title|default:"-" }}</td>
+                            <td class="staff-text-small">
+                                {% if log.task %}{{ log.task.title }}{% else %}-{% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         {% else %}
-            <div class="staff-empty">
-                <i class="fas fa-history"></i>
+            <div class="staff-empty" role="status">
+                <i class="fas fa-clock staff-empty-icon" aria-hidden="true"></i>
                 <h5>No Activity</h5>
                 <p>No activity recorded for this user.</p>
             </div>

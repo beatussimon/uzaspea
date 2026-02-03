@@ -4,39 +4,68 @@
 {% block page_title %}Review Action - Staff Management{% endblock %}
 
 {% block staff_content %}
-<div class="staff-card" style="max-width: 700px; margin: 0 auto;">
+<!-- Breadcrumb Navigation -->
+<nav class="staff-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'staff:pending_approvals' %}"><i class="fas fa-check-double"></i> Approvals</a>
+    <span class="staff-breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+    <span class="staff-breadcrumb-current">Review Action</span>
+</nav>
+
+<!-- Page Header -->
+<div class="staff-mb-4">
+    <h1 class="staff-heading staff-heading-2">
+        <i class="fas fa-search-check me-2" aria-hidden="true"></i>
+        Review Action
+    </h1>
+    <p class="staff-text staff-mt-1">Approve or reject staff actions before they take effect</p>
+</div>
+
+<!-- Review Form Card -->
+<div class="staff-card" style="max-width: 900px; margin: 0 auto;">
     <div class="staff-card-header">
-        <h3 class="staff-heading staff-heading-4" style="margin: 0;">
-            <i class="fas fa-check-double me-2"></i>Review Action
-        </h3>
+        <h2 class="staff-heading staff-heading-4" style="margin: 0;">
+            <i class="fas fa-info-circle me-2" aria-hidden="true"></i>
+            Action Details
+        </h2>
     </div>
     <div class="staff-card-body">
-        <!-- Action Info -->
-        <div class="staff-alert staff-alert-info">
-            <i class="fas fa-info-circle"></i>
-            <div>
-                <strong>{{ action.task.title }}</strong>
-                <div class="staff-text staff-text-small">{{ action.get_action_type_display }} by {{ action.performed_by.username }}</div>
+        <!-- Info alert with action summary -->
+        <div class="staff-alert staff-alert-info" role="status">
+            <i class="fas fa-clipboard-list staff-alert-icon" aria-hidden="true"></i>
+            <div class="staff-alert-content">
+                <div class="staff-alert-title">{{ action.task.title }}</div>
+                <p class="staff-alert-message">
+                    <i class="fas fa-user me-1"></i>{{ action.get_action_type_display }} by {{ action.performed_by.username }}
+                    <span class="staff-text-muted"> • {{ action.performed_at|naturaltime }}</span>
+                </p>
             </div>
         </div>
 
-        <div class="staff-mb-3">
+        <!-- Action description -->
+        <div class="staff-mb-4">
             <div class="staff-text staff-text-small staff-text-muted staff-mb-1">Description</div>
-            <p style="margin: 0;">{{ action.description }}</p>
+            <div class="staff-action-card" style="background: var(--staff-gray-50); border: 1px solid var(--staff-gray-200);">
+                <p style="margin: 0; line-height: 1.6;">{{ action.description }}</p>
+            </div>
         </div>
 
-        <div class="staff-grid staff-grid-2 staff-mb-3">
-            <div class="staff-card" style="margin: 0;">
-                <div class="staff-card-header" style="padding: 0.75rem 1rem;">
-                    <span class="staff-text staff-text-small" style="font-weight: 500;">Previous Value</span>
+        <!-- Comparison: Previous vs New Value -->
+        <div class="staff-grid staff-grid-2 staff-gap-4 staff-mb-4">
+            <div class="staff-card staff-action-card" style="margin: 0;">
+                <div class="staff-card-header" style="padding: 0.75rem 1rem; background: var(--staff-gray-100);">
+                    <span class="staff-text staff-text-small" style="font-weight: 600;">
+                        <i class="fas fa-undo me-1"></i>Previous Value
+                    </span>
                 </div>
                 <div class="staff-card-body" style="padding: 1rem;">
-                    {{ action.previous_value|default:"-"|linebreaks }}
+                    {{ action.previous_value|default:"<em class='staff-text-muted'>No previous value</em>"|linebreaks }}
                 </div>
             </div>
-            <div class="staff-card" style="margin: 0;">
-                <div class="staff-card-header" style="padding: 0.75rem 1rem;">
-                    <span class="staff-text staff-text-small" style="font-weight: 500;">New Value</span>
+            <div class="staff-card staff-action-card" style="margin: 0;">
+                <div class="staff-card-header" style="padding: 0.75rem 1rem; background: var(--staff-success-light);">
+                    <span class="staff-text staff-text-small" style="font-weight: 600; color: var(--staff-success);">
+                        <i class="fas fa-arrow-right me-1"></i>New Value
+                    </span>
                 </div>
                 <div class="staff-card-body" style="padding: 1rem;">
                     {{ action.new_value|linebreaks }}
@@ -44,20 +73,23 @@
             </div>
         </div>
 
-        <hr style="margin: 1.5rem 0; border-color: #e2e8f0;">
+        <!-- Divider -->
+        <hr class="staff-hr">
 
-        <!-- Review Form -->
-        <form method="post">
+        <!-- Review Decision Form -->
+        <form method="post" novalidate>
             {% csrf_token %}
             {{ form|crispy }}
-            <div class="staff-btn-group staff-mt-3">
+            
+            <!-- Action buttons with clear primary/secondary distinction -->
+            <div class="staff-btn-group staff-mt-4" role="group" aria-label="Review decision">
                 <button type="submit" class="staff-btn staff-btn-primary">
-                    <i class="fas fa-check"></i>
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i>
                     Submit Decision
                 </button>
                 <a href="{% url 'staff:pending_approvals' %}" class="staff-btn staff-btn-secondary">
-                    <i class="fas fa-times"></i>
-                    Cancel
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    Back to Approvals
                 </a>
             </div>
         </form>
