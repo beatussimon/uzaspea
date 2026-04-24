@@ -1,0 +1,311 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { Heart, ShoppingCart, Star, ChevronLeft, X, Share2 } from 'lucide-react';
+import api, { API_BASE_URL } from '../api';
+import { useCart } from '../context/CartContext';
+import { ProductTabs } from '../ProductTabs';
+import SafeImage from '../components/SafeImage';
+import toast from 'react-hot-toast';
+import VerifiedBadge from '../components/VerifiedBadge';
+
+interface ProductData {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  price: string;
+  stock: number;
+  is_available: boolean;
+  category: number;
+  category_name: string;
+  seller: number;
+  seller_username: string;
+  seller_verified: boolean;
+  seller_profile_picture: string | null;
+  condition: string;
+  avg_rating: number;
+  like_count: number;
+  images: { id: number; image: string }[];
+}
+
+// ===== Fullscreen Image Lightbox =====
+const ImageLightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) => (
+  <div
+    className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+    onClick={onClose}
+  >
+    <button
+      onClick={onClose}
+      className="absolute top-4 right-4 p-2 text-white hover:bg-white/10 rounded-full transition"
+    >
+      <X size={28} />
+    </button>
+    <img
+      src={src}
+      alt={alt}
+      className="max-w-full max-h-full object-contain rounded"
+      onClick={(e) => e.stopPropagation()}
+    />
+  </div>
+);
+
+const ProductDetailPage: React.FC = () => {
+  const { slug } = useParams<{ slug: string }>();
+  const { addToCart } = useCart();
+  const [product, setProduct] = useState<ProductData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  useEffect(() => {
+    if (!slug) return;
+    setLoading(true);
+    api.get(`/api/products/${slug}/`)
+      .then((res) => {
+        setProduct(res.data);
+        setLikeCount(res.data.like_count);
+        setLoading(false);
+      })
+      .catch(() => {
+        toast.error('Product not found');
+        setLoading(false);
+      });
+  }, [slug]);
+
+  const handleLike = async () => {
+    if (!product) return;
+    try {
+      const res = await api.post(`/api/products/${product.slug}/like/`);
+      setLiked(res.data.liked);
+      setLikeCount(res.data.like_count);
+    } catch {
+      toast.error('Login to like products');
+    }
+  };
+
+  // Working share — uses Web Share API or falls back to clipboard
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const shareData = {
+      title: product?.name || 'Check this out',
+      text: `${product?.name} — TSh ${parseInt(product?.price || '0').toLocaleString()} on UZASPEA`,
+      url: shareUrl,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // User cancelled share
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success('Link copied to clipboard!');
+      } catch {
+        toast.error('Failed to copy link');
+      }
+    }
+  };
+
+  const handleAddToCart = () => {
+    if (product) addToCart(product, quantity);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="text-center py-20">
+        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300">Product not found</h2>
+        <Link to="/" className="text-blue-600 mt-4 inline-block hover:underline">← Back to products</Link>
+      </div>
+    );
+  }
+
+  const images = product.images.length > 0
+    ? product.images
+    : [{ id: 0, image: '' }];
+
+  const currentImageSrc = images[selectedImage]?.image || '';
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-4">
+      {/* Lightbox */}
+      {lightboxOpen && (
+        <ImageLightbox
+          src={currentImageSrc}
+          alt={product.name}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
+
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
+        <Link to="/" className="hover:text-blue-600 transition flex items-center gap-1">
+          <ChevronLeft size={14} /> Products
+        </Link>
+        <span>/</span>
+        <span className="text-gray-700 dark:text-gray-300">{product.category_name}</span>
+        <span>/</span>
+        <span className="text-gray-900 dark:text-white font-medium truncate">{product.name}</span>
+      </nav>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Image Gallery — click opens fullscreen */}
+        <div>
+          <div
+            className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden mb-4 shadow-sm cursor-zoom-in"
+            onClick={() => setLightboxOpen(true)}
+          >
+            <SafeImage
+              src={currentImageSrc}
+              alt={product.name}
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+              loading="eager"
+            />
+          </div>
+          {images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {images.map((img, idx) => (
+                <button
+                  key={img.id}
+                  onClick={() => setSelectedImage(idx)}
+                  className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
+                    idx === selectedImage
+                      ? 'border-blue-500 shadow-md'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-400'
+                  }`}
+                >
+                  <SafeImage src={img.image} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Product Info */}
+        <div className="flex flex-col">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white leading-tight mb-3">
+            {product.name}
+          </h1>
+
+          {/* Price */}
+          <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-4">
+            TSh {parseInt(product.price).toLocaleString()}
+          </p>
+
+          {/* Info rows — matches legacy info-row */}
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center gap-4 text-sm">
+              <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Seller: <Link to={`/profile/${product.seller_username}`} className="text-blue-600 hover:underline">{product.seller_username}</Link>
+                <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-5 h-5" />
+              </span>
+              <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <Link to={`/?category=${product.category_name}`} className="text-blue-600 hover:underline">{product.category_name}</Link>
+              </span>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+              <span>Stock: {product.stock}</span>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                product.condition === 'New' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+              }`}>{product.condition}</span>
+            </div>
+          </div>
+
+          {/* Description */}
+          <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
+            {product.description}
+          </p>
+
+          {/* Rating */}
+          <div className="flex items-center gap-2 mb-4">
+            {product.avg_rating > 0 ? (
+              <>
+                <div className="flex text-yellow-400">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} size={16} className={star <= product.avg_rating ? 'fill-current' : 'text-gray-300 dark:text-gray-600'} />
+                  ))}
+                </div>
+                <span className="text-sm text-gray-500">({product.avg_rating}/5)</span>
+              </>
+            ) : (
+              <span className="text-sm text-gray-400">No reviews yet</span>
+            )}
+          </div>
+
+          {/* Like + Share — share ACTUALLY works */}
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={handleLike}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition ${
+                liked
+                  ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-500'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-500 hover:text-red-500'
+              }`}
+            >
+              <Heart size={16} className={liked ? 'fill-current' : ''} />
+              {likeCount}
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 hover:text-blue-500 text-sm transition"
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+              Share
+            </button>
+          </div>
+
+          {/* Add to Cart — matches legacy quantity-selector */}
+          {product.stock > 0 ? (
+            <div className="flex items-center gap-3 mt-auto">
+              <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300 font-medium"
+                >
+                  -
+                </button>
+                <span className="px-4 py-2 font-medium text-gray-900 dark:text-white border-x border-gray-300 dark:border-gray-600 min-w-[40px] text-center">
+                  {quantity}
+                </span>
+                <button
+                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                  className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300 font-medium"
+                >
+                  +
+                </button>
+              </div>
+              <button
+                onClick={handleAddToCart}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-sm"
+              >
+                <ShoppingCart size={18} />
+                Add to Cart
+              </button>
+            </div>
+          ) : (
+            <p className="text-red-500 font-semibold mt-auto">Out of Stock</p>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs: Reviews & Comments */}
+      <ProductTabs productId={product.id} />
+    </div>
+  );
+};
+
+export default ProductDetailPage;
