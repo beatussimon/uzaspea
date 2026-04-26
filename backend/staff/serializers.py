@@ -10,11 +10,13 @@ class StaffProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
 
+    department_name = serializers.CharField(source='department.name', read_only=True)
+
     class Meta:
         model = StaffProfile
         fields = [
             'id', 'user', 'username', 'email', 'is_active',
-            'department', 'phone_number', 'notes', 'created_at', 'updated_at'
+            'department', 'department_name', 'phone_number', 'notes', 'created_at', 'updated_at'
         ]
         read_only_fields = ['user', 'created_at', 'updated_at']
 

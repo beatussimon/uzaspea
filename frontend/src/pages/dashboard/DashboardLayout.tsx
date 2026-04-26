@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingBag, Plus, BarChart3, Megaphone, ShoppingCart, ChevronDown, ChevronUp, Clock, CheckCircle2, Truck, MapPin, XCircle, Eye, CreditCard, ShieldCheck, ShieldAlert, Shield } from 'lucide-react';
+import { LayoutDashboard, Package, Plus, BarChart3, Megaphone, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Shield } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import SafeImage from '../../components/SafeImage';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, Area, AreaChart
 } from 'recharts';
 
@@ -169,7 +169,7 @@ const DashboardProducts: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Infinite Scroll state
-  const [page, setPage] = useState(1);
+  const [_page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = React.useRef<HTMLDivElement>(null);

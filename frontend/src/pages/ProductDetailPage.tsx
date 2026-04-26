@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, ChevronLeft, X, Share2 } from 'lucide-react';
-import api, { API_BASE_URL } from '../api';
+import { Heart, ShoppingCart, Star, ChevronLeft, X, Share2, Shield } from 'lucide-react';
+import api from '../api';
 import { useCart } from '../context/CartContext';
 import { ProductTabs } from '../ProductTabs';
 import SafeImage from '../components/SafeImage';
@@ -21,6 +21,7 @@ interface ProductData {
   seller: number;
   seller_username: string;
   seller_verified: boolean;
+  seller_tier: string;
   seller_profile_picture: string | null;
   condition: string;
   avg_rating: number;
@@ -199,73 +200,76 @@ const ProductDetailPage: React.FC = () => {
             {product.name}
           </h1>
 
-          {/* Price */}
-          <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-4">
-            TSh {parseInt(product.price).toLocaleString()}
-          </p>
-
-          {/* Info rows — matches legacy info-row */}
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center gap-4 text-sm">
-              <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Seller: <Link to={`/profile/${product.seller_username}`} className="text-blue-600 hover:underline">{product.seller_username}</Link>
-                <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-5 h-5" />
-              </span>
-              <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                <Link to={`/?category=${product.category_name}`} className="text-blue-600 hover:underline">{product.category_name}</Link>
-              </span>
-            </div>
-            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-              <span>Stock: {product.stock}</span>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                product.condition === 'New' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-              }`}>{product.condition}</span>
-            </div>
-          </div>
-
-          {/* Description */}
-          <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
-            {product.description}
-          </p>
-
-          {/* Rating */}
-          <div className="flex items-center gap-2 mb-4">
-            {product.avg_rating > 0 ? (
-              <>
-                <div className="flex text-yellow-400">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star key={star} size={16} className={star <= product.avg_rating ? 'fill-current' : 'text-gray-300 dark:text-gray-600'} />
-                  ))}
-                </div>
-                <span className="text-sm text-gray-500">({product.avg_rating}/5)</span>
-              </>
-            ) : (
-              <span className="text-sm text-gray-400">No reviews yet</span>
-            )}
-          </div>
-
-          {/* Like + Share — share ACTUALLY works */}
-          <div className="flex items-center gap-3 mb-4">
+          {/* Like + Share — repositioned & enlarged */}
+          <div className="flex items-center gap-4 mb-6">
             <button
               onClick={handleLike}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 text-base font-bold transition-all duration-200 ${
                 liked
-                  ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-500'
-                  : 'border-gray-300 dark:border-gray-600 text-gray-500 hover:text-red-500'
+                  ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-500 shadow-sm'
+                  : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-red-400 hover:text-red-500'
               }`}
             >
-              <Heart size={16} className={liked ? 'fill-current' : ''} />
+              <Heart size={22} className={liked ? 'fill-current' : ''} />
               {likeCount}
             </button>
             <button
               onClick={handleShare}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 hover:text-blue-500 text-sm transition"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-blue-400 hover:text-blue-500 text-base font-bold transition-all duration-200 shadow-sm"
             >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+              <Share2 size={22} />
               Share
             </button>
+          </div>
+
+          {/* Price */}
+          <p className="text-4xl font-black text-blue-600 dark:text-blue-400 mb-6 tracking-tight">
+            TSh {parseInt(product.price).toLocaleString()}
+          </p>
+
+          {/* Info rows */}
+          <div className="space-y-3 mb-6">
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <span className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Seller: <Link to={`/profile/${product.seller_username}`} className="text-blue-600 font-bold hover:underline">{product.seller_username}</Link>
+                <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-5 h-5" />
+              </span>
+              <span className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <Link to={`/?category=${product.category_name}`} className="text-blue-600 font-bold hover:underline">{product.category_name}</Link>
+              </span>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 pl-1">
+              <span className="font-medium">Stock: <span className="text-gray-900 dark:text-white font-bold">{product.stock}</span></span>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                product.condition === 'New' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+              }`}>{product.condition}</span>
+            </div>
+          </div>
+
+          {/* Rating */}
+          <div className="flex items-center gap-2 mb-6 pl-1">
+            {product.avg_rating > 0 ? (
+              <>
+                <div className="flex text-yellow-400">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} size={18} className={star <= product.avg_rating ? 'fill-current' : 'text-gray-200 dark:text-gray-700'} />
+                  ))}
+                </div>
+                <span className="text-sm font-bold text-gray-500">({product.avg_rating}/5)</span>
+              </>
+            ) : (
+              <span className="text-sm font-bold text-gray-400 italic">No reviews yet</span>
+            )}
+          </div>
+
+          {/* Description */}
+          <div className="bg-white dark:bg-gray-800/30 rounded-xl p-4 border border-gray-100 dark:border-gray-700 mb-8">
+             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Description</h3>
+             <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm whitespace-pre-line">
+               {product.description}
+             </p>
           </div>
 
           {/* Add to Cart — matches legacy quantity-selector */}
@@ -290,7 +294,7 @@ const ProductDetailPage: React.FC = () => {
               </div>
               <button
                 onClick={handleAddToCart}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-sm"
+                className="flex-[2] flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-sm"
               >
                 <ShoppingCart size={18} />
                 Add to Cart
@@ -299,6 +303,27 @@ const ProductDetailPage: React.FC = () => {
           ) : (
             <p className="text-red-500 font-semibold mt-auto">Out of Stock</p>
           )}
+
+          {/* Inspection Upsell */}
+          <div className="mt-4 p-4 rounded-xl border border-brand-100 dark:border-brand-900/30 bg-brand-50/50 dark:bg-brand-900/10">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="p-2 bg-brand-100 dark:bg-brand-900/40 rounded-lg text-brand-600">
+                <Shield size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white">Professional Inspection</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Get a comprehensive condition report by a certified inspector before you pay.
+                </p>
+              </div>
+            </div>
+            <Link
+              to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name)}`}
+              className="w-full btn-secondary py-2 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 border-brand-200 hover:bg-brand-100 dark:border-brand-900/30 dark:hover:bg-brand-900/20 text-brand-600"
+            >
+              Request Inspection
+            </Link>
+          </div>
         </div>
       </div>
 

@@ -3,11 +3,12 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Shield, ScrollText,
   Users, CheckCircle2, XCircle, Clock, AlertTriangle,
-  ChevronRight, Filter, UserPlus, UserMinus, Building2, Briefcase, Plus, Search
+  UserPlus, UserMinus, Building2, Briefcase, Plus
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../../components/VerifiedBadge';
+import StaffInspectionLayout from './inspections/StaffInspectionLayout';
 
 // ============ Types ============
 interface Task {
@@ -15,6 +16,7 @@ interface Task {
   title: string;
   description: string;
   category_name: string;
+  assigned_to: number | null;
   assigned_to_username: string;
   created_by_username: string;
   status: string;
@@ -285,7 +287,7 @@ const TaskBoard: React.FC = () => {
       api.get('/api/staff/task-categories/')
     ]).then(([tasksRes, adminRes, catRes]) => {
       setTasks(tasksRes.data.results || tasksRes.data);
-      setStaff(adminRes.data.staffers);
+      setStaff(adminRes.data.staffers || adminRes.data.results || adminRes.data);
       setCategories(catRes.data.results || catRes.data);
     }).catch(() => toast.error('Failed to load board'))
     .finally(() => setLoading(false));
@@ -476,7 +478,7 @@ const PermissionManager: React.FC = () => {
             api.get('/api/staff/admin-dashboard/')
         ]).then(([pRes, aRes]) => {
             setPerms(pRes.data.results || pRes.data);
-            setStaff(aRes.data.staffers);
+            setStaff(aRes.data.staffers || aRes.data.results || aRes.data);
         }).catch(() => toast.error('Failed to load permissions'))
         .finally(() => setLoading(false));
     };
@@ -661,6 +663,7 @@ const StaffAdminLayout: React.FC = () => {
           <Route path="tasks" element={<TaskBoard />} />
           <Route path="audit-log" element={<AuditLogViewer />} />
           <Route path="permissions" element={<PermissionManager />} />
+          <Route path="inspections/*" element={<StaffInspectionLayout />} />
         </Routes>
       </main>
     </div>

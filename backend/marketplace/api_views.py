@@ -319,6 +319,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         except:
             data['is_verified'] = False
             data['tier'] = 'free'
+        
+        data['is_inspector'] = hasattr(self.user, 'inspector_profile')
+        data['inspector_level'] = (
+            self.user.inspector_profile.level
+            if hasattr(self.user, 'inspector_profile') else None
+        )
         return data
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -356,7 +362,9 @@ class RegisterView(APIView):
             'is_staff': user.is_staff or user.is_superuser,
             'is_superuser': user.is_superuser,
             'is_verified': False,
-            'tier': profile.tier
+            'tier': profile.tier,
+            'is_inspector': False,
+            'inspector_level': None
         }
         return Response(data, status=status.HTTP_201_CREATED)
 

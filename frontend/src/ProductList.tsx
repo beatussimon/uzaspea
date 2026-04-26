@@ -2,13 +2,12 @@ import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from './api';
-import toast from 'react-hot-toast';
 import ProductCard from './components/ProductCard';
 
-const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } };
+const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } } as any;
 const cardVariants = {
   hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: 'easeOut' } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: 'easeOut' as any } },
 };
 
 // ---- Sponsored listing banner (dynamic) ----
@@ -57,7 +56,7 @@ const ProductList = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(1);
+  const [_page, setPage] = useState(1);
 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
@@ -114,7 +113,7 @@ const ProductList = () => {
     setPage(1); 
     fetchProducts(1, true); 
   }, [selectedCategory, selectedSubcategory, condition, sortBy, urlQuery, minPrice, maxPrice]);
-  useEffect(() => { api.get('/api/categories/').then((r) => setCategories(r.data.results || r.data)).catch(() => {}); }, []);
+  useEffect(() => { api.get('/api/categories/').then((r: any) => setCategories(r.data.results || r.data)).catch(() => {}); }, []);
 
   // Infinite scroll
   useEffect(() => {
@@ -212,7 +211,7 @@ const ProductList = () => {
         </div>
       ) : (
         <>
-          <motion.div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4"
+          <motion.div className="grid grid-cols-4 gap-3 sm:gap-4"
             variants={containerVariants} initial="hidden" animate="visible">
             {products.length === 0 ? (
               <div className="col-span-full card p-12 text-center">

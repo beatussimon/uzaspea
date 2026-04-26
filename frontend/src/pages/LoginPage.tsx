@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
@@ -8,7 +8,6 @@ const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +22,8 @@ const LoginPage: React.FC = () => {
       localStorage.setItem('tier', res.data.tier || 'free');
       localStorage.setItem('is_staff', String(res.data.is_staff || false));
       localStorage.setItem('is_superuser', String(res.data.is_superuser || false));
+      localStorage.setItem('is_inspector', String(res.data.is_inspector || false));
+      localStorage.setItem('inspector_level', res.data.inspector_level || '');
       
       toast.success('Login successful!');
       // Hard redirect to reload App.tsx auth state
