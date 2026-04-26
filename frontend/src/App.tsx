@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { Heart, Share2, Moon, Sun, Shield } from 'lucide-react';
+import { Moon, Sun, Shield } from 'lucide-react';
 import VerifiedBadge from './components/VerifiedBadge';
 
 import { CartProvider, useCart } from './context/CartContext';
@@ -16,6 +16,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import OrdersPage from './pages/OrdersPage';
+import InspectionLayout, { PublicVerifyPage } from './pages/inspections/InspectionLayout';
+import InspectorLayout from './pages/inspections/InspectorLayout';
 
 // ================================================================
 // Navbar — h-16 (64px), balanced layout, prominent brand
@@ -36,6 +38,7 @@ const Navbar = () => {
   const isVerified = localStorage.getItem('is_verified') === 'true';
   const userTier = localStorage.getItem('tier') || 'free';
   const isStaff = localStorage.getItem('is_staff') === 'true';
+  const isInspector = localStorage.getItem('is_inspector') === 'true';
   const isSuperuser = localStorage.getItem('is_superuser') === 'true';
   const username = localStorage.getItem('username') || 'User';
 
@@ -93,7 +96,7 @@ const Navbar = () => {
         {/* ---- Left: Brand ---- */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
           <img src="/logo.png" alt="UZASPEA" className="h-9 w-auto transition-transform duration-200 group-hover:scale-105" />
-          <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white hidden sm:inline">
+          <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">
             UZASPEA
           </span>
         </Link>
@@ -110,7 +113,6 @@ const Navbar = () => {
               </button>
               {sellingOpen && (
                 <div className="absolute top-full left-0 mt-1 card py-1 min-w-[170px] z-50 animate-fade-in">
-                  <Link to={`/profile/${username}`} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => setSellingOpen(false)}>My Store</Link>
                   <Link to="/dashboard/products" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => setSellingOpen(false)}>Sell Product</Link>
                 </div>
               )}
@@ -121,6 +123,12 @@ const Navbar = () => {
             <Link to="/staff-admin" className="btn-ghost text-sm flex items-center gap-2 text-brand-600 dark:text-brand-400 font-bold border-l border-gray-100 dark:border-gray-700 ml-2 pl-4">
               <Shield size={16} />
               Staff Admin
+            </Link>
+          )}
+
+          {isAuthenticated && (
+            <Link to="/inspections" className="btn-ghost text-sm shrink-0">
+              Inspections
             </Link>
           )}
 
@@ -167,6 +175,22 @@ const Navbar = () => {
                   <Link to={`/profile/${username}`} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => setProfileOpen(false)}>Profile</Link>
                   <Link to="/dashboard" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => setProfileOpen(false)}>Dashboard</Link>
                   <Link to="/orders" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => setProfileOpen(false)}>Outgoing Orders</Link>
+                  <Link
+                    to="/inspections"
+                    className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    My Inspections
+                  </Link>
+                  {isInspector && (
+                    <Link
+                      to="/inspector/jobs"
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      onClick={() => setProfileOpen(false)}
+                    >
+                      Inspector Panel
+                    </Link>
+                  )}
                   {isStaff && isSuperuser && (
                     <Link to="/staff-admin" className="block px-4 py-2 text-sm text-brand-600 dark:text-brand-400 font-medium hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => setProfileOpen(false)}>Staff Admin</Link>
                   )}
@@ -213,6 +237,22 @@ const Navbar = () => {
               <Link to="/dashboard" className="block py-2.5 text-sm text-gray-700 dark:text-gray-200 border-b border-surface-border/50 dark:border-surface-dark-border/50" onClick={() => setMobileOpen(false)}>Dashboard</Link>
               <Link to="/cart" className="block py-2.5 text-sm text-gray-700 dark:text-gray-200 border-b border-surface-border/50 dark:border-surface-dark-border/50" onClick={() => setMobileOpen(false)}>Cart ({cartCount})</Link>
               <Link to="/orders" className="block py-2.5 text-sm text-gray-700 dark:text-gray-200 border-b border-surface-border/50 dark:border-surface-dark-border/50" onClick={() => setMobileOpen(false)}>Outgoing Orders</Link>
+              <Link
+                to="/inspections"
+                className="block py-2.5 text-sm text-gray-700 dark:text-gray-200 border-b border-surface-border/50 dark:border-surface-dark-border/50"
+                onClick={() => setMobileOpen(false)}
+              >
+                Inspections
+              </Link>
+              {isInspector && (
+                <Link
+                  to="/inspector/jobs"
+                  className="block py-2.5 text-sm text-gray-700 dark:text-gray-200 border-b border-surface-border/50 dark:border-surface-dark-border/50"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Inspector Panel
+                </Link>
+              )}
               {isStaff && isSuperuser && (
                 <Link to="/staff-admin" className="block py-2.5 text-sm text-brand-600 dark:text-brand-400 font-medium border-b border-surface-border/50 dark:border-surface-dark-border/50" onClick={() => setMobileOpen(false)}>Staff Admin</Link>
               )}
@@ -296,6 +336,9 @@ function App() {
     }
   }, []);
 
+  const isAuthenticated = !!localStorage.getItem('access_token');
+  const isInspector = localStorage.getItem('is_inspector') === 'true';
+
   return (
     <BrowserRouter>
       <CartProvider>
@@ -322,6 +365,14 @@ function App() {
                 ? <StaffDashboardLayout /> 
                 : <Navigate to="/dashboard" />
               } />
+
+              <Route path="/inspections/*" element={
+                isAuthenticated ? <InspectionLayout /> : <Navigate to="/login" />
+              } />
+              <Route path="/inspector/*" element={
+                isAuthenticated && isInspector ? <InspectorLayout /> : <Navigate to="/dashboard" />
+              } />
+              <Route path="/verify/:inspection_id" element={<PublicVerifyPage />} />
 
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />

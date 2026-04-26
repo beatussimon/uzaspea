@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
-  CheckCircle2, XCircle, Clock, AlertTriangle, ChevronRight
+  CheckCircle2, XCircle, Clock, AlertTriangle
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
+import StaffInspectionLayout from './inspections/StaffInspectionLayout';
 
 // ============ Types ============
 interface StaffTask {
@@ -311,6 +312,7 @@ const StaffDashboardLayout: React.FC = () => {
     { path: '/staff', label: 'Overview', icon: LayoutDashboard },
     { path: '/staff/tasks', label: 'My Tasks', icon: ClipboardList },
     { path: '/staff/promotions', label: 'Promotions', icon: Megaphone },
+    { path: '/staff/inspections', label: 'Inspections', icon: ClipboardList },
   ];
 
   return (
@@ -342,6 +344,7 @@ const StaffDashboardLayout: React.FC = () => {
           <Route index element={<StaffHome />} />
           <Route path="tasks" element={<StaffTasks />} />
           <Route path="promotions" element={<PromotionQueue />} />
+          <Route path="inspections/*" element={<StaffInspectionLayout />} />
         </Routes>
       </main>
     </div>

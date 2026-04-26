@@ -7,6 +7,7 @@ from staff.api_urls import api_urlpatterns as staff_api_urlpatterns
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/staff/', include(staff_api_urlpatterns)),
+    path('api/inspections/', include('inspections.urls')),
     path('staff/', include('staff.urls')),
     path('', include('marketplace.urls')),
     path('accounts/', include('django.contrib.auth.urls')),  # Includes password reset URLs

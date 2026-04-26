@@ -3,6 +3,14 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 
+class Department(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
 class StaffProfile(models.Model):
     """
     Extends the default User model with staff-specific information.
@@ -10,7 +18,7 @@ class StaffProfile(models.Model):
     """
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='staff_profile')
     is_active = models.BooleanField(default=True, help_text="Designates whether the staff account is active.")
-    department = models.CharField(max_length=100, blank=True, help_text="Department or team name")
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='staff_members')
     phone_number = models.CharField(max_length=20, blank=True)
     notes = models.TextField(blank=True, help_text="Internal notes about this staff member")
     created_at = models.DateTimeField(auto_now_add=True)

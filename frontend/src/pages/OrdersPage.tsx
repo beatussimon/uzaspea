@@ -336,7 +336,9 @@ const OrdersPage: React.FC = () => {
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Delivery Fee</span>
-                                        <span className="text-green-600 font-medium">FREE</span>
+                                        <span className={order.shipping_fee > 0 ? "text-gray-900 dark:text-white font-medium" : "text-green-600 font-medium"}>
+                                            {order.shipping_fee > 0 ? `TSh ${parseInt(order.shipping_fee).toLocaleString()}` : "FREE"}
+                                        </span>
                                     </div>
                                     <hr className="border-gray-200 dark:border-gray-700" />
                                     <div className="flex justify-between text-base">

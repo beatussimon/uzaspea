@@ -130,6 +130,27 @@ class TaskViewSet(viewsets.ModelViewSet):
         task = serializer.save(created_by=self.request.user)
         log_audit(self.request.user, 'task_created', f"Created task: {task.title}", task=task, request=self.request)
 
+    @decorators.action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        task = self.get_object()
+        if task.status != 'pending':
+            return Response({'error': 'Task already started or completed'}, status=status.HTTP_400_BAD_REQUEST)
+        task.status = 'in_progress'
+        task.save()
+        log_audit(request.user, 'task_started', f"Started task: {task.title}", task=task, request=request)
+        return Response({'status': 'in_progress'})
+
+    @decorators.action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        task = self.get_object()
+        if task.status == 'completed':
+            return Response({'error': 'Task already completed'}, status=status.HTTP_400_BAD_REQUEST)
+        task.status = 'completed'
+        task.completed_at = timezone.now()
+        task.save()
+        log_audit(request.user, 'task_completed', f"Completed task: {task.title}", task=task, request=request)
+        return Response({'status': 'completed'})
+
 
 class TaskActionViewSet(viewsets.ModelViewSet):
     serializer_class = TaskActionSerializer
@@ -356,7 +377,8 @@ class StaffAdminDashboardView(APIView):
         deactivated_staff = StaffProfile.objects.filter(is_active=False).count()
 
         # Department breakdown
-        dept_breakdown = StaffProfile.objects.values('department').annotate(count=models.Count('id')).order_by('-count')
+        from .models import Department
+        dept_breakdown = Department.objects.annotate(count=models.Count('staff_members')).values('name', 'count').order_by('-count')
 
         # Task performance (Month)
         completed_this_month = Task.objects.filter(status='completed', completed_at__gte=start_of_month).count()
@@ -382,7 +404,7 @@ class StaffAdminDashboardView(APIView):
             'profile_id': s.id,
             'username': s.user.username,
             'email': s.user.email,
-            'department': s.department,
+            'department': s.department.name if s.department else None,
             'is_active': s.is_active,
             'tasks_count': s.user.assigned_tasks.count(),
         } for s in staffers]

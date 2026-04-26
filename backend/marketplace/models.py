@@ -209,7 +209,13 @@ class Order(models.Model):
         ('CANCELLED', 'Cancelled'),
         ('EXPIRED', 'Expired'),
     )
+    SHIPPING_CHOICES = (
+        ('PICKUP', 'Physical Pickup'),
+        ('DELIVERY', 'Home Delivery'),
+    )
     status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='CART')
+    shipping_method = models.CharField(max_length=15, choices=SHIPPING_CHOICES, default='DELIVERY')
+    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
     def __str__(self):
         return f"Order #{self.id} by {self.user.username}"

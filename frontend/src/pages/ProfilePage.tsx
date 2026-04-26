@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Settings, MapPin, Link as LinkIcon, Camera } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
-import SafeImage from '../components/SafeImage';
 import toast from 'react-hot-toast';
 import ProductCard from '../components/ProductCard';
+import VerifiedBadge from '../components/VerifiedBadge';
 
 const ProfilePage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
