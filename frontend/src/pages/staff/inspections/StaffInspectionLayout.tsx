@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useLocation, useParams } from 'react-router-dom';
+import { Routes, Route, Link, useLocation, useParams, Navigate } from 'react-router-dom';
 import {
   ChevronRight, Shield, Clock, Eye, ClipboardList, CheckCircle2, CreditCard,
   AlertTriangle, XCircle, LayoutDashboard, BarChart2, Search, Users,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Breadcrumbs from '../../../components/Breadcrumbs';
 import inspectionApi from '../../../api/inspectionApi';
 import {
   InspectionRequest, InspectionPayment, FraudFlag,
@@ -25,18 +26,42 @@ const Badge: React.FC<{ text: string; className?: string }> = ({ text, className
 );
 
 // ─── Staff Dashboard Overview ───────────────
-const StaffInspectionDashboard: React.FC = () => {
+const StaffInspectionDashboard: React.FC<{ hasPerm?: boolean }> = ({ hasPerm = true }) => {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const location = useLocation();
+  const base = location.pathname.startsWith('/staff-admin')
+    ? '/staff-admin/inspections'
+    : '/staff/inspections';
+
   useEffect(() => {
+    if (!hasPerm) {
+      setLoading(false);
+      return;
+    }
     inspectionApi.requests.stats()
       .then((r: any) => setStats(r.data))
       .catch(() => toast.error('Failed to load stats'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [hasPerm]);
 
   if (loading) return <Spinner />;
+
+  if (!hasPerm) {
+    return (
+      <div className="card p-12 text-center space-y-4">
+        <Shield size={48} className="mx-auto text-red-500 opacity-50" />
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Management Access Required</h2>
+        <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+          You do not have the <code className="text-red-500">can_manage_inspections</code> permission required to view the global inspection overview.
+        </p>
+        <div className="pt-4">
+          <Link to="/staff" className="btn-secondary px-6">Back to Dashboard</Link>
+        </div>
+      </div>
+    );
+  }
 
   const statCards = [
     { label: 'Total Requests', val: stats?.total || 0, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/20' },
@@ -74,9 +99,9 @@ const StaffInspectionDashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { to: '/staff/inspections/dispatch', label: 'Dispatcher Queue', icon: ClipboardList, color: 'text-blue-500' },
-          { to: '/staff/inspections/qa', label: 'QA Review Queue', icon: CheckCircle2, color: 'text-purple-500' },
-          { to: '/staff/inspections/payments', label: 'Payment Approvals', icon: CreditCard, color: 'text-green-500' },
+          { to: `${base}/dispatch`, label: 'Dispatcher Queue', icon: ClipboardList, color: 'text-blue-500' },
+          { to: `${base}/qa`, label: 'QA Review Queue', icon: CheckCircle2, color: 'text-purple-500' },
+          { to: `${base}/payments`, label: 'Payment Approvals', icon: CreditCard, color: 'text-green-500' },
         ].map((item) => (
           <Link key={item.to} to={item.to}
             className="card p-4 flex items-center gap-3 hover:shadow-card-hover transition group">
@@ -99,8 +124,13 @@ const AllRequests: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
 
+  const location = useLocation();
+  const base = location.pathname.startsWith('/staff-admin')
+    ? '/staff-admin/inspections'
+    : '/staff/inspections';
+
   useEffect(() => {
-    inspectionApi.requests.list()
+    inspectionApi.requests.list({ all: 'true' })
       .then((r: any) => setRequests(r.data.results || r.data))
       .catch(() => toast.error('Failed to load requests'))
       .finally(() => setLoading(false));
@@ -142,7 +172,7 @@ const AllRequests: React.FC = () => {
             <p className="text-gray-400">No requests found</p>
           </div>
         ) : filtered.map((req: any) => (
-          <Link key={req.id} to={`/staff/inspections/request/${req.id}`}
+          <Link key={req.id} to={`${base}/request/${req.id}`}
             className="card p-4 flex items-center justify-between gap-3 hover:shadow-card-hover transition group">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
@@ -179,6 +209,8 @@ const StaffRequestDetail: React.FC = () => {
   const [generatingBill, setGeneratingBill] = useState(false);
   const [travel, setTravel] = useState('');
   const [qaNote, setQaNote] = useState('');
+
+
 
   const load = () => {
     const numericId = Number(id);
@@ -255,12 +287,6 @@ const StaffRequestDetail: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-        <Link to="/staff/inspections/requests" className="hover:text-brand-600 transition">All Requests</Link>
-        <ChevronRight size={14} />
-        <span className="text-gray-900 dark:text-white font-medium">{request.inspection_id}</span>
-      </div>
 
       <div className="card p-5">
         <div className="flex items-start justify-between flex-wrap gap-3">
@@ -380,37 +406,17 @@ const StaffRequestDetail: React.FC = () => {
       </div>
 
       {/* Payments */}
-      {request.payments.length > 0 && (
-        <div className="card p-5">
-          <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-            <CreditCard size={16} className="text-brand-600" /> Payments
-          </h3>
-          <div className="space-y-2">
-            {request.payments.map((p: any) => (
-              <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-sm">
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white capitalize">{p.stage}</p>
-                  <p className="text-xs text-gray-500">{fmtMoney(p.amount)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {p.proof_image && (
-                    <a href={p.proof_image} target="_blank" rel="noreferrer"
-                      className="text-xs text-brand-600 flex items-center gap-1">
-                      <Eye size={12} /> Proof
-                    </a>
-                  )}
-                  <Badge
-                    text={p.status}
-                    className={
-                      p.status === 'approved' ? 'badge-green'
-                        : p.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                        : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                    }
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+      {request.payments && request.payments.length > 0 && (
+        <div className="card p-5 text-sm">
+           <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Payments</h3>
+           <div className="space-y-2">
+             {request.payments.map((p: any) => (
+               <div key={p.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
+                 <span className="capitalize">{p.stage} ({p.status})</span>
+                 <span className="font-bold">{fmtMoney(p.amount)}</span>
+               </div>
+             ))}
+           </div>
         </div>
       )}
 
@@ -421,69 +427,19 @@ const StaffRequestDetail: React.FC = () => {
             <CheckCircle2 size={16} className="text-purple-600" /> QA Review
           </h3>
 
-          {/* Report summary */}
-          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-sm space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500">Verdict:</span>
-              <Badge text={request.report.verdict} className={VERDICT_COLORS[request.report.verdict]} />
-            </div>
-            <p className="text-gray-700 dark:text-gray-300">{request.report.summary}</p>
-            <p className="text-xs text-gray-400">
-              Submitted by {request.report.submitted_by_username} on {fmtDate(request.report.submitted_at)}
-            </p>
-            {request.report.qa_notes && (
-              <div className="p-2 rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs">
-                Auto-flag: {request.report.qa_notes}
-              </div>
-            )}
-          </div>
-
-          {/* Checklist responses */}
-          {request.report.responses.length > 0 && (
-            <div className="space-y-1 max-h-64 overflow-y-auto">
-              {request.report.responses.map((r: any) => (
-                <div key={r.id} className={`flex items-center justify-between p-2 rounded text-xs ${r.flagged ? 'bg-red-50 dark:bg-red-900/20' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
-                  <span className="text-gray-600 dark:text-gray-400">{r.item_label}</span>
-                  <div className="flex items-center gap-1">
-                    {r.flagged && <AlertTriangle size={10} className="text-red-500" />}
-                    <span className={`font-medium ${r.flagged ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>{r.response_value}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           <div className="flex gap-3">
             <button onClick={handleQaApprove}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition">
+              className="flex-1 btn-primary bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 py-2.5">
               <CheckCircle2 size={15} /> Approve & Publish
             </button>
             <div className="flex-1 space-y-2">
               <input className="input text-xs" placeholder="QA notes for return..."
                 value={qaNote} onChange={(e) => setQaNote(e.target.value)} />
               <button onClick={handleQaReturn}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg text-sm font-medium transition">
+                className="w-full btn-secondary text-orange-600 border-orange-300 hover:bg-orange-50 py-2.5 flex items-center justify-center gap-2">
                 <XCircle size={15} /> Return for Revision
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Published Report */}
-      {request.report?.is_locked && (
-        <div className="card p-5 border border-green-200 dark:border-green-800">
-          <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
-            <Shield size={16} className="text-green-600" /> Published Report
-          </h3>
-          <div className="flex items-center gap-3 flex-wrap">
-            <Badge text={request.report.verdict.toUpperCase()} className={VERDICT_COLORS[request.report.verdict]} />
-            <span className="text-xs font-mono text-gray-400">
-              Hash: {request.report.report_hash.slice(0, 20)}…
-            </span>
-            <span className="text-xs text-gray-400">
-              By {request.report.approved_by_username}
-            </span>
           </div>
         </div>
       )}
@@ -496,8 +452,13 @@ const DispatcherQueue: React.FC = () => {
   const [requests, setRequests] = useState<InspectionRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const location = useLocation();
+  const base = location.pathname.startsWith('/staff-admin')
+    ? '/staff-admin/inspections'
+    : '/staff/inspections';
+
   useEffect(() => {
-    inspectionApi.requests.list()
+    inspectionApi.requests.list({ all: 'true' })
       .then((r: any) => {
         const all = r.data.results || r.data;
         setRequests(all.filter((req: any) =>
@@ -524,7 +485,7 @@ const DispatcherQueue: React.FC = () => {
       ) : (
         <div className="space-y-2">
           {requests.map((req) => (
-            <Link key={req.id} to={`/staff/inspections/request/${req.id}`}
+            <Link key={req.id} to={`${base}/request/${req.id}`}
               className="card p-4 flex items-center justify-between gap-3 hover:shadow-card-hover transition group">
               <div>
                 <Badge text={STATUS_LABELS[req.status]} className={STATUS_COLORS[req.status]} />
@@ -549,6 +510,11 @@ const QAQueue: React.FC = () => {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const location = useLocation();
+  const base = location.pathname.startsWith('/staff-admin')
+    ? '/staff-admin/inspections'
+    : '/staff/inspections';
+
   useEffect(() => {
     inspectionApi.reports.qaQueue()
       .then((r: any) => setReports(r.data.results || r.data))
@@ -569,7 +535,7 @@ const QAQueue: React.FC = () => {
       ) : (
         <div className="space-y-3">
           {reports.map((report: any) => (
-            <Link key={report.id} to={`/staff/inspections/request/${report.request}`}
+            <Link key={report.id} to={`${base}/request/${report.request}`}
               className="card p-4 flex items-center justify-between gap-3 hover:shadow-card-hover transition group">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -581,7 +547,7 @@ const QAQueue: React.FC = () => {
                 <p className="font-medium text-gray-900 dark:text-white group-hover:text-brand-600 transition">
                   {report.submitted_by_username}
                 </p>
-                <p className="text-xs text-gray-400 mt-0.5">{fmtDate(report.submitted_at)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Finalized: {fmtDate(report.finalized_at || report.submitted_at)}</p>
               </div>
               <ChevronRight size={16} className="text-gray-400 shrink-0" />
             </Link>
@@ -676,6 +642,11 @@ const FraudFlagsPanel: React.FC = () => {
   const [flags, setFlags] = useState<FraudFlag[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const location = useLocation();
+  const base = location.pathname.startsWith('/staff-admin')
+    ? '/staff-admin/inspections'
+    : '/staff/inspections';
+
   const load = () => {
     inspectionApi.fraudFlags.list()
       .then((r: any) => setFlags(r.data.results || r.data))
@@ -713,7 +684,7 @@ const FraudFlagsPanel: React.FC = () => {
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle size={14} className="text-red-500" />
                 <Badge text={f.flag_type.replace(/_/g, ' ')} className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" />
-                <Link to={`/staff/inspections/request/${f.request}`}
+                <Link to={`${base}/request/${f.request}`}
                   className="text-xs text-brand-600 hover:underline font-mono">{f.request_id}</Link>
               </div>
               <p className="text-sm text-gray-700 dark:text-gray-300">{f.details}</p>
@@ -805,21 +776,33 @@ const InspectorPerformance: React.FC = () => {
 };
 
 // ─── Staff Inspection Layout ────────────────
-const StaffInspectionLayout: React.FC = () => {
+
+const StaffInspectionLayout: React.FC<{ user?: any }> = ({ user }) => {
   const location = useLocation();
 
+  const isSuper = localStorage.getItem('is_superuser') === 'true';
+  const hasManagePerm = isSuper || user?.permissions?.includes('can_manage_inspections');
+
+  // Detect whether we're under /staff-admin or /staff
+  const base = location.pathname.startsWith('/staff-admin')
+    ? '/staff-admin/inspections'
+    : '/staff/inspections';
+
   const navItems = [
-    { path: '/staff/inspections', label: 'Overview', icon: LayoutDashboard, exact: true },
-    { path: '/staff/inspections/requests', label: 'All Requests', icon: ClipboardList },
-    { path: '/staff/inspections/dispatch', label: 'Dispatcher', icon: Clock },
-    { path: '/staff/inspections/qa', label: 'QA Queue', icon: CheckCircle2 },
-    { path: '/staff/inspections/payments', label: 'Payments', icon: CreditCard },
-    { path: '/staff/inspections/fraud', label: 'Fraud Flags', icon: AlertTriangle },
-    { path: '/staff/inspections/performance', label: 'Performance', icon: BarChart2 },
-  ];
+    { path: base, label: 'Overview', icon: LayoutDashboard, exact: true, show: true },
+    { path: `${base}/requests`, label: 'All Requests', icon: ClipboardList, show: hasManagePerm },
+    { path: `${base}/dispatch`, label: 'Dispatcher', icon: Clock, show: hasManagePerm },
+    { path: `${base}/qa`, label: 'QA Queue', icon: CheckCircle2, show: hasManagePerm },
+    { path: `${base}/payments`, label: 'Payments', icon: CreditCard, show: hasManagePerm },
+    { path: `${base}/fraud`, label: 'Fraud Flags', icon: AlertTriangle, show: hasManagePerm },
+    { path: `${base}/performance`, label: 'Performance', icon: BarChart2, show: hasManagePerm },
+  ].filter(item => item.show);
 
   return (
-    <div className="max-w-7xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
+    <div className="container-page py-6">
+      <Breadcrumbs />
+      
+      <div className="flex flex-col lg:flex-row gap-6 mt-4">
       <aside className="w-full lg:w-56 shrink-0">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-2 space-y-1">
           <div className="px-3 py-2 mb-1">
@@ -848,18 +831,19 @@ const StaffInspectionLayout: React.FC = () => {
 
       <main className="flex-1 min-w-0">
         <Routes>
-          <Route index element={<StaffInspectionDashboard />} />
-          <Route path="requests" element={<AllRequests />} />
-          <Route path="request/:id" element={<StaffRequestDetail />} />
-          <Route path="dispatch" element={<DispatcherQueue />} />
-          <Route path="qa" element={<QAQueue />} />
-          <Route path="payments" element={<PaymentApprovals />} />
-          <Route path="fraud" element={<FraudFlagsPanel />} />
-          <Route path="performance" element={<InspectorPerformance />} />
+          <Route index element={<StaffInspectionDashboard hasPerm={hasManagePerm} />} />
+          <Route path="requests" element={hasManagePerm ? <AllRequests /> : <Navigate to={base} />} />
+          <Route path="request/:id" element={hasManagePerm ? <StaffRequestDetail /> : <Navigate to={base} />} />
+          <Route path="dispatch" element={hasManagePerm ? <DispatcherQueue /> : <Navigate to={base} />} />
+          <Route path="qa" element={hasManagePerm ? <QAQueue /> : <Navigate to={base} />} />
+          <Route path="payments" element={hasManagePerm ? <PaymentApprovals /> : <Navigate to={base} />} />
+          <Route path="fraud" element={hasManagePerm ? <FraudFlagsPanel /> : <Navigate to={base} />} />
+          <Route path="performance" element={hasManagePerm ? <InspectorPerformance /> : <Navigate to={base} />} />
         </Routes>
       </main>
     </div>
-  );
+  </div>
+);
 };
 
 export default StaffInspectionLayout;

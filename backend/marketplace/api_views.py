@@ -11,10 +11,18 @@ from .serializers import (
     ProductCommentSerializer, OrderSerializer, PaymentSerializer, UserProfileSerializer
 )
 
+from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember
+from django.db.models import Prefetch
+
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.filter(is_available=True).prefetch_related('images', 'likes')
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    
+    def get_permissions(self):
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
+        return super().get_permissions()
     lookup_field = 'slug'
 
     def get_queryset(self):
@@ -82,26 +90,36 @@ class ProductViewSet(viewsets.ModelViewSet):
         orders = Order.objects.filter(orderitem_set__product__seller=user).distinct()
         today = timezone.now().date()
 
-        # --- Revenue pipeline (last 7 days) ---
+        # --- Revenue pipeline (last 7 days) --- Optimized
+        start_date = today - datetime.timedelta(days=6)
+        pipeline_items = OrderItem.objects.filter(
+            product__seller=user, order__order_date__date__gte=start_date
+        ).values('order__order_date__date').annotate(
+            rev=Sum('price'), count=Count('order', distinct=True)
+        ).order_by('order__order_date__date')
+        
+        pipeline_map = {item['order__order_date__date']: item for item in pipeline_items}
+        
         revenue_pipeline = []
         total_7d = 0
         for i in range(6, -1, -1):
             date = today - datetime.timedelta(days=i)
-            day_items = OrderItem.objects.filter(
-                product__seller=user, order__order_date__date=date
-            )
-            day_rev = float(day_items.aggregate(t=Sum('price'))['t'] or 0)
-            day_count = day_items.values('order').distinct().count()
+            entry = pipeline_map.get(date, {'rev': 0, 'count': 0})
+            day_rev = float(entry['rev'] or 0)
             total_7d += day_rev
-            revenue_pipeline.append({'date': date.strftime('%a'), 'revenue': day_rev, 'orders': day_count})
+            revenue_pipeline.append({
+                'date': date.strftime('%a'), 
+                'revenue': day_rev, 
+                'orders': entry['count']
+            })
 
         # --- Previous 7 days for trend ---
-        prev_items = OrderItem.objects.filter(
+        prev_start = today - datetime.timedelta(days=13)
+        prev_7d = float(OrderItem.objects.filter(
             product__seller=user,
-            order__order_date__date__gte=today - datetime.timedelta(days=13),
-            order__order_date__date__lt=today - datetime.timedelta(days=6),
-        )
-        prev_7d = float(prev_items.aggregate(t=Sum('price'))['t'] or 0)
+            order__order_date__date__gte=prev_start,
+            order__order_date__date__lt=start_date,
+        ).aggregate(t=Sum('price'))['t'] or 0)
         trend_pct = round(((total_7d - prev_7d) / prev_7d * 100) if prev_7d else 0, 1)
 
         # --- Order status breakdown ---
@@ -177,6 +195,12 @@ class OrderViewSet(viewsets.ModelViewSet):
     def advance(self, request, pk=None):
         from .services import OrderStateMachine
         order = self.get_object()
+        
+        # PERMISSION CHECK: Must be staff OR a seller of an item in this order
+        is_seller = order.orderitem_set.filter(product__seller=request.user).exists()
+        if not (request.user.is_staff or is_seller):
+            return Response({'detail': 'No permission to transition this order.'}, status=403)
+
         new_state = request.data.get('status')
         notes = request.data.get('notes', '')
         
@@ -201,22 +225,49 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'status': order.status})
 
+    @decorators.action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        from .services import OrderStateMachine
+        order = self.get_object()
+        
+        # PERMISSION CHECK: Must be staff, the buyer, or a seller of an item in this order
+        is_buyer = order.user == request.user
+        is_seller = order.orderitem_set.filter(product__seller=request.user).exists()
+        
+        if not (request.user.is_staff or is_buyer or is_seller):
+            return Response({'detail': 'No permission to cancel this order.'}, status=403)
+
+        notes = request.data.get('notes', 'Order cancelled.')
+        try:
+            OrderStateMachine.transition_order(order, 'CANCELLED', notes=notes)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'status': order.status})
+
     @decorators.action(detail=False, methods=['get'])
     def incoming(self, request):
         """Orders containing the current seller's products."""
         user = request.user
+        
+        # Prefetch only for this seller's items to avoid N+1 and leaking other seller's item data
+        seller_items_prefetch = Prefetch(
+            'orderitem_set',
+            queryset=OrderItem.objects.filter(product__seller=user).select_related('product').prefetch_related('product__images'),
+            to_attr='relevant_items'
+        )
+
         order_ids = OrderItem.objects.filter(product__seller=user).values_list('order_id', flat=True).distinct()
         orders = Order.objects.filter(id__in=order_ids).prefetch_related(
-            'orderitem_set__product__images', 'timeline_events', 'payments'
+            seller_items_prefetch, 'timeline_events', 'payments'
         ).select_related('user').order_by('-order_date')
 
         status_filter = request.query_params.get('status', None)
         if status_filter:
             orders = orders.filter(status=status_filter)
 
-        data = []
-        for order in orders:
-            seller_items = order.orderitem_set.filter(product__seller=user)
+        page = self.paginate_queryset(orders)
+        
+        def format_order(order):
             items_data = [{
                 'id': item.id,
                 'product_name': item.product.name,
@@ -225,7 +276,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'quantity': item.quantity,
                 'price': float(item.price),
                 'subtotal': float(item.subtotal()),
-            } for item in seller_items]
+            } for item in order.relevant_items]
 
             timeline = [{'status': e.status, 'notes': e.notes, 'created_at': e.created_at.isoformat()} for e in order.timeline_events.all()]
             payments = [{
@@ -238,7 +289,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'created_at': p.created_at.isoformat()
             } for p in order.payments.all()]
 
-            data.append({
+            return {
                 'id': order.id,
                 'buyer': order.user.username,
                 'order_date': order.order_date.isoformat(),
@@ -248,8 +299,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'items': items_data,
                 'timeline': timeline,
                 'payments': payments,
-            })
+            }
 
+        if page is not None:
+            data = [format_order(o) for o in page]
+            return self.get_paginated_response(data)
+
+        data = [format_order(o) for o in orders]
         return Response(data)
 
 class ReviewViewSet(viewsets.ModelViewSet):
@@ -336,6 +392,9 @@ class RegisterView(APIView):
     def post(self, request):
         username = request.data.get('username')
         email = request.data.get('email')
+        first_name = request.data.get('first_name', '')
+        last_name = request.data.get('last_name', '')
+        dob = request.data.get('date_of_birth')
         password = request.data.get('password')
         confirm_password = request.data.get('confirm_password')
 
@@ -345,14 +404,26 @@ class RegisterView(APIView):
             return Response({'detail': 'Passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
         if User.objects.filter(username=username).exists():
             return Response({'detail': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(email=email).exists():
+            return Response({'detail': 'An account with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             validate_password(password)
         except Exception as e:
             return Response({'detail': list(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.create_user(username=username, email=email, password=password)
-        profile = UserProfile.objects.create(user=user)
+        user = User.objects.create_user(
+            username=username, 
+            email=email, 
+            password=password,
+            first_name=first_name,
+            last_name=last_name
+        )
+        # Profile is created via post_save signal in models.py
+        profile = user.profile
+        if dob:
+            profile.date_of_birth = dob
+            profile.save()
         
         refresh = CustomTokenObtainPairSerializer.get_token(user)
         data = {

@@ -80,6 +80,9 @@ class InspectionPaymentSerializer(serializers.ModelSerializer):
     confirmed_by_username = serializers.CharField(
         source='confirmed_by.username', read_only=True
     )
+    # Use any queryset here, we will filter it in the view if needed, 
+    # but for create validation, we need to ensure it's a valid PK.
+    # However, to be strict, we'll override __init__ or just handle it in validate.
 
     class Meta:
         model = InspectionPayment
@@ -89,6 +92,21 @@ class InspectionPaymentSerializer(serializers.ModelSerializer):
             'confirmed_by_username', 'confirmed_at', 'rejection_reason', 'created_at',
         ]
         read_only_fields = ['status', 'confirmed_by', 'confirmed_at']
+
+    def validate(self, data):
+        request_obj = data.get('request')
+        user = self.context['request'].user
+        
+        # Ownership check (Final redundancy for 403)
+        if request_obj.client != user and not user.is_superuser:
+            raise serializers.ValidationError("You do not have permission to submit payment for this request.")
+
+        # Status check
+        allowed_statuses = ['awaiting_payment', 'deposit_paid', 'bill_sent']
+        if request_obj.status not in allowed_statuses and not user.is_superuser:
+             raise serializers.ValidationError(f"Payments cannot be submitted for requests in {request_obj.status} status.")
+             
+        return data
 
 
 class InspectionAssignmentSerializer(serializers.ModelSerializer):
@@ -119,10 +137,12 @@ class InspectionCheckInSerializer(serializers.ModelSerializer):
 
 
 class InspectionEvidenceSerializer(serializers.ModelSerializer):
+    item_label = serializers.CharField(source='checklist_item.label', read_only=True)
+
     class Meta:
         model = InspectionEvidence
         fields = [
-            'id', 'request', 'checklist_item', 'image',
+            'id', 'request', 'checklist_item', 'item_label', 'image',
             'captured_at', 'latitude', 'longitude', 'file_hash', 'caption',
         ]
         read_only_fields = ['file_hash', 'captured_at']
@@ -156,7 +176,7 @@ class InspectionReportSerializer(serializers.ModelSerializer):
             'summary', 'is_locked', 'report_hash',
             'submitted_by', 'submitted_by_username', 'submitted_at',
             'approved_by', 'approved_by_username', 'approved_at',
-            'qa_notes', 'responses',
+            'qa_notes', 'responses', 'finalized_at',
         ]
         read_only_fields = [
             'is_locked', 'report_hash', 'submitted_by',
@@ -169,9 +189,10 @@ class InspectionRequestSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     category_path = serializers.CharField(source='category.get_full_path', read_only=True)
     bill = InspectionBillSerializer(read_only=True)
-    assignment = InspectionAssignmentSerializer(read_only=True)
+    assignment = serializers.SerializerMethodField()
     report = InspectionReportSerializer(read_only=True)
     payments = InspectionPaymentSerializer(many=True, read_only=True)
+    evidence = InspectionEvidenceSerializer(many=True, read_only=True)
     unread_notifications = serializers.SerializerMethodField()
 
     class Meta:
@@ -183,14 +204,22 @@ class InspectionRequestSerializer(serializers.ModelSerializer):
             'item_age_years', 'is_complex', 'scope', 'turnaround',
             'status', 'pre_inspection_notes', 'reinspection_coverage',
             'created_at', 'updated_at',
-            'bill', 'assignment', 'report', 'payments',
+            'bill', 'assignment', 'report', 'payments', 'evidence',
             'unread_notifications',
         ]
         read_only_fields = ['inspection_id', 'client', 'status']
 
+    def get_assignment(self, obj):
+        active = obj.active_assignment
+        if active:
+            return InspectionAssignmentSerializer(active).data
+        return None
+
     def get_unread_notifications(self, obj):
-        user = self.context['request'].user
-        return obj.notifications.filter(user=user, is_read=False).count()
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return 0
+        return obj.notifications.filter(user=request.user, is_read=False).count()
 
 
 class InspectionRequestListSerializer(serializers.ModelSerializer):

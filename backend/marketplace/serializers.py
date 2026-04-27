@@ -94,21 +94,61 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
+    product_image = serializers.SerializerMethodField()
+    seller_username = serializers.CharField(source='product.seller.username', read_only=True)
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_name', 'quantity', 'price', 'subtotal']
+        fields = ['id', 'product', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal']
+        read_only_fields = ['price']
+
+    def get_product_image(self, obj):
+        img = obj.product.images.first()
+        if img:
+            return img.image.url
+        return None
 
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(source='orderitem_set', many=True, read_only=True)
+    items = OrderItemSerializer(source='orderitem_set', many=True, required=False)
     timeline_events = TrackingEventSerializer(many=True, read_only=True)
     payments = PaymentSerializer(many=True, read_only=True)
     buyer_username = serializers.CharField(source='user.username', read_only=True)
+    seller_subtotal = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
-        fields = ['id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status', 'items', 'timeline_events', 'payments']
+        fields = ['id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status', 'items', 'timeline_events', 'payments', 'seller_subtotal']
         read_only_fields = ['user', 'total_amount']
+
+    def get_seller_subtotal(self, obj):
+        user = self.context.get('request').user
+        if not user or user.is_anonymous:
+            return obj.total_amount
+        return sum(item.subtotal() for item in obj.orderitem_set.filter(product__seller=user))
+
+    def create(self, validated_data):
+        # Extract items data from the source mapping
+        items_data = validated_data.pop('orderitem_set', [])
+        order = Order.objects.create(**validated_data)
+        
+        total = 0
+        for item_data in items_data:
+            product = item_data['product']
+            qty = item_data['quantity']
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                quantity=qty,
+                price=product.price
+            )
+            total += (product.price * qty)
+        
+        order.total_amount = total
+        order.save()
+        
+        from .services import OrderStateMachine
+        OrderStateMachine.transition_order(order, 'AWAITING_PAYMENT', notes="Order placed by customer.")
+        return order
 
 class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
@@ -122,8 +162,10 @@ from .models import SponsoredListing
 class SponsoredListingSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_slug = serializers.CharField(source='product.slug', read_only=True)
+    product_details = ProductSerializer(source='product', read_only=True)
 
     class Meta:
         model = SponsoredListing
-        fields = ['id', 'user', 'product', 'product_name', 'product_slug', 'title', 'description', 'status', 'admin_notes', 'created_at', 'expires_at']
+        fields = ['id', 'user', 'product', 'product_name', 'product_slug', 'product_details', 'title', 'description', 'status', 'admin_notes', 'created_at', 'expires_at']
         read_only_fields = ['user', 'status', 'admin_notes', 'created_at', 'expires_at']
+

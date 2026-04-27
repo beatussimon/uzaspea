@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Plus, BarChart3, Megaphone, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Shield } from 'lucide-react';
+import { LayoutDashboard, Package, Plus, BarChart3, Megaphone, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Shield, Truck, Clock, MessageSquare, XCircle } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import SafeImage from '../../components/SafeImage';
@@ -74,37 +74,41 @@ const DashboardOverview: React.FC = () => {
             Revenue Pipeline
             <BarChart3 size={16} className="text-blue-500" />
           </h3>
-          <ResponsiveContainer width="100%" height="100%" minHeight={0}>
-             <AreaChart data={stats?.revenue_data || []}>
-                <defs>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} />
-                <YAxis fontSize={10} axisLine={false} tickLine={false} tickFormatter={(v) => `TSh ${v/1000}k`} />
-                <Tooltip />
-                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRev)" />
-             </AreaChart>
-          </ResponsiveContainer>
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+               <AreaChart data={stats?.revenue_data || []}>
+                  <defs>
+                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} />
+                  <YAxis fontSize={10} axisLine={false} tickLine={false} tickFormatter={(v) => `TSh ${v/1000}k`} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRev)" />
+               </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Status Pie Chart */}
         <div className="card p-5 flex flex-col h-[350px]">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4">Order Status</h3>
-          <ResponsiveContainer width="100%" height="100%" minHeight={0}>
-            <PieChart>
-              <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                {pieData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {pieData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
@@ -524,19 +528,69 @@ const fmtOrderDate = (d: string) => new Date(d).toLocaleDateString('en-US', { mo
 const DashboardOrders: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = React.useRef<HTMLDivElement>(null);
+
   const [filterStatus, setFilterStatus] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [advancing, setAdvancing] = useState<number | null>(null);
 
-  const fetchOrders = () => {
-    setLoading(true);
-    const params = filterStatus ? `?status=${filterStatus}` : '';
-    api.get(`/api/orders/incoming/${params}`)
-      .then(res => setOrders(Array.isArray(res.data) ? res.data : []))
-      .catch(() => toast.error('Failed to load incoming orders'))
-      .finally(() => setLoading(false));
-  };
-  useEffect(() => { fetchOrders(); }, [filterStatus]);
+  const fetchOrders = useCallback((p: number, reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+    } else {
+      setLoadingMore(true);
+    }
+    const params = filterStatus ? `&status=${filterStatus}` : '';
+    api.get(`/api/orders/incoming/?page=${p}${params}`)
+      .then(res => {
+        const data = res.data.results || res.data;
+        const incoming = Array.isArray(data) ? data : [];
+        if (reset) setOrders(incoming);
+        else {
+          setOrders(prev => {
+            const ids = new Set(prev.map(o => o.id));
+            return [...prev, ...incoming.filter(o => !ids.has(o.id))];
+          });
+        }
+        setHasMore(!!res.data.next);
+      })
+      .catch(() => {
+        toast.error('Failed to load incoming orders');
+        setHasMore(false);
+      })
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
+  }, [filterStatus]);
+
+  useEffect(() => {
+    fetchOrders(1, true);
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loading) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => {
+            const nextPage = prev + 1;
+            fetchOrders(nextPage);
+            return nextPage;
+          });
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [hasMore, loadingMore, loading, fetchOrders]);
 
   useOrderTracking('seller', (update: TrackingUpdate) => {
     setOrders(prev => prev.map(o => {
@@ -557,9 +611,21 @@ const DashboardOrders: React.FC = () => {
     setAdvancing(orderId);
     try {
       await api.post(`/api/orders/${orderId}/advance/`, { status: nextStatus, notes });
-      toast.success(`Order #${orderId} state updated!`);
-      fetchOrders();
+      toast.success(`Order #${orderId} moved to ${ORDER_STATUS_CFG[nextStatus]?.label || nextStatus}`);
+      fetchOrders(1, true);
     } catch { toast.error('Failed to update order'); }
+    finally { setAdvancing(null); }
+  };
+
+  const handleCancel = async (orderId: number) => {
+    const reason = prompt('Enter cancellation reason (sent to customer):');
+    if (reason === null) return;
+    setAdvancing(orderId);
+    try {
+        await api.post(`/api/orders/${orderId}/cancel/`, { notes: reason || 'Cancelled by seller.' });
+        toast.success(`Order #${orderId} cancelled.`);
+        fetchOrders(1, true);
+    } catch { toast.error('Failed to cancel order'); }
     finally { setAdvancing(null); }
   };
 
@@ -582,6 +648,26 @@ const DashboardOrders: React.FC = () => {
         ))}
       </div>
 
+      {/* Status Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          {[
+              { id: 'PENDING_VERIFICATION', label: 'Payments to Verify', icon: ShieldAlert, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/10' },
+              { id: 'PAID', label: 'Ready to Process', icon: Package, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/10' },
+              { id: 'PROCESSING', label: 'In Processing', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/10' },
+              { id: 'SHIPPED', label: 'Active Shipments', icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-900/10' },
+          ].map((stat) => {
+              const count = orders.filter(o => o.status === stat.id).length;
+              return (
+                  <button key={stat.id} onClick={() => setFilterStatus(stat.id)} 
+                    className={`card p-4 flex flex-col items-center text-center transition-all ${filterStatus === stat.id ? 'ring-2 ring-brand-500 scale-105' : 'hover:scale-[1.02]'}`}>
+                      <stat.icon size={20} className={stat.color} />
+                      <span className="text-[20px] font-black text-gray-900 dark:text-white mt-1">{count}</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">{stat.label}</span>
+                  </button>
+              );
+          })}
+      </div>
+
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
       ) : orders.length === 0 ? (
@@ -602,29 +688,53 @@ const DashboardOrders: React.FC = () => {
               <div key={order.id} className={`bg-white dark:bg-gray-800 rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'shadow-xl ring-1 ring-blue-500/20' : 'shadow-sm hover:shadow-md border-gray-100 dark:border-gray-700'}`}>
                 {/* Header */}
                 <button onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                  className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left hover:bg-gray-50/20 transition">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-inner ${cfg.bg}`}>
-                       <ShoppingCart size={20} className={cfg.color} />
+                  className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-gray-50/20 transition group">
+                  
+                  {/* Product Thumbnail */}
+                  <div className="relative w-16 h-16 shrink-0">
+                    <div className="w-full h-full rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden shadow-inner flex items-center justify-center">
+                        {order.items?.[0]?.product_image ? (
+                            <img src={order.items[0].product_image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        ) : (
+                            <Package size={24} className="text-gray-300" />
+                        )}
                     </div>
-                    <div>
-                        <p className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">Order #{order.id}</p>
-                        <p className="text-[10px] font-bold text-gray-400 mt-0.5">{fmtOrderDate(order.order_date)}</p>
+                    {order.items?.length > 1 && (
+                        <div className="absolute -bottom-1 -right-1 bg-brand-600 text-white text-[10px] font-black w-5 h-5 rounded-lg flex items-center justify-center shadow-lg border-2 border-white dark:border-gray-800">
+                            +{order.items.length - 1}
+                        </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-black text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded uppercase tracking-widest">Order #{order.id}</span>
+                        <span className="text-[10px] font-bold text-gray-400 capitalize">{fmtOrderDate(order.order_date)}</span>
                     </div>
+                    <h4 className="text-base font-black text-gray-900 dark:text-white truncate">
+                        {order.items?.length > 0 ? order.items[0].product_name : 'Multiple Items'}
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Customer: <span className="font-bold text-gray-700 dark:text-gray-300">@{order.buyer}</span></p>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    <div className="hidden sm:block text-right">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Customer</p>
-                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{order.buyer}</p>
+                  <div className="flex items-center gap-6 shrink-0">
+                    <div className="flex flex-col items-end gap-2">
+                        <span className={`inline-block px-3 py-1 text-[9px] font-black rounded-full uppercase tracking-[0.15em] shadow-sm ${cfg.bg} ${cfg.color}`}>
+                            {cfg.label}
+                        </span>
+                        <p className="font-black text-gray-900 dark:text-white text-lg tracking-tighter">TSh {(order.seller_subtotal || 0).toLocaleString()}</p>
                     </div>
-                    <div className="text-right">
-                      <span className={`inline-block px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-widest ${cfg.bg} ${cfg.color} shadow-sm mb-1.5`}>
-                          {cfg.label}
-                      </span>
-                      <p className="font-black text-gray-900 dark:text-white text-base">TSh {order.seller_subtotal.toLocaleString()}</p>
+                    <div className="flex flex-col items-center gap-3">
+                        <Link 
+                            to={`/profile/${order.buyer}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
+                            title="Contact Customer"
+                        >
+                            <MessageSquare size={18} />
+                        </Link>
+                        {isExpanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
                     </div>
-                    {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
                   </div>
                 </button>
 
@@ -650,7 +760,7 @@ const DashboardOrders: React.FC = () => {
                                           </div>
                                           <div className="flex justify-between text-xs">
                                               <span className="text-gray-500 font-bold uppercase">Amount</span>
-                                              <span className="font-bold text-gray-900 dark:text-white">TSh {p.amount.toLocaleString()}</span>
+                                              <span className="font-bold text-gray-900 dark:text-white">TSh {(p.amount || 0).toLocaleString()}</span>
                                           </div>
                                           
                                           {p.proof_image && (
@@ -696,16 +806,16 @@ const DashboardOrders: React.FC = () => {
                         <div className="lg:col-span-3 p-6">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5">Package Contents</p>
                             <div className="space-y-3">
-                                {order.items.map((item: any) => (
+                                {order.items?.map((item: any) => (
                                 <div key={item.id} className="flex items-center gap-4 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-50 dark:border-gray-700 shadow-sm transition hover:shadow-md">
                                     {item.product_image && (
                                     <img src={item.product_image} alt="" className="w-12 h-12 rounded-lg object-cover border border-gray-100 dark:border-gray-600 shadow-inner" onError={(e: any) => e.target.style.display = 'none'} />
                                     )}
                                     <div className="flex-1 min-w-0">
                                     <p className="text-sm font-black text-gray-900 dark:text-white truncate">{item.product_name}</p>
-                                    <p className="text-xs text-gray-500 font-bold mt-0.5">Qty: {item.quantity} × TSh {item.price.toLocaleString()}</p>
+                                    <p className="text-xs text-gray-500 font-bold mt-0.5">Qty: {item.quantity} × TSh {(item.price || 0).toLocaleString()}</p>
                                     </div>
-                                    <p className="text-sm font-black text-gray-900 dark:text-white">TSh {item.subtotal.toLocaleString()}</p>
+                                    <p className="text-sm font-black text-gray-900 dark:text-white">TSh {(item.subtotal || 0).toLocaleString()}</p>
                                 </div>
                                 ))}
                             </div>
@@ -730,27 +840,66 @@ const DashboardOrders: React.FC = () => {
                             </div>
 
                             {/* Action Button */}
-                            {nextStatus && (
-                                <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
-                                    <button
-                                        onClick={() => handleAdvance(order.id, nextStatus, `Updated to ${nextStatus} by seller.`)}
-                                        disabled={advancing === order.id}
-                                        className="w-full btn-primary py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 group"
-                                    >
-                                        {advancing === order.id ? (
-                                            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                                        ) : (
-                                            <>
-                                              Move to {ORDER_STATUS_CFG[nextStatus]?.label || nextStatus}
-                                              <ShieldCheck size={16} className="transition-transform group-hover:scale-125" />
-                                            </>
-                                        )}
-                                    </button>
-                                    <p className="text-[10px] text-center text-gray-400 mt-3 font-bold uppercase tracking-widest italic">
-                                        Last updated: {fmtOrderDate(order.order_date)}
-                                    </p>
+                            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    {nextStatus ? (
+                                        <button
+                                            onClick={() => {
+                                                const notes = nextStatus === 'SHIPPED' ? prompt('Enter tracking number or courier info:') : "";
+                                                handleAdvance(order.id, nextStatus, notes || `Moved to ${nextStatus} by seller.`);
+                                            }}
+                                            disabled={advancing === order.id}
+                                            className="flex-[3] btn-primary py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-sm font-black uppercase tracking-widest shadow-xl shadow-brand-600/20 flex items-center justify-center gap-3 group ring-offset-2 focus:ring-2 focus:ring-brand-500"
+                                        >
+                                            {advancing === order.id ? (
+                                                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                                            ) : (
+                                                <>
+                                                  {nextStatus === 'PROCESSING' && 'Accept & Process Order'}
+                                                  {nextStatus === 'SHIPPED' && 'Mark as Shipped'}
+                                                  {nextStatus === 'DELIVERED' && 'Confirm Delivery'}
+                                                  {nextStatus === 'COMPLETED' && 'Finalize Transaction'}
+                                                  <ShieldCheck size={20} className="transition-transform group-hover:scale-125" />
+                                                </>
+                                            )}
+                                        </button>
+                                    ) : order.status === 'AWAITING_PAYMENT' ? (
+                                        <div className="flex-[3] flex flex-col gap-2">
+                                            <button
+                                                onClick={() => handleAdvance(order.id, 'AWAITING_PAYMENT', 'Order accepted by seller. Awaiting customer payment.')}
+                                                disabled={advancing === order.id}
+                                                className="w-full btn-primary py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-3"
+                                            >
+                                                {advancing === order.id ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <><ShieldCheck size={20} /> Acknowledge Order</>}
+                                            </button>
+                                            <p className="text-[10px] text-gray-500 font-bold text-center">Awaiting customer payment before processing can begin.</p>
+                                        </div>
+                                    ) : null}
+                                    
+                                    {!['COMPLETED', 'CANCELLED', 'DELIVERED'].includes(order.status) && (
+                                        <button 
+                                            onClick={() => handleCancel(order.id)}
+                                            disabled={advancing === order.id}
+                                            className="flex-1 btn-secondary py-4 text-red-600 hover:text-red-700 hover:bg-red-50 text-sm font-black uppercase tracking-widest border-2 border-red-100 hover:border-red-200 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <XCircle size={18} />
+                                            Cancel
+                                        </button>
+                                    )}
                                 </div>
-                            )}
+                                <div className="mt-4 flex items-center justify-center gap-4">
+                                    <div className="flex items-center gap-2 text-gray-400">
+                                        <Clock size={12} />
+                                        <p className="text-[10px] font-bold uppercase tracking-widest">
+                                            Last Activity: {fmtOrderDate(order.order_date)}
+                                        </p>
+                                    </div>
+                                    <Link to={`/profile/${order.buyer}`} className="text-[10px] font-black text-brand-600 uppercase tracking-widest hover:underline flex items-center gap-1">
+                                        <MessageSquare size={12} />
+                                        Contact Buyer
+                                    </Link>
+                                </div>
+                            </div>
                         </div>
                     </div>
                   </div>
@@ -758,6 +907,20 @@ const DashboardOrders: React.FC = () => {
               </div>
             );
           })}
+
+            {loadingMore && (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              </div>
+            )}
+
+            {!hasMore && orders.length > 0 && (
+              <p className="text-center py-8 text-sm text-gray-400 dark:text-gray-500 font-medium">
+                End of list
+              </p>
+            )}
+            
+            <div ref={sentinelRef} className="h-4" />
         </div>
       )}
     </div>

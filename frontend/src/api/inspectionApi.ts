@@ -24,8 +24,12 @@ export const inspectionApi = {
   // Inspectors
   inspectors: {
     list: () => api.get(`${BASE}/inspectors/`),
-    available: (categoryId?: number) =>
-      api.get(`${BASE}/inspectors/available/${categoryId ? `?category_id=${categoryId}` : ''}`),
+    available: (categoryId?: number) => {
+      const url = categoryId
+        ? `${BASE}/inspectors/available/?category_id=${categoryId}`
+        : `${BASE}/inspectors/available/`;
+      return api.get(url);
+    },
     me: () => api.get(`${BASE}/inspectors/me/`),
     create: (data: any) => api.post(`${BASE}/inspectors/`, data),
     update: (id: number, data: any) => api.patch(`${BASE}/inspectors/${id}/`, data),
@@ -34,7 +38,7 @@ export const inspectionApi = {
 
   // Requests
   requests: {
-    list: () => api.get(`${BASE}/requests/`),
+    list: (params: any = {}) => api.get(`${BASE}/requests/`, { params }),
     get: (id: number) => api.get(`${BASE}/requests/${id}/`),
     create: (data: any) => api.post(`${BASE}/requests/`, data),
     myJobs: () => api.get(`${BASE}/requests/my-jobs/`),
@@ -43,6 +47,8 @@ export const inspectionApi = {
     assign: (id: number, data: any) => api.post(`${BASE}/requests/${id}/assign/`, data),
     updateStatus: (id: number, status: string) =>
       api.post(`${BASE}/requests/${id}/update-status/`, { status }),
+    acknowledgeBill: (id: number) =>
+      api.post(`${BASE}/requests/${id}/acknowledge-bill/`),
     verify: (inspectionId: string) => api.get(`${BASE}/verify/${inspectionId}/`),
     stats: () => api.get(`${BASE}/requests/dashboard-stats/`),
   },
@@ -78,6 +84,8 @@ export const inspectionApi = {
   // Reports
   reports: {
     submit: (data: any) => api.post(`${BASE}/reports/`, data),
+    finalize: (id: number, data: { verdict: string; summary: string }) =>
+      api.patch(`${BASE}/reports/${id}/finalize/`, data),
     qaQueue: () => api.get(`${BASE}/reports/qa-queue/`),
     approve: (id: number) => api.post(`${BASE}/reports/${id}/approve/`),
     returnForRevision: (id: number, notes: string) =>

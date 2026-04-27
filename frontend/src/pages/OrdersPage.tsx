@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { Package, ChevronDown, ChevronUp, MapPin, Clock, CheckCircle2, Truck, XCircle, CreditCard, Upload, Star, MessageSquare } from 'lucide-react';
@@ -26,6 +26,11 @@ const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 
 const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = React.useRef<HTMLDivElement>(null);
+
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState('');
   
@@ -41,19 +46,73 @@ const OrdersPage: React.FC = () => {
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
-  const fetchOrders = () => {
-    api.get('/api/orders/')
+  const location = useLocation();
+  const highlightId = new URLSearchParams(location.search).get('highlight');
+
+  useEffect(() => {
+    if (highlightId && orders.length > 0) {
+      setExpandedId(parseInt(highlightId));
+    }
+  }, [highlightId, orders.length]);
+
+  const fetchOrders = (p: number, reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+    } else {
+      setLoadingMore(true);
+    }
+
+    api.get(`/api/orders/?page=${p}${filterStatus ? `&status=${filterStatus}` : ''}`)
       .then((res) => {
-        const data = Array.isArray(res.data.results) ? res.data.results : (Array.isArray(res.data) ? res.data : []);
-        setOrders(data);
+        const data = res.data.results || res.data;
+        const incoming = Array.isArray(data) ? data : [];
+        
+        if (reset) {
+          setOrders(incoming);
+        } else {
+          setOrders((prev) => {
+            const existingIds = new Set(prev.map(o => o.id));
+            const uniqueIncoming = incoming.filter(o => !existingIds.has(o.id));
+            return [...prev, ...uniqueIncoming];
+          });
+        }
+        setHasMore(!!res.data.next);
       })
-      .catch(() => toast.error('Failed to load orders'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        toast.error('Failed to load orders');
+        setHasMore(false);
+      })
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
   };
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    fetchOrders(1, true);
+  }, [filterStatus]);
+
+  // Infinite Scroll Observer
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loading) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => {
+            const nextPage = prev + 1;
+            fetchOrders(nextPage);
+            return nextPage;
+          });
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [hasMore, loadingMore, loading, filterStatus]);
 
   useOrderTracking(
     'seller', 
@@ -90,7 +149,7 @@ const OrdersPage: React.FC = () => {
       toast.success('Payment proof submitted for verification');
       setProofFile(null);
       setTransactionId('');
-      fetchOrders();
+      fetchOrders(1, true);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to submit proof');
     } finally {
@@ -98,7 +157,33 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  const handleCancel = async (orderId: number) => {
+    const reason = prompt('Why are you cancelling this order?');
+    if (reason === null) return;
+    
+    try {
+      await api.post(`/api/orders/${orderId}/cancel/`, { notes: reason || 'Cancelled by buyer.' });
+      toast.success('Order cancelled successfully');
+      fetchOrders(1, true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to cancel order');
+    }
+  };
+
+  const handleReceived = async (orderId: number) => {
+    if (!confirm('Have you received all items in this order? This will finalize the order.')) return;
+    
+    try {
+      await api.post(`/api/orders/${orderId}/advance/`, { status: 'COMPLETED', notes: 'Marked as received by buyer.' });
+      toast.success('Order finalized! Thank you for shopping.');
+      fetchOrders(1, true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to complete order');
+    }
+  };
+
   const handleReviewSubmit = async (e: React.FormEvent) => {
+
     e.preventDefault();
     if (!reviewProduct) return;
     
@@ -170,24 +255,57 @@ const OrdersPage: React.FC = () => {
               <div key={order.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-shadow">
                 {/* Header */}
                 <button onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                  className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${cfg.bg} shadow-inner`}>
-                      <Icon size={22} className={cfg.color} />
+                  className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition group">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="relative w-14 h-14 shrink-0">
+                      <div className="w-full h-full rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex items-center justify-center">
+                        {order.items?.[0]?.product_image ? (
+                          <img src={order.items[0].product_image} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <Package size={20} className="text-gray-400" />
+                        )}
+                      </div>
+                      {order.items?.length > 1 && (
+                        <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white text-[10px] font-black w-5 h-5 rounded-lg flex items-center justify-center border-2 border-white dark:border-gray-800">
+                          +{order.items.length - 1}
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">Order #{order.id}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{fmtDate(order.order_date)}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded">Order #{order.id}</span>
+                        <span className="text-[10px] font-bold text-gray-400">{fmtDate(order.order_date)}</span>
+                      </div>
+                      <h4 className="text-sm font-black text-gray-900 dark:text-white truncate uppercase">
+                        {order.items?.length > 0 ? order.items[0].product_name : 'Incomplete Order (No Items Found)'}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-gray-500 font-medium">Store:</span>
+                        <span className="text-xs font-black text-gray-700 dark:text-gray-300">
+                          {order.items?.length > 0 ? `@${order.items[0].seller_username}` : 'N/A'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="font-bold text-gray-900 dark:text-white">TSh {parseInt(order.total_amount).toLocaleString()}</p>
-                      <span className={`inline-block px-3 py-1 text-xs font-bold rounded-full ${cfg.bg} ${cfg.color} mt-1`}>
-                        {cfg.label}
+                  
+                  <div className="flex items-center gap-6">
+                    <div className="text-right hidden sm:block">
+                      <p className="font-black text-gray-900 dark:text-white text-lg tracking-tight">TSh {parseInt(order.total_amount || 0).toLocaleString()}</p>
+                      <span className={`inline-block px-2 py-0.5 text-[9px] font-black rounded-full uppercase tracking-widest ${order.items?.length === 0 ? 'bg-red-100 text-red-600' : cfg.bg + ' ' + cfg.color} mt-1`}>
+                        {order.items?.length === 0 ? 'Invalid Order' : cfg.label}
                       </span>
                     </div>
-                    {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
+                    <div className="flex flex-col items-center gap-3">
+                        <Link 
+                            to={`/profile/${order.items?.[0]?.seller_username}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
+                            title="Contact Store"
+                        >
+                            <MessageSquare size={18} />
+                        </Link>
+                        {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
+                    </div>
                   </div>
                 </button>
 
@@ -348,10 +466,29 @@ const OrdersPage: React.FC = () => {
                                 </div>
                             </div>
                             
-                            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20 text-center">
+                            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20 text-center relative group/footer flex flex-col items-center justify-center">
                                 <p className="text-xs text-blue-800 dark:text-blue-300 font-medium italic">
                                    "Thank you for choosing UZASPEA! Your satisfaction is our top priority."
                                 </p>
+                                
+                                <div className="flex gap-2 mt-3 w-full opacity-0 group-hover/footer:opacity-100 transition-opacity">
+                                    {['AWAITING_PAYMENT', 'PENDING_VERIFICATION'].includes(order.status) && (
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
+                                          className="btn-secondary flex-1 py-1 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                            Cancel Order
+                                        </button>
+                                    )}
+                                    {order.status === 'DELIVERED' && (
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); handleReceived(order.id); }}
+                                          className="btn-primary flex-1 py-1 text-[10px] bg-green-600 hover:bg-green-700"
+                                        >
+                                            Confirm Receipt
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -360,6 +497,20 @@ const OrdersPage: React.FC = () => {
               </div>
             );
           })}
+          
+          {loadingMore && (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+            </div>
+          )}
+
+          {!hasMore && filtered.length > 0 && (
+            <p className="text-center py-8 text-sm text-gray-400 dark:text-gray-500 font-medium">
+              You've reached the end of your orders
+            </p>
+          )}
+          
+          <div ref={sentinelRef} className="h-4" />
         </div>
       )}
 

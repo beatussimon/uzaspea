@@ -105,6 +105,20 @@ export interface InspectionReport {
   approved_at: string | null;
   qa_notes: string;
   responses: ChecklistResponse[];
+  finalized_at: string | null;
+}
+
+export interface InspectionEvidence {
+  id: number;
+  request: number;
+  checklist_item: number | null;
+  item_label: string | null;
+  image: string;
+  captured_at: string;
+  latitude: string | null;
+  longitude: string | null;
+  file_hash: string;
+  caption: string;
 }
 
 export interface InspectionRequest {
@@ -130,6 +144,7 @@ export interface InspectionRequest {
   assignment: InspectionAssignment | null;
   report: InspectionReport | null;
   payments: InspectionPayment[];
+  evidence: InspectionEvidence[];
 }
 
 export interface InspectionNotification {
@@ -155,6 +170,7 @@ export interface FraudFlag {
 export const STATUS_LABELS: Record<string, string> = {
   requested: 'Requested',
   bill_sent: 'Bill Sent',
+  awaiting_payment: 'Awaiting Payment',
   deposit_paid: 'Deposit Paid',
   pre_inspection: 'Pre-Inspection',
   assigned: 'Inspector Assigned',
@@ -170,6 +186,7 @@ export const STATUS_LABELS: Record<string, string> = {
 export const STATUS_COLORS: Record<string, string> = {
   requested: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
   bill_sent: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  awaiting_payment: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
   deposit_paid: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
   pre_inspection: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
   assigned: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',

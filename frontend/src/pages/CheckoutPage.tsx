@@ -55,10 +55,10 @@ const CheckoutPage: React.FC = () => {
         },
       };
 
-      await api.post('/api/orders/', orderData);
+      const res = await api.post('/api/orders/', orderData);
       clearCart();
       toast.success('Order placed successfully!');
-      navigate('/orders');
+      navigate(`/orders?highlight=${res.data.id}`);
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to place order');
     } finally {

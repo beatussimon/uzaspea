@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, ChevronLeft, X, Share2, Shield } from 'lucide-react';
+import { Heart, ShoppingCart, Star, X, Share2, Shield } from 'lucide-react';
 import api from '../api';
 import { useCart } from '../context/CartContext';
 import { ProductTabs } from '../ProductTabs';
 import SafeImage from '../components/SafeImage';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';
+import Breadcrumbs from '../components/Breadcrumbs';
+import { Skeleton } from '../components/Skeleton';
 
 interface ProductData {
   id: number;
@@ -26,6 +28,7 @@ interface ProductData {
   condition: string;
   avg_rating: number;
   like_count: number;
+  old_price?: string;
   images: { id: number; image: string }[];
 }
 
@@ -118,8 +121,17 @@ const ProductDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="container-page py-10 space-y-10">
+        <Skeleton className="w-48 h-4 mb-4" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Skeleton className="aspect-square rounded-xl" />
+          <div className="space-y-6">
+            <Skeleton className="w-3/4 h-10" />
+            <Skeleton className="w-1/2 h-6" />
+            <Skeleton className="w-full h-32" />
+            <Skeleton className="w-full h-12" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -151,15 +163,7 @@ const ProductDetailPage: React.FC = () => {
       )}
 
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
-        <Link to="/" className="hover:text-blue-600 transition flex items-center gap-1">
-          <ChevronLeft size={14} /> Products
-        </Link>
-        <span>/</span>
-        <span className="text-gray-700 dark:text-gray-300">{product.category_name}</span>
-        <span>/</span>
-        <span className="text-gray-900 dark:text-white font-medium truncate">{product.name}</span>
-      </nav>
+      <Breadcrumbs />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Image Gallery — click opens fullscreen */}
@@ -223,9 +227,16 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Price */}
-          <p className="text-4xl font-black text-blue-600 dark:text-blue-400 mb-6 tracking-tight">
-            TSh {parseInt(product.price).toLocaleString()}
-          </p>
+          <div className="flex items-baseline gap-3 mb-6">
+            <p className="text-4xl font-black text-brand-600 dark:text-brand-400 tracking-tight">
+              TSh {parseInt(product.price).toLocaleString()}
+            </p>
+            {product.old_price && parseInt(product.old_price) > parseInt(product.price) && (
+              <p className="text-xl text-gray-400 line-through font-medium italic">
+                TSh {parseInt(product.old_price).toLocaleString()}
+              </p>
+            )}
+          </div>
 
           {/* Info rows */}
           <div className="space-y-3 mb-6">

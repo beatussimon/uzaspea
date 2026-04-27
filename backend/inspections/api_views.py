@@ -12,6 +12,7 @@ from .models import (
     InspectionEvidence, InspectionReport, ChecklistResponse,
     ReInspection, InspectionNotification, FraudFlag, SLABreach,
 )
+from staff.models import StaffPermission
 from .serializers import (
     InspectionCategorySerializer, ChecklistTemplateSerializer,
     InspectorProfileSerializer, InspectionRequestSerializer,
@@ -23,6 +24,9 @@ from .serializers import (
     FraudFlagSerializer, SLABreachSerializer,
 )
 from .pricing import calculate_bill
+
+
+from uzachuo.permissions import IsSuperUser, IsStaffMember, has_staff_permission, IsAssignedInspectorOrStaff
 
 
 def notify(user, notification_type, message, request_obj=None):
@@ -87,8 +91,8 @@ class InspectionCategoryViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [permissions.IsAdminUser()]
-        return super().get_permissions()
+            return [IsSuperUser()]
+        return [permissions.IsAuthenticated()]
 
 
 # ──────────────────────────────────────────────
@@ -102,16 +106,26 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'for_category']:
             return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser()]
+        return [IsSuperUser()]
 
     @decorators.action(detail=False, methods=['get'], url_path='for-category/(?P<category_id>[^/.]+)')
     def for_category(self, request, category_id=None):
-        template = ChecklistTemplate.objects.filter(
-            category_id=category_id, is_active=True
-        ).order_by('-version').first()
-        if not template:
-            return Response({'detail': 'No template found for this category.'}, status=404)
-        return Response(ChecklistTemplateSerializer(template).data)
+        try:
+            category = InspectionCategory.objects.get(id=category_id)
+        except InspectionCategory.DoesNotExist:
+            return Response({'detail': 'Category not found.'}, status=404)
+
+        # Search up the tree for a template
+        current = category
+        while current:
+            template = ChecklistTemplate.objects.filter(
+                category=current, is_active=True
+            ).order_by('-version').first()
+            if template:
+                return Response(ChecklistTemplateSerializer(template).data)
+            current = current.parent
+
+        return Response({'detail': 'No template found for this category or its ancestors.'}, status=404)
 
 
 # ──────────────────────────────────────────────
@@ -125,14 +139,19 @@ class InspectorProfileViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'me', 'available', 'performance']:
             return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser()]
+        return [IsSuperUser()]
 
     @decorators.action(detail=False, methods=['get'], url_path='available')
     def available(self, request):
         category_id = request.query_params.get('category_id')
         qs = InspectorProfile.objects.filter(is_available=True)
         if category_id:
-            qs = qs.filter(certified_categories__id=category_id)
+            from .models import InspectionCategory
+            category = get_object_or_404(InspectionCategory, id=category_id)
+            # Match inspectors certified for this category OR any parent/ancestor
+            target_ids = [a.id for a in category.get_ancestors()] + [category.id]
+            qs = qs.filter(certified_categories__id__in=target_ids).distinct()
+            
         qs = qs.order_by('-performance_score')
         return Response(InspectorProfileSerializer(qs, many=True).data)
 
@@ -157,19 +176,24 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = InspectionRequest.objects.select_related(
-            'client', 'category', 'bill', 'assignment', 'report'
-        ).prefetch_related('payments', 'notifications')
+            'client', 'category', 'bill', 'report'
+        ).prefetch_related('assignments', 'payments', 'notifications')
 
-        # Staff see all; clients see only their own; inspectors see assigned
-        # Staff see all; clients see only their own; inspectors see assigned + their own client requests
-        if user.is_staff or user.is_superuser:
+        # Staff see all in admin/list views ONLY if explicitly requested or on detail actions
+        # Staff isolation logic
+        is_superuser = user.is_superuser
+        can_manage = has_staff_permission(user, 'can_manage_inspections')
+        explicit_all = self.request.query_params.get('all') == 'true'
+
+        if is_superuser or (can_manage and explicit_all) or (can_manage and self.action != 'list'):
             return qs.all()
         
+        # Default: Personal view (Client or Assigned Inspector)
         filter_q = Q(client=user)
         if hasattr(user, 'inspector_profile'):
-            filter_q |= Q(assignment__inspector__user=user)
+            filter_q |= Q(assignments__inspector__user=user, assignments__is_active=True)
         
-        return qs.filter(filter_q)
+        return qs.filter(filter_q).distinct()
 
     def perform_create(self, serializer):
         serializer.save(client=self.request.user)
@@ -178,6 +202,14 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
     def generate_bill(self, request, pk=None):
         """Staff action: generate the inspection bill."""
         obj = self.get_object()
+        
+        # PERMISSION CHECK
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
+            return Response({'detail': 'No permission to generate inspection bills.'}, status=403)
+
+        if obj.status != 'requested' and not request.user.is_superuser:
+            return Response({'detail': f'Cannot generate bill for request in {obj.status} status.'}, status=400)
+        
         if hasattr(obj, 'bill'):
             return Response({'detail': 'Bill already generated.'}, status=400)
 
@@ -190,15 +222,26 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
             item_age_years=obj.item_age_years,
             add_reinspection_coverage=obj.reinspection_coverage,
         )
-        data['travel_surcharge'] = travel_surcharge
-        data['total_amount'] = float(data['total_amount']) + float(travel_surcharge)
-        data['remaining_balance'] = float(data['total_amount']) - float(data['deposit_amount'])
+        from decimal import Decimal
+        travel = Decimal(str(travel_surcharge))
+        total = data['total_amount'] + travel
+        deposit = data['deposit_amount']
+        remaining = total - deposit
 
-        bill = InspectionBill.objects.create(request=obj, **{
-            k: v for k, v in data.items()
-            if k in [f.name for f in InspectionBill._meta.get_fields()]
-            and k != 'request' and k != 'breakdown'
-        })
+        bill = InspectionBill.objects.create(
+            request=obj,
+            base_rate=data['base_rate'],
+            scope_multiplier=data['scope_multiplier'],
+            turnaround_surcharge=data['turnaround_surcharge'],
+            complexity_surcharge=data['complexity_surcharge'],
+            travel_surcharge=travel,
+            inspector_level_surcharge=data['inspector_level_surcharge'],
+            reinspection_coverage_fee=data['reinspection_coverage_fee'],
+            total_amount=total,
+            deposit_amount=deposit,
+            remaining_balance=remaining,
+            currency=data['currency'],
+        )
         obj.status = 'bill_sent'
         obj.save()
         notify(obj.client, 'bill_ready',
@@ -206,17 +249,43 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
                obj)
         return Response(InspectionBillSerializer(bill).data)
 
+    @decorators.action(detail=True, methods=['post'], url_path='acknowledge-bill')
+    def acknowledge_bill(self, request, pk=None):
+        """Client action: acknowledge and accept the bill."""
+        obj = self.get_object()
+        
+        # PERMISSION CHECK: Must be the client
+        if obj.client != request.user and not request.user.is_superuser:
+            return Response({'detail': 'Only the client can acknowledge the bill.'}, status=403)
+
+        if obj.status != 'bill_sent' and not request.user.is_superuser:
+            return Response({'detail': f'Cannot acknowledge bill for request in {obj.status} status.'}, status=400)
+        
+        obj.status = 'awaiting_payment'
+        obj.save()
+        
+        notify(request.user, 'status_update',
+               f'You have accepted the bill for {obj.inspection_id}. Please proceed to payment.', obj)
+        return Response({'status': obj.status})
+
     @decorators.action(detail=True, methods=['post'], url_path='assign')
     def assign(self, request, pk=None):
         """Dispatcher action: assign an inspector."""
         obj = self.get_object()
+        
+        # PERMISSION CHECK
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
+            return Response({'detail': 'No permission to assign inspectors.'}, status=403)
+
+        if obj.status not in ['deposit_paid', 'pre_inspection'] and not request.user.is_superuser:
+            return Response({'detail': f'Payment must be confirmed before assignment (Current: {obj.status}).'}, status=400)
+        
         inspector_id = request.data.get('inspector_id')
         override_reason = request.data.get('override_reason', '')
-
         inspector = get_object_or_404(InspectorProfile, id=inspector_id)
 
-        if hasattr(obj, 'assignment'):
-            obj.assignment.delete()
+        # Deactivate previous active assignments
+        obj.assignments.filter(is_active=True).update(is_active=False)
 
         # Compute SLA deadline
         from datetime import timedelta
@@ -230,6 +299,7 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
             is_manual_override=bool(override_reason),
             override_reason=override_reason,
             sla_deadline=deadline,
+            is_active=True
         )
         obj.status = 'assigned'
         obj.save()
@@ -242,6 +312,11 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=['post'], url_path='update-status')
     def update_status(self, request, pk=None):
         obj = self.get_object()
+        
+        # PERMISSION CHECK
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
+            return Response({'detail': 'No permission to update inspection status.'}, status=403)
+            
         new_status = request.data.get('status')
         valid = [s[0] for s in InspectionRequest.STATUS_CHOICES]
         if new_status not in valid:
@@ -274,15 +349,16 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         """Inspector's job queue."""
         profile = get_object_or_404(InspectorProfile, user=request.user)
         qs = InspectionRequest.objects.filter(
-            assignment__inspector=profile
+            assignments__inspector=profile,
+            assignments__is_active=True
         ).select_related('category', 'client', 'bill').order_by('-created_at')
         return Response(InspectionRequestListSerializer(qs, many=True, context={'request': request}).data)
 
     @decorators.action(detail=False, methods=['get'], url_path='dashboard-stats')
     def dashboard_stats(self, request):
         """Staff dashboard statistics."""
-        if not (request.user.is_staff or request.user.is_superuser):
-            return Response(status=403)
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
+            return Response({'detail': 'Requires inspection management permissions.'}, status=403)
         qs = InspectionRequest.objects.all()
         by_status = {}
         for s, _ in InspectionRequest.STATUS_CHOICES:
@@ -306,13 +382,32 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff or user.is_superuser:
+        if user.is_superuser or has_staff_permission(user, 'can_manage_inspections'):
             return InspectionPayment.objects.all().order_by('-created_at')
         return InspectionPayment.objects.filter(request__client=user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        request_obj = serializer.validated_data['request']
+        user = self.request.user
+        
+        # Explicit Permission Check (403 fix)
+        if request_obj.client != user and not user.is_superuser:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to submit payment for this request.")
+            
+        serializer.save()
 
     @decorators.action(detail=True, methods=['post'], url_path='approve')
     def approve(self, request, pk=None):
         payment = self.get_object()
+        
+        # PERMISSION CHECK
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
+            return Response({'detail': 'No permission to approve payments.'}, status=403)
+
+        if payment.request.status != 'bill_sent' and not request.user.is_superuser:
+             return Response({'detail': 'Request must be in bill_sent status to approve payment.'}, status=400)
+             
         payment.status = 'approved'
         payment.confirmed_by = request.user
         payment.confirmed_at = timezone.now()
@@ -333,6 +428,11 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=['post'], url_path='reject')
     def reject(self, request, pk=None):
         payment = self.get_object()
+        
+        # PERMISSION CHECK
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
+            return Response({'detail': 'No permission to reject payments.'}, status=403)
+
         reason = request.data.get('reason', 'Payment rejected.')
         payment.status = 'rejected'
         payment.rejection_reason = reason
@@ -346,7 +446,7 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=False, methods=['get'], url_path='pending')
     def pending(self, request):
-        if not (request.user.is_staff or request.user.is_superuser):
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
             return Response(status=403)
         qs = InspectionPayment.objects.filter(status='pending').order_by('-created_at')
         return Response(InspectionPaymentSerializer(qs, many=True).data)
@@ -359,21 +459,63 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
 class InspectionCheckInViewSet(viewsets.ModelViewSet):
     serializer_class = InspectionCheckInSerializer
     permission_classes = [permissions.IsAuthenticated]
-    queryset = InspectionCheckIn.objects.all()
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or has_staff_permission(user, 'can_manage_inspections'):
+            return InspectionCheckIn.objects.all()
+        return InspectionCheckIn.objects.filter(
+            Q(request__client=user) |
+            Q(request__assignment__inspector__user=user)
+        )
 
     def create(self, request, *args, **kwargs):
         request_id = request.data.get('request')
+        if not request_id:
+            return Response({'detail': 'request field is required.'}, status=400)
+
+        request_obj = get_object_or_404(InspectionRequest, id=request_id)
+        
+        # PERMISSION CHECK: Must be superuser or the assigned inspector
+        is_assigned = request_obj.assignments.filter(inspector__user=request.user, is_active=True).exists()
+        if not (request.user.is_superuser or is_assigned):
+            return Response({'detail': 'Only the assigned inspector can check in.'}, status=403)
+
+        if request_obj.status != 'assigned' and not request.user.is_superuser:
+            return Response({'detail': 'Cannot check in. Inspection must be in Assigned status.'}, status=400)
+
         instance = InspectionCheckIn.objects.filter(request_id=request_id).first()
+
         if instance:
-            serializer = self.get_serializer(instance, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            self.perform_update(serializer)
-            return Response(serializer.data)
-        return super().create(request, *args, **kwargs)
+            # Already checked in — just return the existing record
+            return Response(InspectionCheckInSerializer(instance).data)
+
+        # First time — create and advance status
+        res = super().create(request, *args, **kwargs)
+        
+        # ATOMIC TRANSITION: Update status and create report shell
+        request_obj.status = 'in_progress'
+        request_obj.save()
+        
+        # Create report shell if not exists
+        if not hasattr(request_obj, 'report'):
+            InspectionReport.objects.create(
+                request=request_obj,
+                submitted_by=request.user,
+                submitted_at=timezone.now()
+            )
+            
+        return res
 
     @decorators.action(detail=False, methods=['post'], url_path='checkout/(?P<request_id>[^/.]+)')
     def checkout(self, request, request_id=None):
         checkin = get_object_or_404(InspectionCheckIn, request_id=request_id)
+        
+        # PERMISSION CHECK
+        is_assigned = checkin.request.assignments.filter(inspector__user=request.user, is_active=True).exists()
+        if not (request.user.is_superuser or is_assigned):
+            return Response({'detail': 'Only the assigned inspector can check out.'}, status=403)
+
         checkin.checkout_photo = request.FILES.get('checkout_photo')
         checkin.checkout_lat = request.data.get('checkout_lat')
         checkin.checkout_lng = request.data.get('checkout_lng')
@@ -394,10 +536,12 @@ class InspectionEvidenceViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or has_staff_permission(user, 'can_manage_inspections'):
+            return InspectionEvidence.objects.all()
         return InspectionEvidence.objects.filter(
-            request__assignment__inspector__user=self.request.user
-        ) | InspectionEvidence.objects.filter(
-            request__client=self.request.user
+            Q(request__assignments__inspector__user=user, request__assignments__is_active=True) |
+            Q(request__client=user)
         )
 
 
@@ -411,27 +555,90 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff or user.is_superuser:
+        is_superuser = user.is_superuser
+        can_manage = has_staff_permission(user, 'can_manage_inspections')
+        explicit_all = self.request.query_params.get('all') == 'true'
+
+        if is_superuser or (can_manage and (explicit_all or self.action != 'list')):
             return InspectionReport.objects.all()
+
         return InspectionReport.objects.filter(
-            Q(request__client=user) | Q(request__assignment__inspector__user=user)
+            Q(request__client=user) | Q(request__assignments__inspector__user=user, request__assignments__is_active=True)
         )
 
     def perform_create(self, serializer):
-        report = serializer.save(submitted_by=self.request.user)
+        # We need the request object to check status
+        req_id = self.request.data.get('request')
+        req = get_object_or_404(InspectionRequest, id=req_id)
+        
+        # PERMISSION CHECK
+        is_assigned = req.assignments.filter(inspector__user=self.request.user, is_active=True).exists()
+        if not (self.request.user.is_superuser or is_assigned):
+             raise permissions.exceptions.PermissionDenied("Only the assigned inspector can submit reports.")
+
+        if req.status != 'in_progress' and not self.request.user.is_superuser:
+             from rest_framework import serializers as drf_serializers
+             raise drf_serializers.ValidationError(f"Cannot submit report for request in {req.status} status.")
+
+        report = serializer.save(
+            submitted_by=self.request.user,
+            submitted_at=timezone.now()
+        )
+        # Only advance to qa_review if this is a real final submission (has summary and verdict)
+        if report.summary and report.verdict and report.summary.strip():
+            req.status = 'qa_review'
+            req.save()
+            # Auto fraud check only on real submissions
+            has_flags = auto_fraud_check(req)
+            if has_flags:
+                report.qa_notes = 'AUTO-FLAGGED: Anomalies detected. Review before approving.'
+                report.save()
+
+    @decorators.action(detail=True, methods=['patch'], url_path='finalize')
+    def finalize(self, request, pk=None):
+        """Inspector finalizes the report with verdict, summary after checklist."""
+        report = self.get_object()
+        
+        # PERMISSION CHECK
+        is_assigned = report.request.assignments.filter(inspector__user=request.user, is_active=True).exists()
+        if not (request.user.is_superuser or is_assigned):
+            return Response({'detail': 'Only the assigned inspector can finalize reports.'}, status=403)
+
+        if report.request.status != 'in_progress' and not request.user.is_superuser:
+            return Response({'detail': 'Can only finalize reports while inspection is in progress.'}, status=400)
+
+        if report.is_locked:
+            return Response({'detail': 'Report is locked.'}, status=400)
+        verdict = request.data.get('verdict')
+        summary = request.data.get('summary', '')
+        if not verdict or not summary.strip():
+            return Response({'detail': 'verdict and summary are required.'}, status=400)
+        report.verdict = verdict
+        report.summary = summary
+        report.finalized_at = timezone.now()
+        report.save()
+        # Now advance to qa_review
         req = report.request
         req.status = 'qa_review'
         req.save()
-
-        # Auto fraud check
+        # Run fraud check
         has_flags = auto_fraud_check(req)
         if has_flags:
             report.qa_notes = 'AUTO-FLAGGED: Anomalies detected. Review before approving.'
             report.save()
+        return Response(InspectionReportSerializer(report).data)
 
     @decorators.action(detail=True, methods=['post'], url_path='approve')
     def approve(self, request, pk=None):
         report = self.get_object()
+        
+        # PERMISSION CHECK
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
+            return Response({'detail': 'No permission to approve reports.'}, status=403)
+
+        if report.request.status != 'qa_review' and not request.user.is_superuser:
+            return Response({'detail': 'Only reports in QA Review can be approved.'}, status=400)
+
         if report.is_locked:
             return Response({'detail': 'Report already locked.'}, status=400)
         report.approved_by = request.user
@@ -443,9 +650,11 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
 
         # Update inspector stats
         try:
-            profile = report.request.assignment.inspector
-            profile.total_inspections += 1
-            profile.save()
+            active = report.request.assignments.filter(is_active=True).first()
+            if active:
+                profile = active.inspector
+                profile.total_inspections += 1
+                profile.save()
         except Exception:
             pass
 
@@ -457,6 +666,11 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=['post'], url_path='return-for-revision')
     def return_for_revision(self, request, pk=None):
         report = self.get_object()
+        
+        # PERMISSION CHECK
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
+            return Response({'detail': 'No permission to return reports for revision.'}, status=403)
+
         if report.is_locked:
             return Response({'detail': 'Cannot return a locked report.'}, status=400)
         notes = request.data.get('notes', '')
@@ -464,18 +678,22 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         report.save()
         report.request.status = 'in_progress'
         report.request.save()
-        notify(report.request.assignment.inspector.user, 'qa_returned',
-               f'Report for {report.request.inspection_id} was returned: {notes}',
-               report.request)
+        active = report.request.assignments.filter(is_active=True).first()
+        if active:
+            notify(active.inspector.user, 'qa_returned',
+                   f'Report for {report.request.inspection_id} was returned: {notes}',
+                   report.request)
         return Response({'detail': 'Returned for revision.'})
 
     @decorators.action(detail=False, methods=['get'], url_path='qa-queue')
     def qa_queue(self, request):
-        if not (request.user.is_staff or request.user.is_superuser):
-            return Response(status=403)
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
+            return Response({'detail': 'Requires QA review permissions.'}, status=403)
+        # Only show reports where the request is actually in qa_review status
         qs = InspectionReport.objects.filter(
-            is_locked=False
-        ).select_related('request', 'submitted_by').order_by('submitted_at')
+            is_locked=False,
+            request__status='qa_review'
+        ).select_related('request', 'submitted_by').order_by('finalized_at')
         return Response(InspectionReportSerializer(qs, many=True).data)
 
 
@@ -488,8 +706,12 @@ class ChecklistResponseViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or has_staff_permission(user, 'can_manage_inspections'):
+            return ChecklistResponse.objects.all()
         return ChecklistResponse.objects.filter(
-            report__request__assignment__inspector__user=self.request.user
+            Q(report__request__assignments__inspector__user=user, report__request__assignments__is_active=True) |
+            Q(report__request__client=user)
         )
 
     def perform_create(self, serializer):
@@ -511,17 +733,23 @@ class ReInspectionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff or user.is_superuser:
+        if user.is_superuser or has_staff_permission(user, 'can_manage_inspections'):
             return ReInspection.objects.all()
         return ReInspection.objects.filter(triggered_by=user)
 
     def perform_create(self, serializer):
+        user = self.request.user
+        if not (user.is_superuser or has_staff_permission(user, 'can_manage_inspections')):
+            # Only managers can trigger re-inspections (disputes)
+             raise permissions.exceptions.PermissionDenied("You do not have permission to trigger re-inspections.")
+             
         original = serializer.validated_data['original_request']
-        reinsp = serializer.save(triggered_by=self.request.user)
+        reinsp = serializer.save(triggered_by=user)
         # Create a new InspectionRequest excluding original inspector
         original_inspector = None
-        if hasattr(original, 'assignment'):
-            original_inspector = original.assignment.inspector
+        active = original.active_assignment
+        if active:
+            original_inspector = active.inspector
 
         new_req = InspectionRequest.objects.create(
             client=original.client,
@@ -578,11 +806,19 @@ class InspectionNotificationViewSet(viewsets.ReadOnlyModelViewSet):
 
 class FraudFlagViewSet(viewsets.ModelViewSet):
     serializer_class = FraudFlagSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated]
     queryset = FraudFlag.objects.all().order_by('-created_at')
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or has_staff_permission(user, 'can_view_reports'):
+            return self.queryset
+        return FraudFlag.objects.none()
 
     @decorators.action(detail=True, methods=['post'], url_path='resolve')
     def resolve(self, request, pk=None):
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_view_reports')):
+            return Response(status=403)
         flag = self.get_object()
         flag.resolved = True
         flag.resolved_by = request.user
@@ -630,13 +866,13 @@ class PublicVerifyView(APIView):
 # ──────────────────────────────────────────────
 
 class InspectorPerformanceView(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated, IsSuperUser]
 
     def get(self, request):
         profiles = InspectorProfile.objects.select_related('user').all()
         data = []
         for p in profiles:
-            flags = FraudFlag.objects.filter(request__assignment__inspector=p).count()
+            flags = FraudFlag.objects.filter(request__assignments__inspector=p).count()
             data.append({
                 'id': p.id,
                 'username': p.user.username,

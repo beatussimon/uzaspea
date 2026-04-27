@@ -1,6 +1,12 @@
 import { useEffect, useRef, useCallback } from 'react';
 
-const WS_BASE = 'ws://localhost:8000';
+const getWsBase = () => {
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  // Use current host but change protocol and port for local dev
+  return isLocal ? 'ws://localhost:8000' : `wss://${window.location.host}`;
+};
+
+const WS_BASE = getWsBase();
 
 export interface TrackingUpdate {
   type: string;
@@ -66,7 +72,10 @@ export function useOrderTracking(
     return () => {
       clearTimeout(reconnectTimeout.current);
       if (wsRef.current) {
-        wsRef.current.close();
+        // Only close if it's not already closing or closed
+        if (wsRef.current.readyState < 2) {
+          wsRef.current.close();
+        }
         wsRef.current = null;
       }
     };

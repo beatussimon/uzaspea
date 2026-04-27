@@ -283,7 +283,8 @@ class UserProfile(models.Model):
     location = models.CharField(max_length=100, blank=True)  # Add location
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
     banner_image = models.ImageField(upload_to='profile_banners/', blank=True, null=True)
-    following = models.ManyToManyField(User, related_name='followers', blank=True, symmetrical=False) # Add following
+    date_of_birth = models.DateField(null=True, blank=True)
+    following = models.ManyToManyField(User, related_name='followers', blank=True, symmetrical=False)
 
     def __str__(self):
         return self.user.username

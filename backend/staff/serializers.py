@@ -29,9 +29,9 @@ class TaskCategorySerializer(serializers.ModelSerializer):
 
 
 class TaskSerializer(serializers.ModelSerializer):
-    assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True)
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
-    category_name = serializers.CharField(source='category.name', read_only=True)
+    assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True, default=None)
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True, default=None)
+    category_name = serializers.CharField(source='category.name', read_only=True, default=None)
     is_overdue = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -42,7 +42,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'status', 'priority', 'due_date', 'created_at', 'updated_at', 'completed_at',
             'is_overdue'
         ]
-        read_only_fields = ['created_by', 'created_at', 'updated_at', 'completed_at']
+        read_only_fields = ['created_by', 'created_at', 'updated_at', 'completed_at', 'status', 'assigned_to']
 
 
 class TaskActionSerializer(serializers.ModelSerializer):
@@ -87,7 +87,7 @@ class AuditLogSerializer(serializers.ModelSerializer):
             'target_user', 'target_username', 'task', 'task_title',
             'ip_address', 'user_agent', 'extra_data', 'timestamp'
         ]
-        read_only_fields = ['__all__']
+        read_only_fields = ['user', 'target_user', 'task', 'ip_address', 'user_agent', 'timestamp']
 
 
 class StaffPermissionSerializer(serializers.ModelSerializer):
