@@ -523,8 +523,11 @@ const PermissionManager: React.FC = () => {
                     <select value={granting.permission} onChange={e => setGranting({...granting, permission: e.target.value})} className="input text-sm" required>
                         <option value="">Select Ability...</option>
                         <option value="can_approve_content">Approve Marketplace Content</option>
+                        <option value="can_review_promotions">Review Promotions (Ads)</option>
                         <option value="can_moderate">Moderate Comments/Reviews</option>
                         <option value="can_manage_tasks">Manage Other Staff Tasks</option>
+                        <option value="can_manage_inspections">Manage All Inspections</option>
+                        <option value="can_view_reports">View All Reports & Fraud</option>
                         <option value="can_verify_requests">Verify Seller Upgrades</option>
                     </select>
                 </div>
@@ -620,6 +623,7 @@ const StaffAdminLayout: React.FC = () => {
     { path: '/staff-admin/tasks', label: 'Work Board', icon: ClipboardList },
     { path: '/staff-admin/audit-log', label: 'Audit Logs', icon: ScrollText },
     { path: '/staff-admin/permissions', label: 'System Guard', icon: Shield },
+    { path: '/staff-admin/inspections', label: 'Inspect Ops', icon: ClipboardList },
   ];
 
   return (

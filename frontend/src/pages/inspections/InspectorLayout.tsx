@@ -52,7 +52,7 @@ const InspectorJobs: React.FC = () => {
     ])
       .then(([jobsRes, profileRes]: any[]) => {
         setJobs(jobsRes.data.results || jobsRes.data);
-        setProfile(profileRes.data.results || profileRes.data || profileRes);
+        setProfile(profileRes.data);
       })
       .catch(() => toast.error('Failed to load jobs'))
       .finally(() => setLoading(false));
@@ -234,6 +234,23 @@ const ChecklistForm: React.FC<{
   const [evidence, setEvidence] = useState<Record<number, { file: File; lat: number | null; lng: number | null }>>({});
   const [submitting, setSubmitting] = useState(false);
 
+  // Load draft
+  useEffect(() => {
+    const saved = localStorage.getItem(`draft_${requestId}`);
+    if (saved) {
+      try {
+        setResponses(JSON.parse(saved));
+      } catch (e) { console.error('Failed to parse draft', e); }
+    }
+  }, [requestId]);
+
+  // Save draft
+  useEffect(() => {
+    if (Object.keys(responses).length > 0) {
+      localStorage.setItem(`draft_${requestId}`, JSON.stringify(responses));
+    }
+  }, [responses, requestId]);
+
   const handleResponse = (itemId: number, value: string) => {
     setResponses((prev) => ({ ...prev, [itemId]: { ...prev[itemId], value, notes: prev[itemId]?.notes || '' } }));
   };
@@ -275,6 +292,11 @@ const ChecklistForm: React.FC<{
           response_value: responses[item.id].value,
           notes: responses[item.id].notes || '',
         }));
+      if (!reportId) {
+        toast.error('Report session expired. Please refresh and try again.');
+        setSubmitting(false);
+        return;
+      }
       await inspectionApi.responses.bulkSubmit(responsePayloads);
 
       // Upload evidence photos
@@ -289,9 +311,14 @@ const ChecklistForm: React.FC<{
       }
 
       toast.success('Checklist submitted!');
+      localStorage.removeItem(`draft_${requestId}`);
       onComplete();
-    } catch {
-      toast.error('Failed to submit checklist');
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail
+        || err?.response?.data?.checkin_photo?.[0]
+        || err?.response?.data?.request?.[0]
+        || 'Failed to submit checklist';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -437,6 +464,7 @@ const JobExecution: React.FC = () => {
   const [checkinData, setCheckinData] = useState<{ file: File; lat: number | null; lng: number | null } | null>(null);
   const [checkoutData, setCheckoutData] = useState<{ file: File; lat: number | null; lng: number | null } | null>(null);
   const [reportId, setReportId] = useState<number | null>(null);
+  const [extraDocs, setExtraDocs] = useState<File[]>([]);
   const [verdict, setVerdict] = useState('');
   const [summary, setSummary] = useState('');
   const [submittingCheckin, setSubmittingCheckin] = useState(false);
@@ -445,18 +473,27 @@ const JobExecution: React.FC = () => {
   const load = () => {
     inspectionApi.requests.get(Number(id))
       .then((r: any) => {
-        const d = r.data.results || r.data;
-        setJob(d);
-        if (d.report) {
-          setReportId(r.data.report.id);
-          setStep('done');
-        } else if (r.data.status === 'in_progress') {
+        const job = r.data;
+        setJob(job);
+        if (job.report) {
+          setReportId(job.report.id);
+          if (job.report.is_locked) {
+            setStep('done');
+          } else {
+            // If it's in QA review but not locked, it's pending staff action,
+            // but the inspector sees it as "done" or "locked" from their side.
+            // However, our backend status matches.
+            setStep(job.status === 'qa_review' ? 'done' : 'checklist');
+          }
+        } else if (job.status === 'in_progress') {
           setStep('checklist');
         }
-        return inspectionApi.templates.forCategory(r.data.category);
+        return inspectionApi.templates.forCategory(job.category);
       })
-      .then((r: any) => setTemplate(r.data.results || r.data || r))
-      .catch(() => {})
+      .then((r: any) => setTemplate(r.data))
+      .catch(() => {
+        toast('No checklist template found for this category', { icon: '⚠️' });
+      })
       .finally(() => setLoading(false));
   };
 
@@ -485,8 +522,13 @@ const JobExecution: React.FC = () => {
       toast.success('Checked in! Start the inspection.');
       setStep('checklist');
       load();
-    } catch { toast.error('Failed to check in'); }
-    finally { setSubmittingCheckin(false); }
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail
+        || err?.response?.data?.checkin_photo?.[0]
+        || err?.response?.data?.request?.[0]
+        || 'Failed to check in';
+      toast.error(msg);
+    } finally { setSubmittingCheckin(false); }
   };
 
   const handleFinalSubmit = async () => {
@@ -503,19 +545,28 @@ const JobExecution: React.FC = () => {
       if (checkoutData.lng !== null) fd.append('checkout_lng', String(checkoutData.lng));
       await inspectionApi.checkin.checkout(job.id, fd);
 
-      // Update report with final verdict
-      await inspectionApi.reports.submit({
-        request: job.id,
-        verdict,
-        summary,
-        checklist_template_version: template?.version || 1,
-      });
+      // Finalize the existing report with verdict and summary
+      if (!reportId) throw new Error('No report ID found');
+      await inspectionApi.reports.finalize(reportId, { verdict, summary });
+
+      // Upload extra supporting documents
+      for (const file of extraDocs) {
+        const fd = new FormData();
+        fd.append('request', String(job.id));
+        fd.append('image', file);
+        await inspectionApi.evidence.submit(fd);
+      }
 
       toast.success('Inspection submitted for QA review!');
       setStep('done');
       load();
-    } catch { toast.error('Failed to submit inspection'); }
-    finally { setSubmittingReport(false); }
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail
+        || err?.response?.data?.checkin_photo?.[0]
+        || err?.response?.data?.request?.[0]
+        || 'Failed to submit inspection';
+      toast.error(msg);
+    } finally { setSubmittingReport(false); }
   };
 
   if (loading) return <Spinner />;
@@ -674,6 +725,35 @@ const JobExecution: React.FC = () => {
               onCapture={(file, lat, lng) => setCheckoutData({ file, lat, lng })}
               captured={!!checkoutData}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Supporting Documents / Photos
+            </label>
+            <div className="space-y-2">
+              <input
+                type="file" multiple accept="image/*,application/pdf"
+                className="hidden" id="extra-docs"
+                onChange={(e) => {
+                  if (e.target.files) setExtraDocs(Array.from(e.target.files));
+                }}
+              />
+              <label htmlFor="extra-docs" className="flex items-center gap-2 p-3 border border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                <Camera size={16} className="text-gray-400" />
+                <span className="text-sm text-gray-600">Select Files...</span>
+                {extraDocs.length > 0 && <span className="ml-auto text-xs font-bold text-brand-600">{extraDocs.length} selected</span>}
+              </label>
+              {extraDocs.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {extraDocs.map((f, i) => (
+                    <div key={i} className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-[10px] text-gray-600 dark:text-gray-400">
+                      {f.name.slice(0, 15)}...
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <button

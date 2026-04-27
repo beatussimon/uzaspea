@@ -338,6 +338,7 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) { toast.error('Please upload proof of payment'); return; }
+    if (!amount) { toast.error('Bill amount not available'); return; }
     setLoading(true);
     const fd = new FormData();
     fd.append('request', String(request.id));
@@ -383,6 +384,7 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
 
 // ─── Bill Display ───────────────────────────
 const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> = ({ request, onPaid }) => {
+  const [acking, setAcking] = useState(false);
   const bill = request.bill;
   if (!bill) return null;
 
@@ -401,6 +403,21 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
   const depositApproved = request.payments.some(
     (p) => p.stage === 'deposit' && p.status === 'approved'
   );
+
+  const handleAcknowledge = async () => {
+     setAcking(true);
+     try {
+       await inspectionApi.requests.acknowledgeBill(request.id);
+       toast.success('Bill accepted. You can now proceed to payment.');
+       onPaid(); // Reload request
+     } catch {
+       toast.error('Failed to acknowledge bill');
+     } finally {
+       setAcking(false);
+     }
+  };
+
+  const showPaymentForm = request.status === 'awaiting_payment' || (depositApproved && !allPaid);
 
   return (
     <div className="space-y-4">
@@ -432,9 +449,26 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
             </div>
           </div>
         </div>
+
+        {request.status === 'bill_sent' && (
+          <div className="mt-4 pt-4 border-t border-surface-border dark:border-surface-dark-border">
+            <button
+              onClick={handleAcknowledge}
+              disabled={acking}
+              className="w-full btn-primary py-2.5 flex items-center justify-center gap-2"
+            >
+              {acking ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle size={16} />}
+              Accept Bill & Proceed to Payment
+            </button>
+            <p className="text-[10px] text-gray-500 text-center mt-2">
+              By clicking accept, you agree to the inspection terms and pricing.
+            </p>
+          </div>
+        )}
       </div>
 
-      {!allPaid && <PaymentUpload request={request} onPaid={onPaid} />}
+      {showPaymentForm && !allPaid && <PaymentUpload request={request} onPaid={onPaid} />}
+      
       {depositApproved && !allPaid && (
         <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
           <CheckCircle size={14} />
@@ -454,7 +488,8 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
 const Timeline: React.FC<{ status: string }> = ({ status }) => {
   const steps = [
     { key: 'requested', label: 'Requested' },
-    { key: 'bill_sent', label: 'Bill Sent' },
+    { key: 'bill_sent', label: 'Bill Ready' },
+    { key: 'awaiting_payment', label: 'Awaiting Payment' },
     { key: 'deposit_paid', label: 'Deposit Paid' },
     { key: 'assigned', label: 'Inspector Assigned' },
     { key: 'in_progress', label: 'Inspection Running' },
@@ -557,10 +592,10 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
           <p className="text-xs text-gray-400 mt-1">Hash: {report.report_hash.slice(0, 16)}…</p>
         </div>
         <div className="flex gap-2">
-          <a href={`/inspect/verify/${request.inspection_id}`} target="_blank" rel="noopener noreferrer"
+          <Link to={`/verify/${request.inspection_id}`}
             className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1">
             <Shield size={12} /> Verify
-          </a>
+          </Link>
           <button onClick={onReInspect} className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1">
             <RefreshCw size={12} /> Re-inspect
           </button>
@@ -836,13 +871,12 @@ export const PublicVerifyPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const doSearch = async (q: string) => {
+    if (!q.trim()) return;
     setLoading(true);
     setSearched(true);
     try {
-      const res = await inspectionApi.requests.verify(query.trim());
+      const res = await inspectionApi.requests.verify(q.trim());
       setResult(res.data);
     } catch {
       setResult(null);
@@ -851,8 +885,13 @@ export const PublicVerifyPage: React.FC = () => {
     }
   };
 
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    doSearch(query);
+  };
+
   useEffect(() => {
-    if (inspection_id) handleSearch(new Event('submit') as any);
+    if (inspection_id) doSearch(inspection_id);
   }, []);
 
   return (

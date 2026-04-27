@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
@@ -8,6 +8,9 @@ const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const isAuthenticated = !!localStorage.getItem('access_token');
+
+  if (isAuthenticated) return <Navigate to="/" />;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

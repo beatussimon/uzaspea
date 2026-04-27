@@ -39,6 +39,7 @@ class TaskCategory(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     requires_approval = models.BooleanField(default=True, help_text="Does this category require admin approval?")
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='task_categories')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -56,6 +57,7 @@ class Task(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('in_progress', 'In Progress'),
+        ('on_hold', 'On Hold'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     ]
@@ -78,6 +80,8 @@ class Task(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    completion_notes = models.TextField(blank=True, help_text="Notes provided upon task completion")
+    cancellation_reason = models.TextField(blank=True, help_text="Reason for cancelling the task")
 
     class Meta:
         ordering = ['-created_at']
@@ -223,11 +227,13 @@ class StaffPermission(models.Model):
         ('can_confirm_upgrades', 'Confirm User Upgrades'),
         ('can_verify_requests', 'Verify Requests'),
         ('can_approve_content', 'Approve Content'),
+        ('can_review_promotions', 'Review Promotions'),
         ('can_moderate', 'Moderate Content'),
         ('can_manage_users', 'Manage Users'),
         ('can_view_reports', 'View Reports'),
         ('can_manage_tasks', 'Manage Tasks'),
         ('can_approve_actions', 'Approve Staff Actions'),
+        ('can_manage_inspections', 'Manage All Inspections'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='staff_permissions')

@@ -55,8 +55,12 @@ class InspectionCategory(models.Model):
 
     def get_ancestors(self):
         ancestors = []
+        visited = {self.id}
         node = self.parent
         while node:
+            if node.id in visited:
+                break
+            visited.add(node.id)
             ancestors.insert(0, node)
             node = node.parent
         return ancestors
@@ -172,6 +176,7 @@ class InspectionRequest(models.Model):
     STATUS_CHOICES = [
         ('requested', 'Requested'),
         ('bill_sent', 'Bill Sent'),
+        ('awaiting_payment', 'Awaiting Payment'),
         ('deposit_paid', 'Deposit Paid'),
         ('pre_inspection', 'Pre-Inspection'),
         ('assigned', 'Assigned'),
@@ -238,6 +243,10 @@ class InspectionRequest(models.Model):
     def __str__(self):
         return f'{self.inspection_id} — {self.item_name}'
 
+    @property
+    def active_assignment(self):
+        return self.assignments.filter(is_active=True).first()
+
 
 class InspectionBill(models.Model):
     request = models.OneToOneField(
@@ -299,8 +308,8 @@ class InspectionPayment(models.Model):
 # ─────────────────────────────────────────────
 
 class InspectionAssignment(models.Model):
-    request = models.OneToOneField(
-        InspectionRequest, on_delete=models.CASCADE, related_name='assignment'
+    request = models.ForeignKey(
+        InspectionRequest, on_delete=models.CASCADE, related_name='assignments'
     )
     inspector = models.ForeignKey(
         InspectorProfile, on_delete=models.PROTECT, related_name='assignments'
@@ -313,6 +322,7 @@ class InspectionAssignment(models.Model):
     override_reason = models.TextField(blank=True)
     sla_deadline = models.DateTimeField(null=True, blank=True)
     assigned_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, help_text="Is this the current active assignment?")
 
     def __str__(self):
         return f'{self.request.inspection_id} → {self.inspector.user.username}'
@@ -385,14 +395,15 @@ class InspectionReport(models.Model):
     )
     checklist_template_version = models.PositiveIntegerField(default=1)
     verdict = models.CharField(max_length=20, choices=VERDICT_CHOICES)
-    summary = models.TextField()
+    summary = models.TextField(blank=True, default='')
     is_locked = models.BooleanField(default=False)
     report_hash = models.CharField(max_length=64, blank=True)
     submitted_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True,
         related_name='submitted_inspection_reports'
     )
-    submitted_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    finalized_at = models.DateTimeField(null=True, blank=True)
     approved_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='approved_inspection_reports'
