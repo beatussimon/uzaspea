@@ -34,6 +34,25 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
                 else:
                     await self.close()
                     return
+        elif self.order_id == 'buyer':
+            # Buyer mode: subscribe to all of their own orders
+            user = self.scope.get('user')
+            if user and user.is_authenticated:
+                self.room_group_name = f'buyer_orders_{user.id}'
+            else:
+                # Try token from query string
+                qs = parse_qs(self.scope.get('query_string', b'').decode())
+                token = qs.get('token', [None])[0]
+                if token:
+                    user = await self._get_user_from_token(token)
+                    if user:
+                        self.room_group_name = f'buyer_orders_{user.id}'
+                    else:
+                        await self.close()
+                        return
+                else:
+                    await self.close()
+                    return
         else:
             self.room_group_name = f'order_tracking_{self.order_id}'
             # FIX: M-07 — verify the connecting user owns this order

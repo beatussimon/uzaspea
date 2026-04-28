@@ -56,9 +56,17 @@ const CheckoutPage: React.FC = () => {
       };
 
       const res = await api.post('/api/orders/', orderData);
+      const orderId = res.data.id;
+
+      // FIX: C-02 — Advance status to AWAITING_PAYMENT after creation
+      await api.post(`/api/orders/${orderId}/advance/`, { 
+        status: 'AWAITING_PAYMENT',
+        notes: 'Checkout completed.' 
+      });
+
       clearCart();
       toast.success('Order placed successfully!');
-      navigate(`/orders?highlight=${res.data.id}`);
+      navigate(`/orders?highlight=${orderId}`);
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to place order');
     } finally {

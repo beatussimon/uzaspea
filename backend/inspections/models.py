@@ -219,6 +219,14 @@ class InspectionRequest(models.Model):
         default=False,
         help_text='Client purchased re-inspection coverage'
     )
+    marketplace_product = models.ForeignKey(
+        'marketplace.Product', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='inspections'
+    )
+    product_snapshot = models.JSONField(
+        null=True, blank=True,
+        help_text='State of the product at the time of inspection request'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -337,12 +345,12 @@ class InspectionCheckIn(models.Model):
         InspectionRequest, on_delete=models.CASCADE, related_name='checkin'
     )
     checkin_photo = models.ImageField(upload_to='inspection_checkins/')
-    checkin_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    checkin_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    checkin_lat = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
+    checkin_lng = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     checkin_at = models.DateTimeField(auto_now_add=True)
     checkout_photo = models.ImageField(upload_to='inspection_checkouts/', blank=True, null=True)
-    checkout_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    checkout_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    checkout_lat = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
+    checkout_lng = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     checkout_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
@@ -359,8 +367,8 @@ class InspectionEvidence(models.Model):
     )
     image = models.ImageField(upload_to='inspection_evidence/')
     captured_at = models.DateTimeField(auto_now_add=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    latitude = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     file_hash = models.CharField(max_length=64, blank=True)
     caption = models.CharField(max_length=255, blank=True)
 

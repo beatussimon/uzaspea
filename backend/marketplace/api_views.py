@@ -493,7 +493,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         try:
             data['is_verified'] = self.user.profile.is_verified  # FIX: S-10
             data['tier'] = self.user.profile.tier
-        except (UserProfile.DoesNotExist, AttributeError):  # FIX: S-10 — replace bare except
+        except (UserProfile.DoesNotExist, AttributeError):  # FIX: S-10 — replace bare except with specific exceptions
             data['is_verified'] = False
             data['tier'] = 'standard'
         

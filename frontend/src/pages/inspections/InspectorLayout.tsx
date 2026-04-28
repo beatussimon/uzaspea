@@ -305,8 +305,8 @@ const ChecklistForm: React.FC<{
         fd.append('request', String(requestId));
         fd.append('checklist_item', itemIdStr);
         fd.append('image', ev.file);
-        if (ev.lat !== null) fd.append('latitude', String(ev.lat));
-        if (ev.lng !== null) fd.append('longitude', String(ev.lng));
+        if (ev.lat !== null) fd.append('latitude', String(ev.lat.toFixed(6)));
+        if (ev.lng !== null) fd.append('longitude', String(ev.lng.toFixed(6)));
         await inspectionApi.evidence.submit(fd);
       }
 
@@ -506,22 +506,12 @@ const JobExecution: React.FC = () => {
       const fd = new FormData();
       fd.append('request', String(job.id));
       fd.append('checkin_photo', checkinData.file);
-      if (checkinData.lat !== null) fd.append('checkin_lat', String(checkinData.lat));
-      if (checkinData.lng !== null) fd.append('checkin_lng', String(checkinData.lng));
+      if (checkinData.lat !== null) fd.append('checkin_lat', String(checkinData.lat.toFixed(6)));
+      if (checkinData.lng !== null) fd.append('checkin_lng', String(checkinData.lng.toFixed(6)));
       await inspectionApi.checkin.submit(fd);
-
-      // Create report shell and update status
-      const reportRes = await inspectionApi.reports.submit({
-        request: job.id,
-        verdict: 'pass',
-        summary: '',
-        checklist_template_version: template?.version || 1,
-      });
-      setReportId(reportRes.data.id);
-      await inspectionApi.requests.updateStatus(job.id, 'in_progress');
+      
       toast.success('Checked in! Start the inspection.');
-      setStep('checklist');
-      load();
+      load(); 
     } catch (err: any) {
       const msg = err?.response?.data?.detail
         || err?.response?.data?.checkin_photo?.[0]
@@ -541,8 +531,8 @@ const JobExecution: React.FC = () => {
       // Checkout
       const fd = new FormData();
       fd.append('checkout_photo', checkoutData.file);
-      if (checkoutData.lat !== null) fd.append('checkout_lat', String(checkoutData.lat));
-      if (checkoutData.lng !== null) fd.append('checkout_lng', String(checkoutData.lng));
+      if (checkoutData.lat !== null) fd.append('checkout_lat', String(checkoutData.lat.toFixed(6)));
+      if (checkoutData.lng !== null) fd.append('checkout_lng', String(checkoutData.lng.toFixed(6)));
       await inspectionApi.checkin.checkout(job.id, fd);
 
       // Finalize the existing report with verdict and summary

@@ -209,6 +209,7 @@ const StaffRequestDetail: React.FC = () => {
   const [generatingBill, setGeneratingBill] = useState(false);
   const [travel, setTravel] = useState('');
   const [qaNote, setQaNote] = useState('');
+  const [showAllInspectors, setShowAllInspectors] = useState(false);
 
 
 
@@ -220,15 +221,16 @@ const StaffRequestDetail: React.FC = () => {
     }
     inspectionApi.requests.get(numericId)
       .then((r: any) => {
-        setRequest(r.data);
-        return inspectionApi.inspectors.available(r.data.category);
+        const req = r.data;
+        setRequest(req);
+        return inspectionApi.inspectors.available(req.category, showAllInspectors);
       })
       .then((r: any) => setInspectors(r.data.results || r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); }, [id, showAllInspectors]);
 
   const handleGenerateBill = async () => {
     if (!request) return;
@@ -394,6 +396,27 @@ const StaffRequestDetail: React.FC = () => {
                   </option>
                 ))}
               </select>
+
+              {inspectors.length === 0 && !showAllInspectors && (
+                <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+                   <p className="text-xs text-orange-700 dark:text-orange-300">
+                     No inspectors are certified for this specific category yet.
+                   </p>
+                   <button 
+                     onClick={() => setShowAllInspectors(true)}
+                     className="text-xs font-bold text-brand-600 hover:underline mt-1">
+                     Show all available inspectors anyway
+                   </button>
+                </div>
+              )}
+
+              {showAllInspectors && (
+                <div className="flex items-center gap-2">
+                   <input type="checkbox" id="bypass" checked={showAllInspectors} onChange={(e) => setShowAllInspectors(e.target.checked)} className="w-4 h-4 rounded border-gray-300" />
+                   <label htmlFor="bypass" className="text-xs text-gray-500">Showing all available inspectors (Certification bypass active)</label>
+                </div>
+              )}
+
               <input className="input text-sm" placeholder="Override reason (if manually overriding)"
                 value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} />
               <button onClick={handleAssign} disabled={assigning || !selectedInspector}

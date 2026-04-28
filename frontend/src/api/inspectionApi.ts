@@ -24,11 +24,13 @@ export const inspectionApi = {
   // Inspectors
   inspectors: {
     list: () => api.get(`${BASE}/inspectors/`),
-    available: (categoryId?: number) => {
-      const url = categoryId
-        ? `${BASE}/inspectors/available/?category_id=${categoryId}`
-        : `${BASE}/inspectors/available/`;
-      return api.get(url);
+    available: (categoryId?: number, all = false) => {
+      let url = `${BASE}/inspectors/available/`;
+      const params = new URLSearchParams();
+      if (categoryId) params.append('category_id', String(categoryId));
+      if (all) params.append('all', 'true');
+      const qs = params.toString();
+      return api.get(qs ? `${url}?${qs}` : url);
     },
     me: () => api.get(`${BASE}/inspectors/me/`),
     create: (data: any) => api.post(`${BASE}/inspectors/`, data),
@@ -51,6 +53,8 @@ export const inspectionApi = {
       api.post(`${BASE}/requests/${id}/acknowledge-bill/`),
     verify: (inspectionId: string) => api.get(`${BASE}/verify/${inspectionId}/`),
     stats: () => api.get(`${BASE}/requests/dashboard-stats/`),
+    prefillMarketplace: (productId: number) => 
+      api.get(`${BASE}/requests/prefill-marketplace/?product_id=${productId}`),
   },
 
   // Payments
@@ -58,7 +62,7 @@ export const inspectionApi = {
     list: () => api.get(`${BASE}/payments/`),
     pending: () => api.get(`${BASE}/payments/pending/`),
     submit: (data: FormData) =>
-      api.post(`${BASE}/payments/`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+      api.post(`${BASE}/payments/`, data),
     approve: (id: number) => api.post(`${BASE}/payments/${id}/approve/`),
     reject: (id: number, reason: string) =>
       api.post(`${BASE}/payments/${id}/reject/`, { reason }),
@@ -67,16 +71,15 @@ export const inspectionApi = {
   // Check-in
   checkin: {
     submit: (data: FormData) =>
-      api.post(`${BASE}/checkins/`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+      api.post(`${BASE}/checkins/`, data),
     checkout: (requestId: number, data: FormData) =>
-      api.post(`${BASE}/checkins/checkout/${requestId}/`, data,
-        { headers: { 'Content-Type': 'multipart/form-data' } }),
+      api.post(`${BASE}/checkins/checkout/${requestId}/`, data),
   },
 
   // Evidence
   evidence: {
     submit: (data: FormData) =>
-      api.post(`${BASE}/evidence/`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+      api.post(`${BASE}/evidence/`, data),
     listForRequest: (requestId: number) =>
       api.get(`${BASE}/evidence/?request=${requestId}`),
   },

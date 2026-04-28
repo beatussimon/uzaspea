@@ -75,7 +75,13 @@ class OrderStateMachine:
             payload
         )
 
-        # 2. Broadcast to all sellers who have products in this order
+        # 2. Broadcast to buyer's global room (for Orders list updates)
+        async_to_sync(channel_layer.group_send)(
+            f"buyer_orders_{order.user_id}",
+            payload
+        )
+
+        # 3. Broadcast to all sellers who have products in this order
         seller_ids = (
             OrderItem.objects.filter(order=order)
             .values_list('product__seller_id', flat=True)
