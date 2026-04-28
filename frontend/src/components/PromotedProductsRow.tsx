@@ -10,7 +10,7 @@ const PromotedProductsRow: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        api.get('/api/sponsored/')
+        api.get('/api/sponsored/?public=true')
             .then(res => {
                 const data = res.data.results || res.data;
                 // Filter for approved and non-expired is handled by backend but safety first

@@ -32,7 +32,7 @@ class IsStaffMember(permissions.BasePermission):
             return True
         try:
             return request.user.staff_profile.is_active
-        except:
+        except AttributeError:  # FIX S-15: specific — catches missing staff_profile only
             return False
 
 class IsAssignedInspectorOrStaff(permissions.BasePermission):

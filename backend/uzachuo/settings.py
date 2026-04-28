@@ -93,24 +93,29 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
 
+# FIX DEVOPS-03: Redis URL from environment, not hardcoded IP
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
-        },
+        "CONFIG": {"hosts": [REDIS_URL]},
     },
 }
 
-# Database
+# Also configure Celery to use same Redis
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+
+# FIX DEVOPS-02: use Postgres in production, sqlite only as dev fallback
+import dj_database_url
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        'OPTIONS': {  # Add this for better SQLite concurrency in dev.
-            'timeout': 20,
-        },
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # FIX: S-03 — Enforce password strength
@@ -165,3 +170,15 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@uzaspea.com')
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG  # FIX: S-05 — secure in production
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# FIX DEVOPS-15: production security headers
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000          # 1 year HSTS
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_SSL_REDIRECT = True              # force HTTPS
+    SECURE_CONTENT_TYPE_NOSNIFF = True      # no MIME sniffing
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True

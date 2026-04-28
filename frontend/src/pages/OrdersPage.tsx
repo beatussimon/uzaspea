@@ -449,7 +449,8 @@ const OrdersPage: React.FC = () => {
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Subtotal</span>
-                                        <span className="text-gray-900 dark:text-white font-medium">TSh {parseInt(order.total_amount).toLocaleString()}</span>
+                                        {/* FIX L-14: subtotal = total minus shipping */}
+                                        <span className="text-gray-900 dark:text-white font-medium">TSh {(parseInt(order.total_amount || 0) - parseInt(order.shipping_fee || 0)).toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Delivery Fee</span>

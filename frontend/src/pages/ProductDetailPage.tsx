@@ -354,7 +354,7 @@ const ProductDetailPage: React.FC = () => {
               {product.inspections?.map((insp) => (
                 <Link
                   key={insp.id}
-                  to={`/inspections/${insp.id}`}
+                  to={`/verify/${insp.inspection_id}`}
                   className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
                     insp.verdict === 'pass' 
                       ? 'bg-green-50 border-green-100 dark:bg-green-900/20 dark:border-green-900/40' 

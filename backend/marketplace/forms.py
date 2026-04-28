@@ -1,5 +1,5 @@
 from django import forms
-from .models import Product, Review, Category, Order, ProductImage, UserProfile, Subscription  # Import Subscription
+from .models import Product, Review, Category, Order, ProductImage, UserProfile, NewsletterSubscription  # FIX C-14: import correct model
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.forms import inlineformset_factory
@@ -92,6 +92,6 @@ class SubscriptionForm(forms.Form):  # Not a ModelForm
     def clean_email(self):
         email = self.cleaned_data['email']
         category = self.cleaned_data.get('category')  # Use .get() for optional fields
-        if Subscription.objects.filter(email=email, category=category).exists():
+        if NewsletterSubscription.objects.filter(email=email, category=category).exists():  # FIX C-14
             raise forms.ValidationError("You are already subscribed to this category.")
         return email

@@ -574,6 +574,11 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
         if not request_id:
             return Response({'detail': 'request field is required.'}, status=400)
 
+        try:
+            request_id = int(request_id)
+        except (ValueError, TypeError):
+            return Response({'detail': 'Invalid request ID format.'}, status=400)
+
         request_obj = get_object_or_404(InspectionRequest, id=request_id)
         
         # PERMISSION CHECK: Must be superuser or the assigned inspector
@@ -596,8 +601,12 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
                 'current_status': request_obj.status
             }, status=400)
 
+        # Safe copy for immutable QueryDicts
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        data['request'] = request_obj.id
+
         # First time — create and advance status
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=data)
         if not serializer.is_valid():
             return Response({
                 'detail': 'Check-in validation failed',
@@ -605,25 +614,27 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
                 'sent_data': {k: str(v)[:50] for k, v in request.data.items()} # Debug info
             }, status=400)
             
-        checkin = serializer.save()
-        
-        # ATOMIC TRANSITION: Update status and create report shell
-        request_obj.status = 'in_progress'
-        request_obj.save()
-        
-        # Simple lookup for a template to get version
-        latest_template = ChecklistTemplate.objects.filter(category=request_obj.category, is_active=True).order_by('-version').first()
-        version = latest_template.version if latest_template else 1
+        from django.db import transaction
+        with transaction.atomic():
+            checkin = serializer.save()
+            
+            # ATOMIC TRANSITION: Update status and create report shell
+            request_obj.status = 'in_progress'
+            request_obj.save(update_fields=['status'])
+            
+            # Simple lookup for a template to get version
+            latest_template = ChecklistTemplate.objects.filter(category=request_obj.category, is_active=True).order_by('-version').first()
+            version = latest_template.version if latest_template else 1
 
-        report, created = InspectionReport.objects.get_or_create(
-            request=request_obj,
-            defaults={
-                'submitted_by': request.user,
-                'verdict': 'pass', # Default until edited
-                'summary': '',
-                'checklist_template_version': version
-            }
-        )
+            report, created = InspectionReport.objects.get_or_create(
+                request=request_obj,
+                defaults={
+                    'submitted_by': request.user,
+                    'verdict': 'pass', # Default until edited
+                    'summary': '',
+                    'checklist_template_version': version
+                }
+            )
             
         return Response(InspectionCheckInSerializer(checkin).data, status=201)
 
@@ -696,7 +707,7 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         if not (self.request.user.is_superuser or is_assigned):
              raise permissions.exceptions.PermissionDenied("Only the assigned inspector can submit reports.")
 
-        if req.status != 'in_progress' and not self.request.user.is_superuser:
+        if req.status not in ['in_progress', 'submitted'] and not self.request.user.is_superuser:
              from rest_framework import serializers as drf_serializers
              raise drf_serializers.ValidationError(f"Cannot submit report for request in {req.status} status.")
 
@@ -724,8 +735,8 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         if not (request.user.is_superuser or is_assigned):
             return Response({'detail': 'Only the assigned inspector can finalize reports.'}, status=403)
 
-        if report.request.status != 'in_progress' and not request.user.is_superuser:
-            return Response({'detail': 'Can only finalize reports while inspection is in progress.'}, status=400)
+        if report.request.status not in ['in_progress', 'submitted'] and not request.user.is_superuser:
+            return Response({'detail': f'Can only finalize reports while inspection is in progress or submitted. Current: {report.request.status}'}, status=400)
 
         if report.is_locked:
             return Response({'detail': 'Report is locked.'}, status=400)
@@ -834,13 +845,33 @@ class ChecklistResponseViewSet(viewsets.ModelViewSet):
             Q(report__request__client=user)
         )
 
+    def create(self, request, *args, **kwargs):
+        report_id = request.data.get('report')
+        item_id = request.data.get('checklist_item')
+        if report_id and item_id:
+            instance = ChecklistResponse.objects.filter(report_id=report_id, checklist_item_id=item_id).first()
+            if instance:
+                serializer = self.get_serializer(instance, data=request.data, partial=True)
+                serializer.is_valid(raise_exception=True)
+                self.perform_update(serializer)
+                return Response(serializer.data)
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         response = serializer.save()
-        # Auto-flag if item triggers flag on fail
+        self._check_flag(response)
+
+    def perform_update(self, serializer):
+        response = serializer.save()
+        self._check_flag(response)
+
+    def _check_flag(self, response):
         item = response.checklist_item
         if item.fail_triggers_flag and response.response_value.lower() in ['fail', '1', 'false']:
             response.flagged = True
-            response.save()
+        else:
+            response.flagged = False
+        response.save()
 
 
 # ──────────────────────────────────────────────

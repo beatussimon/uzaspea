@@ -28,25 +28,31 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Base queryset
-        queryset = Product.objects.all().prefetch_related('images', 'likes')
+        base = Product.objects.all().prefetch_related('images', 'likes')
         
         # FIX: Ensure detail actions (delete/edit) don't get blocked by list filters
         if getattr(self, 'detail', False) or self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
-            return queryset
+            return base
 
+        user = self.request.user
         category_slug = self.request.query_params.get('category', None)
         query = self.request.query_params.get('q', None)
         min_price = self.request.query_params.get('min_price', None)
         max_price = self.request.query_params.get('max_price', None)
         condition = self.request.query_params.get('condition', None)
         sort_by = self.request.query_params.get('sort_by', None)
-        seller = self.request.query_params.get('seller', None)
+        seller_param = self.request.query_params.get('seller', None)
 
-        if seller:
-            queryset = queryset.filter(seller__username=seller)
+        # FIX S-17: sellers can retrieve their own products regardless of availability
+        if user.is_authenticated and self.request.query_params.get('mine') == 'true':
+            queryset = base.filter(seller=user)
+        elif user.is_authenticated and user.is_staff:
+            queryset = base.all()
+        elif seller_param:
+            queryset = base.filter(seller__username=seller_param)
         else:
             # Public list only shows available products for general browsing
-            queryset = queryset.filter(is_available=True)
+            queryset = base.filter(is_available=True)
 
         if category_slug:
             from .models import Category
@@ -113,9 +119,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         today = timezone.now().date()
 
         # --- Revenue pipeline (last 7 days) --- Optimized
+        PAID_STATUSES = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED']  # FIX L-19
         start_date = today - datetime.timedelta(days=6)
         pipeline_items = OrderItem.objects.filter(
-            product__seller=user, order__order_date__date__gte=start_date
+            product__seller=user, order__order_date__date__gte=start_date,
+            order__status__in=PAID_STATUSES,  # FIX L-19
         ).values('order__order_date__date').annotate(
             rev=Sum('price'), count=Count('order', distinct=True)
         ).order_by('order__order_date__date')
@@ -175,8 +183,10 @@ class ProductViewSet(viewsets.ModelViewSet):
             ls['price'] = float(ls['price'])
 
         # --- Aggregate metrics ---
-        total_orders_count = orders.count()
-        total_revenue = float(orders.aggregate(total=Sum('total_amount'))['total'] or 0)
+        PAID_STATUSES = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED']  # FIX L-19
+        paid_orders = orders.filter(status__in=PAID_STATUSES)
+        total_orders_count = paid_orders.count()
+        total_revenue = float(paid_orders.aggregate(total=Sum('total_amount'))['total'] or 0)
         avg_order = round(total_revenue / total_orders_count, 2) if total_orders_count else 0
         total_reviews = Review.objects.filter(product__seller=user).count()
         avg_rating = float(products.aggregate(avg=Avg('reviews__rating'))['avg'] or 0)
@@ -583,16 +593,27 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         from django.utils import timezone as tz
+        is_public = self.request.query_params.get('public', 'false').lower() == 'true'
+
+        if is_public:
+            return SponsoredListing.objects.filter(
+                status='approved'
+            ).filter(
+                django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now())
+            ).order_by('?')
+
         if user.is_staff:
             return SponsoredListing.objects.all().order_by('-created_at')
         if user.is_authenticated:
-            # FIX: L-12 — filter expired listings for non-staff
+            from django.utils import timezone as _tz
+            # FIX S-16: show own listings + all public approved (non-expired) ones
             return SponsoredListing.objects.filter(
-                django_models.Q(user=user) | (
-                    django_models.Q(status='approved') &
-                    (django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now()))
+                django_models.Q(user=user) | django_models.Q(
+                    status='approved',
                 )
-            ).order_by('-created_at')
+            ).filter(
+                django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=_tz.now())
+            ).distinct().order_by('-created_at')
         return SponsoredListing.objects.filter(
             status='approved'
         ).filter(
@@ -611,4 +632,6 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
         return obj
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        duration_days = serializer.validated_data.get('duration_days', 7)
+        amount = duration_days * 1000
+        serializer.save(user=self.request.user, amount=amount)

@@ -15,8 +15,16 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'description', 'parent', 'children']
 
     def get_children(self, obj):
-        children = obj.children.all()
-        return CategorySerializer(children, many=True).data if children.exists() else []
+        depth = self.context.get('_cat_depth', 0)  # FIX C-17: depth guard
+        if depth >= 2:
+            return []
+        kids = obj.children.all()
+        if not kids.exists():
+            return []
+        return CategorySerializer(
+            kids, many=True,
+            context={**self.context, '_cat_depth': depth + 1}
+        ).data
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -199,5 +207,5 @@ class SponsoredListingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SponsoredListing
-        fields = ['id', 'user', 'product', 'product_name', 'product_slug', 'product_details', 'title', 'description', 'status', 'admin_notes', 'created_at', 'expires_at']
-        read_only_fields = ['user', 'status', 'admin_notes', 'created_at', 'expires_at']
+        fields = ['id', 'user', 'product', 'product_name', 'product_slug', 'product_details', 'title', 'description', 'status', 'admin_notes', 'duration_days', 'amount', 'created_at', 'expires_at']
+        read_only_fields = ['user', 'status', 'admin_notes', 'amount', 'created_at', 'expires_at']

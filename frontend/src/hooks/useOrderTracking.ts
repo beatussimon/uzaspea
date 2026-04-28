@@ -33,6 +33,9 @@ export function useOrderTracking(
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
+  const retryCount = useRef(0);  // FIX L-20: track retry attempts
+  const MAX_RETRIES = 8;         // FIX L-20: limit retries
+
   const connect = useCallback(() => {
     if (!path || !enabled) return;
 
@@ -43,7 +46,7 @@ export function useOrderTracking(
     wsRef.current = ws;
 
     ws.onopen = () => {
-      // Connected
+      retryCount.current = 0;  // FIX L-20: reset on success
     };
 
     ws.onmessage = (event) => {
@@ -56,10 +59,11 @@ export function useOrderTracking(
     };
 
     ws.onclose = () => {
-      // Auto-reconnect after 3s
-      reconnectTimeout.current = setTimeout(() => {
-        if (enabled) connect();
-      }, 3000);
+      if (enabled && retryCount.current < MAX_RETRIES) {
+        const delay = Math.min(1000 * Math.pow(2, retryCount.current), 30000);  // FIX L-20: backoff
+        retryCount.current += 1;
+        reconnectTimeout.current = setTimeout(() => connect(), delay);
+      }
     };
 
     ws.onerror = () => {

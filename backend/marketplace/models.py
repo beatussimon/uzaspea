@@ -327,6 +327,17 @@ class UserProfile(models.Model):
         return Follow.objects.filter(follower=self.user).count()
 
 
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    if hasattr(instance, 'profile'):
+        instance.profile.save()
+
+
 @receiver(post_save, sender=PaymentConfirmation)
 def activate_subscription_on_payment_approval(sender, instance, **kwargs):
     """FIX: S-11 — Activate subscription when payment confirmation is approved."""
@@ -450,6 +461,8 @@ class SponsoredListing(models.Model):
     description = models.TextField(help_text="Why should buyers check this out?")
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
     admin_notes = models.TextField(blank=True, null=True, help_text="Reason for rejection, or notes for the seller")
+    duration_days = models.PositiveIntegerField(default=7, help_text="Duration of the promotion in days")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Cost of the promotion")
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
