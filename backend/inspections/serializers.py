@@ -200,6 +200,7 @@ class InspectionRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'inspection_id', 'client', 'client_username',
             'category', 'category_name', 'category_path',
+            'marketplace_product', 'product_snapshot',
             'item_name', 'item_description', 'item_address',
             'item_age_years', 'is_complex', 'scope', 'turnaround',
             'status', 'pre_inspection_notes', 'reinspection_coverage',
@@ -207,7 +208,7 @@ class InspectionRequestSerializer(serializers.ModelSerializer):
             'bill', 'assignment', 'report', 'payments', 'evidence',
             'unread_notifications',
         ]
-        read_only_fields = ['inspection_id', 'client', 'status']
+        read_only_fields = ['inspection_id', 'client', 'status', 'product_snapshot']
 
     def get_assignment(self, obj):
         active = obj.active_assignment
@@ -238,6 +239,16 @@ class InspectionRequestListSerializer(serializers.ModelSerializer):
 
     def get_has_report(self, obj):
         return hasattr(obj, 'report')
+
+
+class InspectionSummarySerializer(serializers.ModelSerializer):
+    """Minimal serializer for product inspection history."""
+    verdict = serializers.CharField(source='report.verdict', read_only=True)
+    report_id = serializers.IntegerField(source='report.id', read_only=True)
+
+    class Meta:
+        model = InspectionRequest
+        fields = ['id', 'inspection_id', 'status', 'verdict', 'report_id', 'created_at']
 
 
 class ReInspectionSerializer(serializers.ModelSerializer):

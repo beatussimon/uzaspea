@@ -30,6 +30,17 @@ interface ProductData {
   like_count: number;
   old_price?: string;
   images: { id: number; image: string }[];
+  inspections: InspectionSummary[];
+  is_verified: boolean;
+}
+
+interface InspectionSummary {
+  id: number;
+  inspection_id: string;
+  status: string;
+  verdict: 'pass' | 'conditional' | 'fail' | null;
+  report_id: number | null;
+  created_at: string;
 }
 
 // ===== Fullscreen Image Lightbox =====
@@ -250,6 +261,12 @@ const ProductDetailPage: React.FC = () => {
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                 <Link to={`/?category=${product.category_name}`} className="text-blue-600 font-bold hover:underline">{product.category_name}</Link>
               </span>
+              {product.is_verified && (
+                <span className="flex items-center gap-1.5 text-blue-700 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 text-[10px] font-black uppercase tracking-widest">
+                  <Shield size={14} className="fill-current" />
+                  Professionally Verified
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 pl-1">
               <span className="font-medium">Stock: <span className="text-gray-900 dark:text-white font-bold">{product.stock}</span></span>
@@ -315,25 +332,56 @@ const ProductDetailPage: React.FC = () => {
             <p className="text-red-500 font-semibold mt-auto">Out of Stock</p>
           )}
 
-          {/* Inspection Upsell */}
+          {/* Inspection Upsell / Results */}
           <div className="mt-4 p-4 rounded-xl border border-brand-100 dark:border-brand-900/30 bg-brand-50/50 dark:bg-brand-900/10">
             <div className="flex items-start gap-3 mb-3">
               <div className="p-2 bg-brand-100 dark:bg-brand-900/40 rounded-lg text-brand-600">
                 <Shield size={20} />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-gray-900 dark:text-white">Professional Inspection</h4>
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                  {product.inspections?.length > 0 ? 'Inspection History' : 'Professional Inspection'}
+                </h4>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Get a comprehensive condition report by a certified inspector before you pay.
+                  {product.inspections?.length > 0 
+                    ? `This product has ${product.inspections.length} recorded inspection(s).`
+                    : 'Get a comprehensive condition report by a certified inspector before you pay.'}
                 </p>
               </div>
             </div>
-            <Link
-              to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name)}`}
-              className="w-full btn-secondary py-2 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 border-brand-200 hover:bg-brand-100 dark:border-brand-900/30 dark:hover:bg-brand-900/20 text-brand-600"
-            >
-              Request Inspection
-            </Link>
+            
+            <div className="space-y-2">
+              {product.inspections?.map((insp, idx) => (
+                <Link
+                  key={insp.id}
+                  to={`/inspections/${insp.id}`}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                    insp.verdict === 'pass' 
+                      ? 'bg-green-50 border-green-100 dark:bg-green-900/20 dark:border-green-900/40' 
+                      : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700'
+                  } hover:shadow-md`}
+                >
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">
+                      {new Date(insp.created_at).toLocaleDateString()} • {insp.inspection_id}
+                    </span>
+                    <span className={`text-xs font-bold ${
+                      insp.verdict === 'pass' ? 'text-green-600' : 'text-gray-700 dark:text-white'
+                    }`}>
+                      {insp.verdict ? `Verdict: ${insp.verdict.toUpperCase()}` : `Status: ${insp.status.replace('_', ' ').toUpperCase()}`}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-black text-brand-600 uppercase">View Report →</span>
+                </Link>
+              ))}
+
+              <Link
+                to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name)}&marketplace_product_id=${product.id}`}
+                className="w-full btn-secondary py-2 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 border-brand-200 hover:bg-brand-100 dark:border-brand-900/30 dark:hover:bg-brand-900/20 text-brand-600 mt-2"
+              >
+                {product.inspections?.length > 0 ? 'Request Re-Inspection' : 'Request Inspection'}
+              </Link>
+            </div>
           </div>
         </div>
       </div>

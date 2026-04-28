@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Star, Heart, Share2, ShoppingCart } from 'lucide-react';
+import { Star, Heart, Share2, ShoppingCart, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import SafeImage from './SafeImage';
@@ -68,6 +68,12 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
                <span className="text-[10px] text-gray-500 truncate max-w-[80px]">{product.seller_username}</span>
                <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3" />
              </div>
+             {product.is_verified && (
+               <div className="flex items-center gap-1 text-[9px] text-blue-600 dark:text-blue-400 font-black bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded-full border border-blue-100 dark:border-blue-800">
+                 <Shield size={10} className="fill-current" />
+                 <span>VERIFIED</span>
+               </div>
+             )}
           </div>
           <h3 className="font-bold text-sm md:text-base text-gray-900 dark:text-white line-clamp-1 mb-1">{product.name}</h3>
           <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-1 mb-2 hidden md:block">{product.description}</p>
@@ -141,9 +147,17 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
       <div className="p-3.5 flex flex-col flex-1">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[10px] text-gray-400 uppercase font-semibold tracking-tighter">{product.category_name}</span>
-          <div className="flex gap-0.5 items-center">
-            <Star size={10} className="fill-yellow-400 text-yellow-400" />
-            <span className="text-[10px] text-gray-500 font-medium">{product.avg_rating || '5.0'}</span>
+          <div className="flex items-center gap-2">
+            {product.is_verified && (
+               <div className="flex items-center gap-1 text-[8px] text-blue-600 dark:text-blue-400 font-black bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded-full border border-blue-100 dark:border-blue-800" title="Professionally Verified">
+                 <Shield size={10} className="fill-current" />
+                 <span>VERIFIED</span>
+               </div>
+            )}
+            <div className="flex gap-0.5 items-center">
+              <Star size={10} className="fill-yellow-400 text-yellow-400" />
+              <span className="text-[10px] text-gray-500 font-medium">{product.avg_rating || '5.0'}</span>
+            </div>
           </div>
         </div>
         <h3 className="font-bold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{product.name}</h3>

@@ -891,7 +891,7 @@ const DashboardOrders: React.FC = () => {
                                         </div>
                                     ) : null}
                                     
-                                    {!['COMPLETED', 'CANCELLED', 'DELIVERED'].includes(order.status) && (
+                                    {!['COMPLETED', 'CANCELLED', 'DELIVERED', 'SHIPPED'].includes(order.status) && (
                                         <button 
                                             onClick={() => handleCancel(order.id)}
                                             disabled={advancing === order.id}

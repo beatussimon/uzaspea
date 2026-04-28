@@ -115,7 +115,7 @@ const OrdersPage: React.FC = () => {
   }, [hasMore, loadingMore, loading, filterStatus]);
 
   useOrderTracking(
-    'seller', 
+    'buyer', 
     (update: TrackingUpdate) => {
       setOrders(prev => prev.map(o => {
         if (o.id === update.order_id) {

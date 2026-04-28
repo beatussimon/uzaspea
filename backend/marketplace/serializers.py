@@ -35,13 +35,20 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
 
+    inspections = serializers.SerializerMethodField()
+    is_verified = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = Product
         fields = ['id', 'name', 'slug', 'description', 'price', 'stock', 'is_available',
                   'category', 'category_name', 'seller', 'seller_username', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition',
-                  'avg_rating', 'like_count', 'images']
+                  'avg_rating', 'like_count', 'images', 'inspections', 'is_verified']
         read_only_fields = ['seller', 'slug']
+
+    def get_inspections(self, obj):
+        from inspections.serializers import InspectionSummarySerializer
+        return InspectionSummarySerializer(obj.inspections.all(), many=True).data
 
     def get_avg_rating(self, obj):
         return obj.average_rating()
@@ -165,7 +172,8 @@ class OrderSerializer(serializers.ModelSerializer):
                 # FIX: M-03 — auto-mark unavailable if now at zero
                 Product.objects.filter(pk=product.pk, stock=0).update(is_available=False)
             
-            order.total_amount = total + order.shipping_fee
+            shipping_fee = validated_data.get('shipping_fee', 0)
+            order.total_amount = total + shipping_fee
             order.save(update_fields=['total_amount'])
 
         # FIX: C-02 — REMOVED auto-advance to AWAITING_PAYMENT

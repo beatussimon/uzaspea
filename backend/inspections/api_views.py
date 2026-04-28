@@ -123,7 +123,6 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
         except InspectionCategory.DoesNotExist:
             return Response({'detail': 'Category not found.'}, status=404)
 
-        # Search up the tree for a template
         current = category
         while current:
             template = ChecklistTemplate.objects.filter(
@@ -132,6 +131,11 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
             if template:
                 return Response(ChecklistTemplateSerializer(template).data)
             current = current.parent
+
+        # 3. Final Fallback: Return any active template if none found for category tree
+        fallback = ChecklistTemplate.objects.filter(is_active=True).order_by('-version', '-id').first()
+        if fallback:
+            return Response(ChecklistTemplateSerializer(fallback).data)
 
         return Response({'detail': 'No template found for this category or its ancestors.'}, status=404)
 
@@ -152,8 +156,10 @@ class InspectorProfileViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=False, methods=['get'], url_path='available')
     def available(self, request):
         category_id = request.query_params.get('category_id')
+        show_all = request.query_params.get('all') == 'true'
+        
         qs = InspectorProfile.objects.filter(is_available=True)
-        if category_id:
+        if category_id and not show_all:
             from .models import InspectionCategory
             category = get_object_or_404(InspectionCategory, id=category_id)
             # Match inspectors certified for this category OR any parent/ancestor
@@ -204,7 +210,82 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         return qs.filter(filter_q).distinct()
 
     def perform_create(self, serializer):
-        serializer.save(client=self.request.user)
+        marketplace_product = serializer.validated_data.get('marketplace_product')
+        snapshot = None
+        
+        if marketplace_product:
+            # Capture snapshot of the product at request time
+            first_image = marketplace_product.images.first()
+            snapshot = {
+                'id': marketplace_product.id,
+                'name': marketplace_product.name,
+                'description': marketplace_product.description,
+                'price': str(marketplace_product.price),
+                'condition': marketplace_product.condition,
+                'stock': marketplace_product.stock,
+                'image_url': first_image.image.url if first_image else None,
+                'captured_at': timezone.now().isoformat()
+            }
+        
+        serializer.save(client=self.request.user, product_snapshot=snapshot)
+
+    @decorators.action(detail=False, methods=['get'], url_path='prefill-marketplace')
+    def prefill_marketplace(self, request):
+        """Helper for frontend to pre-fill form and ensure category exists."""
+        product_id = request.query_params.get('product_id')
+        if not product_id:
+            return Response({'detail': 'product_id is required.'}, status=400)
+            
+        from marketplace.models import Product
+        product = get_object_or_404(Product, id=product_id)
+        
+        # 1. Ensure matching InspectionCategory exists
+        cat_name = product.category.name
+        # Match by name (case-insensitive)
+        insp_cat = InspectionCategory.objects.filter(name__iexact=cat_name).first()
+        
+        if not insp_cat:
+            # Borrow the category: Create a new inspection category
+            # Use 'marketplace' (slug) as a parent if it exists, otherwise root
+            parent = InspectionCategory.objects.filter(name__iexact='Marketplace').first()
+            if not parent:
+                parent = InspectionCategory.objects.create(
+                    name='Marketplace',
+                    slug='marketplace',
+                    level='domain',
+                    description='Automatic category for marketplace items'
+                )
+            
+            slug = product.category.slug
+            if InspectionCategory.objects.filter(slug=slug).exists():
+                slug = f"mkt-{slug}"
+            
+            insp_cat = InspectionCategory.objects.create(
+                name=cat_name,
+                slug=slug,
+                level='category',
+                parent=parent,
+                description=f"Auto-created from marketplace: {product.category.description}"
+            )
+            # Ensure it has a base price if inherited or default
+            insp_cat.base_price = 50000.00  # Default base price for new categories
+            insp_cat.save()
+
+        return Response({
+            'item_name': product.name,
+            'item_description': product.description,
+            'item_address': 'Marketplace Warehouse / Seller Location', # Placeholder or from seller profile if known
+            'category': {
+                'id': insp_cat.id,
+                'name': insp_cat.name,
+                'full_path': insp_cat.get_full_path()
+            },
+            'product': {
+                'id': product.id,
+                'name': product.name,
+                'image': product.images.first().image.url if product.images.exists() else None,
+            }
+        })
 
     @decorators.action(detail=True, methods=['post'], url_path='generate-bill')
     def generate_bill(self, request, pk=None):
@@ -403,6 +484,12 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You do not have permission to submit payment for this request.")
             
+        # Prevent multiple pending payments for the same stage
+        stage = serializer.validated_data.get('stage')
+        if InspectionPayment.objects.filter(request=request_obj, stage=stage, status='pending').exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(f"A pending {stage} payment already exists for this request.")
+            
         serializer.save()
 
     @decorators.action(detail=True, methods=['post'], url_path='approve')
@@ -494,32 +581,51 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
         if not (request.user.is_superuser or is_assigned):
             return Response({'detail': 'Only the assigned inspector can check in.'}, status=403)
 
-        if request_obj.status != 'assigned' and not request.user.is_superuser:
-            return Response({'detail': 'Cannot check in. Inspection must be in Assigned status.'}, status=400)
-
-        instance = InspectionCheckIn.objects.filter(request_id=request_id).first()
-
+        # HARDENED LOOKUP: Use the fetched request_obj to ensure consistency
+        instance = InspectionCheckIn.objects.filter(request=request_obj).first()
         if instance:
             # Already checked in — just return the existing record
             return Response(InspectionCheckInSerializer(instance).data)
 
+        # RELAXED STATUS CHECK: Allow assigned, pre_inspection or deposit_paid
+        # as long as they are assigned to this inspector.
+        ALLOWED_STATUSES = ['assigned', 'pre_inspection', 'deposit_paid']
+        if request_obj.status not in ALLOWED_STATUSES and not request.user.is_superuser:
+            return Response({
+                'detail': f'Cannot check in. Current status "{request_obj.status}" is invalid. Expected "assigned".',
+                'current_status': request_obj.status
+            }, status=400)
+
         # First time — create and advance status
-        res = super().create(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({
+                'detail': 'Check-in validation failed',
+                'errors': serializer.errors,
+                'sent_data': {k: str(v)[:50] for k, v in request.data.items()} # Debug info
+            }, status=400)
+            
+        checkin = serializer.save()
         
         # ATOMIC TRANSITION: Update status and create report shell
         request_obj.status = 'in_progress'
         request_obj.save()
         
-        # FIX: L-10 — use get_or_create to prevent duplicate report shells
-        InspectionReport.objects.get_or_create(
+        # Simple lookup for a template to get version
+        latest_template = ChecklistTemplate.objects.filter(category=request_obj.category, is_active=True).order_by('-version').first()
+        version = latest_template.version if latest_template else 1
+
+        report, created = InspectionReport.objects.get_or_create(
             request=request_obj,
             defaults={
                 'submitted_by': request.user,
-                'verdict': 'conditional',  # placeholder until finalized
+                'verdict': 'pass', # Default until edited
+                'summary': '',
+                'checklist_template_version': version
             }
         )
             
-        return res
+        return Response(InspectionCheckInSerializer(checkin).data, status=201)
 
     @decorators.action(detail=False, methods=['post'], url_path='checkout/(?P<request_id>[^/.]+)')
     def checkout(self, request, request_id=None):
@@ -791,19 +897,21 @@ class ReInspectionViewSet(viewsets.ModelViewSet):
         if original.reinspection_coverage and hasattr(original, 'bill'):
             orig_bill = original.bill
             reinsp_fee = (orig_bill.total_amount * Decimal('0.10')).quantize(Decimal('0.01'))
-            InspectionBill.objects.create(
-                request=new_req,
-                base_rate=reinsp_fee,
-                total_amount=reinsp_fee,
-                deposit_amount=reinsp_fee,
-                remaining_balance=Decimal('0.00'),
-                currency=orig_bill.currency,
-            )
-            new_req.status = 'bill_sent'
-            new_req.save()
-            notify(new_req.client, 'bill_ready',
-                   f'Re-inspection bill for {new_req.item_name} is ready (covered by your policy).',
-                   new_req)
+            # Check if bill already exists for this re-inspection to avoid duplicates
+            if not hasattr(new_req, 'bill'):
+                InspectionBill.objects.create(
+                    request=new_req,
+                    base_rate=reinsp_fee,
+                    total_amount=reinsp_fee,
+                    deposit_amount=reinsp_fee,
+                    remaining_balance=Decimal('0.00'),
+                    currency=orig_bill.currency,
+                )
+                new_req.status = 'bill_sent'
+                new_req.save()
+                notify(new_req.client, 'bill_ready',
+                       f'Re-inspection bill for {new_req.item_name} is ready (covered by your policy).',
+                       new_req)
 
 
 # ──────────────────────────────────────────────

@@ -99,38 +99,72 @@ const RequestForm: React.FC = () => {
     item_age_years: '', is_complex: false,
     scope: 'standard', turnaround: 'standard',
     reinspection_coverage: false,
+    marketplace_product: null as number | null,
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [prefilledProduct, setPrefilledProduct] = useState<any>(null);
+
   useEffect(() => {
-    inspectionApi.categories.list().then((r: any) => {
-      const cats = r.data.results || r.data;
-      setCategories(cats);
-      
-      // Handle pre-filling from query params
-      const params = new URLSearchParams(location.search);
-      const name = params.get('item_name');
-      const catName = params.get('category_name');
-      
-      if (name) setForm(f => ({ ...f, item_name: name }));
-      if (catName) {
-        // Simple search for leaf category matching catName
-        const findCat = (list: InspectionCategory[]): InspectionCategory | null => {
-          for (const c of list) {
-            if (c.name.toLowerCase() === catName.toLowerCase()) return c;
-            if (c.children) {
-              const sub = findCat(c.children);
-              if (sub) return sub;
-            }
+    const load = async () => {
+      try {
+        const res = await inspectionApi.categories.list();
+        const cats = res.data.results || res.data;
+        setCategories(cats);
+        
+        const params = new URLSearchParams(location.search);
+        const marketId = params.get('marketplace_product_id');
+        
+        if (marketId) {
+          setLoading(true);
+          const preRes = await inspectionApi.requests.prefillMarketplace(parseInt(marketId));
+          const data = preRes.data;
+          
+          setForm(f => ({
+            ...f,
+            item_name: data.item_name,
+            item_description: data.item_description,
+            item_address: data.item_address,
+            marketplace_product: data.product.id,
+          }));
+          
+          setPrefilledProduct(data.product);
+          
+          // Ensure the newly created/found category is in our list and selected
+          const latestCatsRes = await inspectionApi.categories.list();
+          const latestCats = latestCatsRes.data.results || latestCatsRes.data;
+          setCategories(latestCats);
+          
+          const found = latestCats.find((c: any) => c.id === data.category.id) || data.category;
+          setSelectedCategory(found);
+          setLoading(false);
+        } else {
+          // Manual pre-fill from basic params
+          const name = params.get('item_name');
+          const catName = params.get('category_name');
+          if (name) setForm(f => ({ ...f, item_name: name }));
+          if (catName) {
+            const findCat = (list: InspectionCategory[]): InspectionCategory | null => {
+              for (const c of list) {
+                if (c.name.toLowerCase() === catName.toLowerCase()) return c;
+                if (c.children) {
+                  const sub = findCat(c.children);
+                  if (sub) return sub;
+                }
+              }
+              return null;
+            };
+            const found = findCat(cats);
+            if (found) setSelectedCategory(found);
           }
-          return null;
-        };
-        const found = findCat(cats);
-        if (found) setSelectedCategory(found);
+        }
+      } catch (err) {
+        console.error('Failed to load pre-fill data', err);
       }
-    }).catch(() => {});
+    };
+    load();
   }, [location.search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -178,6 +212,22 @@ const RequestForm: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {prefilledProduct && (
+            <div className="flex items-center gap-4 p-4 bg-brand-50/50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/30 rounded-xl animate-fade-in">
+              <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden shadow-sm border border-white dark:border-gray-800">
+                <img 
+                  src={prefilledProduct.image?.startsWith('http') ? prefilledProduct.image : `http://localhost:8000${prefilledProduct.image}`} 
+                  alt="" className="w-full h-full object-cover" 
+                />
+              </div>
+              <div>
+                <span className="text-[10px] font-black text-brand-600 uppercase tracking-widest">Linked Marketplace Item</span>
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white line-clamp-1">{prefilledProduct.name}</h4>
+                <p className="text-[10px] text-gray-500 mt-0.5">Details and category have been automatically borrowed.</p>
+              </div>
+            </div>
+          )}
+
           {/* Category */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -318,19 +368,23 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
   const hasApprovedDeposit = request.payments.some(
     (p) => p.stage === 'deposit' && p.status === 'approved'
   );
-  const hasPendingDeposit = request.payments.some(
-    (p) => p.stage === 'deposit' && p.status === 'pending'
-  );
   const stage = hasApprovedDeposit ? 'balance' : 'deposit';
   const amount = stage === 'deposit' ? bill?.deposit_amount : bill?.remaining_balance;
 
-  if (hasPendingDeposit && !hasApprovedDeposit) {
+  const pendingPayment = request.payments.find(p => p.status === 'pending');
+
+  if (pendingPayment) {
     return (
-      <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 flex items-center gap-3">
+      <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 flex items-center gap-3 animate-pulse">
         <Clock size={16} className="text-yellow-600 shrink-0" />
-        <p className="text-sm text-yellow-700 dark:text-yellow-300">
-          Deposit payment submitted — awaiting Finance confirmation.
-        </p>
+        <div className="flex-1">
+          <p className="text-sm text-yellow-700 dark:text-yellow-300 font-bold">
+            {pendingPayment.stage === 'deposit' ? 'Deposit' : 'Balance'} payment submitted
+          </p>
+          <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-0.5">
+            Finance is currently confirming your transaction. Please wait for confirmation before sending again.
+          </p>
+        </div>
       </div>
     );
   }
@@ -738,6 +792,58 @@ const RequestDetail: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Product Snapshot (Sidebar) */}
+        {request.product_snapshot && (
+          <div className="lg:col-span-3">
+            <div className="card overflow-hidden">
+               <div className="bg-gray-50 dark:bg-gray-800/50 p-4 border-b border-surface-border dark:border-surface-dark-border flex items-center justify-between">
+                 <div>
+                   <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                     <Shield size={18} className="text-brand-600" />
+                     Marketplace Item State at Request Time
+                   </h3>
+                   <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 uppercase tracking-wider">
+                     Captured on {fmtDate(request.product_snapshot.captured_at)}
+                   </p>
+                 </div>
+                 <Link to={`/product/${request.product_snapshot.id}`} className="text-brand-600 text-[10px] font-bold hover:underline">
+                   View Current Product →
+                 </Link>
+               </div>
+               <div className="p-5 flex flex-col md:flex-row gap-6">
+                 {request.product_snapshot.image_url && (
+                   <div className="w-full md:w-48 shrink-0">
+                     <img 
+                       src={request.product_snapshot.image_url.startsWith('http') ? request.product_snapshot.image_url : `http://localhost:8000${request.product_snapshot.image_url}`} 
+                       alt={request.product_snapshot.name} 
+                       className="w-full aspect-square object-cover rounded-lg shadow-sm"
+                     />
+                   </div>
+                 )}
+                 <div className="flex-1">
+                   <div className="flex items-center gap-2 mb-2">
+                     <Badge text={request.product_snapshot.condition} className="badge-blue capitalize" />
+                     <Badge text={`Stock: ${request.product_snapshot.stock}`} className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400" />
+                   </div>
+                   <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{request.product_snapshot.name}</h4>
+                   <p className="text-brand-600 font-bold text-xl mb-3">{fmtMoney(request.product_snapshot.price)}</p>
+                   <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-surface-border dark:border-surface-dark-border">
+                     <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed italic line-clamp-3">
+                       "{request.product_snapshot.description}"
+                     </p>
+                   </div>
+                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">
+                      <p className="text-[10px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                        <span className="font-bold">Note:</span> This is a persistent snapshot of the item's details when this inspection was requested. 
+                        Changes to the marketplace listing after this point are not reflected here to maintain verification integrity.
+                      </p>
+                   </div>
+                 </div>
+               </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

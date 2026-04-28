@@ -139,6 +139,17 @@ export interface InspectionRequest {
   status: string;
   pre_inspection_notes: string;
   reinspection_coverage: boolean;
+  marketplace_product: number | null;
+  product_snapshot: {
+    id: number;
+    name: string;
+    description: string;
+    price: string;
+    condition: string;
+    stock: number;
+    image_url: string | null;
+    captured_at: string;
+  } | null;
   created_at: string;
   bill: InspectionBill | null;
   assignment: InspectionAssignment | null;
