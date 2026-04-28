@@ -535,10 +535,6 @@ const JobExecution: React.FC = () => {
       if (checkoutData.lng !== null) fd.append('checkout_lng', String(checkoutData.lng.toFixed(6)));
       await inspectionApi.checkin.checkout(job.id, fd);
 
-      // Finalize the existing report with verdict and summary
-      if (!reportId) throw new Error('No report ID found');
-      await inspectionApi.reports.finalize(reportId, { verdict, summary });
-
       // Upload extra supporting documents
       for (const file of extraDocs) {
         const fd = new FormData();
@@ -546,6 +542,10 @@ const JobExecution: React.FC = () => {
         fd.append('image', file);
         await inspectionApi.evidence.submit(fd);
       }
+
+      // Finalize the existing report with verdict and summary
+      if (!reportId) throw new Error('No report ID found');
+      await inspectionApi.reports.finalize(reportId, { verdict, summary });
 
       toast.success('Inspection submitted for QA review!');
       setStep('done');

@@ -853,6 +853,7 @@ const RequestDetail: React.FC = () => {
 const MyInspections: React.FC = () => {
   const [requests, setRequests] = useState<InspectionRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [verifyId, setVerifyId] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -862,54 +863,85 @@ const MyInspections: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  const handleVerify = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyId.trim()) return;
+    navigate(`/verify/${verifyId.trim()}`);
+  };
+
   if (loading) return <Spinner />;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">My Inspections</h1>
-        <Link to="/inspections/new" className="btn-primary text-sm px-4 py-2">
-          + New Request
-        </Link>
+    <div className="space-y-8">
+      {/* Verify Public Portal Card */}
+      <div className="card p-5 border-2 border-brand-100 dark:border-brand-900/30 bg-brand-50/50 dark:bg-brand-900/10">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+          <Shield size={18} className="text-brand-600" />
+          Verify an Inspection
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Paste a public inspection ID (e.g. UZ-VEH-20260428-00001) to verify its authenticity and view the report summary.
+        </p>
+        <form onSubmit={handleVerify} className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            className="input flex-1 uppercase font-mono"
+            placeholder="Enter Inspection ID..."
+            value={verifyId}
+            onChange={(e) => setVerifyId(e.target.value.toUpperCase())}
+          />
+          <button type="submit" className="btn-primary py-2.5 px-6 whitespace-nowrap flex items-center justify-center gap-2">
+            <Search size={16} /> Verify
+          </button>
+        </form>
       </div>
 
-      {requests.length === 0 ? (
-        <div className="card p-12 text-center">
-          <ClipboardList size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-gray-500 dark:text-gray-400 mb-4">No inspections yet</p>
-          <Link to="/inspections/new" className="btn-primary text-sm px-5 py-2">
-            Request your first inspection
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">My Inspections</h1>
+          <Link to="/inspections/new" className="btn-primary text-sm px-4 py-2">
+            + New Request
           </Link>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {requests.map((req: any) => (
-            <button key={req.id} onClick={() => navigate(`/inspections/${req.id}`)}
-              className="card p-4 w-full text-left hover:shadow-card-hover transition group">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge text={STATUS_LABELS[req.status] || req.status}
-                      className={STATUS_COLORS[req.status] || 'badge-gray'} />
+
+        {requests.length === 0 ? (
+          <div className="card p-12 text-center">
+            <ClipboardList size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+            <p className="text-gray-500 dark:text-gray-400 mb-4">No inspections yet</p>
+            <Link to="/inspections/new" className="btn-primary text-sm px-5 py-2">
+              Request your first inspection
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {requests.map((req: any) => (
+              <button key={req.id} onClick={() => navigate(`/inspections/${req.id}`)}
+                className="card p-4 w-full text-left hover:shadow-card-hover transition group">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge text={STATUS_LABELS[req.status] || req.status}
+                        className={STATUS_COLORS[req.status] || 'badge-gray'} />
+                    </div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 transition line-clamp-1">
+                      {req.item_name}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{req.category_path}</p>
+                    <p className="font-mono text-xs text-gray-400 mt-1">{req.inspection_id}</p>
                   </div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 transition line-clamp-1">
-                    {req.item_name}
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{req.category_path}</p>
-                  <p className="font-mono text-xs text-gray-400 mt-1">{req.inspection_id}</p>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs text-gray-400">{fmtDate(req.created_at)}</p>
+                    {req.has_report && (
+                      <span className="text-xs text-green-600 dark:text-green-400 font-medium">Report ready</span>
+                    )}
+                    <ChevronRight size={16} className="text-gray-400 mt-1 ml-auto" />
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs text-gray-400">{fmtDate(req.created_at)}</p>
-                  {req.has_report && (
-                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">Report ready</span>
-                  )}
-                  <ChevronRight size={16} className="text-gray-400 mt-1 ml-auto" />
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

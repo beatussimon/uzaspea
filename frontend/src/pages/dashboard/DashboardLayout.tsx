@@ -431,7 +431,7 @@ const DashboardPromotions: React.FC = () => {
   const [promotions, setPromotions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ product: '', title: '', description: '' });
+  const [form, setForm] = useState({ product: '', title: '', description: '', duration_days: 7 });
   const [products, setProducts] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -459,7 +459,7 @@ const DashboardPromotions: React.FC = () => {
       await api.post('/api/sponsored/', form);
       toast.success('Promotion requested successfully!');
       setShowForm(false);
-      setForm({ product: '', title: '', description: '' });
+      setForm({ product: '', title: '', description: '', duration_days: 7 });
       fetchPromotions();
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to submit promotion request');
@@ -487,9 +487,26 @@ const DashboardPromotions: React.FC = () => {
             <option value="">Select Product to Promote</option>
             {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <input name="title" value={form.title} onChange={handleChange} placeholder="Promo Title (e.g. 50% Off Summer Sale)" required className="input" />
-          <textarea name="description" value={form.description} onChange={handleChange} placeholder="Details about this promotion..." required rows={3} className="input resize-none" />
-          <button type="submit" disabled={submitting} className="btn-primary w-full py-3">
+          <input name="title" value={form.title} onChange={handleChange} placeholder="Promo Title (e.g. 50% Off Summer Sale)" required className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+          <textarea name="description" value={form.description} onChange={handleChange} placeholder="Details about this promotion..." required rows={3} className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white resize-none" />
+          
+          <select name="duration_days" value={form.duration_days} onChange={handleChange} required className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white">
+            <option value={3}>3 Days - 3,000 TSh</option>
+            <option value={7}>7 Days - 7,000 TSh</option>
+            <option value={14}>14 Days - 14,000 TSh</option>
+            <option value={30}>30 Days - 30,000 TSh</option>
+          </select>
+          
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-900/30">
+            <p className="text-sm font-bold text-blue-800 dark:text-blue-300">
+              Total Cost: {(Number(form.duration_days) * 1000).toLocaleString()} TSh
+            </p>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+              Note: Staff will review your promotion and request payment upon approval.
+            </p>
+          </div>
+
+          <button type="submit" disabled={submitting} className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg transition">
             {submitting ? 'Submitting...' : 'Submit Request'}
           </button>
         </form>

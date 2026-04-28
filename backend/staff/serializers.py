@@ -42,7 +42,8 @@ class TaskSerializer(serializers.ModelSerializer):
             'status', 'priority', 'due_date', 'created_at', 'updated_at', 'completed_at',
             'is_overdue'
         ]
-        read_only_fields = ['created_by', 'created_at', 'updated_at', 'completed_at', 'status', 'assigned_to']
+        read_only_fields = ['created_by', 'created_at', 'updated_at', 'completed_at', 'status']
+        # FIX L-18: removed 'assigned_to' from read_only so tasks can be assigned on creation
 
 
 class TaskActionSerializer(serializers.ModelSerializer):

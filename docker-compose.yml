@@ -1,27 +1,50 @@
 version: '3.8'
 
+x-backend-common: &backend-common  # DRY: shared backend config
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  env_file: ./backend/.env          # FIX DEVOPS-06: correct path
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy    # FIX DEVOPS-07: wait for healthy redis
+
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    <<: *backend-common
     container_name: uzaspea-backend
     volumes:
-      - ./backend:/app
-      - ./persistent_data/media:/app/media
-    env_file: .env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
+      - ./persistent_data/media:/app/media  # FIX DEVOPS-08: removed ./backend:/app volume (breaks image)
     ports:
       - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate --noinput &&  
+             python manage.py collectstatic --noinput &&
+             daphne -b 0.0.0.0 -p 8000 uzachuo.asgi:application"
+             # FIX DEVOPS-01,09,10: migrate + collectstatic + daphne at runtime
+
+  celery-worker:             # FIX DEVOPS-05
+    <<: *backend-common
+    container_name: uzaspea-celery-worker
+    volumes:
+      - ./persistent_data/media:/app/media
+    command: celery -A uzachuo worker --loglevel=info --concurrency=2
+
+  celery-beat:               # FIX DEVOPS-18: runs periodic tasks (check_expirations every 30min)
+    <<: *backend-common
+    container_name: uzaspea-celery-beat
+    volumes:
+      - ./persistent_data/media:/app/media
+    command: celery -A uzachuo beat --loglevel=info
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     container_name: uzaspea-frontend
     ports:
       - "3000:80"
@@ -34,7 +57,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-uzaspea}
       POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-testpass123}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}  # FIX DEVOPS-16: no default — must be set in .env
     volumes:
       - ./persistent_data/postgres:/var/lib/postgresql/data
     healthcheck:
@@ -48,3 +71,8 @@ services:
     container_name: uzaspea-redis
     volumes:
       - ./persistent_data/redis:/data
+    healthcheck:                   # FIX DEVOPS-07
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5

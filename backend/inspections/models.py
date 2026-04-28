@@ -239,14 +239,11 @@ class InspectionRequest(models.Model):
         super().save(*args, **kwargs)
 
     def _generate_id(self):
-        from django.utils import timezone
-        import random
+        import uuid  # FIX C-16: UUID suffix eliminates TOCTOU race
         domain_code = self.category.name[:3].upper() if self.category_id else 'GEN'
         date_str = timezone.now().strftime('%Y%m%d')
-        seq = str(InspectionRequest.objects.filter(
-            inspection_id__contains=date_str
-        ).count() + 1).zfill(5)
-        return f'UZ-{domain_code}-{date_str}-{seq}'
+        suffix = uuid.uuid4().hex[:6].upper()
+        return f'UZ-{domain_code}-{date_str}-{suffix}'
 
     def __str__(self):
         return f'{self.inspection_id} — {self.item_name}'
