@@ -351,7 +351,7 @@ const ProductDetailPage: React.FC = () => {
             </div>
             
             <div className="space-y-2">
-              {product.inspections?.map((insp, idx) => (
+              {product.inspections?.map((insp) => (
                 <Link
                   key={insp.id}
                   to={`/inspections/${insp.id}`}
