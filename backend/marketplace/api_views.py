@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, status, decorators, serializer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Q, Sum, Count, Avg
+from django.db import models as django_models
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
     Payment, TrackingEvent, UserProfile, Like, ProductImage
@@ -15,7 +16,7 @@ from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember
 from django.db.models import Prefetch
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.filter(is_available=True).prefetch_related('images', 'likes')
+    queryset = Product.objects.all().prefetch_related('images', 'likes')
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
@@ -26,7 +27,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # Base queryset
+        queryset = Product.objects.all().prefetch_related('images', 'likes')
+        
+        # FIX: Ensure detail actions (delete/edit) don't get blocked by list filters
+        if getattr(self, 'detail', False) or self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+            return queryset
+
         category_slug = self.request.query_params.get('category', None)
         query = self.request.query_params.get('q', None)
         min_price = self.request.query_params.get('min_price', None)
@@ -37,6 +44,9 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         if seller:
             queryset = queryset.filter(seller__username=seller)
+        else:
+            # Public list only shows available products for general browsing
+            queryset = queryset.filter(is_available=True)
 
         if category_slug:
             from .models import Category
@@ -68,7 +78,19 @@ class ProductViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-created_at')
 
     def perform_create(self, serializer):
-        serializer.save(seller=self.request.user)
+        product = serializer.save(seller=self.request.user)
+        images = self.request.FILES.getlist('uploaded_images')
+        for img in images:
+            ProductImage.objects.create(product=product, image=img)
+
+    def perform_update(self, serializer):
+        product = serializer.save()
+        images = self.request.FILES.getlist('uploaded_images')
+        if images:
+            # Optionally clear existing images if it's a full replacement, 
+            # but for now we'll just add new ones as per common MVP patterns
+            for img in images:
+                ProductImage.objects.create(product=product, image=img)
 
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def like(self, request, slug=None):
@@ -198,12 +220,36 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         # PERMISSION CHECK: Must be staff OR a seller of an item in this order
         is_seller = order.orderitem_set.filter(product__seller=request.user).exists()
-        if not (request.user.is_staff or is_seller):
-            return Response({'detail': 'No permission to transition this order.'}, status=403)
+        is_buyer = order.user == request.user  # FIX: S-06
 
         new_state = request.data.get('status')
         notes = request.data.get('notes', '')
-        
+
+        # FIX: S-06 — Enforce who can trigger which transitions
+        STAFF_ONLY_STATES = {'PAID', 'COMPLETED', 'REFUNDED', 'EXPIRED'}
+        SELLER_ALLOWED_STATES = {'PROCESSING', 'SHIPPED'}
+        BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'CHECKOUT'}
+
+        if new_state in STAFF_ONLY_STATES and not request.user.is_staff:
+            return Response(
+                {'error': f'Only staff can set order status to {new_state}.'},
+                status=403
+            )
+        if new_state in SELLER_ALLOWED_STATES and not (request.user.is_staff or is_seller):
+            return Response(
+                {'error': f'Only the seller or staff can advance order to {new_state}.'},
+                status=403
+            )
+        if new_state in BUYER_ALLOWED_STATES and not (request.user.is_staff or is_buyer):
+            return Response(
+                {'error': f'Only the buyer or staff can move order to {new_state}.'},
+                status=403
+            )
+
+        # If not staff, buyer, or seller — deny
+        if not (request.user.is_staff or is_seller or is_buyer):
+            return Response({'detail': 'No permission to transition this order.'}, status=403)
+
         # If transitioning to PENDING_VERIFICATION, we might want to attach a payment record
         if new_state == 'PENDING_VERIFICATION':
             proof = request.FILES.get('proof_image')
@@ -268,15 +314,19 @@ class OrderViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(orders)
         
         def format_order(order):
-            items_data = [{
-                'id': item.id,
-                'product_name': item.product.name,
-                'product_slug': item.product.slug,
-                'product_image': item.product.images.first().image.url if item.product.images.exists() else None,
-                'quantity': item.quantity,
-                'price': float(item.price),
-                'subtotal': float(item.subtotal()),
-            } for item in order.relevant_items]
+            items_data = []
+            for item in order.relevant_items:
+                # FIX: L-04 — use prefetched images, avoid 2 queries per item
+                _imgs = list(item.product.images.all())
+                items_data.append({
+                    'id': item.id,
+                    'product_name': item.product.name,
+                    'product_slug': item.product.slug,
+                    'product_image': _imgs[0].image.url if _imgs else None,
+                    'quantity': item.quantity,
+                    'price': float(item.price),
+                    'subtotal': float(item.subtotal()),
+                })
 
             timeline = [{'status': e.status, 'notes': e.notes, 'created_at': e.created_at.isoformat()} for e in order.timeline_events.all()]
             payments = [{
@@ -313,10 +363,19 @@ class ReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
+        # FIX: L-05 — non-staff only see approved reviews
         product_id = self.request.query_params.get('product', None)
+        qs = Review.objects.all()
+        if not self.request.user.is_staff:
+            qs = qs.filter(approved=True)
         if product_id:
-            return Review.objects.filter(product_id=product_id)
-        return Review.objects.all()
+            qs = qs.filter(product_id=product_id)
+        return qs
+
+    def get_permissions(self):  # FIX: L-06
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
+        return super().get_permissions()
 
     def perform_create(self, serializer):
         product = serializer.validated_data['product']
@@ -328,9 +387,24 @@ class ReviewViewSet(viewsets.ModelViewSet):
         ).exists()
         
         if not has_completed_order:
-            raise serializers.ValidationError("You can only review products you have completely purchased and received.")
+            raise drf_serializers.ValidationError("You can only review products you have completely purchased and received.")
         
         serializer.save(user=self.request.user)
+
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsStaffMember])
+    def approve(self, request, pk=None):
+        """FIX: M-05 — Staff can approve reviews."""
+        review = self.get_object()
+        review.approved = True
+        review.save(update_fields=['approved'])
+        return Response({'approved': True, 'id': review.id})
+
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsStaffMember])
+    def reject(self, request, pk=None):
+        """FIX: M-05 — Staff can reject reviews."""
+        review = self.get_object()
+        review.delete()
+        return Response(status=204)
 
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = ProductCommentSerializer
@@ -341,6 +415,11 @@ class CommentViewSet(viewsets.ModelViewSet):
         if product_id:
             return ProductComment.objects.filter(product_id=product_id)
         return ProductComment.objects.all()
+
+    def get_permissions(self):  # FIX: L-07
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
+        return super().get_permissions()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -355,8 +434,50 @@ class PaymentViewSet(viewsets.ModelViewSet):
             return Payment.objects.all()
         # Buyers see their own payments, Sellers see payments for their products
         return Payment.objects.filter(
-            models.Q(order__user=user) | models.Q(order__orderitem_set__product__seller=user)
+            django_models.Q(order__user=user) | django_models.Q(order__orderitem_set__product__seller=user)
         ).distinct()
+
+    # FIX: C-04 — Add payment verify/approve/reject actions for staff
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsStaffMember])
+    def verify(self, request, pk=None):
+        """Staff: approve a pending marketplace payment and advance order to PAID."""
+        from .services import OrderStateMachine
+        payment = self.get_object()
+        if payment.status != 'PENDING_VERIFICATION':
+            return Response({'error': 'Payment is not pending verification.'}, status=400)
+        payment.status = 'VERIFIED'
+        payment.save(update_fields=['status'])
+        if payment.order:
+            try:
+                OrderStateMachine.transition_order(
+                    payment.order, 'PAID',
+                    notes=f'Payment #{payment.id} verified by {request.user.username}.'
+                )
+            except ValueError as e:
+                return Response({'error': str(e)}, status=400)
+        return Response({
+            'payment_status': payment.status,
+            'order_status': payment.order.status if payment.order else None
+        })
+
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsStaffMember])
+    def reject(self, request, pk=None):
+        """Staff: reject a pending payment and return order to AWAITING_PAYMENT."""
+        from .services import OrderStateMachine
+        payment = self.get_object()
+        if payment.status != 'PENDING_VERIFICATION':
+            return Response({'error': 'Payment is not pending verification.'}, status=400)
+        payment.status = 'REJECTED'
+        payment.save(update_fields=['status'])
+        if payment.order and payment.order.status == 'PENDING_VERIFICATION':
+            try:
+                OrderStateMachine.transition_order(
+                    payment.order, 'AWAITING_PAYMENT',
+                    notes=f'Payment #{payment.id} rejected by {request.user.username}. Reason: {request.data.get("reason", "Not specified")}.'
+                )
+            except ValueError:
+                pass
+        return Response({'payment_status': payment.status})
 
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -370,11 +491,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['is_staff'] = self.user.is_staff or self.user.is_superuser
         data['is_superuser'] = self.user.is_superuser
         try:
-            data['is_verified'] = self.user.profile.is_verified
+            data['is_verified'] = self.user.profile.is_verified  # FIX: S-10
             data['tier'] = self.user.profile.tier
-        except:
+        except (UserProfile.DoesNotExist, AttributeError):  # FIX: S-10 — replace bare except
             data['is_verified'] = False
-            data['tier'] = 'free'
+            data['tier'] = 'standard'
         
         data['is_inspector'] = hasattr(self.user, 'inspector_profile')
         data['inspector_level'] = (
@@ -450,18 +571,44 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return UserProfile.objects.all()
 
+    def get_permissions(self):  # FIX: S-07
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
+        return super().get_permissions()
+
 class SponsoredListingViewSet(viewsets.ModelViewSet):
     serializer_class = SponsoredListingSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         user = self.request.user
+        from django.utils import timezone as tz
         if user.is_staff:
             return SponsoredListing.objects.all().order_by('-created_at')
         if user.is_authenticated:
-            return SponsoredListing.objects.filter(user=user).order_by('-created_at')
-        return SponsoredListing.objects.filter(status='approved').order_by('?')
+            # FIX: L-12 — filter expired listings for non-staff
+            return SponsoredListing.objects.filter(
+                django_models.Q(user=user) | (
+                    django_models.Q(status='approved') &
+                    (django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now()))
+                )
+            ).order_by('-created_at')
+        return SponsoredListing.objects.filter(
+            status='approved'
+        ).filter(
+            django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now())  # FIX: L-12
+        ).order_by('?')
+
+    def get_object(self):  # FIX: S-08 — enforce queryset scope on detail views
+        obj = super().get_object()
+        user = self.request.user
+        if not user.is_authenticated and obj.status != 'approved':
+            from rest_framework.exceptions import NotFound
+            raise NotFound()
+        if user.is_authenticated and not user.is_staff and obj.user != user and obj.status != 'approved':
+            from rest_framework.exceptions import NotFound
+            raise NotFound()
+        return obj
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-

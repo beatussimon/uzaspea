@@ -1,22 +1,17 @@
 import os
 from pathlib import Path
-#from dotenv import load_dotenv  # Only needed if using a .env file
-
-# Load environment variables from .env file
-#load_dotenv() # Comment this out if not using a .env file
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# FIX: S-01 — Never commit the real secret key
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'unsafe-dev-only-key-change-before-deploy')
 
-# SECURITY WARNING: keep the secret key used in production secret!
-#SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-fallback-secret-key') # Use environment variable
-SECRET_KEY = 'put-a-real-secret-key-here-for-development'  # CHANGE THIS
+# FIX: S-02 — Read from environment; default to True for dev safety
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True  # MUST be False in production!
-
-ALLOWED_HOSTS = ['*']  # VERY IMPORTANT: change to allowed hosts in production.
+# FIX: S-02 — Explicit allowed hosts
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 INSTALLED_APPS = [
@@ -91,7 +86,11 @@ TEMPLATES = [
 WSGI_APPLICATION = 'uzachuo.wsgi.application'
 ASGI_APPLICATION = 'uzachuo.asgi.application'
 
-CORS_ALLOW_ALL_ORIGINS = True
+# FIX: S-04 — Never allow all origins with credentials in production
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    'CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3000'
+).split(',')
 CORS_ALLOW_CREDENTIALS = True
 
 CHANNEL_LAYERS = {
@@ -114,7 +113,13 @@ DATABASES = {
     }
 }
 
-AUTH_PASSWORD_VALIDATORS = []
+# FIX: S-03 — Enforce password strength
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
@@ -144,16 +149,19 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-# Email configuration (using MailHog for development):
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Use SMTP backend
-EMAIL_HOST = 'localhost'  # MailHog runs on localhost
-EMAIL_PORT = 1025          # MailHog's SMTP port
-EMAIL_HOST_USER = ''       # No username needed for MailHog
-EMAIL_HOST_PASSWORD = ''   # No password needed for MailHog
-EMAIL_USE_TLS = False      # No TLS for MailHog
-DEFAULT_FROM_EMAIL = 'test@example.com'  # Set a default from email
+# FIX: S-14 — Use console backend as safe default; override via env in production
+EMAIL_BACKEND = os.environ.get(
+    'DJANGO_EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend'
+)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '1025'))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False') == 'True'
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@uzaspea.com')
 
 # Session settings
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = False  # Set to True in production (requires HTTPS)
+SESSION_COOKIE_SECURE = not DEBUG  # FIX: S-05 — secure in production
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True

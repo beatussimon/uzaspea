@@ -36,6 +36,22 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
                     return
         else:
             self.room_group_name = f'order_tracking_{self.order_id}'
+            # FIX: M-07 — verify the connecting user owns this order
+            user = self.scope.get('user')
+            if not user or not user.is_authenticated:
+                # Try token from query string for JWT clients
+                qs = parse_qs(self.scope.get('query_string', b'').decode())
+                token = qs.get('token', [None])[0]
+                if token:
+                    user = await self._get_user_from_token(token)
+                if not user:
+                    await self.close()
+                    return
+            # Verify this user owns the order
+            order_belongs = await self._user_owns_order(user, self.order_id)
+            if not order_belongs:
+                await self.close()
+                return
 
         await self.channel_layer.group_add(
             self.room_group_name,
@@ -70,3 +86,12 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
             return User.objects.get(id=validated['user_id'])
         except Exception:
             return None
+
+    @database_sync_to_async
+    def _user_owns_order(self, user, order_id):
+        """FIX: M-07 — check order ownership before allowing WS connection."""
+        from marketplace.models import Order
+        try:
+            return Order.objects.filter(id=order_id, user=user).exists() or user.is_staff
+        except Exception:
+            return False

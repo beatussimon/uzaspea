@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { 
-  Moon, Sun, Shield, User, Settings, Package, ShoppingBag, 
-  LayoutDashboard, ShieldCheck, ClipboardList, LogOut, 
-  HelpCircle, FileText, ChevronDown, PlusCircle, Search
+  Moon, Sun, Shield, User, Settings, ShoppingBag, 
+  LayoutDashboard, ShieldCheck, LogOut, 
+  HelpCircle, ChevronDown, PlusCircle, Search
 } from 'lucide-react';
 import VerifiedBadge from './components/VerifiedBadge';
 
@@ -30,9 +30,7 @@ import MobileBottomNav from './components/MobileBottomNav';
 const Navbar = () => {
   const [visible, setVisible] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sellingOpen, setSellingOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
   const lastScrollY = useRef(0);
   const { cartCount } = useCart();
@@ -48,7 +46,7 @@ const Navbar = () => {
   const username = localStorage.getItem('username') || 'User';
 
   // Close mobile menu on route change
-  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+  useEffect(() => { /* setMobileOpen(false); - unused */ }, [location.pathname]);
 
   const toggleTheme = () => {
     if (isDark) {
@@ -84,7 +82,7 @@ const Navbar = () => {
 
   // Close dropdowns on outside click
   useEffect(() => {
-    const close = () => { setSellingOpen(false); setProfileOpen(false); };
+    const close = () => { setProfileOpen(false); };
     document.addEventListener('click', close);
     return () => document.removeEventListener('click', close);
   }, []);

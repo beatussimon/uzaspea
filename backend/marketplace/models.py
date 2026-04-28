@@ -39,7 +39,8 @@ class Subscription(models.Model):
     is_active = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.user.username} - {self.tier.name} ({'Active' if self.is_active else 'Inactive'})"
+        tier_name = self.tier.name if self.tier_id else 'No Tier'  # FIX: C-06
+        return f"{self.user.username} - {tier_name} ({'Active' if self.is_active else 'Inactive'})"
 
 class PaymentConfirmation(models.Model):
     STATUS_CHOICES = [
@@ -64,19 +65,18 @@ from django.utils.text import slugify
 
 class Category(models.Model):
     def get_descendants(self, include_self=False):
-        """
-        Returns a queryset of all descendant categories (children, grandchildren, etc.).
-        If include_self is True, includes the current category as well.
-        """
-        descendants = set()
-        def add_children(cat):
-            for child in cat.children.all():
-                descendants.add(child)
-                add_children(child)
-        add_children(self)
-        if include_self:
-            descendants.add(self)
-        return Category.objects.filter(id__in=[c.id for c in descendants])
+        """Efficient BFS using only O(depth) queries instead of O(nodes) queries."""  # FIX: C-08
+        ids = [self.id] if include_self else []
+        queue = list(
+            Category.objects.filter(parent=self).values_list('id', flat=True)
+        )
+        while queue:
+            ids.extend(queue)
+            queue = list(
+                Category.objects.filter(parent_id__in=queue).values_list('id', flat=True)
+            )
+        return Category.objects.filter(id__in=ids)
+
     name = models.CharField(max_length=255, unique=True)
     slug = models.SlugField(unique=True, blank=True)
     description = models.TextField(blank=True)
@@ -86,9 +86,14 @@ class Category(models.Model):
         verbose_name_plural = "Categories"
 
     def save(self, *args, **kwargs):
-        from django.utils.text import slugify  # Import here
-        if not self.slug:
-            self.slug = slugify(self.name)
+        if not self.slug:  # FIX: C-09 — collision-safe slug generation
+            from django.utils.text import slugify
+            base = slugify(self.name)
+            slug, n = base, 1
+            while Category.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f'{base}-{n}'
+                n += 1
+            self.slug = slug
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -128,9 +133,14 @@ class Product(models.Model):
 
 
     def save(self, *args, **kwargs):
-      from django.utils.text import slugify # Add this
-      if not self.slug:
-          self.slug = slugify(self.name)
+      if not self.slug:  # FIX: C-09 — collision-safe slug generation
+          from django.utils.text import slugify
+          base = slugify(self.name)
+          slug, n = base, 1
+          while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+              slug = f'{base}-{n}'
+              n += 1
+          self.slug = slug
       super().save(*args, **kwargs)
 
     def __str__(self):
@@ -216,6 +226,7 @@ class Order(models.Model):
     status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='CART')
     shipping_method = models.CharField(max_length=15, choices=SHIPPING_CHOICES, default='DELIVERY')
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    delivery_info = models.JSONField(null=True, blank=True, default=dict)  # FIX: L-02 — store buyer's name/phone/address
 
     def __str__(self):
         return f"Order #{self.id} by {self.user.username}"
@@ -224,9 +235,10 @@ class Order(models.Model):
         return reverse('order_detail', args=[str(self.id)])
 
     def update_total(self):
-        total = sum(item.quantity * item.product.price for item in self.orderitem_set.all())
-        self.total_amount = total
-        self.save()
+        # FIX: C-05 — use item.price (locked at order time), not item.product.price (live)
+        total = sum(item.quantity * item.price for item in self.orderitem_set.all())
+        self.total_amount = total + self.shipping_fee
+        self.save(update_fields=['total_amount'])
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='orderitem_set')
@@ -284,21 +296,50 @@ class UserProfile(models.Model):
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
     banner_image = models.ImageField(upload_to='profile_banners/', blank=True, null=True)
     date_of_birth = models.DateField(null=True, blank=True)
-    following = models.ManyToManyField(User, related_name='followers', blank=True, symmetrical=False)
+    # FIX: S-12 — REMOVED conflicting M2M field 'following' that clashed with Follow model's related_names
 
     def __str__(self):
         return self.user.username
+
     def get_followers_count(self):
-        return self.user.followers.count()
+        return self.followers.count()  # FIX: S-12 — Follow.following reverse accessor
 
     def get_following_count(self):
-        return self.user.following.count()
+        from .models import Follow
+        return Follow.objects.filter(follower=self.user).count()  # FIX: S-12
 
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
     instance.profile.save()
+
+
+# FIX: S-11 — Activate subscription when payment confirmation is approved
+from django.utils import timezone as tz
+
+@receiver(post_save, sender=PaymentConfirmation)
+def activate_subscription_on_payment_approval(sender, instance, **kwargs):
+    """FIX: S-11 — Activate subscription when payment confirmation is approved."""
+    if instance.status == 'approved':
+        from datetime import timedelta
+        sub, _ = Subscription.objects.get_or_create(
+            user=instance.user,
+            defaults={'tier': instance.tier}
+        )
+        sub.tier = instance.tier
+        sub.is_active = True
+        sub.start_date = tz.now()
+        sub.end_date = tz.now() + timedelta(days=instance.tier.duration)
+        sub.save()
+        # Sync UserProfile tier
+        try:
+            profile = instance.user.profile
+            profile.tier = 'premium' if instance.tier else 'standard'
+            profile.save(update_fields=['tier'])
+        except UserProfile.DoesNotExist:
+            pass
+
 
 # --- Sidebar Models ---
 
@@ -340,7 +381,7 @@ class SidebarNewsItem(models.Model):
 # Model for subscriptions
 
 class NewsletterSubscription(models.Model):
-    email = models.EmailField(unique=True)  # Ensure unique emails
+    email = models.EmailField()  # FIX: S-13 — removed unique=True; unique_together handles per-category uniqueness
     category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True, blank=True) # Allow no specific category
     created_at = models.DateTimeField(auto_now_add=True)
 

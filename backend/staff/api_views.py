@@ -433,6 +433,8 @@ class SponsoredListingReviewViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Already reviewed'}, status=status.HTTP_400_BAD_REQUEST)
         listing.status = 'approved'
         listing.approved_at = timezone.now()
+        from datetime import timedelta
+        listing.expires_at = timezone.now() + timedelta(days=30)  # FIX: L-12 — auto-expire after 30 days
         listing.admin_notes = request.data.get('notes', '')
         listing.save()
         log_audit(request.user, 'action_approved', f"Approved promotion: {listing.title}", request=request)

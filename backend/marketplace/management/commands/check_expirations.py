@@ -25,3 +25,9 @@ class Command(BaseCommand):
         expired_subs = Subscription.objects.filter(is_active=True, end_date__lt=now)
         sub_count = expired_subs.update(is_active=False)
         self.stdout.write(self.style.SUCCESS(f'Successfully expired {sub_count} subscriptions.'))
+
+        # Check Sponsored Listings
+        from marketplace.models import SponsoredListing
+        expired_listings = SponsoredListing.objects.filter(status='approved', expires_at__lt=now)
+        list_count = expired_listings.update(status='expired')
+        self.stdout.write(self.style.SUCCESS(f'Successfully expired {list_count} sponsored listings.'))
