@@ -27,7 +27,7 @@ const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
+  const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
 
@@ -247,7 +247,6 @@ const OrdersPage: React.FC = () => {
         <div className="space-y-4">
           {filtered.map((order: any) => {
             const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.CART;
-            const Icon = cfg.icon;
             const isExpanded = expandedId === order.id;
             const currentStepIdx = TRACKING_STEPS.indexOf(order.status);
 

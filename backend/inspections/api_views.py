@@ -72,6 +72,14 @@ def auto_fraud_check(inspection_request):
         ))
 
     FraudFlag.objects.bulk_create(flags)
+    # FIX: L-11 — update inspector's flag count
+    if flags:
+        active = inspection_request.assignments.filter(is_active=True).first()
+        if active:
+            from django.db.models import F as _F
+            InspectorProfile.objects.filter(pk=active.inspector_id).update(
+                total_flags=_F('total_flags') + len(flags)
+            )
     return len(flags) > 0
 
 
@@ -405,8 +413,13 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
         if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
             return Response({'detail': 'No permission to approve payments.'}, status=403)
 
-        if payment.request.status != 'bill_sent' and not request.user.is_superuser:
-             return Response({'detail': 'Request must be in bill_sent status to approve payment.'}, status=400)
+        # FIX: C-03 — allow approval for multiple valid statuses
+        APPROVABLE_STATUSES = ['bill_sent', 'awaiting_payment', 'deposit_paid']
+        if payment.request.status not in APPROVABLE_STATUSES and not request.user.is_superuser:
+            return Response(
+                {'detail': f'Cannot approve payment for request in {payment.request.status} status.'},
+                status=400
+            )
              
         payment.status = 'approved'
         payment.confirmed_by = request.user
@@ -416,9 +429,9 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
         # Update request status
         req = payment.request
         if payment.stage == 'deposit':
-            req.status = 'pre_inspection'
+            req.status = 'deposit_paid'  # FIX: C-03 + L-09 — deposit_paid is the correct next state
         elif payment.stage == 'balance':
-            req.status = 'assigned'
+            req.status = 'pre_inspection'  # FIX: C-03
         req.save()
 
         notify(req.client, 'payment_confirmed',
@@ -466,7 +479,7 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
             return InspectionCheckIn.objects.all()
         return InspectionCheckIn.objects.filter(
             Q(request__client=user) |
-            Q(request__assignment__inspector__user=user)
+            Q(request__assignments__inspector__user=user, request__assignments__is_active=True)  # FIX: C-10
         )
 
     def create(self, request, *args, **kwargs):
@@ -497,13 +510,14 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
         request_obj.status = 'in_progress'
         request_obj.save()
         
-        # Create report shell if not exists
-        if not hasattr(request_obj, 'report'):
-            InspectionReport.objects.create(
-                request=request_obj,
-                submitted_by=request.user,
-                submitted_at=timezone.now()
-            )
+        # FIX: L-10 — use get_or_create to prevent duplicate report shells
+        InspectionReport.objects.get_or_create(
+            request=request_obj,
+            defaults={
+                'submitted_by': request.user,
+                'verdict': 'conditional',  # placeholder until finalized
+            }
+        )
             
         return res
 
@@ -759,16 +773,37 @@ class ReInspectionViewSet(viewsets.ModelViewSet):
             item_address=original.item_address,
             scope=original.scope,
             turnaround=original.turnaround,
-            status='pre_inspection',
+            status='requested',  # FIX: C-11 — must start at requested, go through full billing workflow
         )
         reinsp.new_request = new_req
         reinsp.status = 'assigned'
         reinsp.save()
 
-        # Mark excluded inspector on the new request via notes
         if original_inspector:
-            new_req.pre_inspection_notes = f'RE-INSPECTION: Exclude inspector {original_inspector.user.username}'
+            new_req.pre_inspection_notes = (
+                f'RE-INSPECTION: Exclude inspector {original_inspector.user.username}. '
+                f'Original: {original.inspection_id}'
+            )
             new_req.save()
+
+        # FIX: C-11 — Auto-generate bill using reinspection coverage rate if coverage was purchased
+        from decimal import Decimal
+        if original.reinspection_coverage and hasattr(original, 'bill'):
+            orig_bill = original.bill
+            reinsp_fee = (orig_bill.total_amount * Decimal('0.10')).quantize(Decimal('0.01'))
+            InspectionBill.objects.create(
+                request=new_req,
+                base_rate=reinsp_fee,
+                total_amount=reinsp_fee,
+                deposit_amount=reinsp_fee,
+                remaining_balance=Decimal('0.00'),
+                currency=orig_bill.currency,
+            )
+            new_req.status = 'bill_sent'
+            new_req.save()
+            notify(new_req.client, 'bill_ready',
+                   f'Re-inspection bill for {new_req.item_name} is ready (covered by your policy).',
+                   new_req)
 
 
 # ──────────────────────────────────────────────

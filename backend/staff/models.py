@@ -215,7 +215,8 @@ class AuditLog(models.Model):
         verbose_name_plural = "Audit Logs"
 
     def __str__(self):
-        return f"{self.user.username} - {self.action} - {self.timestamp}"
+        actor = self.user.username if self.user_id else 'System'  # FIX: C-07
+        return f"{actor} - {self.action} - {self.timestamp}"
 
 
 class StaffPermission(models.Model):

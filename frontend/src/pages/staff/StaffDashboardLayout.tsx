@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
@@ -243,7 +243,7 @@ const StaffTasks: React.FC = () => {
   const [tasks, setTasks] = useState<StaffTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
+  const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
 
@@ -313,7 +313,7 @@ const StaffTasks: React.FC = () => {
     try {
       await api.post(`/api/staff/tasks/${id}/${action}/`, payload);
       toast.success(`Task ${action} successfully`);
-      fetch();
+      fetch(1, true);
     } catch (err: any) {
       toast.error(err.response?.data?.error || `Failed to ${action}`);
     }
@@ -403,7 +403,7 @@ const PromotionQueue: React.FC = () => {
   const [promos, setPromos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
+  const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
 
@@ -469,7 +469,7 @@ const PromotionQueue: React.FC = () => {
     try {
       await api.post(`/api/staff/sponsored-review/${id}/approve/`, { notes: 'Approved by staff' });
       toast.success('Promotion approved');
-      fetch();
+      fetch(1, true);
     } catch { toast.error('Failed to approve'); }
   };
 
@@ -479,7 +479,7 @@ const PromotionQueue: React.FC = () => {
     try {
       await api.post(`/api/staff/sponsored-review/${id}/reject/`, { notes: reason || 'Rejected by staff' });
       toast.success('Promotion rejected');
-      fetch();
+      fetch(1, true);
     } catch { toast.error('Failed to reject'); }
   };
 

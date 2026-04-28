@@ -7,6 +7,8 @@ from .api_views import (
     StaffAdminDashboardView
 )
 
+from marketplace.api_views import PaymentViewSet  # FIX: C-04
+
 router = DefaultRouter()
 router.register(r'profiles', StaffProfileViewSet, basename='staff-profile')
 router.register(r'task-categories', TaskCategoryViewSet, basename='task-category')
@@ -16,6 +18,7 @@ router.register(r'approvals', ApprovalViewSet, basename='approval')
 router.register(r'audit-logs', AuditLogViewSet, basename='audit-log')
 router.register(r'permissions', StaffPermissionViewSet, basename='staff-permission')
 router.register(r'sponsored-review', SponsoredListingReviewViewSet, basename='sponsored-review')
+router.register(r'payments', PaymentViewSet, basename='staff-payment')  # FIX: C-04
 
 api_urlpatterns = [
     path('dashboard-summary/', StaffDashboardView.as_view(), name='staff-dashboard-summary'),

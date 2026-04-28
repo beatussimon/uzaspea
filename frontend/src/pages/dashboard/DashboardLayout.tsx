@@ -167,13 +167,13 @@ const DashboardProducts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', category: '', condition: 'New' });
+  const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true });
   const [categories, setCategories] = useState<any[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   // Infinite Scroll state
-  const [_page, setPage] = useState(1);
+  const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
@@ -248,6 +248,7 @@ const DashboardProducts: React.FC = () => {
       formData.append('stock', form.stock);
       formData.append('category', form.category);
       formData.append('condition', form.condition);
+      formData.append('is_available', String(form.is_available));
 
       imageFiles.forEach((file) => {
         formData.append('uploaded_images', file);
@@ -267,7 +268,7 @@ const DashboardProducts: React.FC = () => {
 
       setShowForm(false);
       setEditingId(null);
-      setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New' });
+      setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true });
       setImageFiles([]);
       fetchProducts(1, true);
     } catch (error: any) {
@@ -285,6 +286,7 @@ const DashboardProducts: React.FC = () => {
       stock: String(product.stock),
       category: String(product.category),
       condition: product.condition,
+      is_available: product.is_available,
     });
     setEditingId(product.slug);
     setShowForm(true);
@@ -309,7 +311,7 @@ const DashboardProducts: React.FC = () => {
           onClick={() => {
             setShowForm(!showForm);
             setEditingId(null);
-            setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New' });
+            setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true });
           }}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm"
         >
@@ -347,6 +349,19 @@ const DashboardProducts: React.FC = () => {
               <option value="New">New</option>
               <option value="Used">Used</option>
             </select>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
+            <input 
+              type="checkbox" 
+              name="is_available" 
+              id="is_available"
+              checked={form.is_available} 
+              onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
+              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+            />
+            <label htmlFor="is_available" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Product is Available for Sale
+            </label>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -529,7 +544,7 @@ const DashboardOrders: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
+  const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
 

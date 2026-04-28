@@ -1,13 +1,22 @@
 from rest_framework import permissions
+from django.db import models
 from staff.models import StaffPermission
 
 def has_staff_permission(user, permission_codename):
     """Check if a user has a specific staff permission."""
+    from django.utils import timezone
     if not user or not user.is_authenticated:
         return False
     if user.is_superuser:
         return True
-    return StaffPermission.objects.filter(user=user, permission=permission_codename, is_active=True).exists()
+    # FIX: S-09 — enforce expiry date on time-limited permissions
+    return StaffPermission.objects.filter(
+        user=user,
+        permission=permission_codename,
+        is_active=True,
+    ).filter(
+        models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=timezone.now())
+    ).exists()
 
 class IsSuperUser(permissions.BasePermission):
     """Only superusers can access."""

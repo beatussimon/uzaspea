@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.db import transaction  # FIX: C-01
+from django.db.models import F  # FIX: C-01
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
     Payment, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
@@ -117,37 +119,59 @@ class OrderSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Order
-        fields = ['id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status', 'items', 'timeline_events', 'payments', 'seller_subtotal']
+        fields = [
+            'id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status',
+            'shipping_method', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
+            'items', 'timeline_events', 'payments', 'seller_subtotal'
+        ]
         read_only_fields = ['user', 'total_amount']
 
     def get_seller_subtotal(self, obj):
-        user = self.context.get('request').user
-        if not user or user.is_anonymous:
-            return obj.total_amount
-        return sum(item.subtotal() for item in obj.orderitem_set.filter(product__seller=user))
+        request = self.context.get('request')  # FIX: L-03 — guard against missing context
+        if not request or not hasattr(request, 'user') or request.user.is_anonymous:
+            return float(obj.total_amount)
+        return float(sum(item.subtotal() for item in obj.orderitem_set.filter(product__seller=request.user)))
 
     def create(self, validated_data):
         # Extract items data from the source mapping
         items_data = validated_data.pop('orderitem_set', [])
-        order = Order.objects.create(**validated_data)
-        
-        total = 0
-        for item_data in items_data:
-            product = item_data['product']
-            qty = item_data['quantity']
-            OrderItem.objects.create(
-                order=order,
-                product=product,
-                quantity=qty,
-                price=product.price
-            )
-            total += (product.price * qty)
-        
-        order.total_amount = total
-        order.save()
-        
-        from .services import OrderStateMachine
-        OrderStateMachine.transition_order(order, 'AWAITING_PAYMENT', notes="Order placed by customer.")
+
+        # FIX: C-01 + L-01 — wrap in transaction.atomic for rollback safety
+        with transaction.atomic():
+            order = Order.objects.create(**validated_data)
+            
+            total = 0
+            for item_data in items_data:
+                product = item_data['product']
+                qty = item_data['quantity']
+
+                # FIX: C-01 — validate stock before creating OrderItem
+                product.refresh_from_db(fields=['stock'])
+                if product.stock < qty:
+                    raise serializers.ValidationError(
+                        f'"{product.name}" only has {product.stock} unit(s) in stock.'
+                    )
+
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    quantity=qty,
+                    price=product.price
+                )
+                total += (product.price * qty)
+
+                # FIX: C-01 — decrement stock atomically
+                Product.objects.filter(pk=product.pk).update(stock=F('stock') - qty)
+                # FIX: M-03 — auto-mark unavailable if now at zero
+                Product.objects.filter(pk=product.pk, stock=0).update(is_available=False)
+            
+            order.total_amount = total + order.shipping_fee
+            order.save(update_fields=['total_amount'])
+
+        # FIX: C-02 — REMOVED auto-advance to AWAITING_PAYMENT
+        # The order is created with status='CART' (model default).
+        # The frontend must call POST /api/orders/{id}/advance/ with {"status": "AWAITING_PAYMENT"}
+        # after the user completes the checkout form. This restores the intended state machine flow.
         return order
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -156,6 +180,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['id', 'user', 'username', 'is_verified', 'phone_number', 'instagram_username', 'website', 'bio', 'tier', 'location', 'profile_picture', 'banner_image']
+        read_only_fields = ['user', 'is_verified', 'tier']  # FIX: S-07 — only staff should set these
 
 from .models import SponsoredListing
 
@@ -168,4 +193,3 @@ class SponsoredListingSerializer(serializers.ModelSerializer):
         model = SponsoredListing
         fields = ['id', 'user', 'product', 'product_name', 'product_slug', 'product_details', 'title', 'description', 'status', 'admin_notes', 'created_at', 'expires_at']
         read_only_fields = ['user', 'status', 'admin_notes', 'created_at', 'expires_at']
-

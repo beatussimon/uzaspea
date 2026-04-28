@@ -23,9 +23,10 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+// FIX: C-12 — sessionStorage is cleared on tab close; use localStorage for cart persistence
 function loadCart(): CartItem[] {
   try {
-    const data = sessionStorage.getItem('uzaspea_cart');
+    const data = localStorage.getItem('uzaspea_cart');
     return data ? JSON.parse(data) : [];
   } catch {
     return [];
@@ -33,7 +34,7 @@ function loadCart(): CartItem[] {
 }
 
 function saveCart(items: CartItem[]) {
-  sessionStorage.setItem('uzaspea_cart', JSON.stringify(items));
+  localStorage.setItem('uzaspea_cart', JSON.stringify(items));
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
@@ -112,7 +113,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = useCallback(() => {
     setItems([]);
-    sessionStorage.removeItem('uzaspea_cart');
+    localStorage.removeItem('uzaspea_cart');  // FIX: C-12
   }, []);
 
   return (
