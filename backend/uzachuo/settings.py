@@ -195,12 +195,18 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # FIX DEVOPS-15: production security headers
 if not DEBUG:
-    SECURE_HSTS_SECONDS = 31536000          # 1 year HSTS
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SECURE_SSL_REDIRECT = True              # force HTTPS
     SECURE_CONTENT_TYPE_NOSNIFF = True      # no MIME sniffing
     SECURE_BROWSER_XSS_FILTER = True
     X_FRAME_OPTIONS = 'DENY'
-    CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
+    # HTTPS-only settings — enable when domain + SSL is ready
+    # Set FORCE_HTTPS=True in .env when you have a domain with Let's Encrypt
+    if os.environ.get('FORCE_HTTPS', 'False') == 'True':
+        SECURE_HSTS_SECONDS = 31536000          # 1 year HSTS
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
+        SECURE_SSL_REDIRECT = True              # force HTTPS
+        CSRF_COOKIE_SECURE = True
+        SESSION_COOKIE_SECURE = True
+    else:
+        # Fix COOP error over HTTP for admin login
+        SECURE_CROSS_ORIGIN_OPENER_POLICY = None

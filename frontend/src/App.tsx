@@ -97,8 +97,11 @@ const Navbar = () => {
   const isSuperuser = localStorage.getItem('is_superuser') === 'true';
   const username = localStorage.getItem('username') || 'User';
 
-  // Close mobile menu on route change
-  useEffect(() => { /* setMobileOpen(false); - unused */ }, [location.pathname]);
+  // Close mobile menu and reset navbar on route change
+  useEffect(() => {
+    setVisible(true);
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   const toggleTheme = () => {
     if (isDark) {

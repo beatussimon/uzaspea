@@ -14,9 +14,15 @@ const SafeImage: React.FC<SafeImageProps> = ({
   fallback = FALLBACK_IMAGE,
   onError,
   loading = 'lazy',
+  src,
   ...props
 }) => {
   const [errored, setErrored] = useState(false);
+
+  let safeSrc = src;
+  if (typeof safeSrc === 'string' && safeSrc.startsWith('http://') && window.location.protocol === 'https:') {
+    safeSrc = safeSrc.replace('http://', 'https://');
+  }
 
   const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     if (!errored) {
@@ -29,6 +35,7 @@ const SafeImage: React.FC<SafeImageProps> = ({
   return (
     <img
       {...props}
+      src={safeSrc}
       loading={loading}
       onError={handleError}
     />
