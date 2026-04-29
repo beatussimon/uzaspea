@@ -9,6 +9,17 @@ const HelpCenterPage: React.FC = () => {
     const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
     const [ticketForm, setTicketForm] = useState({ subject: '', message: '' });
     const [submitting, setSubmitting] = useState(false);
+    // FIX B-18: Dynamic site settings
+    const [siteSettings, setSiteSettings] = useState<any>({
+        support_phone: '+255 123 456 789',
+        support_email: 'support@uzaspea.co.tz',
+        address: 'Posta, Dar es Salaam, TZ',
+    });
+
+    useEffect(() => {
+        // FIX B-18: Fetch from API
+        api.get('/api/site-settings/').then(r => setSiteSettings(r.data)).catch(() => {});
+    }, []);
 
     useEffect(() => {
         const fetchFaqs = async () => {
@@ -43,28 +54,28 @@ const HelpCenterPage: React.FC = () => {
                 <p className="text-gray-500">How can we assist you today?</p>
             </div>
 
-            {/* Contact Info */}
+            {/* Contact Info — FIX B-18: dynamic from SiteSettings */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="card p-6 flex flex-col items-center text-center space-y-2">
                     <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center rounded-full">
                         <Phone size={24} />
                     </div>
                     <h3 className="font-bold text-gray-900 dark:text-white">Call Us</h3>
-                    <p className="text-sm text-gray-500">+255 123 456 789</p>
+                    <p className="text-sm text-gray-500">{siteSettings.support_phone || '+255 123 456 789'}</p>
                 </div>
                 <div className="card p-6 flex flex-col items-center text-center space-y-2">
                     <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center rounded-full">
                         <Mail size={24} />
                     </div>
                     <h3 className="font-bold text-gray-900 dark:text-white">Email Us</h3>
-                    <p className="text-sm text-gray-500">support@uzaspea.co.tz</p>
+                    <p className="text-sm text-gray-500">{siteSettings.support_email || 'support@uzaspea.co.tz'}</p>
                 </div>
                 <div className="card p-6 flex flex-col items-center text-center space-y-2">
                     <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center rounded-full">
                         <MapPin size={24} />
                     </div>
                     <h3 className="font-bold text-gray-900 dark:text-white">Visit Us</h3>
-                    <p className="text-sm text-gray-500">Posta, Dar es Salaam, TZ</p>
+                    <p className="text-sm text-gray-500">{siteSettings.address || 'Posta, Dar es Salaam, TZ'}</p>
                 </div>
             </div>
 

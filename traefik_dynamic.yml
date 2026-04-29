@@ -1,4 +1,9 @@
-tls:
-  certificates:
-    - certFile: "/etc/certs/cert.pem"
-      keyFile: "/etc/certs/key.pem"
+# FIX D-02/D-03: ForwardAuth middleware for superuser-only access
+# Used by Traefik dashboard and Jaeger routers
+http:
+  middlewares:
+    superuser-auth:
+      forwardAuth:
+        address: "http://backend:8000/api/auth/verify-superuser/"
+        authResponseHeaders:
+          - "X-Forwarded-User"

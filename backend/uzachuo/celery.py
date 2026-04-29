@@ -15,6 +15,14 @@ app.conf.beat_schedule = {
         'task': 'marketplace.tasks.check_expirations_periodic',
         'schedule': crontab(minute='*/30'),
     },
+    'check-saved-searches-hourly': {  # FIX B-13
+        'task': 'marketplace.tasks.check_saved_searches',
+        'schedule': crontab(minute=0),
+    },
+    'check-price-alerts-every-15-min': {  # FIX B-13
+        'task': 'marketplace.tasks.check_price_alerts',
+        'schedule': crontab(minute='*/15'),
+    },
 }
 
 app.conf.timezone = 'UTC'

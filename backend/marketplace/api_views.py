@@ -1,19 +1,36 @@
 from rest_framework import viewsets, permissions, status, decorators, serializers as drf_serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.db.models import Q, Sum, Count, Avg
 from django.db import models as django_models
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
-    Payment, TrackingEvent, UserProfile, Like, ProductImage
+    Payment, TrackingEvent, UserProfile, Like, ProductImage,
+    Notification, Conversation, Message, SavedSearch, PriceAlert,
+    Dispute, DeliveryZone, SiteSettings, push_notification
 )
 from .serializers import (
     ProductSerializer, CategorySerializer, ProductReviewSerializer, 
-    ProductCommentSerializer, OrderSerializer, PaymentSerializer, UserProfileSerializer
+    ProductCommentSerializer, OrderSerializer, PaymentSerializer, UserProfileSerializer,
+    NotificationSerializer, ConversationSerializer, MessageSerializer,
+    SavedSearchSerializer, PriceAlertSerializer, DisputeSerializer,
+    SiteSettingsSerializer, DeliveryZoneSerializer
 )
 
 from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember
 from django.db.models import Prefetch
+
+
+# FIX D-07: Rate limiting throttle classes
+class RegisterRateThrottle(AnonRateThrottle):
+    scope = 'register'
+
+class LoginRateThrottle(AnonRateThrottle):
+    scope = 'login'
+
+class TicketRateThrottle(AnonRateThrottle):
+    scope = 'ticket'
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().prefetch_related('images', 'likes')
@@ -68,10 +85,16 @@ class ProductViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(category__slug=category_slug)
 
         if query:
-            queryset = queryset.filter(
-                Q(name__icontains=query) | Q(description__icontains=query) |
-                Q(category__name__icontains=query)
-            )
+            # FIX B-17: Postgres Full-Text Search
+            from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+            search_vector = SearchVector('name', weight='A') + SearchVector('description', weight='B') + SearchVector('category__name', weight='C')
+            search_query = SearchQuery(query, search_type='websearch')
+            queryset = queryset.annotate(
+                search_rank=SearchRank(search_vector, search_query)
+            ).filter(
+                Q(search_rank__gte=0.01) |
+                Q(name__icontains=query) | Q(description__icontains=query)
+            ).order_by('-search_rank')
         if min_price:
             queryset = queryset.filter(price__gte=min_price)
         if max_price:
@@ -252,6 +275,10 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == 'create': return [permissions.AllowAny()]
         return [permissions.IsAuthenticated(), IsStaffMember()]
+    def get_throttles(self):  # FIX D-07
+        if self.action == 'create':
+            return [TicketRateThrottle()]
+        return super().get_throttles()
     def get_queryset(self):
         if self.request.user.is_staff: return SupportTicket.objects.all().order_by('-created_at')
         return SupportTicket.objects.filter(user=self.request.user)
@@ -569,6 +596,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [LoginRateThrottle]  # FIX D-07
 
 class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -586,6 +614,7 @@ class ChangePasswordView(APIView):
 
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegisterRateThrottle]  # FIX D-07
 
     def post(self, request):
         username = request.data.get('username')
@@ -730,3 +759,168 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
         duration_days = serializer.validated_data.get('duration_days', 7)
         amount = duration_days * 1000
         serializer.save(user=self.request.user, amount=amount)
+
+
+# ─── FIX D-02/D-03: ForwardAuth endpoint for Traefik ───────────────
+class VerifySuperuserView(APIView):
+    """ForwardAuth endpoint: returns 200 for valid superuser JWT, else 401/403."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from rest_framework_simplejwt.authentication import JWTAuthentication
+        jwt_auth = JWTAuthentication()
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if not auth_header:
+            return Response({'error': 'No authorization header'}, status=401)
+        try:
+            raw_token = auth_header.split(' ')[-1] if ' ' in auth_header else auth_header
+            from rest_framework_simplejwt.tokens import UntypedToken
+            validated_token = jwt_auth.get_validated_token(raw_token)
+            user = jwt_auth.get_user(validated_token)
+        except Exception:
+            return Response({'error': 'Invalid token'}, status=401)
+        if not user.is_superuser:
+            return Response({'error': 'Superuser access required'}, status=403)
+        return Response({'status': 'ok'})
+
+
+# ─── FIX B-11: Notification ViewSet ───────────────────────────────
+class NotificationViewSet(viewsets.ModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'patch', 'delete']
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user)
+
+    @decorators.action(detail=False, methods=['post'])
+    def mark_all_read(self, request):
+        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        return Response({'status': 'all marked read'})
+
+    @decorators.action(detail=False, methods=['get'])
+    def unread_count(self, request):
+        count = Notification.objects.filter(user=request.user, is_read=False).count()
+        return Response({'count': count})
+
+
+# ─── FIX B-12: Conversation ViewSet ───────────────────────────────
+class ConversationViewSet(viewsets.ModelViewSet):
+    serializer_class = ConversationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post']
+
+    def get_queryset(self):
+        user = self.request.user
+        return Conversation.objects.filter(
+            Q(buyer=user) | Q(seller=user)
+        ).select_related('buyer', 'seller', 'product').order_by('-updated_at')
+
+    def create(self, request, *args, **kwargs):
+        seller_id = request.data.get('seller')
+        product_id = request.data.get('product')
+        conv, _ = Conversation.objects.get_or_create(
+            buyer=request.user, seller_id=seller_id, product_id=product_id
+        )
+        return Response(ConversationSerializer(conv, context={'request': request}).data)
+
+    @decorators.action(detail=True, methods=['get', 'post'])
+    def messages(self, request, pk=None):
+        conv = self.get_object()
+        if not (conv.buyer == request.user or conv.seller == request.user):
+            return Response(status=403)
+        if request.method == 'POST':
+            msg = Message.objects.create(
+                conversation=conv, sender=request.user,
+                content=request.data.get('content', '').strip()
+            )
+            conv.save()  # bump updated_at
+            other = conv.seller if request.user == conv.buyer else conv.buyer
+            push_notification(other, 'new_message',
+                f'New message from {request.user.username}',
+                msg.content[:100], f'/messages/{conv.id}')
+            return Response(MessageSerializer(msg).data, status=201)
+        Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user).update(is_read=True)
+        msgs = conv.messages.all()
+        return Response(MessageSerializer(msgs, many=True).data)
+
+
+# ─── FIX B-13: Saved Searches & Price Alerts ─────────────────────
+class SavedSearchViewSet(viewsets.ModelViewSet):
+    serializer_class = SavedSearchSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return SavedSearch.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class PriceAlertViewSet(viewsets.ModelViewSet):
+    serializer_class = PriceAlertSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return PriceAlert.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+# ─── FIX B-15: Dispute ViewSet ───────────────────────────────────
+class DisputeViewSet(viewsets.ModelViewSet):
+    serializer_class = DisputeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return Dispute.objects.all().select_related('order', 'opened_by')
+        return Dispute.objects.filter(
+            Q(opened_by=user) | Q(order__orderitem_set__product__seller=user)
+        ).distinct()
+
+    def perform_create(self, serializer):
+        order = serializer.validated_data['order']
+        if order.user != self.request.user:
+            raise drf_serializers.ValidationError('You can only dispute your own orders.')
+        if order.status not in ['DELIVERED']:
+            raise drf_serializers.ValidationError('Can only dispute orders in DELIVERED status.')
+        serializer.save(opened_by=self.request.user)
+        from .services import OrderStateMachine
+        OrderStateMachine.transition_order(order, 'DISPUTED', notes='Dispute opened by buyer.')
+        first_item = order.orderitem_set.first()
+        if first_item:
+            push_notification(
+                first_item.product.seller, 'order_status',
+                'Dispute opened on your order',
+                f'Order #{order.id} has been disputed.',
+                f'/orders?highlight={order.id}'
+            )
+
+
+# ─── FIX B-21/B-22: Delivery Zone ViewSet ───────────────────────
+class DeliveryZoneViewSet(viewsets.ModelViewSet):
+    serializer_class = DeliveryZoneSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        seller_username = self.request.query_params.get('seller')
+        if seller_username:
+            return DeliveryZone.objects.filter(
+                seller__username=seller_username, is_active=True
+            )
+        if self.request.user.is_authenticated:
+            return DeliveryZone.objects.filter(seller=self.request.user)
+        return DeliveryZone.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(seller=self.request.user)
+
+
+# ─── FIX B-18: Site Settings View ───────────────────────────────
+class SiteSettingsView(APIView):
+    permission_classes = [permissions.AllowAny]
+    def get(self, request):
+        return Response(SiteSettingsSerializer(SiteSettings.get()).data)

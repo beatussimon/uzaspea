@@ -15,7 +15,8 @@ services:
     image: traefik:v2.11
     container_name: uzaspea-traefik
     command:
-      - "--api.insecure=true"
+      - "--api.insecure=false"          # FIX D-02: no public dashboard port
+      - "--api.dashboard=true"          # FIX D-02: enabled, routed via ForwardAuth
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=uzaspea_default"
@@ -24,21 +25,35 @@ services:
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       - "--entrypoints.websecure.address=:443"
-      - "--accesslog=true"
-      - "--metrics.prometheus=true"
-      - "--tracing.jaeger=true"
-      - "--tracing.jaeger.samplingServerURL=http://jaeger:5778/sampling"
-      - "--tracing.jaeger.localAgentHostPort=jaeger:6831"
+      - "--accesslog=false"             # LIGHTSAIL-OPT: disable access log to save CPU/disk
+      # LIGHTSAIL-OPT: removed --metrics.prometheus and --tracing.jaeger (Jaeger removed)
+      # FIX D-04: Let's Encrypt ACME
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
     ports:
       - "80:80"
       - "443:443"
-      - "8081:8080"   # Traefik dashboard (changed from 8080 due to Windows port conflict)
+    labels:
+      - "traefik.enable=true"
+      # FIX D-02: Dashboard router — gated behind superuser ForwardAuth
+      - "traefik.http.routers.dashboard.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/traefik-dashboard`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=superuser-auth@file"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./certs:/etc/certs:ro
       - ./traefik_dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+      - ./traefik_acme.json:/etc/traefik/acme.json  # FIX D-04: ACME cert storage
+    deploy:
+      resources:
+        limits:
+          memory: 80M     # LIGHTSAIL-1GB: Traefik is lightweight
 
-  # ─── Backend: Gunicorn (HTTP API) ──────────────────────────────
+  # ─── Backend: Uvicorn (HTTP + WebSocket) ───────────────────────
+  # FIX D-01: Single uvicorn service replaces gunicorn + daphne
   backend:
     <<: *backend-common
     container_name: uzaspea-backend
@@ -48,44 +63,36 @@ services:
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
-             gunicorn uzachuo.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+             uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 1 --ws websockets"
+    # LIGHTSAIL-1GB: 1 worker — tight but functional for launch traffic
     labels:
       - "traefik.enable=true"
-      # API routes
-      - "traefik.http.routers.backend.rule=PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/media`) || PathPrefix(`/static`)"
+      # FIX D-01: single router handles /api, /admin, /media, /static, AND /ws
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/media`) || PathPrefix(`/static`) || PathPrefix(`/ws`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    deploy:
+      resources:
+        limits:
+          memory: 400M    # LIGHTSAIL-1GB: cap backend memory
 
-  # ─── Backend: Daphne (WebSocket) ───────────────────────────────
-  websocket:
+  # FIX D-01: DELETED websocket (daphne) service — uvicorn handles both
+
+  # ─── Celery Worker + Beat (combined) ───────────────────────────
+  # LIGHTSAIL-OPT: merged worker + beat into one container — saves ~100MB RAM
+  celery:
     <<: *backend-common
-    container_name: uzaspea-websocket
+    container_name: uzaspea-celery
     volumes:
       - ./persistent_data/media:/app/media
-    command: daphne -b 0.0.0.0 -p 9000 uzachuo.asgi:application
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.websocket.rule=PathPrefix(`/ws`)"
-      - "traefik.http.routers.websocket.entrypoints=websecure"
-      - "traefik.http.routers.websocket.tls=true"
-      - "traefik.http.services.websocket.loadbalancer.server.port=9000"
-
-  # ─── Celery Worker ─────────────────────────────────────────────
-  celery-worker:
-    <<: *backend-common
-    container_name: uzaspea-celery-worker
-    volumes:
-      - ./persistent_data/media:/app/media
-    command: celery -A uzachuo worker --loglevel=info --concurrency=2
-
-  # ─── Celery Beat ───────────────────────────────────────────────
-  celery-beat:
-    <<: *backend-common
-    container_name: uzaspea-celery-beat
-    volumes:
-      - ./persistent_data/media:/app/media
-    command: celery -A uzachuo beat --loglevel=info
+    command: celery -A uzachuo worker --beat --loglevel=info --concurrency=1
+    # LIGHTSAIL-OPT: concurrency=1 (was 2), --beat flag merges beat into worker process
+    deploy:
+      resources:
+        limits:
+          memory: 200M    # LIGHTSAIL-1GB: cap celery memory
 
   # ─── Frontend: Nginx (SPA) ────────────────────────────────────
   frontend:
@@ -102,8 +109,13 @@ services:
       - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.routers.frontend.priority=1"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    deploy:
+      resources:
+        limits:
+          memory: 48M     # LIGHTSAIL-1GB: nginx is tiny
 
   # ─── Postgres ──────────────────────────────────────────────────
   db:
@@ -113,35 +125,48 @@ services:
       POSTGRES_DB: ${DB_NAME:-uzaspea}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+    # LIGHTSAIL-1GB: tune Postgres for 1GB total system RAM
+    command:
+      - "postgres"
+      - "-c" 
+      - "shared_buffers=64MB"
+      - "-c"
+      - "work_mem=2MB"
+      - "-c"
+      - "maintenance_work_mem=32MB"
+      - "-c"
+      - "effective_cache_size=256MB"
+      - "-c"
+      - "max_connections=30"
     volumes:
       - ./persistent_data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
+      interval: 10s       # LIGHTSAIL-OPT: less frequent health checks
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M    # LIGHTSAIL-1GB: cap Postgres memory
 
   # ─── Redis ─────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: uzaspea-redis
+    command: redis-server --maxmemory 32mb --maxmemory-policy allkeys-lru --save ""
+    # LIGHTSAIL-1GB: cap Redis at 32MB, disable disk snapshots to save I/O
     volumes:
       - ./persistent_data/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s       # LIGHTSAIL-OPT: less frequent health checks
       timeout: 3s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 64M     # LIGHTSAIL-1GB: cap Redis memory
 
-  # ─── Jaeger (Tracing Backend) ──────────────────────────────────
-  jaeger:
-    image: jaegertracing/all-in-one:1.55
-    container_name: uzaspea-jaeger
-    environment:
-      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
-    ports:
-      - "16686:16686" # UI
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "9411:9411"   # Zipkin
-
+  # LIGHTSAIL-OPT: Jaeger REMOVED — saves ~300MB RAM
+  # Re-enable when you upgrade to 4GB+ instance
