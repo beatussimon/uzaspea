@@ -2,6 +2,9 @@
 .env
 backend/.env
 *.env.local
+sensitive/
+*.pem
+certs/
 
 # Persistent data (volumes)
 persistent_data/

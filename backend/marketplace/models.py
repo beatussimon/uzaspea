@@ -1,13 +1,24 @@
 from django.db import models
-from django.db.models import Avg
+from django.db.models import Avg, Count
 from django.urls import reverse
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
+from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.text import slugify
+
+
+def validate_image(image):
+    """FIX D-06: validate image size and format."""
+    max_size_mb = 5
+    if image.size > max_size_mb * 1024 * 1024:
+        raise ValidationError(f'Image must be under {max_size_mb}MB. Yours is {image.size // (1024*1024)}MB.')
+    valid_types = ['image/jpeg', 'image/png', 'image/webp']
+    if hasattr(image, 'content_type') and image.content_type not in valid_types:
+        raise ValidationError('Only JPEG, PNG, and WebP images are allowed.')
 
 
 class SubscriptionTier(models.Model):
@@ -187,10 +198,24 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='product_images/')
+    image = models.ImageField(upload_to='product_images/', validators=[validate_image])  # FIX D-06
 
     def __str__(self):
         return f"Image for {self.product.name}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.image:
+            try:
+                from PIL import Image as PILImage
+                img = PILImage.open(self.image.path)
+                # FIX D-06: auto-resize large images to max 1200px wide
+                if img.width > 1200:
+                    ratio = 1200 / img.width
+                    img = img.resize((1200, int(img.height * ratio)), PILImage.LANCZOS)
+                    img.save(self.image.path, optimize=True, quality=85)
+            except Exception:
+                pass
 
 
 class Review(models.Model):
@@ -239,6 +264,7 @@ class Order(models.Model):
         ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
         ('EXPIRED', 'Expired'),
+        ('DISPUTED', 'Disputed'),  # FIX B-15
     )
     SHIPPING_CHOICES = (
         ('PICKUP', 'Physical Pickup'),
@@ -265,6 +291,10 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='orderitem_set')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    variant = models.ForeignKey(  # FIX B-16
+        'ProductVariant', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='order_items'
+    )
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
@@ -322,9 +352,14 @@ class UserProfile(models.Model):
         default='free'  # FIX X-04
     )
     location = models.CharField(max_length=100, blank=True)
-    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
-    banner_image = models.ImageField(upload_to='profile_banners/', blank=True, null=True)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True, validators=[validate_image])  # FIX D-06
+    banner_image = models.ImageField(upload_to='profile_banners/', blank=True, null=True, validators=[validate_image])  # FIX D-06
     date_of_birth = models.DateField(null=True, blank=True)
+    preferred_currency = models.CharField(  # FIX B-23
+        max_length=3,
+        choices=[('TZS', 'Tanzanian Shilling'), ('USD', 'US Dollar')],
+        default='TZS'
+    )
     # FIX: S-12 — removed conflicting M2M field; Use Follow model for following relationships
 
     def __str__(self):
@@ -338,6 +373,18 @@ class UserProfile(models.Model):
         # FIX: S-12
         from .models import Follow
         return Follow.objects.filter(follower=self.user).count()
+
+    @property
+    def seller_rating(self):
+        """FIX B-14: aggregate rating from approved reviews on seller's products."""
+        from .models import Review
+        result = Review.objects.filter(
+            product__seller=self.user, approved=True
+        ).aggregate(avg=Avg('rating'), count=Count('id'))
+        return {
+            'average': round(float(result['avg'] or 0), 1),
+            'count': result['count'],
+        }
 
 
 @receiver(post_save, sender=User)
@@ -530,3 +577,209 @@ class SupportTicket(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+# ─── Notification System (B-11) ──────────────────────────────────
+class Notification(models.Model):
+    TYPE_CHOICES = [
+        ('order_status', 'Order Status Change'),
+        ('payment_verified', 'Payment Verified'),
+        ('new_follower', 'New Follower'),
+        ('new_review', 'New Review on Your Product'),
+        ('review_approved', 'Your Review Was Approved'),
+        ('new_message', 'New Message'),
+        ('inspection_update', 'Inspection Update'),
+        ('sponsored_approved', 'Promotion Approved'),
+        ('sponsored_expired', 'Promotion Expired'),
+        ('low_stock', 'Low Stock Alert'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    notification_type = models.CharField(max_length=30, choices=TYPE_CHOICES)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    link = models.CharField(max_length=255, blank=True, help_text='Frontend route e.g. /orders?highlight=42')
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.username}: {self.title}'
+
+
+def push_notification(user, notification_type, title, message, link=''):
+    """FIX B-11: Helper to create a notification and broadcast via WebSocket."""
+    n = Notification.objects.create(
+        user=user, notification_type=notification_type,
+        title=title, message=message, link=link
+    )
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+    channel_layer = get_channel_layer()
+    try:
+        async_to_sync(channel_layer.group_send)(
+            f'notifications_{user.id}',
+            {'type': 'notification.push', 'notification': {
+                'id': n.id, 'type': notification_type,
+                'title': title, 'message': message, 'link': link,
+            }}
+        )
+    except Exception:
+        pass
+    return n
+
+
+# ─── Messaging System (B-12) ─────────────────────────────────────
+class Conversation(models.Model):
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='buyer_conversations')
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_conversations')
+    product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='conversations')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('buyer', 'seller', 'product')
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f'{self.buyer.username} ↔ {self.seller.username}'
+
+
+class Message(models.Model):
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
+    content = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.sender.username}: {self.content[:50]}'
+
+
+# ─── Saved Searches & Price Alerts (B-13) ────────────────────────
+class SavedSearch(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_searches')
+    query = models.CharField(max_length=255, blank=True)
+    category = models.ForeignKey('Category', on_delete=models.SET_NULL, null=True, blank=True)
+    min_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    max_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    condition = models.CharField(max_length=20, blank=True)
+    notify_on_match = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_checked = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class PriceAlert(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='price_alerts')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='price_alerts')
+    target_price = models.DecimalField(max_digits=12, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+    triggered_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'product')
+
+
+# ─── Dispute System (B-15) ───────────────────────────────────────
+class Dispute(models.Model):
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('under_review', 'Under Review'),
+        ('resolved_buyer', 'Resolved — Favour Buyer'),
+        ('resolved_seller', 'Resolved — Favour Seller'),
+        ('closed', 'Closed'),
+    ]
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='dispute')
+    opened_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='opened_disputes')
+    reason = models.TextField()
+    evidence_description = models.TextField(blank=True)
+    evidence_image = models.ImageField(upload_to='dispute_evidence/', blank=True, null=True, validators=[validate_image])
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    assigned_staff = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_disputes')
+    resolution_notes = models.TextField(blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'Dispute on {self.order.id} ({self.status})'
+
+
+# ─── Product Variants (B-16) ─────────────────────────────────────
+class ProductVariant(models.Model):
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='variants')
+    name = models.CharField(max_length=100, help_text='e.g. "Red / XL" or "128GB Black"')
+    sku = models.CharField(max_length=50, blank=True)
+    price_adjustment = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text='Added to base product price. Can be negative.'
+    )
+    stock = models.PositiveIntegerField(default=0)
+    is_available = models.BooleanField(default=True)
+    image = models.ImageField(upload_to='variant_images/', blank=True, null=True, validators=[validate_image])
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f'{self.product.name} — {self.name}'
+
+    @property
+    def final_price(self):
+        return self.product.price + self.price_adjustment
+
+
+# ─── Site Settings (B-18) ────────────────────────────────────────
+class SiteSettings(models.Model):
+    """Singleton model — only one row. Edit via Django admin."""
+    company_name = models.CharField(max_length=100, default='UZASPEA')
+    tagline = models.CharField(max_length=255, blank=True)
+    support_email = models.EmailField(blank=True)
+    support_phone = models.CharField(max_length=30, blank=True)
+    whatsapp_number = models.CharField(max_length=30, blank=True)
+    address = models.TextField(blank=True)
+    facebook_url = models.URLField(blank=True)
+    instagram_url = models.URLField(blank=True)
+    twitter_url = models.URLField(blank=True)
+    working_hours = models.CharField(max_length=100, blank=True, default='Mon–Fri 8am–6pm EAT')
+
+    class Meta:
+        verbose_name = 'Site Settings'
+        verbose_name_plural = 'Site Settings'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # Force singleton
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return 'Site Settings'
+
+
+# ─── Delivery Zones (B-21) ───────────────────────────────────────
+class DeliveryZone(models.Model):
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='delivery_zones')
+    zone_name = models.CharField(max_length=100, help_text='e.g. "Dar es Salaam", "Upcountry"')
+    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    estimated_days = models.CharField(max_length=50, blank=True, help_text='e.g. "1–2 days"')
+    is_active = models.BooleanField(default=True)
+    notes = models.CharField(max_length=255, blank=True, help_text='Additional info shown to buyer')
+
+    class Meta:
+        ordering = ['delivery_fee']
+        unique_together = ('seller', 'zone_name')
+
+    def __str__(self):
+        return f'{self.seller.username}: {self.zone_name} — TSh {self.delivery_fee}'

@@ -1,7 +1,13 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import UserProfile, Product, Category, Review, Order, OrderItem, SidebarOffer, SidebarNewsItem, Subscription, NewsletterSubscription, Like, Follow, ProductImage, SubscriptionTier, MobileNetwork, LipaNumber
+from .models import (
+    UserProfile, Product, Category, Review, Order, OrderItem,
+    SidebarOffer, SidebarNewsItem, Subscription, NewsletterSubscription,
+    Like, Follow, ProductImage, SubscriptionTier, MobileNetwork, LipaNumber,
+    Notification, Conversation, Message, SavedSearch, PriceAlert,
+    Dispute, ProductVariant, SiteSettings, DeliveryZone
+)
 from django.utils.html import format_html
 
 # Unregister the default User admin to avoid AlreadyRegistered exception
@@ -216,3 +222,40 @@ class SubscriptionTierAdmin(admin.ModelAdmin):
 class LipaNumberAdmin(admin.ModelAdmin):
     list_display = ("network", "number")
     search_fields = ("number", "network__name")
+
+# FIX v5: Register new models
+admin.site.register(SiteSettings)
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'notification_type', 'title', 'is_read', 'created_at')
+    list_filter = ('notification_type', 'is_read')
+
+@admin.register(Conversation)
+class ConversationAdmin(admin.ModelAdmin):
+    list_display = ('buyer', 'seller', 'product', 'updated_at')
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ('conversation', 'sender', 'is_read', 'created_at')
+
+@admin.register(Dispute)
+class DisputeAdmin(admin.ModelAdmin):
+    list_display = ('order', 'opened_by', 'status', 'created_at')
+    list_filter = ('status',)
+
+@admin.register(ProductVariant)
+class ProductVariantAdmin(admin.ModelAdmin):
+    list_display = ('product', 'name', 'stock', 'price_adjustment', 'is_available')
+
+@admin.register(DeliveryZone)
+class DeliveryZoneAdmin(admin.ModelAdmin):
+    list_display = ('seller', 'zone_name', 'delivery_fee', 'is_active')
+
+@admin.register(SavedSearch)
+class SavedSearchAdmin(admin.ModelAdmin):
+    list_display = ('user', 'query', 'category', 'created_at')
+
+@admin.register(PriceAlert)
+class PriceAlertAdmin(admin.ModelAdmin):
+    list_display = ('user', 'product', 'target_price', 'is_active', 'triggered_at')

@@ -4,7 +4,9 @@ from django.db.models import F  # FIX: C-01
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
     Payment, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
-    ProductImage, Like, LipaNumber, FAQ, SupportTicket
+    ProductImage, Like, LipaNumber, FAQ, SupportTicket,
+    Notification, Conversation, Message, SavedSearch, PriceAlert,
+    Dispute, ProductVariant, SiteSettings, DeliveryZone
 )
 
 class LipaNumberSerializer(serializers.ModelSerializer):
@@ -64,6 +66,9 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
 
+    has_inspection = serializers.SerializerMethodField()  # FIX B-19
+    inspection_verdict = serializers.SerializerMethodField()  # FIX B-19
+
     inspections = serializers.SerializerMethodField()
     is_verified = serializers.BooleanField(read_only=True)
 
@@ -72,7 +77,8 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'description', 'price', 'stock', 'is_available',
                   'category', 'category_name', 'seller', 'seller_username', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition',
-                  'avg_rating', 'like_count', 'images', 'inspections', 'is_verified']
+                  'avg_rating', 'like_count', 'images', 'inspections', 'is_verified',
+                  'has_inspection', 'inspection_verdict']
         read_only_fields = ['seller', 'slug']
 
     def get_inspections(self, obj):
@@ -101,6 +107,15 @@ class ProductSerializer(serializers.ModelSerializer):
                 return pic.url
         except UserProfile.DoesNotExist:
             pass
+        return None
+
+    def get_has_inspection(self, obj):  # FIX B-19
+        return obj.inspections.filter(status='published').exists()
+
+    def get_inspection_verdict(self, obj):  # FIX B-19
+        insp = obj.inspections.filter(status='published').select_related('report').first()
+        if insp and hasattr(insp, 'report'):
+            return insp.report.verdict
         return None
 
 class ProductReviewSerializer(serializers.ModelSerializer):
@@ -213,11 +228,17 @@ class OrderSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
+    seller_rating = serializers.SerializerMethodField()  # FIX B-14
 
     class Meta:
         model = UserProfile
-        fields = ['id', 'user', 'username', 'is_verified', 'phone_number', 'instagram_username', 'website', 'bio', 'tier', 'location', 'profile_picture', 'banner_image']
+        fields = ['id', 'user', 'username', 'is_verified', 'phone_number', 'instagram_username',
+                  'website', 'bio', 'tier', 'location', 'profile_picture', 'banner_image',
+                  'preferred_currency', 'seller_rating']
         read_only_fields = ['user', 'is_verified', 'tier']  # FIX: S-07 — only staff should set these
+
+    def get_seller_rating(self, obj):
+        return obj.seller_rating  # FIX B-14
 
 from .models import SponsoredListing
 
@@ -230,3 +251,101 @@ class SponsoredListingSerializer(serializers.ModelSerializer):
         model = SponsoredListing
         fields = ['id', 'user', 'product', 'product_name', 'product_slug', 'product_details', 'title', 'description', 'status', 'admin_notes', 'duration_days', 'amount', 'created_at', 'expires_at']
         read_only_fields = ['user', 'status', 'admin_notes', 'amount', 'created_at', 'expires_at']
+
+
+# ─── New Serializers for v5 fixes ─────────────────────────────────────
+
+class NotificationSerializer(serializers.ModelSerializer):  # FIX B-11
+    class Meta:
+        model = Notification
+        fields = ['id', 'notification_type', 'title', 'message', 'link', 'is_read', 'created_at']
+        read_only_fields = ['notification_type', 'title', 'message', 'link', 'created_at']
+
+
+class MessageSerializer(serializers.ModelSerializer):  # FIX B-12
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
+
+    class Meta:
+        model = Message
+        fields = ['id', 'conversation', 'sender', 'sender_username', 'content', 'is_read', 'created_at']
+        read_only_fields = ['sender', 'created_at']
+
+
+class ConversationSerializer(serializers.ModelSerializer):  # FIX B-12
+    buyer_username = serializers.CharField(source='buyer.username', read_only=True)
+    seller_username = serializers.CharField(source='seller.username', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True, default=None)
+    last_message = serializers.SerializerMethodField()
+    unread_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Conversation
+        fields = ['id', 'buyer', 'buyer_username', 'seller', 'seller_username',
+                  'product', 'product_name', 'last_message', 'unread_count',
+                  'created_at', 'updated_at']
+        read_only_fields = ['buyer', 'created_at', 'updated_at']
+
+    def get_last_message(self, obj):
+        msg = obj.messages.order_by('-created_at').first()
+        return MessageSerializer(msg).data if msg else None
+
+    def get_unread_count(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return 0
+        return obj.messages.filter(is_read=False).exclude(sender=request.user).count()
+
+
+class SavedSearchSerializer(serializers.ModelSerializer):  # FIX B-13
+    class Meta:
+        model = SavedSearch
+        fields = ['id', 'query', 'category', 'min_price', 'max_price',
+                  'condition', 'notify_on_match', 'created_at']
+        read_only_fields = ['created_at']
+
+
+class PriceAlertSerializer(serializers.ModelSerializer):  # FIX B-13
+    product_name = serializers.CharField(source='product.name', read_only=True)
+
+    class Meta:
+        model = PriceAlert
+        fields = ['id', 'product', 'product_name', 'target_price', 'is_active',
+                  'triggered_at', 'created_at']
+        read_only_fields = ['triggered_at', 'created_at']
+
+
+class DisputeSerializer(serializers.ModelSerializer):  # FIX B-15
+    class Meta:
+        model = Dispute
+        fields = ['id', 'order', 'opened_by', 'reason', 'evidence_description',
+                  'evidence_image', 'status', 'assigned_staff', 'resolution_notes',
+                  'resolved_at', 'created_at', 'updated_at']
+        read_only_fields = ['opened_by', 'status', 'assigned_staff',
+                           'resolution_notes', 'resolved_at', 'created_at', 'updated_at']
+
+
+class ProductVariantSerializer(serializers.ModelSerializer):  # FIX B-16
+    final_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = ProductVariant
+        fields = ['id', 'product', 'name', 'sku', 'price_adjustment', 'stock',
+                  'is_available', 'image', 'final_price']
+
+
+class SiteSettingsSerializer(serializers.ModelSerializer):  # FIX B-18
+    class Meta:
+        model = SiteSettings
+        fields = ['company_name', 'tagline', 'support_email', 'support_phone',
+                  'whatsapp_number', 'address', 'facebook_url', 'instagram_url',
+                  'twitter_url', 'working_hours']
+
+
+class DeliveryZoneSerializer(serializers.ModelSerializer):  # FIX B-21
+    seller_username = serializers.CharField(source='seller.username', read_only=True)
+
+    class Meta:
+        model = DeliveryZone
+        fields = ['id', 'seller', 'seller_username', 'zone_name', 'delivery_fee',
+                  'estimated_days', 'is_active', 'notes']
+        read_only_fields = ['seller']

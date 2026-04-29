@@ -154,6 +154,13 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
                  <span>VERIFIED</span>
                </div>
             )}
+            {/* FIX B-19: Inspected badge */}
+            {product.has_inspection && (
+               <div className="flex items-center gap-1 text-[8px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800" title="Professionally Inspected">
+                 <Shield size={10} />
+                 <span>INSPECTED ✓</span>
+               </div>
+            )}
             <div className="flex gap-0.5 items-center">
               <Star size={10} className="fill-yellow-400 text-yellow-400" />
               <span className="text-[10px] text-gray-500 font-medium">{product.avg_rating || '5.0'}</span>

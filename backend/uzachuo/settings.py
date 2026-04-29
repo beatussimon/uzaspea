@@ -42,6 +42,18 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 16,
+    # FIX D-07: rate limiting
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/hour',
+        'user': '1000/hour',
+        'register': '5/hour',
+        'login': '10/hour',
+        'ticket': '5/hour',
+    },
 }
 
 from datetime import timedelta
@@ -138,6 +150,16 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",  # Project-level static files
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"  # For production (collectstatic)
+
+# FIX D-05: WhiteNoise compressed + hashed static files for production
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 
 # Media files (user uploads)

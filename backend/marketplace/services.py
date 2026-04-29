@@ -11,7 +11,8 @@ class OrderStateMachine:
         'PAID': ['PROCESSING', 'REFUNDED', 'CANCELLED'],
         'PROCESSING': ['SHIPPED', 'CANCELLED'],
         'SHIPPED': ['DELIVERED'],
-        'DELIVERED': ['COMPLETED'],
+        'DELIVERED': ['COMPLETED', 'DISPUTED'],  # FIX B-15: buyer can dispute after delivery
+        'DISPUTED': ['PROCESSING', 'CANCELLED'],  # FIX B-15: staff resolves
         'COMPLETED': [],
         'CANCELLED': [],
         'EXPIRED': [],

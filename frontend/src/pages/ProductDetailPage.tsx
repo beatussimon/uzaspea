@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, X, Share2, Shield } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare } from 'lucide-react';
 import api from '../api';
 import { useCart } from '../context/CartContext';
 import { ProductTabs } from '../ProductTabs';
@@ -67,6 +67,7 @@ const ImageLightbox = ({ src, alt, onClose }: { src: string; alt: string; onClos
 const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { addToCart } = useCart();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<ProductData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -267,6 +268,20 @@ const ProductDetailPage: React.FC = () => {
                   Professionally Verified
                 </span>
               )}
+            </div>
+            {/* FIX B-12: Message Seller */}
+            <div className="flex items-center gap-3 mt-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
+                    navigate(`/messages/${res.data.id}`);
+                  } catch { toast.error('Login to message seller'); }
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-brand-200 dark:border-brand-800 text-brand-600 text-sm font-bold hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
+              >
+                <MessageSquare size={16} /> Message Seller
+              </button>
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 pl-1">
               <span className="font-medium">Stock: <span className="text-gray-900 dark:text-white font-bold">{product.stock}</span></span>
