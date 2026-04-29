@@ -50,15 +50,13 @@ services:
   backend:
     <<: *backend-common
     container_name: uzaspea-backend
-    stop_grace_period: 30s        # FIX HIGH-01
-    restart: unless-stopped       # FIX HIGH-01
     volumes:
       - ./persistent_data/media:/app/media
       - ./persistent_data/static:/app/staticfiles
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
-             uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 1 --ws websockets --timeout-graceful-shutdown 30"
+             uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 1 --ws websockets"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`) || PathPrefix(`/ws`)"
@@ -69,32 +67,17 @@ services:
         limits:
           memory: 400M
 
-  # --- Celery Worker (FIX HIGH-02: split from beat) ---
-  celery-worker:
+  # ─── Celery Worker + Beat (combined) ───────────────────────────
+  celery:
     <<: *backend-common
-    container_name: uzaspea-celery-worker
-    restart: unless-stopped
+    container_name: uzaspea-celery
     volumes:
       - ./persistent_data/media:/app/media
-    command: celery -A uzachuo worker --loglevel=warning --concurrency=1 --max-tasks-per-child=50
+    command: celery -A uzachuo worker --beat --loglevel=info --concurrency=1
     deploy:
       resources:
         limits:
-          memory: 150M
-
-  # --- Celery Beat (FIX HIGH-02: separate persistent scheduler) ---
-  celery-beat:
-    <<: *backend-common
-    container_name: uzaspea-celery-beat
-    restart: unless-stopped
-    volumes:
-      - ./persistent_data/media:/app/media
-      - ./persistent_data/celerybeat:/app/celerybeat
-    command: celery -A uzachuo beat --loglevel=warning --schedule /app/celerybeat/celerybeat-schedule
-    deploy:
-      resources:
-        limits:
-          memory: 60M
+          memory: 200M
 
   # ─── Frontend: Nginx (SPA) ────────────────────────────────────
   frontend:

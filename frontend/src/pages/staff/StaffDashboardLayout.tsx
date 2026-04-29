@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
-  CheckCircle2, XCircle, Clock, AlertTriangle, Shield
+  CheckCircle2, XCircle, Clock, AlertTriangle, Shield, Star
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
@@ -553,6 +553,129 @@ const PromotionQueue: React.FC = () => {
   );
 };
 
+// ============ Reviews Manager ============
+const ReviewsManager: React.FC = () => {
+    const [reviews, setReviews] = useState<any[]>([]);
+
+    useEffect(() => {
+        api.get('/api/reviews/')
+            .then(r => setReviews(r.data.results || r.data))
+            .catch(() => {});
+    }, []);
+
+    const updateReview = async (id: number, approved: boolean) => {
+        try {
+            await api.patch(`/api/reviews/${id}/`, { approved });
+            setReviews(prev => prev.map(r => r.id === id ? {...r, approved} : r));
+            toast.success('Review updated');
+        } catch { toast.error('Failed to update review'); }
+    };
+
+    const deleteReview = async (id: number) => {
+        if (!confirm('Are you sure you want to delete this review?')) return;
+        try {
+            await api.delete(`/api/reviews/${id}/`);
+            setReviews(prev => prev.filter(r => r.id !== id));
+            toast.success('Review deleted');
+        } catch { toast.error('Failed to delete review'); }
+    };
+
+    return (
+        <div className="space-y-4">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Review Moderation</h3>
+            <div className="space-y-3">
+                {reviews.map(review => (
+                    <div key={review.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition flex gap-4">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="font-bold text-gray-900 dark:text-white">{review.rating}/5 Stars</span>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${review.approved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{review.approved ? 'Approved' : 'Pending'}</span>
+                            </div>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">"{review.comment}"</p>
+                            <p className="text-xs text-gray-500 mt-2">By User {review.user} on Product {review.product}</p>
+                        </div>
+                        <div className="flex flex-col gap-2 shrink-0">
+                            {!review.approved ? (
+                                <button onClick={() => updateReview(review.id, true)} className="bg-green-600 text-white text-xs py-1.5 px-3 rounded font-medium hover:bg-green-700">Approve</button>
+                            ) : (
+                                <button onClick={() => updateReview(review.id, false)} className="bg-yellow-600 text-white text-xs py-1.5 px-3 rounded font-medium hover:bg-yellow-700">Hide</button>
+                            )}
+                            <button onClick={() => deleteReview(review.id)} className="bg-red-50 text-red-600 text-xs py-1.5 px-3 rounded font-medium hover:bg-red-100 border border-red-200">Delete</button>
+                        </div>
+                    </div>
+                ))}
+                {reviews.length === 0 && <p className="text-gray-500 py-4">No reviews found.</p>}
+            </div>
+        </div>
+    );
+};
+
+// ============ Support Tickets ============
+const SupportTicketsManager: React.FC = () => {
+    const [tickets, setTickets] = useState<any[]>([]);
+    const [statusFilter, setStatusFilter] = useState('open');
+
+    useEffect(() => {
+        api.get(`/api/staff/support-tickets/?status=${statusFilter}`)
+            .then(r => setTickets(r.data.results || r.data))
+            .catch(() => {});
+    }, [statusFilter]);
+
+    const updateStatus = async (id: number, status: string) => {
+        await api.patch(`/api/staff/support-tickets/${id}/`, { status });
+        setTickets(prev => prev.map(t => t.id === id ? {...t, status} : t));
+        toast.success('Ticket updated');
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Support Tickets</h3>
+                <div className="flex gap-2 flex-wrap">
+                    {['open', 'in_progress', 'resolved', 'closed'].map(s => (
+                        <button key={s} onClick={() => setStatusFilter(s)}
+                            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition capitalize ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+                            {s.replace('_', ' ')}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className="space-y-3">
+                {tickets.map(ticket => (
+                    <div key={ticket.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <p className="font-semibold text-gray-900 dark:text-white">{ticket.subject}</p>
+                                <p className="text-xs text-gray-500 mt-1">{ticket.category} · {ticket.name} ({ticket.email})</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">{ticket.message}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-2 shrink-0">
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${ticket.status === 'open' ? 'bg-red-100 text-red-700' : ticket.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {ticket.status.replace('_', ' ')}
+                                </span>
+                                {ticket.status === 'open' && (
+                                    <button onClick={() => updateStatus(ticket.id, 'in_progress')}
+                                        className="bg-blue-600 text-white rounded text-xs py-1.5 px-3 font-medium hover:bg-blue-700 transition">Take Ticket</button>
+                                )}
+                                {ticket.status === 'in_progress' && (
+                                    <button onClick={() => updateStatus(ticket.id, 'resolved')}
+                                        className="text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded text-xs py-1.5 px-3 font-medium transition">Mark Resolved</button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+                {tickets.length === 0 && (
+                    <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+                        <AlertTriangle size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                        <p className="text-gray-500">No {statusFilter.replace('_', ' ')} tickets</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // ============ Staff Dashboard Layout ============
 const StaffDashboardLayout: React.FC = () => {
   const location = useLocation();
@@ -576,10 +699,22 @@ const StaffDashboardLayout: React.FC = () => {
       show: data?.user?.permissions?.includes('can_review_promotions') || data?.user?.permissions?.includes('can_approve_content')
     },
     { 
+      path: '/staff/reviews', 
+      label: 'Reviews', 
+      icon: Star,
+      show: data?.user?.permissions?.includes('can_approve_content') || data?.user?.is_superuser
+    },
+    { 
       path: '/staff/inspections', 
       label: 'Inspections', 
       icon: LayoutDashboard,
       show: data?.user?.permissions?.includes('can_manage_inspections') || data?.user?.is_superuser
+    },
+    { 
+      path: '/staff/tickets', 
+      label: 'Support Tickets', 
+      icon: AlertTriangle,
+      show: true
     },
     { 
       path: '/inspector/jobs', 
@@ -621,6 +756,8 @@ const StaffDashboardLayout: React.FC = () => {
           <Route index element={<StaffHome data={data} loading={loading} />} />
           <Route path="tasks" element={<StaffTasks />} />
           <Route path="promotions" element={(data?.user?.permissions?.includes('can_review_promotions') || data?.user?.permissions?.includes('can_approve_content')) ? <PromotionQueue /> : <Navigate to="/staff" />} />
+          <Route path="reviews" element={(data?.user?.permissions?.includes('can_approve_content') || data?.user?.is_superuser) ? <ReviewsManager /> : <Navigate to="/staff" />} />
+          <Route path="tickets" element={<SupportTicketsManager />} />
           <Route path="inspections/*" element={<StaffInspectionLayout user={data?.user} />} />
         </Routes>
       </main>
