@@ -637,14 +637,15 @@ class RegisterView(APIView):
         try:
             validate_password(password)
         except Exception as e:
-            return Response({'detail': list(e)}, status=status.HTTP_400_BAD_REQUEST)
+            err_msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+            return Response({'detail': err_msg}, status=status.HTTP_400_BAD_REQUEST)
 
         user = User.objects.create_user(
             username=username, 
             email=email, 
             password=password,
-            first_name=first_name,
-            last_name=last_name
+            first_name=first_name or '',
+            last_name=last_name or ''
         )
         # Profile is created via post_save signal in models.py
         profile = user.profile

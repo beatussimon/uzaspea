@@ -211,7 +211,6 @@ const RegisterPage: React.FC = () => {
                         className="flex-[2] flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-400 text-white font-bold h-14 rounded-2xl transition-all shadow-lg shadow-brand-500/25"
                       >
                         {loading ? 'Creating Account...' : 'Complete Signup'}
-                        <CheckCircle className="w-5 h-5" />
                       </button>
                     </div>
                   </form>
@@ -223,7 +222,7 @@ const RegisterPage: React.FC = () => {
 
         <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-8">
           Already have an account?{' '}
-          <Link to="/login" className="font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 transition-colors">
+          <Link to="/login" className="relative z-10 font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 transition-colors">
             Login here
           </Link>
         </p>
