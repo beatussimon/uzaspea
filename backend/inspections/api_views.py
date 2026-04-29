@@ -102,6 +102,30 @@ class InspectionCategoryViewSet(viewsets.ModelViewSet):
             return [IsSuperUser()]
         return [permissions.IsAuthenticated()]
 
+    @decorators.action(detail=False, methods=['get'])
+    def suggest(self, request):
+        """FIX X-02: suggest inspection categories for a given marketplace product."""
+        product_id = request.query_params.get('product_id')
+        if not product_id:
+            return Response({'error': 'product_id required'}, status=400)
+        from marketplace.models import Product
+        try:
+            product = Product.objects.select_related('category', 'category__parent').get(pk=product_id)
+        except Product.DoesNotExist:
+            return Response({'error': 'Product not found'}, status=404)
+
+        # Match by direct marketplace_category link first
+        direct = InspectionCategory.objects.filter(
+            marketplace_category=product.category, is_active=True
+        )
+        # Fallback: match by parent category
+        parent_match = InspectionCategory.objects.filter(
+            marketplace_category=product.category.parent, is_active=True
+        ) if product.category.parent_id else InspectionCategory.objects.none()
+        # Merge, deduplicate, score
+        suggestions = list(direct) + [c for c in parent_match if c not in list(direct)]
+        return Response(InspectionCategorySerializer(suggestions, many=True).data)
+
 
 # ──────────────────────────────────────────────
 # CHECKLIST TEMPLATE

@@ -1,6 +1,12 @@
-node_modules/
-dist/
+node_modules
+dist
 .env
-.env.local
-*.log
-.git/
+.env.*
+!.env.example
+.git
+.vscode
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.swp
+.DS_Store

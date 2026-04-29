@@ -4,8 +4,29 @@ from django.db.models import F  # FIX: C-01
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
     Payment, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
-    ProductImage, Like
+    ProductImage, Like, LipaNumber, FAQ, SupportTicket
 )
+
+class LipaNumberSerializer(serializers.ModelSerializer):
+    network_name = serializers.CharField(source='network.name', read_only=True)
+    network_logo = serializers.ImageField(source='network.image', read_only=True)
+
+    class Meta:
+        model = LipaNumber
+        fields = ['id', 'network', 'network_name', 'network_logo', 'number', 'name',
+                  'is_active', 'display_order']
+        read_only_fields = ['seller']
+
+class FAQSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FAQ
+        fields = '__all__'
+
+class SupportTicketSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportTicket
+        fields = '__all__'
+        read_only_fields = ['user', 'status', 'assigned_to', 'staff_notes', 'resolved_at']
 
 class CategorySerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()

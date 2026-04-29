@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Plus, BarChart3, Megaphone, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Shield, Truck, Clock, MessageSquare, XCircle } from 'lucide-react';
+import { LayoutDashboard, Package, Plus, BarChart3, Megaphone, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Shield, Truck, Clock, MessageSquare, XCircle, CreditCard, Settings, HelpCircle } from 'lucide-react';
+import SettingsPage from './SettingsPage';
+import HelpCenterPage from './HelpCenterPage';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import SafeImage from '../../components/SafeImage';
@@ -74,8 +76,8 @@ const DashboardOverview: React.FC = () => {
             Revenue Pipeline
             <BarChart3 size={16} className="text-blue-500" />
           </h3>
-          <div className="flex-1 min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height={280}>
                <AreaChart data={stats?.revenue_data || []}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -96,8 +98,8 @@ const DashboardOverview: React.FC = () => {
         {/* Status Pie Chart */}
         <div className="card p-5 flex flex-col h-[350px]">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4">Order Status</h3>
-          <div className="flex-1 min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                   {pieData.map((_, index) => (
@@ -959,6 +961,85 @@ const DashboardOrders: React.FC = () => {
   );
 };
 
+// ============ Dashboard Payment Numbers ============
+const PaymentNumbersManager: React.FC = () => {
+    const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
+    const [networks, setNetworks] = useState<any[]>([]);
+    const [form, setForm] = useState({ network: '', number: '', name: '' });
+    const [editingId, setEditingId] = useState<number|null>(null);
+
+    useEffect(() => {
+        api.get('/api/lipa-numbers/').then(r => setLipaNumbers(r.data.results || r.data)).catch(() => {});
+        api.get('/api/mobile-networks/').then(r => setNetworks(r.data.results || r.data)).catch(() => {});
+    }, []);
+
+    const handleSave = async () => {
+        try {
+            if (editingId) {
+                await api.patch(`/api/lipa-numbers/${editingId}/`, form);
+            } else {
+                await api.post('/api/lipa-numbers/', form);
+            }
+            api.get('/api/lipa-numbers/').then(r => setLipaNumbers(r.data.results || r.data));
+            setForm({ network: '', number: '', name: '' });
+            setEditingId(null);
+            toast.success('Payment number saved');
+        } catch (error: any) {
+            toast.error(error.response?.data?.detail || 'Failed to save payment number');
+        }
+    };
+
+    const handleDelete = async (id: number) => {
+        try {
+            await api.delete(`/api/lipa-numbers/${id}/`);
+            setLipaNumbers(prev => prev.filter(l => l.id !== id));
+            toast.success('Removed');
+        } catch {
+            toast.error('Failed to remove');
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Numbers</h2>
+            <p className="text-sm text-gray-500">These numbers are shown to buyers when they need to pay for your products offline.</p>
+            {/* Form */}
+            <div className="card p-5 space-y-3">
+                <h3 className="font-bold text-sm text-gray-900 dark:text-white">{editingId ? 'Edit Number' : 'Add New Number'}</h3>
+                <select value={form.network} onChange={e => setForm({...form, network: e.target.value})} className="input text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 w-full p-3 border dark:border-gray-600 rounded-lg">
+                    <option value="">Select Network</option>
+                    {networks.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+                </select>
+                <input placeholder="Phone Number e.g. 0712345678" value={form.number}
+                    onChange={e => setForm({...form, number: e.target.value})} className="input text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 w-full p-3 border dark:border-gray-600 rounded-lg" />
+                <input placeholder="Account Name (shown to buyer)" value={form.name}
+                    onChange={e => setForm({...form, name: e.target.value})} className="input text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 w-full p-3 border dark:border-gray-600 rounded-lg" />
+                <button onClick={handleSave} className="btn-primary w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition">
+                    {editingId ? 'Update' : 'Add Number'}
+                </button>
+            </div>
+            {/* List */}
+            <div className="space-y-2">
+                {lipaNumbers.map(lipa => (
+                    <div key={lipa.id} className="card p-4 flex items-center justify-between">
+                        <div>
+                            <p className="font-bold text-sm text-gray-900 dark:text-white">{lipa.network_name}</p>
+                            <p className="text-gray-900 dark:text-white font-mono">{lipa.number}</p>
+                            <p className="text-xs text-gray-500">{lipa.name}</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setEditingId(lipa.id); setForm({network: lipa.network, number: lipa.number, name: lipa.name}); }}
+                                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition">Edit</button>
+                            <button onClick={() => handleDelete(lipa.id)} className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-xs hover:bg-red-200 dark:hover:bg-red-900/50 transition">Remove</button>
+                        </div>
+                    </div>
+                ))}
+                {lipaNumbers.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No payment numbers yet. Add one above.</p>}
+            </div>
+        </div>
+    );
+};
+
 // ============ Dashboard Layout ============
 const DashboardLayout: React.FC = () => {
   const location = useLocation();
@@ -970,6 +1051,7 @@ const DashboardLayout: React.FC = () => {
     { path: '/dashboard/products', label: 'Products', icon: Package },
     { path: '/dashboard/orders', label: 'Incoming Orders', icon: ShoppingCart },
     { path: '/dashboard/promotions', label: 'Promotions', icon: Megaphone },
+    { path: '/dashboard/payment-numbers', label: 'Payment Numbers', icon: CreditCard },
   ];
 
   return (
@@ -1007,6 +1089,30 @@ const DashboardLayout: React.FC = () => {
               </Link>
             </>
           )}
+
+          <hr className="my-2 border-gray-100 dark:border-gray-700" />
+          <Link
+            to="/dashboard/settings"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+              location.pathname.startsWith('/dashboard/settings')
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Settings size={18} />
+            Account Settings
+          </Link>
+          <Link
+            to="/dashboard/help-center"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+              location.pathname.startsWith('/dashboard/help-center')
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            <HelpCircle size={18} />
+            Help Center
+          </Link>
         </nav>
       </aside>
 
@@ -1017,6 +1123,9 @@ const DashboardLayout: React.FC = () => {
           <Route path="products" element={<DashboardProducts />} />
           <Route path="orders" element={<DashboardOrders />} />
           <Route path="promotions" element={<DashboardPromotions />} />
+          <Route path="payment-numbers" element={<PaymentNumbersManager />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="help-center" element={<HelpCenterPage />} />
         </Routes>
       </main>
     </div>

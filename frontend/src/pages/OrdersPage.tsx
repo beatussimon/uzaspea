@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Package, ChevronDown, ChevronUp, MapPin, Clock, CheckCircle2, Truck, XCircle, CreditCard, Upload, Star, MessageSquare } from 'lucide-react';
+import { Package, ChevronDown, ChevronUp, MapPin, Clock, CheckCircle2, Truck, XCircle, CreditCard, Upload, Star, MessageSquare, Smartphone } from 'lucide-react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
@@ -46,12 +46,31 @@ const OrdersPage: React.FC = () => {
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // Seller Lipa Numbers State
+  const [sellerLipa, setSellerLipa] = useState<Record<number, any[]>>({});
+
   const location = useLocation();
   const highlightId = new URLSearchParams(location.search).get('highlight');
 
+  const fetchSellerLipa = async (order: any) => {
+      if (order.status !== 'AWAITING_PAYMENT') return;
+      const sellerUsername = order.items?.[0]?.seller_username;
+      if (!sellerUsername || sellerLipa[order.id]) return;
+      try {
+          const res = await api.get(`/api/lipa-numbers/?seller=${sellerUsername}`);
+          setSellerLipa(prev => ({ ...prev, [order.id]: res.data.results || res.data }));
+      } catch {}
+  };
+
   useEffect(() => {
     if (highlightId && orders.length > 0) {
-      setExpandedId(parseInt(highlightId));
+      const id = parseInt(highlightId);
+      setExpandedId(id);
+      const order = orders.find(o => o.id === id);
+      if (order) fetchSellerLipa(order);
+      setTimeout(() => {
+          document.getElementById(`order-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 400);
     }
   }, [highlightId, orders.length]);
 
@@ -251,9 +270,12 @@ const OrdersPage: React.FC = () => {
             const currentStepIdx = TRACKING_STEPS.indexOf(order.status);
 
             return (
-              <div key={order.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-shadow">
+              <div id={`order-${order.id}`} key={order.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-shadow">
                 {/* Header */}
-                <button onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                <button onClick={() => {
+                  setExpandedId(isExpanded ? null : order.id);
+                  if (!isExpanded) fetchSellerLipa(order);
+                }}
                   className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition group">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="relative w-14 h-14 shrink-0">
@@ -319,9 +341,31 @@ const OrdersPage: React.FC = () => {
                           <CreditCard className="text-yellow-600 shrink-0 mt-1" size={24} />
                           <div className="flex-1">
                             <h4 className="font-bold text-gray-900 dark:text-white text-sm">Offline Payment Required</h4>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                              Please pay <strong>TSh {parseInt(order.total_amount).toLocaleString()}</strong> to any of the store's numbers (Lipa kwa M-Pesa/Tigo Pesa/Airtel Money) and upload your proof below.
-                            </p>
+                            <div className="mb-4">
+                                <p className="text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wider">
+                                    Pay to these numbers:
+                                </p>
+                                {(sellerLipa[order.id] || []).length === 0 ? (
+                                    <p className="text-sm text-yellow-600">The seller has not added payment numbers yet. Contact them directly.</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {(sellerLipa[order.id] || []).map((lipa: any) => (
+                                            <div key={lipa.id} className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+                                                <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                                    <Smartphone size={16} className="text-green-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[11px] font-bold text-gray-400 uppercase">{lipa.network_name}</p>
+                                                    <p className="font-mono font-black text-gray-900 dark:text-white text-sm">{lipa.number}</p>
+                                                    <p className="text-xs text-gray-500">{lipa.name}</p>
+                                                </div>
+                                                <button onClick={() => {navigator.clipboard.writeText(lipa.number); toast.success('Copied!');}}
+                                                    className="ml-auto btn-ghost text-xs py-1 px-2 border border-gray-300 dark:border-gray-600 rounded">Copy</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                           </div>
                         </div>
                         

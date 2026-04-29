@@ -35,6 +35,19 @@ class InspectionCategory(models.Model):
         max_length=20, choices=INSPECTOR_LEVEL_CHOICES, default='junior'
     )
     is_active = models.BooleanField(default=True)
+    marketplace_category = models.ForeignKey(  # FIX X-02
+        'marketplace.Category',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='inspection_categories',
+        help_text='Linked marketplace category for auto-suggestion'
+    )
+    product_origin = models.CharField(  # FIX X-02: native vs external product type
+        max_length=20,
+        choices=[('any', 'Any'), ('local', 'Local/Native'), ('imported', 'Imported/External')],
+        default='any',
+        help_text='Whether this category applies to locally-made or imported products'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

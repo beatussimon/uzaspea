@@ -46,6 +46,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         # FIX S-17: sellers can retrieve their own products regardless of availability
         if user.is_authenticated and self.request.query_params.get('mine') == 'true':
             queryset = base.filter(seller=user)
+        elif self.request.query_params.get('following') and user.is_authenticated:
+            from .models import Follow
+            followed = Follow.objects.filter(follower=user).values_list('following__user_id', flat=True)
+            queryset = base.filter(seller_id__in=followed)
         elif user.is_authenticated and user.is_staff:
             queryset = base.all()
         elif seller_param:
@@ -205,6 +209,55 @@ class ProductViewSet(viewsets.ModelViewSet):
             'category_breakdown': category_breakdown,
             'stock_alerts': low_stock,
         })
+
+from .models import LipaNumber, FAQ, SupportTicket
+from .serializers import LipaNumberSerializer, FAQSerializer, SupportTicketSerializer
+
+class LipaNumberViewSet(viewsets.ModelViewSet):
+    """FIX X-01: per-seller Lipa numbers — sellers manage their own, buyers read by seller username."""
+    serializer_class = LipaNumberSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        seller_username = self.request.query_params.get('seller')
+        if seller_username:
+            return LipaNumber.objects.filter(
+                seller__username=seller_username, is_active=True
+            ).select_related('network')
+        if self.request.user.is_authenticated:
+            return LipaNumber.objects.filter(seller=self.request.user).select_related('network')
+        return LipaNumber.objects.none()
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    def perform_create(self, serializer):
+        serializer.save(seller=self.request.user)
+
+class FAQViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = FAQSerializer
+    permission_classes = [permissions.AllowAny]
+    def get_queryset(self):
+        qs = FAQ.objects.filter(is_published=True)
+        cat = self.request.query_params.get('category')
+        if cat: qs = qs.filter(category=cat)
+        q = self.request.query_params.get('q')
+        if q: qs = qs.filter(Q(question__icontains=q) | Q(answer__icontains=q))
+        return qs
+
+class SupportTicketViewSet(viewsets.ModelViewSet):
+    serializer_class = SupportTicketSerializer
+    def get_permissions(self):
+        if self.action == 'create': return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated(), IsStaffMember()]
+    def get_queryset(self):
+        if self.request.user.is_staff: return SupportTicket.objects.all().order_by('-created_at')
+        return SupportTicket.objects.filter(user=self.request.user)
+    def perform_create(self, serializer):
+        user = self.request.user if self.request.user.is_authenticated else None
+        serializer.save(user=user)
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
@@ -517,6 +570,20 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        old = request.data.get('old_password')
+        new = request.data.get('new_password')
+        if not request.user.check_password(old):
+            return Response({'error': 'Incorrect current password'}, status=400)
+        if len(new) < 8:
+            return Response({'error': 'Password must be at least 8 characters'}, status=400)
+        request.user.set_password(new)
+        request.user.save()
+        return Response({'status': 'password changed'})
+
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -585,6 +652,34 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         if self.action in ['update', 'partial_update', 'destroy']:
             return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
         return super().get_permissions()
+
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def follow(self, request, **kwargs):
+        from .models import Follow
+        profile = self.get_object()
+        if profile.user == request.user:
+            return Response({'error': 'Cannot follow yourself'}, status=400)
+        _, created = Follow.objects.get_or_create(follower=request.user, following=profile)
+        return Response({'following': True, 'followers_count': profile.get_followers_count(), 'created': created})
+
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def unfollow(self, request, **kwargs):
+        from .models import Follow
+        profile = self.get_object()
+        Follow.objects.filter(follower=request.user, following=profile).delete()
+        return Response({'following': False, 'followers_count': profile.get_followers_count()})
+
+    @decorators.action(detail=True, methods=['get'])
+    def follow_status(self, request, **kwargs):
+        from .models import Follow
+        profile = self.get_object()
+        if not request.user.is_authenticated:
+            return Response({'following': False})
+        return Response({
+            'following': Follow.objects.filter(follower=request.user, following=profile).exists(),
+            'followers_count': profile.get_followers_count(),
+            'following_count': profile.get_following_count(),
+        })
 
 class SponsoredListingViewSet(viewsets.ModelViewSet):
     serializer_class = SponsoredListingSerializer
