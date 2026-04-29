@@ -5,6 +5,7 @@ from .models import Order, OrderItem, TrackingEvent
 class OrderStateMachine:
     VALID_TRANSITIONS = {
         'CART': ['CHECKOUT', 'AWAITING_PAYMENT', 'CANCELLED'],
+        'Pending': ['AWAITING_PAYMENT', 'CANCELLED'],  # FIX CRIT-04: bridge for legacy orders
         'CHECKOUT': ['AWAITING_PAYMENT', 'CANCELLED'],
         'AWAITING_PAYMENT': ['PENDING_VERIFICATION', 'EXPIRED', 'CANCELLED'],  # FIX L-15: removed self-loop
         'PENDING_VERIFICATION': ['PAID', 'AWAITING_PAYMENT', 'REJECTED', 'CANCELLED'],

@@ -9,7 +9,7 @@ from .api_views import (
     LipaNumberViewSet, FAQViewSet, SupportTicketViewSet, ChangePasswordView,
     VerifySuperuserView, NotificationViewSet, ConversationViewSet,
     SavedSearchViewSet, PriceAlertViewSet, DisputeViewSet,
-    DeliveryZoneViewSet, SiteSettingsView
+    DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet
 )
 
 router = DefaultRouter()
@@ -31,7 +31,7 @@ router.register(r'saved-searches', SavedSearchViewSet, basename='saved-search')
 router.register(r'price-alerts', PriceAlertViewSet, basename='price-alert')
 router.register(r'disputes', DisputeViewSet, basename='dispute')
 router.register(r'delivery-zones', DeliveryZoneViewSet, basename='delivery-zone')
-
+router.register(r'variants', ProductVariantViewSet, basename='variant')
 urlpatterns = [
     path('api/', include(router.urls)),
     path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),

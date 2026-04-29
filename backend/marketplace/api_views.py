@@ -8,14 +8,14 @@ from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
     Payment, TrackingEvent, UserProfile, Like, ProductImage,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
-    Dispute, DeliveryZone, SiteSettings, push_notification
+    Dispute, DeliveryZone, SiteSettings, push_notification, ProductVariant
 )
 from .serializers import (
     ProductSerializer, CategorySerializer, ProductReviewSerializer, 
     ProductCommentSerializer, OrderSerializer, PaymentSerializer, UserProfileSerializer,
     NotificationSerializer, ConversationSerializer, MessageSerializer,
     SavedSearchSerializer, PriceAlertSerializer, DisputeSerializer,
-    SiteSettingsSerializer, DeliveryZoneSerializer
+    SiteSettingsSerializer, DeliveryZoneSerializer, ProductVariantSerializer
 )
 
 from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember
@@ -762,10 +762,14 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user, amount=amount)
 
 
+class VerifySuperuserRateThrottle(AnonRateThrottle):
+    scope = 'verify_superuser'
+
 # ─── FIX D-02/D-03: ForwardAuth endpoint for Traefik ───────────────
 class VerifySuperuserView(APIView):
     """ForwardAuth endpoint: returns 200 for valid superuser JWT, else 401/403."""
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [VerifySuperuserRateThrottle]
 
     def get(self, request):
         from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -925,3 +929,26 @@ class SiteSettingsView(APIView):
     permission_classes = [permissions.AllowAny]
     def get(self, request):
         return Response(SiteSettingsSerializer(SiteSettings.get()).data)
+
+
+# ─── FIX HIGH-04: ProductVariantViewSet ──────────────────────────────
+class ProductVariantViewSet(viewsets.ModelViewSet):
+    """FIX HIGH-04: sellers can manage variants for their products."""
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ProductVariantSerializer
+
+    def get_queryset(self):
+        product_id = self.request.query_params.get('product')
+        qs = ProductVariant.objects.select_related('product')
+        if product_id:
+            qs = qs.filter(product_id=product_id)
+        if not self.request.user.is_staff:
+            qs = qs.filter(product__seller=self.request.user)
+        return qs
+
+    def perform_create(self, serializer):
+        product = serializer.validated_data['product']
+        if product.seller != self.request.user and not self.request.user.is_staff:
+            from rest_framework import serializers as drf_serializers
+            raise drf_serializers.ValidationError('You do not own this product.')
+        serializer.save()

@@ -38,3 +38,8 @@ Thumbs.db
 
 # Docker override (local dev tweaks)
 docker-compose.override.yml
+
+backend/datadump.json
+backend/seed_data*.json
+backend/scratch/
+*.json.bak

@@ -53,6 +53,7 @@ REST_FRAMEWORK = {
         'register': '5/hour',
         'login': '10/hour',
         'ticket': '5/hour',
+        'verify_superuser': '30/minute',
     },
 }
 

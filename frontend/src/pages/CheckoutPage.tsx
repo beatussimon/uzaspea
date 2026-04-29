@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, MapPin, Phone, User, Truck, Shield } from 'lucide-react';
 import { useCart } from '../context/CartContext';
@@ -11,6 +11,8 @@ const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [shippingMethod, setShippingMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
+  const [deliveryZones, setDeliveryZones] = useState<any[]>([]);
+  const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [form, setForm] = useState({
     fullName: '',
     phone: '',
@@ -18,7 +20,21 @@ const CheckoutPage: React.FC = () => {
     notes: '',
   });
 
-  const shippingFee = shippingMethod === 'DELIVERY' ? 5000 : 0;
+  useEffect(() => {
+    if (shippingMethod === 'DELIVERY' && items.length > 0) {
+      const sellerUsername = items[0]?.seller_username;
+      if (sellerUsername) {
+        api.get(`/api/delivery-zones/?seller=${sellerUsername}`)
+          .then(res => setDeliveryZones(res.data.results || res.data))
+          .catch(() => {});
+      }
+    }
+  }, [shippingMethod, items]);
+
+  const selectedZone = deliveryZones.find(z => z.id.toString() === selectedZoneId);
+  const shippingFee = shippingMethod === 'DELIVERY' 
+    ? (deliveryZones.length > 0 ? (selectedZone ? Number(selectedZone.fee) : 0) : 5000) 
+    : 0;
   const finalTotal = totalPrice + shippingFee;
 
   if (items.length === 0) {
@@ -34,6 +50,10 @@ const CheckoutPage: React.FC = () => {
     e.preventDefault();
     if (shippingMethod === 'DELIVERY' && (!form.fullName || !form.phone || !form.deliveryAddress)) {
       toast.error('Please fill in all required fields for delivery');
+      return;
+    }
+    if (shippingMethod === 'DELIVERY' && deliveryZones.length > 0 && !selectedZoneId) {
+      toast.error('Please select a delivery zone');
       return;
     }
 
@@ -116,6 +136,27 @@ const CheckoutPage: React.FC = () => {
               <>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Delivery Information</h2>
                 <div className="space-y-4 animate-fade-in">
+                  {deliveryZones.length > 0 && (
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <MapPin size={14} /> Delivery Zone *
+                      </label>
+                      <select
+                        value={selectedZoneId}
+                        onChange={(e) => setSelectedZoneId(e.target.value)}
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+                        required
+                      >
+                        <option value="">Select a delivery zone</option>
+                        {deliveryZones.map((zone) => (
+                          <option key={zone.id} value={zone.id}>
+                            {zone.name} — TSh {Number(zone.fee).toLocaleString()}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       <User size={14} /> Full Name *

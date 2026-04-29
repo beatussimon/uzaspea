@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, Bell } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from './api';
 import ProductCard from './components/ProductCard';
 import { ProductCardSkeleton } from './components/Skeleton';
@@ -105,6 +106,7 @@ const ProductList = () => {
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const urlQuery = searchParams.get('q') || '';
+  const isAuthenticated = !!localStorage.getItem('access_token');
   const ITEMS_PER_BANNER = 16; // 4 rows × 4 cols
 
   const buildParams = useCallback(
@@ -241,12 +243,28 @@ const ProductList = () => {
               </button>
             )}
           </form>
+          {urlQuery && isAuthenticated && (
+            <button onClick={async () => {
+                await api.post('/api/saved-searches/', { query: urlQuery, category: selectedCategory, min_price: minPrice, max_price: maxPrice, notify_on_match: true });
+                toast.success('Search saved! You\'ll be notified of new matches.');
+            }} className="flex text-xs text-brand-600 font-bold mt-2 items-center gap-1 hover:underline lg:hidden">
+                <Bell size={14} /> Save this search
+            </button>
+          )}
         </div>
 
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white hidden lg:block">
             {urlQuery ? `Results for "${urlQuery}"` : 'Browse Marketplace'}
           </h2>
+          {urlQuery && isAuthenticated && (
+            <button onClick={async () => {
+                await api.post('/api/saved-searches/', { query: urlQuery, category: selectedCategory, min_price: minPrice, max_price: maxPrice, notify_on_match: true });
+                toast.success('Search saved! You\'ll be notified of new matches.');
+            }} className="hidden lg:flex text-xs text-brand-600 font-bold ml-4 items-center gap-1 hover:underline">
+                <Bell size={14} /> Save this search
+            </button>
+          )}
           
           <div className="flex items-center gap-1.5 w-full md:w-auto">
             {/* View Mode Toggle */}

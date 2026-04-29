@@ -41,7 +41,8 @@ DISK_PCT=$(df / | awk 'NR==2{gsub(/%/,""); print $5}')
 
 if [ "$DISK_PCT" -gt 90 ]; then
     echo "[$TIMESTAMP] CRITICAL: Disk at ${DISK_PCT}% — cleaning Docker cache"
-    docker system prune -f --volumes 2>/dev/null
+    docker system prune -f 2>/dev/null
+    docker image prune -f 2>/dev/null
     echo "[$TIMESTAMP] Docker prune completed"
 fi
 

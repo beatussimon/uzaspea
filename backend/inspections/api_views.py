@@ -510,9 +510,15 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
             
         # Prevent multiple pending payments for the same stage
         stage = serializer.validated_data.get('stage')
-        if InspectionPayment.objects.filter(request=request_obj, stage=stage, status='pending').exists():
+        existing = InspectionPayment.objects.filter(
+            request=request_obj, stage=stage, status__in=['pending', 'approved']
+        )
+        if existing.exists():
             from rest_framework.exceptions import ValidationError
-            raise ValidationError(f"A pending {stage} payment already exists for this request.")
+            raise ValidationError(
+                f"A {stage} payment submission already exists for this inspection (status: {existing.first().status}). "
+                f"Contact support if there is a payment issue."
+            )
             
         serializer.save()
 

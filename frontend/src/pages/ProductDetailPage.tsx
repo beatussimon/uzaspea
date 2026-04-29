@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare } from 'lucide-react';
+import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, Bell } from 'lucide-react';
 import api from '../api';
 import { useCart } from '../context/CartContext';
 import { ProductTabs } from '../ProductTabs';
@@ -38,9 +38,20 @@ interface InspectionSummary {
   id: number;
   inspection_id: string;
   status: string;
-  verdict: 'pass' | 'conditional' | 'fail' | null;
   report_id: number | null;
   created_at: string;
+}
+
+interface ProductVariant {
+  id: number;
+  product: number;
+  name: string;
+  sku: string;
+  price_adjustment: string;
+  final_price: number;
+  stock: number;
+  is_available: boolean;
+  image: string | null;
 }
 
 // ===== Fullscreen Image Lightbox =====
@@ -75,6 +86,11 @@ const ProductDetailPage: React.FC = () => {
   const [likeCount, setLikeCount] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [alertPrice, setAlertPrice] = useState('');
+  
+  const isAuthenticated = !!localStorage.getItem('access_token');
 
   useEffect(() => {
     if (!slug) return;
@@ -84,6 +100,10 @@ const ProductDetailPage: React.FC = () => {
         setProduct(res.data);
         setLikeCount(res.data.like_count);
         setLoading(false);
+        // Fetch variants
+        api.get(`/api/variants/?product=${res.data.id}`)
+          .then((vRes) => setVariants(vRes.data.results || vRes.data))
+          .catch(() => {});
       })
       .catch(() => {
         toast.error('Product not found');
@@ -128,7 +148,16 @@ const ProductDetailPage: React.FC = () => {
   };
 
   const handleAddToCart = () => {
-    if (product) addToCart(product, quantity);
+    if (product) {
+      const p = selectedVariant ? {
+        ...product,
+        price: selectedVariant.final_price,
+        name: `${product.name} (${selectedVariant.name})`,
+        stock: selectedVariant.stock,
+        id: `${product.id}-${selectedVariant.id}` as any // Handle variant separated in cart
+      } : product;
+      addToCart(p, quantity);
+    }
   };
 
   if (loading) {
@@ -241,14 +270,45 @@ const ProductDetailPage: React.FC = () => {
           {/* Price */}
           <div className="flex items-baseline gap-3 mb-6">
             <p className="text-4xl font-black text-brand-600 dark:text-brand-400 tracking-tight">
-              TSh {parseInt(product.price).toLocaleString()}
+              TSh {selectedVariant ? selectedVariant.final_price.toLocaleString() : parseInt(product.price).toLocaleString()}
             </p>
-            {product.old_price && parseInt(product.old_price) > parseInt(product.price) && (
+            {product.old_price && parseInt(product.old_price) > parseInt(product.price) && !selectedVariant && (
               <p className="text-xl text-gray-400 line-through font-medium italic">
                 TSh {parseInt(product.old_price).toLocaleString()}
               </p>
             )}
           </div>
+          
+          {/* Price Alert */}
+          {isAuthenticated && (
+            <div className="flex flex-wrap items-center gap-2 mb-6 -mt-2">
+              <div className="relative">
+                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">TSh</span>
+                 <input 
+                   type="number" 
+                   placeholder="Alert when price drops to..."
+                   value={alertPrice} 
+                   onChange={e => setAlertPrice(e.target.value)}
+                   className="input text-sm pl-10 pr-3 py-1.5 w-60 h-9" 
+                 />
+              </div>
+              <button 
+                onClick={async () => {
+                    if (!alertPrice) return toast.error('Enter a target price');
+                    try {
+                        await api.post('/api/price-alerts/', { product: product.id, target_price: alertPrice });
+                        toast.success('Price alert set!');
+                        setAlertPrice('');
+                    } catch {
+                        toast.error('Failed to set price alert');
+                    }
+                }} 
+                className="btn-secondary h-9 py-0 px-4 text-xs font-bold flex items-center gap-1.5 border border-brand-200 text-brand-600 hover:bg-brand-50"
+              >
+                  <Bell size={14} /> Set Alert
+              </button>
+            </div>
+          )}
 
           {/* Info rows */}
           <div className="space-y-3 mb-6">
@@ -315,8 +375,33 @@ const ProductDetailPage: React.FC = () => {
              </p>
           </div>
 
+          {/* Variants Selector */}
+          {variants.length > 0 && (
+            <div className="mb-6 pl-1">
+              <label className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 block">
+                Select Variant
+              </label>
+              <select
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+                value={selectedVariant?.id || ''}
+                onChange={(e) => {
+                   const v = variants.find(x => x.id.toString() === e.target.value);
+                   setSelectedVariant(v || null);
+                   setQuantity(1); // Reset quantity when variant changes
+                }}
+              >
+                <option value="">Default Option</option>
+                {variants.map(v => (
+                   <option key={v.id} value={v.id} disabled={!v.is_available || v.stock === 0}>
+                     {v.name} {v.price_adjustment !== '0.00' ? `(TSh ${v.final_price.toLocaleString()})` : ''} {v.stock === 0 ? '- Out of Stock' : ''}
+                   </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Add to Cart — matches legacy quantity-selector */}
-          {product.stock > 0 ? (
+          {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
             <div className="flex items-center gap-3 mt-auto">
               <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
                 <button
@@ -329,7 +414,7 @@ const ProductDetailPage: React.FC = () => {
                   {quantity}
                 </span>
                 <button
-                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                  onClick={() => setQuantity(Math.min((selectedVariant ? selectedVariant.stock : product.stock), quantity + 1))}
                   className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300 font-medium"
                 >
                   +
