@@ -257,12 +257,12 @@ const Navbar = () => {
                     <div className="pt-4 border-t border-surface-border/50 dark:border-surface-dark-border/50">
                       <p className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">System</p>
                       <div className="grid grid-cols-1 gap-1">
-                        <button className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-btn transition-colors w-full text-left">
+                        <Link to="/dashboard/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-btn transition-colors w-full text-left">
                           <Settings size={16} /> Settings
-                        </button>
-                        <button className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-btn transition-colors w-full text-left">
+                        </Link>
+                        <Link to="/dashboard/help-center" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-btn transition-colors w-full text-left">
                           <HelpCircle size={16} /> Support
-                        </button>
+                        </Link>
                       </div>
                     </div>
                   </div>

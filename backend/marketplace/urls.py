@@ -5,7 +5,8 @@ from .api_views import (
     ProductViewSet, CategoryViewSet, ReviewViewSet,
     CommentViewSet, OrderViewSet, PaymentViewSet,
     CustomTokenObtainPairView, RegisterView,
-    SponsoredListingViewSet, UserProfileViewSet
+    SponsoredListingViewSet, UserProfileViewSet,
+    LipaNumberViewSet, FAQViewSet, SupportTicketViewSet, ChangePasswordView
 )
 
 router = DefaultRouter()
@@ -17,11 +18,15 @@ router.register(r'orders', OrderViewSet, basename='order')
 router.register(r'payments', PaymentViewSet, basename='payment')
 router.register(r'sponsored', SponsoredListingViewSet, basename='sponsored')
 router.register(r'profiles', UserProfileViewSet, basename='profile')
+router.register(r'lipa-numbers', LipaNumberViewSet, basename='lipa-number')
+router.register(r'faq', FAQViewSet, basename='faq')
+router.register(r'support-tickets', SupportTicketViewSet, basename='support-ticket')
 
 urlpatterns = [
     path('api/', include(router.urls)),
     path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/register/', RegisterView.as_view(), name='auth_register'),
+    path('api/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
 ]
 

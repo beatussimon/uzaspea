@@ -30,12 +30,21 @@ class MobileNetwork(models.Model):
 
 
 class LipaNumber(models.Model):
+    seller = models.ForeignKey(          # FIX X-01: per-seller payment info
+        User, on_delete=models.CASCADE, related_name='lipa_numbers'
+    )
     network = models.ForeignKey(MobileNetwork, related_name='lipa_numbers', on_delete=models.CASCADE)
     number = models.CharField(max_length=30)
-    name = models.CharField(max_length=50, help_text="Account or payee name")
+    name = models.CharField(max_length=100, help_text="Account or payee name shown to buyer")
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order', 'network__name']
+        unique_together = ('seller', 'network', 'number')
 
     def __str__(self):
-        return f"{self.network.name}: {self.number} ({self.name})"
+        return f"{self.seller.username} — {self.network.name}: {self.number} ({self.name})"
 
 
 class Subscription(models.Model):
@@ -307,7 +316,11 @@ class UserProfile(models.Model):
     instagram_username = models.CharField(max_length=30, blank=True)
     website = models.URLField(blank=True)
     bio = models.TextField(blank=True, null=True)
-    tier = models.CharField(max_length=20, choices=[('standard', 'Standard'), ('premium', 'Premium')], default='standard')
+    tier = models.CharField(
+        max_length=20,
+        choices=[('free', 'Free'), ('standard', 'Standard'), ('premium', 'Premium')],
+        default='free'  # FIX X-04
+    )
     location = models.CharField(max_length=100, blank=True)
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
     banner_image = models.ImageField(upload_to='profile_banners/', blank=True, null=True)
@@ -329,11 +342,15 @@ class UserProfile(models.Model):
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
+    if kwargs.get('raw'):
+        return
     if created:
         UserProfile.objects.create(user=instance)
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
+    if kwargs.get('raw'):
+        return
     if hasattr(instance, 'profile'):
         instance.profile.save()
 
@@ -357,9 +374,13 @@ def activate_subscription_on_payment_approval(sender, instance, **kwargs):
             profile = instance.user.profile
             # tier is a SubscriptionTier object, map to profile tier string
             if instance.tier:
-                profile.tier = 'premium'
-            else:
-                profile.tier = 'standard'
+                tier_name_lower = instance.tier.name.lower()
+                if 'premium' in tier_name_lower:
+                    profile.tier = 'premium'
+                elif 'standard' in tier_name_lower:
+                    profile.tier = 'standard'
+                else:
+                    profile.tier = 'standard'
             profile.save(update_fields=['tier'])
         except UserProfile.DoesNotExist:
             pass
@@ -469,3 +490,43 @@ class SponsoredListing(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.product.name} ({self.status})"
+
+
+# --- Support Models ---
+class FAQ(models.Model):
+    question = models.CharField(max_length=500)
+    answer = models.TextField()
+    category = models.CharField(max_length=50, choices=[
+        ('orders', 'Orders'), ('payments', 'Payments'),
+        ('inspections', 'Inspections'), ('account', 'Account'),
+        ('general', 'General')
+    ], default='general')
+    order = models.PositiveIntegerField(default=0)
+    is_published = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['category', 'order']
+
+class SupportTicket(models.Model):
+    STATUS_CHOICES = [('open','Open'),('in_progress','In Progress'),('resolved','Resolved'),('closed','Closed')]
+    CATEGORY_CHOICES = [('order_issue','Order Issue'),('payment_issue','Payment Issue'),
+                        ('account_issue','Account Issue'),('inspection_issue','Inspection Issue'),
+                        ('bug_report','Bug Report'),('other','Other')]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='support_tickets', null=True, blank=True)
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    subject = models.CharField(max_length=255)
+    message = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                     related_name='assigned_tickets')
+    staff_notes = models.TextField(blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']

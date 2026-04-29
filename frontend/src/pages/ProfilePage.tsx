@@ -12,6 +12,8 @@ const ProfilePage: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const [followStatus, setFollowStatus] = useState({ following: false, followers_count: 0, following_count: 0 });
+  
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
@@ -42,7 +44,21 @@ const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     fetchProfile();
+    if (username) {
+        api.get(`/api/profiles/${username}/follow_status/`)
+            .then(r => setFollowStatus(r.data)).catch(() => {});
+    }
   }, [username]);
+
+  const handleFollow = async () => {
+      const action = followStatus.following ? 'unfollow' : 'follow';
+      try {
+          const res = await api.post(`/api/profiles/${username}/${action}/`);
+          setFollowStatus(prev => ({ ...prev, following: res.data.following, followers_count: res.data.followers_count }));
+      } catch {
+          toast.error('Failed to perform action');
+      }
+  };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,13 +153,33 @@ const ProfilePage: React.FC = () => {
               </div>
 
               {profile.bio && <p className="mt-4 text-sm text-gray-700 dark:text-gray-300 max-w-2xl">{profile.bio}</p>}
+
+              <div className="flex items-center justify-center sm:justify-start gap-6 mt-6">
+                  <div className="text-center">
+                      <p className="font-black text-lg text-gray-900 dark:text-white">{followStatus.followers_count}</p>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-0.5">Followers</p>
+                  </div>
+                  <div className="text-center">
+                      <p className="font-black text-lg text-gray-900 dark:text-white">{followStatus.following_count}</p>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-0.5">Following</p>
+                  </div>
+              </div>
             </div>
 
-            {isOwner && (
-              <button onClick={() => setIsEditing(true)} className="btn-secondary text-sm px-4 py-2 mt-4 sm:mt-0 flex items-center gap-2 shrink-0">
-                <Settings size={16} /> Edit Profile
-              </button>
-            )}
+            <div className="mt-4 sm:mt-0 flex flex-col gap-2 shrink-0">
+              {isOwner ? (
+                <button onClick={() => setIsEditing(true)} className="btn-secondary text-sm px-4 py-2 flex items-center justify-center gap-2">
+                  <Settings size={16} /> Edit Profile
+                </button>
+              ) : currentUser ? (
+                  <button 
+                    onClick={handleFollow} 
+                    className={`text-sm px-6 py-2 rounded-lg font-bold transition-all shadow-sm ${followStatus.following ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20'}`}
+                  >
+                      {followStatus.following ? 'Following' : 'Follow'}
+                  </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

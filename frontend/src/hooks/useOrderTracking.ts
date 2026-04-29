@@ -1,9 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 const getWsBase = () => {
-  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  // Use current host but change protocol and port for local dev
-  return isLocal ? 'ws://localhost:8000' : `wss://${window.location.host}`;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}`;
 };
 
 const WS_BASE = getWsBase();

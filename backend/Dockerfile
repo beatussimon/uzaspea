@@ -12,8 +12,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev curl 
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /install /usr/local
 COPY . .
-# FIX DEVOPS-09,10: do NOT collectstatic or migrate at build time (no DB/env available)
-# These run at container startup via compose command
 EXPOSE 8000
-# FIX DEVOPS-01: daphne for WebSocket support
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "uzachuo.asgi:application"]
+# Default CMD — overridden by docker-compose per service
+CMD ["gunicorn", "uzachuo.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
