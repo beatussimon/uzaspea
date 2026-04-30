@@ -150,7 +150,7 @@ const CheckoutPage: React.FC = () => {
                         <option value="">Select a delivery zone</option>
                         {deliveryZones.map((zone) => (
                           <option key={zone.id} value={zone.id}>
-                            {zone.name} — TSh {Number(zone.fee).toLocaleString()}
+                            {zone.zone_name} — TSh {Number(zone.delivery_fee).toLocaleString()}
                           </option>
                         ))}
                       </select>

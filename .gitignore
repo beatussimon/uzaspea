@@ -43,3 +43,6 @@ backend/datadump.json
 backend/seed_data*.json
 backend/scratch/
 *.json.bak
+scripts/remote_*.sh
+scripts/upload_to_server.sh
+*.bak

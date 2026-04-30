@@ -232,6 +232,23 @@ class OrderSerializer(serializers.ModelSerializer):
             order.total_amount = total + shipping_fee
             order.save(update_fields=['total_amount'])
 
+        # FIX MED-06: notify sellers of new order
+        try:
+            from .models import push_notification
+            seller_ids_notified = set()
+            for item in order.orderitem_set.select_related('product__seller'):
+                if item.product.seller_id not in seller_ids_notified:
+                    seller_ids_notified.add(item.product.seller_id)
+                    push_notification(
+                        item.product.seller,
+                        'order_status',
+                        '🛍️ New Order!',
+                        f'Order #{order.id} — {item.product.name} × {item.quantity} — TSh {int(item.subtotal()):,}',
+                        '/dashboard/orders'
+                    )
+        except Exception:
+            pass  # never block order creation for notification failure
+
         # FIX: C-02 — REMOVED auto-advance to AWAITING_PAYMENT
         # The order is created with status='CART' (model default).
         # The frontend must call POST /api/orders/{id}/advance/ with {"status": "AWAITING_PAYMENT"}

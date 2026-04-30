@@ -610,6 +610,55 @@ const ReviewsManager: React.FC = () => {
     );
 };
 
+// ============ Disputes ============
+const DisputesManager: React.FC = () => {
+    const [disputes, setDisputes] = useState<any[]>([]);
+    const [filter, setFilter] = useState('open');
+
+    useEffect(() => {
+        api.get(`/api/disputes/?status=${filter}`)
+            .then(r => setDisputes(r.data.results || r.data)).catch(() => {});
+    }, [filter]);
+
+    const handleResolve = async (id: number, resolution: string) => {
+        const notes = prompt('Resolution notes (optional):') || '';
+        await api.post(`/api/disputes/${id}/resolve/`, { resolution, notes });
+        setDisputes(prev => prev.filter(d => d.id !== id));
+        toast.success('Dispute resolved');
+    };
+
+    return (
+        <div>
+            <h3 className="text-xl font-bold mb-4">Disputes</h3>
+            {['open', 'under_review', 'resolved_buyer', 'resolved_seller'].map(s => (
+                <button key={s} onClick={() => setFilter(s)}
+                    className={`mr-2 text-xs px-3 py-1 rounded-full font-bold ${filter === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                    {s.replace(/_/g, ' ')}
+                </button>
+            ))}
+            <div className="mt-4 space-y-3">
+                {disputes.map(d => (
+                    <div key={d.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition">
+                        <p className="font-bold text-gray-900 dark:text-white">Order #{d.order} — {d.opened_by_username}</p>
+                        <p className="text-sm text-gray-600 mt-1">{d.reason}</p>
+                        {d.status === 'open' && (
+                            <div className="flex gap-2 mt-3">
+                                <button onClick={() => handleResolve(d.id, 'resolved_buyer')}
+                                    className="px-3 py-1.5 border border-blue-300 text-blue-600 hover:bg-blue-50 rounded-lg text-xs font-medium transition">Favour Buyer</button>
+                                <button onClick={() => handleResolve(d.id, 'resolved_seller')}
+                                    className="px-3 py-1.5 border border-green-300 text-green-600 hover:bg-green-50 rounded-lg text-xs font-medium transition">Favour Seller</button>
+                                <button onClick={() => handleResolve(d.id, 'closed')}
+                                    className="px-3 py-1.5 border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-medium transition">Close</button>
+                            </div>
+                        )}
+                    </div>
+                ))}
+                {disputes.length === 0 && <p className="text-sm text-gray-400 text-center py-6">No {filter} disputes</p>}
+            </div>
+        </div>
+    );
+};
+
 // ============ Support Tickets ============
 const SupportTicketsManager: React.FC = () => {
     const [tickets, setTickets] = useState<any[]>([]);
@@ -757,6 +806,7 @@ const StaffDashboardLayout: React.FC = () => {
           <Route path="tasks" element={<StaffTasks />} />
           <Route path="promotions" element={(data?.user?.permissions?.includes('can_review_promotions') || data?.user?.permissions?.includes('can_approve_content')) ? <PromotionQueue /> : <Navigate to="/staff" />} />
           <Route path="reviews" element={(data?.user?.permissions?.includes('can_approve_content') || data?.user?.is_superuser) ? <ReviewsManager /> : <Navigate to="/staff" />} />
+          <Route path="disputes" element={<DisputesManager />} />
           <Route path="tickets" element={<SupportTicketsManager />} />
           <Route path="inspections/*" element={<StaffInspectionLayout user={data?.user} />} />
         </Routes>

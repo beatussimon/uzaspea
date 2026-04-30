@@ -285,8 +285,17 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
             return [TicketRateThrottle()]
         return super().get_throttles()
     def get_queryset(self):
-        if self.request.user.is_staff: return SupportTicket.objects.all().order_by('-created_at')
-        return SupportTicket.objects.filter(user=self.request.user)
+        user = self.request.user
+        if user.is_staff:
+            qs = SupportTicket.objects.all().order_by('-created_at')
+            status_filter = self.request.query_params.get('status')
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            return qs
+        # FIX LOW-02: also match by email for anonymous-then-logged-in users
+        return SupportTicket.objects.filter(
+            Q(user=user) | Q(email=user.email)
+        ).order_by('-created_at')
     def perform_create(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(user=user)
@@ -910,6 +919,63 @@ class DisputeViewSet(viewsets.ModelViewSet):
                 f'/orders?highlight={order.id}'
             )
 
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsStaffMember])
+    def resolve(self, request, pk=None):
+        """FIX HIGH-02: staff can resolve disputes."""
+        dispute = self.get_object()
+        if dispute.status not in ['open', 'under_review']:
+            return Response({'error': 'Dispute is already resolved.'}, status=400)
+
+        resolution = request.data.get('resolution')
+        notes = request.data.get('notes', '')
+
+        if resolution not in ['resolved_buyer', 'resolved_seller', 'closed']:
+            return Response({'error': 'resolution must be: resolved_buyer, resolved_seller, or closed'}, status=400)
+
+        dispute.status = resolution
+        dispute.resolution_notes = notes
+        dispute.resolved_at = timezone.now()
+        dispute.assigned_staff = request.user
+        dispute.save(update_fields=['status', 'resolution_notes', 'resolved_at', 'assigned_staff'])
+
+        # Transition order based on resolution
+        from .services import OrderStateMachine
+        if resolution == 'resolved_buyer':
+            try:
+                OrderStateMachine.transition_order(
+                    dispute.order, 'CANCELLED',
+                    notes=f'Dispute resolved in buyer favour by {request.user.username}. {notes}'
+                )
+            except ValueError:
+                pass
+        elif resolution == 'resolved_seller':
+            try:
+                OrderStateMachine.transition_order(
+                    dispute.order, 'COMPLETED',
+                    notes=f'Dispute resolved in seller favour by {request.user.username}. {notes}'
+                )
+            except ValueError:
+                pass
+
+        # Notify buyer
+        push_notification(
+            dispute.opened_by, 'order_status',
+            'Dispute Resolution',
+            f'Your dispute has been resolved: {resolution.replace("_", " ").title()}. {notes}',
+            f'/orders?highlight={dispute.order_id}'
+        )
+
+        return Response({'status': dispute.status, 'resolution_notes': dispute.resolution_notes})
+
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsStaffMember])
+    def assign(self, request, pk=None):
+        """FIX HIGH-02: staff assign dispute to themselves."""
+        dispute = self.get_object()
+        dispute.assigned_staff = request.user
+        dispute.status = 'under_review'
+        dispute.save(update_fields=['assigned_staff', 'status'])
+        return Response({'status': dispute.status, 'assigned_staff': request.user.username})
+
 
 # ─── FIX B-21/B-22: Delivery Zone ViewSet ───────────────────────
 class DeliveryZoneViewSet(viewsets.ModelViewSet):
@@ -939,18 +1005,35 @@ class SiteSettingsView(APIView):
 
 # ─── FIX HIGH-04: ProductVariantViewSet ──────────────────────────────
 class ProductVariantViewSet(viewsets.ModelViewSet):
-    """FIX HIGH-04: sellers can manage variants for their products."""
-    permission_classes = [permissions.IsAuthenticated]
+    """FIX CRIT-02: public read for buyers, auth required for seller write."""
     serializer_class = ProductVariantSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         product_id = self.request.query_params.get('product')
-        qs = ProductVariant.objects.select_related('product')
+        user = self.request.user
+
         if product_id:
-            qs = qs.filter(product_id=product_id)
-        if not self.request.user.is_staff:
-            qs = qs.filter(product__seller=self.request.user)
-        return qs
+            # Public: any visitor can see variants for a product
+            qs = ProductVariant.objects.filter(
+                product_id=product_id
+            ).select_related('product')
+            # Non-staff non-owners only see available variants
+            if not (user.is_authenticated and (user.is_staff or
+                    ProductVariant.objects.filter(product_id=product_id, product__seller=user).exists())):
+                qs = qs.filter(is_available=True)
+            return qs
+
+        if user.is_authenticated:
+            if user.is_staff:
+                return ProductVariant.objects.all().select_related('product')
+            return ProductVariant.objects.filter(product__seller=user).select_related('product')
+
+        return ProductVariant.objects.none()
 
     def perform_create(self, serializer):
         product = serializer.validated_data['product']

@@ -607,6 +607,9 @@ class Notification(models.Model):
         return f'{self.user.username}: {self.title}'
 
 
+import logging
+logger = logging.getLogger(__name__)  # FIX MED-05: add at top of file
+
 def push_notification(user, notification_type, title, message, link=''):
     """FIX B-11: Helper to create a notification and broadcast via WebSocket."""
     n = Notification.objects.create(
@@ -624,8 +627,8 @@ def push_notification(user, notification_type, title, message, link=''):
                 'title': title, 'message': message, 'link': link,
             }}
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f'WS notification broadcast failed for user {user.id}: {e}')  # FIX MED-05
     return n
 
 

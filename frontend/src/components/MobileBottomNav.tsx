@@ -2,14 +2,29 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Home, Search, PlusCircle, ShoppingBag, User, X, 
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
-  Shield, Settings, HelpCircle, LogOut, ChevronRight
+  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
+import { useCart } from '../context/CartContext';
 
 const MobileBottomNav = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const { cartCount } = useCart();
+  
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
+  const toggleTheme = () => {
+    if (isDark) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setIsDark(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setIsDark(true);
+    }
+  };
   
   const isAuthenticated = !!localStorage.getItem('access_token');
   const isVerified = localStorage.getItem('is_verified') === 'true';
@@ -78,7 +93,7 @@ const MobileBottomNav = () => {
           <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mt-3 mb-1" />
           
           <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border dark:border-surface-dark-border">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Account Menu</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Main Menu</h2>
             <button 
               onClick={() => setIsMenuOpen(false)}
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500"
@@ -89,22 +104,35 @@ const MobileBottomNav = () => {
 
           <div className="flex-1 overflow-y-auto no-scrollbar pb-10">
             {/* User Profile Summary */}
-            <div className="p-6 flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-brand-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                {username.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-bold text-gray-900 dark:text-white">{username}</span>
-                  <VerifiedBadge tier={userTier} isVerified={isVerified} className="w-5 h-5" />
+            {isAuthenticated ? (
+              <div className="p-6 flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-brand-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                  {username.charAt(0).toUpperCase()}
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{userTier} Member</p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-bold text-gray-900 dark:text-white">{username}</span>
+                    <VerifiedBadge tier={userTier} isVerified={isVerified} className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{userTier} Member</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Welcome to UZASPEA</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Log in or create an account to start selling and buying.</p>
+                <div className="flex gap-3">
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)} className="flex-1 btn-primary py-2 text-center text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white rounded-lg">Login</Link>
+                  <Link to="/register" onClick={() => setIsMenuOpen(false)} className="flex-1 py-2 text-center text-sm font-bold border-2 border-brand-600 text-brand-600 rounded-lg">Register</Link>
+                </div>
+              </div>
+            )}
 
             {/* Link Groups */}
-            <div className="px-4 space-y-6">
-              {/* Marketplace Group */}
+            <div className="px-4 space-y-6 mt-2">
+              {isAuthenticated && (
+                <>
+                  {/* Marketplace Group */}
               <div>
                 <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Marketplace</p>
                 <div className="grid grid-cols-1 gap-2">
@@ -188,33 +216,41 @@ const MobileBottomNav = () => {
                   </div>
                 </div>
               )}
+            </>
+          )}
 
-              {/* System/Other */}
+          {/* System/Other */}
               <div>
                 <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">System</p>
                 <div className="grid grid-cols-1 gap-2 text-sm">
-                  <button className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400">
+                  <button onClick={toggleTheme} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors text-left w-full">
+                    {isDark ? <Sun size={20} /> : <Moon size={20} />}
+                    <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+                  </button>
+                  <Link to="/dashboard/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors">
                     <Settings size={20} />
                     <span>Settings</span>
-                  </button>
-                  <button className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400">
+                  </Link>
+                  <Link to="/dashboard/help-center" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors">
                     <HelpCircle size={20} />
                     <span>Help & Support center</span>
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>
 
             {/* Logout Button */}
-            <div className="px-6 mt-8 mb-4">
-              <button 
-                onClick={() => { localStorage.clear(); window.location.href = '/'; }}
-                className="w-full flex items-center justify-center gap-3 p-4 rounded-btn border-2 border-red-100 dark:border-red-900/30 text-red-600 font-bold active:bg-red-50 dark:active:bg-red-900/20 transition-colors"
-                >
-                <LogOut size={20} />
-                Sign Out from UZASPEA
-              </button>
-            </div>
+            {isAuthenticated && (
+              <div className="px-6 mt-8 mb-4">
+                <button 
+                  onClick={() => { localStorage.clear(); window.location.href = '/'; }}
+                  className="w-full flex items-center justify-center gap-3 p-4 rounded-btn border-2 border-red-100 dark:border-red-900/30 text-red-600 font-bold active:bg-red-50 dark:active:bg-red-900/20 transition-colors"
+                  >
+                  <LogOut size={20} />
+                  Sign Out from UZASPEA
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -255,22 +291,27 @@ const MobileBottomNav = () => {
             <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider">Sell</span>
           </div>
 
-          {/* Orders/Cart */}
+          {/* Cart */}
           <Link 
-            to="/orders" 
-            className={`flex flex-col items-center gap-1 transition-colors ${isActive('/orders') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}
+            to="/cart" 
+            className={`flex flex-col items-center gap-1 transition-colors relative ${isActive('/cart') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}
           >
-            <ShoppingBag size={22} strokeWidth={isActive('/orders') ? 2.5 : 2} />
-            <span className="text-[10px] font-medium uppercase tracking-wider">Orders</span>
+            <ShoppingCart size={22} strokeWidth={isActive('/cart') ? 2.5 : 2} />
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-white dark:border-gray-900">
+                {cartCount > 99 ? '99+' : cartCount}
+              </span>
+            )}
+            <span className="text-[10px] font-medium uppercase tracking-wider">Cart</span>
           </Link>
 
-          {/* Account/Profile (Toggles Menu) */}
+          {/* Hamburger Menu (Toggles Slide-up Menu) */}
           <button 
-            onClick={() => isAuthenticated ? setIsMenuOpen(true) : window.location.href = '/login'} 
-            className={`flex flex-col items-center gap-1 transition-colors ${isMenuOpen || location.pathname.startsWith('/profile') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}
+            onClick={() => setIsMenuOpen(true)} 
+            className={`flex flex-col items-center gap-1 transition-colors ${isMenuOpen ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}
           >
-            <User size={22} strokeWidth={isMenuOpen || location.pathname.startsWith('/profile') ? 2.5 : 2} />
-            <span className="text-[10px] font-medium uppercase tracking-wider">Account</span>
+            <Menu size={22} strokeWidth={isMenuOpen ? 2.5 : 2} />
+            <span className="text-[10px] font-medium uppercase tracking-wider">Menu</span>
           </button>
 
         </div>
