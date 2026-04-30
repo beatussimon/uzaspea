@@ -25,8 +25,8 @@ class OrderStateMachine:
     def transition_order(cls, order, new_state, notes="", visible_to_customer=True):
         old_state = order.status
         if new_state not in cls.VALID_TRANSITIONS.get(order.status, []):
-            # FIX: L-08 — cannot cancel once shipped, delivered, or completed
-            if new_state == 'CANCELLED' and order.status not in ['COMPLETED', 'DELIVERED', 'SHIPPED']:
+            # FIX: L-08 — cannot cancel once shipped, delivered, completed, or already cancelled
+            if new_state == 'CANCELLED' and order.status not in ['COMPLETED', 'DELIVERED', 'SHIPPED', 'CANCELLED']:
                 pass
             else:
                 raise ValueError(f"Invalid transition from {order.status} to {new_state}")
@@ -35,7 +35,7 @@ class OrderStateMachine:
         order.save(update_fields=['status'])
 
         # FIX: M-02 — restore stock on cancellation (only if stock was already decremented)
-        if new_state == 'CANCELLED' and old_state not in ('CART', 'CHECKOUT'):
+        if new_state == 'CANCELLED' and old_state not in ('CART', 'CHECKOUT', 'CANCELLED'):
             from django.db.models import F as _F
             from .models import Product as _Product
             items = order.orderitem_set.all()

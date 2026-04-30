@@ -38,6 +38,7 @@ interface InspectionSummary {
   id: number;
   inspection_id: string;
   status: string;
+  verdict: 'pass' | 'conditional' | 'fail' | null;
   report_id: number | null;
   created_at: string;
 }

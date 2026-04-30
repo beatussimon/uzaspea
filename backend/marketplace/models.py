@@ -176,11 +176,10 @@ class Product(models.Model):
     def get_absolute_url(self):
         return reverse('product_detail', kwargs={'slug': self.slug})
 
-    # Use a regular method, *not* a property, for compatibility with annotation
     def average_rating(self):
         reviews = self.reviews.all()
         if reviews:
-            return int(reviews.aggregate(Avg('rating'))['rating__avg'])
+            return int(sum(r.rating for r in reviews) / len(reviews))
         return 0
 
     def get_first_image(self):

@@ -100,10 +100,12 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
     def _get_user_from_token(self, token):
         try:
             from rest_framework_simplejwt.tokens import AccessToken
+            from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
             from django.contrib.auth.models import User
             validated = AccessToken(token)
             return User.objects.get(id=validated['user_id'])
-        except Exception:
+        except (TokenError, InvalidToken, Exception):
+            # Using Exception as fallback, but explicitly acknowledging the specific expected exceptions
             return None
 
     @database_sync_to_async

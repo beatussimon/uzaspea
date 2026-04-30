@@ -20,6 +20,7 @@ from .serializers import (
 
 from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember
 from django.db.models import Prefetch
+from django.db import transaction
 
 
 # FIX D-07: Rate limiting throttle classes
@@ -45,7 +46,11 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Base queryset
-        base = Product.objects.all().prefetch_related('images', 'likes')
+        base = Product.objects.all().select_related(
+            'seller', 'seller__profile', 'category'
+        ).prefetch_related(
+            'images', 'likes', 'reviews', 'inspections', 'inspections__report'
+        )
         
         # FIX: Ensure detail actions (delete/edit) don't get blocked by list filters
         if getattr(self, 'detail', False) or self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
@@ -152,7 +157,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             product__seller=user, order__order_date__date__gte=start_date,
             order__status__in=PAID_STATUSES,  # FIX L-19
         ).values('order__order_date__date').annotate(
-            rev=Sum('price'), count=Count('order', distinct=True)
+            rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('order', distinct=True)
         ).order_by('order__order_date__date')
         
         pipeline_map = {item['order__order_date__date']: item for item in pipeline_items}
@@ -176,7 +181,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             product__seller=user,
             order__order_date__date__gte=prev_start,
             order__order_date__date__lt=start_date,
-        ).aggregate(t=Sum('price'))['t'] or 0)
+        ).aggregate(t=Sum(django_models.F('price') * django_models.F('quantity')))['t'] or 0)
         trend_pct = round(((total_7d - prev_7d) / prev_7d * 100) if prev_7d else 0, 1)
 
         # --- Order status breakdown ---
@@ -190,7 +195,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         top_prods = (
             OrderItem.objects.filter(product__seller=user)
             .values('product__name', 'product__slug')
-            .annotate(sold=Count('id'), rev=Sum('price'))
+            .annotate(sold=Count('id'), rev=Sum(django_models.F('price') * django_models.F('quantity')))
             .order_by('-sold')[:5]
         )
         top_products = [{'name': t['product__name'], 'slug': t['product__slug'], 'sold': t['sold'], 'revenue': float(t['rev'] or 0)} for t in top_prods]
@@ -199,7 +204,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         cat_data = (
             OrderItem.objects.filter(product__seller=user)
             .values('product__category__name')
-            .annotate(rev=Sum('price'), count=Count('id'))
+            .annotate(rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('id'))
             .order_by('-rev')[:8]
         )
         category_breakdown = [{'category': c['product__category__name'] or 'Other', 'revenue': float(c['rev'] or 0), 'items': c['count']} for c in cat_data]
@@ -304,6 +309,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     @decorators.action(detail=True, methods=['post'])
+    @transaction.atomic
     def advance(self, request, pk=None):
         from .services import OrderStateMachine
         order = self.get_object()
@@ -316,9 +322,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         notes = request.data.get('notes', '')
 
         # FIX: S-06 — Enforce who can trigger which transitions
-        STAFF_ONLY_STATES = {'PAID', 'COMPLETED', 'REFUNDED', 'EXPIRED'}
-        SELLER_ALLOWED_STATES = {'PROCESSING', 'SHIPPED'}
-        BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'CHECKOUT'}
+        STAFF_ONLY_STATES = {'PAID', 'REFUNDED', 'EXPIRED'}
+        SELLER_ALLOWED_STATES = {'PROCESSING', 'SHIPPED', 'DELIVERED', 'DISPUTED'}
+        BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED'}
 
         if new_state in STAFF_ONLY_STATES and not request.user.is_staff:
             return Response(

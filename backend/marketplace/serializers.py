@@ -110,12 +110,12 @@ class ProductSerializer(serializers.ModelSerializer):
         return None
 
     def get_has_inspection(self, obj):  # FIX B-19
-        return obj.inspections.filter(status='published').exists()
+        return any(i.status == 'published' for i in obj.inspections.all())
 
     def get_inspection_verdict(self, obj):  # FIX B-19
-        insp = obj.inspections.filter(status='published').select_related('report').first()
-        if insp and hasattr(insp, 'report'):
-            return insp.report.verdict
+        for i in obj.inspections.all():
+            if i.status == 'published':
+                return getattr(i, 'report', None) and i.report.verdict
         return None
 
 class ProductReviewSerializer(serializers.ModelSerializer):
@@ -152,7 +152,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal']
+        fields = ['id', 'product', 'variant', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal']
         read_only_fields = ['price']
 
     def get_product_image(self, obj):
@@ -195,26 +195,38 @@ class OrderSerializer(serializers.ModelSerializer):
             for item_data in items_data:
                 product = item_data['product']
                 qty = item_data['quantity']
+                variant = item_data.get('variant')
 
-                # FIX: C-01 — validate stock before creating OrderItem
-                product.refresh_from_db(fields=['stock'])
-                if product.stock < qty:
-                    raise serializers.ValidationError(
-                        f'"{product.name}" only has {product.stock} unit(s) in stock.'
-                    )
+                if variant:
+                    variant = ProductVariant.objects.select_for_update().get(pk=variant.pk)
+                    if variant.stock < qty:
+                        raise serializers.ValidationError(
+                            f'Variant "{variant.name}" of "{product.name}" only has {variant.stock} unit(s) in stock.'
+                        )
+                    item_price = variant.final_price
+                else:
+                    product = Product.objects.select_for_update().get(pk=product.pk)
+                    if product.stock < qty:
+                        raise serializers.ValidationError(
+                            f'"{product.name}" only has {product.stock} unit(s) in stock.'
+                        )
+                    item_price = product.price
 
                 OrderItem.objects.create(
                     order=order,
                     product=product,
+                    variant=variant,
                     quantity=qty,
-                    price=product.price
+                    price=item_price
                 )
-                total += (product.price * qty)
+                total += (item_price * qty)
 
-                # FIX: C-01 — decrement stock atomically
-                Product.objects.filter(pk=product.pk).update(stock=F('stock') - qty)
-                # FIX: M-03 — auto-mark unavailable if now at zero
-                Product.objects.filter(pk=product.pk, stock=0).update(is_available=False)
+                if variant:
+                    ProductVariant.objects.filter(pk=variant.pk).update(stock=F('stock') - qty)
+                    ProductVariant.objects.filter(pk=variant.pk, stock=0).update(is_available=False)
+                else:
+                    Product.objects.filter(pk=product.pk).update(stock=F('stock') - qty)
+                    Product.objects.filter(pk=product.pk, stock=0).update(is_available=False)
             
             shipping_fee = validated_data.get('shipping_fee', 0)
             order.total_amount = total + shipping_fee

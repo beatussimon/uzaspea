@@ -4,7 +4,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Lock, CheckCircle, ChevronRight, ChevronLeft, Calendar } from 'lucide-react';
+import { User, Mail, Lock, ChevronRight, ChevronLeft, Calendar } from 'lucide-react';
 
 const RegisterPage: React.FC = () => {
   const [step, setStep] = useState(1);
