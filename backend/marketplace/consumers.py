@@ -147,6 +147,56 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message': event['message'],
         }))
 
+    async def receive(self, text_data):
+        """Receive message from WebSocket, save to DB, broadcast to recipient."""
+        import json
+        from asgiref.sync import sync_to_async
+        
+        data = json.loads(text_data)
+        conv_id = data.get('conversation_id')
+        content = data.get('content', '').strip()
+        
+        if not conv_id or not content:
+            return
+        
+        # Save message and get recipient
+        result = await self._save_message(conv_id, content)
+        if result is None:
+            return
+        
+        msg_data, recipient_id = result
+        
+        # Broadcast to recipient's personal channel group
+        await self.channel_layer.group_send(
+            f'chat_{recipient_id}',
+            {
+                'type': 'chat_message',
+                'conversation_id': conv_id,
+                'message': msg_data,
+            }
+        )
+        # Echo back to sender for confirmation
+        await self.send(text_data=json.dumps({
+            'type': 'chat_message',
+            'conversation_id': conv_id,
+            'message': msg_data,
+        }))
+
+    @database_sync_to_async
+    def _save_message(self, conv_id, content):
+        from marketplace.models import Conversation, Message
+        from marketplace.serializers import MessageSerializer
+        try:
+            conv = Conversation.objects.select_related('buyer', 'seller').get(id=conv_id)
+            if self.user not in (conv.buyer, conv.seller):
+                return None
+            msg = Message.objects.create(conversation=conv, sender=self.user, content=content)
+            conv.save()  # bump updated_at
+            recipient = conv.seller if self.user == conv.buyer else conv.buyer
+            return MessageSerializer(msg).data, recipient.id
+        except Conversation.DoesNotExist:
+            return None
+
     @database_sync_to_async
     def _get_user_from_token(self, token):
         try:

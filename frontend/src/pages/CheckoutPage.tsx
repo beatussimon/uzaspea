@@ -33,7 +33,7 @@ const CheckoutPage: React.FC = () => {
 
   const selectedZone = deliveryZones.find(z => z.id.toString() === selectedZoneId);
   const shippingFee = shippingMethod === 'DELIVERY' 
-    ? (deliveryZones.length > 0 ? (selectedZone ? Number(selectedZone.fee) : 0) : 5000) 
+    ? (deliveryZones.length > 0 ? (selectedZone ? Number(selectedZone.delivery_fee) : 0) : 5000) 
     : 0;
   const finalTotal = totalPrice + shippingFee;
 
