@@ -859,6 +859,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
             push_notification(other, 'new_message',
                 f'New message from {request.user.username}',
                 msg.content[:100], f'/messages/{conv.id}')
+<<<<<<< HEAD
             
             from channels.layers import get_channel_layer
             from asgiref.sync import async_to_sync
@@ -877,6 +878,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass  # WS delivery is best-effort; REST response still returns
 
+=======
+>>>>>>> 0f79b146366984130074a93dad4e16dfb3194353
             return Response(MessageSerializer(msg).data, status=201)
         Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user).update(is_read=True)
         msgs = conv.messages.all()

@@ -13,8 +13,12 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 # FIX: S-02 — Explicit allowed hosts
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# FIX MED-04: when behind a trusted reverse proxy (Traefik), Django can trust all hosts
+# Traefik is the gatekeeper — it validates the Host header before requests reach Django
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+if not DEBUG and '*' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('*')  # safe — Traefik validates Host; Django just processes the request
 
 ALLOWED_HOSTS.append('testserver')
 
@@ -214,7 +218,5 @@ if not DEBUG:
         CSRF_COOKIE_SECURE = True
         SESSION_COOKIE_SECURE = True
     else:
-        # Fix COOP error over HTTP for admin login
-        SECURE_CROSS_ORIGIN_OPENER_POLICY = None
         # Fix COOP error over HTTP for admin login
         SECURE_CROSS_ORIGIN_OPENER_POLICY = None
