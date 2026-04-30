@@ -46,3 +46,13 @@ backend/scratch/
 scripts/remote_*.sh
 scripts/upload_to_server.sh
 *.bak
+
+# Phase 0
+traefik_acme.json
+backend/db.sqlite3
+backend/server.log
+frontend/.env.production
+backend/dedup.sql
+backend/static_collected/
+backend/staticfiles/
+backend/media/
