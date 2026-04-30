@@ -13,7 +13,6 @@ const MessagesPage: React.FC = () => {
   const [activeConv, setActiveConv] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const username = localStorage.getItem('username') || '';
-  const currentUserId = parseInt(localStorage.getItem('user_id') || '0');
 
   useEffect(() => {
     api.get('/api/conversations/')
@@ -127,20 +126,17 @@ const MessagesPage: React.FC = () => {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[50vh]">
-                {messages.map(msg => {
-                  const isOwn = msg.sender === currentUserId;
-                  return (
-                  <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                {messages.map(msg => (
+                  <div key={msg.id} className={`flex ${msg.sender_username === username ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm ${
-                      isOwn
+                      msg.sender_username === username
                         ? 'bg-brand-600 text-white rounded-br-sm'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-sm'
                     }`}>
                       {msg.content}
                     </div>
                   </div>
-                  );
-                })}
+                ))}
               </div>
 
               <div className="p-3 border-t border-gray-100 dark:border-gray-700 flex gap-2">
