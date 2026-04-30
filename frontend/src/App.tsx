@@ -83,6 +83,7 @@ const Navbar = () => {
   const [visible, setVisible] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
   const lastScrollY = useRef(0);
   const { cartCount } = useCart();
@@ -100,6 +101,7 @@ const Navbar = () => {
   // Close mobile menu and reset navbar on route change
   useEffect(() => {
     setVisible(true);
+    setMobileSearchOpen(false);
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
@@ -144,7 +146,10 @@ const Navbar = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) navigate(`/?q=${encodeURIComponent(searchQuery.trim())}`);
+    if (searchQuery.trim()) {
+      navigate(`/?q=${encodeURIComponent(searchQuery.trim())}`);
+      setMobileSearchOpen(false);
+    }
   };
 
   return (
@@ -340,23 +345,41 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* ---- Mobile toggles (Hidden in favor of Bottom Nav) ---- */}
+        {/* ---- Mobile top-right (Notifications + Search) ---- */}
         <div className="lg:hidden flex items-center gap-2">
-          <button onClick={toggleTheme} className="btn-ghost p-1.5 text-gray-600 dark:text-gray-300">
-            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          <button 
+            onClick={() => setMobileSearchOpen(!mobileSearchOpen)} 
+            className="btn-ghost p-1.5 text-gray-600 dark:text-gray-300"
+            aria-label="Toggle mobile search"
+          >
+            <Search size={20} />
           </button>
-          <Link to="/cart" className="relative btn-ghost p-1.5 text-gray-600 dark:text-gray-300">
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-            {cartCount > 0 && (
-              <span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
-                {cartCount > 99 ? '99' : cartCount}
-              </span>
-            )}
-          </Link>
+          <NotificationBell />
         </div>
       </div>
 
-      {/* Mobile menu (Hidden) */}
+      {/* Mobile Search Bar Dropdown */}
+      {mobileSearchOpen && (
+        <div className="lg:hidden absolute top-16 inset-x-0 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 p-3 shadow-md animate-fade-in">
+          <form onSubmit={handleSearch} className="flex items-center w-full">
+            <div className="relative flex items-center flex-1">
+              <input
+                type="search" value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search products..."
+                className="input rounded-r-none border-r-0 py-2 pl-3 pr-2 focus:ring-0 w-full"
+                autoFocus
+              />
+            </div>
+            <button 
+              type="submit" 
+              className="px-4 py-[9px] bg-brand-600 text-white rounded-r-btn active:scale-95 flex items-center justify-center"
+            >
+              <Search size={18} />
+            </button>
+          </form>
+        </div>
+      )}
     </nav>
   );
 };

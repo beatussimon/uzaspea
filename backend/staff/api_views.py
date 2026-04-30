@@ -517,3 +517,37 @@ class StaffAdminDashboardView(APIView):
             'recent_logs': logs_data,
             'staffers': staff_list_data,
         })
+
+
+from marketplace.models import FAQ, SupportTicket
+from marketplace.serializers import FAQSerializer, SupportTicketSerializer
+from django.utils import timezone as tz
+
+class StaffFAQViewSet(viewsets.ModelViewSet):
+    """FIX CRIT-04: staff full CRUD on FAQ entries."""
+    permission_classes = [IsStaffMember]
+    queryset = FAQ.objects.all().order_by('category', 'order')
+    serializer_class = FAQSerializer
+
+class StaffSupportTicketViewSet(viewsets.ModelViewSet):
+    """FIX CRIT-04: staff manage all support tickets."""
+    permission_classes = [IsStaffMember]
+    serializer_class = SupportTicketSerializer
+
+    def get_queryset(self):
+        qs = SupportTicket.objects.all().order_by('-created_at')
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        return qs
+
+    @decorators.action(detail=True, methods=['post'])
+    def resolve(self, request, pk=None):
+        ticket = self.get_object()
+        ticket.status = 'resolved'
+        ticket.assigned_to = request.user
+        ticket.staff_notes = request.data.get('notes', '')
+        ticket.resolved_at = tz.now()
+        ticket.save()
+        return Response({'status': 'resolved'})
+

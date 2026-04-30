@@ -31,6 +31,28 @@ const MessagesPage: React.FC = () => {
     }
   }, [id, conversations]);
 
+  // FIX HIGH-01: real-time message delivery
+  useEffect(() => {
+    if (!id || !localStorage.getItem('access_token')) return;
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const token = localStorage.getItem('access_token');
+    const wsUrl = `${proto}://${window.location.host}/ws/chat/?token=${token}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'chat_message' && data.conversation_id === parseInt(id)) {
+            setMessages(prev => {
+                // Avoid duplicate if already in list
+                if (prev.some((m: any) => m.id === data.message.id)) return prev;
+                return [...prev, data.message];
+            });
+        }
+    };
+
+    return () => { ws.close(); };
+  }, [id]);
+
   const sendMessage = async () => {
     if (!newMessage.trim() || !id) return;
     try {

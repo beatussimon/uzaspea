@@ -116,3 +116,45 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
             return Order.objects.filter(id=order_id, user=user).exists() or user.is_staff
         except Exception:
             return False
+
+class ChatConsumer(AsyncWebsocketConsumer):
+    """FIX HIGH-01: real-time message delivery via WebSocket."""
+
+    async def connect(self):
+        user = self.scope.get('user')
+        if not user or not user.is_authenticated:
+            # Try token from query string
+            qs = parse_qs(self.scope.get('query_string', b'').decode())
+            token = qs.get('token', [None])[0]
+            if token:
+                user = await self._get_user_from_token(token)
+        if not user or not user.is_authenticated:
+            await self.close(code=4001)
+            return
+        self.user = user
+        self.group_name = f'chat_{user.id}'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'group_name'):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def chat_message(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'chat_message',
+            'conversation_id': event['conversation_id'],
+            'message': event['message'],
+        }))
+
+    @database_sync_to_async
+    def _get_user_from_token(self, token):
+        try:
+            from rest_framework_simplejwt.tokens import UntypedToken
+            from rest_framework_simplejwt.authentication import JWTAuthentication
+            UntypedToken(token)
+            auth = JWTAuthentication()
+            validated = auth.get_validated_token(token)
+            return auth.get_user(validated)
+        except Exception:
+            return None
