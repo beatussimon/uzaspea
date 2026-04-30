@@ -859,6 +859,24 @@ class ConversationViewSet(viewsets.ModelViewSet):
             push_notification(other, 'new_message',
                 f'New message from {request.user.username}',
                 msg.content[:100], f'/messages/{conv.id}')
+            
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            from .serializers import MessageSerializer as MsgSerializer
+            
+            channel_layer = get_channel_layer()
+            try:
+                async_to_sync(channel_layer.group_send)(
+                    f'chat_{other.id}',
+                    {
+                        'type': 'chat_message',
+                        'conversation_id': conv.id,
+                        'message': MsgSerializer(msg).data,
+                    }
+                )
+            except Exception:
+                pass  # WS delivery is best-effort; REST response still returns
+
             return Response(MessageSerializer(msg).data, status=201)
         Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user).update(is_read=True)
         msgs = conv.messages.all()
