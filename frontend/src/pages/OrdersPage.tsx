@@ -379,14 +379,14 @@ const OrdersPage: React.FC = () => {
                                 {(sellerLipa[order.id] || []).length === 0 ? (
                                     <p className="text-sm text-yellow-600">The seller has not added payment numbers yet. Contact them directly.</p>
                                 ) : (
-                                    <div className="space-y-2">
+                                    <div className="flex flex-wrap gap-3">
                                         {(sellerLipa[order.id] || []).map((lipa: any) => (
-                                            <div key={lipa.id} className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
-                                                <div className={`rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700 ${lipa.network_logo ? 'w-16 h-10' : 'w-10 h-10'}`}>
+                                            <div key={lipa.id} className="flex-1 min-w-[240px] flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+                                                <div className={`rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700 ${lipa.network_logo ? 'w-24 h-12' : 'w-12 h-12'}`}>
                                                     {lipa.network_logo ? (
                                                         <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
                                                     ) : (
-                                                        <Smartphone size={20} className="text-green-600" />
+                                                        <Smartphone size={24} className="text-green-600" />
                                                     )}
                                                 </div>
                                                 <div>
