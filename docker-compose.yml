@@ -4,8 +4,8 @@ x-backend-common: &backend-common
     dockerfile: Dockerfile
   env_file: ./backend/.env
   environment:
-    - DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD}@db:5432/${DB_NAME:-uzaspea}
-    - REDIS_URL=redis://redis:6379/0
+    - DATABASE_URL=${DATABASE_URL}
+    - REDIS_URL=${REDIS_URL}
   depends_on:
     db:
       condition: service_healthy
