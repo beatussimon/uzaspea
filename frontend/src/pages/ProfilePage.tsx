@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Settings, MapPin, Link as LinkIcon, Camera } from 'lucide-react';
+import { Settings, MapPin, Link as LinkIcon, Camera, Phone, Instagram } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
 import ProductCard from '../components/ProductCard';
@@ -205,6 +205,41 @@ const ProfilePage: React.FC = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Phone Number</label>
                 <input type="tel" className="input" value={editForm.phone_number} onChange={(e) => setEditForm({...editForm, phone_number: e.target.value})} placeholder="+255..." />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Instagram Username</label>
+                <input type="text" className="input" value={editForm.instagram_username || ''} onChange={(e) => setEditForm({...editForm, instagram_username: e.target.value})} placeholder="@username" />
+              </div>
+              <div className="flex gap-3 pt-4 border-t dark:border-surface-dark-border mt-2">
+                <button type="submit" disabled={saving} className="btn-primary flex-1 py-2">{saving ? 'Saving...' : 'Save Changes'}</button>
+                <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary flex-1 py-2">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Seller's Products */}
+      <div className="mt-8">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Products by {username}</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {products.length === 0 ? (
+            <div className="col-span-full card p-12 text-center text-gray-500">
+              No products found for this seller.
+            </div>
+          ) : (
+            products.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProfilePage;
+hone_number: e.target.value})} placeholder="+255..." />
               </div>
               <div className="flex gap-3 pt-4 border-t dark:border-surface-dark-border mt-2">
                 <button type="submit" disabled={saving} className="btn-primary flex-1 py-2">{saving ? 'Saving...' : 'Save Changes'}</button>
