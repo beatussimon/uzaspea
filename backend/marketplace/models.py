@@ -746,7 +746,7 @@ class ProductVariant(models.Model):
 # ─── Site Settings (B-18) ────────────────────────────────────────
 class SiteSettings(models.Model):
     """Singleton model — only one row. Edit via Django admin."""
-    company_name = models.CharField(max_length=100, default='KIBOSS')
+    company_name = models.CharField(max_length=100, default='UZASPEA')
     tagline = models.CharField(max_length=255, blank=True)
     support_email = models.EmailField(blank=True)
     support_phone = models.CharField(max_length=30, blank=True)

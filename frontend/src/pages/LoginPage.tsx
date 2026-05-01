@@ -43,7 +43,7 @@ const LoginPage: React.FC = () => {
       <div className="card w-full max-w-md p-6 sm:p-8 animate-fade-in">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Sign in to your KIBOSS account</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Sign in to your UZASPEA account</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">

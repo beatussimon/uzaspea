@@ -128,7 +128,7 @@ const ProductDetailPage: React.FC = () => {
     const shareUrl = window.location.href;
     const shareData = {
       title: product?.name || 'Check this out',
-      text: `${product?.name} — TSh ${parseInt(product?.price || '0').toLocaleString()} on KIBOSS`,
+      text: `${product?.name} — TSh ${parseInt(product?.price || '0').toLocaleString()} on UZASPEA`,
       url: shareUrl,
     };
 
