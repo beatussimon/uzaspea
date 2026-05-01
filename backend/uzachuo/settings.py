@@ -194,7 +194,7 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '1025'))
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False') == 'True'
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@uzaspea.com')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@kiboss.co.tz')
 
 # Session settings
 SESSION_COOKIE_HTTPONLY = True
@@ -202,7 +202,10 @@ SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False') == 'Tru
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'False') == 'True'
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    'CSRF_TRUSTED_ORIGINS', 
+    'http://localhost:8000,http://127.0.0.1:8000,http://localhost,http://3.6.193.212'
+).split(',')
 if os.environ.get('DOMAIN'):
     _dom = os.environ.get('DOMAIN')
     CSRF_TRUSTED_ORIGINS.append(f"http://{_dom}")
@@ -225,3 +228,4 @@ if not DEBUG:
     else:
         # Fix COOP error over HTTP for admin login
         SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = None

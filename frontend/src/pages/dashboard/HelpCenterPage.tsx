@@ -12,7 +12,7 @@ const HelpCenterPage: React.FC = () => {
     // FIX B-18: Dynamic site settings
     const [siteSettings, setSiteSettings] = useState<any>({
         support_phone: '+255 123 456 789',
-        support_email: 'support@uzaspea.co.tz',
+        support_email: 'support@kiboss.co.tz',
         address: 'Posta, Dar es Salaam, TZ',
     });
 
@@ -68,7 +68,7 @@ const HelpCenterPage: React.FC = () => {
                         <Mail size={24} />
                     </div>
                     <h3 className="font-bold text-gray-900 dark:text-white">Email Us</h3>
-                    <p className="text-sm text-gray-500">{siteSettings.support_email || 'support@uzaspea.co.tz'}</p>
+                    <p className="text-sm text-gray-500">{siteSettings.support_email || 'support@kiboss.co.tz'}</p>
                 </div>
                 <div className="card p-6 flex flex-col items-center text-center space-y-2">
                     <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center rounded-full">
