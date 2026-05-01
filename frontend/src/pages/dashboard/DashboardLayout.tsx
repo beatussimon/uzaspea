@@ -1022,10 +1022,19 @@ const PaymentNumbersManager: React.FC = () => {
             <div className="space-y-2">
                 {lipaNumbers.map(lipa => (
                     <div key={lipa.id} className="card p-4 flex items-center justify-between">
-                        <div>
-                            <p className="font-bold text-sm text-gray-900 dark:text-white">{lipa.network_name}</p>
-                            <p className="text-gray-900 dark:text-white font-mono">{lipa.number}</p>
-                            <p className="text-xs text-gray-500">{lipa.name}</p>
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700">
+                                {lipa.network_logo ? (
+                                    <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain p-1" />
+                                ) : (
+                                    <Smartphone size={24} className="text-gray-400" />
+                                )}
+                            </div>
+                            <div>
+                                <p className="font-bold text-sm text-gray-900 dark:text-white">{lipa.network_name}</p>
+                                <p className="text-gray-900 dark:text-white font-mono">{lipa.number}</p>
+                                <p className="text-xs text-gray-500">{lipa.name}</p>
+                            </div>
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => { setEditingId(lipa.id); setForm({network: lipa.network, number: lipa.number, name: lipa.name}); }}

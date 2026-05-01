@@ -382,8 +382,12 @@ const OrdersPage: React.FC = () => {
                                     <div className="space-y-2">
                                         {(sellerLipa[order.id] || []).map((lipa: any) => (
                                             <div key={lipa.id} className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
-                                                <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                                    <Smartphone size={16} className="text-green-600" />
+                                                <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700">
+                                                    {lipa.network_logo ? (
+                                                        <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain p-1" />
+                                                    ) : (
+                                                        <Smartphone size={20} className="text-green-600" />
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <p className="text-[11px] font-bold text-gray-400 uppercase">{lipa.network_name}</p>
