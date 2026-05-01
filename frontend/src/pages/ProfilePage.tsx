@@ -239,34 +239,3 @@ const ProfilePage: React.FC = () => {
 };
 
 export default ProfilePage;
-hone_number: e.target.value})} placeholder="+255..." />
-              </div>
-              <div className="flex gap-3 pt-4 border-t dark:border-surface-dark-border mt-2">
-                <button type="submit" disabled={saving} className="btn-primary flex-1 py-2">{saving ? 'Saving...' : 'Save Changes'}</button>
-                <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary flex-1 py-2">Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Seller's Products */}
-      <div className="mt-8">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Products by {username}</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {products.length === 0 ? (
-            <div className="col-span-full card p-12 text-center text-gray-500">
-              No products found for this seller.
-            </div>
-          ) : (
-            products.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default ProfilePage;
