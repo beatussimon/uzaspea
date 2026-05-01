@@ -434,7 +434,11 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {lipaNumbers.map(l => (
               <div key={l.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-lg shadow-sm">
-                {l.network_logo && <img src={l.network_logo} alt={l.network_name} className="w-10 h-10 object-contain rounded bg-gray-50" />}
+                {l.network_logo && (
+                  <div className="w-16 h-10 rounded bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden border border-gray-100 dark:border-gray-700">
+                    <img src={l.network_logo} alt={l.network_name} className="w-full h-full object-contain" />
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{l.network_name}</p>
                   <p className="text-brand-600 font-mono font-bold tracking-wide">{l.number}</p>
