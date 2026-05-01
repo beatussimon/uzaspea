@@ -331,19 +331,21 @@ const ProductDetailPage: React.FC = () => {
               )}
             </div>
             {/* FIX B-12: Message Seller */}
-            <div className="flex items-center gap-3 mt-2">
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
-                    navigate(`/messages/${res.data.id}`);
-                  } catch { toast.error('Login to message seller'); }
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-brand-200 dark:border-brand-800 text-brand-600 text-sm font-bold hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
-              >
-                <MessageSquare size={16} /> Message Seller
-              </button>
-            </div>
+            {product.seller_username !== localStorage.getItem('username') && (
+              <div className="flex items-center gap-3 mt-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
+                      navigate(`/messages/${res.data.id}`);
+                    } catch { toast.error('Login to message seller'); }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-brand-200 dark:border-brand-800 text-brand-600 text-sm font-bold hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
+                >
+                  <MessageSquare size={16} /> Message Seller
+                </button>
+              </div>
+            )}
             <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 pl-1">
               <span className="font-medium">Stock: <span className="text-gray-900 dark:text-white font-bold">{product.stock}</span></span>
               <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
@@ -488,7 +490,7 @@ const ProductDetailPage: React.FC = () => {
       </div>
 
       {/* Tabs: Reviews & Comments */}
-      <ProductTabs productId={product.id} />
+      <ProductTabs productId={product.id} sellerUsername={product.seller_username} />
     </div>
   );
 };

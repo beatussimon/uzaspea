@@ -1,5 +1,7 @@
 x-backend-common: &backend-common
-  image: ghcr.io/${GITHUB_USER}/uzaspea-backend:latest
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
   env_file: ./backend/.env
   depends_on:
     db:
@@ -8,7 +10,7 @@ x-backend-common: &backend-common
       condition: service_healthy
 
 services:
-  # ─── Traefik Reverse Proxy (Entrypoint) ────────────────────────
+  # ─── Traefik Reverse Proxy ──────────────────────────────────────
   traefik:
     image: traefik:v2.11
     container_name: uzaspea-traefik
@@ -20,7 +22,7 @@ services:
       - "--providers.docker.network=uzaspea_default"
       - "--providers.file.directory=/etc/traefik/dynamic"
       - "--entrypoints.web.address=:80"
-      # NO HTTPS/ACME — no domain yet. Add when domain is ready:
+      # Uncomment when you have a domain:
       # - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       # - "--entrypoints.websecure.address=:443"
       # - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
@@ -29,9 +31,9 @@ services:
       - "--accesslog=false"
     ports:
       - "80:80"
+      # - "443:443"
     labels:
       - "traefik.enable=true"
-      # Dashboard — gated behind superuser ForwardAuth
       - "traefik.http.routers.dashboard.rule=PathPrefix(`/traefik-dashboard`)"
       - "traefik.http.routers.dashboard.entrypoints=web"
       - "traefik.http.routers.dashboard.service=api@internal"
@@ -39,12 +41,13 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik_dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+      # - ./traefik_acme.json:/etc/traefik/acme.json
     deploy:
       resources:
         limits:
           memory: 80M
 
-  # ─── Backend: Uvicorn (HTTP + WebSocket) ───────────────────────
+  # ─── Backend: Uvicorn ──────────────────────────────────────────
   backend:
     <<: *backend-common
     container_name: uzaspea-backend
@@ -67,7 +70,7 @@ services:
         limits:
           memory: 400M
 
-  # --- Celery Worker ---
+  # ─── Celery Worker ─────────────────────────────────────────────
   celery-worker:
     <<: *backend-common
     container_name: uzaspea-celery-worker
@@ -80,7 +83,7 @@ services:
         limits:
           memory: 150M
 
-  # --- Celery Beat ---
+  # ─── Celery Beat ───────────────────────────────────────────────
   celery-beat:
     <<: *backend-common
     container_name: uzaspea-celery-beat
@@ -92,12 +95,17 @@ services:
     deploy:
       resources:
         limits:
-          memory: 60M
+          memory: 150M
 
-  # ─── Frontend: Nginx (SPA) ────────────────────────────────────
+  # ─── Frontend: Nginx SPA ───────────────────────────────────────
   frontend:
-    image: ghcr.io/${GITHUB_USER}/uzaspea-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
     container_name: uzaspea-frontend
+    restart: unless-stopped
     volumes:
       - ./persistent_data/media:/app/media:ro
     depends_on:
@@ -117,13 +125,14 @@ services:
   db:
     image: postgres:15-alpine
     container_name: uzaspea-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-uzaspea}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     command:
       - "postgres"
-      - "-c" 
+      - "-c"
       - "shared_buffers=64MB"
       - "-c"
       - "work_mem=2MB"
@@ -149,6 +158,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: uzaspea-redis
+    restart: unless-stopped
     command: redis-server --maxmemory 32mb --maxmemory-policy allkeys-lru --save ""
     volumes:
       - ./persistent_data/redis:/data

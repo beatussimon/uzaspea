@@ -17,8 +17,6 @@ ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').sp
 # Traefik is the gatekeeper — it validates the Host header before requests reach Django
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-if not DEBUG and '*' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('*')  # safe — Traefik validates Host; Django just processes the request
 
 ALLOWED_HOSTS.append('testserver')
 
@@ -200,8 +198,15 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@uzaspea.com')
 
 # Session settings
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = not DEBUG  # FIX: S-05 — secure in production
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False') == 'True'
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'False') == 'True'
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
+if os.environ.get('DOMAIN'):
+    _dom = os.environ.get('DOMAIN')
+    CSRF_TRUSTED_ORIGINS.append(f"http://{_dom}")
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_dom}")
 
 # FIX DEVOPS-15: production security headers
 if not DEBUG:

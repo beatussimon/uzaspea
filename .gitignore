@@ -56,3 +56,22 @@ backend/dedup.sql
 backend/static_collected/
 backend/staticfiles/
 backend/media/
+
+# Build artifacts and runtime data
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+backend/staticfiles/
+backend/static_collected/
+
+# Windows metadata
+*:Zone.Identifier
+
+# One-time scripts and backup files
+backend/dedup.sql
+backend/requirements.txt.bak
+scripts/upload_to_server.sh
+
+# Audit documents
+UZASPEA_SCORCHED_EARTH_*.md
+UZASPEA_DEEP_AUDIT*.md

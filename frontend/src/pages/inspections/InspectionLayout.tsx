@@ -815,7 +815,7 @@ const RequestDetail: React.FC = () => {
                  {request.product_snapshot.image_url && (
                    <div className="w-full md:w-48 shrink-0">
                      <img 
-                       src={request.product_snapshot.image_url.startsWith('http') ? request.product_snapshot.image_url : `http://localhost:8000${request.product_snapshot.image_url}`} 
+                       src={request.product_snapshot.image_url.startsWith('http') ? request.product_snapshot.image_url : `${API_BASE_URL}${request.product_snapshot.image_url}`} 
                        alt={request.product_snapshot.name} 
                        className="w-full aspect-square object-cover rounded-lg shadow-sm"
                      />

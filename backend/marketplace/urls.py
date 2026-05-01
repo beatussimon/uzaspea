@@ -9,7 +9,8 @@ from .api_views import (
     LipaNumberViewSet, FAQViewSet, SupportTicketViewSet, ChangePasswordView,
     VerifySuperuserView, NotificationViewSet, ConversationViewSet,
     SavedSearchViewSet, PriceAlertViewSet, DisputeViewSet,
-    DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet
+    DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet,
+    MobileNetworkViewSet
 )
 
 router = DefaultRouter()
@@ -22,6 +23,7 @@ router.register(r'payments', PaymentViewSet, basename='payment')
 router.register(r'sponsored', SponsoredListingViewSet, basename='sponsored')
 router.register(r'profiles', UserProfileViewSet, basename='profile')
 router.register(r'lipa-numbers', LipaNumberViewSet, basename='lipa-number')
+router.register(r'mobile-networks', MobileNetworkViewSet, basename='mobile-network')
 router.register(r'faq', FAQViewSet, basename='faq')
 router.register(r'support-tickets', SupportTicketViewSet, basename='support-ticket')
 # FIX v5: new viewsets
