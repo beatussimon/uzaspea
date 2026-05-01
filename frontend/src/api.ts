@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';  // FIX S-18
+const API_BASE_URL = import.meta.env.DEV ? (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') : '';  // FIX S-18
 
 const api = axios.create({
   baseURL: API_BASE_URL,
