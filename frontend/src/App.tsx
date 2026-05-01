@@ -158,9 +158,9 @@ const Navbar = () => {
 
         {/* ---- Left: Brand ---- */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
-          <img src="/logo.png" alt="UZASPEA" className="h-9 w-auto transition-transform duration-200 group-hover:scale-105" />
+          <img src="/logo.png" alt="KIBOSS" className="h-9 w-auto transition-transform duration-200 group-hover:scale-105" />
           <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">
-            UZASPEA
+            KIBOSS
           </span>
         </Link>
 
@@ -390,7 +390,7 @@ const Footer = () => {
         className="container-page flex items-center justify-between h-12 cursor-pointer select-none"
         onClick={() => setExpanded(!expanded)}
       >
-        <p className="text-xs text-gray-400">© {new Date().getFullYear()} UZASPEA. All rights reserved.</p>
+        <p className="text-xs text-gray-400">© {new Date().getFullYear()} KIBOSS. All rights reserved.</p>
         <button className={`text-gray-400 hover:text-gray-600 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
         </button>
@@ -400,7 +400,7 @@ const Footer = () => {
       {expanded && (
         <div className="container-page pb-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-surface-border/50 dark:border-surface-dark-border/50 pt-4 animate-slide-up">
           <div>
-            <h5 className="font-semibold text-gray-900 dark:text-white text-sm mb-2">About UZASPEA</h5>
+            <h5 className="font-semibold text-gray-900 dark:text-white text-sm mb-2">About KIBOSS</h5>
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">Your premier online marketplace for buying and selling in Tanzania.</p>
           </div>
           <div>
