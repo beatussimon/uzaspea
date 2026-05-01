@@ -6,7 +6,7 @@ from .models import (
     Payment, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
     ProductImage, Like, LipaNumber, FAQ, SupportTicket,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
-    Dispute, ProductVariant, SiteSettings, DeliveryZone
+    Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork
 )
 
 class LipaNumberSerializer(serializers.ModelSerializer):
@@ -54,6 +54,12 @@ class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
         fields = ['id', 'image']
+
+
+class MobileNetworkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MobileNetwork
+        fields = ['id', 'name', 'image']
 
 
 class ProductSerializer(serializers.ModelSerializer):

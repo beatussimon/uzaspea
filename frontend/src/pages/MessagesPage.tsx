@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MessageSquare, Send, ArrowLeft } from 'lucide-react';
 import api from '../api';
@@ -31,27 +31,47 @@ const MessagesPage: React.FC = () => {
     }
   }, [id, conversations]);
 
-  // FIX HIGH-01: real-time message delivery
-  useEffect(() => {
-    if (!id || !localStorage.getItem('access_token')) return;
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const connectWS = useCallback(() => {
     const token = localStorage.getItem('access_token');
-    const wsUrl = `${proto}://${window.location.host}/ws/chat/?token=${token}`;
+    if (!token || !activeConv) return;
+
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/chat/?token=${token}`;
     const ws = new WebSocket(wsUrl);
 
-    ws.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        if (data.type === 'chat_message' && data.conversation_id === parseInt(id)) {
-            setMessages(prev => {
-                // Avoid duplicate if already in list
-                if (prev.some((m: any) => m.id === data.message.id)) return prev;
-                return [...prev, data.message];
-            });
-        }
+    ws.onopen = () => {
+      console.log('WS connected');
     };
 
-    return () => { ws.close(); };
-  }, [id]);
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      if (data.type === 'chat_message' && data.conversation_id === activeConv.id) {
+        setMessages(prev => {
+          if (prev.some((m: any) => m.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
+      }
+    };
+
+    ws.onclose = () => {
+      // Reconnect after 3 seconds
+      reconnectRef.current = setTimeout(connectWS, 3000);
+    };
+
+    ws.onerror = () => ws.close();
+
+    wsRef.current = ws;
+  }, [activeConv]);
+
+  useEffect(() => {
+    connectWS();
+    return () => {
+      wsRef.current?.close();
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+    };
+  }, [connectWS]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !id) return;

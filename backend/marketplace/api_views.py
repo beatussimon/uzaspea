@@ -8,14 +8,16 @@ from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
     Payment, TrackingEvent, UserProfile, Like, ProductImage,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
-    Dispute, DeliveryZone, SiteSettings, push_notification, ProductVariant
+    Dispute, DeliveryZone, SiteSettings, push_notification, ProductVariant,
+    MobileNetwork
 )
 from .serializers import (
     ProductSerializer, CategorySerializer, ProductReviewSerializer, 
     ProductCommentSerializer, OrderSerializer, PaymentSerializer, UserProfileSerializer,
     NotificationSerializer, ConversationSerializer, MessageSerializer,
     SavedSearchSerializer, PriceAlertSerializer, DisputeSerializer,
-    SiteSettingsSerializer, DeliveryZoneSerializer, ProductVariantSerializer
+    SiteSettingsSerializer, DeliveryZoneSerializer, ProductVariantSerializer,
+    MobileNetworkSerializer
 )
 
 from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember
@@ -808,7 +810,7 @@ class VerifySuperuserView(APIView):
 class NotificationViewSet(viewsets.ModelViewSet):
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ['get', 'patch', 'delete']
+    http_method_names = ['get', 'post', 'patch', 'delete']
 
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user)
@@ -822,6 +824,12 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def unread_count(self, request):
         count = Notification.objects.filter(user=request.user, is_read=False).count()
         return Response({'count': count})
+
+
+class MobileNetworkViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = MobileNetwork.objects.all()
+    serializer_class = MobileNetworkSerializer
+    permission_classes = [permissions.AllowAny]
 
 
 # ─── FIX B-12: Conversation ViewSet ───────────────────────────────
@@ -839,6 +847,13 @@ class ConversationViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         seller_id = request.data.get('seller')
         product_id = request.data.get('product')
+
+        if str(seller_id) == str(request.user.id):
+            return Response(
+                {'error': 'You cannot start a conversation with yourself.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         conv, _ = Conversation.objects.get_or_create(
             buyer=request.user, seller_id=seller_id, product_id=product_id
         )

@@ -109,6 +109,7 @@ class Category(models.Model):
 
     class Meta:
         verbose_name_plural = "Categories"
+        ordering = ['name']
 
     def save(self, *args, **kwargs):
         if not self.slug:  # FIX: C-09 — collision-safe slug generation
@@ -155,6 +156,9 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     condition = models.CharField(max_length=4, choices=CONDITION_CHOICES, default='New')
+
+    class Meta:
+        ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
         if not self.slug:  # FIX: C-09 — collision-safe slug generation

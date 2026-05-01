@@ -90,8 +90,8 @@ docker stats --no-stream --format "  {{.Name}}: {{.MemUsage}} ({{.MemPerc}})" 2>
 # ─── OOM KILLS (last 24h) ────────────────────────────────────
 echo ""
 echo "${BOLD}💀 OOM KILLS (last 24h)${NC}"
-OOM_COUNT=$(dmesg 2>/dev/null | grep -c "oom-kill" || echo "0")
-if [ "$OOM_COUNT" -gt 0 ]; then
+OOM_COUNT=$(dmesg 2>/dev/null | grep -c "oom-kill" || true)
+if [ -n "$OOM_COUNT" ] && [ "$OOM_COUNT" -gt 0 ]; then
     echo -e "  ${RED}⚠ ${OOM_COUNT} OOM kill(s) detected! Check 'dmesg | grep oom'${NC}"
 else
     echo -e "  ${GREEN}✓ No OOM kills detected${NC}"
@@ -100,7 +100,7 @@ fi
 # ─── RESTARTED CONTAINERS ────────────────────────────────────
 echo ""
 echo "${BOLD}🔄 CONTAINER RESTARTS${NC}"
-RESTARTS=$(docker ps --format "{{.Names}}|{{.Status}}" 2>/dev/null | grep -i "restarting")
+RESTARTS=$(docker ps --format "{{.Names}}|{{.Status}}" 2>/dev/null | grep -i "restarting" || true)
 if [ -n "$RESTARTS" ]; then
     echo -e "  ${RED}⚠ Containers restarting:${NC}"
     echo "$RESTARTS" | sed 's/^/    /'

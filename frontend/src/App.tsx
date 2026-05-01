@@ -345,15 +345,8 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* ---- Mobile top-right (Notifications + Search) ---- */}
+        {/* ---- Mobile top-right (Notifications) ---- */}
         <div className="lg:hidden flex items-center gap-2">
-          <button 
-            onClick={() => setMobileSearchOpen(!mobileSearchOpen)} 
-            className="btn-ghost p-1.5 text-gray-600 dark:text-gray-300"
-            aria-label="Toggle mobile search"
-          >
-            <Search size={20} />
-          </button>
           <NotificationBell />
         </div>
       </div>

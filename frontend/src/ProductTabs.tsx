@@ -17,16 +17,22 @@ interface Comment {
   body: string;
   created_at: string;
   likes_count: number;
+  parent: number | null;
 }
 
-export const ProductTabs = ({ productId }: { productId: number }) => {
+export const ProductTabs = ({ productId, sellerUsername }: { productId: number, sellerUsername?: string }) => {
   const [activeTab, setActiveTab] = useState<'reviews' | 'comments'>('reviews');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
+  const [replyText, setReplyText] = useState('');
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const parentComments = comments.filter(c => !c.parent);
+  const getReplies = (parentId: number) => comments.filter(c => c.parent === parentId);
 
   useEffect(() => {
     if (activeTab === 'reviews') {
@@ -168,17 +174,82 @@ export const ProductTabs = ({ productId }: { productId: number }) => {
             ) : comments.length === 0 ? (
               <p className="text-gray-400 py-4 text-center">No comments yet. Start the conversation!</p>
             ) : (
-              <div className="space-y-3">
-                {comments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-100 dark:border-gray-700"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-gray-900 dark:text-white text-sm">{comment.username}</span>
-                      <span className="text-xs text-gray-400">{formatDate(comment.created_at)}</span>
+              <div className="space-y-4">
+                {parentComments.map((comment) => (
+                  <div key={comment.id} className="space-y-2">
+                    <div className={`p-4 rounded-lg border ${comment.username === sellerUsername ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 shadow-sm' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-white text-sm">{comment.username}</span>
+                          {comment.username === sellerUsername && (
+                            <span className="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Owner</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-400">{formatDate(comment.created_at)}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{comment.body}</p>
+                      <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition">
+                        {replyingTo === comment.id ? 'Cancel Reply' : 'Reply'}
+                      </button>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{comment.body}</p>
+
+                    {/* Replies */}
+                    {getReplies(comment.id).length > 0 && (
+                      <div className="ml-8 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+                        {getReplies(comment.id).map((reply) => (
+                          <div key={reply.id} className={`p-3 rounded-lg border ${reply.username === sellerUsername ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-gray-900 dark:text-white text-sm">{reply.username}</span>
+                                {reply.username === sellerUsername && (
+                                  <span className="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Owner</span>
+                                )}
+                              </div>
+                              <span className="text-xs text-gray-400">{formatDate(reply.created_at)}</span>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{reply.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Reply Input */}
+                    {replyingTo === comment.id && (
+                      <div className="ml-8 pl-4 flex gap-2">
+                        <input
+                          type="text"
+                          className="flex-1 bg-transparent border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm dark:text-white outline-none focus:border-blue-500"
+                          placeholder="Write a reply..."
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!replyText.trim()) return;
+                            setSubmitting(true);
+                            try {
+                              const res = await api.post('/api/comments/', {
+                                product: productId,
+                                body: replyText,
+                                parent: comment.id,
+                              });
+                              setComments((prev) => [...prev, res.data]);
+                              setReplyText('');
+                              setReplyingTo(null);
+                              toast.success('Reply posted!');
+                            } catch {
+                              toast.error('Failed to post reply');
+                            } finally {
+                              setSubmitting(false);
+                            }
+                          }}
+                          disabled={submitting || !replyText.trim()}
+                          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-1.5 rounded-lg text-sm transition"
+                        >
+                          {submitting ? '...' : 'Reply'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

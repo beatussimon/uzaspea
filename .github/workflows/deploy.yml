@@ -1,13 +1,10 @@
-name: Build and Deploy to Lightsail
+name: Test
 
 on:
   push:
-    branches:
-      - master
-  workflow_dispatch:
-
-env:
-  REGISTRY: ghcr.io
+    branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
   test:
@@ -33,129 +30,27 @@ jobs:
           --health-timeout 3s
           --health-retries 5
         ports: ['6379:6379']
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: backend/requirements.txt
+
       - name: Install dependencies
         run: pip install -r backend/requirements.txt
-      - name: Run Django checks and tests
+
+      - name: Run checks and tests
         working-directory: ./backend
         env:
           DATABASE_URL: postgres://postgres:testpass123@localhost:5432/test_uzaspea
           REDIS_URL: redis://localhost:6379/0
-          DJANGO_SECRET_KEY: ci-test-secret-key-not-for-production
+          DJANGO_SECRET_KEY: ci-test-secret-not-for-production
           DJANGO_DEBUG: "True"
           DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
         run: |
           python manage.py check
           python manage.py test marketplace staff inspections --verbosity=1
-
-  build-and-push:
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Set lower case owner name
-        run: |
-          echo "REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> ${GITHUB_ENV}
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Backend
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/uzaspea-backend
-
-      - name: Build and push Backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/uzaspea-backend:latest
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Extract metadata (tags, labels) for Frontend
-        id: meta-frontend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/uzaspea-frontend
-
-      - name: Build and push Frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/uzaspea-frontend:latest
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    
-    steps:
-      - name: Deploy to Lightsail via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          REPO_OWNER: ${{ github.repository_owner }}
-        with:
-          host: ${{ secrets.HOST }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: REPO_OWNER
-          script: |
-            cd /home/ubuntu/uzaspea
-            export GITHUB_USER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
-            
-            # Ensure data directories exist
-            mkdir -p persistent_data/celerybeat persistent_data/media persistent_data/static persistent_data/redis
-            
-            # Pull new images and bring up
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
-            docker image prune -f
-            
-            # Health check: wait up to 90s for backend to respond
-            echo "Waiting for backend health check..."
-            HEALTHY=false
-            for i in $(seq 1 18); do
-              if curl -sf --max-time 5 http://localhost/api/site-settings/ > /dev/null 2>&1; then
-                echo "✅ Backend healthy (attempt $i)"
-                HEALTHY=true
-                break
-              fi
-              echo "⏳ Attempt $i/18 — waiting 5s..."
-              sleep 5
-            done
-            
-            if [ "$HEALTHY" = false ]; then
-              echo "❌ Backend failed health check — showing logs:"
-              docker compose -f docker-compose.prod.yml logs --tail=50 backend
-              exit 1
-            fi
-            
-            echo "🚀 Deployment complete"
