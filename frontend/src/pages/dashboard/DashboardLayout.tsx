@@ -1019,11 +1019,11 @@ const PaymentNumbersManager: React.FC = () => {
                 </button>
             </div>
             {/* List */}
-            <div className="space-y-2">
+            <div className="flex flex-wrap gap-3">
                 {lipaNumbers.map(lipa => (
-                    <div key={lipa.id} className="card p-4 flex items-center justify-between">
+                    <div key={lipa.id} className="flex-1 min-w-[300px] card p-4 flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div className={`rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700 ${lipa.network_logo ? 'w-20 h-12' : 'w-12 h-12'}`}>
+                            <div className={`rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700 ${lipa.network_logo ? 'w-24 h-14' : 'w-14 h-14'}`}>
                                 {lipa.network_logo ? (
                                     <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
                                 ) : (
