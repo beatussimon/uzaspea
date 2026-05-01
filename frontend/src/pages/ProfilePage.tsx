@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Settings, MapPin, Link as LinkIcon, Camera, Phone, Instagram } from 'lucide-react';
+import { Settings, MapPin, Link as LinkIcon, Camera } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
 import ProductCard from '../components/ProductCard';
