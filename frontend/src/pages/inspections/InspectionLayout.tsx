@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import inspectionApi from '../../api/inspectionApi';
+import api, { API_BASE_URL } from '../../api';
 import {
   InspectionCategory, InspectionRequest, InspectionNotification,
   STATUS_LABELS, STATUS_COLORS, VERDICT_COLORS, fmtDate, fmtMoney,
@@ -362,7 +363,14 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
   const [file, setFile] = useState<File | null>(null);
   const [ref, setRef] = useState('');
   const [loading, setLoading] = useState(false);
+  const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
   const bill = request.bill;
+
+  useEffect(() => {
+    api.get('/api/lipa-numbers/?seller=admin')
+       .then(r => setLipaNumbers(r.data.results || r.data))
+       .catch(() => {});
+  }, []);
 
   // Determine stage
   const hasApprovedDeposit = request.payments.some(
@@ -419,6 +427,25 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
           Transfer to our account and upload proof below
         </p>
       </div>
+
+      {lipaNumbers.length > 0 && (
+        <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Payment Options (Lipa Namba):</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {lipaNumbers.map(l => (
+              <div key={l.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-lg shadow-sm">
+                {l.network_logo && <img src={l.network_logo} alt={l.network_name} className="w-10 h-10 object-contain rounded bg-gray-50" />}
+                <div>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{l.network_name}</p>
+                  <p className="text-brand-600 font-mono font-bold tracking-wide">{l.number}</p>
+                  <p className="text-[10px] text-gray-500 uppercase">{l.name}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <input className="input" placeholder="Transaction reference (optional)"
         value={ref} onChange={(e) => setRef(e.target.value)} />
       <label className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-surface-border dark:border-surface-dark-border rounded-lg cursor-pointer hover:border-brand-400 transition">
