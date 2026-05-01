@@ -119,7 +119,7 @@ const MobileBottomNav = () => {
               </div>
             ) : (
               <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Welcome to KIBOSS</h3>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Welcome to UZASPEA</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Log in or create an account to start selling and buying.</p>
                 <div className="flex gap-3">
                   <Link to="/login" onClick={() => setIsMenuOpen(false)} className="flex-1 btn-primary py-2 text-center text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white rounded-lg">Login</Link>
@@ -247,7 +247,7 @@ const MobileBottomNav = () => {
                   className="w-full flex items-center justify-center gap-3 p-4 rounded-btn border-2 border-red-100 dark:border-red-900/30 text-red-600 font-bold active:bg-red-50 dark:active:bg-red-900/20 transition-colors"
                   >
                   <LogOut size={20} />
-                  Sign Out from KIBOSS
+                  Sign Out from UZASPEA
                 </button>
               </div>
             )}

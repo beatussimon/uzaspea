@@ -543,7 +543,7 @@ const OrdersPage: React.FC = () => {
                             
                             <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20 text-center relative group/footer flex flex-col items-center justify-center">
                                 <p className="text-xs text-blue-800 dark:text-blue-300 font-medium italic">
-                                   "Thank you for choosing KIBOSS! Your satisfaction is our top priority."
+                                   "Thank you for choosing UZASPEA! Your satisfaction is our top priority."
                                 </p>
                                 
                                 <div className="flex gap-2 mt-3 w-full opacity-0 group-hover/footer:opacity-100 transition-opacity">
