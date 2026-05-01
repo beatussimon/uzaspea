@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Plus, BarChart3, Megaphone, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Shield, Truck, Clock, MessageSquare, XCircle, CreditCard, Settings, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Package, Plus, BarChart3, Megaphone, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Shield, Truck, Clock, MessageSquare, XCircle, CreditCard, Settings, HelpCircle, Smartphone } from 'lucide-react';
 import SettingsPage from './SettingsPage';
 import HelpCenterPage from './HelpCenterPage';
 import api from '../../api';
