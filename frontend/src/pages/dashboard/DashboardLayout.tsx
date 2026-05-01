@@ -1023,9 +1023,9 @@ const PaymentNumbersManager: React.FC = () => {
                 {lipaNumbers.map(lipa => (
                     <div key={lipa.id} className="card p-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700">
+                            <div className={`rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700 ${lipa.network_logo ? 'w-20 h-12' : 'w-12 h-12'}`}>
                                 {lipa.network_logo ? (
-                                    <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain p-1" />
+                                    <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
                                 ) : (
                                     <Smartphone size={24} className="text-gray-400" />
                                 )}
