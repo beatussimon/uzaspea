@@ -1,0 +1,5 @@
+#!/usr/bin/expect -f
+spawn ssh-add /home/bea/.ssh/id_ed25519
+expect "Enter passphrase"
+send "buhororo47\n"
+expect eof

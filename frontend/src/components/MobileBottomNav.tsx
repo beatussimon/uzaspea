@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
-  Home, Search, PlusCircle, ShoppingBag, User, X, 
+  Home, PlusCircle, ShoppingBag, User, X, 
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
-  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun
+  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun, Flame
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
@@ -268,16 +268,13 @@ const MobileBottomNav = () => {
             <span className="text-[10px] font-medium uppercase tracking-wider">Home</span>
           </Link>
 
-          {/* Browse/Search */}
+          {/* Trending */}
           <Link 
-            to="/#browse" 
-            className="flex flex-col items-center gap-1 text-gray-400"
-            onClick={() => {
-              if(location.pathname === '/') window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            to="/trending" 
+            className={`flex flex-col items-center gap-1 transition-colors ${isActive('/trending') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}
           >
-            <Search size={22} />
-            <span className="text-[10px] font-medium uppercase tracking-wider">Browse</span>
+            <Flame size={22} className={isActive('/trending') ? 'text-brand-600 dark:text-brand-400' : 'text-orange-500'} strokeWidth={isActive('/trending') ? 2.5 : 2} />
+            <span className="text-[10px] font-medium uppercase tracking-wider">Trending</span>
           </Link>
 
           {/* SELL - Center Hero Button */}
