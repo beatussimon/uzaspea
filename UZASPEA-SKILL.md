@@ -73,6 +73,12 @@ If `ALLOWED_HOSTS` or `CORS` origins are moved to environment variables, you MUS
 **LAW 12 — `docker compose restart` does NOT reload `.env` changes.**
 If you modify `.env`, you MUST run `docker compose up -d` (or `docker compose -f docker-compose.prod.yml up -d`) to recreate the containers with the new environment variables.
 
+**LAW 13 — CSRF Bypass on Public Views.**
+If a DRF `APIView` is entirely public (like `RegisterView`), it must include `authentication_classes = []` to prevent `SessionAuthentication` from erroneously triggering CSRF checks if an outdated session cookie exists.
+
+**LAW 14 — True Black Dark Mode & Car Nerd Theming.**
+The site uses a "car nerdy" theme. Dark mode must be True Black (`#000000`), not bluish slate. The `brand` color is Engine Light Amber (`#f59e0b`). Gray must be mapped to `neutral` to eliminate blue tints. Do not revert to default tailwind blue/slate colors.
+
 ---
 
 ## ══════════════════════════════════════════════════════

@@ -1,3 +1,5 @@
+import colors from 'tailwindcss/colors';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -11,25 +13,26 @@ export default {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
+        gray: colors.neutral,
         brand: {
-          50:  '#eef5ff',
-          100: '#d9e8ff',
-          200: '#bcd8ff',
-          300: '#8ec0ff',
-          400: '#599dff',
-          500: '#3478ff',
-          600: '#1a56f5',
-          700: '#1543e1',
-          800: '#1837b6',
-          900: '#1a338f',
+          50:  '#fff9eb',
+          100: '#fef0c7',
+          200: '#fde08b',
+          300: '#fccb4b',
+          400: '#fbb315',
+          500: '#f59e0b', // Engine light amber
+          600: '#d97706',
+          700: '#b45309',
+          800: '#92400e',
+          900: '#78350f',
         },
         surface: {
           DEFAULT: '#ffffff',
-          muted: '#f8f9fb',
-          border: '#e5e7eb',
-          dark: '#111827',
-          'dark-muted': '#1f2937',
-          'dark-border': '#374151',
+          muted: '#f5f5f5',
+          border: '#e5e5e5',
+          dark: '#000000',          // True black
+          'dark-muted': '#0a0a0a',  // Very dark gray
+          'dark-border': '#262626', // Neutral border
         },
       },
       spacing: {

@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { 
   Moon, Sun, Shield, User, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, 
-  HelpCircle, ChevronDown, PlusCircle, Search, Bell
+  HelpCircle, ChevronDown, PlusCircle, Search, Bell, Flame
 } from 'lucide-react';
 import VerifiedBadge from './components/VerifiedBadge';
 
@@ -24,6 +24,7 @@ import MessagesPage from './pages/MessagesPage';
 import InspectionLayout, { PublicVerifyPage } from './pages/inspections/InspectionLayout';
 import InspectorLayout from './pages/inspections/InspectorLayout';
 import MobileBottomNav from './components/MobileBottomNav';
+import TrendingPage from './pages/TrendingPage';
 import api from './api';
 
 // FIX B-11/B-27: Notification Bell
@@ -171,6 +172,14 @@ const Navbar = () => {
             className={`btn-ghost text-sm shrink-0 transition-all ${location.pathname === '/' ? 'text-brand-600 bg-brand-50/50 dark:bg-brand-900/10 font-bold' : 'hover:scale-105'}`}
           >
             Home
+          </Link>
+
+          <Link 
+            to="/trending" 
+            className={`btn-ghost text-sm shrink-0 transition-all flex items-center gap-1 ${location.pathname === '/trending' ? 'text-brand-600 bg-brand-50/50 dark:bg-brand-900/10 font-bold' : 'hover:scale-105 text-orange-500'}`}
+          >
+            <Flame size={16} className={location.pathname === '/trending' ? 'animate-pulse' : ''} />
+            Trending
           </Link>
 
           {isAuthenticated && (
@@ -462,6 +471,7 @@ function App() {
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<ProductList />} />
+              <Route path="/trending" element={<TrendingPage />} />
               <Route path="/product/:slug" element={<ProductDetailPage />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
