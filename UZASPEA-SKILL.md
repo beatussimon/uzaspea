@@ -67,6 +67,12 @@ cd backend && python manage.py check  # must say "no issues"
 Blocked by gitignore: `.env`, `*.pem`, `traefik_acme.json`, `*.sqlite3`,
 `.venv/`, `persistent_data/`, `*.log`, `backend/media/`, `backend/staticfiles/`.
 
+**LAW 11 — Always verify `.env` configuration after modifying `settings.py`.**
+If `ALLOWED_HOSTS` or `CORS` origins are moved to environment variables, you MUST ensure they are correctly set in the production `.env` file (`DJANGO_ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`). Missing variables will result in immediate `400 Bad Request` or `401 Unauthorized` API errors.
+
+**LAW 12 — `docker compose restart` does NOT reload `.env` changes.**
+If you modify `.env`, you MUST run `docker compose up -d` (or `docker compose -f docker-compose.prod.yml up -d`) to recreate the containers with the new environment variables.
+
 ---
 
 ## ══════════════════════════════════════════════════════
