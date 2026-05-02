@@ -631,6 +631,7 @@ class ChangePasswordView(APIView):
 
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     throttle_classes = [RegisterRateThrottle]  # FIX D-07
 
     def post(self, request):
