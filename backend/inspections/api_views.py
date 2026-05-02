@@ -416,10 +416,41 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         )
         obj.status = 'assigned'
         obj.save()
-        notify(inspector.user, 'assigned',
-               f'You have been assigned inspection {obj.inspection_id} for {obj.item_name}.', obj)
-        notify(obj.client, 'assigned',
-               f'An inspector has been assigned to your inspection {obj.inspection_id}.', obj)
+        # Build contact info for notification messages
+        client_profile = getattr(obj.client, 'profile', None)
+        inspector_phone = inspector.phone_number or 'N/A'
+        inspector_name = inspector.user.get_full_name() or inspector.user.username
+
+        # Marketplace job → inspector contacts the SELLER (item owner), not buyer
+        if obj.marketplace_product_id:
+            seller = obj.marketplace_product.seller
+            seller_profile = getattr(seller, 'profile', None)
+            contact_name = seller.get_full_name() or seller.username
+            contact_phone = (seller_profile.phone_number if seller_profile else '') or 'N/A'
+            contact_email = seller.email or 'N/A'
+            contact_label = 'Item Owner (Seller)'
+        else:
+            contact_name = obj.client.get_full_name() or obj.client.username
+            contact_phone = (client_profile.phone_number if client_profile else '') or 'N/A'
+            contact_email = obj.client.email or 'N/A'
+            contact_label = 'Client'
+
+        notify(
+            inspector.user, 'assigned',
+            f'New job: {obj.inspection_id} — "{obj.item_name}". '
+            f'{contact_label}: {contact_name} | '
+            f'Phone: {contact_phone} | Email: {contact_email} | '
+            f'Address: {obj.item_address} | '
+            f'SLA deadline: {deadline.strftime("%Y-%m-%d %H:%M")}',
+            obj
+        )
+        notify(
+            obj.client, 'assigned',
+            f'Inspector {inspector_name} assigned to {obj.inspection_id}. '
+            f'Inspector phone: {inspector_phone} | '
+            f'Email: {inspector.user.email or "N/A"}',
+            obj
+        )
         return Response(InspectionAssignmentSerializer(assignment).data)
 
     @decorators.action(detail=True, methods=['post'], url_path='update-status')

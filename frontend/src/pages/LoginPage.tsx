@@ -29,8 +29,10 @@ const LoginPage: React.FC = () => {
       localStorage.setItem('inspector_level', res.data.inspector_level || '');
       
       toast.success('Login successful!');
-      // Hard redirect to reload App.tsx auth state
-      window.location.href = '/';
+      // Redirect back to where user was if sent here by an expired session
+      const redirectTo = sessionStorage.getItem('loginRedirect') || '/';
+      sessionStorage.removeItem('loginRedirect');
+      window.location.href = redirectTo;
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Invalid username or password');
     } finally {

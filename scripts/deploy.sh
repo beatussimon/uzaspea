@@ -37,7 +37,7 @@ mkdir -p persistent_data/{postgres,redis,media,static,celerybeat}
 
 # ── 4. Build and bring up ─────────────────────────────────────────────────
 echo "$LOG_PREFIX Building images and starting services..."
-docker compose -f "$COMPOSE_FILE" build --pull
+docker compose -f "$COMPOSE_FILE" build
 docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
 echo "$LOG_PREFIX Services started."
 

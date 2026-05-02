@@ -98,7 +98,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 150M
+          memory: 60M
 
   # ─── Frontend: Nginx SPA ───────────────────────────────────────
   frontend:
