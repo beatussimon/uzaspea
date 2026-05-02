@@ -4,7 +4,7 @@ set -e
 cd ~/uzaspea
 
 echo "=== Starting all containers ==="
-docker compose up -d 2>&1
+docker compose -f docker-compose.prod.yml up -d 2>&1
 
 echo ""
 echo "=== Waiting 15 seconds for containers to stabilize ==="

@@ -111,19 +111,60 @@ class InspectionPaymentSerializer(serializers.ModelSerializer):
 
 class InspectionAssignmentSerializer(serializers.ModelSerializer):
     inspector_name = serializers.CharField(
+        source='inspector.user.get_full_name', read_only=True
+    )
+    inspector_username = serializers.CharField(
         source='inspector.user.username', read_only=True
     )
-    inspector_level = serializers.CharField(
-        source='inspector.level', read_only=True
-    )
+    inspector_level = serializers.CharField(source='inspector.level', read_only=True)
+    inspector_phone = serializers.CharField(source='inspector.phone_number', read_only=True)
+    inspector_email = serializers.CharField(source='inspector.user.email', read_only=True)
+    job_contact = serializers.SerializerMethodField()
 
     class Meta:
         model = InspectionAssignment
         fields = [
-            'id', 'request', 'inspector', 'inspector_name', 'inspector_level',
+            'id', 'request', 'inspector', 'inspector_name', 'inspector_username',
+            'inspector_level', 'inspector_phone', 'inspector_email',
             'assigned_by', 'is_manual_override', 'override_reason',
-            'sla_deadline', 'assigned_at',
+            'sla_deadline', 'assigned_at', 'is_active', 'job_contact',
         ]
+
+    def get_job_contact(self, obj):
+        """
+        Marketplace inspection (inside job): contact = product SELLER (item owner).
+        External inspection: contact = CLIENT who requested the inspection.
+        """
+        req = obj.request
+        try:
+            if req.marketplace_product_id:
+                seller = req.marketplace_product.seller
+                profile = getattr(seller, 'profile', None)
+                return {
+                    'type': 'seller',
+                    'label': 'Item Owner (Seller)',
+                    'name': seller.get_full_name() or seller.username,
+                    'username': seller.username,
+                    'phone': profile.phone_number if profile else '',
+                    'email': seller.email,
+                    'location': profile.location if profile else '',
+                    'item_address': req.item_address,
+                }
+            else:
+                client = req.client
+                profile = getattr(client, 'profile', None)
+                return {
+                    'type': 'client',
+                    'label': 'Inspection Client',
+                    'name': client.get_full_name() or client.username,
+                    'username': client.username,
+                    'phone': profile.phone_number if profile else '',
+                    'email': client.email,
+                    'location': profile.location if profile else '',
+                    'item_address': req.item_address,
+                }
+        except Exception:
+            return None
 
 
 class InspectionCheckInSerializer(serializers.ModelSerializer):
@@ -224,21 +265,56 @@ class InspectionRequestSerializer(serializers.ModelSerializer):
 
 
 class InspectionRequestListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for list views."""
+    """Lightweight serializer for list views and inspector job queue."""
     category_path = serializers.CharField(source='category.get_full_path', read_only=True)
     client_username = serializers.CharField(source='client.username', read_only=True)
     has_report = serializers.SerializerMethodField()
+    job_contact = serializers.SerializerMethodField()
+    sla_deadline = serializers.SerializerMethodField()
 
     class Meta:
         model = InspectionRequest
         fields = [
             'id', 'inspection_id', 'client_username', 'item_name',
             'category_path', 'scope', 'turnaround', 'status',
-            'created_at', 'has_report',
+            'created_at', 'has_report', 'job_contact', 'sla_deadline',
         ]
 
     def get_has_report(self, obj):
-        return hasattr(obj, 'report')
+        return hasattr(obj, 'report') and obj.report is not None
+
+    def get_sla_deadline(self, obj):
+        active = obj.active_assignment
+        return active.sla_deadline if active else None
+
+    def get_job_contact(self, obj):
+        try:
+            if obj.marketplace_product_id:
+                seller = obj.marketplace_product.seller
+                profile = getattr(seller, 'profile', None)
+                return {
+                    'type': 'seller',
+                    'label': 'Item Owner (Seller)',
+                    'name': seller.get_full_name() or seller.username,
+                    'phone': profile.phone_number if profile else '',
+                    'email': seller.email,
+                    'location': profile.location if profile else '',
+                    'item_address': obj.item_address,
+                }
+            else:
+                client = obj.client
+                profile = getattr(client, 'profile', None)
+                return {
+                    'type': 'client',
+                    'label': 'Inspection Client',
+                    'name': client.get_full_name() or client.username,
+                    'phone': profile.phone_number if profile else '',
+                    'email': client.email,
+                    'location': profile.location if profile else '',
+                    'item_address': obj.item_address,
+                }
+        except Exception:
+            return None
 
 
 class InspectionSummarySerializer(serializers.ModelSerializer):

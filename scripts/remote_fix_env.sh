@@ -1,4 +1,14 @@
 #!/bin/bash
+echo ""
+echo "⚠️  WARNING: This script runs 'docker compose down -v' and wipes persistent_data/postgres."
+echo "   ALL PRODUCTION DATA WILL BE PERMANENTLY DESTROYED. There is no undo."
+echo ""
+read -p "Type DESTROY to confirm you understand data will be lost: " confirm
+[ "$confirm" = "DESTROY" ] || { echo "Aborted safely."; exit 1; }
+
+echo "Attempting backup before destruction (may fail if db is already down)..."
+$(dirname "$0")/backup.sh 2>/dev/null || echo "Backup skipped — db may be unreachable."
+echo "Proceeding..."
 set -e
 
 cd ~/uzaspea
