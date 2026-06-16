@@ -75,3 +75,8 @@ scripts/upload_to_server.sh
 # Audit documents
 UZASPEA_SCORCHED_EARTH_*.md
 UZASPEA_DEEP_AUDIT*.md
+
+# Local passphrase/helper scripts
+askpass.sh
+push_expect.exp
+
