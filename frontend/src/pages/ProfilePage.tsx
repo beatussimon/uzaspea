@@ -111,7 +111,7 @@ const ProfilePage: React.FC = () => {
       <div className="bg-white dark:bg-gray-800 rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border flex flex-col items-center sm:items-start gap-0 relative overflow-visible pb-6">
         
         {/* Banner */}
-        <div className="w-full h-32 sm:h-48 relative rounded-t-card overflow-hidden bg-gradient-to-r from-brand-100 to-blue-200 dark:from-brand-900/40 dark:to-blue-900/40 shrink-0">
+        <div className="w-full h-32 sm:h-48 relative rounded-t-card overflow-hidden bg-gradient-to-r from-brand-100 to-brand-200 dark:from-brand-900/40 dark:to-brand-900/40 shrink-0">
           {profile.banner_image && (
             <img src={profile.banner_image.startsWith('http') ? profile.banner_image : `${API_BASE_URL}${profile.banner_image}`} alt="Banner" className="w-full h-full object-cover" />
           )}
@@ -174,7 +174,7 @@ const ProfilePage: React.FC = () => {
               ) : currentUser ? (
                   <button 
                     onClick={handleFollow} 
-                    className={`text-sm px-6 py-2 rounded-lg font-bold transition-all shadow-sm ${followStatus.following ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20'}`}
+                    className={`text-sm px-6 py-2 rounded-lg font-bold transition-all shadow-sm ${followStatus.following ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600' : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/20'}`}
                   >
                       {followStatus.following ? 'Following' : 'Follow'}
                   </button>

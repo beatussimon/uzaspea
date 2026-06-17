@@ -109,20 +109,24 @@ const CheckoutPage: React.FC = () => {
                 onClick={() => setShippingMethod('DELIVERY')}
                 className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition ${
                   shippingMethod === 'DELIVERY'
-                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-600'
+                    ? 'border-brand-600 bg-brand-50 dark:bg-brand-900/20 text-brand-600'
                     : 'border-gray-100 dark:border-gray-700 text-gray-500'
                 }`}
               >
                 <Truck size={24} />
                 <span className="font-bold text-sm">Home Delivery</span>
-                <span className="text-xs">TSh 5,000</span>
+                <span className="text-xs">
+                  {deliveryZones.length > 0 
+                    ? (selectedZone ? `TSh ${Number(selectedZone.delivery_fee).toLocaleString()}` : 'Select zone')
+                    : 'TSh 5,000'}
+                </span>
               </button>
               <button
                 type="button"
                 onClick={() => setShippingMethod('PICKUP')}
                 className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition ${
                   shippingMethod === 'PICKUP'
-                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-600'
+                    ? 'border-brand-600 bg-brand-50 dark:bg-brand-900/20 text-brand-600'
                     : 'border-gray-100 dark:border-gray-700 text-gray-500'
                 }`}
               >
@@ -144,7 +148,7 @@ const CheckoutPage: React.FC = () => {
                       <select
                         value={selectedZoneId}
                         onChange={(e) => setSelectedZoneId(e.target.value)}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition"
                         required
                       >
                         <option value="">Select a delivery zone</option>
@@ -166,7 +170,7 @@ const CheckoutPage: React.FC = () => {
                       name="fullName"
                       value={form.fullName}
                       onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition"
                       placeholder="Enter your full name"
                       required
                     />
@@ -181,7 +185,7 @@ const CheckoutPage: React.FC = () => {
                       name="phone"
                       value={form.phone}
                       onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition"
                       placeholder="+255 7XX XXX XXX"
                       required
                     />
@@ -196,7 +200,7 @@ const CheckoutPage: React.FC = () => {
                       name="deliveryAddress"
                       value={form.deliveryAddress}
                       onChange={handleChange}
-                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition"
                       placeholder="Street, Area, City"
                       required
                     />
@@ -211,7 +215,7 @@ const CheckoutPage: React.FC = () => {
                       value={form.notes}
                       onChange={handleChange}
                       rows={3}
-                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition resize-none"
+                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition resize-none"
                       placeholder="Special delivery instructions..."
                     />
                   </div>
@@ -220,8 +224,8 @@ const CheckoutPage: React.FC = () => {
             )}
 
             {shippingMethod === 'PICKUP' && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 animate-fade-in">
-                <p className="text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2">
+              <div className="bg-brand-50 dark:bg-brand-900/20 p-4 rounded-xl border border-brand-100 dark:border-brand-800 animate-fade-in">
+                <p className="text-sm text-brand-700 dark:text-brand-300 flex items-center gap-2">
                   <Shield size={16} />
                   Your order will be held at our main branch in Dar es Salaam. Please bring your Order ID.
                 </p>
@@ -232,7 +236,7 @@ const CheckoutPage: React.FC = () => {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold rounded-xl transition shadow-xl shadow-blue-600/20"
+            className="w-full flex items-center justify-center gap-2 py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-bold rounded-xl transition shadow-xl shadow-brand-600/20"
           >
             <CreditCard size={20} />
             {submitting ? 'Placing Order...' : `Place Order — TSh ${finalTotal.toLocaleString()}`}
@@ -260,11 +264,25 @@ const CheckoutPage: React.FC = () => {
               </div>
             ))}
           </div>
-          <div className="border-t dark:border-gray-700 pt-3 flex justify-between items-center">
-            <span className="font-medium text-gray-600 dark:text-gray-400">Total</span>
-            <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
-              TSh {totalPrice.toLocaleString()}
-            </span>
+          <div className="border-t dark:border-gray-700 pt-3 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-gray-600 dark:text-gray-400">Subtotal</span>
+              <span className="font-medium text-gray-900 dark:text-white">
+                TSh {totalPrice.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-gray-600 dark:text-gray-400">Shipping</span>
+              <span className="font-medium text-gray-900 dark:text-white">
+                {shippingMethod === 'PICKUP' ? 'Free' : (shippingFee > 0 ? `TSh ${shippingFee.toLocaleString()}` : 'Pending')}
+              </span>
+            </div>
+            <div className="border-t dark:border-gray-700 pt-2 flex justify-between items-center">
+              <span className="font-bold text-gray-900 dark:text-white">Total</span>
+              <span className="text-xl font-black text-brand-600 dark:text-brand-400">
+                TSh {finalTotal.toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
       </div>

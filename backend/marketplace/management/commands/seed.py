@@ -279,6 +279,9 @@ class Command(BaseCommand):
         # ── TRUCKS & COMMERCIAL — 35 items ──────────────────────────────
         self._checklist_trucks(trucks)
 
+        # ── SPARE PARTS ──────────────────────────────────────────────────
+        self._checklist_spare_parts(spare_parts)
+
         # ── SMARTPHONES & TABLETS (existing — idempotent) ────────────────
         self._checklist_phones(phones)
 
@@ -305,6 +308,9 @@ class Command(BaseCommand):
 
         # ── CONSTRUCTION EQUIPMENT — 22 items ────────────────────────────
         self._checklist_construction(construction)
+
+        # ── POWER TOOLS ──────────────────────────────────────────────────
+        self._checklist_power_tools(power_tools)
 
         # ── FARM MACHINERY — 25 items ─────────────────────────────────────
         self._checklist_farm_machinery(farm_mach)
@@ -799,3 +805,21 @@ class Command(BaseCommand):
             ('Milk Production Records if Dairy', 'text', False, False, 'litres/day', 'Request daily milk records for last 30 days — verify against visual udder assessment'),
             ('Growth Rate / Weight Records', 'text', False, False, 'kg', 'For beef animals: weigh at inspection and compare to breed standard for age'),
         ])
+
+    def _checklist_spare_parts(self, category):
+        self.create_checklist(category, [
+            ('Part Condition & Authenticity', 'pass_fail', True, True, '', 'Check for counterfeit marks or excessive wear'),
+            ('Compatibility Verification', 'text', True, True, '', 'Check part numbers against vehicle models'),
+            ('Physical Damage', 'pass_fail', True, True, '', 'Check for cracks, broken mounts, or missing components'),
+            ('Functional Test (if applicable)', 'pass_fail', False, False, '', 'Test electronic or mechanical function if possible'),
+        ])
+
+    def _checklist_power_tools(self, category):
+        self.create_checklist(category, [
+            ('Power Cord & Plug Condition', 'pass_fail', True, True, '', 'Check for fraying, exposed wires, grounding prong'),
+            ('Motor Operation & Brushes', 'pass_fail', True, True, '', 'Listen for abnormal noise, check for excessive sparking'),
+            ('Trigger & Safety Switches', 'pass_fail', True, True, '', 'Ensure all switches operate smoothly and safely'),
+            ('Chuck / Mount Condition', 'scale', True, False, '', 'Check for wobbling, wear, or stripped threads'),
+            ('Battery Health (if Cordless)', 'pass_fail', False, True, '', 'Check ability to hold charge under load'),
+        ])
+

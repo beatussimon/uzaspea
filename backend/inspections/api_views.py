@@ -156,11 +156,6 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
                 return Response(ChecklistTemplateSerializer(template).data)
             current = current.parent
 
-        # 3. Final Fallback: Return any active template if none found for category tree
-        fallback = ChecklistTemplate.objects.filter(is_active=True).order_by('-version', '-id').first()
-        if fallback:
-            return Response(ChecklistTemplateSerializer(fallback).data)
-
         return Response({'detail': 'No template found for this category or its ancestors.'}, status=404)
 
 
@@ -269,6 +264,9 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         insp_cat = InspectionCategory.objects.filter(name__iexact=cat_name).first()
         
         if not insp_cat:
+            if not (request.user.is_staff or request.user.is_superuser):
+                return Response({'detail': f'Inspection category for "{cat_name}" does not exist and auto-creation requires staff privileges.'}, status=403)
+                
             # Borrow the category: Create a new inspection category
             # Use 'marketplace' (slug) as a parent if it exists, otherwise root
             parent = InspectionCategory.objects.filter(name__iexact='Marketplace').first()
@@ -469,24 +467,6 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         obj.save()
         return Response({'status': obj.status})
 
-    @decorators.action(detail=True, methods=['get'], url_path='verify')
-    def verify(self, request, pk=None):
-        """Public-facing: minimal verification data."""
-        obj = self.get_object()
-        data = {
-            'inspection_id': obj.inspection_id,
-            'category': obj.category.get_full_path(),
-            'item_name': obj.item_name,
-            'status': obj.status,
-            'verdict': None,
-            'report_hash': None,
-            'inspected_at': None,
-        }
-        if hasattr(obj, 'report') and obj.report.is_locked:
-            data['verdict'] = obj.report.verdict
-            data['report_hash'] = obj.report.report_hash
-            data['inspected_at'] = obj.report.approved_at
-        return Response(data)
 
     @decorators.action(detail=False, methods=['get'], url_path='my-jobs')
     def my_jobs(self, request):
@@ -701,6 +681,11 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=False, methods=['post'], url_path='checkout/(?P<request_id>[^/.]+)')
     def checkout(self, request, request_id=None):
+        try:
+            request_id = int(request_id)
+        except (ValueError, TypeError):
+            return Response({'detail': 'Invalid request ID format.'}, status=400)
+            
         checkin = get_object_or_404(InspectionCheckIn, request_id=request_id)
         
         # PERMISSION CHECK
@@ -928,7 +913,9 @@ class ChecklistResponseViewSet(viewsets.ModelViewSet):
 
     def _check_flag(self, response):
         item = response.checklist_item
-        if item.fail_triggers_flag and response.response_value.lower() in ['fail', '1', 'false']:
+        if item.item_type in ['text', 'measurement']:
+            response.flagged = False
+        elif item.fail_triggers_flag and response.response_value.lower() in ['fail', '1', 'false']:
             response.flagged = True
         else:
             response.flagged = False

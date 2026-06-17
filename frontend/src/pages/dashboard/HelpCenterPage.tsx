@@ -57,7 +57,7 @@ const HelpCenterPage: React.FC = () => {
             {/* Contact Info — FIX B-18: dynamic from SiteSettings */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="card p-6 flex flex-col items-center text-center space-y-2">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center rounded-full">
+                    <div className="w-12 h-12 bg-brand-100 dark:bg-brand-900/30 text-brand-600 flex items-center justify-center rounded-full">
                         <Phone size={24} />
                     </div>
                     <h3 className="font-bold text-gray-900 dark:text-white">Call Us</h3>

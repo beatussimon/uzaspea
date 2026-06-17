@@ -13,10 +13,7 @@ import {
 } from 'recharts';
 
 const CHART_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
-const STATUS_LABELS: Record<string,string> = {
-  CART:'Cart',CHECKOUT:'Checkout',AWAITING_PAYMENT:'Awaiting Pay',PENDING_VERIFICATION:'Verifying',
-  PAID:'Paid',PROCESSING:'Processing',SHIPPED:'Shipped',DELIVERED:'Delivered',COMPLETED:'Completed',CANCELLED:'Cancelled'
-};
+import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, TRACKING_STEPS, SELLER_ADVANCE_MAP, SHORT_STATUS_LABELS as STATUS_LABELS } from '../../constants/orderStatus';
 
 // ============ Dashboard Overview ============
 const DashboardOverview: React.FC = () => {
@@ -33,7 +30,7 @@ const DashboardOverview: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div>
       </div>
     );
   }
@@ -74,7 +71,7 @@ const DashboardOverview: React.FC = () => {
         <div className="lg:col-span-2 card p-5 flex flex-col h-[350px]">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center justify-between">
             Revenue Pipeline
-            <BarChart3 size={16} className="text-blue-500" />
+            <BarChart3 size={16} className="text-brand-500" />
           </h3>
           <div className="h-[280px] w-full">
             <ResponsiveContainer width="100%" height={280}>
@@ -119,7 +116,7 @@ const DashboardOverview: React.FC = () => {
         <div className="card overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">Top Performing Products</h3>
-            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">Best Sellers</span>
+            <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded uppercase">Best Sellers</span>
           </div>
           <div className="divide-y divide-gray-50 dark:divide-gray-700">
             {(stats?.top_products || []).map((p: any, i: number) => (
@@ -315,7 +312,7 @@ const DashboardProducts: React.FC = () => {
             setEditingId(null);
             setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true });
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition text-sm"
         >
           <Plus size={16} />
           {showForm ? 'Cancel' : 'New Product'}
@@ -359,7 +356,7 @@ const DashboardProducts: React.FC = () => {
               id="is_available"
               checked={form.is_available} 
               onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
-              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+              className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" 
             />
             <label htmlFor="is_available" className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Product is Available for Sale
@@ -370,13 +367,13 @@ const DashboardProducts: React.FC = () => {
               Product Images (multiple)
             </label>
             <input type="file" multiple accept="image/*" onChange={handleImageChange}
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100" />
             {imageFiles.length > 0 && (
               <p className="text-xs text-gray-400 mt-1">{imageFiles.length} file(s) selected</p>
             )}
           </div>
           <button type="submit" disabled={submitting}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg transition">
+            className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-semibold rounded-lg transition">
             {submitting ? 'Saving...' : editingId ? 'Update Product' : 'Create Product'}
           </button>
         </form>
@@ -385,7 +382,7 @@ const DashboardProducts: React.FC = () => {
       {/* Products Table */}
       {loading ? (
         <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
         </div>
       ) : products.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700">
@@ -402,7 +399,7 @@ const DashboardProducts: React.FC = () => {
                 className="w-16 h-16 rounded-lg object-cover shrink-0" />
               <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-gray-900 dark:text-white truncate">{product.name}</h4>
-                <p className="text-sm text-blue-600 dark:text-blue-400 font-bold">
+                <p className="text-sm text-brand-600 dark:text-brand-400 font-bold">
                   TSh {parseInt(product.price).toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-400">Stock: {product.stock}</p>
@@ -476,7 +473,7 @@ const DashboardPromotions: React.FC = () => {
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Promotions</h2>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition text-sm"
         >
           <Plus size={16} />
           {showForm ? 'Cancel' : 'New Promotion'}
@@ -499,23 +496,23 @@ const DashboardPromotions: React.FC = () => {
             <option value={30}>30 Days - 30,000 TSh</option>
           </select>
           
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-900/30">
-            <p className="text-sm font-bold text-blue-800 dark:text-blue-300">
+          <div className="bg-brand-50 dark:bg-brand-900/20 p-3 rounded-lg border border-brand-100 dark:border-brand-900/30">
+            <p className="text-sm font-bold text-brand-800 dark:text-brand-300">
               Total Cost: {(Number(form.duration_days) * 1000).toLocaleString()} TSh
             </p>
-            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+            <p className="text-xs text-brand-600 dark:text-brand-400 mt-1">
               Note: Staff will review your promotion and request payment upon approval.
             </p>
           </div>
 
-          <button type="submit" disabled={submitting} className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg transition">
+          <button type="submit" disabled={submitting} className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-semibold rounded-lg transition">
             {submitting ? 'Submitting...' : 'Submit Request'}
           </button>
         </form>
       )}
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
       ) : promotions.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
           <Megaphone size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -542,21 +539,6 @@ const DashboardPromotions: React.FC = () => {
 };
 
 // ============ Incoming Orders (Seller) ============
-const ORDER_STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  CART: { label: 'Cart', color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-700' },
-  CHECKOUT: { label: 'Checkout', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
-  AWAITING_PAYMENT: { label: 'Awaiting Payment', color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/30' },
-  PENDING_VERIFICATION: { label: 'Verifying', color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-900/30' },
-  PAID: { label: 'Paid', color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
-  PROCESSING: { label: 'Processing', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
-  SHIPPED: { label: 'Shipped', color: 'text-indigo-600', bg: 'bg-indigo-100 dark:bg-indigo-900/30' },
-  DELIVERED: { label: 'Delivered', color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
-  COMPLETED: { label: 'Completed', color: 'text-green-700', bg: 'bg-green-100 dark:bg-green-900/30' },
-  CANCELLED: { label: 'Cancelled', color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
-};
-const SELLER_ADVANCE_MAP: Record<string, string> = {
-  PAID: 'PROCESSING', PROCESSING: 'SHIPPED', SHIPPED: 'DELIVERED', DELIVERED: 'COMPLETED'
-};
 const fmtOrderDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 const DashboardOrders: React.FC = () => {
@@ -676,7 +658,7 @@ const DashboardOrders: React.FC = () => {
       <div className="flex gap-1 flex-wrap mb-4 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
         {filterTabs.map(s => (
           <button key={s} onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1.5 text-[10px] sm:text-xs rounded-lg font-bold transition uppercase tracking-wider ${filterStatus === s ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+            className={`px-3 py-1.5 text-[10px] sm:text-xs rounded-lg font-bold transition uppercase tracking-wider ${filterStatus === s ? 'bg-brand-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
             {s ? (ORDER_STATUS_CFG[s]?.label || s) : 'All Orders'}
           </button>
         ))}
@@ -687,7 +669,7 @@ const DashboardOrders: React.FC = () => {
           {[
               { id: 'PENDING_VERIFICATION', label: 'Payments to Verify', icon: ShieldAlert, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/10' },
               { id: 'PAID', label: 'Ready to Process', icon: Package, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/10' },
-              { id: 'PROCESSING', label: 'In Processing', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/10' },
+              { id: 'PROCESSING', label: 'In Processing', icon: Clock, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/10' },
               { id: 'SHIPPED', label: 'Active Shipments', icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-900/10' },
           ].map((stat) => {
               const count = orders.filter(o => o.status === stat.id).length;
@@ -703,7 +685,7 @@ const DashboardOrders: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
       ) : orders.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
           <ShoppingCart size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
@@ -719,7 +701,7 @@ const DashboardOrders: React.FC = () => {
             const hasPendingPayment = order.status === 'PENDING_VERIFICATION';
 
             return (
-              <div key={order.id} className={`bg-white dark:bg-gray-800 rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'shadow-xl ring-1 ring-blue-500/20' : 'shadow-sm hover:shadow-md border-gray-100 dark:border-gray-700'}`}>
+              <div key={order.id} className={`bg-white dark:bg-gray-800 rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'shadow-xl ring-1 ring-brand-500/20' : 'shadow-sm hover:shadow-md border-gray-100 dark:border-gray-700'}`}>
                 {/* Header */}
                 <button onClick={() => setExpandedId(isExpanded ? null : order.id)}
                   className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-gray-50/20 transition group">
@@ -778,19 +760,19 @@ const DashboardOrders: React.FC = () => {
                     
                     {/* Payment Verification Block */}
                     {hasPendingPayment && order.payments?.length > 0 && (
-                      <div className="px-6 py-6 bg-blue-50/50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-900/20">
+                      <div className="px-6 py-6 bg-brand-50/50 dark:bg-brand-900/10 border-b border-brand-100 dark:border-brand-900/20">
                           <div className="flex items-center gap-2 mb-4">
-                              <ShieldCheck className="text-blue-600" size={20} />
+                              <ShieldCheck className="text-brand-600" size={20} />
                               <h4 className="font-black text-gray-900 dark:text-white text-sm uppercase tracking-wider">Payment Verification Needed</h4>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div className="space-y-4">
                                   {order.payments.filter((p:any) => p.status === 'PENDING_VERIFICATION').map((p:any) => (
-                                      <div key={p.id} className="card p-4 space-y-3 bg-white/70 dark:bg-gray-800/70 border-blue-200">
+                                      <div key={p.id} className="card p-4 space-y-3 bg-white/70 dark:bg-gray-800/70 border-brand-200">
                                           <div className="flex justify-between text-xs">
                                               <span className="text-gray-500 font-bold uppercase">Transaction ID</span>
-                                              <span className="font-black text-blue-700 dark:text-blue-400 select-all">{p.transaction_id || 'N/A'}</span>
+                                              <span className="font-black text-brand-700 dark:text-brand-400 select-all">{p.transaction_id || 'N/A'}</span>
                                           </div>
                                           <div className="flex justify-between text-xs">
                                               <span className="text-gray-500 font-bold uppercase">Amount</span>
@@ -811,7 +793,7 @@ const DashboardOrders: React.FC = () => {
                                   ))}
                               </div>
                               
-                              <div className="bg-white/50 dark:bg-gray-800/50 p-5 rounded-2xl border border-blue-100/50 dark:border-blue-900/20 flex flex-col justify-center gap-3">
+                              <div className="bg-white/50 dark:bg-gray-800/50 p-5 rounded-2xl border border-brand-100/50 dark:border-brand-900/20 flex flex-col justify-center gap-3">
                                   <p className="text-xs text-gray-600 dark:text-gray-400 italic">
                                      "Review the transaction ID and receipt above. Once confirmed, mark as PAID to allow the order to proceed to processing."
                                   </p>
@@ -859,17 +841,17 @@ const DashboardOrders: React.FC = () => {
                         <div className="lg:col-span-2 p-6 bg-gray-50/50 dark:bg-gray-800/10 flex flex-col justify-between">
                             <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5">Order History</p>
-                                <div className="space-y-4 relative pl-4 border-l-2 border-blue-100 dark:border-blue-900/30 py-1">
+                                <div className="space-y-4 relative pl-4 border-l-2 border-brand-100 dark:border-brand-900/30 py-1">
                                     {order.timeline?.slice(0, 3).map((ev: any, i: number) => (
                                         <div key={i} className="relative">
-                                            <div className="absolute -left-[21.5px] w-2.5 h-2.5 rounded-full bg-blue-400 border-2 border-white dark:border-gray-800 shadow-sm" />
+                                            <div className="absolute -left-[21.5px] w-2.5 h-2.5 rounded-full bg-brand-400 border-2 border-white dark:border-gray-800 shadow-sm" />
                                             <div className="ml-3">
                                                 <p className="text-xs font-black text-gray-800 dark:text-gray-200 uppercase tracking-tighter">{ORDER_STATUS_CFG[ev.status]?.label || ev.status}</p>
                                                 <p className="text-[10px] text-gray-400 mt-0.5 font-bold uppercase">{fmtOrderDate(ev.created_at)}</p>
                                             </div>
                                         </div>
                                     ))}
-                                    {order.timeline?.length > 3 && <p className="text-[10px] text-blue-500 font-bold px-2">+ {order.timeline.length - 3} more events</p>}
+                                    {order.timeline?.length > 3 && <p className="text-[10px] text-brand-500 font-bold px-2">+ {order.timeline.length - 3} more events</p>}
                                 </div>
                             </div>
 
@@ -902,7 +884,7 @@ const DashboardOrders: React.FC = () => {
                                             <button
                                                 onClick={() => handleAdvance(order.id, 'AWAITING_PAYMENT', 'Order accepted by seller. Awaiting customer payment.')}
                                                 disabled={advancing === order.id}
-                                                className="w-full btn-primary py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-3"
+                                                className="w-full btn-primary py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-3"
                                             >
                                                 {advancing === order.id ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <><ShieldCheck size={20} /> Acknowledge Order</>}
                                             </button>
@@ -944,7 +926,7 @@ const DashboardOrders: React.FC = () => {
 
             {loadingMore && (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
               </div>
             )}
 
@@ -1014,7 +996,7 @@ const PaymentNumbersManager: React.FC = () => {
                     onChange={e => setForm({...form, number: e.target.value})} className="input text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 w-full p-3 border dark:border-gray-600 rounded-lg" />
                 <input placeholder="Account Name (shown to buyer)" value={form.name}
                     onChange={e => setForm({...form, name: e.target.value})} className="input text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 w-full p-3 border dark:border-gray-600 rounded-lg" />
-                <button onClick={handleSave} className="btn-primary w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition">
+                <button onClick={handleSave} className="btn-primary w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg transition">
                     {editingId ? 'Update' : 'Add Number'}
                 </button>
             </div>
@@ -1076,7 +1058,7 @@ const DashboardLayout: React.FC = () => {
                 to={item.path}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
                   isActive
-                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
+                    ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
@@ -1104,7 +1086,7 @@ const DashboardLayout: React.FC = () => {
             to="/dashboard/settings"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
               location.pathname.startsWith('/dashboard/settings')
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
+                ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
@@ -1115,7 +1097,7 @@ const DashboardLayout: React.FC = () => {
             to="/dashboard/help-center"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
               location.pathname.startsWith('/dashboard/help-center')
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
+                ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >

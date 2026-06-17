@@ -133,7 +133,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response({'error': f'Task in {task.status} status cannot be started'}, status=400)
         task.status = 'in_progress'
         task.save()
-        log_audit(request.user, 'task_started', f"Started task: {task.title}", task=task, request=request)
+        log_audit(request.user, 'task_updated', f"Started task: {task.title}", task=task, request=request)
         return Response({'status': 'in_progress'})
 
     @decorators.action(detail=True, methods=['post'])
@@ -180,7 +180,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         task.assigned_to = request.user
         task.status = 'pending'
         task.save()
-        log_audit(request.user, 'task_claimed', f"Claimed task: {task.title}", task=task, request=request)
+        log_audit(request.user, 'task_updated', f"Claimed task: {task.title}", task=task, request=request)
         return Response({'status': 'claimed'})
 
     @decorators.action(detail=True, methods=['post'])
@@ -193,7 +193,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         reason = request.data.get('reason', 'No reason provided')
         task.status = 'on_hold'
         task.save()
-        log_audit(request.user, 'task_held', f"Task on hold: {task.title}. Reason: {reason}", task=task, request=request)
+        log_audit(request.user, 'task_updated', f"Task on hold: {task.title}. Reason: {reason}", task=task, request=request)
         return Response({'status': 'on_hold'})
 
     @decorators.action(detail=True, methods=['post'])
@@ -349,8 +349,19 @@ class StaffDashboardView(APIView):
 
     def get(self, request):
         user = request.user
+        priority_order = models.Case(
+            models.When(priority='urgent', then=models.Value(1)),
+            models.When(priority='high', then=models.Value(2)),
+            models.When(priority='medium', then=models.Value(3)),
+            models.When(priority='low', then=models.Value(4)),
+            default=models.Value(5),
+            output_field=models.IntegerField(),
+        )
+
         # My tasks
-        my_tasks = Task.objects.filter(assigned_to=user).select_related('category').order_by('-created_at')[:15]
+        my_tasks = Task.objects.filter(assigned_to=user).select_related('category').annotate(
+            priority_rank=priority_order
+        ).order_by('priority_rank', '-created_at')[:15]
         
         # Unassigned (Claimable) Pool - tasks in same department or general
         profile = getattr(user, 'staff_profile', None)
@@ -358,7 +369,9 @@ class StaffDashboardView(APIView):
         if profile and profile.department:
             unassigned_q &= (Q(category__department=profile.department) | Q(category__department=None))
             
-        unassigned_tasks = Task.objects.filter(unassigned_q).exclude(status__in=['completed', 'cancelled']).select_related('category').order_by('-priority', '-created_at')[:10]
+        unassigned_tasks = Task.objects.filter(unassigned_q).exclude(status__in=['completed', 'cancelled']).select_related('category').annotate(
+            priority_rank=priority_order
+        ).order_by('priority_rank', '-created_at')[:10]
 
         def fmt_task(t):
             return {

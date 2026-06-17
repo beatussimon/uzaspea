@@ -99,7 +99,7 @@ const StaffInspectionDashboard: React.FC<{ hasPerm?: boolean }> = ({ hasPerm = t
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { to: `${base}/dispatch`, label: 'Dispatcher Queue', icon: ClipboardList, color: 'text-blue-500' },
+          { to: `${base}/dispatch`, label: 'Dispatcher Queue', icon: ClipboardList, color: 'text-brand-500' },
           { to: `${base}/qa`, label: 'QA Review Queue', icon: CheckCircle2, color: 'text-purple-500' },
           { to: `${base}/payments`, label: 'Payment Approvals', icon: CreditCard, color: 'text-green-500' },
         ].map((item) => (
@@ -380,10 +380,30 @@ const StaffRequestDetail: React.FC = () => {
               <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                 <p className="font-medium text-green-700 dark:text-green-400">{request.assignment.inspector_name}</p>
                 <Badge text={request.assignment.inspector_level} className="badge-blue capitalize mt-1" />
+                <div className="flex items-center gap-3 mt-1 text-xs font-medium text-green-800 dark:text-green-300">
+                  {request.assignment.inspector_phone && <span>📞 {request.assignment.inspector_phone}</span>}
+                  {request.assignment.inspector_email && <span>✉️ {request.assignment.inspector_email}</span>}
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
                   SLA: {request.assignment.sla_deadline ? fmtDate(request.assignment.sla_deadline) : '—'}
                 </p>
               </div>
+              {request.assignment.job_contact && (
+                <div className="p-3 rounded-lg bg-brand-50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/30">
+                  <p className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-widest">Job Contact</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {request.assignment.job_contact.name} <span className="text-xs font-normal text-gray-500">({request.assignment.job_contact.label})</span>
+                  </p>
+                  <div className="flex items-center gap-3 mt-1 text-xs font-medium text-brand-600 dark:text-brand-400">
+                    {request.assignment.job_contact.phone && (
+                      <a href={`tel:${request.assignment.job_contact.phone}`} className="hover:underline">📞 {request.assignment.job_contact.phone}</a>
+                    )}
+                    {request.assignment.job_contact.email && (
+                      <a href={`mailto:${request.assignment.job_contact.email}`} className="hover:underline">✉️ {request.assignment.job_contact.email}</a>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-2">

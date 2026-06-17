@@ -133,6 +133,25 @@ const InspectorJobs: React.FC = () => {
                       <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
                         <MapPin size={10} /> {job.item_address}
                       </p>
+                      {job.job_contact && (
+                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400" onClick={e => e.stopPropagation()}>
+                          <p className="font-medium text-gray-700 dark:text-gray-300">
+                            {job.job_contact.label}: {job.job_contact.name}
+                          </p>
+                          <div className="flex items-center gap-3 mt-0.5">
+                            {job.job_contact.phone && (
+                              <a href={`tel:${job.job_contact.phone}`} className="text-brand-600 hover:underline">
+                                {job.job_contact.phone}
+                              </a>
+                            )}
+                            {job.job_contact.email && (
+                              <a href={`mailto:${job.job_contact.email}`} className="text-brand-600 hover:underline">
+                                {job.job_contact.email}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-xs text-gray-400">{fmtDate(job.created_at)}</p>
@@ -581,6 +600,25 @@ const JobExecution: React.FC = () => {
           <MapPin size={14} className="text-gray-400 mt-0.5 shrink-0" />
           <span className="text-gray-600 dark:text-gray-400">{job.item_address}</span>
         </div>
+        {job.assignment?.job_contact && (
+          <div className="mt-3 p-3 rounded-lg bg-brand-50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/30 text-sm">
+            <p className="font-medium text-gray-900 dark:text-white mb-1">
+              Contact: {job.assignment.job_contact.name} <span className="text-xs font-normal text-gray-500">({job.assignment.job_contact.label})</span>
+            </p>
+            <div className="flex items-center gap-4 text-brand-600 dark:text-brand-400 text-xs font-medium">
+              {job.assignment.job_contact.phone && (
+                <a href={`tel:${job.assignment.job_contact.phone}`} className="hover:underline flex items-center gap-1">
+                  📞 {job.assignment.job_contact.phone}
+                </a>
+              )}
+              {job.assignment.job_contact.email && (
+                <a href={`mailto:${job.assignment.job_contact.email}`} className="hover:underline flex items-center gap-1">
+                  ✉️ {job.assignment.job_contact.email}
+                </a>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Steps indicator */}

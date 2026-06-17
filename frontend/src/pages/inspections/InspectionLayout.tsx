@@ -864,8 +864,8 @@ const RequestDetail: React.FC = () => {
                        "{request.product_snapshot.description}"
                      </p>
                    </div>
-                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">
-                      <p className="text-[10px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                   <div className="mt-4 p-3 bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800 rounded-lg">
+                      <p className="text-[10px] text-brand-700 dark:text-brand-300 leading-relaxed">
                         <span className="font-bold">Note:</span> This is a persistent snapshot of the item's details when this inspection was requested. 
                         Changes to the marketplace listing after this point are not reflected here to maintain verification integrity.
                       </p>

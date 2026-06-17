@@ -100,6 +100,7 @@ const ProductDetailPage: React.FC = () => {
       .then((res) => {
         setProduct(res.data);
         setLikeCount(res.data.like_count);
+        setLiked(res.data.is_liked || false);
         setLoading(false);
         // Fetch variants
         api.get(`/api/variants/?product=${res.data.id}`)
@@ -182,7 +183,7 @@ const ProductDetailPage: React.FC = () => {
     return (
       <div className="text-center py-20">
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300">Product not found</h2>
-        <Link to="/" className="text-blue-600 mt-4 inline-block hover:underline">← Back to products</Link>
+        <Link to="/" className="text-brand-600 mt-4 inline-block hover:underline">← Back to products</Link>
       </div>
     );
   }
@@ -229,7 +230,7 @@ const ProductDetailPage: React.FC = () => {
                   onClick={() => setSelectedImage(idx)}
                   className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
                     idx === selectedImage
-                      ? 'border-blue-500 shadow-md'
+                      ? 'border-brand-500 shadow-md'
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-400'
                   }`}
                 >
@@ -261,7 +262,7 @@ const ProductDetailPage: React.FC = () => {
             </button>
             <button
               onClick={handleShare}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-blue-400 hover:text-blue-500 text-base font-bold transition-all duration-200 shadow-sm"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-brand-400 hover:text-brand-500 text-base font-bold transition-all duration-200 shadow-sm"
             >
               <Share2 size={22} />
               Share
@@ -316,15 +317,15 @@ const ProductDetailPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4 text-sm">
               <span className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700">
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Seller: <Link to={`/profile/${product.seller_username}`} className="text-blue-600 font-bold hover:underline">{product.seller_username}</Link>
+                Seller: <Link to={`/profile/${product.seller_username}`} className="text-brand-600 font-bold hover:underline">{product.seller_username}</Link>
                 <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-5 h-5" />
               </span>
               <span className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700">
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                <Link to={`/?category=${product.category_name}`} className="text-blue-600 font-bold hover:underline">{product.category_name}</Link>
+                <Link to={`/?category=${product.category_name}`} className="text-brand-600 font-bold hover:underline">{product.category_name}</Link>
               </span>
               {product.is_verified && (
-                <span className="flex items-center gap-1.5 text-blue-700 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 text-[10px] font-black uppercase tracking-widest">
+                <span className="flex items-center gap-1.5 text-brand-700 bg-brand-50 dark:bg-brand-900/20 px-3 py-1.5 rounded-lg border border-brand-100 dark:border-brand-900/30 text-[10px] font-black uppercase tracking-widest">
                   <Shield size={14} className="fill-current" />
                   Professionally Verified
                 </span>
@@ -385,7 +386,7 @@ const ProductDetailPage: React.FC = () => {
                 Select Variant
               </label>
               <select
-                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition"
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition"
                 value={selectedVariant?.id || ''}
                 onChange={(e) => {
                    const v = variants.find(x => x.id.toString() === e.target.value);
@@ -425,7 +426,7 @@ const ProductDetailPage: React.FC = () => {
               </div>
               <button
                 onClick={handleAddToCart}
-                className="flex-[2] flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-sm"
+                className="flex-[2] flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg transition shadow-sm"
               >
                 <ShoppingCart size={18} />
                 Add to Cart

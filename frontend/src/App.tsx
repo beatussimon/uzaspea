@@ -65,7 +65,7 @@ const NotificationBell: React.FC = () => {
           {notifications.length === 0 ? (
             <p className="p-4 text-sm text-gray-400 text-center">All caught up!</p>
           ) : notifications.map(n => (
-            <div key={n.id} className={`p-3 border-b border-gray-50 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${!n.is_read ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''}`}
+            <div key={n.id} className={`p-3 border-b border-gray-50 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${!n.is_read ? 'bg-brand-50/40 dark:bg-brand-900/10' : ''}`}
               onClick={() => { setOpen(false); if (n.link) window.location.href = n.link; }}>
               <p className="text-sm font-bold text-gray-900 dark:text-white">{n.title}</p>
               <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>
@@ -279,7 +279,7 @@ const Navbar = () => {
                       <p className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Account</p>
                       <div className="grid grid-cols-1 gap-1">
                         <Link to={`/profile/${username}`} className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-brand-50 dark:hover:bg-brand-900/20 hover:text-brand-600 rounded-btn transition-all group" onClick={() => setProfileOpen(false)}>
-                          <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center group-hover:bg-brand-600 group-hover:text-white transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center group-hover:bg-brand-600 group-hover:text-white transition-colors">
                             <User size={16} />
                           </div>
                           <span className="font-medium">My Profile</span>
