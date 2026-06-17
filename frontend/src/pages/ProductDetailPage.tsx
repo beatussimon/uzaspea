@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, Bell } from 'lucide-react';
+import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, Bell, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import { useCart } from '../context/CartContext';
 import { ProductTabs } from '../ProductTabs';
@@ -90,6 +91,7 @@ const ProductDetailPage: React.FC = () => {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [alertPrice, setAlertPrice] = useState('');
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
   
   const isAuthenticated = !!localStorage.getItem('access_token');
 
@@ -193,6 +195,7 @@ const ProductDetailPage: React.FC = () => {
     : [{ id: 0, image: '' }];
 
   const currentImageSrc = images[selectedImage]?.image || '';
+  const isOwnProduct = product.seller_username === localStorage.getItem('username');
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-4">
@@ -210,28 +213,39 @@ const ProductDetailPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Image Gallery — click opens fullscreen */}
-        <div>
+        <div className="flex flex-col md:flex-row-reverse gap-4">
           <div
-            className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden mb-4 shadow-sm cursor-zoom-in"
+            className="flex-1 aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm cursor-zoom-in relative"
             onClick={() => setLightboxOpen(true)}
           >
-            <SafeImage
-              src={currentImageSrc}
-              alt={product.name}
-              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-              loading="eager"
-            />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedImage}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                transition={{ duration: 0.3 }}
+                className="w-full h-full"
+              >
+                <SafeImage
+                  src={currentImageSrc}
+                  alt={product.name}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500 ease-out"
+                  loading="eager"
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
           {images.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto pb-2 md:pb-0 md:w-20 shrink-0 no-scrollbar">
               {images.map((img, idx) => (
                 <button
                   key={img.id}
                   onClick={() => setSelectedImage(idx)}
-                  className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
+                  className={`shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 ${
                     idx === selectedImage
-                      ? 'border-brand-500 shadow-md'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-400'
+                      ? 'border-brand-500 shadow-md scale-100 ring-2 ring-brand-500/20 ring-offset-2 dark:ring-offset-gray-900'
+                      : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 scale-95 opacity-70 hover:opacity-100'
                   }`}
                 >
                   <SafeImage src={img.image} alt="" className="w-full h-full object-cover" />
@@ -372,11 +386,35 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Description */}
-          <div className="bg-white dark:bg-gray-800/30 rounded-xl p-4 border border-gray-100 dark:border-gray-700 mb-8">
-             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Description</h3>
-             <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm whitespace-pre-line">
-               {product.description}
-             </p>
+          <div className="bg-white dark:bg-gray-800/30 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 mb-8 shadow-sm">
+             <button 
+                onClick={() => setIsDescExpanded(!isDescExpanded)}
+                className="w-full flex items-center justify-between group"
+             >
+                 <h3 className="text-xs font-black text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 uppercase tracking-widest transition-colors">Description</h3>
+                 {isDescExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+             </button>
+             
+             <AnimatePresence>
+                 {isDescExpanded && (
+                     <motion.div 
+                         initial={{ height: 0, opacity: 0 }}
+                         animate={{ height: 'auto', opacity: 1 }}
+                         exit={{ height: 0, opacity: 0 }}
+                         transition={{ duration: 0.3 }}
+                         className="overflow-hidden"
+                     >
+                         <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm whitespace-pre-line mt-4">
+                           {product.description}
+                         </p>
+                     </motion.div>
+                 )}
+             </AnimatePresence>
+             {!isDescExpanded && (
+                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm whitespace-pre-line mt-4 line-clamp-3">
+                   {product.description}
+                 </p>
+             )}
           </div>
 
           {/* Variants Selector */}
@@ -406,6 +444,11 @@ const ProductDetailPage: React.FC = () => {
 
           {/* Add to Cart — matches legacy quantity-selector */}
           {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
+            isOwnProduct ? (
+              <div className="mt-auto p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-center border border-gray-100 dark:border-gray-700">
+                <p className="text-gray-500 dark:text-gray-400 font-medium text-sm">This is your own product.</p>
+              </div>
+            ) : (
             <div className="flex items-center gap-3 mt-auto">
               <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
                 <button
@@ -432,6 +475,7 @@ const ProductDetailPage: React.FC = () => {
                 Add to Cart
               </button>
             </div>
+            )
           ) : (
             <p className="text-red-500 font-semibold mt-auto">Out of Stock</p>
           )}

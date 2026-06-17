@@ -180,13 +180,14 @@ class OrderSerializer(serializers.ModelSerializer):
     payments = PaymentSerializer(many=True, read_only=True)
     buyer_username = serializers.CharField(source='user.username', read_only=True)
     seller_subtotal = serializers.SerializerMethodField()
+    delivery_code = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
         fields = [
             'id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status',
             'shipping_method', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
-            'items', 'timeline_events', 'payments', 'seller_subtotal'
+            'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code'
         ]
         read_only_fields = ['user', 'total_amount']
 
@@ -195,6 +196,14 @@ class OrderSerializer(serializers.ModelSerializer):
         if not request or not hasattr(request, 'user') or request.user.is_anonymous:
             return float(obj.total_amount)
         return float(sum(item.subtotal() for item in obj.orderitem_set.filter(product__seller=request.user)))
+
+    def get_delivery_code(self, obj):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and not request.user.is_anonymous:
+            # Only the buyer and staff can see the delivery code
+            if request.user == obj.user or request.user.is_staff:
+                return obj.delivery_code
+        return None
 
     def create(self, validated_data):
         # Extract items data from the source mapping
@@ -209,6 +218,9 @@ class OrderSerializer(serializers.ModelSerializer):
                 product = item_data['product']
                 qty = item_data['quantity']
                 variant = item_data.get('variant')
+
+                if product.seller == self.context['request'].user:
+                    raise serializers.ValidationError(f'You cannot order your own product: "{product.name}".')
 
                 if variant:
                     variant = ProductVariant.objects.select_for_update().get(pk=variant.pk)

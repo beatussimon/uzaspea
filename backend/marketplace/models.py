@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.utils import timezone
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils.text import slugify
 
@@ -207,16 +207,52 @@ class ProductImage(models.Model):
         return f"Image for {self.product.name}"
 
     def save(self, *args, **kwargs):
+        # If the image is being initially created/uploaded
+        is_new = self.pk is None
+        
         super().save(*args, **kwargs)
-        if self.image:
+        
+        if is_new and self.image:
             try:
+                import os
                 from PIL import Image as PILImage
-                img = PILImage.open(self.image.path)
-                # FIX D-06: auto-resize large images to max 1200px wide
+                from django.core.files.base import ContentFile
+                from io import BytesIO
+                
+                img_path = self.image.path
+                img = PILImage.open(img_path)
+                
+                # Resize if necessary
                 if img.width > 1200:
                     ratio = 1200 / img.width
                     img = img.resize((1200, int(img.height * ratio)), PILImage.LANCZOS)
-                    img.save(self.image.path, optimize=True, quality=85)
+                
+                # Convert to WebP
+                if img.format != 'WEBP':
+                    # Drop alpha channel if necessary for JPEG-like behavior, 
+                    # though WebP supports alpha. RGB is safest for broad conversion.
+                    if img.mode in ("RGBA", "P"):
+                        img = img.convert("RGBA")
+                    else:
+                        img = img.convert("RGB")
+                    
+                    webp_io = BytesIO()
+                    img.save(webp_io, format='WEBP', quality=80)
+                    
+                    # Delete the old file
+                    old_path = self.image.path
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                    
+                    # Create new filename
+                    base_name = os.path.splitext(os.path.basename(self.image.name))[0]
+                    new_filename = f"{base_name}.webp"
+                    
+                    # Save the new file content into the ImageField
+                    self.image.save(new_filename, ContentFile(webp_io.getvalue()), save=False)
+                    
+                    # Call super save again to update the db path
+                    super().save(update_fields=['image'])
             except Exception:
                 pass
 
@@ -249,11 +285,18 @@ class ProductComment(models.Model):
         return f"Comment by {self.user.username}"
 
 
+import random
+import string
+
+def generate_delivery_code():
+    return ''.join(random.choices(string.digits, k=6))
+
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     order_date = models.DateTimeField(auto_now_add=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     is_completed = models.BooleanField(default=False)
+    delivery_code = models.CharField(max_length=6, default=generate_delivery_code, blank=True, null=True)
 
     STATUS_CHOICES = (
         ('CART', 'Cart'),
@@ -277,6 +320,8 @@ class Order(models.Model):
     shipping_method = models.CharField(max_length=15, choices=SHIPPING_CHOICES, default='DELIVERY')
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     delivery_info = models.JSONField(null=True, blank=True, default=dict)  # FIX: L-02 — store buyer's name/phone/address
+    delivery_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    delivery_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
     def __str__(self):
         return f"Order #{self.id} by {self.user.username}"
@@ -355,6 +400,8 @@ class UserProfile(models.Model):
         default='free'  # FIX X-04
     )
     location = models.CharField(max_length=100, blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True, validators=[validate_image])  # FIX D-06
     banner_image = models.ImageField(upload_to='profile_banners/', blank=True, null=True, validators=[validate_image])  # FIX D-06
     date_of_birth = models.DateField(null=True, blank=True)
@@ -789,3 +836,17 @@ class DeliveryZone(models.Model):
 
     def __str__(self):
         return f'{self.seller.username}: {self.zone_name} — TSh {self.delivery_fee}'
+
+# --- Cache Invalidation Signals ---
+from django.core.cache import cache
+
+@receiver(post_save, sender=Product)
+@receiver(post_delete, sender=Product)
+def invalidate_product_cache(sender, instance, **kwargs):
+    # This aggressively clears the entire cache to ensure listings are always perfectly up to date.
+    cache.clear()
+
+@receiver(post_save, sender=Category)
+@receiver(post_delete, sender=Category)
+def invalidate_category_cache(sender, instance, **kwargs):
+    cache.clear()

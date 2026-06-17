@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Package, ChevronDown, ChevronUp, CheckCircle2, XCircle, CreditCard, Upload, Star, MessageSquare, Smartphone, AlertTriangle } from 'lucide-react';
+import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone } from 'lucide-react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 
 import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS } from '../constants/orderStatus';
-
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+import ReviewModal from '../components/orders/ReviewModal';
+import DisputeModal from '../components/orders/DisputeModal';const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
@@ -28,15 +28,9 @@ const OrdersPage: React.FC = () => {
   // Review State
   const [reviewOrderId, setReviewOrderId] = useState<number | null>(null);
   const [reviewProduct, setReviewProduct] = useState<any>(null);
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState('');
-  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Dispute State
   const [openDisputeId, setOpenDisputeId] = useState<number | null>(null);
-  const [disputeForm, setDisputeForm] = useState({ reason: '', evidence_description: '', target_item: '' });
-  const [disputeFile, setDisputeFile] = useState<File | null>(null);
-  const [submittingDispute, setSubmittingDispute] = useState(false);
 
   // Seller Lipa Numbers State
   const [sellerLipa, setSellerLipa] = useState<Record<number, any[]>>({});
@@ -188,60 +182,18 @@ const OrdersPage: React.FC = () => {
       await api.post(`/api/orders/${orderId}/advance/`, { status: 'COMPLETED', notes: 'Marked as received by buyer.' });
       toast.success('Order finalized! Thank you for shopping.');
       fetchOrders(1, true);
+      
+      const order = orders.find(o => o.id === orderId);
+      if (order && order.items && order.items.length > 0) {
+        setReviewOrderId(orderId);
+        setReviewProduct(order.items[0]);
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to complete order');
     }
   };
 
-  const handleReviewSubmit = async (e: React.FormEvent) => {
 
-    e.preventDefault();
-    if (!reviewProduct) return;
-    
-    setSubmittingReview(true);
-    try {
-      await api.post('/api/reviews/', {
-        product: reviewProduct.product,
-        order: reviewOrderId,
-        rating,
-        comment
-      });
-      toast.success('Review submitted successfully!');
-      setReviewOrderId(null);
-      setReviewProduct(null);
-      setComment('');
-      setRating(5);
-    } catch (err: any) {
-      toast.error(err.response?.data?.[0] || 'Failed to submit review');
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
-
-  const handleDisputeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!openDisputeId) return;
-    setSubmittingDispute(true);
-    const formData = new FormData();
-    formData.append('order', openDisputeId.toString());
-    formData.append('reason', disputeForm.reason);
-    formData.append('evidence_description', disputeForm.evidence_description);
-    if (disputeForm.target_item) formData.append('target_item', disputeForm.target_item);
-    if (disputeFile) formData.append('evidence_image', disputeFile);
-
-    try {
-      await api.post('/api/disputes/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success('Dispute opened successfully. Staff will review it shortly.');
-      setOpenDisputeId(null);
-      setDisputeForm({ reason: '', evidence_description: '', target_item: '' });
-      setDisputeFile(null);
-      fetchOrders(1, true); // refresh orders to get updated state
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to open dispute');
-    } finally {
-      setSubmittingDispute(false);
-    }
-  };
 
   const filtered = filterStatus ? orders.filter(o => o.status === filterStatus) : orders;
   const activeStatuses = [...new Set(orders.map(o => o.status))];
@@ -453,6 +405,25 @@ const OrdersPage: React.FC = () => {
                       </div>
                     )}
 
+                    {/* Delivery Code */}
+                    {order.delivery_code && ['PROCESSING', 'SHIPPED', 'DELIVERED'].includes(order.status) && (
+                      <div className="px-6 py-5 bg-brand-50/50 dark:bg-brand-900/10 border-b border-brand-100 dark:border-brand-900/20">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-black text-brand-900 dark:text-brand-100 uppercase tracking-wider mb-1">Your Delivery Code</p>
+                            <p className="text-xs text-brand-700 dark:text-brand-300 font-medium max-w-sm">
+                              Please provide this 6-digit code to the deliverer or seller when you receive your items to finalize the delivery.
+                            </p>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 border-2 border-brand-200 dark:border-brand-800 rounded-xl px-6 py-3 shadow-inner text-center sm:text-left">
+                            <span className="font-mono font-black text-2xl tracking-[0.2em] text-brand-600 dark:text-brand-400">
+                              {order.delivery_code}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Items Section */}
                     <div className="px-6 py-5">
                       <div className="flex items-center justify-between mb-4">
@@ -553,6 +524,20 @@ const OrdersPage: React.FC = () => {
                                             Confirm Receipt
                                         </button>
                                     )}
+                                    {order.status === 'COMPLETED' && (
+                                        <button 
+                                          onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            if (order.items && order.items.length > 0) {
+                                              setReviewOrderId(order.id);
+                                              setReviewProduct(order.items[0]);
+                                            }
+                                          }}
+                                          className="btn-primary flex-1 py-1 text-[10px] bg-yellow-500 hover:bg-yellow-600 border-none text-white shadow-sm"
+                                        >
+                                            Leave a Review
+                                        </button>
+                                    )}
                                     {order.status === 'DELIVERED' && !order.dispute && (
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); setOpenDisputeId(order.id); }}
@@ -588,123 +573,21 @@ const OrdersPage: React.FC = () => {
       )}
 
       {/* Review Modal */}
-      {reviewOrderId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-            <div className="card w-full max-w-md p-6 animate-slide-up shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-brand-600" />
-                <button onClick={() => setReviewOrderId(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                    <XCircle size={24} />
-                </button>
-                
-                <div className="text-center mb-6">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Leave a Review</h3>
-                    <p className="text-sm text-gray-500 mt-1">Reviewing: <span className="font-bold text-gray-700 dark:text-gray-300">{reviewProduct?.product_name}</span></p>
-                </div>
-                
-                <form onSubmit={handleReviewSubmit} className="space-y-6">
-                    <div className="flex flex-col items-center gap-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Rate this Item</label>
-                        <div className="flex gap-2">
-                            {[1, 2, 3, 4, 5].map((s) => (
-                                <button key={s} type="button" onClick={() => setRating(s)} className="transition-transform hover:scale-110 active:scale-95">
-                                    <Star 
-                                      size={32} 
-                                      fill={s <= rating ? "#f59e0b" : "none"} 
-                                      className={s <= rating ? "text-yellow-500" : "text-gray-300"} 
-                                    />
-                                </button>
-                            ))}
-                        </div>
-                        <span className="text-sm font-bold text-yellow-600">
-                            {rating === 5 ? 'Excellent!' : rating === 1 ? 'Poor' : 'Good'}
-                        </span>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Your Experience</label>
-                        <textarea 
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            required
-                            rows={4}
-                            placeholder="Tell us what you liked (or didn't liked) about this product..."
-                            className="input text-sm resize-none"
-                        />
-                    </div>
-                    
-                    <button 
-                        type="submit" 
-                        disabled={submittingReview}
-                        className="btn-primary w-full py-3 flex items-center justify-center gap-2 text-base font-bold shadow-lg shadow-brand-600/20"
-                    >
-                        {submittingReview ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <Star size={20} />}
-                        Post Review
-                    </button>
-                </form>
-            </div>
-        </div>
+      {reviewOrderId && reviewProduct && (
+        <ReviewModal 
+            orderId={reviewOrderId} 
+            product={reviewProduct} 
+            onClose={() => { setReviewOrderId(null); setReviewProduct(null); }} 
+        />
       )}
 
       {/* Dispute Modal */}
       {openDisputeId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-            <div className="card w-full max-w-md p-6 animate-slide-up shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-red-600" />
-                <button onClick={() => setOpenDisputeId(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                    <XCircle size={24} />
-                </button>
-                
-                <div className="text-center mb-6">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Open a Dispute</h3>
-                    <p className="text-sm text-gray-500 mt-1">Order #{openDisputeId}</p>
-                </div>
-                
-                <form onSubmit={handleDisputeSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Reason for Dispute</label>
-                        <select 
-                            value={disputeForm.reason}
-                            onChange={(e) => setDisputeForm({...disputeForm, reason: e.target.value})}
-                            required
-                            className="input text-sm h-10 w-full"
-                        >
-                            <option value="">Select a reason...</option>
-                            <option value="item_not_received">Item not received</option>
-                            <option value="item_defective">Item defective/damaged</option>
-                            <option value="item_not_as_described">Item not as described</option>
-                            <option value="wrong_item">Wrong item delivered</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Details</label>
-                        <textarea 
-                            value={disputeForm.evidence_description}
-                            onChange={(e) => setDisputeForm({...disputeForm, evidence_description: e.target.value})}
-                            required
-                            rows={3}
-                            placeholder="Please explain the issue in detail..."
-                            className="input text-sm resize-none"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Evidence Image (Optional)</label>
-                        <input type="file" className="input text-sm p-1.5 w-full" accept="image/*" onChange={(e) => setDisputeFile(e.target.files?.[0] || null)} />
-                    </div>
-                    
-                    <button 
-                        type="submit" 
-                        disabled={submittingDispute}
-                        className="btn-primary w-full py-3 flex items-center justify-center gap-2 text-base font-bold bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/20"
-                    >
-                        {submittingDispute ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <AlertTriangle size={20} />}
-                        Submit Dispute
-                    </button>
-                </form>
-            </div>
-        </div>
+        <DisputeModal 
+            orderId={openDisputeId} 
+            onClose={() => setOpenDisputeId(null)} 
+            onSuccess={() => fetchOrders(1, true)} 
+        />
       )}
     </div>
   );

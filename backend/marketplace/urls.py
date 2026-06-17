@@ -10,7 +10,7 @@ from .api_views import (
     VerifySuperuserView, NotificationViewSet, ConversationViewSet,
     SavedSearchViewSet, PriceAlertViewSet, DisputeViewSet,
     DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet,
-    MobileNetworkViewSet
+    MobileNetworkViewSet, TrendingAnalyticsView, reverse_geocode
 )
 
 router = DefaultRouter()
@@ -42,4 +42,6 @@ urlpatterns = [
     path('api/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('api/auth/verify-superuser/', VerifySuperuserView.as_view(), name='verify_superuser'),  # FIX D-02/D-03
     path('api/site-settings/', SiteSettingsView.as_view(), name='site-settings'),  # FIX B-18
+    path('api/analytics/trending/', TrendingAnalyticsView.as_view(), name='analytics-trending'),
+    path('api/health/reverse_geocode/', reverse_geocode, name='reverse-geocode'),
 ]

@@ -9,11 +9,11 @@ app = Celery('uzachuo')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
-# Periodic task schedule - runs check_expirations every 30 minutes
+# Periodic task schedule - runs check_expirations every 5 minutes
 app.conf.beat_schedule = {
-    'check-expirations-every-30-min': {
+    'check-expirations-every-5-min': {
         'task': 'marketplace.tasks.check_expirations_periodic',
-        'schedule': crontab(minute='*/30'),
+        'schedule': crontab(minute='*/5'),
     },
     'check-saved-searches-hourly': {  # FIX B-13
         'task': 'marketplace.tasks.check_saved_searches',

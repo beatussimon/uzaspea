@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.db.models import Q, Sum, Count, Avg
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from django.db import models as django_models
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
@@ -35,6 +37,49 @@ class LoginRateThrottle(AnonRateThrottle):
 class TicketRateThrottle(AnonRateThrottle):
     scope = 'ticket'
 
+from rest_framework.decorators import api_view, permission_classes
+import requests
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def reverse_geocode(request):
+    """
+    Phase 3: Spatial Awareness - Geospatial Proxy
+    Proxies requests to OpenStreetMap Nominatim to securely convert 
+    coordinates to an address without exposing client API logic.
+    """
+    lat = request.query_params.get('lat')
+    lng = request.query_params.get('lng')
+    
+    if not lat or not lng:
+        return Response({'error': 'lat and lng parameters are required'}, status=400)
+        
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&zoom=18&addressdetails=1"
+        # Nominatim requires a valid user-agent
+        headers = {'User-Agent': 'Uzaspea/1.0 (https://uzaspea.com)'}
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()
+        
+        data = response.json()
+        address = data.get('address', {})
+        
+        # Build a clean readable address
+        city = address.get('city') or address.get('town') or address.get('village') or ''
+        road = address.get('road') or ''
+        suburb = address.get('suburb') or ''
+        
+        components = [c for c in [road, suburb, city] if c]
+        display_name = ", ".join(components) if components else data.get('display_name', 'Unknown Location')
+        
+        return Response({
+            'address': display_name,
+            'raw': address
+        })
+    except requests.RequestException as e:
+        return Response({'error': str(e)}, status=503)
+
+@method_decorator(cache_page(60 * 60 * 2), name='list')
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().prefetch_related('images', 'likes')
     serializer_class = ProductSerializer
@@ -66,6 +111,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         condition = self.request.query_params.get('condition', None)
         sort_by = self.request.query_params.get('sort_by', None)
         seller_param = self.request.query_params.get('seller', None)
+        lat = self.request.query_params.get('lat', None)
+        lng = self.request.query_params.get('lng', None)
+        radius = self.request.query_params.get('radius', None)
 
         # FIX S-17: sellers can retrieve their own products regardless of availability
         if user.is_authenticated and self.request.query_params.get('mine') == 'true':
@@ -73,14 +121,14 @@ class ProductViewSet(viewsets.ModelViewSet):
         elif self.request.query_params.get('following') and user.is_authenticated:
             from .models import Follow
             followed = Follow.objects.filter(follower=user).values_list('following__user_id', flat=True)
-            queryset = base.filter(seller_id__in=followed)
+            queryset = base.filter(seller_id__in=followed, is_available=True, stock__gt=0)
         elif user.is_authenticated and user.is_staff:
             queryset = base.all()
         elif seller_param:
-            queryset = base.filter(seller__username=seller_param)
+            queryset = base.filter(seller__username=seller_param, is_available=True, stock__gt=0)
         else:
-            # Public list only shows available products for general browsing
-            queryset = base.filter(is_available=True)
+            # Public list only shows available and in-stock products for general browsing
+            queryset = base.filter(is_available=True, stock__gt=0)
 
         if category_slug:
             from .models import Category
@@ -114,6 +162,43 @@ class ProductViewSet(viewsets.ModelViewSet):
                 pass
         if condition:
             queryset = queryset.filter(condition=condition)
+
+        # Phase 3: Spatial Awareness - Haversine Proximity Sorting
+        if lat and lng:
+            try:
+                lat_f = float(lat)
+                lng_f = float(lng)
+                from django.db.models.functions import Cos, Sin, ACos, Radians
+                from django.db.models import F, ExpressionWrapper, FloatField
+
+                queryset = queryset.filter(
+                    seller__profile__latitude__isnull=False, 
+                    seller__profile__longitude__isnull=False
+                )
+                
+                d_lat = Radians(F('seller__profile__latitude'))
+                d_lng = Radians(F('seller__profile__longitude'))
+                r_lat = Radians(lat_f)
+                r_lng = Radians(lng_f)
+                
+                distance_expr = ExpressionWrapper(
+                    6371 * ACos(
+                        Cos(r_lat) * Cos(d_lat) * Cos(d_lng - r_lng) +
+                        Sin(r_lat) * Sin(d_lat)
+                    ),
+                    output_field=FloatField()
+                )
+                queryset = queryset.annotate(distance=distance_expr)
+                
+                if radius:
+                    queryset = queryset.filter(distance__lte=float(radius))
+                
+                # Override default sort if proximity is requested
+                if not sort_by:
+                    return queryset.order_by('distance')
+                    
+            except (ValueError, TypeError):
+                pass
 
         if sort_by == 'price_asc':
             return queryset.order_by('price')
@@ -308,6 +393,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(user=user)
 
+@method_decorator(cache_page(60 * 60 * 2), name='list')
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -377,6 +463,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                     status='PENDING_VERIFICATION'
                 )
                 notes = notes or f"Payment proof submitted: {transaction_id}"
+
+        if new_state == 'DELIVERED':
+            delivery_code = request.data.get('delivery_code')
+            if order.delivery_code and str(delivery_code).strip() != order.delivery_code:
+                return Response({'error': 'Invalid delivery code. Please verify the code with the customer.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             OrderStateMachine.transition_order(order, new_state, notes=notes)
@@ -502,7 +593,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if not has_completed_order:
             raise drf_serializers.ValidationError("You can only review products you have completely purchased and received.")
         
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, approved=True)
 
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsStaffMember])
     def approve(self, request, pk=None):
@@ -1085,3 +1176,68 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
             from rest_framework import serializers as drf_serializers
             raise drf_serializers.ValidationError('You do not own this product.')
         serializer.save()
+
+from datetime import timedelta
+from django.utils import timezone
+
+class TrendingAnalyticsView(APIView):
+    """
+    Returns realistic platform analytics for the Trending Page.
+    Publicly accessible.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        now = timezone.now()
+        thirty_days_ago = now - timedelta(days=30)
+        
+        # 1. Active Users: Users who logged in within the last 30 days
+        from django.contrib.auth.models import User
+        active_users_count = User.objects.filter(last_login__gte=thirty_days_ago).count()
+        # Fallback for new platforms: if active_users is very low, just use total users
+        total_users = User.objects.count()
+        if active_users_count < 10:
+             active_users_count = total_users
+
+        # 2. Products Sold: Sum of quantities in completed/paid orders
+        products_sold_dict = OrderItem.objects.filter(
+            order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED']
+        ).aggregate(total=Sum('quantity'))
+        products_sold = products_sold_dict['total'] or 0
+
+        # 3. Weekly Visits (proxy): Since we don't track raw hits, we approximate based on active users.
+        # A realistic heuristic for an active marketplace: 1 active user ~ 3-5 weekly visits.
+        weekly_visits = active_users_count * 4 + 150  # base of 150 for brand new instances
+
+        # 4. Top Categories by Interest (Market Share)
+        # We annotate categories with their product count.
+        top_categories = Category.objects.annotate(
+            product_count=Count('products')
+        ).filter(product_count__gt=0).order_by('-product_count')[:5]
+        
+        cat_data = [
+            {"name": c.name, "value": c.product_count} for c in top_categories
+        ]
+
+        # 5. Trending Products
+        # Top 8 products ordered by Like count, then fallback to newest
+        trending_products_qs = Product.objects.prefetch_related('images', 'likes').filter(
+            is_available=True
+        ).annotate(
+            like_count=Count('likes')
+        ).order_by('-like_count', '-created_at')[:8]
+        
+        trending_serialized = ProductSerializer(
+            trending_products_qs, many=True, context={'request': request}
+        ).data
+
+        return Response({
+            "stats": {
+                "weekly_visits": weekly_visits,
+                "active_users": active_users_count,
+                "products_sold": products_sold,
+                "hot_categories": Category.objects.annotate(pc=Count('products')).filter(pc__gt=0).count()
+            },
+            "top_categories": cat_data,
+            "trending_products": trending_serialized
+        })

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'crispy_bootstrap5',
     'django_extensions',
     'inspections',
+    'billing',
 ]
 
 REST_FRAMEWORK = {
@@ -55,11 +56,11 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '60/hour',
-        'user': '1000/hour',
+        'anon': '60/minute',
+        'user': '120/minute',
         'register': '5/hour',
         'login': '10/hour',
-        'ticket': '5/hour',
+        'ticket': '10/hour',
         'verify_superuser': '30/minute',
     },
 }

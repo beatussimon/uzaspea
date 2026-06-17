@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, MapPin, Phone, User, Truck, Shield } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import api from '../api';
 import toast from 'react-hot-toast';
@@ -37,8 +38,15 @@ const CheckoutPage: React.FC = () => {
     : 0;
   const finalTotal = totalPrice + shippingFee;
 
+  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
+
+  useEffect(() => {
+    if (items.length === 0 && !checkoutSuccess) {
+      navigate('/cart', { replace: true });
+    }
+  }, [items.length, navigate, checkoutSuccess]);
+
   if (items.length === 0) {
-    navigate('/cart');
     return null;
   }
 
@@ -84,9 +92,12 @@ const CheckoutPage: React.FC = () => {
         notes: 'Checkout completed.' 
       });
 
+      setCheckoutSuccess(true);
       clearCart();
       toast.success('Order placed successfully!');
-      navigate(`/orders?highlight=${orderId}`);
+      setTimeout(() => {
+        navigate(`/orders?highlight=${orderId}`);
+      }, 100);
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to place order');
     } finally {
@@ -136,10 +147,17 @@ const CheckoutPage: React.FC = () => {
               </button>
             </div>
 
-            {shippingMethod === 'DELIVERY' && (
-              <>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Delivery Information</h2>
-                <div className="space-y-4 animate-fade-in">
+            <AnimatePresence mode="popLayout">
+              {shippingMethod === 'DELIVERY' && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }} 
+                  animate={{ opacity: 1, height: 'auto' }} 
+                  exit={{ opacity: 0, height: 0 }} 
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden"
+                >
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-6 mb-4">Delivery Information</h2>
+                  <div className="space-y-4">
                   {deliveryZones.length > 0 && (
                     <div>
                       <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -220,17 +238,26 @@ const CheckoutPage: React.FC = () => {
                     />
                   </div>
                 </div>
-              </>
-            )}
+                </motion.div>
+              )}
 
-            {shippingMethod === 'PICKUP' && (
-              <div className="bg-brand-50 dark:bg-brand-900/20 p-4 rounded-xl border border-brand-100 dark:border-brand-800 animate-fade-in">
-                <p className="text-sm text-brand-700 dark:text-brand-300 flex items-center gap-2">
-                  <Shield size={16} />
-                  Your order will be held at our main branch in Dar es Salaam. Please bring your Order ID.
-                </p>
-              </div>
-            )}
+              {shippingMethod === 'PICKUP' && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }} 
+                  animate={{ opacity: 1, height: 'auto' }} 
+                  exit={{ opacity: 0, height: 0 }} 
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden"
+                >
+                  <div className="bg-brand-50 dark:bg-brand-900/20 p-4 rounded-xl border border-brand-100 dark:border-brand-800 mt-6">
+                    <p className="text-sm text-brand-700 dark:text-brand-300 flex items-center gap-2">
+                      <Shield size={16} />
+                      Your order will be held at our main branch in Dar es Salaam. Please bring your Order ID.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <button
@@ -244,7 +271,7 @@ const CheckoutPage: React.FC = () => {
         </form>
 
         {/* Order Summary */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-6 h-fit">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-6 h-fit sticky top-24">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Order Summary</h2>
           <div className="space-y-3 mb-4">
             {items.map((item) => (

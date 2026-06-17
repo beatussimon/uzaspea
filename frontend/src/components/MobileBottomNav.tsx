@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Home, PlusCircle, ShoppingBag, User, X, 
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
-  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun, Flame
+  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
@@ -256,59 +257,83 @@ const MobileBottomNav = () => {
       </div>
 
       {/* --- Footer Base Navigation --- */}
-      <div className={`lg:hidden fixed bottom-0 inset-x-0 z-[60] bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-surface-border dark:border-surface-dark-border px-4 pb-safe pt-2 shadow-[0_-1px_10px_rgba(0,0,0,0.05)] transition-transform duration-500 [transition-timing-function:cubic-bezier(0.4,0,0.2,1)] will-change-transform transform ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
-        <div className="flex items-center justify-between max-w-md mx-auto h-14">
+      <div className={`lg:hidden fixed bottom-0 inset-x-0 z-[60] bg-white/70 dark:bg-gray-950/70 backdrop-blur-2xl border-t border-surface-border/50 dark:border-white/5 px-2 pb-safe pt-2 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] transition-transform duration-500 ease-out will-change-transform ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
+        <div className="flex items-center justify-around max-w-md mx-auto h-16 relative">
           
           {/* Home */}
           <Link 
             to="/" 
-            className={`flex flex-col items-center gap-1 transition-colors ${isActive('/') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}
+            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
           >
-            <Home size={22} strokeWidth={isActive('/') ? 2.5 : 2} />
-            <span className="text-[10px] font-medium uppercase tracking-wider">Home</span>
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+              <Home size={24} className={`transition-colors ${isActive('/') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/') ? 2.5 : 2} />
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Home</span>
+            </motion.div>
+            {isActive('/') && (
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400 shadow-[0_2px_8px_rgba(234,88,12,0.6)]" />
+            )}
           </Link>
-
-          {/* Trending */}
-          <Link 
-            to="/trending" 
-            className={`flex flex-col items-center gap-1 transition-colors ${isActive('/trending') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}
-          >
-            <Flame size={22} className={isActive('/trending') ? 'text-brand-600 dark:text-brand-400' : 'text-orange-500'} strokeWidth={isActive('/trending') ? 2.5 : 2} />
-            <span className="text-[10px] font-medium uppercase tracking-wider">Trending</span>
-          </Link>
-
-          {/* SELL - Center Hero Button */}
-          <div className="relative -top-5 px-2">
-            <Link 
-              to={isAuthenticated ? "/dashboard/products" : "/login"}
-              className="flex flex-col items-center justify-center w-15 h-15 rounded-full bg-gradient-to-tr from-brand-600 to-brand-400 text-white shadow-[0_4px_15px_rgba(26,86,245,0.4)] border-4 border-white dark:border-gray-900 active:scale-95 transition-transform"
-            >
-              <PlusCircle size={28} />
-            </Link>
-            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider">Sell</span>
-          </div>
 
           {/* Cart */}
           <Link 
             to="/cart" 
-            className={`flex flex-col items-center gap-1 transition-colors relative ${isActive('/cart') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}
+            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
           >
-            <ShoppingCart size={22} strokeWidth={isActive('/cart') ? 2.5 : 2} />
-            {cartCount > 0 && (
-              <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[8px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-white dark:border-gray-900">
-                {cartCount > 99 ? '99+' : cartCount}
-              </span>
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+              <div className="relative">
+                <ShoppingCart size={24} className={`transition-colors ${isActive('/cart') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/cart') ? 2.5 : 2} />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white dark:border-gray-900 px-1 shadow-sm">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/cart') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Cart</span>
+            </motion.div>
+            {isActive('/cart') && (
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400 shadow-[0_2px_8px_rgba(234,88,12,0.6)]" />
             )}
-            <span className="text-[10px] font-medium uppercase tracking-wider">Cart</span>
+          </Link>          {/* SELL - Center Hero Button */}
+          <div className="relative -top-6 flex flex-col items-center justify-center">
+            <Link 
+              to={isAuthenticated ? "/dashboard/products" : "/login"}
+            >
+              <motion.div 
+                whileTap={{ scale: 0.9 }}
+                className="flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-brand-600 to-brand-400 text-white shadow-md border-[4px] border-white/50 dark:border-gray-900/50 backdrop-blur-md"
+              >
+                <PlusCircle size={28} />
+              </motion.div>
+            </Link>
+            <span className="absolute -bottom-4 text-[10px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest">Sell</span>
+          </div>
+
+          {/* Dashboard */}
+          <Link 
+            to={isAuthenticated ? "/dashboard" : "/login"} 
+            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+          >
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+              <LayoutDashboard size={24} className={`transition-colors ${isActive('/dashboard') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/dashboard') ? 2.5 : 2} />
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/dashboard') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Dashboard</span>
+            </motion.div>
+            {isActive('/dashboard') && (
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400 shadow-[0_2px_8px_rgba(234,88,12,0.6)]" />
+            )}
           </Link>
 
           {/* Hamburger Menu (Toggles Slide-up Menu) */}
           <button 
             onClick={() => setIsMenuOpen(true)} 
-            className={`flex flex-col items-center gap-1 transition-colors ${isMenuOpen ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}
+            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
           >
-            <Menu size={22} strokeWidth={isMenuOpen ? 2.5 : 2} />
-            <span className="text-[10px] font-medium uppercase tracking-wider">Menu</span>
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+              <Menu size={24} className={`transition-colors ${isMenuOpen ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isMenuOpen ? 2.5 : 2} />
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isMenuOpen ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Menu</span>
+            </motion.div>
+            {isMenuOpen && (
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400 shadow-[0_2px_8px_rgba(234,88,12,0.6)]" />
+            )}
           </button>
 
         </div>
