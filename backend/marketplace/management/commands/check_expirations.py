@@ -10,8 +10,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         now = timezone.now()
         
-        # Expire orders sitting in AWAITING_PAYMENT for > 2 hours
-        timeout_limit = now - timedelta(hours=2)
+        # Expire orders sitting in AWAITING_PAYMENT for > 15 minutes
+        timeout_limit = now - timedelta(minutes=15)
         expired_orders = Order.objects.filter(status='AWAITING_PAYMENT', order_date__lt=timeout_limit)
         
         count = 0

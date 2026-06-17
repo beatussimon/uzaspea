@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@500;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -15,16 +15,20 @@
   }
 
   body {
-    @apply font-sans bg-surface-muted text-gray-900 transition-colors duration-200;
+    @apply font-sans bg-surface-muted text-gray-900 transition-colors duration-300;
   }
 
   .dark body {
     @apply bg-surface-dark text-gray-100;
   }
 
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-['Outfit'];
+  }
+
   /* Focus ring for accessibility */
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-brand-500;
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface-muted dark:ring-offset-surface-dark;
   }
 
   /* Remove default tap highlight on mobile */
@@ -37,64 +41,22 @@
    Component Layer — Reusable Patterns
    ======================================== */
 @layer components {
-  /* Card surfaces */
-  .card {
-    @apply bg-white dark:bg-gray-800 rounded-card border border-surface-border dark:border-surface-dark-border shadow-card transition-shadow duration-200;
-  }
-  .card:hover {
-    @apply shadow-card-hover;
-  }
-
-  /* Pill buttons (filter pills, tags) */
-  .pill {
-    @apply px-3 py-1.5 rounded-pill text-sm font-medium border transition-all duration-150 select-none cursor-pointer;
-  }
-  .pill-active {
-    @apply bg-brand-600 text-white border-brand-600;
-  }
-  .pill-inactive {
-    @apply bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-surface-border dark:border-surface-dark-border hover:border-brand-400;
-  }
-
-  /* Buttons */
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 font-medium rounded-btn transition-all duration-150 select-none;
-  }
-  .btn-primary {
-    @apply btn px-4 py-2 bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 shadow-sm;
-  }
-  .btn-secondary {
-    @apply btn px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-surface-border dark:border-surface-dark-border hover:bg-gray-50 dark:hover:bg-gray-700;
-  }
-  .btn-ghost {
-    @apply btn px-3 py-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50;
-  }
-  .btn-danger {
-    @apply btn px-4 py-2 text-red-600 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20;
-  }
-
-  /* Badge */
-  .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-pill text-xs font-medium;
-  }
-  .badge-green {
-    @apply badge bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400;
-  }
-  .badge-gray {
-    @apply badge bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300;
-  }
-  .badge-blue {
-    @apply badge bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300;
+  /* Section containers */
+  .container-page {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 md:px-8;
   }
 
   /* Input fields */
   .input {
-    @apply w-full px-3 py-2 text-sm border border-surface-border dark:border-surface-dark-border rounded-btn bg-white dark:bg-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition;
+    @apply w-full px-4 py-2.5 text-body-sm border border-surface-border dark:border-surface-dark-border rounded-btn bg-white dark:bg-[#111] dark:text-white outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-600;
   }
 
-  /* Section containers */
-  .container-page {
-    @apply max-w-7xl mx-auto px-4 sm:px-6;
+  /* Card base (before motion/glass enhancements) */
+  .card {
+    @apply bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-card transition-all duration-300;
+  }
+  .card:hover {
+    @apply shadow-card-hover dark:border-white/10;
   }
 }
 
@@ -116,7 +78,7 @@
   }
 
   .glass {
-    @apply bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border border-white/20 dark:border-white/5;
+    @apply bg-white/70 dark:bg-black/50 backdrop-blur-xl border border-white/20 dark:border-white/5 shadow-nav;
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -127,6 +89,7 @@
     scrollbar-width: none;
   }
 
+  /* Refined Shimmer */
   @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
@@ -135,17 +98,17 @@
   .animate-shimmer {
     background: linear-gradient(90deg, 
       rgba(255, 255, 255, 0) 0%, 
-      rgba(255, 255, 255, 0.1) 50%, 
+      rgba(255, 255, 255, 0.4) 50%, 
       rgba(255, 255, 255, 0) 100%
     );
     background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
+    animation: shimmer 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark .animate-shimmer {
     background: linear-gradient(90deg, 
       rgba(255, 255, 255, 0) 0%, 
-      rgba(255, 255, 255, 0.03) 50%, 
+      rgba(255, 255, 255, 0.05) 50%, 
       rgba(255, 255, 255, 0) 100%
     );
   }

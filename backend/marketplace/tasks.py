@@ -8,7 +8,7 @@ from django.utils import timezone
 def check_expirations_periodic():
     """
     Periodic task that runs the check_expirations management command.
-    Scheduled every 30 minutes via Celery Beat.
+    Scheduled every 5 minutes via Celery Beat.
     """
     call_command('check_expirations')
     return f'Expiry check completed at {timezone.now()}'

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -14,10 +14,12 @@ const cardVariants = {
 };
 
 import PromotedProductsRow from './components/PromotedProductsRow';
+import PlatformInsights from './components/PlatformInsights';
 
 // ---- Sponsored listing banner (dynamic) ----
 const SponsoredBanner = memo(() => {
   const [ad, setAd] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.get('/api/sponsored/')
@@ -27,9 +29,11 @@ const SponsoredBanner = memo(() => {
           setAd(ads[0]);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
+  if (loading) return <div className="col-span-full my-6 w-full h-[180px] sm:h-[220px] rounded-[2rem] bg-gray-100 dark:bg-gray-800 animate-pulse" />;
   if (!ad) return null;
 
   return (
@@ -319,43 +323,56 @@ const ProductList = () => {
         )}
 
         {/* Collapsible filter panel */}
-        {filtersOpen && (
-          <div className="card p-5 grid grid-cols-2 md:flex md:flex-wrap items-end gap-3 md:gap-4 animate-fade-in shadow-lg">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">Min Price</label>
-              <input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="0" className="input py-2" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">Max Price</label>
-              <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Any" className="input py-2" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">Condition</label>
-              <select value={condition} onChange={(e) => setCondition(e.target.value)} className="input py-2">
-                <option value="">All</option><option value="New">New</option><option value="Used">Used</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">Sort By</label>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="input py-2">
-                <option value="">Newest</option><option value="price_asc">Price ↑</option><option value="price_desc">Price ↓</option><option value="rating">Top Rated</option>
-              </select>
-            </div>
-            <div className="col-span-full md:col-auto flex gap-2 w-full md:w-auto mt-2 md:mt-0">
-              <button onClick={() => { setPage(1); fetchProducts(1, true); setFiltersOpen(false); }} className="btn-primary flex-1 py-2">Apply</button>
-              <button 
-                onClick={() => { setMinPrice(''); setMaxPrice(''); setCondition(''); setSortBy(''); }}
-                className="btn-secondary py-2"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {filtersOpen && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="card p-5 grid grid-cols-2 md:flex md:flex-wrap items-end gap-3 md:gap-4 shadow-lg mb-6">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">Min Price</label>
+                  <input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="0" className="input py-2" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">Max Price</label>
+                  <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Any" className="input py-2" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">Condition</label>
+                  <select value={condition} onChange={(e) => setCondition(e.target.value)} className="input py-2">
+                    <option value="">All</option><option value="New">New</option><option value="Used">Used</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">Sort By</label>
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="input py-2">
+                    <option value="">Newest</option><option value="price_asc">Price ↑</option><option value="price_desc">Price ↓</option><option value="rating">Top Rated</option>
+                  </select>
+                </div>
+                <div className="col-span-full md:col-auto flex gap-2 w-full md:w-auto mt-2 md:mt-0">
+                  <button onClick={() => { setPage(1); fetchProducts(1, true); setFiltersOpen(false); }} className="btn-primary flex-1 py-2">Apply</button>
+                  <button 
+                    onClick={() => { setMinPrice(''); setMaxPrice(''); setCondition(''); setSortBy(''); }}
+                    className="btn-secondary py-2"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Promoted Products Section */}
       {!urlQuery && !selectedCategory && <PromotedProductsRow />}
+
+      {/* Platform Insights (Stats & Trending) */}
+      {!urlQuery && !selectedCategory && <PlatformInsights />}
 
       {/* ===== Product Grid ===== */}
       {loading ? (

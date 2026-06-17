@@ -10,6 +10,7 @@ import { useCart } from '../context/CartContext';
 const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMode?: 'grid' | 'list' }) => {
   const { addToCart } = useCart();
   const [liked, setLiked] = React.useState(product.is_liked || false);
+  const isOwnProduct = product.seller_username === localStorage.getItem('username');
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -48,15 +49,15 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
 
   if (viewMode === 'list') {
     return (
-      <Link to={`/product/${product.slug}`} className="group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-brand-300 dark:hover:border-brand-500 transition-all">
+      <Link to={`/product/${product.slug}`} className="group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300">
         {/* Horizontal Image */}
-        <div className="relative w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
+        <div className="relative w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800/50">
           <SafeImage
             src={product.images?.[0]?.image || ''}
             alt={product.name}
-            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out will-change-transform"
           />
-          <span className={`absolute top-1 left-1 text-[8px] px-1 py-0.5 rounded font-bold text-white shadow-sm uppercase ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
+          <span className={`absolute top-1 left-1 text-[8px] px-1.5 py-0.5 rounded font-bold text-white shadow-sm uppercase ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
             {product.condition || 'New'}
           </span>
         </div>
@@ -112,33 +113,35 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
   }
 
   return (
-    <Link to={`/product/${product.slug}`} className="group card overflow-hidden flex flex-col h-full bg-white dark:bg-gray-800 border border-surface-border dark:border-surface-dark-border hover:border-brand-400 dark:hover:border-brand-600 active:scale-[0.98] transition-all duration-200">
+    <Link to={`/product/${product.slug}`} className="group card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300">
       {/* Image — 4:3 ratio */}
-      <div className="relative aspect-[4/3] bg-gray-100 dark:bg-gray-800 overflow-hidden">
+      <div className="relative aspect-[4/3] bg-gray-100 dark:bg-gray-800/50 overflow-hidden">
         <SafeImage
           src={product.images?.[0]?.image || ''}
           alt={product.name}
-          className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700 will-change-transform"
+          className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out will-change-transform"
         />
         {/* Top overlay: Like + Share + Add */}
-        <div className="absolute top-2 right-2 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 translate-x-[10px] group-hover:translate-x-0 transition-all duration-300">
-          <button onClick={handleLike} className={`w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur flex items-center justify-center shadow-lg transition-all ${liked ? 'bg-red-50 dark:bg-red-900/30 text-red-500' : 'hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-500'}`} title="Like">
+        <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300 ease-out">
+          <button onClick={handleLike} className={`w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg transition-colors ${liked ? 'bg-red-50 dark:bg-red-900/30 text-red-500' : 'hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-500'}`} title="Like">
             <Heart size={14} className={liked ? 'fill-current' : ''} />
           </button>
-          <button onClick={handleAddToCart} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur flex items-center justify-center shadow-lg hover:bg-brand-50 dark:hover:bg-brand-900/30 text-gray-500 hover:text-brand-500 transition-all" title="Add to Cart">
-            <ShoppingCart size={14} />
-          </button>
-          <button onClick={handleShare} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur flex items-center justify-center shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all" title="Share">
+          {!isOwnProduct && (
+            <button onClick={handleAddToCart} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-brand-50 dark:hover:bg-brand-900/30 text-gray-500 hover:text-brand-500 transition-colors" title="Add to Cart">
+              <ShoppingCart size={14} />
+            </button>
+          )}
+          <button onClick={handleShare} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors" title="Share">
             <Share2 size={14} />
           </button>
         </div>
         {/* Condition badge */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1">
-          <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold text-white shadow-md uppercase tracking-wider ${product.condition === 'New' ? 'bg-green-500/90' : 'bg-gray-500/90'}`}>
+        <div className="absolute top-2 left-2 flex flex-col gap-1.5">
+          <span className={`text-[9px] px-2 py-0.5 rounded font-bold text-white shadow-md uppercase tracking-wider ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
             {product.condition || 'New'}
           </span>
           {product.old_price > product.price && (
-            <span className="bg-red-500/90 text-white text-[9px] px-1.5 py-0.5 rounded font-black shadow-md uppercase">
+            <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase">
               -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
             </span>
           )}
