@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 
 const CHART_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
-import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, TRACKING_STEPS, SELLER_ADVANCE_MAP, SHORT_STATUS_LABELS as STATUS_LABELS } from '../../constants/orderStatus';
+import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, SELLER_ADVANCE_MAP, SHORT_STATUS_LABELS as STATUS_LABELS } from '../../constants/orderStatus';
 
 // ============ Dashboard Overview ============
 const DashboardOverview: React.FC = () => {

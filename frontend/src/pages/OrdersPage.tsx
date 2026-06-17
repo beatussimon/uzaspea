@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Package, ChevronDown, ChevronUp, MapPin, Clock, CheckCircle2, Truck, XCircle, CreditCard, Upload, Star, MessageSquare, Smartphone, AlertTriangle } from 'lucide-react';
+import { Package, ChevronDown, ChevronUp, CheckCircle2, XCircle, CreditCard, Upload, Star, MessageSquare, Smartphone, AlertTriangle } from 'lucide-react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 
 import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS } from '../constants/orderStatus';
