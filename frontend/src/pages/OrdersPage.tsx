@@ -5,21 +5,7 @@ import toast from 'react-hot-toast';
 import { Package, ChevronDown, ChevronUp, MapPin, Clock, CheckCircle2, Truck, XCircle, CreditCard, Upload, Star, MessageSquare, Smartphone, AlertTriangle } from 'lucide-react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
-  CART: { label: 'Cart', color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-700', icon: Package },
-  CHECKOUT: { label: 'Checkout', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30', icon: Package },
-  AWAITING_PAYMENT: { label: 'Awaiting Payment', color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/30', icon: CreditCard },
-  PENDING_VERIFICATION: { label: 'Verifying Payment', color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-900/30', icon: Clock },
-  PAID: { label: 'Paid', color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30', icon: CheckCircle2 },
-  PROCESSING: { label: 'Processing', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30', icon: Package },
-  SHIPPED: { label: 'Shipped', color: 'text-indigo-600', bg: 'bg-indigo-100 dark:bg-indigo-900/30', icon: Truck },
-  DELIVERED: { label: 'Delivered', color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30', icon: MapPin },
-  COMPLETED: { label: 'Completed', color: 'text-green-700', bg: 'bg-green-100 dark:bg-green-900/30', icon: CheckCircle2 },
-  CANCELLED: { label: 'Cancelled', color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30', icon: XCircle },
-  EXPIRED: { label: 'Expired', color: 'text-gray-500', bg: 'bg-gray-100 dark:bg-gray-700', icon: XCircle },
-};
-
-const TRACKING_STEPS = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'];
+import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS } from '../constants/orderStatus';
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -261,7 +247,7 @@ const OrdersPage: React.FC = () => {
   const activeStatuses = [...new Set(orders.map(o => o.status))];
 
   if (loading) {
-    return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" /></div>;
+    return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>;
   }
 
   return (
@@ -274,12 +260,12 @@ const OrdersPage: React.FC = () => {
         {activeStatuses.length > 1 && (
           <div className="flex gap-1 flex-wrap">
             <button onClick={() => setFilterStatus('')}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${!filterStatus ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${!filterStatus ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
               All ({orders.length})
             </button>
             {activeStatuses.map(s => (
               <button key={s} onClick={() => setFilterStatus(s)}
-                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${filterStatus === s ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${filterStatus === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
                 {STATUS_CONFIG[s]?.label || s}
               </button>
             ))}
@@ -318,14 +304,14 @@ const OrdersPage: React.FC = () => {
                         )}
                       </div>
                       {order.items?.length > 1 && (
-                        <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white text-[10px] font-black w-5 h-5 rounded-lg flex items-center justify-center border-2 border-white dark:border-gray-800">
+                        <div className="absolute -bottom-1 -right-1 bg-brand-600 text-white text-[10px] font-black w-5 h-5 rounded-lg flex items-center justify-center border-2 border-white dark:border-gray-800">
                           +{order.items.length - 1}
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded">Order #{order.id}</span>
+                        <span className="text-[10px] font-black text-brand-600 uppercase tracking-widest bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">Order #{order.id}</span>
                         <span className="text-[10px] font-bold text-gray-400">{fmtDate(order.order_date)}</span>
                       </div>
                       <h4 className="text-sm font-black text-gray-900 dark:text-white truncate uppercase">
@@ -351,7 +337,7 @@ const OrdersPage: React.FC = () => {
                         <Link 
                             to={`/profile/${order.items?.[0]?.seller_username}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
+                            className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
                             title="Contact Store"
                         >
                             <MessageSquare size={18} />
@@ -510,7 +496,7 @@ const OrdersPage: React.FC = () => {
                             <div className="space-y-4 relative pl-4 border-l-2 border-gray-200 dark:border-gray-700 py-1">
                             {order.timeline_events?.map((ev: any, i: number) => (
                                 <div key={i} className="relative">
-                                <div className="absolute -left-[21.5px] w-3 h-3 rounded-full bg-blue-500 border-2 border-white dark:border-gray-800 shadow-sm" />
+                                <div className="absolute -left-[21.5px] w-3 h-3 rounded-full bg-brand-500 border-2 border-white dark:border-gray-800 shadow-sm" />
                                 <div className="ml-3">
                                     <p className="text-sm font-bold text-gray-900 dark:text-white">{STATUS_CONFIG[ev.status]?.label || ev.status}</p>
                                     {ev.notes && <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mt-1">{ev.notes}</p>}
@@ -545,8 +531,8 @@ const OrdersPage: React.FC = () => {
                                 </div>
                             </div>
                             
-                            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20 text-center relative group/footer flex flex-col items-center justify-center">
-                                <p className="text-xs text-blue-800 dark:text-blue-300 font-medium italic">
+                            <div className="mt-4 p-3 bg-brand-50 dark:bg-brand-900/10 rounded-lg border border-brand-100 dark:border-brand-900/20 text-center relative group/footer flex flex-col items-center justify-center">
+                                <p className="text-xs text-brand-800 dark:text-brand-300 font-medium italic">
                                    "Thank you for choosing UZASPEA! Your satisfaction is our top priority."
                                 </p>
                                 
@@ -587,7 +573,7 @@ const OrdersPage: React.FC = () => {
           
           {loadingMore && (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
             </div>
           )}
 

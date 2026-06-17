@@ -74,13 +74,27 @@ export interface InspectionPayment {
   created_at: string;
 }
 
+export interface JobContact {
+  type: 'seller' | 'client';
+  label: string;
+  name: string;
+  username?: string;
+  phone: string;
+  email: string;
+  location: string;
+  item_address: string;
+}
+
 export interface InspectionAssignment {
   id: number;
   inspector: number;
   inspector_name: string;
   inspector_level: string;
+  inspector_phone: string;
+  inspector_email: string;
   sla_deadline: string;
   assigned_at: string;
+  job_contact: JobContact | null;
 }
 
 export interface ChecklistResponse {
@@ -151,6 +165,9 @@ export interface InspectionRequest {
     captured_at: string;
   } | null;
   created_at: string;
+  sla_deadline?: string | null;
+  has_report?: boolean;
+  job_contact: JobContact | null;
   bill: InspectionBill | null;
   assignment: InspectionAssignment | null;
   report: InspectionReport | null;
@@ -196,7 +213,7 @@ export const STATUS_LABELS: Record<string, string> = {
 
 export const STATUS_COLORS: Record<string, string> = {
   requested: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-  bill_sent: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  bill_sent: 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400',
   awaiting_payment: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
   deposit_paid: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
   pre_inspection: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',

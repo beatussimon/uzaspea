@@ -77,7 +77,7 @@ interface AdminDashboardData {
 // ============ Helpers ============
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  in_progress: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  in_progress: 'bg-brand-100 text-brand-800 dark:bg-brand-900/30 dark:text-brand-400',
   completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
   cancelled: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
   approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
@@ -87,7 +87,7 @@ const statusColors: Record<string, string> = {
 };
 
 const priorityColors: Record<string, string> = {
-  low: 'text-gray-500', medium: 'text-blue-500', high: 'text-orange-500', urgent: 'text-red-500',
+  low: 'text-gray-500', medium: 'text-brand-500', high: 'text-orange-500', urgent: 'text-red-500',
 };
 
 const formatDate = (dateStr: string) =>
@@ -117,7 +117,7 @@ const AdminOverview: React.FC = () => {
   useEffect(() => { fetchData(); }, []);
 
   if (loading || !data) {
-    return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>;
+    return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
   }
 
   const kpis = [
@@ -152,7 +152,7 @@ const AdminOverview: React.FC = () => {
           <div className="card overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
               <h3 className="text-sm font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest">Global Activity Log</h3>
-              <ScrollText size={16} className="text-blue-500" />
+              <ScrollText size={16} className="text-brand-500" />
             </div>
             <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[400px] overflow-y-auto">
                 {data.recent_logs.map((log) => (
@@ -175,10 +175,10 @@ const AdminOverview: React.FC = () => {
                     <div key={i}>
                         <div className="flex justify-between items-end mb-2">
                             <span className="text-sm font-bold text-gray-700 dark:text-white">{dept.department || 'Unassigned'}</span>
-                            <span className="text-xs font-black text-blue-600">{dept.count} members</span>
+                            <span className="text-xs font-black text-brand-600">{dept.count} members</span>
                         </div>
                         <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${(dept.count / (data.counts.total_staff || 1)) * 100}%` }} />
+                            <div className="h-full bg-brand-500 transition-all duration-1000" style={{ width: `${(dept.count / (data.counts.total_staff || 1)) * 100}%` }} />
                         </div>
                     </div>
                   ))}
@@ -214,7 +214,7 @@ const EmployeeManager: React.FC = () => {
         }
     };
 
-    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>;
+    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
 
     return (
         <div className="space-y-6">
@@ -238,7 +238,7 @@ const EmployeeManager: React.FC = () => {
                                     </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate">{member.email}</p>
                                     <div className="flex items-center gap-2 mt-2">
-                                        <Badge text={member.department || 'GENERAL'} className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" />
+                                        <Badge text={member.department || 'GENERAL'} className="bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400" />
                                         <Badge text={member.is_active ? 'Active' : 'Inactive'} className={member.is_active ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-50 text-red-700'} />
                                     </div>
                                 </div>
@@ -324,11 +324,11 @@ const TaskBoard: React.FC = () => {
 
   const columns = [
     { key: 'pending', label: 'Pending', icon: Clock, color: 'border-yellow-400' },
-    { key: 'in_progress', label: 'In Progress', icon: ClipboardList, color: 'border-blue-400' },
+    { key: 'in_progress', label: 'In Progress', icon: ClipboardList, color: 'border-brand-400' },
     { key: 'completed', label: 'Completed', icon: CheckCircle2, color: 'border-green-400' },
   ];
 
-  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>;
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
 
   return (
     <div className="space-y-6">
@@ -407,7 +407,7 @@ const TaskBoard: React.FC = () => {
                                                         {t.status === 'pending' && (
                                                             <button 
                                                                 onClick={() => handleUpdateStatus(t.id, 'in_progress')}
-                                                                className="px-2 py-1 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded text-[9px] font-black uppercase tracking-tighter hover:bg-blue-100 transition"
+                                                                className="px-2 py-1 bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 rounded text-[9px] font-black uppercase tracking-tighter hover:bg-brand-100 transition"
                                                             >
                                                                 Acknowledge
                                                             </button>
@@ -504,7 +504,7 @@ const PermissionManager: React.FC = () => {
         } catch { toast.error('Action failed'); }
     };
 
-    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>;
+    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
 
     return (
         <div className="space-y-6">
@@ -575,13 +575,13 @@ const AuditLogViewer: React.FC = () => {
             .finally(() => setLoading(false));
     }, []);
 
-    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>;
+    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Security Audit Trail</h2>
-                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-blue-700 dark:text-blue-300">
+                <div className="flex items-center gap-2 p-2 bg-brand-50 dark:bg-brand-900/10 rounded-lg text-brand-700 dark:text-brand-300">
                      <Shield size={16} />
                      <span className="text-[10px] font-black uppercase tracking-widest">Read Only Immutable Log</span>
                 </div>

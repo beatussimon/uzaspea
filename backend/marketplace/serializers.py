@@ -69,6 +69,7 @@ class ProductSerializer(serializers.ModelSerializer):
     seller_profile_picture = serializers.SerializerMethodField()
     avg_rating = serializers.SerializerMethodField()
     like_count = serializers.IntegerField(source='likes.count', read_only=True)
+    is_liked = serializers.SerializerMethodField()
     category_name = serializers.CharField(source='category.name', read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
 
@@ -83,13 +84,19 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'description', 'price', 'stock', 'is_available',
                   'category', 'category_name', 'seller', 'seller_username', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition',
-                  'avg_rating', 'like_count', 'images', 'inspections', 'is_verified',
+                  'avg_rating', 'like_count', 'is_liked', 'images', 'inspections', 'is_verified',
                   'has_inspection', 'inspection_verdict']
         read_only_fields = ['seller', 'slug']
 
     def get_inspections(self, obj):
         from inspections.serializers import InspectionSummarySerializer
         return InspectionSummarySerializer(obj.inspections.all(), many=True).data
+
+    def get_is_liked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(user=request.user).exists()
+        return False
 
     def get_avg_rating(self, obj):
         return obj.average_rating()

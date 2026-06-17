@@ -48,6 +48,7 @@ const RegisterPage: React.FC = () => {
       
       localStorage.setItem('access_token', res.data.access);
       localStorage.setItem('refresh_token', res.data.refresh);
+      localStorage.setItem('user_id', res.data.user_id);
       localStorage.setItem('username', res.data.username || formData.username);
       localStorage.setItem('is_verified', String(res.data.is_verified || false));
       localStorage.setItem('tier', res.data.tier || 'free');

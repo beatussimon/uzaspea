@@ -9,14 +9,16 @@ import { useCart } from '../context/CartContext';
 
 const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMode?: 'grid' | 'list' }) => {
   const { addToCart } = useCart();
+  const [liked, setLiked] = React.useState(product.is_liked || false);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     try {
-      await api.post(`/api/products/${product.slug}/like/`);
-      toast.success('Liked!', { 
-        icon: '❤️',
+      const res = await api.post(`/api/products/${product.slug}/like/`);
+      setLiked(res.data.liked);
+      toast.success(res.data.liked ? 'Liked!' : 'Unliked!', { 
+        icon: res.data.liked ? '❤️' : '🤍',
         style: { borderRadius: '10px', background: '#333', color: '#fff' }
       });
     } catch { toast.error('Login to like'); }
@@ -69,7 +71,7 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
                <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3" />
              </div>
              {product.is_verified && (
-               <div className="flex items-center gap-1 text-[9px] text-blue-600 dark:text-blue-400 font-black bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded-full border border-blue-100 dark:border-blue-800">
+               <div className="flex items-center gap-1 text-[9px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800">
                  <Shield size={10} className="fill-current" />
                  <span>VERIFIED</span>
                </div>
@@ -99,7 +101,7 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
         {/* Floating Actions for List */}
         <div className="absolute top-3 right-3 flex flex-col gap-2">
             <button onClick={handleLike} className="p-1.5 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-red-500 transition-colors">
-              <Heart size={14} />
+              <Heart size={14} className={liked ? 'fill-red-500 text-red-500' : ''} />
             </button>
             <button onClick={handleShare} className="p-1.5 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-brand-500 transition-colors">
               <Share2 size={14} />
@@ -120,8 +122,8 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
         />
         {/* Top overlay: Like + Share + Add */}
         <div className="absolute top-2 right-2 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 translate-x-[10px] group-hover:translate-x-0 transition-all duration-300">
-          <button onClick={handleLike} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur flex items-center justify-center shadow-lg hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-500 transition-all" title="Like">
-            <Heart size={14} />
+          <button onClick={handleLike} className={`w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur flex items-center justify-center shadow-lg transition-all ${liked ? 'bg-red-50 dark:bg-red-900/30 text-red-500' : 'hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-500'}`} title="Like">
+            <Heart size={14} className={liked ? 'fill-current' : ''} />
           </button>
           <button onClick={handleAddToCart} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur flex items-center justify-center shadow-lg hover:bg-brand-50 dark:hover:bg-brand-900/30 text-gray-500 hover:text-brand-500 transition-all" title="Add to Cart">
             <ShoppingCart size={14} />
@@ -149,7 +151,7 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
           <span className="text-[10px] text-gray-400 uppercase font-semibold tracking-tighter">{product.category_name}</span>
           <div className="flex items-center gap-2">
             {product.is_verified && (
-               <div className="flex items-center gap-1 text-[8px] text-blue-600 dark:text-blue-400 font-black bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded-full border border-blue-100 dark:border-blue-800" title="Professionally Verified">
+               <div className="flex items-center gap-1 text-[8px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800" title="Professionally Verified">
                  <Shield size={10} className="fill-current" />
                  <span>VERIFIED</span>
                </div>

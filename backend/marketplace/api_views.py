@@ -103,9 +103,15 @@ class ProductViewSet(viewsets.ModelViewSet):
                 Q(name__icontains=query) | Q(description__icontains=query)
             ).order_by('-search_rank')
         if min_price:
-            queryset = queryset.filter(price__gte=min_price)
+            try:
+                queryset = queryset.filter(price__gte=float(min_price))
+            except ValueError:
+                pass
         if max_price:
-            queryset = queryset.filter(price__lte=max_price)
+            try:
+                queryset = queryset.filter(price__lte=float(max_price))
+            except ValueError:
+                pass
         if condition:
             queryset = queryset.filter(condition=condition)
 
@@ -333,7 +339,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         notes = request.data.get('notes', '')
 
         # FIX: S-06 — Enforce who can trigger which transitions
-        STAFF_ONLY_STATES = {'PAID', 'REFUNDED', 'EXPIRED'}
+        STAFF_ONLY_STATES = {'PAID', 'EXPIRED'}
         SELLER_ALLOWED_STATES = {'PROCESSING', 'SHIPPED', 'DELIVERED', 'DISPUTED'}
         BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED'}
 
@@ -594,6 +600,7 @@ from django.contrib.auth.password_validation import validate_password
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
+        data['user_id'] = self.user.id
         data['username'] = self.user.username
         data['is_staff'] = self.user.is_staff or self.user.is_superuser
         data['is_superuser'] = self.user.is_superuser
@@ -623,8 +630,11 @@ class ChangePasswordView(APIView):
         new = request.data.get('new_password')
         if not request.user.check_password(old):
             return Response({'error': 'Incorrect current password'}, status=400)
-        if len(new) < 8:
-            return Response({'error': 'Password must be at least 8 characters'}, status=400)
+        from django.core.exceptions import ValidationError
+        try:
+            validate_password(new, request.user)
+        except ValidationError as e:
+            return Response({'error': " ".join(e.messages)}, status=400)
         request.user.set_password(new)
         request.user.save()
         return Response({'status': 'password changed'})
@@ -675,6 +685,7 @@ class RegisterView(APIView):
         data = {
             'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'user_id': user.id,
             'username': user.username,
             'is_staff': user.is_staff or user.is_superuser,
             'is_superuser': user.is_superuser,

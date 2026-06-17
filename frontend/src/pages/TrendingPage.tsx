@@ -58,7 +58,7 @@ const TrendingPage: React.FC = () => {
             {/* Stats Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="card p-4 flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-lg"><TrendingUp size={20} /></div>
+                    <div className="p-2 bg-brand-50 dark:bg-brand-900/20 text-brand-600 rounded-lg"><TrendingUp size={20} /></div>
                     <div>
                         <p className="text-xs text-gray-500">Weekly Visits</p>
                         <p className="font-bold text-lg dark:text-white">24.5K</p>

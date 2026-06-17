@@ -8,8 +8,8 @@ class OrderStateMachine:
         'Pending': ['AWAITING_PAYMENT', 'CANCELLED'],  # FIX CRIT-04: bridge for legacy orders
         'CHECKOUT': ['AWAITING_PAYMENT', 'CANCELLED'],
         'AWAITING_PAYMENT': ['PENDING_VERIFICATION', 'EXPIRED', 'CANCELLED'],  # FIX L-15: removed self-loop
-        'PENDING_VERIFICATION': ['PAID', 'AWAITING_PAYMENT', 'REJECTED', 'CANCELLED'],
-        'PAID': ['PROCESSING', 'REFUNDED', 'CANCELLED'],
+        'PENDING_VERIFICATION': ['PAID', 'AWAITING_PAYMENT', 'CANCELLED'],
+        'PAID': ['PROCESSING', 'CANCELLED'],
         'PROCESSING': ['SHIPPED', 'CANCELLED'],
         'SHIPPED': ['DELIVERED'],
         'DELIVERED': ['COMPLETED', 'DISPUTED'],  # FIX B-15: buyer can dispute after delivery
@@ -17,8 +17,6 @@ class OrderStateMachine:
         'COMPLETED': [],
         'CANCELLED': [],
         'EXPIRED': [],
-        'REJECTED': [],
-        'REFUNDED': [],
     }
 
     @classmethod

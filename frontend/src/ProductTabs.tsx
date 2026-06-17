@@ -82,7 +82,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
         <button
           className={`py-2 px-4 transition-colors ${
             activeTab === 'reviews'
-              ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 font-medium'
+              ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400 font-medium'
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
           }`}
           onClick={() => setActiveTab('reviews')}
@@ -92,7 +92,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
         <button
           className={`py-2 px-4 transition-colors ${
             activeTab === 'comments'
-              ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 font-medium'
+              ? 'border-b-2 border-brand-500 text-brand-600 dark:text-brand-400 font-medium'
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
           }`}
           onClick={() => setActiveTab('comments')}
@@ -111,7 +111,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
 
             {loadingReviews ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
               </div>
             ) : reviews.length === 0 ? (
               <p className="text-gray-400 py-8 text-center">No reviews yet. Be the first to review after purchase!</p>
@@ -161,7 +161,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
               <button
                 onClick={handlePostComment}
                 disabled={submitting || !commentText.trim()}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded mt-2 text-sm transition"
+                className="bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white px-4 py-2 rounded mt-2 text-sm transition"
               >
                 {submitting ? 'Posting...' : 'Post'}
               </button>
@@ -169,7 +169,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
 
             {loadingComments ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
               </div>
             ) : comments.length === 0 ? (
               <p className="text-gray-400 py-4 text-center">No comments yet. Start the conversation!</p>
@@ -177,18 +177,18 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
               <div className="space-y-4">
                 {parentComments.map((comment) => (
                   <div key={comment.id} className="space-y-2">
-                    <div className={`p-4 rounded-lg border ${comment.username === sellerUsername ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 shadow-sm' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
+                    <div className={`p-4 rounded-lg border ${comment.username === sellerUsername ? 'bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800 shadow-sm' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-gray-900 dark:text-white text-sm">{comment.username}</span>
                           {comment.username === sellerUsername && (
-                            <span className="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Owner</span>
+                            <span className="text-[10px] font-bold bg-brand-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Owner</span>
                           )}
                         </div>
                         <span className="text-xs text-gray-400">{formatDate(comment.created_at)}</span>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{comment.body}</p>
-                      <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition">
+                      <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-xs font-semibold text-brand-600 hover:text-brand-700 transition">
                         {replyingTo === comment.id ? 'Cancel Reply' : 'Reply'}
                       </button>
                     </div>
@@ -197,12 +197,12 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                     {getReplies(comment.id).length > 0 && (
                       <div className="ml-8 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
                         {getReplies(comment.id).map((reply) => (
-                          <div key={reply.id} className={`p-3 rounded-lg border ${reply.username === sellerUsername ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
+                          <div key={reply.id} className={`p-3 rounded-lg border ${reply.username === sellerUsername ? 'bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-gray-900 dark:text-white text-sm">{reply.username}</span>
                                 {reply.username === sellerUsername && (
-                                  <span className="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Owner</span>
+                                  <span className="text-[10px] font-bold bg-brand-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Owner</span>
                                 )}
                               </div>
                               <span className="text-xs text-gray-400">{formatDate(reply.created_at)}</span>
@@ -218,7 +218,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                       <div className="ml-8 pl-4 flex gap-2">
                         <input
                           type="text"
-                          className="flex-1 bg-transparent border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm dark:text-white outline-none focus:border-blue-500"
+                          className="flex-1 bg-transparent border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm dark:text-white outline-none focus:border-brand-500"
                           placeholder="Write a reply..."
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
@@ -244,7 +244,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                             }
                           }}
                           disabled={submitting || !replyText.trim()}
-                          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-1.5 rounded-lg text-sm transition"
+                          className="bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white px-4 py-1.5 rounded-lg text-sm transition"
                         >
                           {submitting ? '...' : 'Reply'}
                         </button>

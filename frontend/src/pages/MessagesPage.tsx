@@ -12,7 +12,7 @@ const MessagesPage: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [activeConv, setActiveConv] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const username = localStorage.getItem('username') || '';
+  const userId = parseInt(localStorage.getItem('user_id') || '0');
 
   useEffect(() => {
     api.get('/api/conversations/')
@@ -111,7 +111,7 @@ const MessagesPage: React.FC = () => {
               }`}
             >
               <p className="font-bold text-sm text-gray-900 dark:text-white">
-                {conv.buyer_username === username ? conv.seller_username : conv.buyer_username}
+                {conv.buyer === userId ? conv.seller_username : conv.buyer_username}
               </p>
               {conv.product_name && (
                 <p className="text-xs text-brand-600 mt-0.5">Re: {conv.product_name}</p>
@@ -141,15 +141,15 @@ const MessagesPage: React.FC = () => {
                   <ArrowLeft size={18} />
                 </button>
                 <span className="font-bold text-gray-900 dark:text-white">
-                  {activeConv ? (activeConv.buyer_username === username ? activeConv.seller_username : activeConv.buyer_username) : 'Chat'}
+                  {activeConv ? (activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username) : 'Chat'}
                 </span>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[50vh]">
                 {messages.map(msg => (
-                  <div key={msg.id} className={`flex ${msg.sender_username === username ? 'justify-end' : 'justify-start'}`}>
+                  <div key={msg.id} className={`flex ${msg.sender === userId ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm ${
-                      msg.sender_username === username
+                      msg.sender === userId
                         ? 'bg-brand-600 text-white rounded-br-sm'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-sm'
                     }`}>

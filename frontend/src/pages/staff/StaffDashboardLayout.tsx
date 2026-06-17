@@ -37,11 +37,11 @@ interface DashboardData {
 
 // ============ Helpers ============
 const priorityColors: Record<string, string> = {
-  low: 'text-gray-500', medium: 'text-blue-500', high: 'text-orange-500', urgent: 'text-red-500',
+  low: 'text-gray-500', medium: 'text-brand-500', high: 'text-orange-500', urgent: 'text-red-500',
 };
 const statusBg: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  in_progress: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  in_progress: 'bg-brand-100 text-brand-800 dark:bg-brand-900/30 dark:text-brand-400',
   on_hold: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
   completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
   cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
@@ -140,9 +140,9 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <ClipboardList size={16} className="text-blue-500" /> Assigned to Me
+                <ClipboardList size={16} className="text-brand-500" /> Assigned to Me
               </h3>
-              <Link to="/staff/tasks" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">View all →</Link>
+              <Link to="/staff/tasks" className="text-xs text-brand-600 dark:text-brand-400 hover:underline">View all →</Link>
             </div>
             {data.tasks.length === 0 ? (
               <p className="text-gray-400 text-sm text-center py-4">Nothing on your plate right now.</p>
@@ -174,7 +174,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
                   <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <Megaphone size={16} className="text-purple-500" /> Promotion Approvals
                   </h3>
-                  <Link to="/staff/promotions" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">View all →</Link>
+                  <Link to="/staff/promotions" className="text-xs text-brand-600 dark:text-brand-400 hover:underline">View all →</Link>
                 </div>
                 {data.pending_promotions.length === 0 ? (
                    <p className="text-xs text-gray-400 italic">No promotions awaiting review.</p>
@@ -321,12 +321,12 @@ const StaffTasks: React.FC = () => {
 
   const cols = [
     { key: 'pending', label: 'Pending', icon: Clock, color: 'border-yellow-400' },
-    { key: 'in_progress', label: 'In Progress', icon: ClipboardList, color: 'border-blue-400' },
+    { key: 'in_progress', label: 'In Progress', icon: ClipboardList, color: 'border-brand-400' },
     { key: 'on_hold', label: 'On Hold', icon: AlertTriangle, color: 'border-orange-400' },
     { key: 'completed', label: 'Completed', icon: CheckCircle2, color: 'border-green-400' },
   ];
 
-  if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>;
+  if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>;
 
   return (
     <div className="space-y-4">
@@ -360,7 +360,7 @@ const StaffTasks: React.FC = () => {
                     {/* Quick Actions */}
                     <div className="flex flex-wrap gap-1 mt-auto pt-2 border-t dark:border-gray-700">
                        {task.status === 'pending' && (
-                         <button onClick={() => handleAction(task.id, 'start')} className="px-2 py-1 bg-blue-600 text-white text-[10px] font-bold rounded hover:bg-blue-700 transition">Start</button>
+                         <button onClick={() => handleAction(task.id, 'start')} className="px-2 py-1 bg-brand-600 text-white text-[10px] font-bold rounded hover:bg-brand-700 transition">Start</button>
                        )}
                        {task.status === 'in_progress' && (
                          <>
@@ -369,7 +369,7 @@ const StaffTasks: React.FC = () => {
                          </>
                        )}
                        {task.status === 'on_hold' && (
-                         <button onClick={() => handleAction(task.id, 'start')} className="px-2 py-1 bg-blue-600 text-white text-[10px] font-bold rounded hover:bg-blue-700 transition">Resume</button>
+                         <button onClick={() => handleAction(task.id, 'start')} className="px-2 py-1 bg-brand-600 text-white text-[10px] font-bold rounded hover:bg-brand-700 transition">Resume</button>
                        )}
                        {['pending', 'in_progress', 'on_hold'].includes(task.status) && (
                          <button onClick={() => handleAction(task.id, 'cancel')} className="px-2 py-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 text-[10px] font-bold rounded transition ml-auto">Cancel</button>
@@ -385,7 +385,7 @@ const StaffTasks: React.FC = () => {
       
       {loadingMore && (
         <div className="flex justify-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
         </div>
       )}
 
@@ -490,7 +490,7 @@ const PromotionQueue: React.FC = () => {
         <div className="flex gap-1">
           {['pending', 'approved', 'rejected'].map((s) => (
             <button key={s} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${filter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
@@ -498,7 +498,7 @@ const PromotionQueue: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
       ) : promos.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
           <Megaphone size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -538,7 +538,7 @@ const PromotionQueue: React.FC = () => {
           
           {loadingMore && (
             <div className="flex justify-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
             </div>
           )}
 
@@ -644,7 +644,7 @@ const DisputesManager: React.FC = () => {
                         {d.status === 'open' && (
                             <div className="flex gap-2 mt-3">
                                 <button onClick={() => handleResolve(d.id, 'resolved_buyer')}
-                                    className="px-3 py-1.5 border border-blue-300 text-blue-600 hover:bg-blue-50 rounded-lg text-xs font-medium transition">Favour Buyer</button>
+                                    className="px-3 py-1.5 border border-brand-300 text-brand-600 hover:bg-brand-50 rounded-lg text-xs font-medium transition">Favour Buyer</button>
                                 <button onClick={() => handleResolve(d.id, 'resolved_seller')}
                                     className="px-3 py-1.5 border border-green-300 text-green-600 hover:bg-green-50 rounded-lg text-xs font-medium transition">Favour Seller</button>
                                 <button onClick={() => handleResolve(d.id, 'closed')}
@@ -683,7 +683,7 @@ const SupportTicketsManager: React.FC = () => {
                 <div className="flex gap-2 flex-wrap">
                     {['open', 'in_progress', 'resolved', 'closed'].map(s => (
                         <button key={s} onClick={() => setStatusFilter(s)}
-                            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition capitalize ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+                            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition capitalize ${statusFilter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
                             {s.replace('_', ' ')}
                         </button>
                     ))}
@@ -704,7 +704,7 @@ const SupportTicketsManager: React.FC = () => {
                                 </span>
                                 {ticket.status === 'open' && (
                                     <button onClick={() => updateStatus(ticket.id, 'in_progress')}
-                                        className="bg-blue-600 text-white rounded text-xs py-1.5 px-3 font-medium hover:bg-blue-700 transition">Take Ticket</button>
+                                        className="bg-brand-600 text-white rounded text-xs py-1.5 px-3 font-medium hover:bg-brand-700 transition">Take Ticket</button>
                                 )}
                                 {ticket.status === 'in_progress' && (
                                     <button onClick={() => updateStatus(ticket.id, 'resolved')}

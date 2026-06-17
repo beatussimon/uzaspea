@@ -15,7 +15,7 @@ const CartPage: React.FC = () => {
         <p className="text-gray-500 dark:text-gray-400">Add some products to get started!</p>
         <Link
           to="/"
-          className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md"
+          className="mt-4 px-6 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition shadow-md"
         >
           Browse Products
         </Link>
@@ -52,11 +52,11 @@ const CartPage: React.FC = () => {
             <div className="flex-1 min-w-0">
               <Link
                 to={`/product/${item.slug}`}
-                className="font-semibold text-gray-900 dark:text-white truncate block hover:text-blue-600 transition"
+                className="font-semibold text-gray-900 dark:text-white truncate block hover:text-brand-600 transition"
               >
                 {item.name}
               </Link>
-              <p className="text-blue-600 dark:text-blue-400 font-bold mt-1">
+              <p className="text-brand-600 dark:text-brand-400 font-bold mt-1">
                 TSh {item.price.toLocaleString()}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">{item.stock} in stock</p>
@@ -106,7 +106,7 @@ const CartPage: React.FC = () => {
         </div>
         <Link
           to="/checkout"
-          className="flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-md"
+          className="flex items-center justify-center gap-2 w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg transition shadow-md"
         >
           Proceed to Checkout
           <ArrowRight size={18} />
