@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Shield, ScrollText,
   Users, CheckCircle2, XCircle, Clock, AlertTriangle,
-  UserPlus, UserMinus, Building2, Briefcase, Plus
+  UserPlus, UserMinus, Building2, Briefcase, Plus, Search,
+  Eye, Settings, RefreshCw, BarChart2, DollarSign, Ban
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
@@ -46,6 +47,8 @@ interface AuditLogEntry {
   target_username: string | null;
   timestamp: string;
   ip_address: string;
+  user_agent: string;
+  extra_data: any;
 }
 
 interface StaffPermission {
@@ -101,6 +104,106 @@ const Badge: React.FC<{ text: string; className?: string }> = ({ text, className
   </span>
 );
 
+// ============ SVG Line Chart ============
+const RevenueChart: React.FC = () => {
+  const dataPoints = [3200000, 4100000, 3900000, 5400000, 6200000, 8100000];
+  const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+  
+  const width = 500;
+  const height = 200;
+  const padding = 30;
+  
+  const maxVal = Math.max(...dataPoints) * 1.1;
+  const minVal = 0;
+  
+  const points = dataPoints.map((val, i) => {
+    const x = padding + (i * (width - padding * 2) / (dataPoints.length - 1));
+    const y = height - padding - ((val - minVal) * (height - padding * 2) / (maxVal - minVal));
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Platform Revenue Trend (TZS)</h4>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-48 overflow-visible">
+        {/* Grids */}
+        {[0, 0.25, 0.5, 0.75, 1].map((r, idx) => {
+          const y = padding + r * (height - padding * 2);
+          const val = maxVal - r * (maxVal - minVal);
+          return (
+            <g key={idx}>
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#f3f4f6" strokeWidth={1} className="dark:stroke-gray-700" />
+              <text x={padding - 5} y={y + 4} textAnchor="end" className="text-[8px] fill-gray-400 font-mono">
+                {(val / 1000000).toFixed(1)}M
+              </text>
+            </g>
+          );
+        })}
+        {/* Chart Path */}
+        <polyline fill="none" stroke="#4f46e5" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" points={points} />
+        {/* X labels */}
+        {labels.map((lbl, idx) => {
+          const x = padding + (idx * (width - padding * 2) / (labels.length - 1));
+          return (
+            <text key={idx} x={x} y={height - 10} textAnchor="middle" className="text-[10px] fill-gray-400 font-bold uppercase">
+              {lbl}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
+
+// ============ SVG Bar Chart ============
+const WorkloadChart: React.FC<{ staffers: Staffer[] }> = ({ staffers }) => {
+  const width = 500;
+  const height = 200;
+  const padding = 30;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+
+  const activeStaffers = staffers.filter(s => s.is_active).slice(0, 5);
+  const maxTasks = Math.max(...activeStaffers.map(s => s.tasks_count || 1), 5);
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Staff Task Distribution</h4>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-48 overflow-visible">
+        {/* Axis and Grids */}
+        {[0, 0.25, 0.5, 0.75, 1].map((r, idx) => {
+          const y = padding + r * chartHeight;
+          const val = Math.round(maxTasks - r * maxTasks);
+          return (
+            <g key={idx}>
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#f3f4f6" strokeWidth={1} className="dark:stroke-gray-700" strokeDasharray="3 3" />
+              <text x={padding - 5} y={y + 4} textAnchor="end" className="text-[8px] fill-gray-400 font-mono">{val}</text>
+            </g>
+          );
+        })}
+        {/* Bars */}
+        {activeStaffers.map((s, idx) => {
+          const barWidth = 40;
+          const spacing = chartWidth / activeStaffers.length;
+          const x = padding + idx * spacing + (spacing - barWidth) / 2;
+          const barHeight = ((s.tasks_count || 0) / maxTasks) * chartHeight;
+          const y = height - padding - barHeight;
+
+          return (
+            <g key={s.id} className="group">
+              <rect x={x} y={y} width={barWidth} height={barHeight} fill="#06b6d4" rx={4} className="hover:fill-brand-600 transition" />
+              <text x={x + barWidth / 2} y={height - 10} textAnchor="middle" className="text-[8px] fill-gray-400 font-bold uppercase truncate max-w-[40px]">
+                {s.username.substring(0, 6)}
+              </text>
+              <title>{s.username}: {s.tasks_count} tasks</title>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
+
 // ============ Admin Overview ============
 const AdminOverview: React.FC = () => {
   const [data, setData] = useState<AdminDashboardData | null>(null);
@@ -138,7 +241,7 @@ const AdminOverview: React.FC = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {kpis.map((kpi, i) => (
-          <div key={i} className="card p-4 transition-transform hover:scale-105">
+          <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 transition-transform hover:scale-105 shadow-sm">
             <div className="flex items-center justify-between mb-2">
                <kpi.icon size={16} className={`text-${kpi.color}-500`} />
             </div>
@@ -148,8 +251,14 @@ const AdminOverview: React.FC = () => {
         ))}
       </div>
 
+      {/* SVG Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="card overflow-hidden">
+        <RevenueChart />
+        <WorkloadChart staffers={data.staffers} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
             <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
               <h3 className="text-sm font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest">Global Activity Log</h3>
               <ScrollText size={16} className="text-brand-500" />
@@ -158,7 +267,7 @@ const AdminOverview: React.FC = () => {
                 {data.recent_logs.map((log) => (
                   <div key={log.id} className="px-5 py-3 hover:bg-gray-50/50 transition">
                       <div className="flex justify-between items-start mb-1">
-                          <span className="text-xs font-black text-gray-900 dark:text-white">{log.username}</span>
+                          <span className="text-xs font-black text-gray-900 dark:text-white">{log.username || 'System'}</span>
                           <span className="text-[10px] text-gray-400 font-bold">{formatDate(log.timestamp)}</span>
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{log.description}</p>
@@ -168,8 +277,8 @@ const AdminOverview: React.FC = () => {
             </div>
           </div>
 
-          <div className="card p-5">
-              <h3 className="text-sm font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest mb-6 border-b pb-4">Teams & Capacity</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
+              <h3 className="text-sm font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest mb-6 border-b pb-4 dark:border-gray-700">Teams & Capacity</h3>
               <div className="space-y-6">
                   {data.departments.map((dept, i) => (
                     <div key={i}>
@@ -184,6 +293,157 @@ const AdminOverview: React.FC = () => {
                   ))}
               </div>
           </div>
+      </div>
+    </div>
+  );
+};
+
+// ============ Platform User Explorer ============
+const PlatformUserExplorer: React.FC = () => {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+
+  const fetchUsers = useCallback(() => {
+    setLoading(true);
+    api.get('/api/staff/users/')
+      .then(res => {
+        setUsers(res.data.results || res.data);
+      })
+      .catch(() => toast.error('Failed to load users'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleToggleActive = async (id: number) => {
+    try {
+      const res = await api.post(`/api/staff/users/${id}/toggle_active//`);
+      toast.success(res.data.is_active ? 'User unbanned' : 'User banned');
+      fetchUsers();
+    } catch {
+      toast.error('Failed to toggle active status');
+    }
+  };
+
+  const handleToggleVerified = async (id: number) => {
+    try {
+      const res = await api.post(`/api/staff/users/${id}/toggle_verified//`);
+      toast.success(res.data.is_verified ? 'User verified' : 'User unverified');
+      fetchUsers();
+    } catch {
+      toast.error('Failed to toggle verification status');
+    }
+  };
+
+  const handlePromoteInspector = async (id: number) => {
+    const level = prompt('Select inspector level (junior, senior, specialist):', 'junior');
+    if (!level) return;
+    try {
+      await api.post(`/api/staff/users/${id}/promote_inspector//`, { level });
+      toast.success(`User promoted to ${level} inspector`);
+      fetchUsers();
+    } catch {
+      toast.error('Failed to promote user to inspector');
+    }
+  };
+
+  const handleChangeRole = async (id: number, currentStaff: boolean, currentSuper: boolean) => {
+    const makeStaff = confirm(`Make this user staff? (Current: ${currentStaff ? 'YES' : 'NO'})`);
+    const makeSuper = confirm(`Make this user superuser? (Current: ${currentSuper ? 'YES' : 'NO'})`);
+    
+    try {
+      await api.post(`/api/staff/users/${id}/change_role//`, { is_staff: makeStaff, is_superuser: makeSuper });
+      toast.success('User roles updated');
+      fetchUsers();
+    } catch {
+      toast.error('Failed to update roles (Superusers only)');
+    }
+  };
+
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = u.username.toLowerCase().includes(search.toLowerCase()) || 
+                          u.email.toLowerCase().includes(search.toLowerCase());
+    if (roleFilter === 'staff') return matchesSearch && u.is_staff;
+    if (roleFilter === 'superuser') return matchesSearch && u.is_superuser;
+    if (roleFilter === 'inspector') return matchesSearch && u.is_inspector;
+    return matchesSearch;
+  });
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Platform Users Explorer</h2>
+        <div className="flex gap-2">
+          <input type="text" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)}
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none" />
+          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none">
+            <option value="all">All Users</option>
+            <option value="staff">Staff Members</option>
+            <option value="superuser">Superusers</option>
+            <option value="inspector">Inspectors</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-x-auto shadow-sm">
+        <table className="w-full text-left">
+          <thead className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700">
+            <tr>
+              <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">Username</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">Email</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">Tier</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">Status</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">Verification</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">Roles</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {filteredUsers.map(u => (
+              <tr key={u.id} className="hover:bg-gray-50/30 transition">
+                <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">@{u.username}</td>
+                <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">{u.email}</td>
+                <td className="px-6 py-4 text-xs text-brand-600 font-bold uppercase">{u.tier}</td>
+                <td className="px-6 py-4">
+                  <Badge text={u.is_active ? 'Active' : 'Banned'} className={u.is_active ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-50 text-red-700'} />
+                </td>
+                <td className="px-6 py-4">
+                  <Badge text={u.is_verified ? 'Verified' : 'Unverified'} className={u.is_verified ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-50 text-gray-500'} />
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex flex-wrap gap-1">
+                    {u.is_superuser && <Badge text="Super" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" />}
+                    {u.is_staff && <Badge text="Staff" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" />}
+                    {u.is_inspector && <Badge text={`Inspector (${u.inspector_level})`} className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" />}
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-1.5">
+                    <button onClick={() => handleToggleActive(u.id)} className={`px-2.5 py-1 text-[10px] font-bold rounded ${u.is_active ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/10' : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/10'}`} title="Toggle Ban">
+                      {u.is_active ? 'Ban' : 'Unban'}
+                    </button>
+                    <button onClick={() => handleToggleVerified(u.id)} className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-650 text-[10px] font-bold rounded" title="Toggle Verification">
+                      Verify
+                    </button>
+                    <button onClick={() => handlePromoteInspector(u.id)} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[10px] font-bold rounded dark:bg-emerald-950/20 dark:text-emerald-400" title="Promote Inspector">
+                      +Inspect
+                    </button>
+                    <button onClick={() => handleChangeRole(u.id, u.is_staff, u.is_superuser)} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[10px] font-bold rounded dark:bg-indigo-950/20 dark:text-indigo-400" title="Change Roles">
+                      Role
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -225,7 +485,7 @@ const EmployeeManager: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {staff.map(member => (
-                    <div key={member.id} className="card p-5 group hover:border-brand-500/30 transition-colors">
+                    <div key={member.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 group hover:border-brand-500/30 transition shadow-sm">
                         <div className="flex items-start justify-between">
                             <div className="flex gap-3">
                                 <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-black text-gray-400 uppercase">
@@ -260,7 +520,7 @@ const EmployeeManager: React.FC = () => {
                                  </Link>
                              </div>
                              <Link to="/staff-admin/permissions" className="text-[10px] font-black text-brand-600 hover:underline hover:text-brand-700 uppercase tracking-widest">
-                                 Permissions
+                                 Permissions Matrix
                              </Link>
                         </div>
                     </div>
@@ -343,7 +603,7 @@ const TaskBoard: React.FC = () => {
         </div>
 
         {showCreate && (
-            <form onSubmit={handleCreateTask} className="card p-6 bg-white dark:bg-gray-800 border-brand-200 dark:border-brand-900/30 animate-slide-up space-y-4">
+            <form onSubmit={handleCreateTask} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-150 dark:border-gray-700 p-6 border-brand-200 dark:border-brand-900/30 animate-slide-up space-y-4 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} placeholder="Task Title" className="input text-sm" required />
                     <select value={newTask.category} onChange={e => setNewTask({...newTask, category: e.target.value})} className="input text-sm" required>
@@ -383,7 +643,7 @@ const TaskBoard: React.FC = () => {
                         
                         <div className="flex-1 overflow-y-auto px-1 space-y-3 pb-4 scroll-slim">
                             {colTasks.map(t => (
-                                <div key={t.id} className="card p-4 hover:shadow-lg transition-all duration-300 group relative bg-white dark:bg-gray-800">
+                                <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl p-4 hover:shadow-lg transition-all duration-300 group relative shadow-sm border border-gray-100 dark:border-gray-700">
                                     <div className="flex justify-between items-start mb-2">
                                         <Badge text={t.priority} className={priorityColors[t.priority]} />
                                         {t.is_overdue && <AlertTriangle size={14} className="text-red-500 animate-pulse" />}
@@ -464,108 +724,115 @@ const TaskBoard: React.FC = () => {
   );
 };
 
-// ============ Permission Guard ============
-const PermissionManager: React.FC = () => {
-    const [perms, setPerms] = useState<StaffPermission[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [staff, setStaff] = useState<Staffer[]>([]);
-    const [granting, setGranting] = useState({ user: '', permission: '' });
+// ============ Permission Matrix ============
+const PermissionMatrix: React.FC = () => {
+  const [perms, setPerms] = useState<StaffPermission[]>([]);
+  const [staff, setStaff] = useState<Staffer[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    const fetchData = () => {
-        setLoading(true);
-        Promise.all([
-            api.get('/api/staff/permissions/'),
-            api.get('/api/staff/admin-dashboard/')
-        ]).then(([pRes, aRes]) => {
-            setPerms(pRes.data.results || pRes.data);
-            setStaff(aRes.data.staffers || aRes.data.results || aRes.data);
-        }).catch(() => toast.error('Failed to load permissions'))
-        .finally(() => setLoading(false));
-    };
+  const availablePermissions = [
+    { key: 'can_approve_content', label: 'Content' },
+    { key: 'can_review_promotions', label: 'Ads' },
+    { key: 'can_moderate', label: 'Moderate' },
+    { key: 'can_manage_tasks', label: 'Tasks' },
+    { key: 'can_manage_inspections', label: 'Inspections' },
+    { key: 'can_view_reports', label: 'Reports' },
+    { key: 'can_verify_requests', label: 'Upgrades' },
+  ];
 
-    useEffect(() => { fetchData(); }, []);
+  const fetchData = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      api.get('/api/staff/permissions/'),
+      api.get('/api/staff/admin-dashboard/')
+    ]).then(([pRes, aRes]) => {
+      setPerms(pRes.data.results || pRes.data);
+      setStaff(aRes.data.staffers || aRes.data.results || aRes.data);
+    }).catch(() => toast.error('Failed to load permission matrix'))
+    .finally(() => setLoading(false));
+  }, []);
 
-    const handleGrant = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            await api.post('/api/staff/permissions/', granting);
-            toast.success('Permission granted');
-            setGranting({ user: '', permission: '' });
-            fetchData();
-        } catch { toast.error('Failed to grant permission'); }
-    };
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-    const handleAction = async (id: number, action: 'revoke' | 'remove') => {
-        try {
-            if (action === 'revoke') await api.patch(`/api/staff/permissions/${id}/`, { is_active: false });
-            else await api.delete(`/api/staff/permissions/${id}/`);
-            toast.success('Permission updated');
-            fetchData();
-        } catch { toast.error('Action failed'); }
-    };
+  const handleToggle = async (userId: number, permKey: string) => {
+    const existing = perms.find(p => p.username === staff.find(s => s.id === userId)?.username && p.permission === permKey && p.is_active);
+    
+    try {
+      if (existing) {
+        // Revoke
+        await api.delete(`/api/staff/permissions/${existing.id}/`);
+        toast.success('Permission revoked');
+      } else {
+        // Grant
+        await api.post('/api/staff/permissions/', { user: userId, permission: permKey });
+        toast.success('Permission granted');
+      }
+      fetchData();
+    } catch {
+      toast.error('Failed to toggle permission');
+    }
+  };
 
-    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
 
-    return (
-        <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">System Guard (Staff Roles)</h2>
-            
-            <form onSubmit={handleGrant} className="card p-5 bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-100 flex flex-wrap gap-4 items-end">
-                <div className="flex-1 min-w-[200px]">
-                    <label className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Target User</label>
-                    <select value={granting.user} onChange={e => setGranting({...granting, user: e.target.value})} className="input text-sm" required>
-                        <option value="">Select Staff...</option>
-                        {staff.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
-                    </select>
-                </div>
-                <div className="flex-2 min-w-[250px]">
-                    <label className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Permission Level</label>
-                    <select value={granting.permission} onChange={e => setGranting({...granting, permission: e.target.value})} className="input text-sm" required>
-                        <option value="">Select Ability...</option>
-                        <option value="can_approve_content">Approve Marketplace Content</option>
-                        <option value="can_review_promotions">Review Promotions (Ads)</option>
-                        <option value="can_moderate">Moderate Comments/Reviews</option>
-                        <option value="can_manage_tasks">Manage Other Staff Tasks</option>
-                        <option value="can_manage_inspections">Manage All Inspections</option>
-                        <option value="can_view_reports">View All Reports & Fraud</option>
-                        <option value="can_verify_requests">Verify Seller Upgrades</option>
-                    </select>
-                </div>
-                <button type="submit" className="btn-primary py-2.5 px-6 text-xs uppercase font-black">Grant Access</button>
-            </form>
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Permissions Matrix Grid</h2>
+        <span className="text-xs text-gray-400">Directly toggle capabilities of each active staff member</span>
+      </div>
 
-            <div className="card overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                        <tr>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-500">Staff Member</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-500">Privilege</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-500">Status</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-500 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                        {perms.map(p => (
-                            <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="px-6 py-4 text-sm font-black text-gray-900 dark:text-white uppercase tracking-tighter">{p.username}</td>
-                                <td className="px-6 py-4 text-xs text-gray-500 font-bold uppercase">{p.permission.replace(/_/g, ' ')}</td>
-                                <td className="px-6 py-4"><Badge text={p.is_active ? 'Active' : 'Revoked'} className={p.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'} /></td>
-                                <td className="px-6 py-4 text-right">
-                                    <button onClick={() => handleAction(p.id, 'remove')} className="text-red-500 hover:text-red-700 p-1"><XCircle size={18} /></button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-x-auto shadow-sm">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700">
+              <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500 tracking-wider">Staff Member</th>
+              {availablePermissions.map(p => (
+                <th key={p.key} className="px-4 py-4 text-xs font-bold uppercase text-gray-500 tracking-wider text-center" title={p.key}>
+                  {p.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {staff.filter(s => s.is_active).map(member => (
+              <tr key={member.id} className="hover:bg-gray-50/30 transition">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <div>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{member.username}</span>
+                      <span className="text-[10px] text-gray-400 block">{member.department || 'General'}</span>
+                    </div>
+                  </div>
+                </td>
+                {availablePermissions.map(p => {
+                  const hasPerm = perms.some(pm => pm.username === member.username && pm.permission === p.key && pm.is_active);
+                  return (
+                    <td key={p.key} className="px-4 py-4 text-center">
+                      <input 
+                        type="checkbox" 
+                        checked={hasPerm} 
+                        onChange={() => handleToggle(member.id, p.key)}
+                        className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-gray-300 dark:border-gray-600 cursor-pointer"
+                      />
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 };
 
 // ============ Audit Log Stream ============
 const AuditLogViewer: React.FC = () => {
     const [logs, setLogs] = useState<AuditLogEntry[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
 
     useEffect(() => {
         setLoading(true);
@@ -578,37 +845,65 @@ const AuditLogViewer: React.FC = () => {
     if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Security Audit Trail</h2>
-                <div className="flex items-center gap-2 p-2 bg-brand-50 dark:bg-brand-900/10 rounded-lg text-brand-700 dark:text-brand-300">
-                     <Shield size={16} />
-                     <span className="text-[10px] font-black uppercase tracking-widest">Read Only Immutable Log</span>
+        <div className="space-y-6 relative flex flex-col xl:flex-row gap-6">
+            <div className="flex-1 space-y-6">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Security Audit Trail</h2>
+                    <div className="flex items-center gap-2 p-2 bg-brand-50 dark:bg-brand-900/10 rounded-lg text-brand-700 dark:text-brand-300">
+                         <Shield size={16} />
+                         <span className="text-[10px] font-black uppercase tracking-widest">Read Only Immutable Log</span>
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
+                    <div className="divide-y divide-gray-50 dark:divide-gray-700">
+                        {logs.map(log => (
+                            <div key={log.id} onClick={() => setSelectedLog(log)} className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition cursor-pointer ${selectedLog?.id === log.id ? 'bg-indigo-50/30 dark:bg-indigo-950/10 border-l-4 border-indigo-600' : ''}`}>
+                                <div className="flex items-start gap-4">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${statusColors[log.action] || 'bg-gray-100 text-gray-500'}`}>
+                                        <Clock size={14} />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{log.username || 'System'} → {log.action}</p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{log.description}</p>
+                                        {log.target_username && <p className="text-[10px] font-bold text-brand-600 mt-1 uppercase font-mono">Target: @{log.target_username}</p>}
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatDate(log.timestamp)}</p>
+                                    <p className="text-[10px] font-mono text-gray-400 mt-1">{log.ip_address}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 
-            <div className="card overflow-hidden">
-                <div className="divide-y divide-gray-50 dark:divide-gray-700">
-                    {logs.map(log => (
-                        <div key={log.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 transition">
-                            <div className="flex items-start gap-4">
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${statusColors[log.action] || 'bg-gray-100 text-gray-500'}`}>
-                                    <Clock size={14} />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{log.username} → {log.action}</p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{log.description}</p>
-                                    {log.target_username && <p className="text-[10px] font-bold text-brand-600 mt-1 uppercase">Target: @{log.target_username}</p>}
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatDate(log.timestamp)}</p>
-                                <p className="text-[10px] font-mono text-gray-400 mt-1">{log.ip_address}</p>
+            {/* Slide-over Side Drawer for JSON Metadata Inspector */}
+            {selectedLog && (
+                <div className="w-full xl:w-80 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-xl p-5 shadow-lg flex flex-col justify-between shrink-0 h-[70vh] sticky top-24">
+                    <div>
+                        <div className="flex justify-between items-center mb-4 border-b pb-2 dark:border-gray-700">
+                            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Metadata Inspector</h3>
+                            <button onClick={() => setSelectedLog(null)} className="text-gray-400 hover:text-gray-600">✕</button>
+                        </div>
+                        <div className="space-y-3 text-xs">
+                            <p className="text-gray-500"><strong className="text-gray-700 dark:text-gray-300">Action:</strong> {selectedLog.action}</p>
+                            <p className="text-gray-500"><strong className="text-gray-700 dark:text-gray-300">User:</strong> @{selectedLog.username || 'System'}</p>
+                            <p className="text-gray-500"><strong className="text-gray-700 dark:text-gray-300">IP:</strong> {selectedLog.ip_address}</p>
+                            <p className="text-gray-500"><strong className="text-gray-700 dark:text-gray-300">User-Agent:</strong> {selectedLog.user_agent || 'Unknown'}</p>
+                            
+                            <div className="mt-4">
+                                <strong className="text-gray-700 dark:text-gray-300 block mb-1">Extra Data JSON:</strong>
+                                <pre className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border dark:border-gray-700 text-[10px] font-mono overflow-auto max-h-48 text-gray-700 dark:text-gray-300 scrollbar-thin">
+                                    {JSON.stringify(selectedLog.extra_data || {}, null, 2)}
+                                </pre>
                             </div>
                         </div>
-                    ))}
+                    </div>
+                    <button onClick={() => setSelectedLog(null)} className="w-full py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-bold rounded-lg transition text-gray-700 dark:text-gray-300">Close Inspector</button>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
@@ -619,10 +914,11 @@ const StaffAdminLayout: React.FC = () => {
 
   const navItems = [
     { path: '/staff-admin', label: 'Overview', icon: LayoutDashboard },
-    { path: '/staff-admin/employees', label: 'Workforce', icon: Users },
+    { path: '/staff-admin/users', label: 'Platform Users', icon: Users },
+    { path: '/staff-admin/employees', label: 'Workforce', icon: Briefcase },
     { path: '/staff-admin/tasks', label: 'Work Board', icon: ClipboardList },
     { path: '/staff-admin/audit-log', label: 'Audit Logs', icon: ScrollText },
-    { path: '/staff-admin/permissions', label: 'System Guard', icon: Shield },
+    { path: '/staff-admin/permissions', label: 'Permissions Matrix', icon: Shield },
     { path: '/staff-admin/inspections', label: 'Inspect Ops', icon: ClipboardList },
   ];
 
@@ -652,10 +948,10 @@ const StaffAdminLayout: React.FC = () => {
                 })}
             </div>
             
-            <div className="card p-5 bg-gradient-to-br from-indigo-600 to-brand-700 text-white border-0 shadow-lg shadow-indigo-600/20">
+            <div className="bg-gradient-to-br from-indigo-600 to-brand-700 text-white rounded-2xl p-5 border-0 shadow-lg shadow-indigo-600/20">
                 <Shield size={24} className="mb-4 opacity-50" />
                 <h4 className="text-sm font-black uppercase tracking-widest mb-1">Admin Mode</h4>
-                <p className="text-[10px] text-white/70 leading-relaxed font-medium">You have unrestricted access to all agency operations, metrics, and staff records.</p>
+                <p className="text-[10px] text-white/70 leading-relaxed font-medium">You have unrestricted access to all operations, metrics, user accounts, and staff records.</p>
             </div>
         </div>
       </aside>
@@ -663,10 +959,11 @@ const StaffAdminLayout: React.FC = () => {
       <main className="flex-1 min-w-0 animate-fade-in pb-12">
         <Routes>
           <Route index element={<AdminOverview />} />
+          <Route path="users" element={<PlatformUserExplorer />} />
           <Route path="employees" element={<EmployeeManager />} />
           <Route path="tasks" element={<TaskBoard />} />
           <Route path="audit-log" element={<AuditLogViewer />} />
-          <Route path="permissions" element={<PermissionManager />} />
+          <Route path="permissions" element={<PermissionMatrix />} />
           <Route path="inspections/*" element={<StaffInspectionLayout />} />
         </Routes>
       </main>

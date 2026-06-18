@@ -564,3 +564,174 @@ class StaffSupportTicketViewSet(viewsets.ModelViewSet):
         ticket.save()
         return Response({'status': 'resolved'})
 
+
+from marketplace.models import PaymentConfirmation, UserProfile, Product
+from billing.models import CommissionPayment
+from inspections.models import InspectorProfile
+from .serializers import (
+    PaymentConfirmationSerializer, StaffCommissionPaymentSerializer, UserManagementSerializer
+)
+from marketplace.serializers import ProductSerializer
+
+class PaymentConfirmationViewSet(viewsets.ModelViewSet):
+    queryset = PaymentConfirmation.objects.select_related('user', 'tier').all()
+    serializer_class = PaymentConfirmationSerializer
+    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    @decorators.action(detail=True, methods=['post'])
+    def verify(self, request, pk=None):
+        payment = self.get_object()
+        if payment.status != 'pending':
+            return Response({'error': 'Payment has already been processed'}, status=status.HTTP_400_BAD_REQUEST)
+        payment.status = 'approved'
+        payment.save()
+        log_audit(request.user, 'subscription_approved', f"Approved subscription payment for user {payment.user.username}", target_user=payment.user, request=request)
+        return Response({'status': 'approved'})
+
+    @decorators.action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        payment = self.get_object()
+        if payment.status != 'pending':
+            return Response({'error': 'Payment has already been processed'}, status=status.HTTP_400_BAD_REQUEST)
+        payment.status = 'rejected'
+        payment.save()
+        log_audit(request.user, 'subscription_rejected', f"Rejected subscription payment for user {payment.user.username}", target_user=payment.user, request=request)
+        return Response({'status': 'rejected'})
+
+
+class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
+    queryset = CommissionPayment.objects.select_related('invoice__seller', 'reviewed_by').all()
+    serializer_class = StaffCommissionPaymentSerializer
+    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    @decorators.action(detail=True, methods=['post'])
+    def verify(self, request, pk=None):
+        payment = self.get_object()
+        if payment.status != 'PENDING':
+            return Response({'error': 'Payment has already been processed'}, status=status.HTTP_400_BAD_REQUEST)
+        payment.status = 'APPROVED'
+        payment.reviewed_by = request.user
+        payment.reviewed_at = timezone.now()
+        payment.save()
+
+        # Update MonthlyInvoice status
+        invoice = payment.invoice
+        invoice.status = 'PAID'
+        invoice.save()
+
+        log_audit(request.user, 'commission_approved', f"Approved commission payment of {payment.amount} from seller {invoice.seller.username}", target_user=invoice.seller, request=request)
+        return Response({'status': 'APPROVED'})
+
+    @decorators.action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        payment = self.get_object()
+        if payment.status != 'PENDING':
+            return Response({'error': 'Payment has already been processed'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        reason = request.data.get('reason') or request.data.get('rejection_reason') or 'No reason provided'
+        payment.status = 'REJECTED'
+        payment.rejection_reason = reason
+        payment.reviewed_by = request.user
+        payment.reviewed_at = timezone.now()
+        payment.save()
+
+        log_audit(request.user, 'commission_rejected', f"Rejected commission payment of {payment.amount} from seller {payment.invoice.seller.username}. Reason: {reason}", target_user=payment.invoice.seller, request=request)
+        return Response({'status': 'REJECTED', 'rejection_reason': reason})
+
+
+class UserManagementViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.select_related('profile', 'inspector_profile').all()
+    serializer_class = UserManagementSerializer
+    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    @decorators.action(detail=True, methods=['post'])
+    def toggle_active(self, request, pk=None):
+        user = self.get_object()
+        if user.is_superuser and not request.user.is_superuser:
+            return Response({'error': 'Cannot toggle active status of superusers'}, status=status.HTTP_403_FORBIDDEN)
+        
+        user.is_active = not user.is_active
+        user.save()
+        
+        action = 'user_banned' if not user.is_active else 'user_unbanned'
+        log_audit(request.user, action, f"Toggled active status of {user.username} to {user.is_active}", target_user=user, request=request)
+        return Response({'status': 'success', 'is_active': user.is_active})
+
+    @decorators.action(detail=True, methods=['post'])
+    def toggle_verified(self, request, pk=None):
+        user = self.get_object()
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        profile.is_verified = not profile.is_verified
+        profile.save()
+        
+        log_audit(request.user, 'user_verification_toggled', f"Toggled verification of {user.username} to {profile.is_verified}", target_user=user, request=request)
+        return Response({'status': 'success', 'is_verified': profile.is_verified})
+
+    @decorators.action(detail=True, methods=['post'])
+    def promote_inspector(self, request, pk=None):
+        user = self.get_object()
+        level = request.data.get('level', 'junior')
+        if level not in ['junior', 'senior', 'specialist']:
+            return Response({'error': 'Invalid inspector level'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        inspector_profile, created = InspectorProfile.objects.get_or_create(user=user)
+        inspector_profile.level = level
+        inspector_profile.save()
+        
+        log_audit(request.user, 'inspector_promoted', f"Promoted/Updated {user.username} as {level} inspector", target_user=user, request=request)
+        return Response({'status': 'success', 'level': level})
+
+    @decorators.action(detail=True, methods=['post'])
+    def change_role(self, request, pk=None):
+        if not request.user.is_superuser:
+            return Response({'error': 'Only superusers can change user roles'}, status=status.HTTP_403_FORBIDDEN)
+            
+        user = self.get_object()
+        is_staff = request.data.get('is_staff')
+        is_superuser = request.data.get('is_superuser')
+        
+        if is_staff is not None:
+            user.is_staff = bool(is_staff)
+        if is_superuser is not None:
+            user.is_superuser = bool(is_superuser)
+            
+        user.save()
+
+        # If user is marked as staff, ensure they have a StaffProfile
+        if user.is_staff:
+            StaffProfile.objects.get_or_create(user=user)
+            
+        log_audit(request.user, 'role_changed', f"Changed roles for {user.username}: is_staff={user.is_staff}, is_superuser={user.is_superuser}", target_user=user, request=request)
+        return Response({
+            'status': 'success',
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser
+        })
+
+
+class ProductModerationViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.select_related('seller', 'category').all()
+    serializer_class = ProductSerializer
+    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    @decorators.action(detail=True, methods=['post'])
+    def suspend(self, request, pk=None):
+        product = self.get_object()
+        product.is_available = False
+        product.save()
+        log_audit(request.user, 'product_suspended', f"Suspended product listing: {product.name}", target_user=product.seller, request=request)
+        return Response({'status': 'suspended', 'is_available': product.is_available})
+
+    @decorators.action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        product = self.get_object()
+        product.is_available = True
+        product.save()
+        log_audit(request.user, 'product_approved', f"Approved product listing: {product.name}", target_user=product.seller, request=request)
+        return Response({'status': 'approved', 'is_available': product.is_available})
+
+    def destroy(self, request, *args, **kwargs):
+        product = self.get_object()
+        log_audit(request.user, 'product_deleted', f"Deleted product listing: {product.name}", target_user=product.seller, request=request)
+        return super().destroy(request, *args, **kwargs)
+

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
-  CheckCircle2, XCircle, Clock, AlertTriangle, Shield, Star
+  CheckCircle2, XCircle, Clock, AlertTriangle, Shield, Star,
+  CreditCard, FileText, Layers, MessageSquare, Send, Eye, Trash2, Search
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
@@ -398,6 +399,359 @@ const StaffTasks: React.FC = () => {
   );
 };
 
+// ============ Subscription Upgrades ============
+const SubscriptionConfirmation: React.FC = () => {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('pending');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  const fetchItems = useCallback(() => {
+    setLoading(true);
+    api.get(`/api/staff/payment-confirmations/?status=${filter}`)
+      .then(res => {
+        setItems(res.data.results || res.data);
+      })
+      .catch(() => toast.error('Failed to load subscription confirmations'))
+      .finally(() => setLoading(false));
+  }, [filter]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  const handleVerify = async (id: number) => {
+    try {
+      await api.post(`/api/staff/payment-confirmations/${id}/verify/`);
+      toast.success('Subscription upgrade approved!');
+      fetchItems();
+    } catch {
+      toast.error('Failed to approve subscription');
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    try {
+      await api.post(`/api/staff/payment-confirmations/${id}/reject/`);
+      toast.success('Subscription upgrade rejected');
+      fetchItems();
+    } catch {
+      toast.error('Failed to reject subscription');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Subscription Upgrades</h2>
+        <div className="flex gap-1">
+          {['pending', 'approved', 'rejected'].map((s) => (
+            <button key={s} onClick={() => setFilter(s)}
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+          <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+          <p className="text-gray-500">No {filter} subscription requests</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {items.map((item) => (
+            <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">@{item.username}</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Reference: {item.reference}</p>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 dark:bg-brand-900/30 dark:text-brand-400">
+                    {item.tier_name}
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">Amount: TZS {parseFloat(item.amount).toLocaleString()}</p>
+                <p className="text-xs text-gray-400 mb-3">Submitted: {fmtDate(item.created_at)}</p>
+
+                {item.proof && (
+                  <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 mb-4 h-32" onClick={() => setPreviewImage(item.proof)}>
+                    <img src={item.proof} alt="Payment proof" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                      <span className="text-white text-xs font-semibold">Click to View Receipt</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {filter === 'pending' && (
+                <div className="flex gap-2">
+                  <button onClick={() => handleVerify(item.id)} className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">Confirm Upgrade</button>
+                  <button onClick={() => handleReject(item.id)} className="flex-1 py-2 border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg text-xs font-bold transition">Reject</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal for image preview */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-3xl max-h-[85vh] overflow-auto bg-white dark:bg-gray-900 p-2 rounded-xl" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPreviewImage(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition">✕</button>
+            <img src={previewImage} alt="Payment Proof Full" className="max-w-full max-h-[80vh] object-contain rounded" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============ Commission Payments ============
+const CommissionPaymentsManager: React.FC = () => {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('PENDING');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  const fetchItems = useCallback(() => {
+    setLoading(true);
+    api.get(`/api/staff/commission-payments/?status=${filter}`)
+      .then(res => {
+        setItems(res.data.results || res.data);
+      })
+      .catch(() => toast.error('Failed to load commission payments'))
+      .finally(() => setLoading(false));
+  }, [filter]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  const handleVerify = async (id: number) => {
+    try {
+      await api.post(`/api/staff/commission-payments/${id}/verify/`);
+      toast.success('Commission payment approved!');
+      fetchItems();
+    } catch {
+      toast.error('Failed to approve payment');
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    const reason = prompt('Reason for rejection:');
+    if (reason === null) return;
+    try {
+      await api.post(`/api/staff/commission-payments/${id}/reject/`, { reason });
+      toast.success('Commission payment rejected');
+      fetchItems();
+    } catch {
+      toast.error('Failed to reject payment');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Commission Payments</h2>
+        <div className="flex gap-1">
+          {['PENDING', 'APPROVED', 'REJECTED'].map((s) => (
+            <button key={s} onClick={() => setFilter(s)}
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+              {s.toLowerCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+          <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+          <p className="text-gray-500">No {filter.toLowerCase()} commission payments</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {items.map((item) => (
+            <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Seller: @{item.seller_username}</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Invoice: {item.invoice_year}/{item.invoice_month}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Tx ID: {item.transaction_id}</p>
+                  </div>
+                  <Badge text={item.status.toLowerCase()} className={statusBg[item.status.toLowerCase()] || ''} />
+                </div>
+                <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">Amount: TZS {parseFloat(item.amount).toLocaleString()}</p>
+                <p className="text-xs text-gray-400 mb-3">Submitted: {fmtDate(item.submitted_at)}</p>
+                {item.rejection_reason && <p className="text-xs text-red-500 mb-2">Rejection Reason: {item.rejection_reason}</p>}
+
+                {item.receipt_screenshot && (
+                  <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 mb-4 h-32" onClick={() => setPreviewImage(item.receipt_screenshot)}>
+                    <img src={item.receipt_screenshot} alt="Receipt Screenshot" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                      <span className="text-white text-xs font-semibold">Click to View Receipt</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {filter === 'PENDING' && (
+                <div className="flex gap-2">
+                  <button onClick={() => handleVerify(item.id)} className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">Confirm Payment</button>
+                  <button onClick={() => handleReject(item.id)} className="flex-1 py-2 border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg text-xs font-bold transition">Reject</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal for image preview */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-3xl max-h-[85vh] overflow-auto bg-white dark:bg-gray-900 p-2 rounded-xl" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPreviewImage(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition">✕</button>
+            <img src={previewImage} alt="Receipt Screenshot Full" className="max-w-full max-h-[80vh] object-contain rounded" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============ Product Moderation ============
+const ProductModeration: React.FC = () => {
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all'); // all, active, suspended
+
+  const fetchProducts = useCallback(() => {
+    setLoading(true);
+    api.get('/api/staff/products/')
+      .then(res => {
+        setProducts(res.data.results || res.data);
+      })
+      .catch(() => toast.error('Failed to load products'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const handleSuspend = async (id: number) => {
+    try {
+      await api.post(`/api/staff/products/${id}/suspend/`);
+      toast.success('Listing suspended');
+      fetchProducts();
+    } catch {
+      toast.error('Failed to suspend listing');
+    }
+  };
+
+  const handleApprove = async (id: number) => {
+    try {
+      await api.post(`/api/staff/products/${id}/approve/`);
+      toast.success('Listing approved & activated');
+      fetchProducts();
+    } catch {
+      toast.error('Failed to approve listing');
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to permanently delete this product?')) return;
+    try {
+      await api.delete(`/api/staff/products/${id}/`);
+      toast.success('Listing deleted permanently');
+      fetchProducts();
+    } catch {
+      toast.error('Failed to delete listing');
+    }
+  };
+
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
+                          p.description.toLowerCase().includes(search.toLowerCase());
+    if (filter === 'active') return matchesSearch && p.is_available;
+    if (filter === 'suspended') return matchesSearch && !p.is_available;
+    return matchesSearch;
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Product Moderation</h2>
+        <div className="flex gap-2">
+          <input type="text" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)}
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          <select value={filter} onChange={e => setFilter(e.target.value)}
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="all">All Listings</option>
+            <option value="active">Active Only</option>
+            <option value="suspended">Suspended Only</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+          <AlertTriangle size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+          <p className="text-gray-500">No products found matching criteria</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredProducts.map((p) => (
+            <div key={p.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-sm transition flex gap-4">
+              <div className="w-24 h-24 rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden shrink-0 border dark:border-gray-600">
+                {p.images && p.images.length > 0 ? (
+                  <img src={p.images[0].image} alt={p.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">No Image</div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-semibold text-gray-900 dark:text-white truncate">{p.name}</h3>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${p.is_available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {p.is_available ? 'Active' : 'Suspended'}
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-brand-600 dark:text-brand-400">TZS {parseFloat(p.price).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{p.description}</p>
+                </div>
+                <div className="flex justify-between items-center mt-2 text-[10px] text-gray-400">
+                  <span>Seller ID: {p.seller} · Category ID: {p.category}</span>
+                  <div className="flex gap-2">
+                    {p.is_available ? (
+                      <button onClick={() => handleSuspend(p.id)} className="px-2.5 py-1 bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 rounded font-semibold transition">Suspend</button>
+                    ) : (
+                      <button onClick={() => handleApprove(p.id)} className="px-2.5 py-1 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 rounded font-semibold transition">Approve</button>
+                    )}
+                    <button onClick={() => handleDelete(p.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 rounded font-semibold transition">Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ============ Promotion Queue ============
 const PromotionQueue: React.FC = () => {
   const [promos, setPromos] = useState<any[]>([]);
@@ -659,70 +1013,181 @@ const DisputesManager: React.FC = () => {
     );
 };
 
-// ============ Support Tickets ============
+// ============ Support Tickets (Split Pane & Chat) ============
 const SupportTicketsManager: React.FC = () => {
-    const [tickets, setTickets] = useState<any[]>([]);
-    const [statusFilter, setStatusFilter] = useState('open');
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState('open');
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+  const [chatReplies, setChatReplies] = useState<Record<number, Array<{ sender: string; message: string; timestamp: Date }>>>({});
+  const [replyText, setReplyText] = useState('');
+  const [search, setSearch] = useState('');
 
-    useEffect(() => {
-        api.get(`/api/staff/support-tickets/?status=${statusFilter}`)
-            .then(r => setTickets(r.data.results || r.data))
-            .catch(() => {});
-    }, [statusFilter]);
+  const fetchTickets = useCallback(() => {
+    api.get(`/api/staff/support-tickets/?status=${statusFilter}`)
+      .then(r => setTickets(r.data.results || r.data))
+      .catch(() => {});
+  }, [statusFilter]);
 
-    const updateStatus = async (id: number, status: string) => {
-        await api.patch(`/api/staff/support-tickets/${id}/`, { status });
-        setTickets(prev => prev.map(t => t.id === id ? {...t, status} : t));
-        toast.success('Ticket updated');
+  useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
+
+  const handleSelectTicket = (t: any) => {
+    setSelectedTicket(t);
+  };
+
+  const handleTakeTicket = async (id: number) => {
+    try {
+      await api.patch(`/api/staff/support-tickets/${id}/`, { status: 'in_progress' });
+      toast.success('Ticket moved to In Progress');
+      fetchTickets();
+      setSelectedTicket(prev => prev ? { ...prev, status: 'in_progress' } : null);
+    } catch {
+      toast.error('Failed to take ticket');
+    }
+  };
+
+  const handleSendReply = () => {
+    if (!replyText.trim() || !selectedTicket) return;
+    const ticketId = selectedTicket.id;
+    const newReply = {
+      sender: 'Staff Member',
+      message: replyText,
+      timestamp: new Date()
     };
+    setChatReplies(prev => ({
+      ...prev,
+      [ticketId]: [...(prev[ticketId] || []), newReply]
+    }));
+    setReplyText('');
+    toast.success('Reply sent (mocked)');
+  };
 
-    return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Support Tickets</h3>
-                <div className="flex gap-2 flex-wrap">
-                    {['open', 'in_progress', 'resolved', 'closed'].map(s => (
-                        <button key={s} onClick={() => setStatusFilter(s)}
-                            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition capitalize ${statusFilter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
-                            {s.replace('_', ' ')}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            <div className="space-y-3">
-                {tickets.map(ticket => (
-                    <div key={ticket.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition">
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                                <p className="font-semibold text-gray-900 dark:text-white">{ticket.subject}</p>
-                                <p className="text-xs text-gray-500 mt-1">{ticket.category} · {ticket.name} ({ticket.email})</p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">{ticket.message}</p>
-                            </div>
-                            <div className="flex flex-col items-end gap-2 shrink-0">
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${ticket.status === 'open' ? 'bg-red-100 text-red-700' : ticket.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                    {ticket.status.replace('_', ' ')}
-                                </span>
-                                {ticket.status === 'open' && (
-                                    <button onClick={() => updateStatus(ticket.id, 'in_progress')}
-                                        className="bg-brand-600 text-white rounded text-xs py-1.5 px-3 font-medium hover:bg-brand-700 transition">Take Ticket</button>
-                                )}
-                                {ticket.status === 'in_progress' && (
-                                    <button onClick={() => updateStatus(ticket.id, 'resolved')}
-                                        className="text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded text-xs py-1.5 px-3 font-medium transition">Mark Resolved</button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                ))}
-                {tickets.length === 0 && (
-                    <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
-                        <AlertTriangle size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-                        <p className="text-gray-500">No {statusFilter.replace('_', ' ')} tickets</p>
-                    </div>
-                )}
-            </div>
+  const handleResolve = async (id: number) => {
+    const notes = prompt('Enter resolution notes:');
+    if (notes === null) return;
+    try {
+      await api.post(`/api/staff/support-tickets/${id}/resolve/`, { notes });
+      toast.success('Ticket resolved successfully');
+      fetchTickets();
+      setSelectedTicket(null);
+    } catch {
+      toast.error('Failed to resolve ticket');
+    }
+  };
+
+  const filteredTickets = tickets.filter(t => 
+    t.subject.toLowerCase().includes(search.toLowerCase()) || 
+    t.message.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="h-[75vh] flex rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
+      {/* Left Pane - Tickets list */}
+      <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-3 bg-gray-50/50 dark:bg-gray-900/10">
+          <h3 className="font-bold text-gray-900 dark:text-white">Support Inbox</h3>
+          <input type="text" placeholder="Search tickets..." value={search} onChange={e => setSearch(e.target.value)}
+            className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none" />
+          <div className="flex gap-1 overflow-x-auto pb-1">
+            {['open', 'in_progress', 'resolved', 'closed'].map(s => (
+              <button key={s} onClick={() => { setStatusFilter(s); setSelectedTicket(null); }}
+                className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition capitalize shrink-0 ${statusFilter === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
-    );
+        <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+          {filteredTickets.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-8 italic">No {statusFilter} tickets</p>
+          ) : filteredTickets.map(t => (
+            <div key={t.id} onClick={() => handleSelectTicket(t)}
+              className={`p-4 cursor-pointer transition flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 ${selectedTicket?.id === t.id ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border-l-4 border-indigo-600' : ''}`}>
+              <div>
+                <div className="flex justify-between items-start gap-1">
+                  <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{t.subject}</p>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${t.status === 'open' ? 'bg-red-100 text-red-700' : t.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {t.status}
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">Category: {t.category}</p>
+                <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{t.message}</p>
+              </div>
+              <p className="text-[9px] text-gray-400 mt-2 self-end">{fmtDate(t.created_at)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right Pane - Chat Window */}
+      <div className="flex-1 flex flex-col bg-gray-50/30 dark:bg-gray-900/5">
+        {selectedTicket ? (
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white text-sm">{selectedTicket.subject}</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400">By: {selectedTicket.name} ({selectedTicket.email})</p>
+              </div>
+              <div className="flex gap-2">
+                {selectedTicket.status === 'open' && (
+                  <button onClick={() => handleTakeTicket(selectedTicket.id)} className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition">Accept Ticket</button>
+                )}
+                {['open', 'in_progress'].includes(selectedTicket.status) && (
+                  <button onClick={() => handleResolve(selectedTicket.id)} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">Resolve Ticket</button>
+                )}
+              </div>
+            </div>
+
+            {/* Message Thread */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50/50 dark:bg-gray-900/20">
+              {/* User Original Message */}
+              <div className="flex items-start gap-2 max-w-[80%]">
+                <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold text-xs">U</div>
+                <div className="p-3 rounded-2xl bg-white dark:bg-gray-800 border dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300">
+                  <p className="font-semibold mb-1 text-[10px] text-gray-400">User Message · {fmtDate(selectedTicket.created_at)}</p>
+                  <p>{selectedTicket.message}</p>
+                </div>
+              </div>
+
+              {/* Replies (if any) */}
+              {(chatReplies[selectedTicket.id] || []).map((reply, idx) => (
+                <div key={idx} className="flex items-start gap-2 max-w-[80%] ml-auto flex-row-reverse">
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">S</div>
+                  <div className="p-3 rounded-2xl bg-indigo-600 text-white text-xs">
+                    <p className="font-semibold mb-1 text-[10px] text-indigo-200">Staff · {reply.timestamp.toLocaleTimeString()}</p>
+                    <p>{reply.message}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Input Box */}
+            {['open', 'in_progress'].includes(selectedTicket.status) ? (
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex gap-2">
+                <input type="text" placeholder="Type your response..." value={replyText} onChange={e => setReplyText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSendReply()}
+                  className="flex-1 px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                <button onClick={handleSendReply} className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1">
+                  <Send size={12} /> Reply
+                </button>
+              </div>
+            ) : (
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-center text-xs text-gray-400 italic">
+                This ticket is resolved/closed. You cannot send replies.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+            <MessageSquare size={48} className="mb-2 text-gray-300 dark:text-gray-600" />
+            <p className="text-sm">Select a ticket from the inbox to view details</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 // ============ Staff Dashboard Layout ============
@@ -734,18 +1199,21 @@ const StaffDashboardLayout: React.FC = () => {
   useEffect(() => {
     api.get('/api/staff/dashboard-summary/')
       .then((res) => setData(res.data))
-      .catch(() => toast.error('Failed to load staff permissions'))
+      .catch(() => toast.error('Failed to load staff dashboard summary'))
       .finally(() => setLoading(false));
   }, []);
 
   const navItems = [
     { path: '/staff', label: 'Overview', icon: LayoutDashboard },
     { path: '/staff/tasks', label: 'My Tasks', icon: ClipboardList },
+    { path: '/staff/subscriptions', label: 'Subscriptions', icon: CreditCard, show: true },
+    { path: '/staff/invoices', label: 'Commission Payments', icon: FileText, show: true },
+    { path: '/staff/products', label: 'Product Moderation', icon: Layers, show: true },
     { 
       path: '/staff/promotions', 
       label: 'Promotions', 
       icon: Megaphone,
-      show: data?.user?.permissions?.includes('can_review_promotions') || data?.user?.permissions?.includes('can_approve_content')
+      show: data?.user?.permissions?.includes('can_review_promotions') || data?.user?.permissions?.includes('can_approve_content') || data?.user?.is_superuser
     },
     { 
       path: '/staff/reviews', 
@@ -804,7 +1272,10 @@ const StaffDashboardLayout: React.FC = () => {
         <Routes>
           <Route index element={<StaffHome data={data} loading={loading} />} />
           <Route path="tasks" element={<StaffTasks />} />
-          <Route path="promotions" element={(data?.user?.permissions?.includes('can_review_promotions') || data?.user?.permissions?.includes('can_approve_content')) ? <PromotionQueue /> : <Navigate to="/staff" />} />
+          <Route path="subscriptions" element={<SubscriptionConfirmation />} />
+          <Route path="invoices" element={<CommissionPaymentsManager />} />
+          <Route path="products" element={<ProductModeration />} />
+          <Route path="promotions" element={(data?.user?.permissions?.includes('can_review_promotions') || data?.user?.permissions?.includes('can_approve_content') || data?.user?.is_superuser) ? <PromotionQueue /> : <Navigate to="/staff" />} />
           <Route path="reviews" element={(data?.user?.permissions?.includes('can_approve_content') || data?.user?.is_superuser) ? <ReviewsManager /> : <Navigate to="/staff" />} />
           <Route path="disputes" element={<DisputesManager />} />
           <Route path="tickets" element={<SupportTicketsManager />} />

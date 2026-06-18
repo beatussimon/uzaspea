@@ -18,6 +18,11 @@ const LoginPage: React.FC = () => {
     try {
       const res = await axios.post(`${API_BASE_URL}/api/auth/token/`, { username, password });
       
+      // Prevent state leakage between accounts
+      const theme = localStorage.getItem('theme');
+      localStorage.clear();
+      if (theme) localStorage.setItem('theme', theme);
+      
       localStorage.setItem('access_token', res.data.access);
       localStorage.setItem('refresh_token', res.data.refresh);
       localStorage.setItem('user_id', res.data.user_id);

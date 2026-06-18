@@ -4,7 +4,9 @@ from .api_views import (
     StaffProfileViewSet, TaskCategoryViewSet, TaskViewSet,
     TaskActionViewSet, ApprovalViewSet, AuditLogViewSet,
     StaffPermissionViewSet, StaffDashboardView, SponsoredListingReviewViewSet,
-    StaffAdminDashboardView, StaffFAQViewSet, StaffSupportTicketViewSet  # FIX CRIT-04
+    StaffAdminDashboardView, StaffFAQViewSet, StaffSupportTicketViewSet,  # FIX CRIT-04
+    PaymentConfirmationViewSet, StaffCommissionPaymentViewSet,
+    UserManagementViewSet, ProductModerationViewSet
 )
 
 from marketplace.api_views import PaymentViewSet  # FIX: C-04
@@ -21,6 +23,10 @@ router.register(r'sponsored-review', SponsoredListingReviewViewSet, basename='sp
 router.register(r'payments', PaymentViewSet, basename='staff-payment')  # FIX: C-04
 router.register(r'faq', StaffFAQViewSet, basename='staff-faq')  # FIX CRIT-04
 router.register(r'support-tickets', StaffSupportTicketViewSet, basename='staff-support-ticket')  # FIX CRIT-04
+router.register(r'payment-confirmations', PaymentConfirmationViewSet, basename='payment-confirmation')
+router.register(r'commission-payments', StaffCommissionPaymentViewSet, basename='commission-payment')
+router.register(r'users', UserManagementViewSet, basename='user-management')
+router.register(r'products', ProductModerationViewSet, basename='product-moderation')
 
 api_urlpatterns = [
     path('dashboard-summary/', StaffDashboardView.as_view(), name='staff-dashboard-summary'),
