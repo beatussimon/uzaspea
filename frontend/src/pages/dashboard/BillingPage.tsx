@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Clock } from 'lucide-react';
+import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight } from 'lucide-react';
 
 const BillingPage: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);

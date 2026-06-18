@@ -3,7 +3,7 @@ import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
   CheckCircle2, XCircle, Clock, AlertTriangle, Shield, Star,
-  CreditCard, FileText, Layers, MessageSquare, Send, Eye, Trash2, Search
+  CreditCard, FileText, Layers, MessageSquare, Send
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
@@ -1067,7 +1067,7 @@ export const SupportTicketsManager: React.FC = () => {
       await api.patch(`/api/staff/support-tickets/${id}/`, { status: 'in_progress' });
       toast.success('Ticket moved to In Progress');
       fetchTickets();
-      setSelectedTicket(prev => prev ? { ...prev, status: 'in_progress' } : null);
+      setSelectedTicket((prev: any) => prev ? { ...prev, status: 'in_progress' } : null);
     } catch {
       toast.error('Failed to take ticket');
     }
