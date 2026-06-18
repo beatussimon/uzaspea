@@ -4,12 +4,22 @@ import {
   LayoutDashboard, ClipboardList, Shield, ScrollText,
   Users, CheckCircle2, XCircle, Clock, AlertTriangle,
   UserPlus, UserMinus, Building2, Briefcase, Plus, Search,
-  Eye, Settings, RefreshCw, BarChart2, DollarSign, Ban
+  Eye, Settings, RefreshCw, BarChart2, DollarSign, Ban,
+  CreditCard, FileText, Layers, Megaphone, Star, MessageSquare
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../../components/VerifiedBadge';
 import StaffInspectionLayout from './inspections/StaffInspectionLayout';
+import {
+  SubscriptionConfirmation,
+  CommissionPaymentsManager,
+  ProductModeration,
+  PromotionQueue,
+  ReviewsManager,
+  DisputesManager,
+  SupportTicketsManager
+} from './StaffDashboardLayout';
 
 // ============ Types ============
 interface Task {
@@ -917,6 +927,13 @@ const StaffAdminLayout: React.FC = () => {
     { path: '/staff-admin/users', label: 'Platform Users', icon: Users },
     { path: '/staff-admin/employees', label: 'Workforce', icon: Briefcase },
     { path: '/staff-admin/tasks', label: 'Work Board', icon: ClipboardList },
+    { path: '/staff-admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
+    { path: '/staff-admin/invoices', label: 'Commission Payments', icon: FileText },
+    { path: '/staff-admin/products', label: 'Product Moderation', icon: Layers },
+    { path: '/staff-admin/promotions', label: 'Promotions', icon: Megaphone },
+    { path: '/staff-admin/reviews', label: 'Reviews', icon: Star },
+    { path: '/staff-admin/disputes', label: 'Disputes', icon: AlertTriangle },
+    { path: '/staff-admin/tickets', label: 'Support Tickets', icon: MessageSquare },
     { path: '/staff-admin/audit-log', label: 'Audit Logs', icon: ScrollText },
     { path: '/staff-admin/permissions', label: 'Permissions Matrix', icon: Shield },
     { path: '/staff-admin/inspections', label: 'Inspect Ops', icon: ClipboardList },
@@ -926,7 +943,7 @@ const StaffAdminLayout: React.FC = () => {
     <div className="max-w-[1400px] mx-auto p-4 flex flex-col lg:flex-row gap-8 min-h-screen">
       <aside className="w-full lg:w-64 shrink-0">
         <div className="sticky top-24 space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-brand-600/5 border border-brand-100/50 dark:border-brand-900/20 p-3 space-y-1">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-brand-600/5 border border-brand-100/50 dark:border-brand-900/20 p-3 space-y-1 max-h-[70vh] overflow-y-auto no-scrollbar">
                 <div className="px-4 py-3 mb-2 flex items-center gap-2 border-b border-gray-50 dark:border-gray-700">
                     <div className="w-2 h-2 rounded-full bg-brand-600 animate-pulse" />
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">C&C Terminal</h3>
@@ -962,6 +979,13 @@ const StaffAdminLayout: React.FC = () => {
           <Route path="users" element={<PlatformUserExplorer />} />
           <Route path="employees" element={<EmployeeManager />} />
           <Route path="tasks" element={<TaskBoard />} />
+          <Route path="subscriptions" element={<SubscriptionConfirmation />} />
+          <Route path="invoices" element={<CommissionPaymentsManager />} />
+          <Route path="products" element={<ProductModeration />} />
+          <Route path="promotions" element={<PromotionQueue />} />
+          <Route path="reviews" element={<ReviewsManager />} />
+          <Route path="disputes" element={<DisputesManager />} />
+          <Route path="tickets" element={<SupportTicketsManager />} />
           <Route path="audit-log" element={<AuditLogViewer />} />
           <Route path="permissions" element={<PermissionMatrix />} />
           <Route path="inspections/*" element={<StaffInspectionLayout />} />

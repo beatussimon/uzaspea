@@ -400,7 +400,7 @@ const StaffTasks: React.FC = () => {
 };
 
 // ============ Subscription Upgrades ============
-const SubscriptionConfirmation: React.FC = () => {
+export const SubscriptionConfirmation: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
@@ -513,7 +513,7 @@ const SubscriptionConfirmation: React.FC = () => {
 };
 
 // ============ Commission Payments ============
-const CommissionPaymentsManager: React.FC = () => {
+export const CommissionPaymentsManager: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('PENDING');
@@ -628,7 +628,7 @@ const CommissionPaymentsManager: React.FC = () => {
 };
 
 // ============ Product Moderation ============
-const ProductModeration: React.FC = () => {
+export const ProductModeration: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -753,7 +753,7 @@ const ProductModeration: React.FC = () => {
 };
 
 // ============ Promotion Queue ============
-const PromotionQueue: React.FC = () => {
+export const PromotionQueue: React.FC = () => {
   const [promos, setPromos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -908,7 +908,7 @@ const PromotionQueue: React.FC = () => {
 };
 
 // ============ Reviews Manager ============
-const ReviewsManager: React.FC = () => {
+export const ReviewsManager: React.FC = () => {
     const [reviews, setReviews] = useState<any[]>([]);
 
     useEffect(() => {
@@ -965,7 +965,7 @@ const ReviewsManager: React.FC = () => {
 };
 
 // ============ Disputes ============
-const DisputesManager: React.FC = () => {
+export const DisputesManager: React.FC = () => {
     const [disputes, setDisputes] = useState<any[]>([]);
     const [filter, setFilter] = useState('open');
 
@@ -1014,7 +1014,7 @@ const DisputesManager: React.FC = () => {
 };
 
 // ============ Support Tickets (Split Pane & Chat) ============
-const SupportTicketsManager: React.FC = () => {
+export const SupportTicketsManager: React.FC = () => {
   const [tickets, setTickets] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState('open');
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
