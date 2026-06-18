@@ -65,7 +65,7 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
         {/* Content */}
         <div className="flex-1 min-w-0 pr-8">
           <div className="flex items-center gap-1.5 mb-1">
-             <span className="text-gray-400 text-[10px] uppercase font-semibold tracking-wider">{product.category_name}</span>
+             <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider">{product.category_name}</span>
              <span className="text-gray-300 dark:text-gray-600">•</span>
              <div className="flex items-center gap-1">
                <span className="text-[10px] text-gray-500 truncate max-w-[80px]">{product.seller_username}</span>
@@ -150,8 +150,8 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
 
       {/* Card body */}
       <div className="p-3.5 flex flex-col flex-1">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-gray-400 uppercase font-semibold tracking-tighter">{product.category_name}</span>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider">{product.category_name}</span>
           <div className="flex items-center gap-2">
             {product.is_verified && (
                <div className="flex items-center gap-1 text-[8px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800" title="Professionally Verified">
