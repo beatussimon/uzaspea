@@ -3,7 +3,7 @@ from django.db import transaction  # FIX: C-01
 from django.db.models import F  # FIX: C-01
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
-    Payment, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
+    Payment, PaymentConfirmation, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
     ProductImage, Like, LipaNumber, FAQ, SupportTicket,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork
@@ -307,6 +307,22 @@ class SponsoredListingSerializer(serializers.ModelSerializer):
         model = SponsoredListing
         fields = ['id', 'user', 'product', 'product_name', 'product_slug', 'product_details', 'title', 'description', 'status', 'admin_notes', 'duration_days', 'amount', 'created_at', 'expires_at']
         read_only_fields = ['user', 'status', 'admin_notes', 'amount', 'created_at', 'expires_at']
+
+
+class SubscriptionTierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionTier
+        fields = ['id', 'name', 'price', 'benefits', 'duration', 'is_active']
+
+
+class UserPaymentConfirmationSerializer(serializers.ModelSerializer):
+    tier_name = serializers.CharField(source='tier.name', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = PaymentConfirmation
+        fields = ['id', 'user', 'username', 'tier', 'tier_name', 'amount', 'reference', 'proof', 'status', 'created_at']
+        read_only_fields = ['user', 'status', 'created_at']
 
 
 # ─── New Serializers for v5 fixes ─────────────────────────────────────

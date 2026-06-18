@@ -63,8 +63,8 @@ const DashboardPromotions: React.FC = () => {
             <option value="">Select Product to Promote</option>
             {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <input name="title" value={form.title} onChange={handleChange} placeholder="Promo Title (e.g. 50% Off Summer Sale)" required className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
-          <textarea name="description" value={form.description} onChange={handleChange} placeholder="Details about this promotion..." required rows={3} className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white resize-none" />
+          <input name="title" value={form.title} onChange={handleChange} placeholder="Promo Title (Optional, e.g. 50% Off Summer Sale)" className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+          <textarea name="description" value={form.description} onChange={handleChange} placeholder="Details about this promotion (Optional)..." rows={3} className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white resize-none" />
           
           <select name="duration_days" value={form.duration_days} onChange={handleChange} required className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white">
             <option value={3}>3 Days - 3,000 TSh</option>
@@ -105,8 +105,8 @@ const DashboardPromotions: React.FC = () => {
                 </span>
                 <span className="text-[10px] text-gray-400">{new Date(p.created_at).toLocaleDateString()}</span>
               </div>
-              <h4 className="font-bold text-gray-900 dark:text-white mb-1">{p.title}</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{p.description}</p>
+              <h4 className="font-bold text-gray-900 dark:text-white mb-1">{p.title || `${p.product_name || 'Product'} Promotion`}</h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{p.description || 'No description provided.'}</p>
             </div>
           ))}
         </div>

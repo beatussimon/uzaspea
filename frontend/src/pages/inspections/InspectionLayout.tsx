@@ -399,7 +399,7 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) { toast.error('Please upload proof of payment'); return; }
+    if (!file || !ref) { toast.error('Please provide both transaction reference and receipt screenshot'); return; }
     if (!amount) { toast.error('Bill amount not available'); return; }
     setLoading(true);
     const fd = new FormData();
@@ -450,7 +450,7 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
         </div>
       )}
 
-      <input className="input" placeholder="Transaction reference (optional)"
+      <input className="input" required placeholder="Transaction reference (required)"
         value={ref} onChange={(e) => setRef(e.target.value)} />
       <label className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-surface-border dark:border-surface-dark-border rounded-lg cursor-pointer hover:border-brand-400 transition">
         <Upload size={24} className="text-gray-400" />

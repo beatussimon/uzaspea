@@ -864,11 +864,11 @@ export const PromotionQueue: React.FC = () => {
             <div key={p.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">{p.title}</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">{p.title || `${p.product_name || 'Product'} Promotion`}</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Product: <span className="font-medium">{p.product_name}</span>
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{p.description}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{p.description || 'No description provided.'}</p>
                   <p className="text-xs text-gray-400 mt-2">{fmtDate(p.created_at)}</p>
                   {p.admin_notes && <p className="text-xs text-red-500 mt-1">Note: {p.admin_notes}</p>}
                 </div>
@@ -1203,41 +1203,50 @@ const StaffDashboardLayout: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  const isSuper = !!data?.user?.is_superuser;
+  const perms = data?.user?.permissions || [];
+  
+  const canVerify = perms.includes('can_verify_requests') || isSuper;
+  const canModerate = perms.includes('can_moderate') || isSuper;
+  const canApprove = perms.includes('can_approve_content') || isSuper;
+  const canReviewPromo = perms.includes('can_review_promotions') || isSuper;
+  const canManageInspections = perms.includes('can_manage_inspections') || isSuper;
+
   const navItems = [
     { path: '/staff', label: 'Overview', icon: LayoutDashboard },
     { path: '/staff/tasks', label: 'My Tasks', icon: ClipboardList },
-    { path: '/staff/subscriptions', label: 'Subscriptions', icon: CreditCard, show: true },
-    { path: '/staff/invoices', label: 'Commission Payments', icon: FileText, show: true },
-    { path: '/staff/products', label: 'Product Moderation', icon: Layers, show: true },
+    { path: '/staff/subscriptions', label: 'Subscriptions', icon: CreditCard, show: canVerify },
+    { path: '/staff/invoices', label: 'Commission Payments', icon: FileText, show: canVerify },
+    { path: '/staff/products', label: 'Product Moderation', icon: Layers, show: canModerate },
     { 
       path: '/staff/promotions', 
       label: 'Promotions', 
       icon: Megaphone,
-      show: data?.user?.permissions?.includes('can_review_promotions') || data?.user?.permissions?.includes('can_approve_content') || data?.user?.is_superuser
+      show: canReviewPromo || canApprove
     },
     { 
       path: '/staff/reviews', 
       label: 'Reviews', 
       icon: Star,
-      show: data?.user?.permissions?.includes('can_approve_content') || data?.user?.is_superuser
+      show: canApprove
     },
     { 
       path: '/staff/inspections', 
       label: 'Inspections', 
       icon: LayoutDashboard,
-      show: data?.user?.permissions?.includes('can_manage_inspections') || data?.user?.is_superuser
+      show: canManageInspections
     },
     { 
       path: '/staff/tickets', 
       label: 'Support Tickets', 
       icon: AlertTriangle,
-      show: true
+      show: canModerate || canApprove
     },
     { 
       path: '/inspector/jobs', 
       label: 'Inspector Jobs', 
       icon: ClipboardList,
-      show: data?.user?.is_inspector && !data?.user?.permissions?.includes('can_manage_inspections')
+      show: data?.user?.is_inspector && !canManageInspections
     },
   ].filter(item => item.show === undefined || item.show);
 
@@ -1247,7 +1256,7 @@ const StaffDashboardLayout: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-2 space-y-1">
           <div className="px-3 py-2 mb-1 border-b dark:border-gray-700">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-              {data?.user?.is_inspector && !data?.user?.permissions?.includes('can_manage_inspections') ? 'Inspector Panel' : 'Staff Panel'}
+              {data?.user?.is_inspector && !canManageInspections ? 'Inspector Panel' : 'Staff Panel'}
             </h3>
             {data?.user.username && <p className="text-[10px] text-brand-600 font-bold mt-1">@{data.user.username}</p>}
           </div>
@@ -1272,13 +1281,13 @@ const StaffDashboardLayout: React.FC = () => {
         <Routes>
           <Route index element={<StaffHome data={data} loading={loading} />} />
           <Route path="tasks" element={<StaffTasks />} />
-          <Route path="subscriptions" element={<SubscriptionConfirmation />} />
-          <Route path="invoices" element={<CommissionPaymentsManager />} />
-          <Route path="products" element={<ProductModeration />} />
-          <Route path="promotions" element={(data?.user?.permissions?.includes('can_review_promotions') || data?.user?.permissions?.includes('can_approve_content') || data?.user?.is_superuser) ? <PromotionQueue /> : <Navigate to="/staff" />} />
-          <Route path="reviews" element={(data?.user?.permissions?.includes('can_approve_content') || data?.user?.is_superuser) ? <ReviewsManager /> : <Navigate to="/staff" />} />
-          <Route path="disputes" element={<DisputesManager />} />
-          <Route path="tickets" element={<SupportTicketsManager />} />
+          <Route path="subscriptions" element={canVerify ? <SubscriptionConfirmation /> : <Navigate to="/staff" />} />
+          <Route path="invoices" element={canVerify ? <CommissionPaymentsManager /> : <Navigate to="/staff" />} />
+          <Route path="products" element={canModerate ? <ProductModeration /> : <Navigate to="/staff" />} />
+          <Route path="promotions" element={(canReviewPromo || canApprove) ? <PromotionQueue /> : <Navigate to="/staff" />} />
+          <Route path="reviews" element={canApprove ? <ReviewsManager /> : <Navigate to="/staff" />} />
+          <Route path="disputes" element={canModerate ? <DisputesManager /> : <Navigate to="/staff" />} />
+          <Route path="tickets" element={(canModerate || canApprove) ? <SupportTicketsManager /> : <Navigate to="/staff" />} />
           <Route path="inspections/*" element={<StaffInspectionLayout user={data?.user} />} />
         </Routes>
       </main>

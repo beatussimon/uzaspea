@@ -139,7 +139,7 @@ const OrdersPage: React.FC = () => {
   );
 
   const handleProofSubmit = async (orderId: number) => {
-    if (!proofFile && !transactionId) return toast.error('Please provide a transaction ID or upload a receipt');
+    if (!proofFile || !transactionId) return toast.error('Please provide both a transaction ID and a receipt screenshot');
     
     setSubmittingProof(orderId);
     const formData = new FormData();
@@ -354,7 +354,7 @@ const OrdersPage: React.FC = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Receipt Image (Optional)</label>
+                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Receipt Image (Required)</label>
                             <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
                                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                     <Upload size={20} className="text-gray-400 mb-1" />
