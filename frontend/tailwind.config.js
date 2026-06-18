@@ -29,10 +29,10 @@ export default {
         surface: {
           DEFAULT: '#ffffff',
           muted: '#f9fafb',
-          border: '#a3a3a3',        // Even darker border for distinct edges
+          border: '#c4c4c4',        // Balanced border: not too stark, not too subtle
           dark: '#000000',          // True black
           'dark-muted': '#0a0a0a',  // Very dark gray
-          'dark-border': '#525252', // Even lighter border for distinct edges
+          'dark-border': '#404040', // Balanced dark border (neutral-700 equivalent)
         },
       },
       spacing: {
