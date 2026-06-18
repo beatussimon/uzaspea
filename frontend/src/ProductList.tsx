@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from './api';

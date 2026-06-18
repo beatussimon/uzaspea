@@ -3,8 +3,7 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Shield, ScrollText,
   Users, CheckCircle2, XCircle, Clock, AlertTriangle,
-  UserPlus, UserMinus, Building2, Briefcase, Plus, Search,
-  Eye, Settings, RefreshCw, BarChart2, DollarSign, Ban,
+  UserPlus, UserMinus, Building2, Briefcase, Plus,
   CreditCard, FileText, Layers, Megaphone, Star, MessageSquare
 } from 'lucide-react';
 import api from '../../api';

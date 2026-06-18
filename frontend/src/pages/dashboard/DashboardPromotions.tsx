@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Plus, Megaphone, Upload, CheckCircle2, Smartphone } from 'lucide-react';
+import { Plus, Megaphone, Upload, Smartphone } from 'lucide-react';
 
 // ============ Dashboard Promotions ============
 const DashboardPromotions: React.FC = () => {

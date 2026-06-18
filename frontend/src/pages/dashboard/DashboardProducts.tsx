@@ -80,7 +80,7 @@ const DashboardProducts: React.FC = () => {
               setLocStatus('Location coordinates captured');
             }
           },
-          (err) => {
+          () => {
             setLocStatus('Location access denied or unavailable.');
             setLocData({ latitude: '', longitude: '', location_name: '' });
           }

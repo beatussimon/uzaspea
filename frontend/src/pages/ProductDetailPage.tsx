@@ -34,6 +34,8 @@ interface ProductData {
   images: { id: number; image: string }[];
   inspections: InspectionSummary[];
   is_verified: boolean;
+  location_name?: string;
+  created_at?: string;
 }
 
 interface InspectionSummary {
