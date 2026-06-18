@@ -32,7 +32,7 @@ const SponsoredRow = memo(({ ads, viewMode = 'grid' }: { ads: any[]; viewMode?: 
       </div>
       
       <div className={viewMode === 'grid' 
-        ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4.5"
+        ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4.5"
         : "flex flex-col gap-3"
       }>
         {ads.map((ad: any) => (
@@ -385,10 +385,10 @@ const ProductList = () => {
               </div>
             ) : (
               products.map((product: any, idx: number) => {
-                const isSectionStart = idx > 0 && idx % ITEMS_PER_BANNER === 0;
-                const sectionIndex = isSectionStart ? Math.floor(idx / ITEMS_PER_BANNER) - 1 : -1;
-                const adsForThisSection = sectionIndex >= 0 
-                  ? sponsoredAds.slice(sectionIndex * 5, (sectionIndex + 1) * 5) 
+                const isSectionStart = idx % ITEMS_PER_BANNER === 0;
+                const sectionIndex = Math.floor(idx / ITEMS_PER_BANNER);
+                const adsForThisSection = isSectionStart 
+                  ? sponsoredAds.slice(sectionIndex * cols, (sectionIndex + 1) * cols) 
                   : [];
 
                 return (
