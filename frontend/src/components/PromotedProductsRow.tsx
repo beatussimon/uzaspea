@@ -7,17 +7,33 @@ import { Sparkles, ChevronRight } from 'lucide-react';
 const PromotedProductsRow: React.FC = () => {
     const [promotions, setPromotions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const VISIBLE = 8;
+    const [cols, setCols] = useState(4);
+
+    useEffect(() => {
+        const updateCols = () => {
+            const w = window.innerWidth;
+            if (w >= 1024) setCols(4); // lg:grid-cols-4
+            else if (w >= 640) setCols(3); // sm:grid-cols-3
+            else setCols(1); // grid-cols-1
+        };
+        updateCols();
+        window.addEventListener('resize', updateCols);
+        return () => window.removeEventListener('resize', updateCols);
+    }, []);
 
     useEffect(() => {
         api.get('/api/sponsored/?public=true')
             .then(res => {
                 const data = res.data.results || res.data;
-                setPromotions(Array.isArray(data) ? data.slice(0, VISIBLE) : []);
+                setPromotions(Array.isArray(data) ? data : []);
             })
             .catch(() => {})
             .finally(() => setLoading(false));
     }, []);
+
+    const visibleCount = cols * 2;
+    const visiblePromotions = promotions.slice(0, visibleCount);
+
 
     if (!loading && promotions.length === 0) return null;
 
@@ -46,12 +62,12 @@ const PromotedProductsRow: React.FC = () => {
             {/* Grid — 1 col mobile, 3 tablet, 4 desktop */}
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {loading
-                    ? [...Array(4)].map((_, i) => (
+                    ? [...Array(visibleCount)].map((_, i) => (
                         <div key={i} className="relative">
                             <ProductCardSkeleton viewMode="grid" />
                         </div>
                     ))
-                    : promotions.map((promo) => (
+                    : visiblePromotions.map((promo) => (
                         <div key={promo.id} className="relative group">
                             <ProductCard product={promo.product_details} viewMode="grid" />
                             {/* Sponsored badge */}
