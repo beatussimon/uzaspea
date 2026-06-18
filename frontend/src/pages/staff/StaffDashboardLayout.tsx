@@ -762,6 +762,7 @@ export const PromotionQueue: React.FC = () => {
   const sentinelRef = React.useRef<HTMLDivElement>(null);
 
   const [filter, setFilter] = useState('pending');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const fetch = useCallback((p: number, reset = false) => {
     if (reset) {
@@ -869,6 +870,21 @@ export const PromotionQueue: React.FC = () => {
                     Product: <span className="font-medium">{p.product_name}</span>
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{p.description || 'No description provided.'}</p>
+                  
+                  {p.transaction_reference && (
+                    <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2 font-mono font-bold">
+                      Tx Reference: {p.transaction_reference}
+                    </p>
+                  )}
+                  {p.payment_proof && (
+                    <div className="mt-2.5">
+                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-wider mb-1">Payment Proof:</p>
+                      <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 max-w-[200px] h-24 bg-gray-50" onClick={() => setPreviewImage(p.payment_proof)}>
+                        <img src={p.payment_proof} alt="Promotion payment proof" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                      </div>
+                    </div>
+                  )}
+
                   <p className="text-xs text-gray-400 mt-2">{fmtDate(p.created_at)}</p>
                   {p.admin_notes && <p className="text-xs text-red-500 mt-1">Note: {p.admin_notes}</p>}
                 </div>
@@ -901,6 +917,16 @@ export const PromotionQueue: React.FC = () => {
           )}
 
           <div ref={sentinelRef} className="h-4" />
+        </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-3xl max-h-[90vh]">
+            <button onClick={() => setPreviewImage(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition">✕</button>
+            <img src={previewImage} alt="Payment Proof Full" className="max-w-full max-h-[80vh] object-contain rounded" />
+          </div>
         </div>
       )}
     </div>
