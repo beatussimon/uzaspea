@@ -10,7 +10,8 @@ from .api_views import (
     VerifySuperuserView, NotificationViewSet, ConversationViewSet,
     SavedSearchViewSet, PriceAlertViewSet, DisputeViewSet,
     DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet,
-    MobileNetworkViewSet, TrendingAnalyticsView, reverse_geocode
+    MobileNetworkViewSet, TrendingAnalyticsView, reverse_geocode,
+    SubscriptionTierViewSet, UserPaymentConfirmationViewSet
 )
 
 router = DefaultRouter()
@@ -26,6 +27,8 @@ router.register(r'lipa-numbers', LipaNumberViewSet, basename='lipa-number')
 router.register(r'mobile-networks', MobileNetworkViewSet, basename='mobile-network')
 router.register(r'faq', FAQViewSet, basename='faq')
 router.register(r'support-tickets', SupportTicketViewSet, basename='support-ticket')
+router.register(r'subscription-tiers', SubscriptionTierViewSet, basename='subscription-tier')
+router.register(r'subscription-payments', UserPaymentConfirmationViewSet, basename='subscription-payment')
 # FIX v5: new viewsets
 router.register(r'notifications', NotificationViewSet, basename='notification')
 router.register(r'conversations', ConversationViewSet, basename='conversation')

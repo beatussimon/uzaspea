@@ -580,8 +580,8 @@ class SponsoredListing(models.Model):
     ]
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sponsored_listings')
     product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='sponsored_campaigns')
-    title = models.CharField(max_length=200, help_text="Short, catchy title for the ad")
-    description = models.TextField(help_text="Why should buyers check this out?")
+    title = models.CharField(max_length=200, blank=True, null=True, help_text="Short, catchy title for the ad")
+    description = models.TextField(blank=True, null=True, help_text="Why should buyers check this out?")
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
     admin_notes = models.TextField(blank=True, null=True, help_text="Reason for rejection, or notes for the seller")
     duration_days = models.PositiveIntegerField(default=7, help_text="Duration of the promotion in days")
@@ -591,7 +591,7 @@ class SponsoredListing(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.title} - {self.product.name} ({self.status})"
+        return f"{self.title or 'Untitled'} - {self.product.name} ({self.status})"
 
 
 # --- Support Models ---

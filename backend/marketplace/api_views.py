@@ -1248,3 +1248,26 @@ class TrendingAnalyticsView(APIView):
             "top_categories": cat_data,
             "trending_products": trending_serialized
         })
+
+
+# --- Subscription ViewSets ---
+class SubscriptionTierViewSet(viewsets.ReadOnlyModelViewSet):
+    from .models import SubscriptionTier
+    queryset = SubscriptionTier.objects.filter(is_active=True)
+    from .serializers import SubscriptionTierSerializer
+    serializer_class = SubscriptionTierSerializer
+    permission_classes = [permissions.AllowAny]
+
+
+class UserPaymentConfirmationViewSet(viewsets.ModelViewSet):
+    from .models import PaymentConfirmation
+    from .serializers import UserPaymentConfirmationSerializer
+    serializer_class = UserPaymentConfirmationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        from .models import PaymentConfirmation
+        return PaymentConfirmation.objects.filter(user=self.request.user).select_related('tier').order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

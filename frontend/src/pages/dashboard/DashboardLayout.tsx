@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet } from 'lucide-react';
 import SettingsPage from './SettingsPage';
 import HelpCenterPage from './HelpCenterPage';
 
@@ -9,6 +9,7 @@ import DashboardProducts from './DashboardProducts';
 import DashboardPromotions from './DashboardPromotions';
 import DashboardOrders from './DashboardOrders';
 import PaymentNumbersManager from './PaymentNumbersManager';
+import BillingPage from './BillingPage';
 
 // ============ Dashboard Layout ============
 const DashboardLayout: React.FC = () => {
@@ -21,6 +22,7 @@ const DashboardLayout: React.FC = () => {
     { path: '/dashboard/products', label: 'Products', icon: Package },
     { path: '/dashboard/orders', label: 'Incoming Orders', icon: ShoppingCart },
     { path: '/dashboard/promotions', label: 'Promotions', icon: Megaphone },
+    { path: '/dashboard/billing', label: 'Billing & Commission', icon: Wallet },
     { path: '/dashboard/payment-numbers', label: 'Payment Numbers', icon: CreditCard },
   ];
 
@@ -93,6 +95,7 @@ const DashboardLayout: React.FC = () => {
           <Route path="products" element={<DashboardProducts />} />
           <Route path="orders" element={<DashboardOrders />} />
           <Route path="promotions" element={<DashboardPromotions />} />
+          <Route path="billing" element={<BillingPage />} />
           <Route path="payment-numbers" element={<PaymentNumbersManager />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="help-center" element={<HelpCenterPage />} />
