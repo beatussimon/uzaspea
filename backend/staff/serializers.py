@@ -102,3 +102,50 @@ class StaffPermissionSerializer(serializers.ModelSerializer):
             'granted_by_username', 'granted_at', 'expires_at', 'is_active'
         ]
         read_only_fields = ['granted_by', 'granted_at']
+
+
+from marketplace.models import PaymentConfirmation, UserProfile
+from billing.models import CommissionPayment
+
+class UserManagementSerializer(serializers.ModelSerializer):
+    tier = serializers.CharField(source='profile.tier', read_only=True)
+    is_verified = serializers.BooleanField(source='profile.is_verified', read_only=True)
+    is_inspector = serializers.SerializerMethodField()
+    inspector_level = serializers.CharField(source='inspector_profile.level', read_only=True, default=None)
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'is_active', 'is_staff', 'is_superuser',
+            'tier', 'is_verified', 'is_inspector', 'inspector_level'
+        ]
+
+    def get_is_inspector(self, obj):
+        return hasattr(obj, 'inspector_profile')
+
+
+class PaymentConfirmationSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    tier_name = serializers.CharField(source='tier.name', read_only=True)
+
+    class Meta:
+        model = PaymentConfirmation
+        fields = [
+            'id', 'user', 'username', 'tier', 'tier_name', 'amount',
+            'reference', 'proof', 'status', 'created_at'
+        ]
+
+
+class StaffCommissionPaymentSerializer(serializers.ModelSerializer):
+    seller_username = serializers.CharField(source='invoice.seller.username', read_only=True)
+    invoice_year = serializers.IntegerField(source='invoice.year', read_only=True)
+    invoice_month = serializers.IntegerField(source='invoice.month', read_only=True)
+    reviewed_by_username = serializers.CharField(source='reviewed_by.username', read_only=True, default=None)
+
+    class Meta:
+        model = CommissionPayment
+        fields = [
+            'id', 'invoice', 'seller_username', 'invoice_year', 'invoice_month',
+            'amount', 'transaction_id', 'receipt_screenshot', 'status', 
+            'rejection_reason', 'submitted_at', 'reviewed_by_username', 'reviewed_at'
+        ]

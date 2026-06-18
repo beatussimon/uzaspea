@@ -46,6 +46,11 @@ const RegisterPage: React.FC = () => {
     try {
       const res = await axios.post(`${API_BASE_URL}/api/auth/register/`, formData);
       
+      // Prevent state leakage between accounts
+      const theme = localStorage.getItem('theme');
+      localStorage.clear();
+      if (theme) localStorage.setItem('theme', theme);
+      
       localStorage.setItem('access_token', res.data.access);
       localStorage.setItem('refresh_token', res.data.refresh);
       localStorage.setItem('user_id', res.data.user_id);
@@ -54,6 +59,8 @@ const RegisterPage: React.FC = () => {
       localStorage.setItem('tier', res.data.tier || 'free');
       localStorage.setItem('is_staff', String(res.data.is_staff || false));
       localStorage.setItem('is_superuser', String(res.data.is_superuser || false));
+      localStorage.setItem('is_inspector', 'false');
+      localStorage.setItem('inspector_level', '');
       
       toast.success('Registration successful!');
       window.location.href = '/';

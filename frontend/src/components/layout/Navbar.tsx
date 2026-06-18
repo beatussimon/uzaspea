@@ -233,6 +233,14 @@ const Navbar = () => {
                               Admin Panel
                             </Link>
                           )}
+                          {isStaff && !isSuperuser && (
+                            <Link to="/staff" className="flex items-center gap-3 px-3 py-2 text-sm text-brand-600 dark:text-brand-400 font-bold hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-btn transition-all" onClick={() => setProfileOpen(false)}>
+                              <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
+                                <LayoutDashboard size={16} />
+                              </div>
+                              Staff Dashboard
+                            </Link>
+                          )}
                           {isInspector && (
                             <Link to="/inspector/jobs" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-brand-50 dark:hover:bg-brand-900/20 hover:text-brand-600 rounded-btn transition-all group" onClick={() => setProfileOpen(false)}>
                               <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center group-hover:bg-brand-600 group-hover:text-white transition-colors">

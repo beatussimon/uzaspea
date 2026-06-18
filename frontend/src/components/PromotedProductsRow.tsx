@@ -43,8 +43,8 @@ const PromotedProductsRow: React.FC = () => {
                 </button>
             </div>
 
-            {/* Grid — 2 cols mobile, 3 tablet, 4 desktop */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {/* Grid — 1 col mobile, 3 tablet, 4 desktop */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {loading
                     ? [...Array(4)].map((_, i) => (
                         <div key={i} className="relative">
