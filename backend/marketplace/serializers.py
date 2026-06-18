@@ -305,7 +305,7 @@ class SponsoredListingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SponsoredListing
-        fields = ['id', 'user', 'product', 'product_name', 'product_slug', 'product_details', 'title', 'description', 'status', 'admin_notes', 'duration_days', 'amount', 'created_at', 'expires_at']
+        fields = ['id', 'user', 'product', 'product_name', 'product_slug', 'product_details', 'title', 'description', 'status', 'admin_notes', 'duration_days', 'amount', 'transaction_reference', 'payment_proof', 'created_at', 'expires_at']
         read_only_fields = ['user', 'status', 'admin_notes', 'amount', 'created_at', 'expires_at']
 
 
