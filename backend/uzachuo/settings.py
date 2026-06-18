@@ -4,6 +4,25 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load .env file for local development when run manually (outside Docker)
+if not os.path.exists('/.dockerenv'):
+    env_file = BASE_DIR / '.env'
+    if env_file.exists():
+        with open(env_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    try:
+                        key, val = line.split('=', 1)
+                        key = key.strip()
+                        val = val.strip()
+                        # If we are outside Docker, replace 'redis' container host with localhost/127.0.0.1
+                        if key == 'REDIS_URL' and 'redis://redis:' in val:
+                            val = val.replace('redis://redis:', 'redis://127.0.0.1:')
+                        os.environ.setdefault(key, val)
+                    except ValueError:
+                        pass
+
 # FIX: S-01 — Never commit the real secret key
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'unsafe-dev-only-key-change-before-deploy')
 

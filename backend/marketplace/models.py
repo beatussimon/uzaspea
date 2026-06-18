@@ -156,6 +156,11 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     condition = models.CharField(max_length=4, choices=CONDITION_CHOICES, default='New')
+    
+    # Location data
+    location_name = models.CharField(max_length=255, null=True, blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

@@ -16,69 +16,31 @@ const cardVariants = {
 import PromotedProductsRow from './components/PromotedProductsRow';
 import PlatformInsights from './components/PlatformInsights';
 
-// ---- Sponsored listing banner (dynamic) ----
-const SponsoredBanner = memo(() => {
-  const [ad, setAd] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.get('/api/sponsored/')
-      .then(res => {
-        const ads = res.data.results || res.data;
-        if (ads && ads.length > 0) {
-          setAd(ads[0]);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="col-span-full my-6 w-full h-[180px] sm:h-[220px] rounded-[2rem] bg-gray-100 dark:bg-gray-800 animate-pulse" />;
-  if (!ad) return null;
+// ---- Sponsored listing row (dynamic) ----
+const SponsoredRow = memo(({ ads, viewMode = 'grid' }: { ads: any[]; viewMode?: 'grid' | 'list' }) => {
+  if (ads.length === 0) return null;
 
   return (
-    <div className="col-span-full my-6 overflow-hidden">
-      <Link to={`/product/${ad.product_slug}`} className="group relative block w-full h-[180px] sm:h-[220px] rounded-[2rem] bg-gray-900 border border-white/10 overflow-hidden shadow-2xl">
-        {/* Background Image with Blur */}
-        <div className="absolute inset-0 opacity-40 group-hover:scale-105 transition-transform duration-700">
-            {ad.product_details?.images?.[0]?.image && (
-                <img src={ad.product_details.images[0].image} alt="" className="w-full h-full object-cover blur-xl" />
-            )}
+    <div className="col-span-full my-6 p-4 bg-brand-50/20 dark:bg-brand-950/10 rounded-3xl border border-brand-100/50 dark:border-brand-900/20 shadow-sm animate-fade-in">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-0.5 bg-brand-600 text-white text-[9px] font-black rounded-full uppercase tracking-wider shadow-md shadow-brand-600/30">Sponsored</span>
+          <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Featured Deals</h3>
         </div>
-        
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-brand-900 via-brand-800/80 to-transparent" />
-        
-        {/* Content */}
-        <div className="absolute inset-0 p-8 flex flex-col justify-center max-w-2xl">
-            <div className="flex items-center gap-2 mb-3">
-                <span className="px-2 py-0.5 bg-brand-600 text-white text-[10px] font-black rounded-full uppercase tracking-[0.2em] shadow-lg shadow-brand-600/50">Sponsored Ad</span>
-                <div className="h-1 w-8 bg-brand-500 rounded-full" />
-            </div>
-            <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight mb-2 drop-shadow-lg">
-                {ad.title}
-            </h3>
-            <p className="text-white/70 text-sm sm:text-base font-medium line-clamp-2 max-w-lg mb-6">
-                {ad.description}
-            </p>
-            <div className="flex items-center gap-4">
-                <span className="btn-primary py-2 px-6 bg-white text-brand-600 hover:bg-gray-100 border-0 shadow-xl shadow-white/10 group-hover:-translate-y-1 transition text-xs font-black uppercase tracking-widest">
-                    Claim Deal
-                </span>
-                <span className="text-white/50 text-[10px] font-bold uppercase tracking-widest group-hover:text-white transition">Limited Time Offer</span>
-            </div>
-        </div>
-
-        {/* Floating Product Image */}
-        <div className="absolute right-[-10%] sm:right-0 top-1/2 -translate-y-1/2 w-1/2 h-full hidden md:flex items-center justify-center">
-             <div className="relative w-64 h-64 group-hover:rotate-3 transition-transform duration-500">
-                <div className="absolute inset-0 bg-brand-500 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition" />
-                {ad.product_details?.images?.[0]?.image && (
-                    <img src={ad.product_details.images[0].image} alt="" className="relative z-10 w-full h-full object-contain drop-shadow-2xl" />
-                )}
-             </div>
-        </div>
-      </Link>
+        <div className="h-px flex-1 bg-gradient-to-r from-brand-100 dark:from-brand-900/50 to-transparent mx-4 hidden sm:block" />
+        <span className="text-[10px] font-bold text-brand-600/60 dark:text-brand-400/60 uppercase tracking-wider">Limited Time Offers</span>
+      </div>
+      
+      <div className={viewMode === 'grid' 
+        ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4.5"
+        : "flex flex-col gap-3"
+      }>
+        {ads.map((ad: any) => (
+          ad.product_details && (
+            <ProductCard key={ad.id} product={ad.product_details} viewMode={viewMode} isSponsored={true} />
+          )
+        ))}
+      </div>
     </div>
   );
 });
@@ -92,6 +54,7 @@ const ProductList = () => {
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [sponsoredAds, setSponsoredAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -179,6 +142,7 @@ const ProductList = () => {
 
   useEffect(() => { 
     api.get('/api/categories/').then((r: any) => setCategories(r.data.results || r.data)).catch(() => {}); 
+    api.get('/api/sponsored/?public=true').then((r: any) => setSponsoredAds(r.data.results || r.data)).catch(() => {});
   }, []);
 
   // Infinite scroll
@@ -402,14 +366,24 @@ const ProductList = () => {
                 <button onClick={() => { setMinPrice(''); setMaxPrice(''); setCondition(''); setSortBy(''); setSelectedCategory(''); }} className="text-brand-600 dark:text-brand-400 text-sm mt-2 hover:underline">Clear all filters</button>
               </div>
             ) : (
-              products.map((product: any, idx: number) => (
-                <React.Fragment key={`${product.id}-${idx}`}>
-                  {idx > 0 && idx % ITEMS_PER_BANNER === 0 && <SponsoredBanner />}
-                  <motion.div variants={cardVariants}>
-                    <ProductCard product={product} viewMode={viewMode} />
-                  </motion.div>
-                </React.Fragment>
-              ))
+              products.map((product: any, idx: number) => {
+                const isSectionStart = idx > 0 && idx % ITEMS_PER_BANNER === 0;
+                const sectionIndex = isSectionStart ? Math.floor(idx / ITEMS_PER_BANNER) - 1 : -1;
+                const adsForThisSection = sectionIndex >= 0 
+                  ? sponsoredAds.slice(sectionIndex * 5, (sectionIndex + 1) * 5) 
+                  : [];
+
+                return (
+                  <React.Fragment key={`${product.id}-${idx}`}>
+                    {isSectionStart && adsForThisSection.length > 0 && (
+                      <SponsoredRow ads={adsForThisSection} viewMode={viewMode} />
+                    )}
+                    <motion.div variants={cardVariants}>
+                      <ProductCard product={product} viewMode={viewMode} />
+                    </motion.div>
+                  </React.Fragment>
+                );
+              })
             )}
           </motion.div>
 

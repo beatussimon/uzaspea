@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, Bell, ChevronDown, ChevronUp } from 'lucide-react';
+import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, Bell, ChevronDown, ChevronUp, MapPin, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import { useCart } from '../context/CartContext';
@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { Skeleton } from '../components/Skeleton';
+import { timeAgo } from '../utils/timeAgo';
 
 interface ProductData {
   id: number;
@@ -342,6 +343,21 @@ const ProductDetailPage: React.FC = () => {
                 <span className="flex items-center gap-1.5 text-brand-700 bg-brand-50 dark:bg-brand-900/20 px-3 py-1.5 rounded-lg border border-brand-100 dark:border-brand-900/30 text-[10px] font-black uppercase tracking-widest">
                   <Shield size={14} className="fill-current" />
                   Professionally Verified
+                </span>
+              )}
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-4 text-sm mt-3">
+              {product.location_name && (
+                <span className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                  <MapPin size={14} />
+                  {product.location_name}
+                </span>
+              )}
+              {product.created_at && (
+                <span className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                  <Clock size={14} />
+                  Posted {timeAgo(product.created_at)}
                 </span>
               )}
             </div>

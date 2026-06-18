@@ -3,6 +3,7 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 import { Package, Plus } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
+import { timeAgo } from '../../utils/timeAgo';
 
 // ============ Dashboard Products ============
 const DashboardProducts: React.FC = () => {
@@ -11,6 +12,9 @@ const DashboardProducts: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true });
+  const [existingImages, setExistingImages] = useState<any[]>([]);
+  const [locData, setLocData] = useState({ latitude: '', longitude: '', location_name: '' });
+  const [locStatus, setLocStatus] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -57,6 +61,37 @@ const DashboardProducts: React.FC = () => {
   }, [currentUser]);
 
   useEffect(() => {
+    if (showForm && !editingId) {
+      setLocStatus('Fetching location...');
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            const latStr = latitude.toFixed(6);
+            const lngStr = longitude.toFixed(6);
+            try {
+              const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+              const data = await res.json();
+              const location_name = data.city || data.locality || data.principalSubdivision || 'Unknown Location';
+              setLocData({ latitude: latStr, longitude: lngStr, location_name });
+              setLocStatus(`Location: ${location_name}`);
+            } catch {
+              setLocData({ latitude: latStr, longitude: lngStr, location_name: 'Coordinates mapped' });
+              setLocStatus('Location coordinates captured');
+            }
+          },
+          (err) => {
+            setLocStatus('Location access denied or unavailable.');
+            setLocData({ latitude: '', longitude: '', location_name: '' });
+          }
+        );
+      } else {
+        setLocStatus('Geolocation not supported.');
+      }
+    }
+  }, [showForm, editingId]);
+
+  useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasMore || loadingMore || loading) return;
 
@@ -99,6 +134,9 @@ const DashboardProducts: React.FC = () => {
       formData.append('category', form.category);
       formData.append('condition', form.condition);
       formData.append('is_available', String(form.is_available));
+      if (locData.latitude) formData.append('latitude', locData.latitude);
+      if (locData.longitude) formData.append('longitude', locData.longitude);
+      if (locData.location_name) formData.append('location_name', locData.location_name);
 
       imageFiles.forEach((file) => {
         formData.append('uploaded_images', file);
@@ -120,6 +158,7 @@ const DashboardProducts: React.FC = () => {
       setEditingId(null);
       setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true });
       setImageFiles([]);
+      setExistingImages([]);
       fetchProducts(1, true);
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to save product');
@@ -139,6 +178,7 @@ const DashboardProducts: React.FC = () => {
       is_available: product.is_available,
     });
     setEditingId(product.slug);
+    setExistingImages(product.images || []);
     setShowForm(true);
   };
 
@@ -161,6 +201,7 @@ const DashboardProducts: React.FC = () => {
           onClick={() => {
             setShowForm(!showForm);
             setEditingId(null);
+            setExistingImages([]);
             setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true });
           }}
           className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition text-sm"
@@ -173,8 +214,11 @@ const DashboardProducts: React.FC = () => {
       {/* Product Form */}
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-6 mb-6 shadow-sm space-y-4">
-          <h3 className="font-bold text-gray-900 dark:text-white">
-            {editingId ? 'Edit Product' : 'Create Product'}
+          <h3 className="font-bold text-gray-900 dark:text-white flex items-center justify-between">
+            <span>{editingId ? 'Edit Product' : 'Create Product'}</span>
+            {!editingId && (
+              <span className="text-xs text-brand-600 dark:text-brand-400 font-normal bg-brand-50 dark:bg-brand-900/30 px-2 py-1 rounded-full">{locStatus}</span>
+            )}
           </h3>
           <input name="name" value={form.name} onChange={handleChange} placeholder="Product Name" required
             className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
@@ -213,9 +257,23 @@ const DashboardProducts: React.FC = () => {
               Product is Available for Sale
             </label>
           </div>
+          {existingImages.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Current Images
+              </label>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {existingImages.map((img: any) => (
+                  <div key={img.id} className="relative w-20 h-20 shrink-0">
+                    <SafeImage src={img.image} alt="Product" className="w-full h-full object-cover rounded-lg border dark:border-gray-600" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Product Images (multiple)
+              {existingImages.length > 0 ? 'Upload Additional Images' : 'Product Images (multiple)'}
             </label>
             <input type="file" multiple accept="image/*" onChange={handleImageChange}
               className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100" />
@@ -253,7 +311,15 @@ const DashboardProducts: React.FC = () => {
                 <p className="text-sm text-brand-600 dark:text-brand-400 font-bold">
                   TSh {parseInt(product.price).toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-400">Stock: {product.stock}</p>
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <span>Stock: {product.stock}</span>
+                  {product.created_at && (
+                    <>
+                      <span>•</span>
+                      <span>{timeAgo(product.created_at)}</span>
+                    </>
+                  )}
+                </div>
               </div>
               <div className="flex flex-col gap-2 shrink-0">
                 <button onClick={() => handleEdit(product)}
