@@ -140,16 +140,23 @@ class ProductViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(category__slug=category_slug)
 
         if query:
-            # FIX B-17: Postgres Full-Text Search
-            from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
-            search_vector = SearchVector('name', weight='A') + SearchVector('description', weight='B') + SearchVector('category__name', weight='C')
-            search_query = SearchQuery(query, search_type='websearch')
-            queryset = queryset.annotate(
-                search_rank=SearchRank(search_vector, search_query)
-            ).filter(
-                Q(search_rank__gte=0.01) |
-                Q(name__icontains=query) | Q(description__icontains=query)
-            ).order_by('-search_rank')
+            from django.db import connection
+            if connection.vendor == 'postgresql':
+                from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+                search_vector = SearchVector('name', weight='A') + SearchVector('description', weight='B') + SearchVector('category__name', weight='C')
+                search_query = SearchQuery(query, search_type='websearch')
+                queryset = queryset.annotate(
+                    search_rank=SearchRank(search_vector, search_query)
+                ).filter(
+                    Q(search_rank__gte=0.01) |
+                    Q(name__icontains=query) | Q(description__icontains=query)
+                ).order_by('-search_rank')
+            else:
+                queryset = queryset.filter(
+                    Q(name__icontains=query) | 
+                    Q(description__icontains=query) |
+                    Q(category__name__icontains=query)
+                )
         if min_price:
             try:
                 queryset = queryset.filter(price__gte=float(min_price))
@@ -845,7 +852,7 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
                 status='approved'
             ).filter(
                 django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now())
-            ).order_by('?')
+            ).order_by('-created_at')
 
         if user.is_staff:
             return SponsoredListing.objects.all().order_by('-created_at')
@@ -863,7 +870,7 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
             status='approved'
         ).filter(
             django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now())  # FIX: L-12
-        ).order_by('?')
+        ).order_by('-created_at')
 
     def get_object(self):  # FIX: S-08 — enforce queryset scope on detail views
         obj = super().get_object()

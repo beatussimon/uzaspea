@@ -78,6 +78,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
     inspections = serializers.SerializerMethodField()
     is_verified = serializers.BooleanField(read_only=True)
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
 
     class Meta:
         model = Product
@@ -85,7 +87,7 @@ class ProductSerializer(serializers.ModelSerializer):
                   'category', 'category_name', 'seller', 'seller_username', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition',
                   'avg_rating', 'like_count', 'is_liked', 'images', 'inspections', 'is_verified',
-                  'has_inspection', 'inspection_verdict']
+                  'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude']
         read_only_fields = ['seller', 'slug']
 
     def get_inspections(self, obj):

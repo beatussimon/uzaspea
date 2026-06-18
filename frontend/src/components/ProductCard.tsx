@@ -1,13 +1,14 @@
 import React, { memo } from 'react';
-import { Star, Heart, Share2, ShoppingCart, Shield } from 'lucide-react';
+import { Star, Heart, Share2, ShoppingCart, Shield, MapPin, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import SafeImage from './SafeImage';
 import toast from 'react-hot-toast';
 import VerifiedBadge from './VerifiedBadge';
 import { useCart } from '../context/CartContext';
+import { timeAgo } from '../utils/timeAgo';
 
-const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMode?: 'grid' | 'list' }) => {
+const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean }) => {
   const { addToCart } = useCart();
   const [liked, setLiked] = React.useState(product.is_liked || false);
   const isOwnProduct = product.seller_username === localStorage.getItem('username');
@@ -64,15 +65,30 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
 
         {/* Content */}
         <div className="flex-1 min-w-0 pr-8">
-          <div className="flex items-center gap-1.5 mb-1">
-             <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider">{product.category_name}</span>
-             <span className="text-gray-300 dark:text-gray-600">•</span>
-             <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5 mb-1 text-[9px] text-gray-400">
+             {isSponsored && (
+               <span className="text-white bg-brand-600 px-1.5 py-0.5 rounded text-[8px] uppercase font-black tracking-wider shrink-0 shadow-md">SPONSORED</span>
+             )}
+             <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider shrink-0">{product.category_name}</span>
+             <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+             <div className="flex items-center gap-1 shrink-0">
                <span className="text-[10px] text-gray-500 truncate max-w-[80px]">{product.seller_username}</span>
                <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3" />
              </div>
+             {product.location_name && (
+               <>
+                 <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                 <span className="flex items-center gap-0.5 truncate max-w-[60px] shrink-0"><MapPin size={8} /> {product.location_name}</span>
+               </>
+             )}
+             {product.created_at && (
+               <>
+                 <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                 <span className="flex items-center gap-0.5 whitespace-nowrap shrink-0"><Clock size={8} /> {timeAgo(product.created_at)}</span>
+               </>
+             )}
              {product.is_verified && (
-               <div className="flex items-center gap-1 text-[9px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800">
+               <div className="flex items-center gap-1 text-[9px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800 ml-auto shrink-0">
                  <Shield size={10} className="fill-current" />
                  <span>VERIFIED</span>
                </div>
@@ -137,6 +153,11 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
         </div>
         {/* Condition badge */}
         <div className="absolute top-2 left-2 flex flex-col gap-1.5">
+          {isSponsored && (
+            <span className="bg-brand-600 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase tracking-wider">
+              Sponsored
+            </span>
+          )}
           <span className={`text-[9px] px-2 py-0.5 rounded font-bold text-white shadow-md uppercase tracking-wider ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
             {product.condition || 'New'}
           </span>
@@ -186,11 +207,25 @@ const ProductCard = memo(({ product, viewMode = 'grid' }: { product: any; viewMo
 
         {/* Seller Info */}
         <div className="text-[10px] text-gray-400 dark:text-gray-500 border-t border-surface-border/40 dark:border-surface-dark-border/40 pt-2.5 mt-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-1 min-w-0">
-            <span className="truncate font-medium">{product.seller_username || 'Seller'}</span>
-            <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3.5 h-3.5 shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0 text-[9px]">
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="truncate font-medium text-gray-600 dark:text-gray-300">{product.seller_username || 'Seller'}</span>
+              <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3.5 h-3.5 shrink-0" />
+            </div>
+            {product.location_name && (
+              <>
+                <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                <span className="flex items-center gap-0.5 truncate max-w-[50px] shrink-0"><MapPin size={8} /> {product.location_name}</span>
+              </>
+            )}
+            {product.created_at && (
+              <>
+                <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                <span className="flex items-center gap-0.5 whitespace-nowrap shrink-0"><Clock size={8} /> {timeAgo(product.created_at)}</span>
+              </>
+            )}
           </div>
-          <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-[8px] font-bold">PRO</span>
+          <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-1">PRO</span>
         </div>
       </div>
     </Link>
