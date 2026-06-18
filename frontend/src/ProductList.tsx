@@ -32,7 +32,7 @@ const SponsoredRow = memo(({ ads, viewMode = 'grid' }: { ads: any[]; viewMode?: 
       </div>
       
       <div className={viewMode === 'grid' 
-        ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4.5"
+        ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4.5"
         : "flex flex-col gap-3"
       }>
         {ads.map((ad: any) => (
@@ -74,7 +74,25 @@ const ProductList = () => {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const urlQuery = searchParams.get('q') || '';
   const isAuthenticated = !!localStorage.getItem('access_token');
-  const ITEMS_PER_BANNER = 16; // 4 rows × 4 cols
+  
+  // Dynamically calculate grid columns to align banner with row boundaries (exactly 4 rows)
+  const [cols, setCols] = useState(5);
+
+  useEffect(() => {
+    const updateCols = () => {
+      const w = window.innerWidth;
+      if (w >= 1280) setCols(5); // xl:grid-cols-5
+      else if (w >= 1024) setCols(4); // lg:grid-cols-4
+      else if (w >= 768) setCols(3); // md:grid-cols-3
+      else if (w >= 640) setCols(2); // sm:grid-cols-2
+      else setCols(1); // grid-cols-1
+    };
+    updateCols();
+    window.addEventListener('resize', updateCols);
+    return () => window.removeEventListener('resize', updateCols);
+  }, []);
+
+  const ITEMS_PER_BANNER = cols * 4; // 4 rows of products
 
   const buildParams = useCallback(
     (p: number) => {
