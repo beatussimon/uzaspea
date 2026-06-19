@@ -80,7 +80,7 @@ class PaymentConfirmation(models.Model):
     tier = models.ForeignKey(SubscriptionTier, on_delete=models.PROTECT)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     reference = models.CharField(max_length=100)
-    proof = models.ImageField(upload_to='payment_proofs/', blank=True, null=True)
+    proof = models.ImageField(upload_to='payment_proofs/', blank=True, null=True, validators=[validate_image])
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -112,15 +112,27 @@ class Category(models.Model):
         ordering = ['name']
 
     def save(self, *args, **kwargs):
-        if not self.slug:  # FIX: C-09 — collision-safe slug generation
+        if not self.slug:
             from django.utils.text import slugify
-            base = slugify(self.name)
-            slug, n = base, 1
-            while Category.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-                slug = f'{base}-{n}'
-                n += 1
-            self.slug = slug
-        super().save(*args, **kwargs)
+            base = slugify(self.name) or "category"
+            self.slug = base
+
+        from django.db import IntegrityError, transaction
+        try:
+            with transaction.atomic():
+                super().save(*args, **kwargs)
+        except IntegrityError:
+            from django.utils.text import slugify
+            base = slugify(self.name) or "category"
+            n = 1
+            while True:
+                self.slug = f'{base}-{n}'
+                try:
+                    with transaction.atomic():
+                        super().save(*args, **kwargs)
+                    break
+                except IntegrityError:
+                    n += 1
 
     def __str__(self):
         if self.parent:
@@ -166,18 +178,32 @@ class Product(models.Model):
         ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
-        if not self.slug:  # FIX: C-09 — collision-safe slug generation
+        if not self.slug:
             from django.utils.text import slugify
-            base = slugify(self.name)
-            slug, n = base, 1
-            while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-                slug = f'{base}-{n}'
-                n += 1
-            self.slug = slug
+            base = slugify(self.name) or "product"
+            self.slug = base
         # Auto-set availability based on stock - FIX: M-03
         if self.stock <= 0:
             self.is_available = False
-        super().save(*args, **kwargs)
+        elif not self.is_available and self.stock > 0:
+            self.is_available = True
+
+        from django.db import IntegrityError, transaction
+        try:
+            with transaction.atomic():
+                super().save(*args, **kwargs)
+        except IntegrityError:
+            from django.utils.text import slugify
+            base = slugify(self.name) or "product"
+            n = 1
+            while True:
+                self.slug = f'{base}-{n}'
+                try:
+                    with transaction.atomic():
+                        super().save(*args, **kwargs)
+                    break
+                except IntegrityError:
+                    n += 1
 
     def __str__(self):
         return self.name
@@ -201,6 +227,8 @@ class Product(models.Model):
     @property
     def is_verified(self):
         """Returns True if there is at least one published inspection report with a 'pass' verdict."""
+        if hasattr(self, 'annotated_is_verified'):
+            return self.annotated_is_verified
         return self.inspections.filter(status='published', report__verdict='pass').exists()
 
 
@@ -850,10 +878,23 @@ from django.core.cache import cache
 @receiver(post_save, sender=Product)
 @receiver(post_delete, sender=Product)
 def invalidate_product_cache(sender, instance, **kwargs):
-    # This aggressively clears the entire cache to ensure listings are always perfectly up to date.
-    cache.clear()
+    # Targeted view cache invalidation; leaves sessions intact
+    if hasattr(cache, 'delete_pattern'):
+        try:
+            cache.delete_pattern("*views.decorators.cache*")
+            cache.delete_pattern(f"*product:{instance.slug}*")
+        except Exception:
+            cache.clear()
+    else:
+        cache.clear()
 
 @receiver(post_save, sender=Category)
 @receiver(post_delete, sender=Category)
 def invalidate_category_cache(sender, instance, **kwargs):
-    cache.clear()
+    if hasattr(cache, 'delete_pattern'):
+        try:
+            cache.delete_pattern("*views.decorators.cache*")
+        except Exception:
+            cache.clear()
+    else:
+        cache.clear()

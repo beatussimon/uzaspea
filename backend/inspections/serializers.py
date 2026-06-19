@@ -22,10 +22,17 @@ class InspectionCategorySerializer(serializers.ModelSerializer):
         ]
 
     def get_children(self, obj):
+        children_map = self.context.get('children_map')
+        if children_map is not None:
+            kids = children_map.get(obj.id, [])
+            return InspectionCategorySerializer(kids, many=True, context=self.context).data
         kids = obj.children.filter(is_active=True)
         return InspectionCategorySerializer(kids, many=True).data
 
     def get_full_path(self, obj):
+        path_map = self.context.get('path_map')
+        if path_map is not None:
+            return path_map.get(obj.id, obj.name)
         return obj.get_full_path()
 
 

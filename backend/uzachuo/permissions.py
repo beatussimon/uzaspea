@@ -74,7 +74,13 @@ class IsOwnerOrStaff(permissions.BasePermission):
     """
     def has_object_permission(self, request, view, obj):
         user = request.user
-        if user.is_superuser or user.is_staff:
+        is_staff_active = False
+        try:
+            is_staff_active = user.is_staff and user.staff_profile.is_active
+        except AttributeError:
+            is_staff_active = False
+
+        if user.is_superuser or is_staff_active:
             return True
             
         owner = getattr(obj, 'user', getattr(obj, 'seller', getattr(obj, 'client', None)))

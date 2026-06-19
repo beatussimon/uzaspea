@@ -690,9 +690,9 @@ def follow_user(request):
         follow, created = Follow.objects.get_or_create(follower=request.user, following=user_to_follow_profile)
         if not created:
             follow.delete()
-            action = 'follow'
-        else:
             action = 'unfollow'
+        else:
+            action = 'follow'
         followers_attr = getattr(user_to_follow_profile, 'followers', None)
         if followers_attr is not None and hasattr(followers_attr, 'count'):
             followers_count = followers_attr.count()

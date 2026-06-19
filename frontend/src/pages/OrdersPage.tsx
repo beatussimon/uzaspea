@@ -8,8 +8,10 @@ import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS } from '../constants/orderStatus';
 import ReviewModal from '../components/orders/ReviewModal';
 import DisputeModal from '../components/orders/DisputeModal';const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+import { useDialog } from '../components/ui/Dialogs';
 
 const OrdersPage: React.FC = () => {
+  const { showConfirm, showPrompt } = useDialog();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -163,7 +165,7 @@ const OrdersPage: React.FC = () => {
   };
 
   const handleCancel = async (orderId: number) => {
-    const reason = prompt('Why are you cancelling this order?');
+    const reason = await showPrompt('Why are you cancelling this order?', 'Enter cancellation reason...');
     if (reason === null) return;
     
     try {
@@ -176,7 +178,8 @@ const OrdersPage: React.FC = () => {
   };
 
   const handleReceived = async (orderId: number) => {
-    if (!confirm('Have you received all items in this order? This will finalize the order.')) return;
+    const confirmed = await showConfirm('Have you received all items in this order? This will finalize the order.', 'Confirm Delivery');
+    if (!confirmed) return;
     
     try {
       await api.post(`/api/orders/${orderId}/advance/`, { status: 'COMPLETED', notes: 'Marked as received by buyer.' });
@@ -241,11 +244,18 @@ const OrdersPage: React.FC = () => {
             return (
               <div id={`order-${order.id}`} key={order.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-shadow">
                 {/* Header */}
-                <button onClick={() => {
+                <div role="button" tabIndex={0} onClick={() => {
                   setExpandedId(isExpanded ? null : order.id);
                   if (!isExpanded) fetchSellerLipa(order);
                 }}
-                  className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition group">
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setExpandedId(isExpanded ? null : order.id);
+                      if (!isExpanded) fetchSellerLipa(order);
+                    }
+                  }}
+                  className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition group cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="relative w-14 h-14 shrink-0">
                       <div className="w-full h-full rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex items-center justify-center">
@@ -297,7 +307,7 @@ const OrdersPage: React.FC = () => {
                         {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
                     </div>
                   </div>
-                </button>
+                </div>
 
                 {/* Expanded Content */}
                 {isExpanded && (

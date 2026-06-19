@@ -31,6 +31,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+let logoutCallback: (() => void) | null = null;
+
+export const setLogoutCallback = (cb: () => void) => {
+  logoutCallback = cb;
+};
+
 // Response interceptor: handle auth errors and token refresh
 api.interceptors.response.use(
   (response) => response,
@@ -47,15 +53,23 @@ api.interceptors.response.use(
           originalRequest.headers['Authorization'] = `Bearer ${res.data.access}`;
           return api(originalRequest);
         } catch (refreshError) {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
+          if (logoutCallback) {
+            logoutCallback();
+          } else {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            window.location.href = '/login';
+          }
           return Promise.reject(refreshError);
         }
       } else {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+        if (logoutCallback) {
+          logoutCallback();
+        } else {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

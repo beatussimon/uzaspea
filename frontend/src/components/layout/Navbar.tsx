@@ -8,25 +8,27 @@ import {
 import VerifiedBadge from '../VerifiedBadge';
 import { useCart } from '../../context/CartContext';
 import NotificationBell from './NotificationBell';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 const Navbar = () => {
   const [visible, setVisible] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
+  const { isAuthenticated, user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const lastScrollY = useRef(0);
   const { cartCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isAuthenticated = !!localStorage.getItem('access_token');
-  const isVerified = localStorage.getItem('is_verified') === 'true';
-  const userTier = localStorage.getItem('tier') || 'free';
-  const isStaff = localStorage.getItem('is_staff') === 'true';
-  const isInspector = localStorage.getItem('is_inspector') === 'true';
-  const isSuperuser = localStorage.getItem('is_superuser') === 'true';
-  const username = localStorage.getItem('username') || 'User';
+  const isVerified = user?.is_verified || false;
+  const userTier = user?.tier || 'free';
+  const isStaff = user?.is_staff || false;
+  const isInspector = user?.is_inspector || false;
+  const isSuperuser = user?.is_superuser || false;
+  const username = user?.username || 'User';
 
   // Close mobile menu and reset navbar on route change
   useEffect(() => {
@@ -34,18 +36,6 @@ const Navbar = () => {
     setMobileSearchOpen(false);
     window.scrollTo(0, 0);
   }, [location.pathname]);
-
-  const toggleTheme = () => {
-    if (isDark) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setIsDark(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      setIsDark(true);
-    }
-  };
 
   // Navbar auto-hide on scroll
   useEffect(() => {
@@ -269,7 +259,7 @@ const Navbar = () => {
 
                   <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 border-t border-surface-border dark:border-surface-dark-border">
                     <button 
-                      onClick={() => { localStorage.clear(); sessionStorage.clear(); setProfileOpen(false); window.location.href = '/'; }}
+                      onClick={() => { logout(); sessionStorage.clear(); setProfileOpen(false); navigate('/'); }}
                       className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-btn transition-all active:scale-95 border border-red-100 dark:border-red-900/30"
                     >
                       <LogOut size={16} /> Sign Out

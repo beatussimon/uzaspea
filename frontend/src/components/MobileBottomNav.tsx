@@ -5,35 +5,27 @@ import {
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
   Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun
 } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const MobileBottomNav = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { cartCount } = useCart();
   
-  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
-  const toggleTheme = () => {
-    if (isDark) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setIsDark(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      setIsDark(true);
-    }
-  };
+  const { isAuthenticated, user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   
-  const isAuthenticated = !!localStorage.getItem('access_token');
-  const isVerified = localStorage.getItem('is_verified') === 'true';
-  const userTier = localStorage.getItem('tier') || 'free';
-  const isStaff = localStorage.getItem('is_staff') === 'true';
-  const isInspector = localStorage.getItem('is_inspector') === 'true';
-  const isSuperuser = localStorage.getItem('is_superuser') === 'true';
-  const username = localStorage.getItem('username') || 'User';
+  const isVerified = user?.is_verified || false;
+  const userTier = user?.tier || 'free';
+  const isStaff = user?.is_staff || false;
+  const isInspector = user?.is_inspector || false;
+  const isSuperuser = user?.is_superuser || false;
+  const username = user?.username || 'User';
 
   // Active state helper
   const isActive = (path: string) => location.pathname === path;
@@ -244,7 +236,7 @@ const MobileBottomNav = () => {
             {isAuthenticated && (
               <div className="px-6 mt-8 mb-4">
                 <button 
-                  onClick={() => { localStorage.clear(); window.location.href = '/'; }}
+                  onClick={() => { logout(); sessionStorage.clear(); setIsMenuOpen(false); navigate('/'); }}
                   className="w-full flex items-center justify-center gap-3 p-4 rounded-btn border-2 border-red-100 dark:border-red-900/30 text-red-600 font-bold active:bg-red-50 dark:active:bg-red-900/20 transition-colors"
                   >
                   <LogOut size={20} />

@@ -5,6 +5,7 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.db.models import Q, Sum, Count, Avg
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers
 from django.db import models as django_models
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
@@ -80,6 +81,7 @@ def reverse_geocode(request):
         return Response({'error': str(e)}, status=503)
 
 @method_decorator(cache_page(60 * 60 * 2), name='list')
+@method_decorator(vary_on_headers('Authorization', 'Cookie'), name='list')
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().prefetch_related('images', 'likes')
     serializer_class = ProductSerializer
@@ -92,8 +94,37 @@ class ProductViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
 
     def get_queryset(self):
-        # Base queryset
-        base = Product.objects.all().select_related(
+        from django.db.models import Avg, Count, Exists, OuterRef, Subquery, Value, BooleanField, IntegerField
+        from marketplace.models import Like
+        from inspections.models import InspectionRequest, InspectionReport
+
+        user = self.request.user
+        
+        is_liked_expr = Exists(Like.objects.filter(product=OuterRef('pk'), user=user)) if user.is_authenticated else Value(False, output_field=BooleanField())
+        has_inspection_expr = Exists(InspectionRequest.objects.filter(marketplace_product=OuterRef('pk'), status='published'))
+        inspection_verdict_expr = Subquery(
+            InspectionReport.objects.filter(
+                request__marketplace_product=OuterRef('pk'), 
+                request__status='published'
+            ).values('verdict')[:1]
+        )
+        is_verified_expr = Exists(
+            InspectionRequest.objects.filter(
+                marketplace_product=OuterRef('pk'), 
+                status='published', 
+                report__verdict='pass'
+            )
+        )
+
+        # Base queryset with annotations
+        base = Product.objects.annotate(
+            annotated_avg_rating=Avg('reviews__rating'),
+            annotated_like_count=Count('likes', distinct=True),
+            annotated_is_liked=is_liked_expr,
+            annotated_has_inspection=has_inspection_expr,
+            annotated_inspection_verdict=inspection_verdict_expr,
+            annotated_is_verified=is_verified_expr
+        ).select_related(
             'seller', 'seller__profile', 'category'
         ).prefetch_related(
             'images', 'likes', 'reviews', 'inspections', 'inspections__report'

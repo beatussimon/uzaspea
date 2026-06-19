@@ -14,6 +14,24 @@ const MessagesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const userId = parseInt(localStorage.getItem('user_id') || '0');
 
+  const messageEndRef = useRef<HTMLDivElement>(null);
+  const lastConvIdRef = useRef<string | undefined>(undefined);
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messageEndRef.current?.scrollIntoView({ behavior });
+  };
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      if (id !== lastConvIdRef.current) {
+        scrollToBottom('auto');
+        lastConvIdRef.current = id;
+      } else {
+        scrollToBottom('smooth');
+      }
+    }
+  }, [messages, id]);
+
   useEffect(() => {
     api.get('/api/conversations/')
       .then(r => setConversations(r.data.results || r.data))
@@ -157,6 +175,7 @@ const MessagesPage: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                <div ref={messageEndRef} />
               </div>
 
               <div className="p-3 border-t border-gray-100 dark:border-gray-700 flex gap-2">

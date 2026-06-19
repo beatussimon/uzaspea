@@ -68,7 +68,7 @@ class ProductSerializer(serializers.ModelSerializer):
     seller_verified = serializers.SerializerMethodField()
     seller_profile_picture = serializers.SerializerMethodField()
     avg_rating = serializers.SerializerMethodField()
-    like_count = serializers.IntegerField(source='likes.count', read_only=True)
+    like_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
     category_name = serializers.CharField(source='category.name', read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
@@ -91,17 +91,27 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ['seller', 'slug']
 
     def get_inspections(self, obj):
+        # View uses prefetch_related for obj.inspections, avoiding N+1
         from inspections.serializers import InspectionSummarySerializer
         return InspectionSummarySerializer(obj.inspections.all(), many=True).data
 
     def get_is_liked(self, obj):
+        if hasattr(obj, 'annotated_is_liked'):
+            return obj.annotated_is_liked
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.likes.filter(user=request.user).exists()
         return False
 
     def get_avg_rating(self, obj):
+        if hasattr(obj, 'annotated_avg_rating') and obj.annotated_avg_rating is not None:
+            return int(obj.annotated_avg_rating)
         return obj.average_rating()
+
+    def get_like_count(self, obj):
+        if hasattr(obj, 'annotated_like_count'):
+            return obj.annotated_like_count
+        return obj.likes.count()
 
     def get_seller_tier(self, obj):
         try:
@@ -125,9 +135,13 @@ class ProductSerializer(serializers.ModelSerializer):
         return None
 
     def get_has_inspection(self, obj):  # FIX B-19
+        if hasattr(obj, 'annotated_has_inspection'):
+            return obj.annotated_has_inspection
         return any(i.status == 'published' for i in obj.inspections.all())
 
     def get_inspection_verdict(self, obj):  # FIX B-19
+        if hasattr(obj, 'annotated_inspection_verdict'):
+            return obj.annotated_inspection_verdict
         for i in obj.inspections.all():
             if i.status == 'published':
                 return getattr(i, 'report', None) and i.report.verdict

@@ -97,6 +97,53 @@ class InspectionCategoryViewSet(viewsets.ModelViewSet):
             return InspectionCategory.objects.filter(is_active=True)
         return super().get_queryset()
 
+    def list(self, request, *args, **kwargs):
+        # Fetch all active categories in a single query
+        all_cats = list(InspectionCategory.objects.filter(is_active=True))
+        
+        # Build children map: parent_id -> list of categories
+        children_map = {}
+        for cat in all_cats:
+            if cat.parent_id:
+                children_map.setdefault(cat.parent_id, []).append(cat)
+                
+        # Build path map iteratively
+        cat_by_id = {cat.id: cat for cat in all_cats}
+        path_map = {}
+        
+        def get_path(cat):
+            if cat.id in path_map:
+                return path_map[cat.id]
+            parts = []
+            curr = cat
+            visited = set()
+            while curr and curr.id not in visited:
+                visited.add(curr.id)
+                parts.append(curr.name)
+                curr = cat_by_id.get(curr.parent_id)
+            path = " -> ".join(reversed(parts))
+            path_map[cat.id] = path
+            return path
+            
+        for cat in all_cats:
+            get_path(cat)
+            
+        # Get root nodes or all nodes
+        if request.query_params.get('all') == 'true' or request.query_params.get('all'):
+            roots = all_cats
+        else:
+            roots = [cat for cat in all_cats if cat.parent_id is None]
+            
+        # Pass maps in context
+        context = self.get_serializer_context()
+        context.update({
+            'children_map': children_map,
+            'path_map': path_map,
+        })
+        
+        serializer = self.get_serializer(roots, many=True, context=context)
+        return Response(serializer.data)
+
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsSuperUser()]
@@ -353,6 +400,11 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
             remaining_balance=remaining,
             currency=data['currency'],
         )
+        from inspections.state_machine import InspectionStateMachine, StateMachineException
+        try:
+            InspectionStateMachine.validate_transition(obj, 'bill_sent', request.user)
+        except StateMachineException as e:
+            return Response({'detail': str(e)}, status=400)
         obj.status = 'bill_sent'
         obj.save()
         notify(obj.client, 'bill_ready',
@@ -369,9 +421,11 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         if obj.client != request.user and not request.user.is_superuser:
             return Response({'detail': 'Only the client can acknowledge the bill.'}, status=403)
 
-        if obj.status != 'bill_sent' and not request.user.is_superuser:
-            return Response({'detail': f'Cannot acknowledge bill for request in {obj.status} status.'}, status=400)
-        
+        from inspections.state_machine import InspectionStateMachine, StateMachineException
+        try:
+            InspectionStateMachine.validate_transition(obj, 'awaiting_payment', request.user)
+        except StateMachineException as e:
+            return Response({'detail': str(e)}, status=400)
         obj.status = 'awaiting_payment'
         obj.save()
         
@@ -412,6 +466,11 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
             sla_deadline=deadline,
             is_active=True
         )
+        from inspections.state_machine import InspectionStateMachine, StateMachineException
+        try:
+            InspectionStateMachine.validate_transition(obj, 'assigned', request.user)
+        except StateMachineException as e:
+            return Response({'detail': str(e)}, status=400)
         obj.status = 'assigned'
         obj.save()
         # Build contact info for notification messages
@@ -454,15 +513,14 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=['post'], url_path='update-status')
     def update_status(self, request, pk=None):
         obj = self.get_object()
-        
-        # PERMISSION CHECK
-        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
-            return Response({'detail': 'No permission to update inspection status.'}, status=403)
-            
         new_status = request.data.get('status')
-        valid = [s[0] for s in InspectionRequest.STATUS_CHOICES]
-        if new_status not in valid:
-            return Response({'detail': 'Invalid status.'}, status=400)
+        
+        from inspections.state_machine import InspectionStateMachine, StateMachineException
+        try:
+            InspectionStateMachine.validate_transition(obj, new_status, request.user)
+        except StateMachineException as e:
+            return Response({'detail': str(e)}, status=400)
+            
         obj.status = new_status
         obj.save()
         return Response({'status': obj.status})
@@ -476,6 +534,10 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
             assignments__inspector=profile,
             assignments__is_active=True
         ).select_related('category', 'client', 'bill').order_by('-created_at')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = InspectionRequestListSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
         return Response(InspectionRequestListSerializer(qs, many=True, context={'request': request}).data)
 
     @decorators.action(detail=False, methods=['get'], url_path='dashboard-stats')
@@ -556,10 +618,13 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
 
         # Update request status
         req = payment.request
-        if payment.stage == 'deposit':
-            req.status = 'deposit_paid'  # FIX: C-03 + L-09 — deposit_paid is the correct next state
-        elif payment.stage == 'balance':
-            req.status = 'pre_inspection'  # FIX: C-03
+        next_status = 'deposit_paid' if payment.stage == 'deposit' else 'pre_inspection'
+        from inspections.state_machine import InspectionStateMachine, StateMachineException
+        try:
+            InspectionStateMachine.validate_transition(req, next_status, request.user)
+        except StateMachineException as e:
+            return Response({'detail': str(e)}, status=400)
+        req.status = next_status
         req.save()
 
         notify(req.client, 'payment_confirmed',
@@ -590,6 +655,10 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
         if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
             return Response(status=403)
         qs = InspectionPayment.objects.filter(status='pending').order_by('-created_at')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = InspectionPaymentSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         return Response(InspectionPaymentSerializer(qs, many=True).data)
 
 
@@ -660,6 +729,12 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
             checkin = serializer.save()
             
             # ATOMIC TRANSITION: Update status and create report shell
+            from inspections.state_machine import InspectionStateMachine, StateMachineException
+            try:
+                InspectionStateMachine.validate_transition(request_obj, 'in_progress', request.user)
+            except StateMachineException as e:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({'detail': str(e)})
             request_obj.status = 'in_progress'
             request_obj.save(update_fields=['status'])
             
@@ -699,6 +774,11 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
         checkin.checkout_at = timezone.now()
         checkin.save()
         inspection_req = checkin.request
+        from inspections.state_machine import InspectionStateMachine, StateMachineException
+        try:
+            InspectionStateMachine.validate_transition(inspection_req, 'submitted', request.user)
+        except StateMachineException as e:
+            return Response({'detail': str(e)}, status=400)
         inspection_req.status = 'submitted'
         inspection_req.save()
         return Response(InspectionCheckInSerializer(checkin).data)
@@ -796,6 +876,11 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         report.save()
         # Now advance to qa_review
         req = report.request
+        from inspections.state_machine import InspectionStateMachine, StateMachineException
+        try:
+            InspectionStateMachine.validate_transition(req, 'qa_review', request.user)
+        except StateMachineException as e:
+            return Response({'detail': str(e)}, status=400)
         req.status = 'qa_review'
         req.save()
         # Run fraud check
@@ -822,6 +907,11 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         report.approved_at = timezone.now()
         report.save()
         report.lock_and_hash()
+        from inspections.state_machine import InspectionStateMachine, StateMachineException
+        try:
+            InspectionStateMachine.validate_transition(report.request, 'published', request.user)
+        except StateMachineException as e:
+            return Response({'detail': str(e)}, status=400)
         report.request.status = 'published'
         report.request.save()
 
@@ -853,6 +943,11 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         notes = request.data.get('notes', '')
         report.qa_notes = notes
         report.save()
+        from inspections.state_machine import InspectionStateMachine, StateMachineException
+        try:
+            InspectionStateMachine.validate_transition(report.request, 'in_progress', request.user)
+        except StateMachineException as e:
+            return Response({'detail': str(e)}, status=400)
         report.request.status = 'in_progress'
         report.request.save()
         active = report.request.assignments.filter(is_active=True).first()
@@ -871,6 +966,10 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
             is_locked=False,
             request__status='qa_review'
         ).select_related('request', 'submitted_by').order_by('finalized_at')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = InspectionReportSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         return Response(InspectionReportSerializer(qs, many=True).data)
 
 

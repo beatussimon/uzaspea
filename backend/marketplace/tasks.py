@@ -20,7 +20,7 @@ def check_saved_searches():
     from .models import SavedSearch, Product, push_notification
     from django.db.models import Q
 
-    for ss in SavedSearch.objects.filter(notify_on_match=True):
+    for ss in SavedSearch.objects.filter(notify_on_match=True).iterator(chunk_size=100):
         qs = Product.objects.filter(is_available=True, created_at__gt=ss.last_checked)
         if ss.query:
             qs = qs.filter(name__icontains=ss.query)
@@ -49,7 +49,7 @@ def check_price_alerts():
     """FIX B-13: notify users when product price drops to their target."""
     from .models import PriceAlert, push_notification
 
-    for alert in PriceAlert.objects.filter(is_active=True, triggered_at__isnull=True):
+    for alert in PriceAlert.objects.filter(is_active=True, triggered_at__isnull=True).select_related('product').iterator(chunk_size=100):
         if alert.product.price <= alert.target_price:
             push_notification(
                 alert.user, 'order_status',

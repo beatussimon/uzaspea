@@ -1,119 +1,136 @@
-import { useEffect } from 'react';
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 import { CartProvider } from './context/CartContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { DialogProvider } from './components/ui/Dialogs';
+
 import ProductList from './ProductList';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
-import CheckoutPage from './pages/CheckoutPage';
-import DashboardLayout from './pages/dashboard/DashboardLayout';
-import StaffAdminLayout from './pages/staff/StaffAdminLayout';
-import StaffDashboardLayout from './pages/staff/StaffDashboardLayout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
-import OrdersPage from './pages/OrdersPage';
-import MessagesPage from './pages/MessagesPage';
-import InspectionLayout, { PublicVerifyPage } from './pages/inspections/InspectionLayout';
-import InspectorLayout from './pages/inspections/InspectorLayout';
 import MobileBottomNav from './components/MobileBottomNav';
-
-
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 
-// ================================================================
-// App Shell
-// ================================================================
+// Eager imports for small/core public views
+import { PublicVerifyPage } from './pages/inspections/InspectionLayout';
+import NotFound from './pages/NotFound';
+import ErrorBoundary from './components/ErrorBoundary';
+
+// Lazy load large layout bundles for bundle size optimization
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
+const OrdersPage = lazy(() => import('./pages/OrdersPage'));
+const MessagesPage = lazy(() => import('./pages/MessagesPage'));
+const DashboardLayout = lazy(() => import('./pages/dashboard/DashboardLayout'));
+const StaffAdminLayout = lazy(() => import('./pages/staff/StaffAdminLayout'));
+const StaffDashboardLayout = lazy(() => import('./pages/staff/StaffDashboardLayout'));
+const InspectionLayout = lazy(() => import('./pages/inspections/InspectionLayout'));
+const InspectorLayout = lazy(() => import('./pages/inspections/InspectorLayout'));
+
+// Fallback loader for Lazy views
+const SuspenseLoader = () => (
+  <div className="flex items-center justify-center min-h-[50vh]">
+    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-500"></div>
+  </div>
+);
+
+// ProtectedRoute extracted outside App component body to prevent unmount/remount cycles
+const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = false, requireInspector = false }: any) => {
+  const { isAuthenticated, user } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  if (user) {
+    if (requireSuperuser && !user.is_superuser) return <Navigate to="/" replace />;
+    if (requireStaff && !user.is_staff && !user.is_superuser) return <Navigate to="/dashboard" replace />;
+    if (requireInspector && !user.is_inspector) return <Navigate to="/dashboard" replace />;
+  }
+  
+  return children;
+};
+
 function App() {
-  useEffect(() => {
-    // Initial theme load
-    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, []);
-
-  const isAuthenticated = !!localStorage.getItem('access_token');
-  const isInspector = localStorage.getItem('is_inspector') === 'true';
-  const isStaff = localStorage.getItem('is_staff') === 'true';
-  const isSuperuser = localStorage.getItem('is_superuser') === 'true';
-
-  const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = false, requireInspector = false }: any) => {
-    if (!isAuthenticated) return <Navigate to="/login" />;
-    if (requireSuperuser && !isSuperuser) return <Navigate to="/" />;
-    if (requireStaff && !isStaff && !isSuperuser) return <Navigate to="/dashboard" />;
-    if (requireInspector && !isInspector) return <Navigate to="/dashboard" />;
-    return children;
-  };
-
   return (
-    <BrowserRouter>
-      <CartProvider>
-        <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col">
-          <Navbar />
-          <div className="h-16" /> {/* Spacer matches new navbar height */}
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <CartProvider>
+            <DialogProvider>
+              <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300">
+                <Navbar />
+                <div className="h-16" /> {/* Spacer matching navbar height */}
 
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<ProductList />} />
-              <Route path="/product/:slug" element={<ProductDetailPage />} />
-              <Route path="/cart" element={<CartPage />} />
-              <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
-              <Route path="/dashboard/*" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} />
-              
-              {/* Strict Staff Isolation */}
-              <Route path="/staff-admin/*" element={
-                <ProtectedRoute requireSuperuser>
-                  <StaffAdminLayout />
-                </ProtectedRoute>
-              } />
-              <Route path="/staff/*" element={
-                <ProtectedRoute requireStaff>
-                  <StaffDashboardLayout />
-                </ProtectedRoute>
-              } />
+                <main className="flex-1">
+                  <ErrorBoundary>
+                    <Suspense fallback={<SuspenseLoader />}>
+                    <Routes>
+                      <Route path="/" element={<ProductList />} />
+                      <Route path="/product/:slug" element={<ProductDetailPage />} />
+                      <Route path="/cart" element={<CartPage />} />
+                      <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+                      <Route path="/dashboard/*" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} />
+                      
+                      {/* Strict Staff Isolation */}
+                      <Route path="/staff-admin/*" element={
+                        <ProtectedRoute requireSuperuser>
+                          <StaffAdminLayout />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/staff/*" element={
+                        <ProtectedRoute requireStaff>
+                          <StaffDashboardLayout />
+                        </ProtectedRoute>
+                      } />
 
-              <Route path="/inspections/*" element={
-                <ProtectedRoute>
-                  <InspectionLayout />
-                </ProtectedRoute>
-              } />
-              <Route path="/inspector/*" element={
-                <ProtectedRoute requireInspector>
-                  <InspectorLayout />
-                </ProtectedRoute>
-              } />
-              <Route path="/verify/:inspection_id" element={<PublicVerifyPage />} />
+                      <Route path="/inspections/*" element={
+                        <ProtectedRoute>
+                          <InspectionLayout />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/inspector/*" element={
+                        <ProtectedRoute requireInspector>
+                          <InspectorLayout />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/verify/:inspection_id" element={<PublicVerifyPage />} />
 
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/profile/:username" element={<ProfilePage />} />
-              <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
-              <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-              <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-            </Routes>
-          </main>
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/profile/:username" element={<ProfilePage />} />
+                      <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+                      <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+                      <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </ErrorBoundary>
+              </main>
 
-          <Footer />
-          <MobileBottomNav />
+                <Footer />
+                <MobileBottomNav />
 
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              style: { background: '#1f2937', color: '#f9fafb', borderRadius: '10px', fontSize: '13px', padding: '10px 16px' },
-              success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
-              error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
-            }}
-          />
-        </div>
-      </CartProvider>
-    </BrowserRouter>
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 3000,
+                    style: { background: '#1f2937', color: '#f9fafb', borderRadius: '10px', fontSize: '13px', padding: '10px 16px' },
+                    success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
+                    error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+                  }}
+                />
+              </div>
+            </DialogProvider>
+          </CartProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
