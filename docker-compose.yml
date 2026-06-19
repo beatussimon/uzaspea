@@ -97,7 +97,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 150M
+          memory: 60M
 
   # ─── Frontend: Nginx (SPA) ────────────────────────────────────
   frontend:
@@ -116,7 +116,7 @@ services:
       - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.priority=1"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.services.frontend.loadbalancer.server.port=8080"
     deploy:
       resources:
         limits:
@@ -158,11 +158,11 @@ services:
   redis:
     image: redis:7-alpine
     container_name: uzaspea-redis
-    command: redis-server --maxmemory 32mb --maxmemory-policy allkeys-lru --save ""
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 32mb --maxmemory-policy allkeys-lru --save ""
     volumes:
       - ./persistent_data/redis:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
       interval: 10s
       timeout: 3s
       retries: 5

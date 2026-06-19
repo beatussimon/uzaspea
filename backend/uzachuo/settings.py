@@ -17,8 +17,8 @@ if not os.path.exists('/.dockerenv'):
                         key = key.strip()
                         val = val.strip()
                         # If we are outside Docker, replace 'redis' container host with localhost/127.0.0.1
-                        if key == 'REDIS_URL' and 'redis://redis:' in val:
-                            val = val.replace('redis://redis:', 'redis://127.0.0.1:')
+                        if key == 'REDIS_URL':
+                            val = val.replace('@redis:', '@127.0.0.1:').replace('://redis:', '://127.0.0.1:')
                         os.environ.setdefault(key, val)
                     except ValueError:
                         pass
@@ -135,6 +135,13 @@ CORS_ALLOW_CREDENTIALS = True
 
 # FIX DEVOPS-03: Redis URL from environment, not hardcoded IP
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    }
+}
 
 CHANNEL_LAYERS = {
     "default": {

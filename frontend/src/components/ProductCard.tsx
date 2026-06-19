@@ -50,73 +50,75 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
 
   if (viewMode === 'list') {
     return (
-      <Link to={`/product/${product.slug}`} className="group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300">
-        {/* Horizontal Image */}
-        <div className="relative w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800/50">
-          <SafeImage
-            src={product.images?.[0]?.image || ''}
-            alt={product.name}
-            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out will-change-transform"
-          />
-          <span className={`absolute top-1 left-1 text-[8px] px-1.5 py-0.5 rounded font-bold text-white shadow-sm uppercase ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
-            {product.condition || 'New'}
-          </span>
-        </div>
+      <div className="group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300">
+        <Link to={`/product/${product.slug}`} className="flex flex-row items-center gap-4 flex-1 min-w-0">
+          {/* Horizontal Image */}
+          <div className="relative w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800/50">
+            <SafeImage
+              src={product.images?.[0]?.image || ''}
+              alt={product.name}
+              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out will-change-transform"
+            />
+            <span className={`absolute top-1 left-1 text-[8px] px-1.5 py-0.5 rounded font-bold text-white shadow-sm uppercase ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
+              {product.condition || 'New'}
+            </span>
+          </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0 pr-8">
-          <div className="flex items-center gap-1.5 mb-1 text-[9px] text-gray-400">
-             {isSponsored && (
-               <span className="text-white bg-brand-600 px-1.5 py-0.5 rounded text-[8px] uppercase font-black tracking-wider shrink-0 shadow-md">SPONSORED</span>
-             )}
-             <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider shrink-0">{product.category_name}</span>
-             <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
-             <div className="flex items-center gap-1 shrink-0">
-               <span className="text-[10px] text-gray-500 truncate max-w-[80px]">{product.seller_username}</span>
-               <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3" />
-             </div>
-             {product.location_name && (
-               <>
-                 <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
-                 <span className="flex items-center gap-0.5 truncate max-w-[60px] shrink-0"><MapPin size={8} /> {product.location_name}</span>
-               </>
-             )}
-             {product.created_at && (
-               <>
-                 <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
-                 <span className="flex items-center gap-0.5 whitespace-nowrap shrink-0"><Clock size={8} /> {timeAgo(product.created_at)}</span>
-               </>
-             )}
-             {product.is_verified && (
-               <div className="flex items-center gap-1 text-[9px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800 ml-auto shrink-0">
-                 <Shield size={10} className="fill-current" />
-                 <span>VERIFIED</span>
-               </div>
-             )}
-          </div>
-          <h3 className="font-bold text-sm md:text-base text-gray-900 dark:text-white line-clamp-1 mb-1">{product.name}</h3>
-          <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-1 mb-2 hidden md:block">{product.description}</p>
-          
-          <div className="flex items-end justify-between">
-            <div className="flex flex-col">
-               {product.old_price > product.price && (
-                 <span className="text-[10px] text-gray-400 line-through">TSh {parseInt(product.old_price).toLocaleString()}</span>
+          {/* Content */}
+          <div className="flex-1 min-w-0 pr-8">
+            <div className="flex items-center gap-1.5 mb-1 text-[9px] text-gray-400">
+               {isSponsored && (
+                 <span className="text-white bg-brand-600 px-1.5 py-0.5 rounded text-[8px] uppercase font-black tracking-wider shrink-0 shadow-md">SPONSORED</span>
                )}
-               <span className="font-black text-brand-600 dark:text-brand-400 text-base md:text-lg">
-                 TSh {parseInt(product.price).toLocaleString()}
-               </span>
+               <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider shrink-0">{product.category_name}</span>
+               <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+               <div className="flex items-center gap-1 shrink-0">
+                 <span className="text-[10px] text-gray-500 truncate max-w-[80px]">{product.seller_username}</span>
+                 <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3" />
+               </div>
+               {product.location_name && (
+                 <>
+                   <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                   <span className="flex items-center gap-0.5 truncate max-w-[60px] shrink-0"><MapPin size={8} /> {product.location_name}</span>
+                 </>
+               )}
+               {product.created_at && (
+                 <>
+                   <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                   <span className="flex items-center gap-0.5 whitespace-nowrap shrink-0"><Clock size={8} /> {timeAgo(product.created_at)}</span>
+                 </>
+               )}
+               {product.is_verified && (
+                 <div className="flex items-center gap-1 text-[9px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800 ml-auto shrink-0">
+                   <Shield size={10} className="fill-current" />
+                   <span>VERIFIED</span>
+                 </div>
+               )}
             </div>
-            <div className="flex gap-1 items-center mb-1">
-              {[1,2,3,4,5].map((s) => (
-                <Star key={s} size={10} className={s <= product.avg_rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200 dark:text-gray-700'} />
-              ))}
-              {product.avg_rating > 0 && <span className="text-[10px] text-gray-400 ml-1">({product.avg_rating})</span>}
+            <h3 className="font-bold text-sm md:text-base text-gray-900 dark:text-white line-clamp-1 mb-1">{product.name}</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-1 mb-2 hidden md:block">{product.description}</p>
+            
+            <div className="flex items-end justify-between">
+              <div className="flex flex-col">
+                 {product.old_price > product.price && (
+                   <span className="text-[10px] text-gray-400 line-through">TSh {parseInt(product.old_price).toLocaleString()}</span>
+                 )}
+                 <span className="font-black text-brand-600 dark:text-brand-400 text-base md:text-lg">
+                   TSh {parseInt(product.price).toLocaleString()}
+                 </span>
+              </div>
+              <div className="flex gap-1 items-center mb-1">
+                {[1,2,3,4,5].map((s) => (
+                  <Star key={s} size={10} className={s <= product.avg_rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200 dark:text-gray-700'} />
+                ))}
+                {product.avg_rating > 0 && <span className="text-[10px] text-gray-400 ml-1">({product.avg_rating})</span>}
+              </div>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Floating Actions for List */}
-        <div className="absolute top-3 right-3 flex flex-col gap-2">
+        <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
             <button onClick={handleLike} className="p-1.5 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-red-500 transition-colors">
               <Heart size={14} className={liked ? 'fill-red-500 text-red-500' : ''} />
             </button>
@@ -124,111 +126,113 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
               <Share2 size={14} />
             </button>
         </div>
-      </Link>
+      </div>
     );
   }
 
   return (
-    <Link to={`/product/${product.slug}`} className="group card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300">
-      {/* Image — 4:3 ratio */}
-      <div className="relative aspect-[4/3] bg-gray-100 dark:bg-gray-800/50 overflow-hidden">
-        <SafeImage
-          src={product.images?.[0]?.image || ''}
-          alt={product.name}
-          className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out will-change-transform"
-        />
-        {/* Top overlay: Like + Share + Add */}
-        <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300 ease-out">
-          <button onClick={handleLike} className={`w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg transition-colors ${liked ? 'bg-red-50 dark:bg-red-900/30 text-red-500' : 'hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-500'}`} title="Like">
-            <Heart size={14} className={liked ? 'fill-current' : ''} />
-          </button>
-          {!isOwnProduct && (
-            <button onClick={handleAddToCart} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-brand-50 dark:hover:bg-brand-900/30 text-gray-500 hover:text-brand-500 transition-colors" title="Add to Cart">
-              <ShoppingCart size={14} />
-            </button>
-          )}
-          <button onClick={handleShare} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors" title="Share">
-            <Share2 size={14} />
-          </button>
-        </div>
-        {/* Condition badge */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1.5">
-          {isSponsored && (
-            <span className="bg-brand-600 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase tracking-wider">
-              Sponsored
-            </span>
-          )}
-          <span className={`text-[9px] px-2 py-0.5 rounded font-bold text-white shadow-md uppercase tracking-wider ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
-            {product.condition || 'New'}
-          </span>
-          {product.old_price > product.price && (
-            <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase">
-              -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Card body */}
-      <div className="p-3.5 flex flex-col flex-1">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider">{product.category_name}</span>
-          <div className="flex items-center gap-2">
-            {product.is_verified && (
-               <div className="flex items-center gap-1 text-[8px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800" title="Professionally Verified">
-                 <Shield size={10} className="fill-current" />
-                 <span>VERIFIED</span>
-               </div>
+    <div className="group relative card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300">
+      <Link to={`/product/${product.slug}`} className="flex flex-col h-full">
+        {/* Image — 4:3 ratio */}
+        <div className="relative aspect-[4/3] bg-gray-100 dark:bg-gray-800/50 overflow-hidden">
+          <SafeImage
+            src={product.images?.[0]?.image || ''}
+            alt={product.name}
+            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out will-change-transform"
+          />
+          {/* Condition badge */}
+          <div className="absolute top-2 left-2 flex flex-col gap-1.5">
+            {isSponsored && (
+              <span className="bg-brand-600 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase tracking-wider">
+                Sponsored
+              </span>
             )}
-            {/* FIX B-19: Inspected badge */}
-            {product.has_inspection && (
-               <div className="flex items-center gap-1 text-[8px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800" title="Professionally Inspected">
-                 <Shield size={10} />
-                 <span>INSPECTED ✓</span>
-               </div>
+            <span className={`text-[9px] px-2 py-0.5 rounded font-bold text-white shadow-md uppercase tracking-wider ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
+              {product.condition || 'New'}
+            </span>
+            {product.old_price > product.price && (
+              <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase">
+                -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
+              </span>
             )}
-            <div className="flex gap-0.5 items-center">
-              <Star size={10} className="fill-yellow-400 text-yellow-400" />
-              <span className="text-[10px] text-gray-500 font-medium">{product.avg_rating || '5.0'}</span>
-            </div>
           </div>
         </div>
-        <h3 className="font-bold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{product.name}</h3>
-        <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-1 mt-0.5 mb-3 flex-1">{product.description}</p>
 
-        <div className="flex items-baseline gap-2 mt-auto">
-          {product.old_price > product.price && (
-            <span className="text-xs text-gray-400 line-through font-medium">TSh {parseInt(product.old_price).toLocaleString()}</span>
-          )}
-          <span className="font-black text-brand-600 dark:text-brand-400 text-base">
-            TSh {parseInt(product.price).toLocaleString()}
-          </span>
-        </div>
-
-        {/* Seller Info */}
-        <div className="text-[10px] text-gray-400 dark:text-gray-500 border-t border-surface-border/40 dark:border-surface-dark-border/40 pt-2.5 mt-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 min-w-0 text-[9px]">
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="truncate font-medium text-gray-600 dark:text-gray-300">{product.seller_username || 'Seller'}</span>
-              <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3.5 h-3.5 shrink-0" />
+        {/* Card body */}
+        <div className="p-3.5 flex flex-col flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider">{product.category_name}</span>
+            <div className="flex items-center gap-2">
+              {product.is_verified && (
+                 <div className="flex items-center gap-1 text-[8px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800" title="Professionally Verified">
+                   <Shield size={10} className="fill-current" />
+                   <span>VERIFIED</span>
+                 </div>
+              )}
+              {product.has_inspection && (
+                 <div className="flex items-center gap-1 text-[8px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800" title="Professionally Inspected">
+                   <Shield size={10} />
+                   <span>INSPECTED ✓</span>
+                 </div>
+              )}
+              <div className="flex gap-0.5 items-center">
+                <Star size={10} className="fill-yellow-400 text-yellow-400" />
+                <span className="text-[10px] text-gray-500 font-medium">{product.avg_rating || '5.0'}</span>
+              </div>
             </div>
-            {product.location_name && (
-              <>
-                <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
-                <span className="flex items-center gap-0.5 truncate max-w-[50px] shrink-0"><MapPin size={8} /> {product.location_name}</span>
-              </>
-            )}
-            {product.created_at && (
-              <>
-                <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
-                <span className="flex items-center gap-0.5 whitespace-nowrap shrink-0"><Clock size={8} /> {timeAgo(product.created_at)}</span>
-              </>
-            )}
           </div>
-          <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-1">PRO</span>
+          <h3 className="font-bold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{product.name}</h3>
+          <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-1 mt-0.5 mb-3 flex-1">{product.description}</p>
+
+          <div className="flex items-baseline gap-2 mt-auto">
+            {product.old_price > product.price && (
+              <span className="text-xs text-gray-400 line-through font-medium">TSh {parseInt(product.old_price).toLocaleString()}</span>
+            )}
+            <span className="font-black text-brand-600 dark:text-brand-400 text-base">
+              TSh {parseInt(product.price).toLocaleString()}
+            </span>
+          </div>
+
+          {/* Seller Info */}
+          <div className="text-[10px] text-gray-400 dark:text-gray-500 border-t border-surface-border/40 dark:border-surface-dark-border/40 pt-2.5 mt-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 min-w-0 text-[9px]">
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="truncate font-medium text-gray-600 dark:text-gray-300">{product.seller_username || 'Seller'}</span>
+                <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3.5 h-3.5 shrink-0" />
+              </div>
+              {product.location_name && (
+                <>
+                  <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                  <span className="flex items-center gap-0.5 truncate max-w-[50px] shrink-0"><MapPin size={8} /> {product.location_name}</span>
+                </>
+              )}
+              {product.created_at && (
+                <>
+                  <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                  <span className="flex items-center gap-0.5 whitespace-nowrap shrink-0"><Clock size={8} /> {timeAgo(product.created_at)}</span>
+                </>
+              )}
+            </div>
+            <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-1">PRO</span>
+          </div>
         </div>
+      </Link>
+
+      {/* Top overlay: Like + Share + Add */}
+      <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 translate-x-0 lg:translate-x-2 lg:group-hover:translate-x-0 transition-all duration-300 ease-out z-10">
+        <button onClick={handleLike} className={`w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg transition-colors ${liked ? 'bg-red-50 dark:bg-red-900/30 text-red-500' : 'hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-500'}`} title="Like">
+          <Heart size={14} className={liked ? 'fill-current' : ''} />
+        </button>
+        {!isOwnProduct && (
+          <button onClick={handleAddToCart} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-brand-50 dark:hover:bg-brand-900/30 text-gray-500 hover:text-brand-500 transition-colors" title="Add to Cart">
+            <ShoppingCart size={14} />
+          </button>
+        )}
+        <button onClick={handleShare} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors" title="Share">
+          <Share2 size={14} />
+        </button>
       </div>
-    </Link>
+    </div>
   );
 });
 

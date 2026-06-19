@@ -21,7 +21,7 @@ sleep 15
 curl -s http://localhost/api/site-settings/
 
 echo "Seeding the database..."
-docker compose -f docker-compose.prod.yml exec -T backend sh -c "SEED_ADMIN_PASSWORD=YourSecurePassword python manage.py seed"
+docker compose -f docker-compose.prod.yml exec -T backend sh -c "SEED_ADMIN_PASSWORD=\${SEED_ADMIN_PASSWORD} python manage.py seed"
 
 echo "Setting up backup cron..."
 sudo touch /var/log/uzaspea-backup.log

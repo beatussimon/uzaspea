@@ -32,7 +32,14 @@ class TaskSerializer(serializers.ModelSerializer):
     assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True, default=None)
     created_by_username = serializers.CharField(source='created_by.username', read_only=True, default=None)
     category_name = serializers.CharField(source='category.name', read_only=True, default=None)
-    is_overdue = serializers.BooleanField(read_only=True)
+    is_overdue = serializers.SerializerMethodField()
+
+    def get_is_overdue(self, obj):
+        if hasattr(obj, 'is_overdue'):
+            if callable(obj.is_overdue):
+                return obj.is_overdue()
+            return obj.is_overdue
+        return False
 
     class Meta:
         model = Task

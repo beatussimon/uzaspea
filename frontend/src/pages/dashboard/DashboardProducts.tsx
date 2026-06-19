@@ -4,9 +4,11 @@ import toast from 'react-hot-toast';
 import { Package, Plus } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
+import { useDialog } from '../../components/ui/Dialogs';
 
 // ============ Dashboard Products ============
 const DashboardProducts: React.FC = () => {
+  const { showConfirm } = useDialog();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -183,7 +185,8 @@ const DashboardProducts: React.FC = () => {
   };
 
   const handleDelete = async (slug: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    const confirmed = await showConfirm('Are you sure you want to delete this product?', 'Delete Listing');
+    if (!confirmed) return;
     try {
       await api.delete(`/api/products/${slug}/`);
       toast.success('Product deleted');

@@ -12,7 +12,7 @@ sleep 15
 
 echo ""
 echo "=== Container status ==="
-docker compose ps 2>&1
+docker compose -f docker-compose.prod.yml ps 2>&1
 
 echo ""
 echo "=== RAM usage ==="
@@ -24,7 +24,7 @@ docker stats --no-stream --format "  {{.Name}}: {{.MemUsage}} ({{.MemPerc}})" 2>
 
 echo ""
 echo "=== Checking backend logs (last 30 lines) ==="
-docker compose logs backend --tail=30 2>&1
+docker compose -f docker-compose.prod.yml logs backend --tail=30 2>&1
 
 echo ""
 echo "=== LAUNCH_DONE ==="
