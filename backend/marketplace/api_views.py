@@ -413,7 +413,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_staff:
             return Order.objects.all().prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
-        return Order.objects.filter(user=user).prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
+        return Order.objects.filter(
+            Q(user=user) | Q(orderitem_set__product__seller=user)
+        ).distinct().prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -600,6 +602,10 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if not has_completed_order:
             raise drf_serializers.ValidationError("You can only review products you have completely purchased and received.")
         
+        # Check unique constraint to avoid 500 IntegrityError
+        if Review.objects.filter(user=self.request.user, product=product).exists():
+            raise drf_serializers.ValidationError("You have already reviewed this product.")
+            
         serializer.save(user=self.request.user, approved=True)
 
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsStaffMember])
