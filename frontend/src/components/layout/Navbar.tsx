@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Moon, Sun, Shield, User, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, HelpCircle, 
-  ChevronDown, PlusCircle, Search, MessageSquare
+  ChevronDown, PlusCircle, Search, MessageSquare, ClipboardList
 } from 'lucide-react';
 import VerifiedBadge from '../VerifiedBadge';
 import { useCart } from '../../context/CartContext';
@@ -76,54 +76,14 @@ const Navbar = () => {
     <nav className={`glass border-b border-gray-100 dark:border-neutral-900 fixed top-0 inset-x-0 z-50 transition-transform duration-300 ${visible ? 'translate-y-0' : '-translate-y-full'}`}>
       <div className="container-page flex items-center justify-between h-16">
 
-        {/* ---- Left: Brand & Main Navigation ---- */}
+        {/* ---- Left: Brand ---- */}
         <div className="flex items-center shrink-0">
-          <Link to="/" className="flex items-center gap-2.5 group mr-2">
+          <Link to="/" className="flex items-center gap-2.5 group">
             <img src="/logo.png" alt="UZASPEA" className="h-9 w-auto transition-transform duration-200 group-hover:scale-105" />
             <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">
               UZASPEA
             </span>
           </Link>
-
-          <div className="hidden lg:block h-6 w-px bg-gray-200 dark:bg-neutral-800 mx-3" />
-
-          {/* Desktop Core Navigation Links */}
-          <div className="hidden lg:flex items-center gap-1.5">
-            <Link 
-              to="/" 
-              className={`px-3 py-1.5 text-sm font-semibold rounded-btn transition-all duration-200 ${
-                location.pathname === '/' 
-                  ? 'text-brand-500 bg-brand-500/10' 
-                  : 'text-gray-600 dark:text-gray-300 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-neutral-900'
-              }`}
-            >
-              Explore
-            </Link>
-            {isAuthenticated && (
-              <>
-                <Link 
-                  to="/inspections" 
-                  className={`px-3 py-1.5 text-sm font-semibold rounded-btn transition-all duration-200 ${
-                    location.pathname.startsWith('/inspections') 
-                      ? 'text-brand-500 bg-brand-500/10' 
-                      : 'text-gray-600 dark:text-gray-300 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-neutral-900'
-                  }`}
-                >
-                  Inspections
-                </Link>
-                <Link 
-                  to="/messages" 
-                  className={`px-3 py-1.5 text-sm font-semibold rounded-btn transition-all duration-200 ${
-                    location.pathname.startsWith('/messages') 
-                      ? 'text-brand-500 bg-brand-500/10' 
-                      : 'text-gray-600 dark:text-gray-300 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-neutral-900'
-                  }`}
-                >
-                  Messages
-                </Link>
-              </>
-            )}
-          </div>
         </div>
 
         {/* ---- Center: Search ---- */}
@@ -148,20 +108,22 @@ const Navbar = () => {
           </form>
         </div>
 
-        {/* ---- Right: Sell + Notification + Messages + Cart + Theme + Dropdown ---- */}
+        {/* ---- Right: Actions / Navigation ---- */}
         <div className="hidden lg:flex items-center gap-2 shrink-0">
-          <Link 
-            to="/dashboard/products" 
-            className="flex items-center gap-1.5 px-4 py-1.5 border border-brand-500 hover:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-sm font-bold rounded-btn transition-all active:scale-95 hover:shadow-glow mr-1 group"
-          >
-            <PlusCircle size={16} className="group-hover:rotate-90 transition-transform duration-300" />
-            <span>Sell</span>
-          </Link>
-
-          <NotificationBell />
-
-          {isAuthenticated && (
+          {isAuthenticated ? (
             <>
+              {/* Sell button */}
+              <Link 
+                to="/dashboard/products" 
+                className="flex items-center gap-1.5 px-4 py-1.5 border border-brand-500 hover:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-sm font-bold rounded-btn transition-all active:scale-95 hover:shadow-glow mr-1 group"
+              >
+                <PlusCircle size={16} className="group-hover:rotate-90 transition-transform duration-300" />
+                <span>Sell</span>
+              </Link>
+
+              {/* Core Utility Icons */}
+              <NotificationBell />
+
               <Link to="/messages" className="relative btn-ghost p-2 group hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-btn transition-all" aria-label="View messages">
                 <MessageSquare size={20} className="text-gray-600 dark:text-gray-300 group-hover:scale-110 transition-transform" />
               </Link>
@@ -175,6 +137,18 @@ const Navbar = () => {
                 )}
               </Link>
             </>
+          ) : (
+            /* Guest navigation links */
+            <Link 
+              to="/" 
+              className={`px-3 py-1.5 text-sm font-semibold rounded-btn transition-all duration-200 ${
+                location.pathname === '/' 
+                  ? 'text-brand-500 bg-brand-500/10' 
+                  : 'text-gray-600 dark:text-gray-300 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-neutral-900'
+              }`}
+            >
+              Explore
+            </Link>
           )}
 
           <button onClick={toggleTheme} className="btn-ghost p-2 text-gray-600 dark:text-gray-300 hover:rotate-12 transition-transform hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-btn" aria-label="Toggle theme">
@@ -182,6 +156,7 @@ const Navbar = () => {
           </button>
 
           {isAuthenticated ? (
+            /* User Dropdown */
             <div className="relative" onClick={(e) => e.stopPropagation()}>
               <button 
                 onClick={() => setProfileOpen(!profileOpen)} 
@@ -233,6 +208,12 @@ const Navbar = () => {
                             <ShoppingBag size={14} />
                           </div>
                           <span className="font-medium">My Orders</span>
+                        </Link>
+                        <Link to="/inspections" className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500 rounded-btn transition-all group" onClick={() => setProfileOpen(false)}>
+                          <div className="w-7 h-7 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center group-hover:bg-brand-500 group-hover:text-white transition-colors">
+                            <ClipboardList size={14} />
+                          </div>
+                          <span className="font-medium">My Inspections</span>
                         </Link>
                         <Link to="/messages" className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500 rounded-btn transition-all group" onClick={() => setProfileOpen(false)}>
                           <div className="w-7 h-7 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center group-hover:bg-brand-500 group-hover:text-white transition-colors">
