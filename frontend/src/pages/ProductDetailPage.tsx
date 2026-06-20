@@ -261,112 +261,152 @@ const ProductDetailPage: React.FC = () => {
 
         {/* Product Info */}
         <div className="flex flex-col">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white leading-tight mb-3">
+          {/* Top Badge Bar */}
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <Link 
+              to={`/?category=${product.category_name}`} 
+              className="text-xs font-black uppercase tracking-widest text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
+            >
+              {product.category_name}
+            </Link>
+            <span className="text-gray-300 dark:text-gray-600 font-bold">•</span>
+            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+              product.condition === 'New' 
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/30' 
+                : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200/30 dark:border-gray-700/30'
+            }`}>
+              {product.condition}
+            </span>
+          </div>
+
+          <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight mb-2 tracking-tight">
             {product.name}
           </h1>
 
-          {/* Like + Share — repositioned & enlarged */}
-          <div className="flex items-center gap-4 mb-6">
-            <button
-              onClick={handleLike}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 text-base font-bold transition-all duration-200 ${
-                liked
-                  ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-500 shadow-sm'
-                  : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-red-400 hover:text-red-500'
-              }`}
-            >
-              <Heart size={22} className={liked ? 'fill-current' : ''} />
-              {likeCount}
-            </button>
-            <button
-              onClick={handleShare}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-brand-400 hover:text-brand-500 text-base font-bold transition-all duration-200 shadow-sm"
-            >
-              <Share2 size={22} />
-              Share
-            </button>
-          </div>
-
-          {/* Price */}
-          <div className="flex items-baseline gap-3 mb-6">
-            <p className="text-4xl font-black text-brand-600 dark:text-brand-400 tracking-tight">
-              TSh {selectedVariant ? selectedVariant.final_price.toLocaleString() : parseInt(product.price).toLocaleString()}
-            </p>
-            {product.old_price && parseInt(product.old_price) > parseInt(product.price) && !selectedVariant && (
-              <p className="text-xl text-gray-400 line-through font-medium italic">
-                TSh {parseInt(product.old_price).toLocaleString()}
-              </p>
+          {/* Meta-info row */}
+          <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mb-6">
+            {product.location_name && (
+              <span className="flex items-center gap-1">
+                <MapPin size={13} className="text-gray-400" />
+                {product.location_name}
+              </span>
+            )}
+            {product.created_at && (
+              <span className="flex items-center gap-1">
+                <Clock size={13} className="text-gray-400" />
+                Posted {timeAgo(product.created_at)}
+              </span>
             )}
           </div>
-          
-          {/* Price Alert */}
-          {isAuthenticated && (
-            <div className="flex flex-wrap items-center gap-2 mb-6 -mt-2">
-              <div className="relative">
-                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">TSh</span>
-                 <input 
-                   type="number" 
-                   placeholder="Alert when price drops to..."
-                   value={alertPrice} 
-                   onChange={e => setAlertPrice(e.target.value)}
-                   className="input text-sm pl-10 pr-3 py-1.5 w-60 h-9" 
-                 />
+
+          {/* Premium Price & Alert Card */}
+          <div className="bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800/40 dark:to-gray-900/40 rounded-3xl p-6 border border-gray-105 dark:border-gray-700/80 mb-6 shadow-sm">
+            <div className="flex flex-wrap items-baseline justify-between gap-4">
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">Price</span>
+                <div className="flex flex-wrap items-baseline gap-3">
+                  <p className="text-4xl font-black text-brand-600 dark:text-brand-400 tracking-tight">
+                    TSh {selectedVariant ? selectedVariant.final_price.toLocaleString() : parseInt(product.price).toLocaleString()}
+                  </p>
+                  {product.old_price && parseInt(product.old_price) > parseInt(product.price) && !selectedVariant && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg text-gray-400 line-through font-medium">
+                        TSh {parseInt(product.old_price).toLocaleString()}
+                      </span>
+                      <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-black rounded-md uppercase tracking-wider shadow-sm shadow-red-500/20">
+                        {Math.round(((parseInt(product.old_price) - parseInt(product.price)) / parseInt(product.old_price)) * 100)}% OFF
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <button 
-                onClick={async () => {
-                    if (!alertPrice) return toast.error('Enter a target price');
-                    try {
-                        await api.post('/api/price-alerts/', { product: product.id, target_price: alertPrice });
-                        toast.success('Price alert set!');
-                        setAlertPrice('');
-                    } catch {
-                        toast.error('Failed to set price alert');
-                    }
-                }} 
-                className="btn-secondary h-9 py-0 px-4 text-xs font-bold flex items-center gap-1.5 border border-brand-200 text-brand-600 hover:bg-brand-50"
+              
+              {/* Like / Wishlist button directly on price block */}
+              <button
+                onClick={handleLike}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all duration-200 active:scale-95 ${
+                  liked
+                    ? 'border-red-500 bg-red-50 dark:bg-red-950/20 text-red-500 shadow-sm'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-red-400 hover:text-red-500'
+                }`}
               >
-                  <Bell size={14} /> Set Alert
+                <Heart size={18} className={liked ? 'fill-current' : ''} />
+                <span className="text-xs font-bold">{likeCount}</span>
               </button>
             </div>
-          )}
 
-          {/* Info rows */}
-          <div className="space-y-3 mb-6">
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              <span className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Seller: <Link to={`/profile/${product.seller_username}`} className="text-brand-600 font-bold hover:underline">{product.seller_username}</Link>
-                <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-5 h-5" />
-              </span>
-              <span className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                <Link to={`/?category=${product.category_name}`} className="text-brand-600 font-bold hover:underline">{product.category_name}</Link>
-              </span>
-              {product.is_verified && (
-                <span className="flex items-center gap-1.5 text-brand-700 bg-brand-50 dark:bg-brand-900/20 px-3 py-1.5 rounded-lg border border-brand-100 dark:border-brand-900/30 text-[10px] font-black uppercase tracking-widest">
-                  <Shield size={14} className="fill-current" />
-                  Professionally Verified
-                </span>
-              )}
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-4 text-sm mt-3">
-              {product.location_name && (
-                <span className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                  <MapPin size={14} />
-                  {product.location_name}
-                </span>
-              )}
-              {product.created_at && (
-                <span className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                  <Clock size={14} />
-                  Posted {timeAgo(product.created_at)}
-                </span>
-              )}
-            </div>
-            {/* FIX B-12: Message Seller */}
-            {product.seller_username !== localStorage.getItem('username') && (
-              <div className="flex items-center gap-3 mt-2">
+            {/* Price Alert Bar integrated inside the Card */}
+            {isAuthenticated && (
+              <div className="mt-5 pt-5 border-t border-gray-100 dark:border-gray-700/60 flex flex-wrap items-center gap-2">
+                <div className="relative flex-1 min-w-[200px]">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">TSh</span>
+                  <input 
+                    type="number" 
+                    placeholder="Alert when price drops to..."
+                    value={alertPrice} 
+                    onChange={e => setAlertPrice(e.target.value)}
+                    className="w-full p-2.5 pl-10 pr-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-xs focus:ring-2 focus:ring-brand-500 outline-none transition" 
+                  />
+                </div>
+                <button 
+                  onClick={async () => {
+                      if (!alertPrice) return toast.error('Enter a target price');
+                      try {
+                          await api.post('/api/price-alerts/', { product: product.id, target_price: alertPrice });
+                          toast.success('Price alert set!');
+                          setAlertPrice('');
+                      } catch {
+                          toast.error('Failed to set price alert');
+                      }
+                  }} 
+                  className="px-4 py-2.5 bg-white dark:bg-gray-800 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  <Bell size={13} /> Set Alert
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Premium Merchant Trust Card */}
+          <div className="bg-white dark:bg-gray-800/10 rounded-3xl p-5 border border-gray-100 dark:border-gray-700/80 mb-6 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-brand-50 dark:bg-brand-900/30 flex items-center justify-center border border-brand-100 dark:border-brand-800 shrink-0">
+                  {product.seller_profile_picture ? (
+                    <img src={product.seller_profile_picture} alt={product.seller_username} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-black text-brand-600 dark:text-brand-400 uppercase">
+                      {product.seller_username.charAt(0)}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <Link to={`/profile/${product.seller_username}`} className="font-bold text-gray-900 dark:text-white hover:text-brand-600 hover:underline transition">
+                      {product.seller_username}
+                    </Link>
+                    <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-4 h-4" />
+                  </div>
+                  {/* Merchant Rating */}
+                  <div className="flex items-center gap-1 mt-1">
+                    {product.avg_rating > 0 ? (
+                      <>
+                        <div className="flex text-amber-400">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star key={star} size={13} className={star <= product.avg_rating ? 'fill-current' : 'text-gray-200 dark:text-gray-700'} />
+                          ))}
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-500">({product.avg_rating}/5)</span>
+                      </>
+                    ) : (
+                      <span className="text-[10px] text-gray-400 italic font-medium">No reviews yet</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Message Seller Button */}
+              {product.seller_username !== localStorage.getItem('username') && (
                 <button
                   onClick={async () => {
                     try {
@@ -374,38 +414,16 @@ const ProductDetailPage: React.FC = () => {
                       navigate(`/messages/${res.data.id}`);
                     } catch { toast.error('Login to message seller'); }
                   }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-brand-200 dark:border-brand-800 text-brand-600 text-sm font-bold hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-brand-50 dark:bg-brand-900/30 border border-brand-100 dark:border-brand-900/40 text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider hover:bg-brand-100 dark:hover:bg-brand-900/50 transition-all shadow-sm"
                 >
-                  <MessageSquare size={16} /> Message Seller
+                  <MessageSquare size={14} /> Contact
                 </button>
-              </div>
-            )}
-            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 pl-1">
-              <span className="font-medium">Stock: <span className="text-gray-900 dark:text-white font-bold">{product.stock}</span></span>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                product.condition === 'New' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-              }`}>{product.condition}</span>
+              )}
             </div>
           </div>
 
-          {/* Rating */}
-          <div className="flex items-center gap-2 mb-6 pl-1">
-            {product.avg_rating > 0 ? (
-              <>
-                <div className="flex text-yellow-400">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star key={star} size={18} className={star <= product.avg_rating ? 'fill-current' : 'text-gray-200 dark:text-gray-700'} />
-                  ))}
-                </div>
-                <span className="text-sm font-bold text-gray-500">({product.avg_rating}/5)</span>
-              </>
-            ) : (
-              <span className="text-sm font-bold text-gray-400 italic">No reviews yet</span>
-            )}
-          </div>
-
-          {/* Description */}
-          <div className="bg-white dark:bg-gray-800/30 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 mb-8 shadow-sm">
+          {/* Description Section */}
+          <div className="bg-white dark:bg-gray-800/10 rounded-3xl p-5 border border-gray-100 dark:border-gray-700/80 mb-6 shadow-sm">
              <button 
                 onClick={() => setIsDescExpanded(!isDescExpanded)}
                 className="w-full flex items-center justify-between group"
@@ -436,120 +454,149 @@ const ProductDetailPage: React.FC = () => {
              )}
           </div>
 
-          {/* Variants Selector */}
-          {variants.length > 0 && (
-            <div className="mb-6 pl-1">
-              <label className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 block">
-                Select Variant
-              </label>
-              <select
-                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition"
-                value={selectedVariant?.id || ''}
-                onChange={(e) => {
-                   const v = variants.find(x => x.id.toString() === e.target.value);
-                   setSelectedVariant(v || null);
-                   setQuantity(1); // Reset quantity when variant changes
-                }}
-              >
-                <option value="">Default Option</option>
-                {variants.map(v => (
-                   <option key={v.id} value={v.id} disabled={!v.is_available || v.stock === 0}>
-                     {v.name} {v.price_adjustment !== '0.00' ? `(TSh ${v.final_price.toLocaleString()})` : ''} {v.stock === 0 ? '- Out of Stock' : ''}
-                   </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Add to Cart — matches legacy quantity-selector */}
-          {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
-            isOwnProduct ? (
-              <div className="mt-auto p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-center border border-gray-100 dark:border-gray-700">
-                <p className="text-gray-500 dark:text-gray-400 font-medium text-sm">This is your own product.</p>
-              </div>
-            ) : (
-            <div className="flex items-center gap-3 mt-auto">
-              <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300 font-medium"
-                >
-                  -
-                </button>
-                <span className="px-4 py-2 font-medium text-gray-900 dark:text-white border-x border-gray-300 dark:border-gray-600 min-w-[40px] text-center">
-                  {quantity}
+          {/* Premium Cart and Actions Panel */}
+          <div className="bg-white dark:bg-gray-800/10 rounded-3xl p-6 border border-gray-100 dark:border-gray-700/60 mb-6 space-y-5">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500 dark:text-gray-400 font-medium">Availability</span>
+              {product.stock > 0 ? (
+                <span className="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 rounded-full text-xs font-bold">
+                  {product.stock} in stock
                 </span>
-                <button
-                  onClick={() => setQuantity(Math.min((selectedVariant ? selectedVariant.stock : product.stock), quantity + 1))}
-                  className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300 font-medium"
-                >
-                  +
-                </button>
-              </div>
-              <button
-                onClick={handleAddToCart}
-                className="flex-[2] flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg transition shadow-sm"
-              >
-                <ShoppingCart size={18} />
-                Add to Cart
-              </button>
+              ) : (
+                <span className="px-2.5 py-0.5 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/30 rounded-full text-xs font-bold">
+                  Out of stock
+                </span>
+              )}
             </div>
-            )
-          ) : (
-            <p className="text-red-500 font-semibold mt-auto">Out of Stock</p>
-          )}
 
-          {/* Inspection Upsell / Results */}
-          <div className="mt-4 p-4 rounded-xl border border-brand-100 dark:border-brand-900/30 bg-brand-50/50 dark:bg-brand-900/10">
-            <div className="flex items-start gap-3 mb-3">
-              <div className="p-2 bg-brand-100 dark:bg-brand-900/40 rounded-lg text-brand-600">
+            {/* Variant selector */}
+            {variants.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Select Option</label>
+                <select
+                  className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 text-sm focus:ring-2 focus:ring-brand-500 outline-none transition"
+                  value={selectedVariant?.id || ''}
+                  onChange={(e) => {
+                     const v = variants.find(x => x.id.toString() === e.target.value);
+                     setSelectedVariant(v || null);
+                     setQuantity(1); // Reset quantity when variant changes
+                  }}
+                >
+                  <option value="">Default Option</option>
+                  {variants.map(v => (
+                     <option key={v.id} value={v.id} disabled={!v.is_available || v.stock === 0}>
+                       {v.name} {v.price_adjustment !== '0.00' ? `(+TSh ${parseInt(v.price_adjustment).toLocaleString()})` : ''} {v.stock === 0 ? '- Out of Stock' : ''}
+                     </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Quantity Picker & Add to Cart Action */}
+            {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
+              isOwnProduct ? (
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl text-center border border-gray-100 dark:border-gray-700 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  This is your own listing
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0">
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="px-3.5 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-base"
+                    >
+                      −
+                    </button>
+                    <span className="px-4 py-3 font-extrabold text-gray-900 dark:text-white border-x border-gray-200 dark:border-gray-700 min-w-[44px] text-center text-sm">
+                      {quantity}
+                    </span>
+                    <button
+                      onClick={() => setQuantity(Math.min((selectedVariant ? selectedVariant.stock : product.stock), quantity + 1))}
+                      className="px-3.5 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-base"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleAddToCart}
+                    className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 text-white font-extrabold rounded-2xl transition shadow-lg shadow-brand-600/25 active:scale-98"
+                  >
+                    <ShoppingCart size={18} />
+                    Add to Cart
+                  </button>
+                </div>
+              )
+            ) : (
+              <p className="text-red-500 font-bold text-center py-2 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 rounded-2xl text-sm">Out of Stock</p>
+            )}
+          </div>
+
+          {/* Premium Verification & Inspection Services */}
+          <div className="p-6 rounded-3xl border border-brand-100/80 dark:border-brand-900/30 bg-gradient-to-br from-brand-50/50 to-white dark:from-brand-950/10 dark:to-gray-900/20 shadow-sm mb-6">
+            <div className="flex items-start gap-3.5 mb-4">
+              <div className="p-3 bg-brand-100 dark:bg-brand-900/40 rounded-2xl text-brand-600 dark:text-brand-400">
                 <Shield size={20} />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-gray-900 dark:text-white">
-                  {product.inspections?.length > 0 ? 'Inspection History' : 'Professional Inspection'}
-                </h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">
+                    {product.inspections?.length > 0 ? 'Inspection History' : 'Professional Inspection'}
+                  </h4>
+                  {product.is_verified && (
+                    <span className="px-2 py-0.5 bg-brand-600 text-white text-[8px] font-black rounded-full uppercase tracking-widest shadow-sm shadow-brand-600/30">Verified</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
                   {product.inspections?.length > 0 
-                    ? `This product has ${product.inspections.length} recorded inspection(s).`
-                    : 'Get a comprehensive condition report by a certified inspector before you pay.'}
+                    ? `This product has verified inspection records on file.`
+                    : 'Request a certified inspector to examine this item for safety & verification.'}
                 </p>
               </div>
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {product.inspections?.map((insp) => (
                 <Link
                   key={insp.id}
                   to={`/verify/${insp.inspection_id}`}
-                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                  className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-200 ${
                     insp.verdict === 'pass' 
-                      ? 'bg-green-50 border-green-100 dark:bg-green-900/20 dark:border-green-900/40' 
-                      : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700'
-                  } hover:shadow-md`}
+                      ? 'bg-emerald-50/40 border-emerald-100 dark:bg-emerald-950/10 dark:border-emerald-900/30 hover:border-emerald-200' 
+                      : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:shadow-md'
+                  }`}
                 >
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
                       {new Date(insp.created_at).toLocaleDateString()} • {insp.inspection_id}
                     </span>
-                    <span className={`text-xs font-bold ${
-                      insp.verdict === 'pass' ? 'text-green-600' : 'text-gray-700 dark:text-white'
+                    <span className={`text-xs font-extrabold mt-0.5 ${
+                      insp.verdict === 'pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-white'
                     }`}>
                       {insp.verdict ? `Verdict: ${insp.verdict.toUpperCase()}` : `Status: ${insp.status.replace('_', ' ').toUpperCase()}`}
                     </span>
                   </div>
-                  <span className="text-[10px] font-black text-brand-600 uppercase">View Report →</span>
+                  <span className="text-[10px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest">Report →</span>
                 </Link>
               ))}
 
-              <Link
-                to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name)}&marketplace_product_id=${product.id}`}
-                className="w-full btn-secondary py-2 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 border-brand-200 hover:bg-brand-100 dark:border-brand-900/30 dark:hover:bg-brand-900/20 text-brand-600 mt-2"
-              >
-                {product.inspections?.length > 0 ? 'Request Re-Inspection' : 'Request Inspection'}
-              </Link>
+              <div className="flex gap-2">
+                <Link
+                  to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name)}&marketplace_product_id=${product.id}`}
+                  className="w-full py-3 rounded-2xl bg-white dark:bg-gray-800 border border-brand-200 dark:border-brand-800 hover:bg-brand-50 dark:hover:bg-brand-900/30 text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-widest text-center transition shadow-sm"
+                >
+                  {product.inspections?.length > 0 ? 'Request Re-Inspection' : 'Request Inspection'}
+                </Link>
+                <button
+                  onClick={handleShare}
+                  className="p-3 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-500 hover:border-brand-500 hover:text-brand-500 transition shadow-sm bg-white dark:bg-gray-800"
+                  title="Share Product"
+                >
+                  <Share2 size={16} />
+                </button>
+              </div>
             </div>
           </div>
+
         </div>
       </div>
 
