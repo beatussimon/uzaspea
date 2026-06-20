@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Car, Home, Wrench, Laptop, Smartphone, Shirt, Sofa, Briefcase, Book, ShoppingBag } from 'lucide-react';
+import { Car, Home, Wrench, Laptop, Smartphone, Shirt, Sofa, Briefcase, Book, ShoppingBag, Cog } from 'lucide-react';
 
 interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallback?: string;
@@ -39,13 +39,20 @@ const SafeImage: React.FC<SafeImageProps> = ({
   const getFallbackIcon = () => {
     const cat = category.toLowerCase();
     
+    // Accessories / Gear (e.g. Car accessories)
+    if (
+      cat.includes('accessory') ||
+      cat.includes('accessories') ||
+      cat.includes('gear')
+    ) {
+      return <Cog className="w-1/3 h-1/3 min-w-[24px] min-h-[24px] max-w-[64px] max-h-[64px]" strokeWidth={1.2} />;
+    }
+    
     // Spares / Parts / Mechanic tools
     if (
       cat.includes('spare') || 
       cat.includes('part') || 
       cat.includes('engine') || 
-      cat.includes('accessory') ||
-      cat.includes('accessories') ||
       cat.includes('exhaust') ||
       cat.includes('tire') ||
       cat.includes('wheel') ||
