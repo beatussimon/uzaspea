@@ -17,4 +17,4 @@ class CommissionPaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = CommissionPayment
         fields = ['id', 'invoice', 'amount', 'transaction_id', 'receipt_screenshot', 'status', 'rejection_reason', 'submitted_at']
-        read_only_fields = ['status', 'rejection_reason', 'submitted_by', 'submitted_at', 'reviewed_by', 'reviewed_at']
+        read_only_fields = ['invoice', 'status', 'rejection_reason', 'submitted_by', 'submitted_at', 'reviewed_by', 'reviewed_at']

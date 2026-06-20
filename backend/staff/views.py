@@ -437,6 +437,7 @@ def edit_category(request, category_id):
 
 @login_required
 @user_passes_test(is_admin)
+@require_POST
 def delete_category(request, category_id):
     """Delete a task category."""
     category = get_object_or_404(TaskCategory, id=category_id)

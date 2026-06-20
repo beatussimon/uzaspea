@@ -252,6 +252,17 @@ const ChecklistForm: React.FC<{
   const [responses, setResponses] = useState<Record<number, { value: string; notes: string }>>({});
   const [evidence, setEvidence] = useState<Record<number, { file: File; lat: number | null; lng: number | null }>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>('');
+
+  // Group items by section
+  const sections = Array.from(new Set(template.items.map(item => item.section || 'General')));
+
+  // Initialize first section as active
+  useEffect(() => {
+    if (sections.length > 0 && !activeSection) {
+      setActiveSection(sections[0]);
+    }
+  }, [sections, activeSection]);
 
   // Load draft
   useEffect(() => {
@@ -280,6 +291,85 @@ const ChecklistForm: React.FC<{
 
   const handleEvidence = (itemId: number, file: File, lat: number | null, lng: number | null) => {
     setEvidence((prev) => ({ ...prev, [itemId]: { file, lat, lng } }));
+  };
+
+  const isSectionComplete = (sec: string) => {
+    const secItems = template.items.filter((item) => (item.section || 'General') === sec);
+    return secItems.every((item) => {
+      if (!item.is_mandatory) return true;
+      if (item.item_type === 'media') return !!evidence[item.id];
+      return !!responses[item.id]?.value;
+    });
+  };
+
+  const getLiveEstimator = () => {
+    let totalPossible = 0;
+    let totalObtained = 0;
+    let hasCriticalFailure = false;
+
+    template.items.forEach((item) => {
+      const resp = responses[item.id];
+      const severity = item.severity || 'major';
+      let weight = 1;
+      if (severity === 'major') weight = 3;
+      else if (severity === 'critical') weight = 5;
+
+      const val = resp?.value?.trim().toLowerCase();
+
+      if (item.item_type === 'pass_fail') {
+        if (val) {
+          totalPossible += 100 * weight;
+          if (val === 'pass') {
+            totalObtained += 100 * weight;
+          } else {
+            totalObtained += 0;
+            if (severity === 'critical') hasCriticalFailure = true;
+          }
+        }
+      } else if (item.item_type === 'scale') {
+        if (val) {
+          totalPossible += 100 * weight;
+          try {
+            const scaleVal = parseInt(val.replace(/\D/g, ''));
+            const scorePct = (scaleVal / 5.0) * 100;
+            totalObtained += scorePct * weight;
+            if (scaleVal <= 2 && severity === 'critical') hasCriticalFailure = true;
+          } catch (e) {
+            totalObtained += 50 * weight;
+          }
+        }
+      } else if (item.item_type === 'measurement') {
+        if (val) {
+          totalPossible += 100 * weight;
+          totalObtained += 100 * weight;
+        }
+      } else if (item.item_type === 'media') {
+        if (evidence[item.id]) {
+          totalPossible += 100 * weight;
+          totalObtained += 100 * weight;
+        }
+      }
+    });
+
+    if (totalPossible === 0) return { score: 100, grade: 'A+', verdict: 'pass' };
+
+    const score = Math.round((totalObtained / totalPossible) * 100);
+    let grade = 'F';
+    if (score >= 95) grade = 'A+';
+    else if (score >= 90) grade = 'A';
+    else if (score >= 80) grade = 'B';
+    else if (score >= 70) grade = 'C';
+    else if (score >= 60) grade = 'D';
+
+    if (hasCriticalFailure) {
+      if (['A+', 'A', 'B', 'C'].includes(grade)) grade = 'D';
+    }
+
+    let verdict = 'pass';
+    if (hasCriticalFailure || score < 60) verdict = 'fail';
+    else if (score < 80) verdict = 'conditional';
+
+    return { score, grade, verdict };
   };
 
   const handleSubmit = async () => {
@@ -351,10 +441,21 @@ const ChecklistForm: React.FC<{
     } bg-white dark:bg-gray-800`}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-900 dark:text-white">
-            {item.label}
-            {item.is_mandatory && <span className="text-red-500 ml-1">*</span>}
-          </p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-sm font-medium text-gray-900 dark:text-white">
+              {item.label}
+              {item.is_mandatory && <span className="text-red-500 ml-1">*</span>}
+            </span>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+              item.severity === 'critical'
+                ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+                : item.severity === 'major'
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+            }`}>
+              {item.severity || 'major'}
+            </span>
+          </div>
           {item.help_text && (
             <p className="text-xs text-gray-400 mt-0.5">{item.help_text}</p>
           )}
@@ -394,7 +495,7 @@ const ChecklistForm: React.FC<{
               onClick={() => handleResponse(item.id, String(n))}
               className={`flex-1 py-2 rounded-lg text-sm font-bold transition border ${
                 responses[item.id]?.value === String(n)
-                  ? 'bg-brand-600 text-white border-brand-600'
+                  ? 'bg-brand-600 text-white border-brand-600 shadow-glow-strong'
                   : 'bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 border-surface-border dark:border-surface-dark-border hover:border-brand-400'
               }`}
             >
@@ -452,22 +553,87 @@ const ChecklistForm: React.FC<{
     </div>
   );
 
+  const estimator = getLiveEstimator();
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 animate-fade-in">
       <div className="p-3 rounded-lg bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 text-xs text-brand-700 dark:text-brand-300 flex items-center gap-2">
-        <AlertTriangle size={14} />
-        Items marked * are mandatory. All photos are GPS-tagged automatically.
+        <AlertTriangle size={14} className="shrink-0" />
+        <span>Items marked * are mandatory. All photos are GPS-tagged automatically.</span>
       </div>
 
-      {template.items.map(renderItem)}
+      {/* Real-time Quality Grade Estimator */}
+      <div className="p-4 rounded-xl border border-surface-border dark:border-surface-dark-border bg-gray-50/50 dark:bg-neutral-900/50 flex flex-wrap gap-4 items-center justify-between">
+        <div>
+          <p className="text-2xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Live Report Estimate</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className={`text-2xl font-black ${
+              estimator.verdict === 'pass' ? 'text-green-600 dark:text-green-400'
+                : estimator.verdict === 'conditional' ? 'text-amber-500' : 'text-red-500'
+            }`}>
+              Grade {estimator.grade}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">({estimator.score}% Score)</span>
+          </div>
+        </div>
+        <div className="text-right">
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider ${
+            estimator.verdict === 'pass' ? 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400'
+              : estimator.verdict === 'conditional' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+              : 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+          }`}>
+            {estimator.verdict === 'pass' ? 'Suggested Pass'
+              : estimator.verdict === 'conditional' ? 'Suggested Conditional' : 'Suggested Fail'}
+          </span>
+        </div>
+      </div>
+
+      {/* Section Accordions */}
+      <div className="space-y-3">
+        {sections.map((sec) => {
+          const secName = sec || 'General';
+          const secItems = template.items.filter((item) => (item.section || 'General') === secName);
+          const complete = isSectionComplete(secName);
+          const isOpen = activeSection === secName;
+
+          return (
+            <div key={secName} className="border border-surface-border dark:border-surface-dark-border rounded-card overflow-hidden bg-white dark:bg-neutral-950 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setActiveSection(isOpen ? '' : secName)}
+                className="w-full px-5 py-4 flex items-center justify-between text-left font-bold text-gray-900 dark:text-white bg-gray-50/50 dark:bg-neutral-900/50 hover:bg-gray-100/50 dark:hover:bg-neutral-900 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  {complete ? (
+                    <CheckCircle size={18} className="text-green-600 dark:text-green-400 shrink-0" />
+                  ) : (
+                    <div className="w-4.5 h-4.5 rounded-full border-2 border-gray-300 dark:border-gray-600 shrink-0" />
+                  )}
+                  <span>{secName}</span>
+                  <span className="text-[10px] font-normal text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">
+                    {secItems.length} items
+                  </span>
+                </div>
+                <ChevronRight size={16} className={`text-gray-400 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-90' : ''}`} />
+              </button>
+
+              {isOpen && (
+                <div className="p-4 space-y-4 border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-black/20 animate-fade-in">
+                  {secItems.map(renderItem)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       <button
         onClick={handleSubmit}
         disabled={submitting}
-        className="w-full btn-primary py-3 font-semibold flex items-center justify-center gap-2"
+        className="w-full btn-primary py-3 font-semibold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] transition-transform"
       >
         <Send size={16} />
-        {submitting ? 'Submitting Checklist…' : 'Save Checklist'}
+        {submitting ? 'Submitting Checklist…' : 'Save & Submit Checklist'}
       </button>
     </div>
   );

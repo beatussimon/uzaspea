@@ -42,6 +42,7 @@ class ChecklistItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'label', 'item_type', 'is_mandatory',
             'order', 'fail_triggers_flag', 'unit', 'help_text',
+            'section', 'severity',
         ]
 
 
@@ -199,12 +200,15 @@ class InspectionEvidenceSerializer(serializers.ModelSerializer):
 class ChecklistResponseSerializer(serializers.ModelSerializer):
     item_label = serializers.CharField(source='checklist_item.label', read_only=True)
     item_type = serializers.CharField(source='checklist_item.item_type', read_only=True)
+    severity = serializers.CharField(source='checklist_item.severity', read_only=True)
+    section = serializers.CharField(source='checklist_item.section', read_only=True)
 
     class Meta:
         model = ChecklistResponse
         fields = [
             'id', 'report', 'checklist_item', 'item_label',
             'item_type', 'response_value', 'flagged', 'notes',
+            'severity', 'section',
         ]
 
 
@@ -224,7 +228,7 @@ class InspectionReportSerializer(serializers.ModelSerializer):
             'summary', 'is_locked', 'report_hash',
             'submitted_by', 'submitted_by_username', 'submitted_at',
             'approved_by', 'approved_by_username', 'approved_at',
-            'qa_notes', 'responses', 'finalized_at',
+            'qa_notes', 'responses', 'finalized_at', 'quality_score', 'grade',
         ]
         read_only_fields = [
             'is_locked', 'report_hash', 'submitted_by',
@@ -241,6 +245,7 @@ class InspectionRequestSerializer(serializers.ModelSerializer):
     report = InspectionReportSerializer(read_only=True)
     payments = InspectionPaymentSerializer(many=True, read_only=True)
     evidence = InspectionEvidenceSerializer(many=True, read_only=True)
+    checkin = InspectionCheckInSerializer(read_only=True)
     unread_notifications = serializers.SerializerMethodField()
 
     class Meta:
@@ -254,7 +259,7 @@ class InspectionRequestSerializer(serializers.ModelSerializer):
             'status', 'pre_inspection_notes', 'reinspection_coverage',
             'created_at', 'updated_at',
             'bill', 'assignment', 'report', 'payments', 'evidence',
-            'unread_notifications',
+            'checkin', 'unread_notifications',
         ]
         read_only_fields = ['inspection_id', 'client', 'status', 'product_snapshot']
 
