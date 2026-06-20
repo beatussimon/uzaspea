@@ -385,10 +385,10 @@ const ProductList = () => {
               </div>
             ) : (
               products.map((product: any, idx: number) => {
-                const isSectionStart = idx % ITEMS_PER_BANNER === 0;
+                const isSectionStart = idx > 0 && idx % ITEMS_PER_BANNER === 0;
                 const sectionIndex = Math.floor(idx / ITEMS_PER_BANNER);
                 const adsForThisSection = isSectionStart 
-                  ? sponsoredAds.slice(sectionIndex * cols, (sectionIndex + 1) * cols) 
+                  ? sponsoredAds.slice((sectionIndex - 1) * cols, sectionIndex * cols) 
                   : [];
 
                 return (
