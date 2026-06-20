@@ -9,7 +9,7 @@ export SSH_ASKPASS_REQUIRE="force"
 ssh-add ~/.ssh/id_ed25519 < /dev/null
 
 # SSH into the server and run commands
-ssh -o StrictHostKeyChecking=no ubuntu@3.6.193.212 << 'EOF'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/LightsailDefaultKey-ap-south-1.pem ubuntu@3.6.193.212 << 'EOF'
 set -e
 
 cd ~/uzaspea
