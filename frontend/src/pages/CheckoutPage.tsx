@@ -279,6 +279,7 @@ const CheckoutPage: React.FC = () => {
                 <SafeImage
                   src={item.image}
                   alt={item.name}
+                  category={item.category}
                   className="w-12 h-12 object-cover rounded"
                 />
                 <div className="flex-1 min-w-0">
