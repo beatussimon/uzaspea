@@ -45,6 +45,7 @@ const CartPage: React.FC = () => {
               <SafeImage
                 src={item.image}
                 alt={item.name}
+                category={item.category}
                 className="w-20 h-20 object-cover rounded-lg"
               />
             </Link>

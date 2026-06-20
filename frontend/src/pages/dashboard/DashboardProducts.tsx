@@ -268,7 +268,7 @@ const DashboardProducts: React.FC = () => {
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {existingImages.map((img: any) => (
                   <div key={img.id} className="relative w-20 h-20 shrink-0">
-                    <SafeImage src={img.image} alt="Product" className="w-full h-full object-cover rounded-lg border dark:border-gray-600" />
+                    <SafeImage src={img.image} alt="Product" category={categories.find(c => String(c.id) === String(form.category))?.name || ''} className="w-full h-full object-cover rounded-lg border dark:border-gray-600" />
                   </div>
                 ))}
               </div>
@@ -307,7 +307,7 @@ const DashboardProducts: React.FC = () => {
           {products.map((product: any) => (
             <div key={product.id}
               className="flex items-center gap-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4 hover:shadow-sm transition">
-              <SafeImage src={product.images?.[0]?.image || ''} alt={product.name}
+              <SafeImage src={product.images?.[0]?.image || ''} alt={product.name} category={product.category_name}
                 className="w-16 h-16 rounded-lg object-cover shrink-0" />
               <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-gray-900 dark:text-white truncate">{product.name}</h4>

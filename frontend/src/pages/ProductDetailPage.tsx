@@ -233,6 +233,7 @@ const ProductDetailPage: React.FC = () => {
                 <SafeImage
                   src={currentImageSrc}
                   alt={product.name}
+                  category={product.category_name}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-500 ease-out"
                   loading="eager"
                 />
@@ -251,7 +252,7 @@ const ProductDetailPage: React.FC = () => {
                       : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 scale-95 opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <SafeImage src={img.image} alt="" className="w-full h-full object-cover" />
+                  <SafeImage src={img.image} alt="" category={product.category_name} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
