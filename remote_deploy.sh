@@ -2,6 +2,12 @@
 ssh-agent -s > /tmp/agent.env
 source /tmp/agent.env
 
+# Load SSH key
+unset DISPLAY
+export SSH_ASKPASS="/home/bea/.ssh/ssh-helper.sh"
+export SSH_ASKPASS_REQUIRE="force"
+ssh-add ~/.ssh/id_ed25519 < /dev/null
+
 # SSH into the server and run commands
 ssh -o StrictHostKeyChecking=no ubuntu@3.6.193.212 << 'EOF'
 set -e
