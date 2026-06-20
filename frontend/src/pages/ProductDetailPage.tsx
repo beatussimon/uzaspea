@@ -214,7 +214,7 @@ const ProductDetailPage: React.FC = () => {
       {/* Breadcrumb */}
       <Breadcrumbs />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         {/* Image Gallery — click opens fullscreen */}
         <div className="flex flex-col md:flex-row-reverse gap-4">
           <div
