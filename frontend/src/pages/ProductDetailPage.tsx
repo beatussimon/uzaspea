@@ -95,6 +95,15 @@ const ProductDetailPage: React.FC = () => {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [alertPrice, setAlertPrice] = useState('');
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   const isAuthenticated = !!localStorage.getItem('access_token');
 
@@ -215,46 +224,55 @@ const ProductDetailPage: React.FC = () => {
       <Breadcrumbs />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        {/* Image Gallery — click opens fullscreen */}
-        <div className="flex flex-col md:flex-row-reverse gap-4">
-          <div
-            className="flex-1 aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm cursor-zoom-in relative"
-            onClick={() => setLightboxOpen(true)}
-          >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={selectedImage}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.05 }}
-                transition={{ duration: 0.3 }}
-                className="w-full h-full"
-              >
-                <SafeImage
-                  src={currentImageSrc}
-                  alt={product.name}
-                  category={product.category_name}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500 ease-out"
-                  loading="eager"
-                />
-              </motion.div>
-            </AnimatePresence>
-          </div>
-          {images.length > 1 && (
-            <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto pb-2 md:pb-0 md:w-20 shrink-0 no-scrollbar">
-              {images.map((img, idx) => (
-                <button
-                  key={img.id}
-                  onClick={() => setSelectedImage(idx)}
-                  className={`shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 ${
-                    idx === selectedImage
-                      ? 'border-brand-500 shadow-md scale-100 ring-2 ring-brand-500/20 ring-offset-2 dark:ring-offset-gray-900'
-                      : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 scale-95 opacity-70 hover:opacity-100'
-                  }`}
+        {/* Left Column: Image Gallery + Comments (Desktop) */}
+        <div className="flex flex-col gap-6 w-full">
+          <div className="flex flex-col md:flex-row-reverse gap-4">
+            <div
+              className="flex-1 aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm cursor-zoom-in relative"
+              onClick={() => setLightboxOpen(true)}
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={selectedImage}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.05 }}
+                  transition={{ duration: 0.3 }}
+                  className="w-full h-full"
                 >
-                  <SafeImage src={img.image} alt="" category={product.category_name} className="w-full h-full object-cover" />
-                </button>
-              ))}
+                  <SafeImage
+                    src={currentImageSrc}
+                    alt={product.name}
+                    category={product.category_name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500 ease-out"
+                    loading="eager"
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </div>
+            {images.length > 1 && (
+              <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto pb-2 md:pb-0 md:w-20 shrink-0 no-scrollbar">
+                {images.map((img, idx) => (
+                  <button
+                    key={img.id}
+                    onClick={() => setSelectedImage(idx)}
+                    className={`shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 ${
+                      idx === selectedImage
+                        ? 'border-brand-500 shadow-md scale-100 ring-2 ring-brand-500/20 ring-offset-2 dark:ring-offset-gray-900'
+                        : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 scale-95 opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <SafeImage src={img.image} alt="" category={product.category_name} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Comments on Desktop */}
+          {isDesktop && (
+            <div className="mt-4">
+              <ProductTabs productId={product.id} sellerUsername={product.seller_username} />
             </div>
           )}
         </div>
@@ -600,8 +618,12 @@ const ProductDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs: Reviews & Comments */}
-      <ProductTabs productId={product.id} sellerUsername={product.seller_username} />
+      {/* Tabs: Reviews & Comments (Mobile/Tablet) */}
+      {!isDesktop && (
+        <div className="mt-8">
+          <ProductTabs productId={product.id} sellerUsername={product.seller_username} />
+        </div>
+      )}
     </div>
   );
 };
