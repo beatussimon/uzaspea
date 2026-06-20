@@ -125,54 +125,54 @@ const MobileBottomNav = () => {
             <div className="px-4 space-y-6 mt-2">
               {isAuthenticated && (
                 <>
-                  {/* Marketplace Group */}
-              <div>
-                <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Marketplace</p>
-                <div className="grid grid-cols-1 gap-2">
-                  <Link to={`/profile/${username}`} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
-                    <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                      <User size={20} className="text-brand-600" />
-                      <span className="font-medium">My Public Profile</span>
+                  {/* Personal Portal */}
+                  <div>
+                    <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Personal Portal</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      <Link to={`/profile/${username}`} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
+                          <User size={20} className="text-brand-600" />
+                          <span className="font-medium">My Public Profile</span>
+                        </div>
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                      </Link>
+                      <Link to="/orders" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
+                          <ShoppingBag size={20} className="text-brand-600" />
+                          <span className="font-medium">My Orders</span>
+                        </div>
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                      </Link>
+                      <Link to="/inspections" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
+                          <ClipboardList size={20} className="text-brand-600" />
+                          <span className="font-medium">My Inspections</span>
+                        </div>
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                      </Link>
                     </div>
-                    <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
-                  </Link>
-                  <Link to="/orders" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
-                    <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                      <ShoppingBag size={20} className="text-brand-600" />
-                      <span className="font-medium">My Orders</span>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
-                  </Link>
-                </div>
-              </div>
+                  </div>
 
-              {/* Selling Group */}
-              <div>
-                <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Selling & Business</p>
-                <div className="grid grid-cols-1 gap-2">
-                  <Link to="/dashboard" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
-                    <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                      <LayoutDashboard size={20} className="text-brand-600" />
-                      <span className="font-medium">Seller Dashboard</span>
+                  {/* Sell & Grow */}
+                  <div>
+                    <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Sell & Grow</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      <Link to="/dashboard" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
+                          <LayoutDashboard size={20} className="text-brand-600" />
+                          <span className="font-medium">Seller Dashboard</span>
+                        </div>
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                      </Link>
+                      <Link to="/dashboard/products" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
+                          <Package size={20} className="text-brand-600" />
+                          <span className="font-medium">Add New Product</span>
+                        </div>
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                      </Link>
                     </div>
-                    <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
-                  </Link>
-                  <Link to="/dashboard/products" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
-                    <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                      <Package size={20} className="text-brand-600" />
-                      <span className="font-medium">Add New Product</span>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
-                  </Link>
-                  <Link to="/inspections" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
-                    <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                      <ClipboardList size={20} className="text-brand-600" />
-                      <span className="font-medium">My Inspections</span>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
-                  </Link>
-                </div>
-              </div>
+                  </div>
 
               {/* Management Group */}
               {(isStaff || isInspector) && (

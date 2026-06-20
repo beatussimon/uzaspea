@@ -1,5 +1,6 @@
 import hashlib
 import json
+from decimal import Decimal
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -116,11 +117,24 @@ class ChecklistItem(models.Model):
         ('text', 'Text Note'),
         ('media', 'Media Required'),
     ]
+    SEVERITY_CHOICES = [
+        ('advisory', 'Advisory'),
+        ('major', 'Major'),
+        ('critical', 'Critical'),
+    ]
 
     template = models.ForeignKey(
         ChecklistTemplate, on_delete=models.CASCADE, related_name='items'
     )
     label = models.CharField(max_length=255)
+    section = models.CharField(
+        max_length=100, default='General',
+        help_text='Section group for checklist item e.g. Engine, Exterior'
+    )
+    severity = models.CharField(
+        max_length=20, choices=SEVERITY_CHOICES, default='major',
+        help_text='Severity level used for weighted quality scoring'
+    )
     item_type = models.CharField(max_length=20, choices=ITEM_TYPE_CHOICES, default='pass_fail')
     is_mandatory = models.BooleanField(default=True)
     order = models.PositiveIntegerField(default=0)
@@ -416,6 +430,8 @@ class InspectionReport(models.Model):
     summary = models.TextField(blank=True, default='')
     is_locked = models.BooleanField(default=False)
     report_hash = models.CharField(max_length=64, blank=True)
+    quality_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    grade = models.CharField(max_length=5, default='F')
     submitted_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True,
         related_name='submitted_inspection_reports'
@@ -429,11 +445,104 @@ class InspectionReport(models.Model):
     approved_at = models.DateTimeField(null=True, blank=True)
     qa_notes = models.TextField(blank=True)
 
+    def calculate_quality_score(self):
+        responses = self.responses.select_related('checklist_item').all()
+        if not responses.exists():
+            return Decimal('100.00'), 'A+'
+
+        total_possible = 0
+        total_obtained = 0
+        has_critical_failure = False
+
+        for resp in responses:
+            item = resp.checklist_item
+            severity = item.severity
+            weight = 1
+            if severity == 'major':
+                weight = 3
+            elif severity == 'critical':
+                weight = 5
+
+            val = resp.response_value.strip().lower()
+
+            if item.item_type == 'pass_fail':
+                if val == 'pass':
+                    total_obtained += 100 * weight
+                else:
+                    total_obtained += 0
+                    if severity == 'critical':
+                        has_critical_failure = True
+                total_possible += 100 * weight
+            elif item.item_type == 'scale':
+                try:
+                    # Strip any non-digit chars
+                    scale_digits = ''.join(c for c in val if c.isdigit())
+                    scale_val = int(scale_digits)
+                    score_pct = (scale_val / 5.0) * 100
+                    total_obtained += score_pct * weight
+                    if scale_val <= 2 and severity == 'critical':
+                        has_critical_failure = True
+                except ValueError:
+                    total_obtained += 50 * weight
+                total_possible += 100 * weight
+            elif item.item_type == 'measurement':
+                if val:
+                    total_obtained += 100 * weight
+                else:
+                    total_obtained += 0
+                total_possible += 100 * weight
+
+        if total_possible == 0:
+            return Decimal('100.00'), 'A+'
+
+        score = (Decimal(str(total_obtained)) / Decimal(str(total_possible)) * Decimal('100.00')).quantize(Decimal('0.01'))
+        score = max(Decimal('0.00'), min(Decimal('100.00'), score))
+
+        if score >= 95:
+            grade = 'A+'
+        elif score >= 90:
+            grade = 'A'
+        elif score >= 80:
+            grade = 'B'
+        elif score >= 70:
+            grade = 'C'
+        elif score >= 60:
+            grade = 'D'
+        else:
+            grade = 'F'
+
+        if has_critical_failure:
+            if grade in ['A+', 'A', 'B', 'C']:
+                grade = 'D'
+
+        return score, grade
+
+    def update_score_and_grade(self):
+        score, grade = self.calculate_quality_score()
+        self.quality_score = score
+        self.grade = grade
+        self.save()
+
     def lock_and_hash(self):
+        score, grade = self.calculate_quality_score()
+        self.quality_score = score
+        self.grade = grade
+        
+        responses_data = []
+        for resp in self.responses.select_related('checklist_item').all():
+            responses_data.append({
+                'item_label': resp.checklist_item.label,
+                'value': resp.response_value,
+                'flagged': resp.flagged,
+            })
+            
         data = {
             'inspection_id': self.request.inspection_id,
             'verdict': self.verdict,
             'summary': self.summary,
+            'quality_score': float(self.quality_score),
+            'grade': self.grade,
+            'responses': responses_data,
             'approved_at': str(self.approved_at),
         }
         self.report_hash = hashlib.sha256(

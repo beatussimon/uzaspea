@@ -9,6 +9,9 @@ from django.utils import timezone
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils.text import slugify
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def validate_image(image):
@@ -286,8 +289,8 @@ class ProductImage(models.Model):
                     
                     # Call super save again to update the db path
                     super().save(update_fields=['image'])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.exception("Failed to convert product image to WebP format: %s", str(e))
 
 
 class Review(models.Model):

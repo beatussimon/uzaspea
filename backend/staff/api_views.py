@@ -616,7 +616,11 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
 
         # Update MonthlyInvoice status
         invoice = payment.invoice
-        invoice.status = 'PAID'
+        total_approved = invoice.payments.filter(status='APPROVED').aggregate(total=models.Sum('amount'))['total'] or 0
+        if total_approved >= invoice.total_commission:
+            invoice.status = 'PAID'
+        else:
+            invoice.status = 'UNPAID'
         invoice.save()
 
         log_audit(request.user, 'commission_approved', f"Approved commission payment of {payment.amount} from seller {invoice.seller.username}", target_user=invoice.seller, request=request)
@@ -639,10 +643,16 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
         return Response({'status': 'REJECTED', 'rejection_reason': reason})
 
 
+class CanManageUsers(permissions.BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and (user.is_superuser or has_staff_permission(user, 'can_manage_users')))
+
+
 class UserManagementViewSet(viewsets.ModelViewSet):
     queryset = User.objects.select_related('profile', 'inspector_profile').all()
     serializer_class = UserManagementSerializer
-    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+    permission_classes = [permissions.IsAuthenticated, CanManageUsers]
 
     @decorators.action(detail=True, methods=['post'])
     def toggle_active(self, request, pk=None):

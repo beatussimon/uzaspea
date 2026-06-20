@@ -21,6 +21,8 @@ export interface ChecklistItem {
   fail_triggers_flag: boolean;
   unit: string;
   help_text: string;
+  section: string;
+  severity: 'advisory' | 'major' | 'critical';
 }
 
 export interface ChecklistTemplate {
@@ -105,6 +107,8 @@ export interface ChecklistResponse {
   response_value: string;
   flagged: boolean;
   notes: string;
+  severity: 'advisory' | 'major' | 'critical';
+  section: string;
 }
 
 export interface InspectionReport {
@@ -120,6 +124,8 @@ export interface InspectionReport {
   qa_notes: string;
   responses: ChecklistResponse[];
   finalized_at: string | null;
+  quality_score?: string;
+  grade?: string;
 }
 
 export interface InspectionEvidence {
@@ -133,6 +139,19 @@ export interface InspectionEvidence {
   longitude: string | null;
   file_hash: string;
   caption: string;
+}
+
+export interface InspectionCheckIn {
+  id: number;
+  request: number;
+  checkin_photo: string;
+  checkin_lat: string | null;
+  checkin_lng: string | null;
+  checkin_at: string;
+  checkout_photo: string | null;
+  checkout_lat: string | null;
+  checkout_lng: string | null;
+  checkout_at: string | null;
 }
 
 export interface InspectionRequest {
@@ -173,6 +192,7 @@ export interface InspectionRequest {
   report: InspectionReport | null;
   payments: InspectionPayment[];
   evidence: InspectionEvidence[];
+  checkin: InspectionCheckIn | null;
 }
 
 export interface InspectionNotification {

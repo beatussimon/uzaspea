@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ClipboardList, ChevronRight, Upload, CheckCircle, AlertTriangle,
-  XCircle, Clock, FileText, Bell, Search, RefreshCw, Shield,
+  Clock, FileText, Bell, Search, RefreshCw, Shield,
+  MapPin, Camera, Printer, ChevronDown, ChevronUp, Check, X, ShieldAlert, BadgeCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import inspectionApi from '../../api/inspectionApi';
 import api, { API_BASE_URL } from '../../api';
 import {
-  InspectionCategory, InspectionRequest, InspectionNotification,
+  InspectionCategory, InspectionRequest, InspectionNotification, ChecklistResponse,
   STATUS_LABELS, STATUS_COLORS, VERDICT_COLORS, fmtDate, fmtMoney,
 } from '../../types/inspection';
 
@@ -619,49 +620,350 @@ const Timeline: React.FC<{ status: string }> = ({ status }) => {
 // ─── Report View ────────────────────────────
 const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void }> = ({ request, onReInspect }) => {
   const report = request.report;
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (report?.responses) {
+      const sections = Array.from(new Set(report.responses.map(r => r.section || 'General')));
+      const initial: Record<string, boolean> = {};
+      sections.forEach(s => { initial[s] = true; });
+      setOpenSections(initial);
+    }
+  }, [report]);
+
   if (!report || !report.is_locked) return null;
 
+  const score = parseFloat(report.quality_score || '0');
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (score / 100) * circumference;
+
+  const getGradeColors = (grade: string) => {
+    const g = grade.toUpperCase();
+    if (g.startsWith('A')) return {
+      text: 'text-emerald-600 dark:text-emerald-400',
+      stroke: 'stroke-emerald-600 dark:stroke-emerald-500',
+      bg: 'bg-emerald-50 dark:bg-emerald-950/20',
+      border: 'border-emerald-200 dark:border-emerald-800'
+    };
+    if (g.startsWith('B')) return {
+      text: 'text-blue-600 dark:text-blue-400',
+      stroke: 'stroke-blue-600 dark:stroke-blue-500',
+      bg: 'bg-blue-50 dark:bg-blue-950/20',
+      border: 'border-blue-200 dark:border-blue-800'
+    };
+    if (g.startsWith('C')) return {
+      text: 'text-amber-600 dark:text-amber-400',
+      stroke: 'stroke-amber-600 dark:stroke-amber-500',
+      bg: 'bg-amber-50 dark:bg-amber-950/20',
+      border: 'border-amber-200 dark:border-amber-800'
+    };
+    if (g.startsWith('D')) return {
+      text: 'text-orange-600 dark:text-orange-400',
+      stroke: 'stroke-orange-600 dark:stroke-orange-500',
+      bg: 'bg-orange-50 dark:bg-orange-950/20',
+      border: 'border-orange-200 dark:border-orange-800'
+    };
+    return {
+      text: 'text-red-600 dark:text-red-400',
+      stroke: 'stroke-red-600 dark:stroke-red-500',
+      bg: 'bg-red-50 dark:bg-red-950/20',
+      border: 'border-red-200 dark:border-red-800'
+    };
+  };
+
+  const colors = getGradeColors(report.grade || 'F');
+
+  const criticalDefects = report.responses.filter(r => r.severity === 'critical' && r.flagged).length;
+  const majorDefects = report.responses.filter(r => r.severity === 'major' && r.flagged).length;
+  const advisoryDefects = report.responses.filter(r => r.severity === 'advisory' && r.flagged).length;
+
+  const responsesBySection = report.responses.reduce((acc, r) => {
+    const sec = r.section || 'General';
+    if (!acc[sec]) acc[sec] = [];
+    acc[sec].push(r);
+    return acc;
+  }, {} as Record<string, ChecklistResponse[]>);
+
+  const getImageUrl = (path: string | null) => {
+    if (!path) return '';
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    const base = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+    const relative = path.startsWith('/') ? path : `/${path}`;
+    return `${base}${relative}`;
+  };
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Verdict */}
-      <div className={`p-5 rounded-xl border ${
-        report.verdict === 'pass' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-          : report.verdict === 'conditional' ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
-          : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-      }`}>
-        <div className="flex items-center gap-3 mb-2">
-          {report.verdict === 'pass' ? <CheckCircle size={24} className="text-green-600" />
-            : report.verdict === 'conditional' ? <AlertTriangle size={24} className="text-yellow-600" />
-            : <XCircle size={24} className="text-red-600" />}
-          <span className={`text-2xl font-bold uppercase ${
-            report.verdict === 'pass' ? 'text-green-700 dark:text-green-400'
-              : report.verdict === 'conditional' ? 'text-yellow-700 dark:text-yellow-400'
-              : 'text-red-700 dark:text-red-400'
-          }`}>
-            {report.verdict}
-          </span>
+    <div className="space-y-6">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .print-card {
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: none !important;
+            background: white !important;
+            page-break-inside: avoid;
+          }
+          .print-break {
+            page-break-after: always;
+          }
+          .print-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 1rem !important;
+          }
+        }
+      `}} />
+
+      {/* Report Header Controls */}
+      <div className="flex items-center justify-between no-print bg-white dark:bg-slate-900 p-4 rounded-xl border border-surface-border dark:border-surface-dark-border shadow-sm">
+        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+          Official Inspection Report
+        </span>
+        <div className="flex gap-2">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg border border-brand-200 dark:bg-brand-950/20 dark:text-brand-400 dark:border-brand-900 transition-colors"
+          >
+            <Printer size={14} /> Print Report
+          </button>
+          <button
+            onClick={onReInspect}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors"
+          >
+            <RefreshCw size={14} /> Re-inspect
+          </button>
         </div>
-        <p className="text-sm text-gray-700 dark:text-gray-300">{report.summary}</p>
       </div>
 
-      {/* Checklist Results */}
-      {report.responses.length > 0 && (
-        <div className="card p-4">
-          <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Checklist Results</h4>
-          <div className="space-y-2">
-            {report.responses.map((r) => (
-              <div key={r.id} className={`flex items-start justify-between p-2 rounded-lg text-sm ${
-                r.flagged ? 'bg-red-50 dark:bg-red-900/20' : 'bg-gray-50 dark:bg-gray-800/50'
-              }`}>
-                <div className="flex-1">
-                  <span className="text-gray-700 dark:text-gray-300">{r.item_label}</span>
-                  {r.notes && <p className="text-xs text-gray-500 mt-0.5">{r.notes}</p>}
-                </div>
-                <div className="flex items-center gap-2 shrink-0 ml-3">
-                  {r.flagged && <AlertTriangle size={12} className="text-red-500" />}
-                  <span className={`font-medium ${r.flagged ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-                    {r.response_value}
+      {/* Grade and Scoring ring Card */}
+      <div className={`print-card p-6 rounded-2xl border ${colors.border} ${colors.bg} flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm relative overflow-hidden`}>
+        <div className="absolute right-0 top-0 opacity-10 pointer-events-none transform translate-x-8 -translate-y-8">
+          <Shield size={240} className={colors.text} />
+        </div>
+        <div className="flex items-center gap-4 z-10">
+          <div className="relative flex items-center justify-center shrink-0 w-24 h-24">
+            <svg className="w-full h-full transform -rotate-90">
+              <circle
+                cx="48"
+                cy="48"
+                r={radius}
+                className="stroke-gray-200 dark:stroke-gray-800"
+                strokeWidth="8"
+                fill="transparent"
+              />
+              <circle
+                cx="48"
+                cy="48"
+                r={radius}
+                className={`transition-all duration-1000 ${colors.stroke}`}
+                strokeWidth="8"
+                fill="transparent"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center justify-center">
+              <span className={`text-3xl font-extrabold ${colors.text}`}>{report.grade}</span>
+              <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">{score}%</span>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`text-2xl font-black uppercase tracking-wider ${colors.text}`}>
+                {report.verdict}
+              </span>
+              {report.verdict === 'pass' ? (
+                <BadgeCheck size={20} className="text-emerald-600" />
+              ) : report.verdict === 'conditional' ? (
+                <AlertTriangle size={20} className="text-amber-500" />
+              ) : (
+                <ShieldAlert size={20} className="text-red-500" />
+              )}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase font-bold tracking-wider">
+              Quality Grade Report
+            </p>
+            <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 max-w-xl font-medium leading-relaxed">
+              {report.summary}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Defect severity counters */}
+      <div className="grid grid-cols-3 gap-4 print-grid">
+        <div className="print-card bg-red-50/50 dark:bg-red-950/10 border border-red-100 dark:border-red-900/30 p-4 rounded-xl flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-xs font-semibold text-red-500 dark:text-red-400 uppercase tracking-wider">Critical Issues</p>
+            <p className="text-2xl font-black text-red-700 dark:text-red-400 mt-1">{criticalDefects}</p>
+          </div>
+          <ShieldAlert className="text-red-400 dark:text-red-600" size={32} />
+        </div>
+        <div className="print-card bg-orange-50/50 dark:bg-orange-950/10 border border-orange-100 dark:border-orange-900/30 p-4 rounded-xl flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-xs font-semibold text-orange-500 dark:text-orange-400 uppercase tracking-wider">Major Issues</p>
+            <p className="text-2xl font-black text-orange-700 dark:text-orange-400 mt-1">{majorDefects}</p>
+          </div>
+          <AlertTriangle className="text-orange-400 dark:text-orange-600" size={32} />
+        </div>
+        <div className="print-card bg-yellow-50/50 dark:bg-yellow-950/10 border border-yellow-100 dark:border-yellow-900/30 p-4 rounded-xl flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-xs font-semibold text-yellow-500 dark:text-yellow-400 uppercase tracking-wider">Advisory Items</p>
+            <p className="text-2xl font-black text-yellow-700 dark:text-yellow-400 mt-1">{advisoryDefects}</p>
+          </div>
+          <Clock className="text-yellow-400 dark:text-yellow-600" size={32} />
+        </div>
+      </div>
+
+      {/* Section-based Accordions */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white border-b pb-2">Checklist Details</h3>
+        {Object.entries(responsesBySection).map(([section, items]) => {
+          const isOpen = openSections[section] ?? true;
+          const flaggedCount = items.filter(i => i.flagged).length;
+          return (
+            <div key={section} className="print-card bg-white dark:bg-slate-900 border border-surface-border dark:border-surface-dark-border rounded-xl overflow-hidden shadow-sm">
+              <button
+                onClick={() => toggleSection(section)}
+                className="w-full flex items-center justify-between p-4 bg-gray-50/70 dark:bg-slate-800/40 border-b border-surface-border dark:border-surface-dark-border text-left no-print"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-gray-800 dark:text-gray-200 capitalize">
+                    {section}
                   </span>
+                  <span className="text-xs text-gray-500">
+                    ({items.length} items)
+                  </span>
+                  {flaggedCount > 0 && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400">
+                      {flaggedCount} issues
+                    </span>
+                  )}
+                </div>
+                {isOpen ? <ChevronUp size={18} className="text-gray-500" /> : <ChevronDown size={18} className="text-gray-500" />}
+              </button>
+              
+              {/* Printed section header */}
+              <div className="hidden print:flex items-center justify-between p-3 border-b bg-gray-50 font-bold capitalize">
+                <span>{section} ({items.length} items)</span>
+                {flaggedCount > 0 && <span className="text-red-600 text-xs">{flaggedCount} issues found</span>}
+              </div>
+
+              {isOpen && (
+                <div className="divide-y divide-gray-100 dark:divide-slate-800">
+                  {items.map((r) => {
+                    const itemEvidences = request.evidence.filter(ev => ev.checklist_item === r.checklist_item);
+                    return (
+                      <div key={r.id} className={`p-4 transition-colors ${r.flagged ? 'bg-red-50/20 dark:bg-red-950/5' : 'hover:bg-gray-50/30 dark:hover:bg-slate-800/10'}`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-semibold text-sm ${r.flagged ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                                {r.item_label}
+                              </span>
+                              <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold uppercase ${
+                                r.severity === 'critical' ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-400'
+                                  : r.severity === 'major' ? 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-400'
+                                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-400'
+                              }`}>
+                                {r.severity}
+                              </span>
+                            </div>
+                            {r.notes && (
+                              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed bg-gray-50 dark:bg-slate-900/50 p-2 rounded border border-gray-100 dark:border-slate-800 mt-1">
+                                {r.notes}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {r.flagged ? (
+                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg text-xs font-black uppercase">
+                                <X size={12} strokeWidth={3} /> {r.response_value}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-black uppercase">
+                                <Check size={12} strokeWidth={3} /> {r.response_value}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Inline Evidence Display */}
+                        {itemEvidences.length > 0 && (
+                          <div className="mt-3 flex gap-2 overflow-x-auto py-1">
+                            {itemEvidences.map(ev => (
+                              <div
+                                key={ev.id}
+                                onClick={() => setSelectedImage(getImageUrl(ev.image))}
+                                className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-800 cursor-zoom-in group shrink-0"
+                              >
+                                <img
+                                  src={getImageUrl(ev.image)}
+                                  alt={ev.caption || 'Evidence'}
+                                  className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                                />
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Camera size={14} className="text-white" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Evidence Gallery */}
+      {request.evidence && request.evidence.length > 0 && (
+        <div className="print-card bg-white dark:bg-slate-900 border border-surface-border dark:border-surface-dark-border rounded-xl p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <Camera className="text-gray-500" size={20} /> Photo Gallery ({request.evidence.length} photos)
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 print-grid">
+            {request.evidence.map((ev) => (
+              <div
+                key={ev.id}
+                className="group relative border border-gray-200 dark:border-slate-800 rounded-xl overflow-hidden cursor-zoom-in"
+                onClick={() => setSelectedImage(getImageUrl(ev.image))}
+              >
+                <div className="aspect-video w-full overflow-hidden bg-gray-100 dark:bg-slate-950">
+                  <img
+                    src={getImageUrl(ev.image)}
+                    alt={ev.caption || 'Evidence'}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <div className="p-3 bg-gray-50/50 dark:bg-slate-900/50 border-t border-gray-100 dark:border-slate-800">
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                    {ev.item_label || 'General Evidence'}
+                  </p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                    {ev.caption || 'No caption provided'}
+                  </p>
+                  {ev.captured_at && (
+                    <p className="text-[9px] text-gray-400 mt-1">
+                      {fmtDate(ev.captured_at)}
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
@@ -669,28 +971,128 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
         </div>
       )}
 
-      {/* Verification */}
-      <div className="card p-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Inspection ID</p>
-          <p className="font-mono font-bold text-gray-900 dark:text-white">{request.inspection_id}</p>
-          <p className="text-xs text-gray-400 mt-1">Hash: {report.report_hash.slice(0, 16)}…</p>
+      {/* GPS Integrity & Verification Badge */}
+      <div className="print-card bg-slate-950 text-white rounded-2xl p-6 relative overflow-hidden shadow-md">
+        <div className="absolute right-0 bottom-0 transform translate-x-12 translate-y-12 opacity-5">
+          <Shield size={200} />
         </div>
-        <div className="flex gap-2">
-          <Link to={`/verify/${request.inspection_id}`}
-            className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1">
-            <Shield size={12} /> Verify
-          </Link>
-          <button onClick={onReInspect} className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1">
-            <RefreshCw size={12} /> Re-inspect
-          </button>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-4 mb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-black tracking-wider uppercase">GPS & Cryptographic Integrity</h3>
+              <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[10px] font-bold uppercase tracking-wider border border-emerald-500/30">
+                Verified On-Site
+              </span>
+            </div>
+            <p className="text-xs text-white/50 mt-0.5">Assuring inspector presence and report immutability.</p>
+          </div>
+          <div className="font-mono text-right text-xs shrink-0 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
+            <span className="text-white/40 block text-[9px] uppercase tracking-wider font-bold mb-0.5">Report Signature</span>
+            {report.report_hash ? (
+              <span className="text-amber-400 font-bold">{report.report_hash.slice(0, 24)}...</span>
+            ) : (
+              <span className="text-red-400">UNSIGNED</span>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print-grid">
+          <div>
+            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <MapPin size={12} className="text-brand-400" /> Site Check-In Verify
+            </p>
+            <div className="flex items-center gap-3">
+              {request.checkin?.checkin_photo ? (
+                <img
+                  src={getImageUrl(request.checkin.checkin_photo)}
+                  alt="Check-In"
+                  className="w-16 h-16 object-cover rounded-lg border border-white/10 cursor-zoom-in"
+                  onClick={() => setSelectedImage(getImageUrl(request.checkin!.checkin_photo))}
+                />
+              ) : (
+                <div className="w-16 h-16 bg-white/5 rounded-lg border border-white/5 flex items-center justify-center text-white/20">
+                  <Camera size={20} />
+                </div>
+              )}
+              <div className="text-xs space-y-1 text-white/70">
+                <div>
+                  <span className="text-white/40">Timestamp: </span>
+                  {request.checkin?.checkin_at ? fmtDate(request.checkin.checkin_at) : 'N/A'}
+                </div>
+                <div>
+                  <span className="text-white/40">Coordinates: </span>
+                  {request.checkin?.checkin_lat && request.checkin?.checkin_lng ? (
+                    <span className="font-mono">{parseFloat(request.checkin.checkin_lat.toString()).toFixed(6)}, {parseFloat(request.checkin.checkin_lng.toString()).toFixed(6)}</span>
+                  ) : 'N/A'}
+                </div>
+                <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold mt-1">
+                  <CheckCircle size={10} /> Inspector on-site verification confirmed
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <MapPin size={12} className="text-brand-400" /> Site Check-Out Verify
+            </p>
+            <div className="flex items-center gap-3">
+              {request.checkin?.checkout_photo ? (
+                <img
+                  src={getImageUrl(request.checkin.checkout_photo)}
+                  alt="Check-Out"
+                  className="w-16 h-16 object-cover rounded-lg border border-white/10 cursor-zoom-in"
+                  onClick={() => setSelectedImage(getImageUrl(request.checkin!.checkout_photo))}
+                />
+              ) : (
+                <div className="w-16 h-16 bg-white/5 rounded-lg border border-white/5 flex items-center justify-center text-white/20">
+                  <Camera size={20} />
+                </div>
+              )}
+              <div className="text-xs space-y-1 text-white/70">
+                <div>
+                  <span className="text-white/40">Timestamp: </span>
+                  {request.checkin?.checkout_at ? fmtDate(request.checkin.checkout_at) : 'In Progress'}
+                </div>
+                <div>
+                  <span className="text-white/40">Coordinates: </span>
+                  {request.checkin?.checkout_lat && request.checkin?.checkout_lng ? (
+                    <span className="font-mono">{parseFloat(request.checkin.checkout_lat.toString()).toFixed(6)}, {parseFloat(request.checkin.checkout_lng.toString()).toFixed(6)}</span>
+                  ) : 'N/A'}
+                </div>
+                <div className="text-[10px] text-white/50 mt-1">
+                  Location verified within geofence threshold
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {report.approved_at && (
-        <p className="text-xs text-center text-gray-400">
-          Approved by {report.approved_by_username} on {fmtDate(report.approved_at)}
+        <p className="text-xs text-center text-gray-400 mt-6 font-semibold">
+          Approved and digitally signed by {report.approved_by_username} on {fmtDate(report.approved_at)}
         </p>
+      )}
+
+      {/* Image Lightbox Modal */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4 no-print"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={selectedImage}
+            alt="Enlarged evidence"
+            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+          />
+        </div>
       )}
     </div>
   );

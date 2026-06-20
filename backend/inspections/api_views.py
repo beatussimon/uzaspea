@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions, status, decorators
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
-from django.db.models import Q, Avg
+from django.db.models import Q, Avg, F
 from django.shortcuts import get_object_or_404
 
 from .models import (
@@ -53,6 +53,26 @@ def auto_fraud_check(inspection_request):
                     request=inspection_request,
                     flag_type='speed_anomaly',
                     details=f'Inspection completed in {duration:.1f} minutes',
+                ))
+
+    # GPS mismatch check: checkin vs checkout distance > 500 meters
+    if hasattr(inspection_request, 'checkin'):
+        checkin = inspection_request.checkin
+        if checkin.checkin_lat is not None and checkin.checkin_lng is not None and checkin.checkout_lat is not None and checkin.checkout_lng is not None:
+            import math
+            R = 6371000.0 # Earth radius in meters
+            phi1 = math.radians(float(checkin.checkin_lat))
+            phi2 = math.radians(float(checkin.checkout_lat))
+            dphi = math.radians(float(checkin.checkout_lat) - float(checkin.checkin_lat))
+            dlambda = math.radians(float(checkin.checkout_lng) - float(checkin.checkin_lng))
+            a = math.sin(dphi/2.0)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2.0)**2
+            c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0-a))
+            dist = R * c
+            if dist > 500.0:
+                flags.append(FraudFlag(
+                    request=inspection_request,
+                    flag_type='gps_mismatch',
+                    details=f'Inspector check-in GPS ({checkin.checkin_lat}, {checkin.checkin_lng}) and checkout GPS ({checkin.checkout_lat}, {checkin.checkout_lng}) mismatch by {dist:.1f} meters (threshold: 500m)',
                 ))
 
     # No check-in
@@ -845,6 +865,11 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         if report.summary and report.verdict and report.summary.strip():
             req.status = 'qa_review'
             req.save()
+            # Calculate and save quality score / grade
+            score, grade = report.calculate_quality_score()
+            report.quality_score = score
+            report.grade = grade
+            report.save()
             # Auto fraud check only on real submissions
             has_flags = auto_fraud_check(req)
             if has_flags:
@@ -873,6 +898,10 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         report.verdict = verdict
         report.summary = summary
         report.finalized_at = timezone.now()
+        # Calculate and save quality score / grade
+        score, grade = report.calculate_quality_score()
+        report.quality_score = score
+        report.grade = grade
         report.save()
         # Now advance to qa_review
         req = report.request
@@ -920,8 +949,8 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
             active = report.request.assignments.filter(is_active=True).first()
             if active:
                 profile = active.inspector
-                profile.total_inspections += 1
-                profile.save()
+                profile.total_inspections = F('total_inspections') + 1
+                profile.save(update_fields=['total_inspections'])
         except Exception:
             pass
 
@@ -1072,11 +1101,11 @@ class ReInspectionViewSet(viewsets.ModelViewSet):
 
         # FIX: C-11 — Auto-generate bill using reinspection coverage rate if coverage was purchased
         from decimal import Decimal
-        if original.reinspection_coverage and hasattr(original, 'bill'):
+        if original.reinspection_coverage and InspectionBill.objects.filter(request=original).exists():
             orig_bill = original.bill
             reinsp_fee = (orig_bill.total_amount * Decimal('0.10')).quantize(Decimal('0.01'))
             # Check if bill already exists for this re-inspection to avoid duplicates
-            if not hasattr(new_req, 'bill'):
+            if not InspectionBill.objects.filter(request=new_req).exists():
                 InspectionBill.objects.create(
                     request=new_req,
                     base_rate=reinsp_fee,

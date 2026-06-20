@@ -31,7 +31,7 @@ REINSPECTION_COVERAGE_RATE = Decimal('0.10')  # 10% of total
 
 
 def calculate_bill(category, scope, turnaround, is_complex=False, item_age_years=None,
-                   add_reinspection_coverage=False):
+                   add_reinspection_coverage=False, travel_distance_km=None):
     """
     Returns a dict of all line items and totals.
     All values are Decimal.
@@ -55,12 +55,17 @@ def calculate_bill(category, scope, turnaround, is_complex=False, item_age_years
     if add_reinspection_coverage:
         reinspection_fee = adjusted_base * REINSPECTION_COVERAGE_RATE
 
+    travel_surcharge = Decimal('0.00')
+    if travel_distance_km:
+        travel_surcharge = Decimal(str(travel_distance_km)) * Decimal('1000.00')
+
     total = (
         adjusted_base
         + turnaround_surcharge
         + inspector_surcharge
         + complexity_surcharge
         + reinspection_fee
+        + travel_surcharge
     )
 
     deposit = (total * DEPOSIT_RATE).quantize(Decimal('0.01'))
@@ -72,7 +77,7 @@ def calculate_bill(category, scope, turnaround, is_complex=False, item_age_years
         'turnaround_surcharge': turnaround_surcharge.quantize(Decimal('0.01')),
         'inspector_level_surcharge': inspector_surcharge.quantize(Decimal('0.01')),
         'complexity_surcharge': complexity_surcharge.quantize(Decimal('0.01')),
-        'travel_surcharge': Decimal('0.00'),
+        'travel_surcharge': travel_surcharge.quantize(Decimal('0.01')),
         'reinspection_coverage_fee': reinspection_fee.quantize(Decimal('0.01')),
         'total_amount': total.quantize(Decimal('0.01')),
         'deposit_amount': deposit,
@@ -84,6 +89,7 @@ def calculate_bill(category, scope, turnaround, is_complex=False, item_age_years
             'Turnaround Surcharge': float(turnaround_surcharge),
             'Inspector Level Surcharge': float(inspector_surcharge),
             'Complexity / Age Surcharge': float(complexity_surcharge),
+            'Travel Surcharge': float(travel_surcharge),
             'Re-Inspection Coverage': float(reinspection_fee),
         },
     }

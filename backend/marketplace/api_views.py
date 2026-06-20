@@ -38,11 +38,18 @@ class LoginRateThrottle(AnonRateThrottle):
 class TicketRateThrottle(AnonRateThrottle):
     scope = 'ticket'
 
-from rest_framework.decorators import api_view, permission_classes
+class GeocodeAnonRateThrottle(AnonRateThrottle):
+    rate = '20/minute'
+
+class GeocodeUserRateThrottle(UserRateThrottle):
+    rate = '100/minute'
+
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 import requests
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([GeocodeAnonRateThrottle, GeocodeUserRateThrottle])
 def reverse_geocode(request):
     """
     Phase 3: Spatial Awareness - Geospatial Proxy
@@ -56,7 +63,15 @@ def reverse_geocode(request):
         return Response({'error': 'lat and lng parameters are required'}, status=400)
         
     try:
-        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&zoom=18&addressdetails=1"
+        lat_val = float(lat)
+        lng_val = float(lng)
+        if not (-90.0 <= lat_val <= 90.0) or not (-180.0 <= lng_val <= 180.0):
+            return Response({'error': 'Coordinates must be valid float values within correct range (-90 to 90 for latitude, -180 to 180 for longitude).'}, status=400)
+    except (ValueError, TypeError):
+        return Response({'error': 'lat and lng parameters must be valid decimal values'}, status=400)
+        
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat_val}&lon={lng_val}&zoom=18&addressdetails=1"
         # Nominatim requires a valid user-agent
         headers = {'User-Agent': 'Uzaspea/1.0 (https://uzaspea.com)'}
         response = requests.get(url, headers=headers, timeout=5)
@@ -526,6 +541,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         if not (request.user.is_staff or is_buyer or is_seller):
             return Response({'detail': 'No permission to cancel this order.'}, status=403)
+
+        # Block cancellation if already paid (only staff can cancel paid/processing orders)
+        if order.status in ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED') and not request.user.is_staff:
+            return Response({'error': 'Paid orders can only be cancelled by staff administrators.'}, status=status.HTTP_400_BAD_REQUEST)
 
         notes = request.data.get('notes', 'Order cancelled.')
         try:

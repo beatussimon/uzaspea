@@ -4,6 +4,26 @@ from channels.db import database_sync_to_async
 from urllib.parse import parse_qs
 
 
+@database_sync_to_async
+def get_user_from_token(token):
+    """Consolidated token authentication helper for WebSockets."""
+    try:
+        from rest_framework_simplejwt.tokens import AccessToken
+        from django.contrib.auth.models import User
+        validated = AccessToken(token)
+        return User.objects.get(id=validated['user_id'])
+    except Exception:
+        try:
+            from rest_framework_simplejwt.tokens import UntypedToken
+            from rest_framework_simplejwt.authentication import JWTAuthentication
+            UntypedToken(token)
+            auth = JWTAuthentication()
+            validated_token = auth.get_validated_token(token)
+            return auth.get_user(validated_token)
+        except Exception:
+            return None
+
+
 class OrderTrackingConsumer(AsyncWebsocketConsumer):
     """
     WebSocket for real-time order tracking.
@@ -25,7 +45,7 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
                 qs = parse_qs(self.scope.get('query_string', b'').decode())
                 token = qs.get('token', [None])[0]
                 if token:
-                    user = await self._get_user_from_token(token)
+                    user = await get_user_from_token(token)
                     if user:
                         self.room_group_name = f'seller_orders_{user.id}'
                     else:
@@ -44,7 +64,7 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
                 qs = parse_qs(self.scope.get('query_string', b'').decode())
                 token = qs.get('token', [None])[0]
                 if token:
-                    user = await self._get_user_from_token(token)
+                    user = await get_user_from_token(token)
                     if user:
                         self.room_group_name = f'buyer_orders_{user.id}'
                     else:
@@ -62,7 +82,7 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
                 qs = parse_qs(self.scope.get('query_string', b'').decode())
                 token = qs.get('token', [None])[0]
                 if token:
-                    user = await self._get_user_from_token(token)
+                    user = await get_user_from_token(token)
                 if not user:
                     await self.close()
                     return
@@ -97,18 +117,6 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
         }))
 
     @database_sync_to_async
-    def _get_user_from_token(self, token):
-        try:
-            from rest_framework_simplejwt.tokens import AccessToken
-            from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
-            from django.contrib.auth.models import User
-            validated = AccessToken(token)
-            return User.objects.get(id=validated['user_id'])
-        except (TokenError, InvalidToken, Exception):
-            # Using Exception as fallback, but explicitly acknowledging the specific expected exceptions
-            return None
-
-    @database_sync_to_async
     def _user_owns_order(self, user, order_id):
         """FIX: M-07 — check order ownership before allowing WS connection."""
         from marketplace.models import Order
@@ -127,7 +135,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             qs = parse_qs(self.scope.get('query_string', b'').decode())
             token = qs.get('token', [None])[0]
             if token:
-                user = await self._get_user_from_token(token)
+                user = await get_user_from_token(token)
         if not user or not user.is_authenticated:
             await self.close(code=4001)
             return
@@ -152,7 +160,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         import json
         from asgiref.sync import sync_to_async
         
-        data = json.loads(text_data)
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
+            # Send an error back or ignore
+            try:
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': 'Invalid JSON format'
+                }))
+            except Exception:
+                pass
+            return
+            
         conv_id = data.get('conversation_id')
         content = data.get('content', '').strip()
         
@@ -197,14 +217,4 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Conversation.DoesNotExist:
             return None
 
-    @database_sync_to_async
-    def _get_user_from_token(self, token):
-        try:
-            from rest_framework_simplejwt.tokens import UntypedToken
-            from rest_framework_simplejwt.authentication import JWTAuthentication
-            UntypedToken(token)
-            auth = JWTAuthentication()
-            validated = auth.get_validated_token(token)
-            return auth.get_user(validated)
-        except Exception:
-            return None
+
