@@ -218,3 +218,64 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return None
 
 
+class ShipmentTrackingConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.shipment_id = self.scope['url_route']['kwargs']['shipment_id']
+        self.room_group_name = f'shipment_tracking_{self.shipment_id}'
+        
+        user = self.scope.get('user')
+        if not user or not user.is_authenticated:
+            qs = parse_qs(self.scope.get('query_string', b'').decode())
+            token = qs.get('token', [None])[0]
+            if token:
+                user = await get_user_from_token(token)
+
+        allowed = await self._is_authorized(user, self.shipment_id)
+        if not allowed:
+            await self.close()
+            return
+
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'room_group_name'):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name
+            )
+
+    async def shipment_ping(self, event):
+        """Receive location ping and send to WebSocket."""
+        await self.send(text_data=json.dumps({
+            'type': 'location_ping',
+            'shipment_id': event['shipment_id'],
+            'lat': event['lat'],
+            'lng': event['lng'],
+            'recorded_at': event['recorded_at'],
+            'source': event.get('source', 'driver')
+        }))
+
+    @database_sync_to_async
+    def _is_authorized(self, user, shipment_id):
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_staff:
+            return True
+        try:
+            from logistics.models import Shipment
+            shipment = Shipment.objects.get(id=shipment_id)
+            if shipment.driver == user:
+                return True
+            if shipment.order.user == user:
+                return True
+            from marketplace.models import OrderItem
+            return OrderItem.objects.filter(order=shipment.order, product__seller=user).exists()
+        except Exception:
+            return False
+
+
+

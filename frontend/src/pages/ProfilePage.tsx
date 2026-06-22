@@ -219,21 +219,23 @@ const ProfilePage: React.FC = () => {
         </div>
       )}
 
-      {/* Seller's Products */}
-      <div className="mt-8">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Products by {username}</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {products.length === 0 ? (
-            <div className="col-span-full card p-12 text-center text-gray-500">
-              No products found for this seller.
-            </div>
-          ) : (
-            products.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))
-          )}
+      {/* Seller's Products (Only shown for seller profiles) */}
+      {(profile.tier === 'seller_pro' || profile.tier === 'business' || profile.is_staff || profile.is_superuser || products.length > 0) && (
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Products by {username}</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            {products.length === 0 ? (
+              <div className="col-span-full card p-12 text-center text-gray-500">
+                No products found for this seller.
+              </div>
+            ) : (
+              products.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { DialogProvider } from './components/ui/Dialogs';
 
+import LandingPage from './pages/LandingPage';
 import ProductList from './ProductList';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
@@ -31,6 +32,8 @@ const StaffAdminLayout = lazy(() => import('./pages/staff/StaffAdminLayout'));
 const StaffDashboardLayout = lazy(() => import('./pages/staff/StaffDashboardLayout'));
 const InspectionLayout = lazy(() => import('./pages/inspections/InspectionLayout'));
 const InspectorLayout = lazy(() => import('./pages/inspections/InspectorLayout'));
+const SellerUpgradePage = lazy(() => import('./pages/SellerUpgradePage'));
+const ShipmentTrackingPage = lazy(() => import('./pages/ShipmentTrackingPage'));
 
 // Fallback loader for Lazy views
 const SuspenseLoader = () => (
@@ -40,7 +43,7 @@ const SuspenseLoader = () => (
 );
 
 // ProtectedRoute extracted outside App component body to prevent unmount/remount cycles
-const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = false, requireInspector = false }: any) => {
+const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = false, requireInspector = false, requireSeller = false }: any) => {
   const { isAuthenticated, user } = useAuth();
   
   if (!isAuthenticated) {
@@ -51,6 +54,11 @@ const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = fal
     if (requireSuperuser && !user.is_superuser) return <Navigate to="/" replace />;
     if (requireStaff && !user.is_staff && !user.is_superuser) return <Navigate to="/dashboard" replace />;
     if (requireInspector && !user.is_inspector) return <Navigate to="/dashboard" replace />;
+    if (requireSeller) {
+      const tier = user?.tier;
+      const isSeller = tier === 'seller_pro' || tier === 'business' || user.is_staff || user.is_superuser;
+      if (!isSeller) return <Navigate to="/upgrade" replace />;
+    }
   }
   
   return children;
@@ -67,15 +75,18 @@ function App() {
                 <Navbar />
                 <div className="h-16" /> {/* Spacer matching navbar height */}
 
-                <main className="flex-1">
+                <main className="flex-1 pt-4 md:pt-6">
                   <ErrorBoundary>
                     <Suspense fallback={<SuspenseLoader />}>
                     <Routes>
-                      <Route path="/" element={<ProductList />} />
+                      <Route path="/" element={<LandingPage />} />
+                      <Route path="/products" element={<ProductList />} />
                       <Route path="/product/:slug" element={<ProductDetailPage />} />
                       <Route path="/cart" element={<CartPage />} />
                       <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
-                      <Route path="/dashboard/*" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} />
+                      <Route path="/dashboard/*" element={<ProtectedRoute requireSeller><DashboardLayout /></ProtectedRoute>} />
+                      <Route path="/upgrade" element={<SellerUpgradePage />} />
+                      <Route path="/shipments/:id/track" element={<ProtectedRoute><ShipmentTrackingPage /></ProtectedRoute>} />
                       
                       {/* Strict Staff Isolation */}
                       <Route path="/staff-admin/*" element={

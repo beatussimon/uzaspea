@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     'django_extensions',
     'inspections',
     'billing',
+    'warehouses',
+    'logistics',
 ]
 
 REST_FRAMEWORK = {
@@ -136,12 +138,20 @@ CORS_ALLOW_CREDENTIALS = True
 # FIX DEVOPS-03: Redis URL from environment, not hardcoded IP
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": REDIS_URL,
+import sys
+if 'test' in sys.argv:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+        }
+    }
 
 CHANNEL_LAYERS = {
     "default": {
@@ -180,7 +190,7 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'  # Correct URL prefix
+STATIC_URL = '/static/'  # Correct URL prefix
 STATICFILES_DIRS = [
     BASE_DIR / "static",  # Project-level static files
 ]

@@ -119,7 +119,7 @@ const DashboardOrders: React.FC = () => {
     finally { setAdvancing(null); }
   };
 
-  const filterTabs = ['', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED'];
+  const filterTabs = ['', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'DELIVERED', 'COMPLETED', 'CANCELLED'];
 
   return (
     <div className="space-y-4">
@@ -335,8 +335,13 @@ const DashboardOrders: React.FC = () => {
                                     {nextStatus ? (
                                         <button
                                             onClick={() => {
-                                                const notes = nextStatus === 'SHIPPED' ? prompt('Enter tracking number or courier info:') : "";
-                                                handleAdvance(order.id, nextStatus, notes || `Moved to ${nextStatus} by seller.`);
+                                                let promptNotes = "";
+                                                if (nextStatus === 'SHIPPED') {
+                                                  promptNotes = prompt('Enter tracking number or courier info:') || "";
+                                                } else if (nextStatus === 'SHIPPED_TO_WAREHOUSE') {
+                                                  promptNotes = prompt('Enter delivery agent/vehicle info for SokoniMax Hub:') || "";
+                                                }
+                                                handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
                                             }}
                                             disabled={advancing === order.id}
                                             className="flex-[3] btn-primary py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-sm font-black uppercase tracking-widest shadow-xl shadow-brand-600/20 flex items-center justify-center gap-3 group ring-offset-2 focus:ring-2 focus:ring-brand-500"
@@ -345,10 +350,15 @@ const DashboardOrders: React.FC = () => {
                                                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
                                             ) : (
                                                 <>
+                                                  {nextStatus === 'SELLER_CONFIRMED' && 'Confirm Order'}
+                                                  {nextStatus === 'PREPARING' && 'Start Preparing'}
+                                                  {nextStatus === 'PACKAGING' && 'Package Order'}
+                                                  {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to SokoniMax Hub'}
                                                   {nextStatus === 'PROCESSING' && 'Accept & Process Order'}
                                                   {nextStatus === 'SHIPPED' && 'Mark as Shipped'}
                                                   {nextStatus === 'DELIVERED' && 'Confirm Delivery'}
                                                   {nextStatus === 'COMPLETED' && 'Finalize Transaction'}
+                                                  {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && `Advance to ${nextStatus}`}
                                                   <ShieldCheck size={20} className="transition-transform group-hover:scale-125" />
                                                 </>
                                             )}

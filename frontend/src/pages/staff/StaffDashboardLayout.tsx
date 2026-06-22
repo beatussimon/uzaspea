@@ -3,11 +3,12 @@ import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
   CheckCircle2, XCircle, Clock, AlertTriangle, Shield, Star,
-  CreditCard, FileText, Layers, MessageSquare, Send
+  CreditCard, FileText, Layers, MessageSquare, Send, Package
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import StaffInspectionLayout from './inspections/StaffInspectionLayout';
+import WarehouseStaffLayout from './warehouse/WarehouseStaffLayout';
 
 // ============ Types ============
 interface StaffTask {
@@ -512,6 +513,123 @@ export const SubscriptionConfirmation: React.FC = () => {
   );
 };
 
+// ============ Seller Upgrade Applications ============
+export const SellerApplicationsManager: React.FC = () => {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('pending');
+
+  const fetchItems = useCallback(() => {
+    setLoading(true);
+    api.get(`/api/staff/seller-applications/?status=${filter}`)
+      .then(res => {
+        setItems(res.data.results || res.data);
+      })
+      .catch(() => toast.error('Failed to load seller upgrade applications'))
+      .finally(() => setLoading(false));
+  }, [filter]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  const handleApprove = async (id: number) => {
+    try {
+      await api.post(`/api/staff/seller-applications/${id}/approve/`);
+      toast.success('Seller application approved!');
+      fetchItems();
+    } catch {
+      toast.error('Failed to approve application');
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    const reason = prompt('Reason for rejection:');
+    if (reason === null) return;
+    try {
+      await api.post(`/api/staff/seller-applications/${id}/reject/`, { reason });
+      toast.success('Seller application rejected');
+      fetchItems();
+    } catch {
+      toast.error('Failed to reject application');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Seller Upgrades</h2>
+        <div className="flex gap-1">
+          {['pending', 'approved', 'rejected'].map((s) => (
+            <button key={s} onClick={() => setFilter(s)}
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+          <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+          <p className="text-gray-500">No {filter} seller applications</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {items.map((item) => (
+            <div key={item.id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 p-4 rounded-xl space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-white">{item.business_name}</h3>
+                  <p className="text-xs text-gray-500">Submitted by: @{item.username}</p>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+                  {item.requested_tier_name}
+                </span>
+              </div>
+
+              <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                <div><strong>Submitted:</strong> {new Date(item.created_at).toLocaleString()}</div>
+                {item.rejection_reason && (
+                  <div className="text-red-500"><strong>Reason:</strong> {item.rejection_reason}</div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <a href={item.id_document} target="_blank" rel="noreferrer"
+                  className="flex-1 text-center py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition">
+                  ID Document
+                </a>
+                {item.business_document && (
+                  <a href={item.business_document} target="_blank" rel="noreferrer"
+                    className="flex-1 text-center py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition">
+                    Business Doc
+                  </a>
+                )}
+              </div>
+
+              {item.status === 'pending' && (
+                <div className="flex gap-2 pt-2 border-t dark:border-gray-700">
+                  <button onClick={() => handleApprove(item.id)}
+                    className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">
+                    Approve
+                  </button>
+                  <button onClick={() => handleReject(item.id)}
+                    className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition">
+                    Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ============ Commission Payments ============
 export const CommissionPaymentsManager: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -535,7 +653,7 @@ export const CommissionPaymentsManager: React.FC = () => {
 
   const handleVerify = async (id: number) => {
     try {
-      await api.post(`/api/staff/commission-payments/${id}/verify/`);
+      await api.post(`/api/staff/commission-payments/${id}/approve/`);
       toast.success('Commission payment approved!');
       fetchItems();
     } catch {
@@ -1237,11 +1355,14 @@ const StaffDashboardLayout: React.FC = () => {
   const canApprove = perms.includes('can_approve_content') || isSuper;
   const canReviewPromo = perms.includes('can_review_promotions') || isSuper;
   const canManageInspections = perms.includes('can_manage_inspections') || isSuper;
+  const canManageWarehouse = perms.includes('can_manage_warehouse_intake') || isSuper;
 
   const navItems = [
     { path: '/staff', label: 'Overview', icon: LayoutDashboard },
     { path: '/staff/tasks', label: 'My Tasks', icon: ClipboardList },
     { path: '/staff/subscriptions', label: 'Subscriptions', icon: CreditCard, show: canVerify },
+    { path: '/staff/seller-applications', label: 'Seller Upgrades', icon: Shield, show: canVerify },
+    { path: '/staff/warehouse', label: 'Warehouse Intake', icon: Package, show: canManageWarehouse },
     { path: '/staff/invoices', label: 'Commission Payments', icon: FileText, show: canVerify },
     { path: '/staff/products', label: 'Product Moderation', icon: Layers, show: canModerate },
     { 
@@ -1308,6 +1429,8 @@ const StaffDashboardLayout: React.FC = () => {
           <Route index element={<StaffHome data={data} loading={loading} />} />
           <Route path="tasks" element={<StaffTasks />} />
           <Route path="subscriptions" element={canVerify ? <SubscriptionConfirmation /> : <Navigate to="/staff" />} />
+          <Route path="seller-applications" element={canVerify ? <SellerApplicationsManager /> : <Navigate to="/staff" />} />
+          <Route path="warehouse" element={canManageWarehouse ? <WarehouseStaffLayout /> : <Navigate to="/staff" />} />
           <Route path="invoices" element={canVerify ? <CommissionPaymentsManager /> : <Navigate to="/staff" />} />
           <Route path="products" element={canModerate ? <ProductModeration /> : <Navigate to="/staff" />} />
           <Route path="promotions" element={(canReviewPromo || canApprove) ? <PromotionQueue /> : <Navigate to="/staff" />} />

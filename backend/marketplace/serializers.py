@@ -6,7 +6,8 @@ from .models import (
     Payment, PaymentConfirmation, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
     ProductImage, Like, LipaNumber, FAQ, SupportTicket,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
-    Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork
+    Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork, SellerApplication,
+    TeamMember
 )
 
 class LipaNumberSerializer(serializers.ModelSerializer):
@@ -197,15 +198,20 @@ class OrderSerializer(serializers.ModelSerializer):
     buyer_username = serializers.CharField(source='user.username', read_only=True)
     seller_subtotal = serializers.SerializerMethodField()
     delivery_code = serializers.SerializerMethodField()
+    shipments = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
         fields = [
             'id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status',
             'shipping_method', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
-            'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code'
+            'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments'
         ]
         read_only_fields = ['user', 'total_amount']
+
+    def get_shipments(self, obj):
+        from logistics.serializers import ShipmentSerializer
+        return ShipmentSerializer(obj.shipments.all(), many=True).data
 
     def get_seller_subtotal(self, obj):
         request = self.context.get('request')  # FIX: L-03 — guard against missing context
@@ -326,7 +332,7 @@ class SponsoredListingSerializer(serializers.ModelSerializer):
 class SubscriptionTierSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubscriptionTier
-        fields = ['id', 'name', 'price', 'benefits', 'duration', 'is_active']
+        fields = ['id', 'name', 'price', 'benefits', 'duration', 'is_active', 'tier_level', 'commission_rate']
 
 
 class UserPaymentConfirmationSerializer(serializers.ModelSerializer):
@@ -435,3 +441,66 @@ class DeliveryZoneSerializer(serializers.ModelSerializer):  # FIX B-21
         fields = ['id', 'seller', 'seller_username', 'zone_name', 'delivery_fee',
                   'estimated_days', 'is_active', 'notes']
         read_only_fields = ['seller']
+
+
+class SellerApplicationSerializer(serializers.ModelSerializer):
+    requested_tier_name = serializers.CharField(source='requested_tier.name', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = SellerApplication
+        fields = [
+            'id', 'user', 'username', 'requested_tier', 'requested_tier_name',
+            'business_name', 'id_document', 'business_document', 'status',
+            'rejection_reason', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['user', 'status', 'rejection_reason', 'created_at', 'updated_at']
+
+
+class TeamMemberSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(write_only=True)
+    user_details = serializers.SerializerMethodField(read_only=True)
+    owner_username = serializers.CharField(source='owner.username', read_only=True)
+
+    class Meta:
+        model = TeamMember
+        fields = ['id', 'owner', 'owner_username', 'user', 'username', 'user_details', 'permissions', 'created_at']
+        read_only_fields = ['id', 'owner', 'user', 'created_at']
+
+    def get_user_details(self, obj):
+        return {
+            'id': obj.user.id,
+            'username': obj.user.username,
+            'email': obj.user.email,
+            'first_name': obj.user.first_name,
+            'last_name': obj.user.last_name
+        }
+
+    def validate_username(self, value):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            user = User.objects.get(username=value)
+            return user
+        except User.DoesNotExist:
+            raise serializers.ValidationError("User with this username does not exist.")
+
+    def create(self, validated_data):
+        owner = self.context['request'].user
+        user = validated_data.pop('username')  # user object after validation
+
+        is_business = owner.profile.tier == 'business' or owner.subscriptions.filter(is_active=True, tier__tier_level='business').exists()
+        if not is_business:
+            raise serializers.ValidationError("Only users with a Business tier subscription can invite team members.")
+
+        if owner == user:
+            raise serializers.ValidationError("You cannot invite yourself to your own team.")
+
+        if TeamMember.objects.filter(owner=owner, user=user).exists():
+            raise serializers.ValidationError("This user is already a member of your team.")
+
+        permissions = validated_data.get('permissions', {})
+        if not isinstance(permissions, dict):
+            permissions = {}
+
+        return TeamMember.objects.create(owner=owner, user=user, permissions=permissions)

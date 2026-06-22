@@ -23,7 +23,7 @@ from .serializers import (
     MobileNetworkSerializer
 )
 
-from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember
+from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove
 from django.db.models import Prefetch
 from django.db import transaction
 
@@ -73,7 +73,7 @@ def reverse_geocode(request):
     try:
         url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat_val}&lon={lng_val}&zoom=18&addressdetails=1"
         # Nominatim requires a valid user-agent
-        headers = {'User-Agent': 'Uzaspea/1.0 (https://uzaspea.com)'}
+        headers = {'User-Agent': 'SokoniMax/1.0 (https://sokonimax.co.tz)'}
         response = requests.get(url, headers=headers, timeout=5)
         response.raise_for_status()
         
@@ -103,6 +103,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
     def get_permissions(self):
+        if self.action == 'create':
+            return [permissions.IsAuthenticated(), IsSellerOrAbove()]
         if self.action in ['update', 'partial_update', 'destroy']:
             return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
         return super().get_permissions()
@@ -163,7 +165,9 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         # FIX S-17: sellers can retrieve their own products regardless of availability
         if user.is_authenticated and self.request.query_params.get('mine') == 'true':
-            queryset = base.filter(seller=user)
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(user)
+            queryset = base.filter(seller_id__in=sellers)
         elif self.request.query_params.get('following') and user.is_authenticated:
             from .models import Follow
             followed = Follow.objects.filter(follower=user).values_list('following__user_id', flat=True)
@@ -262,7 +266,29 @@ class ProductViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-created_at')
 
     def perform_create(self, serializer):
-        product = serializer.save(seller=self.request.user)
+        user = self.request.user
+        seller = user
+        from marketplace.models import TeamMember
+        team_memberships = TeamMember.objects.filter(user=user)
+        if team_memberships.exists():
+            requested_seller_id = self.request.data.get('seller')
+            if requested_seller_id:
+                try:
+                    membership = team_memberships.get(owner_id=requested_seller_id)
+                    from django.contrib.auth import get_user_model
+                    seller = get_user_model().objects.get(id=requested_seller_id)
+                except Exception:
+                    for membership in team_memberships:
+                        if membership.permissions.get('manage_products', False):
+                            seller = membership.owner
+                            break
+            else:
+                for membership in team_memberships:
+                    if membership.permissions.get('manage_products', False):
+                        seller = membership.owner
+                        break
+        
+        product = serializer.save(seller=seller)
         images = self.request.FILES.getlist('uploaded_images')
         for img in images:
             ProductImage.objects.create(product=product, image=img)
@@ -292,82 +318,100 @@ class ProductViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
         import datetime
         user = request.user
-        products = Product.objects.filter(seller=user)
-        orders = Order.objects.filter(orderitem_set__product__seller=user).distinct()
+        from marketplace.models import TeamMember
+        membership = TeamMember.objects.filter(user=user).first()
+        stats_user = membership.owner if membership else user
+
+        is_business = stats_user.profile.tier == 'business' or stats_user.subscriptions.filter(is_active=True, tier__tier_level='business').exists()
+
+        products = Product.objects.filter(seller=stats_user)
+        orders = Order.objects.filter(orderitem_set__product__seller=stats_user).distinct()
         today = timezone.now().date()
 
-        # --- Revenue pipeline (last 7 days) --- Optimized
-        PAID_STATUSES = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED']  # FIX L-19
-        start_date = today - datetime.timedelta(days=6)
-        pipeline_items = OrderItem.objects.filter(
-            product__seller=user, order__order_date__date__gte=start_date,
-            order__status__in=PAID_STATUSES,  # FIX L-19
-        ).values('order__order_date__date').annotate(
-            rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('order', distinct=True)
-        ).order_by('order__order_date__date')
-        
-        pipeline_map = {item['order__order_date__date']: item for item in pipeline_items}
-        
+        # Basic aggregate metrics (always visible to sellers)
+        PAID_STATUSES = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED']
+        paid_orders = orders.filter(status__in=PAID_STATUSES)
+        total_orders_count = paid_orders.count()
+        total_revenue = float(paid_orders.aggregate(total=Sum('total_amount'))['total'] or 0)
+        avg_order = round(total_revenue / total_orders_count, 2) if total_orders_count else 0
+        total_reviews = Review.objects.filter(product__seller=stats_user).count()
+        avg_rating = float(products.aggregate(avg=Avg('reviews__rating'))['avg'] or 0)
+
+        # Advanced analytics (Only for Business tier)
         revenue_pipeline = []
-        total_7d = 0
-        for i in range(6, -1, -1):
-            date = today - datetime.timedelta(days=i)
-            entry = pipeline_map.get(date, {'rev': 0, 'count': 0})
-            day_rev = float(entry['rev'] or 0)
-            total_7d += day_rev
-            revenue_pipeline.append({
-                'date': date.strftime('%a'), 
-                'revenue': day_rev, 
-                'orders': entry['count']
-            })
+        trend_pct = 0.0
+        top_products = []
+        category_breakdown = []
+        commission_paid = 0.0
 
-        # --- Previous 7 days for trend ---
-        prev_start = today - datetime.timedelta(days=13)
-        prev_7d = float(OrderItem.objects.filter(
-            product__seller=user,
-            order__order_date__date__gte=prev_start,
-            order__order_date__date__lt=start_date,
-        ).aggregate(t=Sum(django_models.F('price') * django_models.F('quantity')))['t'] or 0)
-        trend_pct = round(((total_7d - prev_7d) / prev_7d * 100) if prev_7d else 0, 1)
+        if is_business:
+            # --- Revenue pipeline (last 7 days) ---
+            start_date = today - datetime.timedelta(days=6)
+            pipeline_items = OrderItem.objects.filter(
+                product__seller=stats_user, order__order_date__date__gte=start_date,
+                order__status__in=PAID_STATUSES,
+            ).values('order__order_date__date').annotate(
+                rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('order', distinct=True)
+            ).order_by('order__order_date__date')
+            
+            pipeline_map = {item['order__order_date__date']: item for item in pipeline_items}
+            total_7d = 0
+            for i in range(6, -1, -1):
+                date = today - datetime.timedelta(days=i)
+                entry = pipeline_map.get(date, {'rev': 0, 'count': 0})
+                day_rev = float(entry['rev'] or 0)
+                total_7d += day_rev
+                revenue_pipeline.append({
+                    'date': date.strftime('%a'), 
+                    'revenue': day_rev, 
+                    'orders': entry['count']
+                })
 
-        # --- Order status breakdown ---
+            # --- Previous 7 days for trend ---
+            prev_start = today - datetime.timedelta(days=13)
+            prev_7d = float(OrderItem.objects.filter(
+                product__seller=stats_user,
+                order__order_date__date__gte=prev_start,
+                order__order_date__date__lt=start_date,
+            ).aggregate(t=Sum(django_models.F('price') * django_models.F('quantity')))['t'] or 0)
+            trend_pct = round(((total_7d - prev_7d) / prev_7d * 100) if prev_7d else 0, 1)
+
+            # --- Top 5 products by order count ---
+            top_prods = (
+                OrderItem.objects.filter(product__seller=stats_user)
+                .values('product__name', 'product__slug')
+                .annotate(sold=Count('id'), rev=Sum(django_models.F('price') * django_models.F('quantity')))
+                .order_by('-sold')[:5]
+            )
+            top_products = [{'name': t['product__name'], 'slug': t['product__slug'], 'sold': t['sold'], 'revenue': float(t['rev'] or 0)} for t in top_prods]
+
+            # --- Category breakdown ---
+            cat_data = (
+                OrderItem.objects.filter(product__seller=stats_user)
+                .values('product__category__name')
+                .annotate(rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('id'))
+                .order_by('-rev')[:8]
+            )
+            category_breakdown = [{'category': c['product__category__name'] or 'Other', 'revenue': float(c['rev'] or 0), 'items': c['count']} for c in cat_data]
+
+            # --- Commission Paid ---
+            from billing.models import MonthlyInvoice
+            commission_paid = float(MonthlyInvoice.objects.filter(
+                seller=stats_user,
+                status='PAID'
+            ).aggregate(total=Sum('total_commission'))['total'] or 0)
+
+        # --- Stock alerts (stock <= 3) --- always visible
+        low_stock = list(products.filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10])
+        for ls in low_stock:
+            ls['price'] = float(ls['price'])
+
+        # --- Order status breakdown --- always visible
         status_counts = {}
         for s in ['CART','CHECKOUT','AWAITING_PAYMENT','PENDING_VERIFICATION','PAID','PROCESSING','SHIPPED','DELIVERED','COMPLETED','CANCELLED']:
             c = orders.filter(status=s).count()
             if c:
                 status_counts[s] = c
-
-        # --- Top 5 products by order count ---
-        top_prods = (
-            OrderItem.objects.filter(product__seller=user)
-            .values('product__name', 'product__slug')
-            .annotate(sold=Count('id'), rev=Sum(django_models.F('price') * django_models.F('quantity')))
-            .order_by('-sold')[:5]
-        )
-        top_products = [{'name': t['product__name'], 'slug': t['product__slug'], 'sold': t['sold'], 'revenue': float(t['rev'] or 0)} for t in top_prods]
-
-        # --- Category breakdown ---
-        cat_data = (
-            OrderItem.objects.filter(product__seller=user)
-            .values('product__category__name')
-            .annotate(rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('id'))
-            .order_by('-rev')[:8]
-        )
-        category_breakdown = [{'category': c['product__category__name'] or 'Other', 'revenue': float(c['rev'] or 0), 'items': c['count']} for c in cat_data]
-
-        # --- Stock alerts (stock <= 3) ---
-        low_stock = list(products.filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10])
-        for ls in low_stock:
-            ls['price'] = float(ls['price'])
-
-        # --- Aggregate metrics ---
-        PAID_STATUSES = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED']  # FIX L-19
-        paid_orders = orders.filter(status__in=PAID_STATUSES)
-        total_orders_count = paid_orders.count()
-        total_revenue = float(paid_orders.aggregate(total=Sum('total_amount'))['total'] or 0)
-        avg_order = round(total_revenue / total_orders_count, 2) if total_orders_count else 0
-        total_reviews = Review.objects.filter(product__seller=user).count()
-        avg_rating = float(products.aggregate(avg=Avg('reviews__rating'))['avg'] or 0)
 
         return Response({
             'total_products': products.count(),
@@ -382,6 +426,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             'top_products': top_products,
             'category_breakdown': category_breakdown,
             'stock_alerts': low_stock,
+            'has_advanced_analytics': is_business,
+            'commission_paid': commission_paid,
         })
 
 from .models import LipaNumber, FAQ, SupportTicket
@@ -403,8 +449,10 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
         return LipaNumber.objects.none()
 
     def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [permissions.IsAuthenticated()]
+        if self.action == 'create':
+            return [permissions.IsAuthenticated(), IsSellerOrAbove()]
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsSellerOrAbove()]
         return [permissions.AllowAny()]
 
     def perform_create(self, serializer):
@@ -459,8 +507,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_staff:
             return Order.objects.all().prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(user)
         return Order.objects.filter(
-            Q(user=user) | Q(orderitem_set__product__seller=user)
+            Q(user=user) | Q(orderitem_set__product__seller_id__in=sellers)
         ).distinct().prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
 
     def perform_create(self, serializer):
@@ -473,15 +523,30 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         
         # PERMISSION CHECK: Must be staff OR a seller of an item in this order
-        is_seller = order.orderitem_set.filter(product__seller=request.user).exists()
+        from uzachuo.permissions import check_team_permission
+        is_seller = False
+        for item in order.orderitem_set.select_related('product').all():
+            seller_id = item.product.seller_id
+            if request.user.id == seller_id:
+                is_seller = True
+                break
+            if check_team_permission(request.user, seller_id, 'manage_orders'):
+                is_seller = True
+                break
         is_buyer = order.user == request.user  # FIX: S-06
 
         new_state = request.data.get('status')
         notes = request.data.get('notes', '')
 
         # FIX: S-06 — Enforce who can trigger which transitions
-        STAFF_ONLY_STATES = {'PAID', 'EXPIRED'}
-        SELLER_ALLOWED_STATES = {'PROCESSING', 'SHIPPED', 'DELIVERED', 'DISPUTED'}
+        STAFF_ONLY_STATES = {
+            'PAID', 'EXPIRED', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT',
+            'IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'DELIVERED'
+        }
+        SELLER_ALLOWED_STATES = {
+            'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE',
+            'PROCESSING', 'SHIPPED', 'DELIVERED', 'DISPUTED'
+        }
         BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED'}
 
         if new_state in STAFF_ONLY_STATES and not request.user.is_staff:
@@ -537,7 +602,16 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         # PERMISSION CHECK: Must be staff, the buyer, or a seller of an item in this order
         is_buyer = order.user == request.user
-        is_seller = order.orderitem_set.filter(product__seller=request.user).exists()
+        from uzachuo.permissions import check_team_permission
+        is_seller = False
+        for item in order.orderitem_set.select_related('product').all():
+            seller_id = item.product.seller_id
+            if request.user.id == seller_id:
+                is_seller = True
+                break
+            if check_team_permission(request.user, seller_id, 'manage_orders'):
+                is_seller = True
+                break
         
         if not (request.user.is_staff or is_buyer or is_seller):
             return Response({'detail': 'No permission to cancel this order.'}, status=403)
@@ -557,15 +631,17 @@ class OrderViewSet(viewsets.ModelViewSet):
     def incoming(self, request):
         """Orders containing the current seller's products."""
         user = request.user
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(user)
         
-        # Prefetch only for this seller's items to avoid N+1 and leaking other seller's item data
+        # Prefetch only for these sellers' items to avoid N+1 and leaking other seller's item data
         seller_items_prefetch = Prefetch(
             'orderitem_set',
-            queryset=OrderItem.objects.filter(product__seller=user).select_related('product').prefetch_related('product__images'),
+            queryset=OrderItem.objects.filter(product__seller_id__in=sellers).select_related('product').prefetch_related('product__images'),
             to_attr='relevant_items'
         )
 
-        order_ids = OrderItem.objects.filter(product__seller=user).values_list('order_id', flat=True).distinct()
+        order_ids = OrderItem.objects.filter(product__seller_id__in=sellers).values_list('order_id', flat=True).distinct()
         orders = Order.objects.filter(id__in=order_ids).prefetch_related(
             seller_items_prefetch, 'timeline_events', 'payments'
         ).select_related('user').order_by('-order_date')
@@ -763,13 +839,24 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             data['tier'] = self.user.profile.tier
         except (UserProfile.DoesNotExist, AttributeError):  # FIX: S-10 — replace bare except with specific exceptions
             data['is_verified'] = False
-            data['tier'] = 'standard'
+            data['tier'] = 'customer'
         
         data['is_inspector'] = hasattr(self.user, 'inspector_profile')
         data['inspector_level'] = (
             self.user.inspector_profile.level
             if hasattr(self.user, 'inspector_profile') else None
         )
+
+        from marketplace.models import TeamMember
+        member_record = TeamMember.objects.filter(user=self.user).first()
+        if member_record:
+            data['is_team_member'] = True
+            data['team_permissions'] = member_record.permissions
+            data['tier'] = 'business'
+        else:
+            data['is_team_member'] = False
+            data['team_permissions'] = {}
+
         return data
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -834,6 +921,19 @@ class RegisterView(APIView):
         if dob:
             profile.date_of_birth = dob
             profile.save()
+
+        from datetime import timedelta
+        from django.utils import timezone
+        from marketplace.models import Subscription, SubscriptionTier
+        customer_tier = SubscriptionTier.objects.filter(tier_level='customer').first()
+        if customer_tier:
+            Subscription.objects.create(
+                user=user,
+                tier=customer_tier,
+                is_active=True,
+                start_date=timezone.now(),
+                end_date=timezone.now() + timedelta(days=customer_tier.duration)
+            )
         
         refresh = CustomTokenObtainPairSerializer.get_token(user)
         data = {
@@ -897,6 +997,13 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 class SponsoredListingViewSet(viewsets.ModelViewSet):
     serializer_class = SponsoredListingSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [permissions.IsAuthenticated(), IsSellerOrAbove()]
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
+        return super().get_permissions()
 
     def get_queryset(self):
         user = self.request.user
@@ -1180,6 +1287,13 @@ class DeliveryZoneViewSet(viewsets.ModelViewSet):
     serializer_class = DeliveryZoneSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
+    def get_permissions(self):
+        if self.action == 'create':
+            return [permissions.IsAuthenticated(), IsSellerOrAbove()]
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
+        return super().get_permissions()
+
     def get_queryset(self):
         seller_username = self.request.query_params.get('seller')
         if seller_username:
@@ -1209,7 +1323,7 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsSellerOrAbove()]
 
     def get_queryset(self):
         product_id = self.request.query_params.get('product')
@@ -1327,3 +1441,51 @@ class UserPaymentConfirmationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class SellerApplicationViewSet(viewsets.ModelViewSet):
+    from .models import SellerApplication
+    from .serializers import SellerApplicationSerializer
+    serializer_class = SellerApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        from .models import SellerApplication
+        return SellerApplication.objects.filter(user=self.request.user).select_related('requested_tier').order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @decorators.action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+class TeamMemberViewSet(viewsets.ModelViewSet):
+    from .models import TeamMember
+    from .serializers import TeamMemberSerializer
+    serializer_class = TeamMemberSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        from .models import TeamMember
+        user = self.request.user
+        return TeamMember.objects.filter(
+            Q(owner=user) | Q(user=user)
+        ).select_related('owner', 'user').order_by('-created_at')
+
+    def perform_destroy(self, instance):
+        if instance.owner != self.request.user:
+            from rest_framework import exceptions
+            raise exceptions.PermissionDenied("Only the team owner can remove team members.")
+        instance.delete()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        if instance.owner != self.request.user:
+            from rest_framework import exceptions
+            raise exceptions.PermissionDenied("Only the team owner can modify team member permissions.")
+        serializer.save()
+

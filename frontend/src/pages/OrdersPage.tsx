@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone } from 'lucide-react';
+import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck } from 'lucide-react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 
 import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS } from '../constants/orderStatus';
@@ -387,6 +387,23 @@ const OrdersPage: React.FC = () => {
                       </div>
                     )}
 
+                    {/* Live Tracking Button */}
+                    {order.shipments && order.shipments.length > 0 && (
+                      <div className="px-6 py-4 bg-amber-500/5 dark:bg-amber-500/10 border-b border-gray-100 dark:border-gray-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div>
+                          <p className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Live Delivery Tracking</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">This order has an active vehicle transport. Track the driver's location in real-time.</p>
+                        </div>
+                        <Link 
+                          to={`/shipments/${order.shipments[0].id}/track`}
+                          className="btn-primary py-2 px-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+                        >
+                          <Truck size={14} />
+                          Live Tracking Map
+                        </Link>
+                      </div>
+                    )}
+
                     {/* Progress Tracker */}
                     {currentStepIdx >= 0 && (
                       <div className="px-6 py-6 border-b border-gray-100 dark:border-gray-700">
@@ -514,10 +531,10 @@ const OrdersPage: React.FC = () => {
                             
                             <div className="mt-4 p-3 bg-brand-50 dark:bg-brand-900/10 rounded-lg border border-brand-100 dark:border-brand-900/20 text-center relative group/footer flex flex-col items-center justify-center">
                                 <p className="text-xs text-brand-800 dark:text-brand-300 font-medium italic">
-                                   "Thank you for choosing UZASPEA! Your satisfaction is our top priority."
+                                   "Thank you for choosing SokoniMax! Your satisfaction is our top priority."
                                 </p>
                                 
-                                <div className="flex gap-2 mt-3 w-full opacity-0 group-hover/footer:opacity-100 transition-opacity">
+                                <div className="flex gap-2 mt-3 w-full">
                                     {['AWAITING_PAYMENT', 'PENDING_VERIFICATION'].includes(order.status) && (
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}

@@ -193,7 +193,7 @@ const SafeImage: React.FC<SafeImageProps> = ({
   if (isInvalid) {
     return (
       <div 
-        className={`flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600 ${className}`}
+        className={`flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-900/35 border border-neutral-100/50 dark:border-neutral-800/30 text-neutral-300 dark:text-neutral-700 ${className}`}
         {...(props as any)}
       >
         {getFallbackIcon()}

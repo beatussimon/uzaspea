@@ -11,7 +11,8 @@ from .api_views import (
     SavedSearchViewSet, PriceAlertViewSet, DisputeViewSet,
     DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet,
     MobileNetworkViewSet, TrendingAnalyticsView, reverse_geocode,
-    SubscriptionTierViewSet, UserPaymentConfirmationViewSet
+    SubscriptionTierViewSet, UserPaymentConfirmationViewSet, SellerApplicationViewSet,
+    TeamMemberViewSet
 )
 
 router = DefaultRouter()
@@ -29,6 +30,8 @@ router.register(r'faq', FAQViewSet, basename='faq')
 router.register(r'support-tickets', SupportTicketViewSet, basename='support-ticket')
 router.register(r'subscription-tiers', SubscriptionTierViewSet, basename='subscription-tier')
 router.register(r'subscription-payments', UserPaymentConfirmationViewSet, basename='subscription-payment')
+router.register(r'seller-applications', SellerApplicationViewSet, basename='seller-application')
+router.register(r'team-members', TeamMemberViewSet, basename='team-member')
 # FIX v5: new viewsets
 router.register(r'notifications', NotificationViewSet, basename='notification')
 router.register(r'conversations', ConversationViewSet, basename='conversation')

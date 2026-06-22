@@ -23,6 +23,10 @@ app.conf.beat_schedule = {
         'task': 'marketplace.tasks.check_price_alerts',
         'schedule': crontab(minute='*/15'),
     },
+    'generate-monthly-invoices-first-of-month': {
+        'task': 'billing.tasks.generate_monthly_invoices',
+        'schedule': crontab(day_of_month=1, hour=0, minute=0),
+    },
 }
 
 app.conf.timezone = 'UTC'
