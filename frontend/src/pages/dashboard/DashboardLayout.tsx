@@ -10,11 +10,13 @@ import DashboardPromotions from './DashboardPromotions';
 import DashboardOrders from './DashboardOrders';
 import PaymentNumbersManager from './PaymentNumbersManager';
 import BillingPage from './BillingPage';
+import TeamManagerPage from './TeamManagerPage';
 
 // ============ Dashboard Layout ============
 const DashboardLayout: React.FC = () => {
   const location = useLocation();
 
+  const isBusiness = localStorage.getItem('tier') === 'business';
   const isSuperuser = localStorage.getItem('is_superuser') === 'true';
 
   const navItems = [
@@ -25,6 +27,10 @@ const DashboardLayout: React.FC = () => {
     { path: '/dashboard/billing', label: 'Billing & Commission', icon: Wallet },
     { path: '/dashboard/payment-numbers', label: 'Payment Numbers', icon: CreditCard },
   ];
+
+  if (isBusiness) {
+    navItems.push({ path: '/dashboard/team', label: 'Team Members', icon: Shield });
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
@@ -97,6 +103,7 @@ const DashboardLayout: React.FC = () => {
           <Route path="promotions" element={<DashboardPromotions />} />
           <Route path="billing" element={<BillingPage />} />
           <Route path="payment-numbers" element={<PaymentNumbersManager />} />
+          {isBusiness && <Route path="team" element={<TeamManagerPage />} />}
           <Route path="settings" element={<SettingsPage />} />
           <Route path="help-center" element={<HelpCenterPage />} />
         </Routes>

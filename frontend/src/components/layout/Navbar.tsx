@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Moon, Sun, Shield, User, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, HelpCircle, 
-  ChevronDown, PlusCircle, Search, MessageSquare, ClipboardList
+  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart
 } from 'lucide-react';
 import VerifiedBadge from '../VerifiedBadge';
 import { useCart } from '../../context/CartContext';
@@ -13,9 +13,7 @@ import { useTheme } from '../../context/ThemeContext';
 
 const Navbar = () => {
   const [visible, setVisible] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const lastScrollY = useRef(0);
@@ -29,11 +27,11 @@ const Navbar = () => {
   const isInspector = user?.is_inspector || false;
   const isSuperuser = user?.is_superuser || false;
   const username = user?.username || 'User';
+  const isSeller = userTier === 'seller_pro' || userTier === 'business' || isStaff || isSuperuser;
 
-  // Close mobile search and reset navbar on route change
+  // Reset scroll and keep navbar visible on route change
   useEffect(() => {
     setVisible(true);
-    setMobileSearchOpen(false);
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
@@ -64,277 +62,238 @@ const Navbar = () => {
     return () => document.removeEventListener('click', close);
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/?q=${encodeURIComponent(searchQuery.trim())}`);
-      setMobileSearchOpen(false);
-    }
-  };
 
   return (
     <nav className={`glass border-b border-gray-100 dark:border-neutral-900 fixed top-0 inset-x-0 z-50 transition-transform duration-300 ${visible ? 'translate-y-0' : '-translate-y-full'}`}>
-      <div className="container-page flex items-center justify-between h-16">
+      <div className="container-page relative flex items-center justify-between h-16 w-full">
 
-        {/* ---- Left: Brand ---- */}
-        <div className="flex items-center shrink-0">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <img src="/logo.png" alt="UZASPEA" className="h-9 w-auto transition-transform duration-200 group-hover:scale-105" />
-            <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">
-              UZASPEA
-            </span>
+        {/* ---- Left Navigation Links ---- */}
+        <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center gap-6">
+          <Link to="/products" className="hidden md:inline-flex items-center text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">
+            Products
           </Link>
         </div>
 
-        {/* ---- Center: Search ---- */}
-        <div className="hidden lg:flex items-center flex-1 justify-center max-w-md mx-6">
-          <form onSubmit={handleSearch} className="flex items-center w-full group relative">
-            <div className="relative flex items-center flex-1">
-              <input
-                type="search" value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products..."
-                className="w-full px-4 py-1.5 text-sm border border-gray-200 dark:border-neutral-800 rounded-l-btn bg-gray-50/50 dark:bg-black/50 dark:text-white outline-none focus:border-brand-500 dark:focus:border-brand-500 focus:ring-0 transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                aria-label="Search products"
-              />
-            </div>
-            <button 
-              type="submit" 
-              className="px-4 py-[7px] bg-brand-500 text-white rounded-r-btn hover:bg-brand-600 transition-all border border-brand-500 active:scale-95 flex items-center justify-center group/btn"
-              aria-label="Execute search"
-            >
-              <Search size={16} className="group-hover/btn:scale-110 transition-transform" />
-            </button>
-          </form>
+        {/* ---- Center: Centered Clickable Brand Logo ---- */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center shrink-0 z-20">
+          <Link to="/" className="flex items-center group">
+            <img 
+              src={isDark ? "/logo_dark.png" : "/logo_light.png"} 
+              alt="SokoniMax Logo" 
+              className="h-12 md:h-14 w-auto object-contain transition-transform duration-200 hover:scale-105 select-none"
+            />
+          </Link>
         </div>
 
-        {/* ---- Right: Actions / Navigation ---- */}
-        <div className="hidden lg:flex items-center gap-2 shrink-0">
-          {isAuthenticated ? (
-            <>
-              {/* Sell button */}
-              <Link 
-                to="/dashboard/products" 
-                className="flex items-center gap-1.5 px-4 py-1.5 border border-brand-500 hover:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-sm font-bold rounded-btn transition-all active:scale-95 hover:shadow-glow mr-1 group"
-              >
-                <PlusCircle size={16} className="group-hover:rotate-90 transition-transform duration-300" />
-                <span>Sell</span>
-              </Link>
-
-              {/* Core Utility Icons */}
-              <NotificationBell />
-
-              <Link to="/messages" className="relative btn-ghost p-2 group hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-btn transition-all" aria-label="View messages">
-                <MessageSquare size={20} className="text-gray-600 dark:text-gray-300 group-hover:scale-110 transition-transform" />
-              </Link>
-
-              <Link to="/cart" className="relative btn-ghost p-2 group hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-btn transition-all" aria-label="View shopping cart">
-                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-gray-600 dark:text-gray-300 group-hover:scale-110 transition-transform"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-                {cartCount > 0 && (
-                  <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-2xs font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-white dark:border-gray-800">
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
+        {/* ---- Right: Desktop Actions / Mobile Notifications ---- */}
+        <div className="flex items-center justify-end flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] gap-2.5 z-10">
+          {/* Desktop Navigation Links */}
+          <div className="hidden lg:flex items-center gap-2">
+            {isAuthenticated && (
+              <>
+                {/* Sell button (Only visible to verified sellers) */}
+                {isSeller && (
+                  <Link 
+                    to="/dashboard/products" 
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 text-xs font-bold rounded-full transition-all active:scale-95 shadow-sm mr-1"
+                  >
+                    <PlusCircle size={14} />
+                    <span>Sell</span>
+                  </Link>
                 )}
-              </Link>
-            </>
-          ) : (
-            /* Guest navigation links */
-            <Link 
-              to="/" 
-              className={`px-3 py-1.5 text-sm font-semibold rounded-btn transition-all duration-200 ${
-                location.pathname === '/' 
-                  ? 'text-brand-500 bg-brand-500/10' 
-                  : 'text-gray-600 dark:text-gray-300 hover:text-brand-500 hover:bg-gray-100 dark:hover:bg-neutral-900'
-              }`}
-            >
-              Explore
-            </Link>
-          )}
 
-          <button onClick={toggleTheme} className="btn-ghost p-2 text-gray-600 dark:text-gray-300 hover:rotate-12 transition-transform hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-btn" aria-label="Toggle theme">
-            {isDark ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+                {/* Core Utility Icons */}
+                <NotificationBell />
 
-          {isAuthenticated ? (
-            /* User Dropdown */
-            <div className="relative" onClick={(e) => e.stopPropagation()}>
-              <button 
-                onClick={() => setProfileOpen(!profileOpen)} 
-                className="flex items-center gap-1.5 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-900 transition-all border border-gray-200 dark:border-neutral-800 group"
-              >
-                <div className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
-                  {username.charAt(0).toUpperCase()}
-                </div>
-                <ChevronDown size={14} className="text-gray-400 mr-1 group-hover:translate-y-0.5 transition-transform" />
-              </button>
+                <Link to="/messages" className="relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all" aria-label="View messages">
+                  <MessageSquare size={18} />
+                </Link>
 
-              {profileOpen && (
-                <div className="absolute top-[calc(100%+8px)] right-0 w-72 bg-white dark:bg-black rounded-card shadow-card-hover border border-gray-100 dark:border-neutral-900 z-50 animate-scale-in overflow-hidden">
-                  {/* Account Header */}
-                  <div className="p-4 bg-gray-50/50 dark:bg-neutral-950/50 border-b border-gray-100 dark:border-neutral-900">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-lg shadow-md ring-2 ring-white dark:ring-neutral-950">
-                        {username.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-none">{username}</p>
-                          <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
-                        </div>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate uppercase tracking-wider font-semibold">{userTier} Member</p>
-                      </div>
-                    </div>
+                <Link to="/cart" className="relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all" aria-label="View shopping cart">
+                  <ShoppingCart size={18} />
+                  {cartCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white dark:border-gray-950">
+                      {cartCount > 99 ? '99' : cartCount}
+                    </span>
+                  )}
+                </Link>
+              </>
+            )}
+
+            <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all" aria-label="Toggle theme">
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </div>
+
+          {/* User Profile / Login (Desktop & Mobile handles profile differently) */}
+          <div className="hidden lg:block">
+            {isAuthenticated ? (
+              /* User Dropdown */
+              <div className="relative" onClick={(e) => e.stopPropagation()}>
+                <button 
+                  onClick={() => setProfileOpen(!profileOpen)} 
+                  className="flex items-center gap-1 p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-900 transition-all focus:outline-none"
+                >
+                  <div className="w-8 h-8 rounded-full bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900 flex items-center justify-center font-bold text-xs shadow-inner">
+                    {username.charAt(0).toUpperCase()}
                   </div>
+                  <ChevronDown size={14} className="text-gray-400 dark:text-gray-500 mr-0.5" />
+                </button>
 
-                  <div className="max-h-[400px] overflow-y-auto no-scrollbar py-2 px-1.5">
-                    {/* Personal Portal */}
-                    <div className="mb-2">
-                      <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">Personal Portal</p>
-                      <div className="grid grid-cols-1 gap-0.5">
-                        <Link to={`/profile/${username}`} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === `/profile/${username}` ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === `/profile/${username}` ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                            <User size={14} />
+                {profileOpen && (
+                  <div className="absolute top-[calc(100%+8px)] right-0 w-72 bg-white dark:bg-black rounded-card shadow-card-hover border border-gray-100 dark:border-neutral-900 z-50 animate-scale-in overflow-hidden">
+                    {/* Account Header */}
+                    <div className="p-4 bg-gray-50/50 dark:bg-neutral-950/50 border-b border-gray-100 dark:border-neutral-900">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-lg shadow-md ring-2 ring-white dark:ring-neutral-950">
+                          {username.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-none">{username}</p>
+                            <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
                           </div>
-                          <span className="font-medium">My Profile</span>
-                        </Link>
-                        <Link to="/orders" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/orders' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/orders' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                            <ShoppingBag size={14} />
-                          </div>
-                          <span className="font-medium">My Orders</span>
-                        </Link>
-                        <Link to="/inspections" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/inspections' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/inspections' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                            <ClipboardList size={14} />
-                          </div>
-                          <span className="font-medium">My Inspections</span>
-                        </Link>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate uppercase tracking-wider font-semibold">{userTier} Member</p>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Sell & Grow */}
-                    <div className="mb-2 pt-2 border-t border-gray-100 dark:border-neutral-900">
-                      <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">Sell & Grow</p>
-                      <div className="grid grid-cols-1 gap-0.5">
-                        <Link to="/dashboard" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                            <LayoutDashboard size={14} />
-                          </div>
-                          <span className="font-medium">Seller Dashboard</span>
-                        </Link>
-                        <Link to="/dashboard/products" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/products' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/products' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                            <PlusCircle size={14} />
-                          </div>
-                          <span className="font-medium">Add New Product</span>
-                        </Link>
-                      </div>
-                    </div>
-
-                    {/* Management Group */}
-                    {(isStaff || isInspector) && (
-                      <div className="mb-2 pt-2 border-t border-gray-100 dark:border-neutral-900">
-                        <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">Management</p>
+                    <div className="max-h-[400px] overflow-y-auto no-scrollbar py-2 px-1.5">
+                      {/* Personal Portal */}
+                      <div className="mb-2">
+                        <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">Personal Portal</p>
                         <div className="grid grid-cols-1 gap-0.5">
-                          {isSuperuser && (
-                            <Link to="/staff-admin" className={`flex items-center gap-2.5 px-3 py-2 text-sm font-bold rounded-btn transition-all group ${location.pathname === '/staff-admin' ? 'text-brand-500 bg-brand-500/10' : 'text-brand-500 hover:bg-brand-500/10'}`} onClick={() => setProfileOpen(false)}>
-                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/staff-admin' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                                <ShieldCheck size={14} />
+                          <Link to={`/profile/${username}`} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === `/profile/${username}` ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === `/profile/${username}` ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
+                              <User size={14} />
+                            </div>
+                            <span className="font-medium">My Profile</span>
+                          </Link>
+                          <Link to="/orders" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/orders' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/orders' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
+                              <ShoppingBag size={14} />
+                            </div>
+                            <span className="font-medium">My Orders</span>
+                          </Link>
+                          {(isSeller || isInspector) && (
+                            <Link to="/inspections" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/inspections' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/inspections' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
+                                <ClipboardList size={14} />
                               </div>
-                              Admin Panel
-                            </Link>
-                          )}
-                          {isStaff && !isSuperuser && (
-                            <Link to="/staff" className={`flex items-center gap-2.5 px-3 py-2 text-sm font-bold rounded-btn transition-all group ${location.pathname === '/staff' ? 'text-brand-500 bg-brand-500/10' : 'text-brand-500 hover:bg-brand-500/10'}`} onClick={() => setProfileOpen(false)}>
-                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/staff' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                                <LayoutDashboard size={14} />
-                              </div>
-                              Staff Dashboard
-                            </Link>
-                          )}
-                          {isInspector && (
-                            <Link to="/inspector/jobs" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/inspector/jobs' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/inspector/jobs' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                                <Shield size={14} />
-                              </div>
-                              <span className="font-medium">Inspector Portal</span>
+                              <span className="font-medium">My Inspections</span>
                             </Link>
                           )}
                         </div>
                       </div>
-                    )}
 
-                    {/* Support Group */}
-                    <div className="pt-2 border-t border-gray-100 dark:border-neutral-900">
-                      <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">System</p>
-                      <div className="grid grid-cols-1 gap-0.5">
-                        <Link to="/dashboard/settings" onClick={() => setProfileOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/settings' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`}>
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/settings' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                            <Settings size={14} />
+                      {/* Sell & Grow (Conditional dashboard links vs upgrade callout) */}
+                      <div className="mb-2 pt-2 border-t border-gray-100 dark:border-neutral-900">
+                        {isSeller ? (
+                          <>
+                            <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">Sell & Grow</p>
+                            <div className="grid grid-cols-1 gap-0.5">
+                              <Link to="/dashboard" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
+                                  <LayoutDashboard size={14} />
+                                </div>
+                                <span className="font-medium">Seller Dashboard</span>
+                              </Link>
+                              <Link to="/dashboard/products" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/products' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/products' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
+                                  <PlusCircle size={14} />
+                                </div>
+                                <span className="font-medium">Add New Product</span>
+                              </Link>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-0.5">
+                            <Link to="/upgrade" className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500" onClick={() => setProfileOpen(false)}>
+                              <div className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white">
+                                <PlusCircle size={14} />
+                              </div>
+                              <span className="font-medium">Become a Seller</span>
+                            </Link>
                           </div>
-                          <span className="font-medium">Settings</span>
-                        </Link>
-                        <Link to="/dashboard/help-center" onClick={() => setProfileOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/help-center' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`}>
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/help-center' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                            <HelpCircle size={14} />
+                        )}
+                      </div>
+
+                      {/* Management Group */}
+                      {(isStaff || isInspector) && (
+                        <div className="mb-2 pt-2 border-t border-gray-100 dark:border-neutral-900">
+                          <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">Management</p>
+                          <div className="grid grid-cols-1 gap-0.5">
+                            {isSuperuser && (
+                              <Link to="/staff-admin" className={`flex items-center gap-2.5 px-3 py-2 text-sm font-bold rounded-btn transition-all group ${location.pathname === '/staff-admin' ? 'text-brand-500 bg-brand-500/10' : 'text-brand-500 hover:bg-brand-500/10'}`} onClick={() => setProfileOpen(false)}>
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/staff-admin' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
+                                  <ShieldCheck size={14} />
+                                </div>
+                                Admin Panel
+                              </Link>
+                            )}
+                            {isStaff && !isSuperuser && (
+                              <Link to="/staff" className={`flex items-center gap-2.5 px-3 py-2 text-sm font-bold rounded-btn transition-all group ${location.pathname === '/staff' ? 'text-brand-500 bg-brand-500/10' : 'text-brand-500 hover:bg-brand-500/10'}`} onClick={() => setProfileOpen(false)}>
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/staff' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
+                                  <LayoutDashboard size={14} />
+                                </div>
+                                Staff Dashboard
+                              </Link>
+                            )}
+                            {isInspector && (
+                              <Link to="/inspector/jobs" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/inspector/jobs' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/inspector/jobs' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
+                                  <Shield size={14} />
+                                </div>
+                                <span className="font-medium">Inspector Portal</span>
+                              </Link>
+                            )}
                           </div>
-                          <span className="font-medium">Support</span>
-                        </Link>
+                        </div>
+                      )}
+
+                      {/* Support Group */}
+                      <div className="pt-2 border-t border-gray-100 dark:border-neutral-900">
+                        <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">System</p>
+                        <div className="grid grid-cols-1 gap-0.5">
+                          <Link to="/dashboard/settings" onClick={() => setProfileOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/settings' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`}>
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/settings' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
+                              <Settings size={14} />
+                            </div>
+                            <span className="font-medium">Settings</span>
+                          </Link>
+                          <Link to="/dashboard/help-center" onClick={() => setProfileOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/help-center' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`}>
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/help-center' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
+                              <HelpCircle size={14} />
+                            </div>
+                            <span className="font-medium">Support</span>
+                          </Link>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="p-2.5 bg-gray-50/50 dark:bg-neutral-950/50 border-t border-gray-100 dark:border-neutral-900">
-                    <button 
-                      onClick={() => { logout(); sessionStorage.clear(); setProfileOpen(false); navigate('/'); }}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-500/10 rounded-btn transition-all active:scale-95 border border-red-500/10"
-                    >
-                      <LogOut size={14} /> Sign Out
-                    </button>
+                    <div className="p-2.5 bg-gray-50/50 dark:bg-neutral-950/50 border-t border-gray-100 dark:border-neutral-900">
+                      <button 
+                        onClick={() => { logout(); sessionStorage.clear(); setProfileOpen(false); navigate('/'); }}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-500/10 rounded-btn transition-all active:scale-95 border border-red-500/10"
+                      >
+                        <LogOut size={14} /> Sign Out
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <Link to="/login" className="px-5 py-1.5 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white text-sm font-bold rounded-btn transition-all duration-200 shadow-md shadow-brand-500/10 hover:shadow-brand-500/25">Login</Link>
-          )}
-        </div>
+                )}
+              </div>
+            ) : (
+              <Link to="/login" className="px-5 py-1.5 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white text-sm font-bold rounded-btn transition-all duration-200 shadow-md shadow-brand-500/10 hover:shadow-brand-500/25">Login</Link>
+            )}
+          </div>
 
-        {/* ---- Mobile top-right (Search Toggle + Notifications) ---- */}
-        <div className="lg:hidden flex items-center gap-2">
-          <button 
-            onClick={() => setMobileSearchOpen(!mobileSearchOpen)} 
-            className="p-2 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-900 transition-colors"
-            aria-label="Toggle search"
-          >
-            <Search size={20} />
-          </button>
-          <NotificationBell />
+          {/* Mobile Right Actions: Notification Bell */}
+          <div className="lg:hidden flex items-center">
+            <NotificationBell />
+          </div>
         </div>
       </div>
 
-      {/* Mobile Search Bar Dropdown */}
-      {mobileSearchOpen && (
-        <div className="lg:hidden absolute top-16 inset-x-0 bg-white dark:bg-black border-t border-gray-100 dark:border-neutral-900 p-3 shadow-md animate-fade-in">
-          <form onSubmit={handleSearch} className="flex items-center w-full">
-            <div className="relative flex items-center flex-1">
-              <input
-                type="search" value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products..."
-                className="w-full px-4 py-2 text-sm border border-gray-200 dark:border-neutral-800 rounded-l-btn bg-gray-50 dark:bg-neutral-950 dark:text-white outline-none focus:border-brand-500 dark:focus:border-brand-500 focus:ring-0"
-                autoFocus
-              />
-            </div>
-            <button 
-              type="submit" 
-              className="px-4 py-[9px] bg-brand-500 text-white rounded-r-btn active:scale-95 flex items-center justify-center"
-            >
-              <Search size={18} />
-            </button>
-          </form>
-        </div>
-      )}
     </nav>
   );
 };

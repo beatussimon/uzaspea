@@ -67,3 +67,38 @@ class BillingTestCase(TestCase):
         )
         self.assertEqual(payment.amount, Decimal("5000.00"))
         self.assertEqual(str(payment), "seller Payment - 5000.00 (PENDING)")
+
+    def test_commission_on_completion(self):
+        from marketplace.services import OrderStateMachine
+        from marketplace.models import OrderItem, SiteSettings
+        
+        # Ensure SiteSettings is created and has a 10% commission rate
+        settings = SiteSettings.get()
+        settings.commission_rate = Decimal("10.00")
+        settings.save()
+
+        order = Order.objects.create(
+            user=self.buyer,
+            total_amount=Decimal("100000.00"),
+            status="DELIVERED",
+            delivery_info={"address": "Test Address"}
+        )
+        
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            quantity=1,
+            price=Decimal("100000.00")
+        )
+
+        # Transition order to COMPLETED
+        OrderStateMachine.transition_order(order, 'COMPLETED')
+
+        # Check ledger entry
+        entries = CommissionLedgerEntry.objects.filter(order=order)
+        self.assertEqual(entries.count(), 1)
+        entry = entries.first()
+        self.assertEqual(entry.order_amount, Decimal("100000.00"))
+        self.assertEqual(entry.commission_rate, Decimal("10.00"))
+        self.assertEqual(entry.commission_amount, Decimal("10000.00"))
+        self.assertEqual(entry.seller, self.seller)

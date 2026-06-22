@@ -11,20 +11,21 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        heading: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
         gray: colors.neutral,
         brand: {
-          50:  '#fff9eb',
-          100: '#fef0c7',
-          200: '#fde08b',
-          300: '#fccb4b',
-          400: '#fbb315',
-          500: '#f59e0b', // Engine light amber
-          600: '#d97706',
-          700: '#b45309',
-          800: '#92400e',
-          900: '#78350f',
+          50:  '#f4f4f5', // zinc 100
+          100: '#e4e4e7', // zinc 200
+          200: '#d4d4d8', // zinc 300
+          300: '#a1a1aa', // zinc 400
+          400: '#71717a', // zinc 500
+          500: '#27272a', // zinc 800
+          600: '#18181b', // zinc 900
+          700: '#09090b', // zinc 950
+          800: '#040405',
+          900: '#000000',
         },
         surface: {
           DEFAULT: '#ffffff',
@@ -58,8 +59,8 @@ export default {
         'card': '0 8px 30px rgba(0,0,0,0.04)',
         'card-hover': '0 12px 40px rgba(0,0,0,0.08)',
         'nav': '0 4px 20px rgba(0,0,0,0.03)',
-        'glow': '0 0 30px rgba(245, 158, 11, 0.15)',
-        'glow-strong': '0 0 40px rgba(245, 158, 11, 0.3)',
+        'glow': '0 0 30px rgba(0, 0, 0, 0.02)',
+        'glow-strong': '0 0 40px rgba(0, 0, 0, 0.04)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',

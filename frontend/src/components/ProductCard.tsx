@@ -58,7 +58,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
               src={product.images?.[0]?.image || ''}
               alt={product.name}
               category={product.category_name}
-              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out will-change-transform"
+              className="object-cover w-full h-full"
             />
             <span className={`absolute top-1 left-1 text-[8px] px-1.5 py-0.5 rounded font-bold text-white shadow-sm uppercase ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
               {product.condition || 'New'}
@@ -140,7 +140,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
             src={product.images?.[0]?.image || ''}
             alt={product.name}
             category={product.category_name}
-            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out will-change-transform"
+            className="object-cover w-full h-full"
           />
           {/* Condition badge */}
           <div className="absolute top-2 left-2 flex flex-col gap-1.5">

@@ -143,7 +143,7 @@ const ProductDetailPage: React.FC = () => {
     const shareUrl = window.location.href;
     const shareData = {
       title: product?.name || 'Check this out',
-      text: `${product?.name} — TSh ${parseInt(product?.price || '0').toLocaleString()} on UZASPEA`,
+      text: `${product?.name} — TSh ${parseInt(product?.price || '0').toLocaleString()} on SokoniMax`,
       url: shareUrl,
     };
 
@@ -338,19 +338,27 @@ const ProductDetailPage: React.FC = () => {
                   )}
                 </div>
               </div>
-              
-              {/* Like / Wishlist button directly on price block */}
-              <button
-                onClick={handleLike}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all duration-200 active:scale-95 ${
-                  liked
-                    ? 'border-red-500 bg-red-50 dark:bg-red-950/20 text-red-500 shadow-sm'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-red-400 hover:text-red-500'
-                }`}
-              >
-                <Heart size={18} className={liked ? 'fill-current' : ''} />
-                <span className="text-xs font-bold">{likeCount}</span>
-              </button>
+                      {/* Like / Wishlist & Share buttons directly on price block */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleLike}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all duration-200 active:scale-95 ${
+                    liked
+                      ? 'border-red-500 bg-red-50 dark:bg-red-950/20 text-red-500 shadow-sm'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-red-400 hover:text-red-500'
+                  }`}
+                >
+                  <Heart size={18} className={liked ? 'fill-current' : ''} />
+                  <span className="text-xs font-bold">{likeCount}</span>
+                </button>
+                <button
+                  onClick={handleShare}
+                  className="flex items-center justify-center p-3 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-500 hover:border-brand-500 hover:text-brand-500 transition shadow-sm bg-white dark:bg-gray-800"
+                  title="Share Product"
+                >
+                  <Share2 size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Price Alert Bar integrated inside the Card */}
@@ -550,73 +558,69 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Premium Verification & Inspection Services */}
-          <div className="p-6 rounded-3xl border border-brand-100/80 dark:border-brand-900/30 bg-gradient-to-br from-brand-50/50 to-white dark:from-brand-950/10 dark:to-gray-900/20 shadow-sm mb-6">
-            <div className="flex items-start gap-3.5 mb-4">
-              <div className="p-3 bg-brand-100 dark:bg-brand-900/40 rounded-2xl text-brand-600 dark:text-brand-400">
-                <Shield size={20} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">
-                    {product.inspections?.length > 0 ? 'Inspection History' : 'Professional Inspection'}
-                  </h4>
-                  {product.is_verified && (
-                    <span className="px-2 py-0.5 bg-brand-600 text-white text-[8px] font-black rounded-full uppercase tracking-widest shadow-sm shadow-brand-600/30">Verified</span>
-                  )}
+          {(isOwnProduct || (product.inspections && product.inspections.length > 0)) && (
+            <div className="p-6 rounded-3xl border border-brand-100/80 dark:border-brand-900/30 bg-gradient-to-br from-brand-50/50 to-white dark:from-brand-950/10 dark:to-gray-900/20 shadow-sm mb-6">
+              <div className="flex items-start gap-3.5 mb-4">
+                <div className="p-3 bg-brand-100 dark:bg-brand-900/40 rounded-2xl text-brand-600 dark:text-brand-400">
+                  <Shield size={20} />
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                  {product.inspections?.length > 0 
-                    ? `This product has verified inspection records on file.`
-                    : 'Request a certified inspector to examine this item for safety & verification.'}
-                </p>
-              </div>
-            </div>
-            
-            <div className="space-y-2.5">
-              {product.inspections?.map((insp) => (
-                <Link
-                  key={insp.id}
-                  to={`/verify/${insp.inspection_id}`}
-                  className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-200 ${
-                    insp.verdict === 'pass' 
-                      ? 'bg-emerald-50/40 border-emerald-100 dark:bg-emerald-950/10 dark:border-emerald-900/30 hover:border-emerald-200' 
-                      : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                      {new Date(insp.created_at).toLocaleDateString()} • {insp.inspection_id}
-                    </span>
-                    <span className={`text-xs font-extrabold mt-0.5 ${
-                      insp.verdict === 'pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-white'
-                    }`}>
-                      {insp.verdict ? `Verdict: ${insp.verdict.toUpperCase()}` : `Status: ${insp.status.replace('_', ' ').toUpperCase()}`}
-                    </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">
+                      {product.inspections?.length > 0 ? 'Inspection History' : 'Professional Inspection'}
+                    </h4>
+                    {product.is_verified && (
+                      <span className="px-2 py-0.5 bg-brand-600 text-white text-[8px] font-black rounded-full uppercase tracking-widest shadow-sm shadow-brand-600/30">Verified</span>
+                    )}
                   </div>
-                  <span className="text-[10px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest">Report →</span>
-                </Link>
-              ))}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                    {product.inspections?.length > 0 
+                      ? `This product has verified inspection records on file.`
+                      : 'Request a certified inspector to examine this item for safety & verification.'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-2.5">
+                {product.inspections?.map((insp) => (
+                  <Link
+                    key={insp.id}
+                    to={`/verify/${insp.inspection_id}`}
+                    className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-200 ${
+                      insp.verdict === 'pass' 
+                        ? 'bg-emerald-50/40 border-emerald-100 dark:bg-emerald-950/10 dark:border-emerald-900/30 hover:border-emerald-200' 
+                        : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:shadow-md'
+                    }`}
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                        {new Date(insp.created_at).toLocaleDateString()} • {insp.inspection_id}
+                      </span>
+                      <span className={`text-xs font-extrabold mt-0.5 ${
+                        insp.verdict === 'pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-white'
+                      }`}>
+                        {insp.verdict ? `Verdict: ${insp.verdict.toUpperCase()}` : `Status: ${insp.status.replace('_', ' ').toUpperCase()}`}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest">Report →</span>
+                  </Link>
+                ))}
 
-              <div className="flex gap-2">
-                <Link
-                  to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name)}&marketplace_product_id=${product.id}`}
-                  className="w-full py-3 rounded-2xl bg-white dark:bg-gray-800 border border-brand-200 dark:border-brand-800 hover:bg-brand-50 dark:hover:bg-brand-900/30 text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-widest text-center transition shadow-sm"
-                >
-                  {product.inspections?.length > 0 ? 'Request Re-Inspection' : 'Request Inspection'}
-                </Link>
-                <button
-                  onClick={handleShare}
-                  className="p-3 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-500 hover:border-brand-500 hover:text-brand-500 transition shadow-sm bg-white dark:bg-gray-800"
-                  title="Share Product"
-                >
-                  <Share2 size={16} />
-                </button>
+                {isOwnProduct && (
+                  <div className="flex gap-2">
+                    <Link
+                      to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name)}&marketplace_product_id=${product.id}`}
+                      className="w-full py-3 rounded-2xl bg-white dark:bg-gray-800 border border-brand-200 dark:border-brand-800 hover:bg-brand-50 dark:hover:bg-brand-900/30 text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-widest text-center transition shadow-sm"
+                    >
+                      {product.inspections?.length > 0 ? 'Request Re-Inspection' : 'Request Inspection'}
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          )}        </div>
 
         </div>
-      </div>
 
       {/* Tabs: Reviews & Comments (Mobile/Tablet) */}
       {!isDesktop && (

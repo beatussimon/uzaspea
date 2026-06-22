@@ -60,14 +60,14 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        self.stdout.write(self.style.MIGRATE_HEADING('\n━━━ UZASPEA DATABASE SEED ━━━\n'))
+        self.stdout.write(self.style.MIGRATE_HEADING('\n━━━ SOKONIMAX DATABASE SEED ━━━\n'))
 
         # ── ADMIN USER ──────────────────────────────────────────────────────
         if not options.get('skip_admin'):
             admin = User.objects.filter(username='admin').first()
             if not admin:
                 password = os.environ.get('SEED_ADMIN_PASSWORD') or secrets.token_urlsafe(16)
-                User.objects.create_superuser('admin', 'admin@uzaspea.com', password)
+                User.objects.create_superuser('admin', 'admin@sokonimax.co.tz', password)
                 self.stdout.write(self.style.SUCCESS(f'  ✓ Admin user created'))
                 if not os.environ.get('SEED_ADMIN_PASSWORD'):
                     self.stdout.write(self.style.WARNING(
@@ -88,6 +88,12 @@ class Command(BaseCommand):
         # ── SITE SETTINGS ────────────────────────────────────────────────────
         self.stdout.write('\n── Site Settings ──')
         self._seed_site_settings()
+
+        # ── SUBSCRIPTION TIERS ───────────────────────────────────────────────
+        self._seed_subscription_tiers()
+
+        # ── WAREHOUSES ───────────────────────────────────────────────────────
+        self._seed_warehouses()
 
         # ── INSPECTION CATEGORIES & CHECKLISTS ──────────────────────────────
         self.stdout.write('\n── Inspection Categories & Checklists ──')
@@ -194,22 +200,68 @@ class Command(BaseCommand):
 
     def _seed_site_settings(self):
         from marketplace.models import SiteSettings
+        from decimal import Decimal
         obj, created = SiteSettings.objects.get_or_create(
             pk=1,
             defaults={
-                'site_name': 'UZASPEA',
+                'company_name': 'SokoniMax',
                 'tagline': 'Tanzania\'s Trusted Marketplace',
-                'support_email': 'support@uzaspea.com',
+                'support_email': 'support@sokonimax.co.tz',
                 'support_phone': '+255 700 000 000',
                 'address': 'Dar es Salaam, Tanzania',
-                'currency': 'TZS',
-                'commission_rate': '5.00',
+                'commission_rate': Decimal('10.00'),
             }
         )
         if created:
             self.stdout.write(self.style.SUCCESS('  ✓ Site settings created'))
         else:
             self.stdout.write('  · Site settings already exist — skipping')
+
+    def _seed_subscription_tiers(self):
+        from marketplace.models import SubscriptionTier
+        from decimal import Decimal
+        self.stdout.write('\n── Subscription Tiers ──')
+        tiers = [
+            {'name': 'Customer', 'tier_level': 'customer', 'price': Decimal('0.00'),
+             'duration': 36500, 'benefits': 'Buy, inspect, track orders, message sellers',
+             'commission_rate': Decimal('0.00')},
+            {'name': 'Seller Pro', 'tier_level': 'seller_pro', 'price': Decimal('29000.00'),
+             'duration': 30, 'benefits': 'Create listings, manage inventory, seller dashboard',
+             'commission_rate': Decimal('10.00')},
+            {'name': 'Business', 'tier_level': 'business', 'price': Decimal('79000.00'),
+             'duration': 30, 'benefits': 'Everything in Seller Pro + team management + advanced analytics',
+             'commission_rate': Decimal('10.00')},
+        ]
+        for t in tiers:
+            obj, created = SubscriptionTier.objects.update_or_create(
+                name=t['name'], defaults=t
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f'  ✓ Subscription tier {obj.name} created'))
+            else:
+                self.stdout.write(f'  · Subscription tier {obj.name} updated')
+
+    def _seed_warehouses(self):
+        try:
+            from warehouses.models import Warehouse
+            from decimal import Decimal
+            self.stdout.write('\n── Warehouses ──')
+            warehouses = [
+                {'name': 'SokoniMax Dar es Salaam Hub', 'code': 'DAR-01',
+                 'region': 'Dar es Salaam', 'address': 'Kariakoo, Dar es Salaam',
+                 'latitude': Decimal('-6.8161'), 'longitude': Decimal('39.2803')},
+                {'name': 'SokoniMax Mwanza Hub', 'code': 'MWZ-01',
+                 'region': 'Mwanza', 'address': 'Mwanza City Centre, Mwanza',
+                 'latitude': Decimal('-2.5167'), 'longitude': Decimal('32.9000')},
+            ]
+            for w in warehouses:
+                obj, created = Warehouse.objects.update_or_create(code=w['code'], defaults=w)
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'  ✓ Warehouse {obj.name} created'))
+                else:
+                    self.stdout.write(f'  · Warehouse {obj.name} updated')
+        except ImportError:
+            pass
 
     # ─────────────────────────────────────────
     # INSPECTION CATEGORIES & CHECKLISTS

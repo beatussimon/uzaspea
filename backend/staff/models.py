@@ -235,6 +235,9 @@ class StaffPermission(models.Model):
         ('can_manage_tasks', 'Manage Tasks'),
         ('can_approve_actions', 'Approve Staff Actions'),
         ('can_manage_inspections', 'Manage All Inspections'),
+        ('can_manage_warehouse_intake', 'Manage Warehouse Intake'),
+        ('can_manage_warehouse_transfers', 'Manage Warehouse Transfers'),
+        ('can_manage_logistics', 'Manage Logistics'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='staff_permissions')

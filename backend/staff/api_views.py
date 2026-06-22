@@ -605,7 +605,7 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
 
     @decorators.action(detail=True, methods=['post'])
-    def verify(self, request, pk=None):
+    def approve(self, request, pk=None):
         payment = self.get_object()
         if payment.status != 'PENDING':
             return Response({'error': 'Payment has already been processed'}, status=status.HTTP_400_BAD_REQUEST)
@@ -614,17 +614,17 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
         payment.reviewed_at = timezone.now()
         payment.save()
 
-        # Update MonthlyInvoice status
+        # Update MonthlyInvoice status to PAID
         invoice = payment.invoice
-        total_approved = invoice.payments.filter(status='APPROVED').aggregate(total=models.Sum('amount'))['total'] or 0
-        if total_approved >= invoice.total_commission:
-            invoice.status = 'PAID'
-        else:
-            invoice.status = 'UNPAID'
+        invoice.status = 'PAID'
         invoice.save()
 
         log_audit(request.user, 'commission_approved', f"Approved commission payment of {payment.amount} from seller {invoice.seller.username}", target_user=invoice.seller, request=request)
         return Response({'status': 'APPROVED'})
+
+    @decorators.action(detail=True, methods=['post'])
+    def verify(self, request, pk=None):
+        return self.approve(request, pk)
 
     @decorators.action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
@@ -638,6 +638,11 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
         payment.reviewed_by = request.user
         payment.reviewed_at = timezone.now()
         payment.save()
+
+        # Update MonthlyInvoice status to UNPAID
+        invoice = payment.invoice
+        invoice.status = 'UNPAID'
+        invoice.save()
 
         log_audit(request.user, 'commission_rejected', f"Rejected commission payment of {payment.amount} from seller {payment.invoice.seller.username}. Reason: {reason}", target_user=payment.invoice.seller, request=request)
         return Response({'status': 'REJECTED', 'rejection_reason': reason})
@@ -744,4 +749,43 @@ class ProductModerationViewSet(viewsets.ModelViewSet):
         product = self.get_object()
         log_audit(request.user, 'product_deleted', f"Deleted product listing: {product.name}", target_user=product.seller, request=request)
         return super().destroy(request, *args, **kwargs)
+
+
+class StaffSellerApplicationViewSet(viewsets.ModelViewSet):
+    from marketplace.models import SellerApplication
+    from marketplace.serializers import SellerApplicationSerializer
+    serializer_class = SellerApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    def get_queryset(self):
+        from marketplace.models import SellerApplication
+        queryset = SellerApplication.objects.select_related('user', 'requested_tier').all()
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param.lower())
+        return queryset
+
+    @decorators.action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        application = self.get_object()
+        if application.status != 'pending':
+            return Response({'error': 'Application has already been processed'}, status=status.HTTP_400_BAD_REQUEST)
+        application.status = 'approved'
+        application.reviewed_by = request.user
+        application.save()
+        log_audit(request.user, 'seller_upgrade_approved', f"Approved seller upgrade application for user {application.user.username} to tier {application.requested_tier.name}", target_user=application.user, request=request)
+        return Response({'status': 'approved'})
+
+    @decorators.action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        application = self.get_object()
+        if application.status != 'pending':
+            return Response({'error': 'Application has already been processed'}, status=status.HTTP_400_BAD_REQUEST)
+        rejection_reason = request.data.get('reason', '')
+        application.status = 'rejected'
+        application.reviewed_by = request.user
+        application.rejection_reason = rejection_reason
+        application.save()
+        log_audit(request.user, 'seller_upgrade_rejected', f"Rejected seller upgrade application for user {application.user.username}. Reason: {rejection_reason}", target_user=application.user, request=request)
+        return Response({'status': 'rejected'})
 

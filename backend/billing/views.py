@@ -1,11 +1,12 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from uzachuo.permissions import IsSellerOrAbove
 from .models import CommissionLedgerEntry, MonthlyInvoice, CommissionPayment
 from .serializers import CommissionLedgerEntrySerializer, MonthlyInvoiceSerializer, CommissionPaymentSerializer
 
 class BillingViewSet(viewsets.GenericViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsSellerOrAbove]
 
     @action(detail=False, methods=['get'])
     def ledger(self, request):

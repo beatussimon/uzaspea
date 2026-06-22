@@ -10,6 +10,8 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils.text import slugify
 import logging
+from decimal import Decimal
+import secrets
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,18 @@ class SubscriptionTier(models.Model):
     benefits = models.TextField(help_text="Comma-separated list or HTML for display")
     duration = models.PositiveIntegerField(help_text="Duration in days")
     is_active = models.BooleanField(default=True)
+    TIER_LEVEL_CHOICES = [
+        ('customer', 'Customer'),
+        ('seller_pro', 'Seller Pro'),
+        ('business', 'Business'),
+    ]
+    tier_level = models.CharField(
+        max_length=20, choices=TIER_LEVEL_CHOICES, default='customer'
+    )
+    commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('10.00'),
+        help_text="Platform commission % charged to sellers on this tier"
+    )
 
     def __str__(self):
         return f"{self.name} ({self.price})"
@@ -321,11 +335,8 @@ class ProductComment(models.Model):
         return f"Comment by {self.user.username}"
 
 
-import random
-import string
-
 def generate_delivery_code():
-    return ''.join(random.choices(string.digits, k=6))
+    return str(secrets.randbelow(900000) + 100000)
 
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -340,19 +351,28 @@ class Order(models.Model):
         ('AWAITING_PAYMENT', 'Awaiting Payment'),
         ('PENDING_VERIFICATION', 'Pending Verification'),
         ('PAID', 'Paid'),
+        ('SELLER_CONFIRMED', 'Seller Confirmed'),
+        ('PREPARING', 'Preparing'),
+        ('PACKAGING', 'Packaging'),
+        ('SHIPPED_TO_WAREHOUSE', 'Shipped To Warehouse'),
+        ('RECEIVED_AT_WAREHOUSE', 'Received At Warehouse'),
+        ('ASSIGNED_TRANSPORT', 'Assigned Transport'),
+        ('IN_TRANSIT', 'In Transit'),
+        ('ARRIVED_AT_REGIONAL_WAREHOUSE', 'Arrived At Regional Warehouse'),
+        ('READY_FOR_PICKUP', 'Ready For Pickup'),
         ('PROCESSING', 'Processing'),
         ('SHIPPED', 'Shipped'),
         ('DELIVERED', 'Delivered'),
         ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
         ('EXPIRED', 'Expired'),
-        ('DISPUTED', 'Disputed'),  # FIX B-15
+        ('DISPUTED', 'Disputed'),
     )
     SHIPPING_CHOICES = (
         ('PICKUP', 'Physical Pickup'),
         ('DELIVERY', 'Home Delivery'),
     )
-    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='CART')
+    status = models.CharField(max_length=40, choices=STATUS_CHOICES, default='CART')
     shipping_method = models.CharField(max_length=15, choices=SHIPPING_CHOICES, default='DELIVERY')
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     delivery_info = models.JSONField(null=True, blank=True, default=dict)  # FIX: L-02 — store buyer's name/phone/address
@@ -432,8 +452,8 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True, null=True)
     tier = models.CharField(
         max_length=20,
-        choices=[('free', 'Free'), ('standard', 'Standard'), ('premium', 'Premium')],
-        default='free'  # FIX X-04
+        choices=[('customer', 'Customer'), ('seller_pro', 'Seller Pro'), ('business', 'Business')],
+        default='customer'
     )
     location = models.CharField(max_length=100, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -502,18 +522,11 @@ def activate_subscription_on_payment_approval(sender, instance, **kwargs):
         sub.start_date = timezone.now()
         sub.end_date = timezone.now() + timedelta(days=instance.tier.duration)
         sub.save()
-        # Sync UserProfile tier - FIX: handle tier as string properly
+        # Sync UserProfile tier
         try:
             profile = instance.user.profile
-            # tier is a SubscriptionTier object, map to profile tier string
             if instance.tier:
-                tier_name_lower = instance.tier.name.lower()
-                if 'premium' in tier_name_lower:
-                    profile.tier = 'premium'
-                elif 'standard' in tier_name_lower:
-                    profile.tier = 'standard'
-                else:
-                    profile.tier = 'standard'
+                profile.tier = instance.tier.tier_level
             profile.save(update_fields=['tier'])
         except UserProfile.DoesNotExist:
             pass
@@ -831,7 +844,7 @@ class ProductVariant(models.Model):
 # ─── Site Settings (B-18) ────────────────────────────────────────
 class SiteSettings(models.Model):
     """Singleton model — only one row. Edit via Django admin."""
-    company_name = models.CharField(max_length=100, default='UZASPEA')
+    company_name = models.CharField(max_length=100, default='SokoniMax')
     tagline = models.CharField(max_length=255, blank=True)
     support_email = models.EmailField(blank=True)
     support_phone = models.CharField(max_length=30, blank=True)
@@ -841,6 +854,10 @@ class SiteSettings(models.Model):
     instagram_url = models.URLField(blank=True)
     twitter_url = models.URLField(blank=True)
     working_hours = models.CharField(max_length=100, blank=True, default='Mon–Fri 8am–6pm EAT')
+    commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('10.00'),
+        help_text="Default platform commission % charged to sellers"
+    )
 
     class Meta:
         verbose_name = 'Site Settings'
@@ -875,6 +892,74 @@ class DeliveryZone(models.Model):
     def __str__(self):
         return f'{self.seller.username}: {self.zone_name} — TSh {self.delivery_fee}'
 
+
+# ─── Seller Upgrade Applications ───────────────────────────────
+class SellerApplication(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_applications')
+    requested_tier = models.ForeignKey(SubscriptionTier, on_delete=models.PROTECT)
+    business_name = models.CharField(max_length=150)
+    id_document = models.FileField(upload_to='seller_applications/id/')
+    business_document = models.FileField(upload_to='seller_applications/business/', blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_seller_applications')
+    rejection_reason = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.business_name} ({self.status})"
+
+
+@receiver(post_save, sender=SellerApplication)
+def handle_seller_application_status_change(sender, instance, **kwargs):
+    if kwargs.get('raw'):
+        return
+    if instance.status == 'approved':
+        from datetime import timedelta
+        sub, _ = Subscription.objects.get_or_create(
+            user=instance.user,
+            defaults={'tier': instance.requested_tier}
+        )
+        sub.tier = instance.requested_tier
+        sub.is_active = True
+        sub.start_date = timezone.now()
+        sub.end_date = timezone.now() + timedelta(days=instance.requested_tier.duration)
+        sub.save()
+
+        # Sync UserProfile tier
+        try:
+            profile = instance.user.profile
+            profile.tier = instance.requested_tier.tier_level
+            profile.save(update_fields=['tier'])
+        except UserProfile.DoesNotExist:
+            pass
+
+        push_notification(
+            instance.user,
+            'subscription_approved',
+            'Seller Upgrade Approved',
+            f'Your application for {instance.requested_tier.name} has been approved!',
+            link='/upgrade'
+        )
+
+    elif instance.status == 'rejected':
+        push_notification(
+            instance.user,
+            'subscription_rejected',
+            'Seller Upgrade Rejected',
+            f'Your application for {instance.requested_tier.name} was rejected. Reason: {instance.rejection_reason or "No reason provided."}',
+            link='/upgrade'
+        )
+
+
 # --- Cache Invalidation Signals ---
 from django.core.cache import cache
 
@@ -901,3 +986,17 @@ def invalidate_category_cache(sender, instance, **kwargs):
             cache.clear()
     else:
         cache.clear()
+
+
+class TeamMember(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_members')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_memberships')
+    permissions = models.JSONField(default=dict, help_text="JSON representation of permissions, e.g. {'manage_orders': true, 'manage_products': true}")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('owner', 'user')
+
+    def __str__(self):
+        return f"{self.user.username} in {self.owner.username}'s team"
+

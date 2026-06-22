@@ -10,7 +10,16 @@ class OrderStateMachine:
         'CHECKOUT': ['AWAITING_PAYMENT', 'CANCELLED'],
         'AWAITING_PAYMENT': ['PENDING_VERIFICATION', 'EXPIRED', 'CANCELLED'],  # FIX L-15: removed self-loop
         'PENDING_VERIFICATION': ['PAID', 'AWAITING_PAYMENT', 'CANCELLED'],
-        'PAID': ['PROCESSING', 'CANCELLED'],
+        'PAID': ['SELLER_CONFIRMED', 'PROCESSING', 'CANCELLED'],
+        'SELLER_CONFIRMED': ['PREPARING', 'CANCELLED'],
+        'PREPARING': ['PACKAGING', 'CANCELLED'],
+        'PACKAGING': ['SHIPPED_TO_WAREHOUSE', 'CANCELLED'],
+        'SHIPPED_TO_WAREHOUSE': ['RECEIVED_AT_WAREHOUSE'],
+        'RECEIVED_AT_WAREHOUSE': ['ASSIGNED_TRANSPORT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'],
+        'ASSIGNED_TRANSPORT': ['IN_TRANSIT'],
+        'IN_TRANSIT': ['ARRIVED_AT_REGIONAL_WAREHOUSE', 'DELIVERED'],
+        'ARRIVED_AT_REGIONAL_WAREHOUSE': ['READY_FOR_PICKUP', 'DELIVERED'],
+        'READY_FOR_PICKUP': ['DELIVERED', 'COMPLETED'],
         'PROCESSING': ['SHIPPED', 'CANCELLED'],
         'SHIPPED': ['DELIVERED'],
         'DELIVERED': ['COMPLETED', 'DISPUTED'],  # FIX B-15: buyer can dispute after delivery
@@ -28,7 +37,13 @@ class OrderStateMachine:
             
             if new_state not in cls.VALID_TRANSITIONS.get(locked_order.status, []):
                 # FIX: L-08 — cannot cancel once shipped, delivered, completed, or already cancelled
-                if new_state == 'CANCELLED' and locked_order.status not in ['COMPLETED', 'DELIVERED', 'SHIPPED', 'CANCELLED']:
+                cant_cancel_states = [
+                    'COMPLETED', 'DELIVERED', 'SHIPPED', 'CANCELLED',
+                    'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE',
+                    'ASSIGNED_TRANSPORT', 'IN_TRANSIT',
+                    'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'
+                ]
+                if new_state == 'CANCELLED' and locked_order.status not in cant_cancel_states:
                     pass
                 else:
                     raise ValueError(f"Invalid transition from {locked_order.status} to {new_state}")
@@ -64,7 +79,9 @@ class OrderStateMachine:
                 
                 # Create a ledger entry for each seller
                 for seller, amount in seller_totals.items():
-                    rate = Decimal('0.03') # 3% platform commission
+                    from marketplace.models import SiteSettings
+                    settings_obj = SiteSettings.get()
+                    rate = settings_obj.commission_rate / Decimal('100')
                     commission_amount = amount * rate
                     CommissionLedgerEntry.objects.create(
                         order=locked_order,

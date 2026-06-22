@@ -67,10 +67,41 @@ class IsAssignedInspectorOrStaff(permissions.BasePermission):
             
         return False
 
+def get_effective_sellers(user):
+    """
+    Returns a list of user IDs that this user can act as seller for.
+    Includes the user's own ID, plus any team owners they belong to.
+    """
+    if not user or not user.is_authenticated:
+        return []
+    from marketplace.models import TeamMember
+    owners = list(TeamMember.objects.filter(user=user).values_list('owner_id', flat=True))
+    return [user.id] + owners
+
+
+def check_team_permission(user, owner_id, permission_name):
+    """
+    Checks if a user has a specific permission in the owner's team.
+    If the user is the owner themselves, they always have permission.
+    If the user is a team member, they must have the permission set to True.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if user.id == owner_id:
+        return True
+    from marketplace.models import TeamMember
+    try:
+        member = TeamMember.objects.get(owner_id=owner_id, user=user)
+        return bool(member.permissions.get(permission_name, False))
+    except TeamMember.DoesNotExist:
+        return False
+
+
 class IsOwnerOrStaff(permissions.BasePermission):
     """
     Allows access to superusers, staff, or the owner of the object.
     Assumes object has a 'user' or 'seller' or 'client' attribute.
+    Also supports team members representing the owner.
     """
     def has_object_permission(self, request, view, obj):
         user = request.user
@@ -84,4 +115,46 @@ class IsOwnerOrStaff(permissions.BasePermission):
             return True
             
         owner = getattr(obj, 'user', getattr(obj, 'seller', getattr(obj, 'client', None)))
-        return owner == user
+        if owner == user:
+            return True
+
+        if owner:
+            # Check team memberships
+            from marketplace.models import TeamMember
+            # If the object is a Product
+            if hasattr(obj, 'seller') and hasattr(obj, 'price'):
+                return TeamMember.objects.filter(owner=owner, user=user, permissions__manage_products=True).exists()
+            # If the object is an Order
+            elif hasattr(obj, 'status') and hasattr(obj, 'total_amount'):
+                return TeamMember.objects.filter(owner=owner, user=user, permissions__manage_orders=True).exists()
+            # General fallback check: is the user a team member
+            return TeamMember.objects.filter(owner=owner, user=user).exists()
+
+        return False
+
+
+class IsSellerOrAbove(permissions.BasePermission):
+    """Requires an active Seller Pro or Business tier subscription or being a team member with manage_products permission."""
+    message = 'A Seller Pro or Business subscription is required to perform this action.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_staff or request.user.is_superuser:
+            return True
+        # Either the user has active subscription themselves:
+        has_sub = request.user.subscriptions.filter(
+            is_active=True,
+            tier__tier_level__in=['seller_pro', 'business']
+        ).exists()
+        if has_sub:
+            return True
+        # Or the user is a team member of a Business owner with manage_products permission:
+        from marketplace.models import TeamMember
+        return TeamMember.objects.filter(
+            user=request.user,
+            owner__subscriptions__is_active=True,
+            owner__subscriptions__tier__tier_level='business',
+            permissions__manage_products=True
+        ).exists()
+
