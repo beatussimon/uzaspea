@@ -233,3 +233,111 @@ class SellerApplicationTests(TestCase):
         self.assertEqual(res_stats.status_code, 200)
         self.assertFalse(res_stats.json()['has_advanced_analytics'])
         self.assertEqual(res_stats.json()['revenue_data'], [])
+
+class StoreImageTests(TestCase):
+    def setUp(self):
+        self.seller = User.objects.create_user('seller_img', 'si@test.com', 'SellerPass123!')
+        self.seller.profile.tier = 'seller_pro'
+        self.seller.profile.save()
+
+        self.other_user = User.objects.create_user('other_img', 'oi@test.com', 'OtherPass123!')
+
+        self.client = APIClient()
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+    def test_upload_store_image_success(self):
+        import io
+        from PIL import Image
+
+        file_obj = io.BytesIO()
+        image = Image.new('RGB', (100, 100), 'white')
+        image.save(file_obj, 'JPEG')
+        file_obj.seek(0)
+        file_obj.name = 'test_store_image.jpg'
+
+        res = self.client.post(f'/api/profiles/{self.seller.username}/upload_store_image/', {
+            'image': file_obj
+        }, format='multipart')
+        
+        self.assertEqual(res.status_code, 201)
+        self.assertIn('image', res.json())
+        self.assertEqual(self.seller.profile.store_images.count(), 1)
+
+    def test_upload_store_image_limit(self):
+        import io
+        from PIL import Image
+        from .models import StoreImage
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        for i in range(9):
+            StoreImage.objects.create(
+                profile=self.seller.profile,
+                image=SimpleUploadedFile(f'img_{i}.jpg', b'fake image data', content_type='image/jpeg')
+            )
+
+        file_obj = io.BytesIO()
+        image = Image.new('RGB', (100, 100), 'white')
+        image.save(file_obj, 'JPEG')
+        file_obj.seek(0)
+        file_obj.name = 'test_store_image10.jpg'
+
+        res = self.client.post(f'/api/profiles/{self.seller.username}/upload_store_image/', {
+            'image': file_obj
+        }, format='multipart')
+        
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()['error'], 'You can only upload up to 9 store images.')
+
+    def test_upload_store_image_unauthorized(self):
+        other_token = RefreshToken.for_user(self.other_user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(other_token.access_token)}')
+
+        import io
+        from PIL import Image
+
+        file_obj = io.BytesIO()
+        image = Image.new('RGB', (100, 100), 'white')
+        image.save(file_obj, 'JPEG')
+        file_obj.seek(0)
+        file_obj.name = 'test_store_image_unauth.jpg'
+
+        res = self.client.post(f'/api/profiles/{self.seller.username}/upload_store_image/', {
+            'image': file_obj
+        }, format='multipart')
+        
+        self.assertEqual(res.status_code, 403)
+
+    def test_delete_store_image_success(self):
+        from .models import StoreImage
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        
+        store_img = StoreImage.objects.create(
+            profile=self.seller.profile,
+            image=SimpleUploadedFile('img.jpg', b'fake image data', content_type='image/jpeg')
+        )
+
+        res = self.client.post(f'/api/profiles/{self.seller.username}/delete_store_image/', {
+            'image_id': store_img.id
+        }, format='json')
+        
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.seller.profile.store_images.count(), 0)
+
+    def test_delete_store_image_unauthorized(self):
+        from .models import StoreImage
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        
+        store_img = StoreImage.objects.create(
+            profile=self.seller.profile,
+            image=SimpleUploadedFile('img.jpg', b'fake image data', content_type='image/jpeg')
+        )
+
+        other_token = RefreshToken.for_user(self.other_user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(other_token.access_token)}')
+
+        res = self.client.post(f'/api/profiles/{self.seller.username}/delete_store_image/', {
+            'image_id': store_img.id
+        }, format='json')
+        
+        self.assertEqual(res.status_code, 403)

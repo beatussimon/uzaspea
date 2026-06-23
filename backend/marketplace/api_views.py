@@ -1007,6 +1007,43 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             'following_count': profile.get_following_count(),
         })
 
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def upload_store_image(self, request, **kwargs):
+        profile = self.get_object()
+        if profile.user != request.user and not request.user.is_staff:
+            return Response({'error': 'You do not have permission to manage this profile.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if profile.store_images.count() >= 9:
+            return Response({'error': 'You can only upload up to 9 store images.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        image_file = request.FILES.get('image')
+        if not image_file:
+            return Response({'error': 'No image file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from .models import StoreImage
+        from .serializers import StoreImageSerializer
+        store_img = StoreImage.objects.create(profile=profile, image=image_file)
+        return Response(StoreImageSerializer(store_img).data, status=status.HTTP_201_CREATED)
+
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def delete_store_image(self, request, **kwargs):
+        profile = self.get_object()
+        if profile.user != request.user and not request.user.is_staff:
+            return Response({'error': 'You do not have permission to manage this profile.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        image_id = request.data.get('image_id')
+        if not image_id:
+            return Response({'error': 'No image ID provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from .models import StoreImage
+        try:
+            store_img = profile.store_images.get(id=image_id)
+            store_img.image.delete(save=False)
+            store_img.delete()
+            return Response({'status': 'success'})
+        except StoreImage.DoesNotExist:
+            return Response({'error': 'Image not found.'}, status=status.HTTP_404_NOT_FOUND)
+
 class SponsoredListingViewSet(viewsets.ModelViewSet):
     serializer_class = SponsoredListingSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
