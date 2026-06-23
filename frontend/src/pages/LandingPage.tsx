@@ -16,8 +16,8 @@ const LandingPage = () => {
   const [latestProducts, setLatestProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const lightHero = 'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?auto=format&fit=crop&q=80&w=2070';
-  const darkHero = 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?auto=format&fit=crop&q=80&w=2070';
+  const lightHero = '/kariakoo_daytime.png';
+  const darkHero = '/kariakoo_nightscape.png';
 
   useEffect(() => {
     // Preload hero images for seamless transitions
@@ -49,7 +49,7 @@ const LandingPage = () => {
   return (
     <div className="space-y-16 pb-24">
       {/* Hero Search Section */}
-      <section className="relative h-[480px] flex items-center justify-center overflow-hidden -mx-4 sm:-mx-6 lg:-mx-8 -mt-4 md:-mt-6">
+      <section className="relative h-[500px] md:h-[540px] flex items-center justify-center overflow-hidden -mx-4 sm:-mx-6 lg:-mx-8 -mt-20 md:-mt-[88px] pt-16 md:pt-20">
         <div className="absolute inset-0 z-0">
           <AnimatePresence mode="wait">
             <motion.img
@@ -66,7 +66,7 @@ const LandingPage = () => {
           <div className="absolute inset-0 bg-black/10 dark:bg-transparent"></div>
         </div>
 
-        <div className="relative z-10 w-full max-w-4xl px-4 text-center">
+        <div className="relative z-10 w-full max-w-4xl px-10 sm:px-14 md:px-16 text-center">
           <h1 className="text-4xl md:text-6.5xl font-black text-white mb-4 drop-shadow-xl tracking-tight leading-tight">
             Buy & Sell <span className="text-yellow-400">Anything</span>, <br className="hidden md:block" />
             Instantly.

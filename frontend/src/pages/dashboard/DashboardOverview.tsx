@@ -107,27 +107,39 @@ const DashboardOverview: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Products */}
-        <div className="card overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">Top Performing Products</h3>
-            <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded uppercase">Best Sellers</span>
-          </div>
-          <div className="divide-y divide-gray-50 dark:divide-gray-700">
-            {(stats?.top_products || []).map((p: any, i: number) => (
-              <div key={i} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center font-bold text-gray-400 text-xs">#{i+1}</div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">{p.name}</p>
-                    <p className="text-[10px] text-gray-500">{p.sold} sold</p>
+        <div className="space-y-6">
+          <div className="card overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">Top Performing Products</h3>
+              <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded uppercase">Best Sellers</span>
+            </div>
+            <div className="divide-y divide-gray-50 dark:divide-gray-700">
+              {(stats?.top_products || []).map((p: any, i: number) => (
+                <div key={i} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center font-bold text-gray-400 text-xs">#{i+1}</div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{p.name}</p>
+                      <p className="text-[10px] text-gray-500">{p.sold} sold</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-black text-brand-600">TSh {p.revenue.toLocaleString()}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-black text-brand-600">TSh {p.revenue.toLocaleString()}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+
+          {stats?.has_advanced_analytics && (
+            <div className="card p-5 space-y-2">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Commission Paid (This Month)</p>
+              <p className="text-2xl font-black text-gray-900 dark:text-white">
+                TZS {(stats.commission_paid || 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-400">Calculated at {stats.commission_rate || 10}% on completed orders</p>
+            </div>
+          )}
         </div>
 
         {/* Low Stock Alerts */}

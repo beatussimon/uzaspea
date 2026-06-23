@@ -63,6 +63,19 @@ class OrderStateMachine:
                         is_available=True
                     )
 
+            if new_state == 'READY_FOR_PICKUP':
+                from logistics.models import PickupCode
+                from marketplace.models import push_notification
+                PickupCode.objects.get_or_create(order=locked_order)
+                try:
+                    push_notification(
+                        locked_order.user, 'order_status', 'Ready for Pickup',
+                        f'Your order #{locked_order.id} is ready for pickup. Check your orders page for the collection code.',
+                        f'/orders'
+                    )
+                except Exception:
+                    pass
+
             # Phase 2: Platform Economics - Log commission on COMPLETED
             if new_state == 'COMPLETED' and old_state != 'COMPLETED':
                 from billing.models import CommissionLedgerEntry

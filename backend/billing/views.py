@@ -8,6 +8,9 @@ from .serializers import CommissionLedgerEntrySerializer, MonthlyInvoiceSerializ
 class BillingViewSet(viewsets.GenericViewSet):
     permission_classes = [permissions.IsAuthenticated, IsSellerOrAbove]
 
+    def get_queryset(self):
+        return MonthlyInvoice.objects.filter(seller=self.request.user)
+
     @action(detail=False, methods=['get'])
     def ledger(self, request):
         entries = CommissionLedgerEntry.objects.filter(seller=request.user)
@@ -31,9 +34,12 @@ class BillingViewSet(viewsets.GenericViewSet):
     @action(detail=True, methods=['post'])
     def pay_invoice(self, request, pk=None):
         try:
-            invoice = MonthlyInvoice.objects.get(pk=pk, seller=request.user)
+            invoice = MonthlyInvoice.objects.get(pk=pk)
         except MonthlyInvoice.DoesNotExist:
             return Response({'error': 'Invoice not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if invoice.seller != request.user:
+            return Response({'error': 'You do not have permission to pay this invoice.'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = CommissionPaymentSerializer(data=request.data)
         if serializer.is_valid():

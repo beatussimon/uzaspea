@@ -310,12 +310,13 @@ class StoreImageSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     seller_rating = serializers.SerializerMethodField()  # FIX B-14
     store_images = StoreImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = UserProfile
-        fields = ['id', 'user', 'username', 'is_verified', 'phone_number', 'instagram_username',
+        fields = ['id', 'user', 'user_id', 'username', 'is_verified', 'phone_number', 'instagram_username',
                   'website', 'bio', 'tier', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
                   'preferred_currency', 'seller_rating', 'store_images']
         read_only_fields = ['user', 'is_verified', 'tier']  # FIX: S-07 — only staff should set these

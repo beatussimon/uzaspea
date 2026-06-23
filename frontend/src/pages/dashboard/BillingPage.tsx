@@ -29,7 +29,11 @@ const BillingPage: React.FC = () => {
       ]);
       setInvoices(invRes.data.results || invRes.data || []);
       setLedger(ledRes.data.results || ledRes.data || []);
-      setDriverPayments(dpRes.data.results || dpRes.data || []);
+      const paymentsList = dpRes.data.results || dpRes.data || [];
+      setDriverPayments(paymentsList);
+      if (paymentsList.length === 0) {
+        setActiveTab(prev => prev === 'driver_payments' ? 'invoices' : prev);
+      }
     } catch {
       toast.error('Failed to load billing information');
     } finally {
@@ -136,16 +140,18 @@ const BillingPage: React.FC = () => {
           >
             Commission Ledger
           </button>
-          <button
-            onClick={() => setActiveTab('driver_payments')}
-            className={`py-3.5 border-b-2 text-sm font-bold transition-all ${
-              activeTab === 'driver_payments'
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-            }`}
-          >
-            Delivery Costs
-          </button>
+          {driverPayments.length > 0 && (
+            <button
+              onClick={() => setActiveTab('driver_payments')}
+              className={`py-3.5 border-b-2 text-sm font-bold transition-all ${
+                activeTab === 'driver_payments'
+                  ? 'border-brand-600 text-brand-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              Logistics Costs
+            </button>
+          )}
         </nav>
       </div>
 
@@ -262,6 +268,14 @@ const BillingPage: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-6">
+          <div className="bg-blue-50/50 dark:bg-blue-950/15 border border-blue-100/50 dark:border-blue-900/30 p-4 rounded-xl">
+            <h4 className="text-xs font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1.5 mb-1">
+              <Truck size={14} /> Logistics & Delivery Costs
+            </h4>
+            <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+              These are the driver compensation costs SokoniMax has incurred fulfilling your orders via our fleet. Note that these delivery fees are automatically deducted from the payout or charged to your account.
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
               <div className="p-3 bg-brand-50 dark:bg-brand-900/20 text-brand-600 rounded-lg">

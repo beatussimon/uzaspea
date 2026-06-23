@@ -86,7 +86,7 @@ const LogisticsManager: React.FC = () => {
       if (carrierType === 'driver' && driverUsername) {
         try {
           const profileRes = await api.get(`/api/profiles/${driverUsername}/`);
-          driverId = profileRes.data.user;
+          driverId = profileRes.data.user_id || profileRes.data.user;
         } catch {
           toast.error(`Driver username @${driverUsername} not found.`);
           setCreatingShipment(false);
@@ -155,7 +155,7 @@ const LogisticsManager: React.FC = () => {
       if (editCarrierType === 'driver' && editDriver) {
         try {
           const profileRes = await api.get(`/api/profiles/${editDriver}/`);
-          driverId = profileRes.data.user;
+          driverId = profileRes.data.user_id || profileRes.data.user;
         } catch {
           toast.error(`Driver username @${editDriver} not found.`);
           setSavingEdit(false);
@@ -198,9 +198,9 @@ const LogisticsManager: React.FC = () => {
       {/* Tabs */}
       <div className="flex border-b border-gray-200 dark:border-neutral-800">
         {[
-          { id: 'shipments', label: 'All Shipments', count: shipments.length },
+          { id: 'shipments', label: 'All Shipments', count: loadingShipments ? undefined : shipments.length },
           { id: 'create', label: 'Create Shipment' },
-          { id: 'payments', label: 'Driver Payments', count: payments.length }
+          { id: 'payments', label: 'Driver Payments', count: loadingPayments ? undefined : payments.length }
         ].map((tab: any) => (
           <button
             key={tab.id}
@@ -264,11 +264,13 @@ const LogisticsManager: React.FC = () => {
                           ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
                           : ship.status === 'in_transit'
                           ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400'
+                          : ship.status === 'arrived_at_hub'
+                          ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400'
                           : ship.status === 'delivered'
                           ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                          : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                          : 'bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-gray-400'
                       }`}>
-                        {ship.status}
+                        {ship.status.replace('_', ' ')}
                       </span>
                     </div>
 

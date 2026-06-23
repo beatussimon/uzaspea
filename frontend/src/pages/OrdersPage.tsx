@@ -78,9 +78,7 @@ const OrdersPage: React.FC = () => {
     setExpandedId(isCurrentlyExpanded ? null : order.id);
     if (!isCurrentlyExpanded) {
       fetchSellerLipa(order);
-      if (['ASSIGNED_TRANSPORT', 'IN_TRANSIT'].includes(order.status)) {
-        fetchShipment(order);
-      }
+      fetchShipment(order);
       if (order.status === 'READY_FOR_PICKUP') {
         fetchPickupCode(order.id);
       }
@@ -94,9 +92,7 @@ const OrdersPage: React.FC = () => {
       const order = orders.find(o => o.id === id);
       if (order) {
         fetchSellerLipa(order);
-        if (['ASSIGNED_TRANSPORT', 'IN_TRANSIT'].includes(order.status)) {
-          fetchShipment(order);
-        }
+        fetchShipment(order);
         if (order.status === 'READY_FOR_PICKUP') {
           fetchPickupCode(order.id);
         }
@@ -429,21 +425,30 @@ const OrdersPage: React.FC = () => {
                     )}
 
                     {/* Live Tracking Button */}
-                    {(shipmentsMap[order.id] || (order.shipments && order.shipments.length > 0)) && (
-                      <div className="px-6 py-4 bg-amber-500/5 dark:bg-amber-500/10 border-b border-gray-100 dark:border-gray-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <div>
-                          <p className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Live Delivery Tracking</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">This order has an active vehicle transport. Track the driver's location in real-time.</p>
+                    {(() => {
+                      const shipment = shipmentsMap[order.id] || (order.shipments && order.shipments.length > 0 ? order.shipments[0] : null);
+                      if (!shipment) return null;
+                      return (
+                        <div className="px-6 py-4 bg-amber-500/5 dark:bg-amber-500/10 border-b border-gray-100 dark:border-gray-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                          <div>
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Live Delivery Tracking</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {shipment.driver_username ? `Driver Assigned: @${shipment.driver_username}. ` : 'No driver assigned yet. '}
+                              This order has a vehicle transport shipment.
+                            </p>
+                          </div>
+                          {shipment.status === 'in_transit' && (
+                            <Link 
+                              to={`/shipments/${shipment.id}/track`}
+                              className="btn-primary py-2 px-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+                            >
+                              <Truck size={14} />
+                              Live Tracking Map
+                            </Link>
+                          )}
                         </div>
-                        <Link 
-                          to={`/shipments/${(shipmentsMap[order.id] || order.shipments[0]).id}/track`}
-                          className="btn-primary py-2 px-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
-                        >
-                          <Truck size={14} />
-                          Live Tracking Map
-                        </Link>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Progress Tracker */}
                     {currentStepIdx >= 0 && (

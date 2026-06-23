@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import api from '../../api';
 
-const NotificationBell: React.FC = () => {
+interface NotificationBellProps {
+  className?: string;
+}
+
+const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -25,7 +29,7 @@ const NotificationBell: React.FC = () => {
 
   return (
     <div className="relative" onClick={(e) => e.stopPropagation()}>
-      <button onClick={openPanel} className="relative btn-ghost p-2 text-gray-600 dark:text-gray-300 hover:scale-110 transition-transform">
+      <button onClick={openPanel} className={`relative btn-ghost p-2 hover:scale-110 transition-transform ${className || 'text-gray-600 dark:text-gray-300'}`}>
         <Bell size={20} />
         {count > 0 && (
           <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800">

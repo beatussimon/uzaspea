@@ -422,6 +422,13 @@ const DashboardOrders: React.FC = () => {
                                         </button>
                                     )}
                                 </div>
+
+                                {['RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'].includes(order.status) && (
+                                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 p-3 bg-brand-50/50 dark:bg-brand-950/20 border border-brand-100/50 dark:border-brand-900/30 rounded-xl">
+                                        <Truck size={14} className="text-brand-500 shrink-0" />
+                                        <span>SokoniMax logistics is handling this delivery — no action required from you.</span>
+                                    </div>
+                                )}
                                 <div className="mt-4 flex items-center justify-center gap-4">
                                     <div className="flex items-center gap-2 text-gray-400">
                                         <Clock size={12} />

@@ -416,6 +416,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             if c:
                 status_counts[s] = c
 
+        settings_obj = SiteSettings.get()
+        commission_rate_val = float(settings_obj.commission_rate) if settings_obj else 10.0
+
         return Response({
             'total_products': products.count(),
             'total_orders': total_orders_count,
@@ -431,6 +434,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             'stock_alerts': low_stock,
             'has_advanced_analytics': is_business,
             'commission_paid': commission_paid,
+            'commission_rate': commission_rate_val,
         })
 
 from .models import LipaNumber, FAQ, SupportTicket

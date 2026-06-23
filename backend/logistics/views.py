@@ -43,7 +43,11 @@ class ShipmentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         is_staff = user.is_superuser or (hasattr(user, 'staff_profile') and user.staff_profile.is_active)
-        queryset = Shipment.objects.select_related('order', 'driver').all()
+        queryset = Shipment.objects.select_related(
+            'order', 'driver'
+        ).prefetch_related(
+            'order__orderitem_set__product__category'
+        ).all()
         
         status_param = self.request.query_params.get('status')
         order_param = self.request.query_params.get('order')
@@ -113,6 +117,11 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         if new_status == 'in_transit' and instance.status != 'in_transit':
             try:
                 OrderStateMachine.transition_order(order, 'IN_TRANSIT', notes="Shipment is in transit.")
+            except Exception:
+                pass
+        elif new_status == 'arrived_at_hub' and instance.status != 'arrived_at_hub':
+            try:
+                OrderStateMachine.transition_order(order, 'ARRIVED_AT_REGIONAL_WAREHOUSE', notes="Shipment arrived at regional hub.")
             except Exception:
                 pass
         elif new_status == 'delivered' and instance.status != 'delivered':
