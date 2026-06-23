@@ -39,7 +39,7 @@ services:
       - "443:443"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`pasifiq.store`) && PathPrefix(`/traefik-dashboard`)"
+      - "traefik.http.routers.dashboard.rule=Host(`pasifiq.store`, `pasifiq.store:443`) && PathPrefix(`/traefik-dashboard`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
@@ -69,7 +69,7 @@ services:
              uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 2 --ws websockets --timeout-graceful-shutdown 30"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`pasifiq.store`) && (PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`) || PathPrefix(`/ws`))"
+      - "traefik.http.routers.backend.rule=Host(`pasifiq.store`, `pasifiq.store:443`) && (PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`) || PathPrefix(`/ws`))"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
@@ -126,7 +126,7 @@ services:
       - backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`pasifiq.store`)"
+      - "traefik.http.routers.frontend.rule=Host(`pasifiq.store`, `pasifiq.store:443`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
