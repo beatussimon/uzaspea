@@ -32,6 +32,7 @@ services:
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--accesslog=true"
+      - "--accesslog.format=json"
     ports:
       - "80:80"
       - "443:443"
