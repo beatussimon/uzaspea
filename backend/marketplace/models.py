@@ -190,6 +190,17 @@ class Product(models.Model):
     location_name = models.CharField(max_length=255, null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    weight_kg = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal('1.00'))
+    size = models.CharField(
+        max_length=20,
+        choices=[
+            ('small', 'Small'),
+            ('medium', 'Medium'),
+            ('large', 'Large'),
+            ('oversized', 'Oversized'),
+        ],
+        default='small'
+    )
 
     class Meta:
         ordering = ['-created_at']

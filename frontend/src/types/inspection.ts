@@ -234,10 +234,10 @@ export const STATUS_LABELS: Record<string, string> = {
 export const STATUS_COLORS: Record<string, string> = {
   requested: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
   bill_sent: 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400',
-  awaiting_payment: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+  awaiting_payment: 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400',
   deposit_paid: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
   pre_inspection: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  assigned: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+  assigned: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   in_progress: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   submitted: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
   qa_review: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',

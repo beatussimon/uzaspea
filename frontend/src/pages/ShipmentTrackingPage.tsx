@@ -181,16 +181,21 @@ export const ShipmentTrackingPage: React.FC = () => {
         setShipment(res.data);
 
         // Fetch latest location ping (if any) from backend
-        // We can check if there are pings or set default coords (e.g. Dar es Salaam Kariakoo)
-        // Let's check if the API returns pings or if we can query for the latest ping
-        // To be safe, let's look for coordinates in delivery_info or default
-        const defaultPing: Ping = {
-          lat: -6.8161, // Kariakoo Dar es Salaam Hub
-          lng: 39.2803,
-          recorded_at: new Date().toISOString(),
-          source: 'system'
-        };
-        setLatestPing(defaultPing);
+        try {
+          const pingRes = await axios.get(`${API_BASE_URL}/api/logistics/shipments/${id}/latest-ping/`, config);
+          if (pingRes.data && pingRes.data.lat && pingRes.data.lng) {
+            setLatestPing({
+              lat: parseFloat(pingRes.data.lat),
+              lng: parseFloat(pingRes.data.lng),
+              recorded_at: pingRes.data.recorded_at,
+              source: pingRes.data.source
+            });
+          } else {
+            setLatestPing(null);
+          }
+        } catch {
+          setLatestPing(null);
+        }
       } catch (err: any) {
         toast.error("Failed to load tracking data.");
       } finally {
@@ -257,8 +262,14 @@ export const ShipmentTrackingPage: React.FC = () => {
         {/* Leaflet Map Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
-            {latestPing && (
+            {latestPing ? (
               <LeafletMap lat={latestPing.lat} lng={latestPing.lng} stale={stale} />
+            ) : (
+              <div className="flex flex-col items-center justify-center min-h-[400px] bg-[#0a0a0a] border border-gray-800 rounded-2xl p-8 text-center text-gray-400">
+                <MapPin className="h-12 w-12 text-amber-500 mb-4 animate-bounce" />
+                <p className="font-bold text-white text-lg">Waiting for First Location Signal</p>
+                <p className="text-sm mt-1 max-w-md">The shipment has been registered, but the driver hasn't sent a location update yet. Live tracking will begin automatically once a signal is received.</p>
+              </div>
             )}
           </div>
 

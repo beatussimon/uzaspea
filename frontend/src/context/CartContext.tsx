@@ -11,6 +11,8 @@ interface CartItem {
   slug: string;
   seller_username?: string;
   category?: string;
+  weight_kg?: number;
+  size?: string;
 }
 
 interface CartContextType {
@@ -84,6 +86,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           slug: product.slug,
           seller_username: product.seller_username,
           category: product.category_name,
+          weight_kg: product.weight_kg ? parseFloat(product.weight_kg) : 1.0,
+          size: product.size || 'small',
         },
       ];
     });

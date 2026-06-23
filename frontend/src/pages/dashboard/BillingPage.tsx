@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight } from 'lucide-react';
+import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck } from 'lucide-react';
 
 const BillingPage: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
+  const [driverPayments, setDriverPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'invoices' | 'ledger'>('invoices');
+  const [activeTab, setActiveTab] = useState<'invoices' | 'ledger' | 'driver_payments'>('invoices');
 
   // Pay Modal State
   const [showPayModal, setShowPayModal] = useState(false);
@@ -21,12 +22,14 @@ const BillingPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [invRes, ledRes] = await Promise.all([
+      const [invRes, ledRes, dpRes] = await Promise.all([
         api.get('/api/billing/invoices/'),
-        api.get('/api/billing/ledger/')
+        api.get('/api/billing/ledger/'),
+        api.get('/api/logistics/driver-payments/?seller_view=true')
       ]);
       setInvoices(invRes.data.results || invRes.data || []);
       setLedger(ledRes.data.results || ledRes.data || []);
+      setDriverPayments(dpRes.data.results || dpRes.data || []);
     } catch {
       toast.error('Failed to load billing information');
     } finally {
@@ -133,6 +136,16 @@ const BillingPage: React.FC = () => {
           >
             Commission Ledger
           </button>
+          <button
+            onClick={() => setActiveTab('driver_payments')}
+            className={`py-3.5 border-b-2 text-sm font-bold transition-all ${
+              activeTab === 'driver_payments'
+                ? 'border-brand-600 text-brand-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            Delivery Costs
+          </button>
         </nav>
       </div>
 
@@ -197,7 +210,7 @@ const BillingPage: React.FC = () => {
             </div>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'ledger' ? (
         <div className="space-y-4">
           {ledger.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
@@ -238,6 +251,90 @@ const BillingPage: React.FC = () => {
                         </td>
                         <td className="p-4 text-right font-bold text-brand-600">
                           TSh {Number(entry.commission_amount).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
+              <div className="p-3 bg-brand-50 dark:bg-brand-900/20 text-brand-600 rounded-lg">
+                <Truck size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Delivery Costs</p>
+                <p className="text-xl font-black text-gray-900 dark:text-white mt-1">TSh {driverPayments.reduce((sum, dp) => sum + Number(dp.amount), 0).toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 rounded-lg">
+                <CheckCircle2 size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Paid to Drivers</p>
+                <p className="text-xl font-black text-green-600 mt-1">TSh {driverPayments.filter(dp => dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0).toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
+              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 rounded-lg">
+                <Wallet size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pending Delivery Costs</p>
+                <p className="text-xl font-black text-amber-600 mt-1">TSh {driverPayments.filter(dp => !dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          {driverPayments.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+              <Truck size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3 animate-pulse" />
+              <p className="text-gray-500">No delivery costs or driver payments logged yet.</p>
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700 text-gray-500 dark:text-gray-400 uppercase font-black tracking-wider">
+                      <th className="p-4">Date</th>
+                      <th className="p-4">Order ID</th>
+                      <th className="p-4">Driver</th>
+                      <th className="p-4 text-right">Amount</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4">Paid At</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {driverPayments.map((dp: any) => (
+                      <tr key={dp.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
+                        <td className="p-4 text-gray-500 dark:text-gray-400">
+                          {new Date(dp.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="p-4 font-bold text-gray-900 dark:text-white">
+                          #{dp.shipment_order_id}
+                        </td>
+                        <td className="p-4 text-gray-600 dark:text-gray-300 font-medium">
+                          {dp.driver_username || 'Third-Party / None'}
+                        </td>
+                        <td className="p-4 text-right text-gray-900 dark:text-white font-bold">
+                          TSh {Number(dp.amount).toLocaleString()}
+                        </td>
+                        <td className="p-4">
+                          {dp.is_paid ? (
+                            <span className="px-2.5 py-0.5 text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full uppercase">Paid</span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 text-[10px] font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-full uppercase">Unpaid</span>
+                          )}
+                        </td>
+                        <td className="p-4 text-gray-500 dark:text-gray-400">
+                          {dp.paid_at ? new Date(dp.paid_at).toLocaleDateString() : '—'}
                         </td>
                       </tr>
                     ))}

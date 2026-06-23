@@ -25,6 +25,8 @@ const CheckoutPage: React.FC = () => {
   const [quotes, setQuotes] = useState<any[]>([]);
   const [selectedQuoteCode, setSelectedQuoteCode] = useState('standard');
 
+  const [sellerCoords, setSellerCoords] = useState<{ lat: number; lng: number } | null>(null);
+
   const [form, setForm] = useState({
     fullName: '',
     phone: '',
@@ -32,21 +34,50 @@ const CheckoutPage: React.FC = () => {
     notes: '',
   });
 
+  useEffect(() => {
+    const fetchSellerCoords = async () => {
+      if (items.length > 0) {
+        const sellerUsername = items[0].seller_username;
+        if (sellerUsername) {
+          try {
+            const res = await api.get(`/api/profiles/${sellerUsername}/`);
+            if (res.data.latitude && res.data.longitude) {
+              setSellerCoords({
+                lat: parseFloat(res.data.latitude),
+                lng: parseFloat(res.data.longitude),
+              });
+            }
+          } catch (err) {
+            console.error('Failed to fetch seller coords', err);
+          }
+        }
+      }
+    };
+    fetchSellerCoords();
+  }, [items]);
+
   const fetchQuotes = async (city: string) => {
     const coords = CITIES_COORDS[city];
     if (!coords) return;
     
-    // Average 1.5kg per item in cart
-    const totalWeight = items.reduce((acc, item) => acc + (item.quantity * 1.5), 0);
+    const totalWeight = items.reduce((acc, item) => acc + (item.quantity * (item.weight_kg ?? 1.0)), 0);
+    const sizesPriority: Record<string, number> = { 'small': 0, 'medium': 1, 'large': 2, 'oversized': 3 };
+    let maxSize = 'small';
+    for (const item of items) {
+      const itemSize = (item.size || 'small').toLowerCase();
+      if ((sizesPriority[itemSize] || 0) > (sizesPriority[maxSize] || 0)) {
+        maxSize = itemSize;
+      }
+    }
     
     try {
       const res = await api.post('/api/logistics/pricing/quote/', {
-        start_lat: -6.8161, // Dar es Salaam Hub
-        start_lng: 39.2803,
+        start_lat: sellerCoords?.lat ?? -6.8161,
+        start_lng: sellerCoords?.lng ?? 39.2803,
         end_lat: coords.lat,
         end_lng: coords.lng,
         weight: totalWeight,
-        size: totalWeight > 10 ? 'large' : 'medium'
+        size: maxSize
       });
       setQuotes(res.data.quotes || []);
       // If selected quote is not in new list, pick standard or first
@@ -64,7 +95,7 @@ const CheckoutPage: React.FC = () => {
     if (shippingMethod === 'DELIVERY' && items.length > 0) {
       fetchQuotes(selectedCity);
     }
-  }, [shippingMethod, selectedCity, items]);
+  }, [shippingMethod, selectedCity, items, sellerCoords]);
 
   const activeQuote = quotes.find(q => q.code === selectedQuoteCode);
   const shippingFee = shippingMethod === 'DELIVERY' 

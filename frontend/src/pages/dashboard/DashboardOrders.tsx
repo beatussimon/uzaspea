@@ -9,6 +9,35 @@ import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, SELLER_ADVANCE_MAP } from '../
 // ============ Incoming Orders (Seller) ============
 const fmtOrderDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+const getStatusExplanation = (status: string) => {
+  switch (status) {
+    case 'PENDING_VERIFICATION':
+      return "Payment verification in progress. SokoniMax administration is reviewing the buyer's payment reference/receipt.";
+    case 'SHIPPED_TO_WAREHOUSE':
+      return "Items are currently en route to the SokoniMax Warehouse Hub. Awaiting intake scan by warehouse staff.";
+    case 'RECEIVED_AT_WAREHOUSE':
+      return "Items have been safely received at the warehouse hub. Awaiting logistics staff to assign a driver or courier.";
+    case 'ASSIGNED_TRANSPORT':
+      return "Logistics staff has assigned a driver for delivery. Awaiting dispatch to put the shipment in transit.";
+    case 'IN_TRANSIT':
+      return "The driver is currently delivering the order. You can monitor the progress on the tracking map.";
+    case 'ARRIVED_AT_REGIONAL_WAREHOUSE':
+      return "Order has arrived at the regional destination hub. Awaiting final pickup code activation.";
+    case 'READY_FOR_PICKUP':
+      return "The order is ready for buyer collection. Awaiting the buyer to present their pickup code at the hub.";
+    case 'DELIVERED':
+      return "Items have been successfully delivered to the customer. Awaiting customer confirmation to finalize transaction.";
+    case 'COMPLETED':
+      return "This transaction has been successfully completed. Funds are credited to your seller account ledger.";
+    case 'CANCELLED':
+      return "This order has been cancelled.";
+    case 'DISPUTED':
+      return "A customer dispute has been opened for this order. SokoniMax support will contact you shortly.";
+    default:
+      return null;
+  }
+};
+
 const DashboardOrders: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,7 +148,7 @@ const DashboardOrders: React.FC = () => {
     finally { setAdvancing(null); }
   };
 
-  const filterTabs = ['', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'DELIVERED', 'COMPLETED', 'CANCELLED'];
+  const filterTabs = ['', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'DELIVERED', 'COMPLETED', 'CANCELLED'];
 
   return (
     <div className="space-y-4">
@@ -144,7 +173,7 @@ const DashboardOrders: React.FC = () => {
               { id: 'PENDING_VERIFICATION', label: 'Payments to Verify', icon: ShieldAlert, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/10' },
               { id: 'PAID', label: 'Ready to Process', icon: Package, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/10' },
               { id: 'PROCESSING', label: 'In Processing', icon: Clock, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/10' },
-              { id: 'SHIPPED', label: 'Active Shipments', icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-900/10' },
+              { id: 'SHIPPED', label: 'Active Shipments', icon: Truck, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/10' },
           ].map((stat) => {
               const count = orders.filter(o => o.status === stat.id).length;
               return (
@@ -374,7 +403,13 @@ const DashboardOrders: React.FC = () => {
                                             </button>
                                             <p className="text-[10px] text-gray-500 font-bold text-center">Awaiting customer payment before processing can begin.</p>
                                         </div>
-                                    ) : null}
+                                    ) : (
+                                        <div className="flex-[3] bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 p-4 rounded-xl text-center flex items-center justify-center">
+                                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 leading-relaxed">
+                                                {getStatusExplanation(order.status) || "No actions required at this stage."}
+                                            </p>
+                                        </div>
+                                    )}
                                     
                                     {!['COMPLETED', 'CANCELLED', 'DELIVERED', 'SHIPPED'].includes(order.status) && (
                                         <button 

@@ -13,6 +13,17 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = WarehouseSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    @action(detail=True, methods=['get'], url_path='pending-intakes')
+    def pending_intakes(self, request, pk=None):
+        warehouse = self.get_object()
+        from marketplace.serializers import OrderSerializer
+        orders = Order.objects.filter(
+            status='SHIPPED_TO_WAREHOUSE',
+            delivery_info__warehouse_code=warehouse.code
+        ).order_by('order_date')
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
+
 
 class WarehouseIntakeViewSet(viewsets.ModelViewSet):
     queryset = WarehouseIntake.objects.select_related('warehouse', 'order', 'intake_by').all()
@@ -36,9 +47,22 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
 
 
 class WarehouseTransferViewSet(viewsets.ModelViewSet):
-    queryset = WarehouseTransfer.objects.select_related('source_warehouse', 'destination_warehouse', 'order', 'transfer_by').all()
     serializer_class = WarehouseTransferSerializer
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    def get_queryset(self):
+        queryset = WarehouseTransfer.objects.select_related('source_warehouse', 'destination_warehouse', 'order', 'transfer_by').all()
+        warehouse_id = self.request.query_params.get('warehouse')
+        if warehouse_id:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(source_warehouse_id=warehouse_id) |
+                Q(destination_warehouse_id=warehouse_id)
+            )
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(transfer_by=self.request.user)

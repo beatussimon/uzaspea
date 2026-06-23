@@ -34,14 +34,18 @@ export const TeamManagerPage: React.FC = () => {
   // Invite permissions state
   const [invitePerms, setInvitePerms] = useState({
     manage_orders: true,
-    manage_products: true
+    manage_products: true,
+    manage_messages: true,
+    view_analytics: true
   });
 
   // Editing state
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editPerms, setEditPerms] = useState({
     manage_orders: false,
-    manage_products: false
+    manage_products: false,
+    manage_messages: false,
+    view_analytics: false
   });
 
   const fetchMembers = async () => {
@@ -99,7 +103,9 @@ export const TeamManagerPage: React.FC = () => {
     setEditingId(member.id);
     setEditPerms({
       manage_orders: !!member.permissions.manage_orders,
-      manage_products: !!member.permissions.manage_products
+      manage_products: !!member.permissions.manage_products,
+      manage_messages: !!member.permissions.manage_messages,
+      view_analytics: !!member.permissions.view_analytics
     });
   };
 
@@ -147,48 +153,68 @@ export const TeamManagerPage: React.FC = () => {
           Add New Team Member
         </h3>
         
-        <form onSubmit={handleInvite} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div>
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-              User Username
-            </label>
-            <input
-              type="text"
-              required
-              className="input bg-black border-gray-800 text-white placeholder-gray-600 focus:border-amber-500"
-              placeholder="e.g. janesmith"
-              value={inviteUsername}
-              onChange={(e) => setInviteUsername(e.target.value)}
-            />
+        <form onSubmit={handleInvite} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                User Username
+              </label>
+              <input
+                type="text"
+                required
+                className="input bg-black border-gray-800 text-white placeholder-gray-600 focus:border-amber-500"
+                placeholder="e.g. janesmith"
+                value={inviteUsername}
+                onChange={(e) => setInviteUsername(e.target.value)}
+              />
+            </div>
+
+            {/* Permissions selectors */}
+            <div className="md:col-span-2 flex flex-wrap items-center gap-x-6 gap-y-3 min-h-[44px]">
+              <button
+                type="button"
+                onClick={() => setInvitePerms(p => ({ ...p, manage_orders: !p.manage_orders }))}
+                className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white"
+              >
+                {invitePerms.manage_orders ? <CheckSquare size={16} className="text-amber-500" /> : <Square size={16} />}
+                Manage Orders
+              </button>
+              <button
+                type="button"
+                onClick={() => setInvitePerms(p => ({ ...p, manage_products: !p.manage_products }))}
+                className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white"
+              >
+                {invitePerms.manage_products ? <CheckSquare size={16} className="text-amber-500" /> : <Square size={16} />}
+                Manage Products
+              </button>
+              <button
+                type="button"
+                onClick={() => setInvitePerms(p => ({ ...p, manage_messages: !p.manage_messages }))}
+                className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white"
+              >
+                {invitePerms.manage_messages ? <CheckSquare size={16} className="text-amber-500" /> : <Square size={16} />}
+                Manage Messages
+              </button>
+              <button
+                type="button"
+                onClick={() => setInvitePerms(p => ({ ...p, view_analytics: !p.view_analytics }))}
+                className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white"
+              >
+                {invitePerms.view_analytics ? <CheckSquare size={16} className="text-amber-500" /> : <Square size={16} />}
+                View Analytics
+              </button>
+            </div>
           </div>
 
-          {/* Permissions selectors */}
-          <div className="flex items-center space-x-6 h-11">
+          <div className="flex justify-end border-t border-gray-900 pt-3">
             <button
-              type="button"
-              onClick={() => setInvitePerms(p => ({ ...p, manage_orders: !p.manage_orders }))}
-              className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white"
+              type="submit"
+              disabled={inviting}
+              className="btn-primary py-2.5 px-8 font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2"
             >
-              {invitePerms.manage_orders ? <CheckSquare size={16} className="text-amber-500" /> : <Square size={16} />}
-              Manage Orders
-            </button>
-            <button
-              type="button"
-              onClick={() => setInvitePerms(p => ({ ...p, manage_products: !p.manage_products }))}
-              className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white"
-            >
-              {invitePerms.manage_products ? <CheckSquare size={16} className="text-amber-500" /> : <Square size={16} />}
-              Manage Products
+              {inviting ? 'Adding...' : 'Add Member'}
             </button>
           </div>
-
-          <button
-            type="submit"
-            disabled={inviting}
-            className="btn-primary py-2.5 w-full font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2"
-          >
-            {inviting ? 'Adding...' : 'Add Member'}
-          </button>
         </form>
       </div>
 
@@ -222,11 +248,11 @@ export const TeamManagerPage: React.FC = () => {
                 {/* Permissions display & editor */}
                 <div className="flex items-center gap-6">
                   {editingId === member.id ? (
-                    <div className="flex items-center gap-4 bg-black border border-gray-850 p-2 rounded-lg">
+                    <div className="flex flex-wrap items-center gap-3 bg-black border border-gray-850 p-2 rounded-lg max-w-[280px] md:max-w-none">
                       <button
                         type="button"
                         onClick={() => setEditPerms(p => ({ ...p, manage_orders: !p.manage_orders }))}
-                        className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white"
+                        className="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white"
                       >
                         {editPerms.manage_orders ? <CheckSquare size={14} className="text-amber-500" /> : <Square size={14} />}
                         Orders
@@ -234,14 +260,30 @@ export const TeamManagerPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setEditPerms(p => ({ ...p, manage_products: !p.manage_products }))}
-                        className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white"
+                        className="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white"
                       >
                         {editPerms.manage_products ? <CheckSquare size={14} className="text-amber-500" /> : <Square size={14} />}
                         Products
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditPerms(p => ({ ...p, manage_messages: !p.manage_messages }))}
+                        className="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white"
+                      >
+                        {editPerms.manage_messages ? <CheckSquare size={14} className="text-amber-500" /> : <Square size={14} />}
+                        Messages
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditPerms(p => ({ ...p, view_analytics: !p.view_analytics }))}
+                        className="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white"
+                      >
+                        {editPerms.view_analytics ? <CheckSquare size={14} className="text-amber-500" /> : <Square size={14} />}
+                        Analytics
+                      </button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                         member.permissions.manage_orders ? 'bg-green-950/30 text-green-400 border border-green-900/50' : 'bg-gray-950 text-gray-600'
                       }`}>
@@ -251,6 +293,16 @@ export const TeamManagerPage: React.FC = () => {
                         member.permissions.manage_products ? 'bg-green-950/30 text-green-400 border border-green-900/50' : 'bg-gray-950 text-gray-600'
                       }`}>
                         Products
+                      </span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                        member.permissions.manage_messages ? 'bg-green-950/30 text-green-400 border border-green-900/50' : 'bg-gray-950 text-gray-600'
+                      }`}>
+                        Messages
+                      </span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                        member.permissions.view_analytics ? 'bg-green-950/30 text-green-400 border border-green-900/50' : 'bg-gray-950 text-gray-600'
+                      }`}>
+                        Analytics
                       </span>
                     </div>
                   )}

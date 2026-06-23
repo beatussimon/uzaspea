@@ -347,14 +347,17 @@ class ProductViewSet(viewsets.ModelViewSet):
         if is_business:
             # --- Revenue pipeline (last 7 days) ---
             start_date = today - datetime.timedelta(days=6)
+            from django.db.models.functions import TruncDate
             pipeline_items = OrderItem.objects.filter(
                 product__seller=stats_user, order__order_date__date__gte=start_date,
                 order__status__in=PAID_STATUSES,
-            ).values('order__order_date__date').annotate(
+            ).annotate(
+                order_date_day=TruncDate('order__order_date')
+            ).values('order_date_day').annotate(
                 rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('order', distinct=True)
-            ).order_by('order__order_date__date')
+            ).order_by('order_date_day')
             
-            pipeline_map = {item['order__order_date__date']: item for item in pipeline_items}
+            pipeline_map = {item['order_date_day']: item for item in pipeline_items}
             total_7d = 0
             for i in range(6, -1, -1):
                 date = today - datetime.timedelta(days=i)
@@ -505,7 +508,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff:
+        if user.is_staff or user.is_superuser:
             return Order.objects.all().prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
         from uzachuo.permissions import get_effective_sellers
         sellers = get_effective_sellers(user)
@@ -549,24 +552,24 @@ class OrderViewSet(viewsets.ModelViewSet):
         }
         BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED'}
 
-        if new_state in STAFF_ONLY_STATES and not request.user.is_staff:
+        if new_state in STAFF_ONLY_STATES and not (request.user.is_staff or request.user.is_superuser):
             return Response(
                 {'error': f'Only staff can set order status to {new_state}.'},
                 status=403
             )
-        if new_state in SELLER_ALLOWED_STATES and not (request.user.is_staff or is_seller):
+        if new_state in SELLER_ALLOWED_STATES and not (request.user.is_staff or request.user.is_superuser or is_seller):
             return Response(
                 {'error': f'Only the seller or staff can advance order to {new_state}.'},
                 status=403
             )
-        if new_state in BUYER_ALLOWED_STATES and not (request.user.is_staff or is_buyer):
+        if new_state in BUYER_ALLOWED_STATES and not (request.user.is_staff or request.user.is_superuser or is_buyer):
             return Response(
                 {'error': f'Only the buyer or staff can move order to {new_state}.'},
                 status=403
             )
 
         # If not staff, buyer, or seller — deny
-        if not (request.user.is_staff or is_seller or is_buyer):
+        if not (request.user.is_staff or request.user.is_superuser or is_seller or is_buyer):
             return Response({'detail': 'No permission to transition this order.'}, status=403)
 
         # If transitioning to PENDING_VERIFICATION, we might want to attach a payment record
@@ -595,6 +598,16 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'status': order.status})
 
+    @decorators.action(detail=True, methods=['get'], url_path='pickup-code')
+    def pickup_code(self, request, pk=None):
+        order = self.get_object()
+        if order.user != request.user and not (request.user.is_staff or request.user.is_superuser):
+            return Response({'error': 'You are not authorized to view this pickup code.'}, status=status.HTTP_403_FORBIDDEN)
+        pickup_code = order.pickup_codes.filter(is_used=False).first()
+        if not pickup_code:
+            return Response({'error': 'No active pickup code found for this order.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'code': pickup_code.code})
+
     @decorators.action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         from .services import OrderStateMachine
@@ -613,11 +626,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                 is_seller = True
                 break
         
-        if not (request.user.is_staff or is_buyer or is_seller):
+        if not (request.user.is_staff or request.user.is_superuser or is_buyer or is_seller):
             return Response({'detail': 'No permission to cancel this order.'}, status=403)
 
         # Block cancellation if already paid (only staff can cancel paid/processing orders)
-        if order.status in ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED') and not request.user.is_staff:
+        if order.status in ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED') and not (request.user.is_staff or request.user.is_superuser):
             return Response({'error': 'Paid orders can only be cancelled by staff administrators.'}, status=status.HTTP_400_BAD_REQUEST)
 
         notes = request.data.get('notes', 'Order cancelled.')
@@ -1458,8 +1471,10 @@ class SellerApplicationViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=False, methods=['get'], url_path='me')
     def me(self, request):
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+        application = self.get_queryset().first()
+        if not application:
+            return Response({'status': 'none'}, status=200)
+        serializer = self.get_serializer(application)
         return Response(serializer.data)
 
 
