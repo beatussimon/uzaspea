@@ -9,5 +9,5 @@ router.register(r'transfers', WarehouseTransferViewSet, basename='warehouse-tran
 
 urlpatterns = [
     path('pickup/verify/', PickupVerifyView.as_view(), name='pickup-verify'),
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
 ]

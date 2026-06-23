@@ -17,9 +17,13 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
     def pending_intakes(self, request, pk=None):
         warehouse = self.get_object()
         from marketplace.serializers import OrderSerializer
+        from django.db.models import Q
         orders = Order.objects.filter(
-            status='SHIPPED_TO_WAREHOUSE',
-            delivery_info__warehouse_code=warehouse.code
+            Q(status='SHIPPED_TO_WAREHOUSE') &
+            (Q(delivery_info__warehouse_code=warehouse.code) |
+             Q(delivery_info__isnull=True) |
+             Q(delivery_info__warehouse_code__isnull=True) |
+             Q(delivery_info={}))
         ).order_by('order_date')
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
@@ -133,6 +137,7 @@ class PickupVerifyView(APIView):
             
             pickup_code.is_used = True
             pickup_code.used_at = timezone.now()
+            pickup_code.verified_by = request.user
             pickup_code.save()
             
             OrderStateMachine.transition_order(

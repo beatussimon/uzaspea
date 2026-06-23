@@ -82,6 +82,7 @@ class PickupCode(models.Model):
     code = models.CharField(max_length=10, unique=True, default=generate_pickup_code)
     is_used = models.BooleanField(default=False)
     used_at = models.DateTimeField(null=True, blank=True)
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_pickups')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

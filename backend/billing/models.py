@@ -8,7 +8,7 @@ class CommissionLedgerEntry(models.Model):
         CANCELLATION_FEE = 'CANCELLATION_FEE', 'Cancellation Fee'
 
     order = models.ForeignKey('marketplace.Order', on_delete=models.PROTECT, related_name='commission_entries')
-    # Use User to represent the seller in Uzaspea
+    # Seller reference for commission tracking in SokoniMax
     seller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='commission_entries')
     order_amount = models.DecimalField(max_digits=12, decimal_places=2)
     commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))

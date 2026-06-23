@@ -20,6 +20,7 @@ const Navbar = () => {
   const { cartCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
+  const [currentScrollY, setCurrentScrollY] = useState(window.pageYOffset);
 
   const isVerified = user?.is_verified || false;
   const userTier = user?.tier || 'free';
@@ -32,6 +33,7 @@ const Navbar = () => {
   // Reset scroll and keep navbar visible on route change
   useEffect(() => {
     setVisible(true);
+    setCurrentScrollY(0);
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
@@ -42,6 +44,7 @@ const Navbar = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentY = window.pageYOffset;
+          setCurrentScrollY(currentY);
           if (currentY <= 0) setVisible(true);
           else if (currentY > lastScrollY.current && currentY > 100) setVisible(false);
           else setVisible(true);
@@ -63,13 +66,39 @@ const Navbar = () => {
   }, []);
 
 
+  const isHomepage = location.pathname === '/';
+  const useLightStyle = isDark || (isHomepage && currentScrollY < 400);
+
+  const bellClass = useLightStyle
+    ? 'text-white/85 hover:text-white'
+    : 'text-gray-600 dark:text-gray-300';
+
+  const iconButtonClass = useLightStyle
+    ? 'relative p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
+    : 'relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
+
+  const themeButtonClass = useLightStyle
+    ? 'p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
+    : 'p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
+
+  const navBackgroundClass = isHomepage
+    ? 'bg-transparent border-t-0 border-x-0 border-b border-transparent backdrop-blur-none shadow-none'
+    : 'glass border-t-0 border-x-0 border-b border-gray-200 dark:border-neutral-800 shadow-sm';
+
   return (
-    <nav className={`glass border-b border-gray-100 dark:border-neutral-900 fixed top-0 inset-x-0 z-50 transition-transform duration-300 ${visible ? 'translate-y-0' : '-translate-y-full'}`}>
+    <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${visible ? 'translate-y-0' : '-translate-y-full'} ${navBackgroundClass}`}>
       <div className="container-page relative flex items-center justify-between h-16 w-full">
 
         {/* ---- Left Navigation Links ---- */}
         <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center justify-start pl-8 md:pl-12 gap-6">
-          <Link to="/products" className="hidden md:inline-flex items-center text-sm font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors">
+          <Link 
+            to="/products" 
+            className={`hidden md:inline-flex items-center text-sm font-semibold transition-colors ${
+              useLightStyle
+                ? 'text-white/80 hover:text-white'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
+            }`}
+          >
             Products
           </Link>
         </div>
@@ -78,7 +107,7 @@ const Navbar = () => {
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center shrink-0 z-20">
           <Link to="/" className="flex items-center group">
             <img 
-              src={isDark ? "/logo_dark.png" : "/logo_light.png"} 
+              src={useLightStyle ? "/logo_dark.png" : "/logo_light.png"} 
               alt="SokoniMax Logo" 
               className="h-12 md:h-14 w-auto object-contain transition-transform duration-200 hover:scale-105 select-none"
             />
@@ -95,7 +124,11 @@ const Navbar = () => {
                 {isSeller && (
                   <Link 
                     to="/dashboard/products" 
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 text-xs font-bold rounded-full transition-all active:scale-95 shadow-sm mr-1"
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 shadow-sm mr-1 ${
+                      useLightStyle
+                        ? 'bg-white text-gray-900 hover:bg-gray-100'
+                        : 'bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900'
+                    }`}
                   >
                     <PlusCircle size={14} />
                     <span>Sell</span>
@@ -103,13 +136,13 @@ const Navbar = () => {
                 )}
 
                 {/* Core Utility Icons */}
-                <NotificationBell />
+                <NotificationBell className={bellClass} />
 
-                <Link to="/messages" className="relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all" aria-label="View messages">
+                <Link to="/messages" className={iconButtonClass} aria-label="View messages">
                   <MessageSquare size={18} />
                 </Link>
 
-                <Link to="/cart" className="relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all" aria-label="View shopping cart">
+                <Link to="/cart" className={iconButtonClass} aria-label="View shopping cart">
                   <ShoppingCart size={18} />
                   {cartCount > 0 && (
                     <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white dark:border-gray-950">
@@ -120,7 +153,7 @@ const Navbar = () => {
               </>
             )}
 
-            <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all" aria-label="Toggle theme">
+            <button onClick={toggleTheme} className={themeButtonClass} aria-label="Toggle theme">
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
           </div>
@@ -132,12 +165,20 @@ const Navbar = () => {
               <div className="relative" onClick={(e) => e.stopPropagation()}>
                 <button 
                   onClick={() => setProfileOpen(!profileOpen)} 
-                  className="flex items-center gap-1 p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-900 transition-all focus:outline-none"
+                  className={`flex items-center gap-1 p-0.5 rounded-full transition-all focus:outline-none ${
+                    useLightStyle 
+                      ? 'hover:bg-white/10' 
+                      : 'hover:bg-gray-100 dark:hover:bg-neutral-900'
+                  }`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900 flex items-center justify-center font-bold text-xs shadow-inner">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-inner transition-colors ${
+                    useLightStyle 
+                      ? 'bg-white/20 text-white hover:bg-white/30' 
+                      : 'bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900'
+                  }`}>
                     {username.charAt(0).toUpperCase()}
                   </div>
-                  <ChevronDown size={14} className="text-gray-400 dark:text-gray-500 mr-0.5" />
+                  <ChevronDown size={14} className={useLightStyle ? 'text-white/80 mr-0.5' : 'text-gray-400 dark:text-gray-500 mr-0.5'} />
                 </button>
 
                 {profileOpen && (
@@ -283,13 +324,22 @@ const Navbar = () => {
                 )}
               </div>
             ) : (
-              <Link to="/login" className="px-5 py-1.5 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white text-sm font-bold rounded-btn transition-all duration-200 shadow-md shadow-brand-500/10 hover:shadow-brand-500/25">Login</Link>
+              <Link 
+                to="/login" 
+                className={`px-5 py-1.5 active:scale-95 text-sm font-bold rounded-btn transition-all duration-200 ${
+                  useLightStyle
+                    ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-md'
+                    : 'bg-brand-500 hover:bg-brand-600 text-white shadow-md shadow-brand-500/10 hover:shadow-brand-500/25'
+                }`}
+              >
+                Login
+              </Link>
             )}
           </div>
 
           {/* Mobile Right Actions: Notification Bell */}
           <div className="lg:hidden flex items-center">
-            <NotificationBell />
+            <NotificationBell className={bellClass} />
           </div>
         </div>
       </div>

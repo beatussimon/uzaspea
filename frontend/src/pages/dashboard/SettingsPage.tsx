@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { User, Lock, Bell, X, Upload, CheckCircle2, Smartphone } from 'lucide-react';
+import { User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, MapPin } from 'lucide-react';
+
+const CITIES_COORDS: Record<string, { lat: number; lng: number }> = {
+  'Dar es Salaam': { lat: -6.776012, lng: 39.178326 },
+  'Mwanza': { lat: -2.5167, lng: 32.9000 },
+  'Arusha': { lat: -3.3731, lng: 36.6858 },
+  'Dodoma': { lat: -6.1630, lng: 35.7516 },
+  'Zanzibar': { lat: -6.1659, lng: 39.1990 },
+};
 
 const SettingsPage: React.FC = () => {
     const [profile, setProfile] = useState<any>({});
-    const [form, setForm] = useState({ bio: '', phone_number: '', location: '', website: '', instagram_username: '' });
+    const [form, setForm] = useState({ bio: '', phone_number: '', location: '', website: '', instagram_username: '', latitude: '', longitude: '' });
     const [passwords, setPasswords] = useState({ old: '', new1: '', new2: '' });
     const [saving, setSaving] = useState(false);
 
@@ -76,6 +84,8 @@ const SettingsPage: React.FC = () => {
                     location: r.data.location || '',
                     website: r.data.website || '',
                     instagram_username: r.data.instagram_username || '',
+                    latitude: r.data.latitude || '',
+                    longitude: r.data.longitude || '',
                 });
             });
         }
@@ -131,6 +141,66 @@ const SettingsPage: React.FC = () => {
                 ))}
                 <button onClick={handleProfileSave} disabled={saving} className="btn-primary">
                     {saving ? 'Saving...' : 'Save Profile'}
+                </button>
+            </div>
+
+            {/* Business Location Coords */}
+            <div className="card p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <MapPin size={18} className="text-brand-600" />
+                    <h3 className="font-bold text-gray-900 dark:text-white">Business Location Coordinates</h3>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                    Set your business coordinates for delivery distance and price calculations. Selecting a preset city will automatically fill its coordinates, which you can adjust manually.
+                </p>
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">City Preset</label>
+                    <select
+                        onChange={(e) => {
+                            const city = e.target.value;
+                            if (city && CITIES_COORDS[city]) {
+                                setForm(prev => ({
+                                    ...prev,
+                                    latitude: CITIES_COORDS[city].lat.toString(),
+                                    longitude: CITIES_COORDS[city].lng.toString()
+                                }));
+                            }
+                        }}
+                        className="input font-bold"
+                        defaultValue=""
+                    >
+                        <option value="" disabled>-- Select a City Preset --</option>
+                        {Object.keys(CITIES_COORDS).map(city => (
+                            <option key={city} value={city}>{city}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Latitude</label>
+                        <input
+                            type="number"
+                            step="any"
+                            value={form.latitude}
+                            onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                            className="input"
+                            placeholder="-6.8161"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Longitude</label>
+                        <input
+                            type="number"
+                            step="any"
+                            value={form.longitude}
+                            onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                            className="input"
+                            placeholder="39.2803"
+                        />
+                    </div>
+                </div>
+                <button onClick={handleProfileSave} disabled={saving} className="btn-primary">
+                    {saving ? 'Saving...' : 'Save Location'}
                 </button>
             </div>
 

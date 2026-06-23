@@ -128,6 +128,27 @@ const CheckoutPage: React.FC = () => {
 
     setSubmitting(true);
     try {
+      const getNearestWarehouseCode = (lat: number, lng: number): string => {
+        const warehouses = [
+          { code: 'DAR-01', lat: -6.8161, lng: 39.2803 },
+          { code: 'MWZ-01', lat: -2.5167, lng: 32.9000 }
+        ];
+        let nearestCode = 'DAR-01';
+        let minDistance = Infinity;
+        for (const w of warehouses) {
+          const d = Math.sqrt(Math.pow(w.lat - lat, 2) + Math.pow(w.lng - lng, 2));
+          if (d < minDistance) {
+            minDistance = d;
+            nearestCode = w.code;
+          }
+        }
+        return nearestCode;
+      };
+
+      const sellerLat = sellerCoords?.lat ?? -6.8161;
+      const sellerLng = sellerCoords?.lng ?? 39.2803;
+      const nearestWarehouseCode = getNearestWarehouseCode(sellerLat, sellerLng);
+
       const orderData = {
         items: items.map((item) => ({
           product: item.productId,
@@ -141,7 +162,8 @@ const CheckoutPage: React.FC = () => {
           phone: form.phone,
           address: `${form.deliveryAddress}, ${selectedCity}`,
           notes: form.notes,
-          shipping_speed: shippingMethod === 'DELIVERY' ? selectedQuoteCode : undefined
+          shipping_speed: shippingMethod === 'DELIVERY' ? selectedQuoteCode : undefined,
+          warehouse_code: nearestWarehouseCode
         },
       };
 

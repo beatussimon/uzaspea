@@ -95,6 +95,9 @@ class Command(BaseCommand):
         # ── WAREHOUSES ───────────────────────────────────────────────────────
         self._seed_warehouses()
 
+        # ── DELIVERY OPTIONS ──────────────────────────────────────────────────
+        self._seed_delivery_options()
+
         # ── INSPECTION CATEGORIES & CHECKLISTS ──────────────────────────────
         self.stdout.write('\n── Inspection Categories & Checklists ──')
         self._seed_inspections()
@@ -260,6 +263,25 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(f'  ✓ Warehouse {obj.name} created'))
                 else:
                     self.stdout.write(f'  · Warehouse {obj.name} updated')
+        except ImportError:
+            pass
+
+    def _seed_delivery_options(self):
+        try:
+            from logistics.models import DeliveryOption
+            self.stdout.write('\n── Delivery Options ──')
+            options = [
+                {'name': 'Economy', 'code': 'economy', 'base_price': '3000', 'per_km_rate': '30', 'per_kg_rate': '200'},
+                {'name': 'Standard', 'code': 'standard', 'base_price': '5000', 'per_km_rate': '60', 'per_kg_rate': '300'},
+                {'name': 'Express', 'code': 'express', 'base_price': '9000', 'per_km_rate': '100', 'per_kg_rate': '500'},
+                {'name': 'Urgent', 'code': 'urgent', 'base_price': '15000', 'per_km_rate': '200', 'per_kg_rate': '800'},
+            ]
+            for opt in options:
+                obj, created = DeliveryOption.objects.get_or_create(code=opt['code'], defaults={**opt, 'is_active': True})
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'  ✓ Delivery option {obj.name} created'))
+                else:
+                    self.stdout.write(f'  · Delivery option {obj.name} already exists')
         except ImportError:
             pass
 
