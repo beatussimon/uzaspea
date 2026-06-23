@@ -7,7 +7,7 @@ from .models import (
     ProductImage, Like, LipaNumber, FAQ, SupportTicket,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork, SellerApplication,
-    TeamMember
+    TeamMember, StoreImage
 )
 
 class LipaNumberSerializer(serializers.ModelSerializer):
@@ -303,15 +303,21 @@ class OrderSerializer(serializers.ModelSerializer):
         # after the user completes the checkout form. This restores the intended state machine flow.
         return order
 
+class StoreImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StoreImage
+        fields = ['id', 'image', 'uploaded_at']
+
 class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     seller_rating = serializers.SerializerMethodField()  # FIX B-14
+    store_images = StoreImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = UserProfile
         fields = ['id', 'user', 'username', 'is_verified', 'phone_number', 'instagram_username',
                   'website', 'bio', 'tier', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
-                  'preferred_currency', 'seller_rating']
+                  'preferred_currency', 'seller_rating', 'store_images']
         read_only_fields = ['user', 'is_verified', 'tier']  # FIX: S-07 — only staff should set these
 
     def get_seller_rating(self, obj):

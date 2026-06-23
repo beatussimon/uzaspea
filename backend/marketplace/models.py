@@ -1011,3 +1011,16 @@ class TeamMember(models.Model):
     def __str__(self):
         return f"{self.user.username} in {self.owner.username}'s team"
 
+
+class StoreImage(models.Model):
+    profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='store_images')
+    image = models.ImageField(upload_to='store_pictures/', validators=[validate_image])
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        return f"Store image for {self.profile.user.username} ({self.id})"
+
+
