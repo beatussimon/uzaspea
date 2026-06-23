@@ -214,6 +214,18 @@ class OrderSerializer(serializers.ModelSerializer):
         from logistics.serializers import ShipmentSerializer
         return ShipmentSerializer(obj.shipments.all(), many=True).data
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and not request.user.is_anonymous:
+            user = request.user
+            if not (user.is_staff or user.is_superuser or instance.user == user):
+                from uzachuo.permissions import get_effective_sellers
+                sellers = get_effective_sellers(user)
+                filtered_items = instance.orderitem_set.filter(product__seller_id__in=sellers)
+                ret['items'] = OrderItemSerializer(filtered_items, many=True, context=self.context).data
+        return ret
+
     def get_seller_subtotal(self, obj):
         request = self.context.get('request')  # FIX: L-03 — guard against missing context
         if not request or not hasattr(request, 'user') or request.user.is_anonymous:
@@ -364,11 +376,18 @@ class NotificationSerializer(serializers.ModelSerializer):  # FIX B-11
 
 class MessageSerializer(serializers.ModelSerializer):  # FIX B-12
     sender_username = serializers.CharField(source='sender.username', read_only=True)
+    content = serializers.CharField(max_length=2000, required=True, allow_blank=False)
 
     class Meta:
         model = Message
         fields = ['id', 'conversation', 'sender', 'sender_username', 'content', 'is_read', 'created_at']
         read_only_fields = ['sender', 'created_at']
+
+    def validate_content(self, value):
+        stripped = value.strip() if value else ''
+        if not stripped:
+            raise serializers.ValidationError("Message content cannot be empty.")
+        return stripped
 
 
 class ConversationSerializer(serializers.ModelSerializer):  # FIX B-12

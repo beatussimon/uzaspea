@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import inspectionApi from '../../api/inspectionApi';
 import api, { API_BASE_URL } from '../../api';
+import './InspectionLayout.css';
 import {
   InspectionCategory, InspectionRequest, InspectionNotification, ChecklistResponse,
   STATUS_LABELS, STATUS_COLORS, VERDICT_COLORS, fmtDate, fmtMoney,
@@ -700,31 +701,6 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
 
   return (
     <div className="space-y-6">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          body {
-            background: white !important;
-            color: black !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .print-card {
-            border: 1px solid #e2e8f0 !important;
-            box-shadow: none !important;
-            background: white !important;
-            page-break-inside: avoid;
-          }
-          .print-break {
-            page-break-after: always;
-          }
-          .print-grid {
-            display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 1rem !important;
-          }
-        }
-      `}} />
 
       {/* Report Header Controls */}
       <div className="flex items-center justify-between no-print bg-white dark:bg-slate-900 p-4 rounded-xl border border-surface-border dark:border-surface-dark-border shadow-sm">

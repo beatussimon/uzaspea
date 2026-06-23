@@ -1,17 +1,59 @@
-
 from celery import shared_task
-from django.core.management import call_command
 from django.utils import timezone
+from datetime import timedelta
 
+def perform_expiration_checks():
+    from marketplace.models import Order, Subscription, SponsoredListing
+    from marketplace.services import OrderStateMachine
+    
+    now = timezone.now()
+    results = {}
+
+    # 1. Expire orders sitting in AWAITING_PAYMENT for > 15 minutes
+    timeout_limit = now - timedelta(minutes=15)
+    expired_orders = Order.objects.filter(status='AWAITING_PAYMENT', order_date__lt=timeout_limit)
+    order_count = 0
+    for order in expired_orders:
+        try:
+            OrderStateMachine.transition_order(order, 'EXPIRED', notes="Auto-expired by system due to timeout.")
+            order_count += 1
+        except Exception:
+            pass
+    results['expired_awaiting_payment'] = order_count
+
+    # 2. Expire CART orders sitting for > 24 hours (restoring stock)
+    cart_timeout_limit = now - timedelta(hours=24)
+    expired_carts = Order.objects.filter(status='CART', order_date__lt=cart_timeout_limit)
+    cart_count = 0
+    for order in expired_carts:
+        try:
+            OrderStateMachine.transition_order(order, 'CANCELLED', notes="Auto-cancelled by system due to 24-hour cart timeout.")
+            cart_count += 1
+        except Exception:
+            pass
+    results['expired_carts'] = cart_count
+
+    # 3. Check Subscriptions
+    expired_subs = Subscription.objects.filter(is_active=True, end_date__lt=now)
+    sub_count = expired_subs.update(is_active=False)
+    results['expired_subscriptions'] = sub_count
+
+    # 4. Check Sponsored Listings
+    from marketplace.models import SponsoredListing
+    expired_listings = SponsoredListing.objects.filter(status='approved', expires_at__lt=now)
+    list_count = expired_listings.update(status='expired')
+    results['expired_sponsored_listings'] = list_count
+
+    return results
 
 @shared_task
 def check_expirations_periodic():
     """
-    Periodic task that runs the check_expirations management command.
+    Periodic task that checks and expires overdue orders, carts, and subscriptions.
     Scheduled every 5 minutes via Celery Beat.
     """
-    call_command('check_expirations')
-    return f'Expiry check completed at {timezone.now()}'
+    results = perform_expiration_checks()
+    return f'Expiry check completed: {results}'
 
 
 @shared_task

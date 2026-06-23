@@ -107,7 +107,7 @@ const Navbar = () => {
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center shrink-0 z-20">
           <Link to="/" className="flex items-center group">
             <img 
-              src={useLightStyle ? "/logo_dark.png" : "/logo_light.png"} 
+              src="/logo_dark.png" 
               alt="SokoniMax Logo" 
               className="h-12 md:h-14 w-auto object-contain transition-transform duration-200 hover:scale-105 select-none"
             />

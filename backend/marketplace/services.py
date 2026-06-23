@@ -53,15 +53,22 @@ class OrderStateMachine:
             order.status = new_state  # Reflect on the instance passed
 
             # FIX: M-02 — restore stock on cancellation or expiration (only if stock was already decremented)
-            if new_state in ('CANCELLED', 'EXPIRED') and old_state not in ('CART', 'CHECKOUT', 'CANCELLED', 'EXPIRED'):
+            if new_state in ('CANCELLED', 'EXPIRED') and old_state not in ('CANCELLED', 'EXPIRED'):
                 from django.db.models import F as _F
-                from .models import Product as _Product
-                items = locked_order.orderitem_set.all()
+                from .models import Product as _Product, ProductVariant as _ProductVariant
+                items = locked_order.orderitem_set.select_for_update().all()
                 for item in items:
-                    _Product.objects.filter(pk=item.product_id).update(
-                        stock=_F('stock') + item.quantity,
-                        is_available=True
-                    )
+                    if item.variant_id:
+                        _ProductVariant.objects.filter(pk=item.variant_id).update(
+                            stock=_F('stock') + item.quantity,
+                            is_available=True
+                        )
+                        _Product.objects.filter(pk=item.product_id).update(is_available=True)
+                    else:
+                        _Product.objects.filter(pk=item.product_id).update(
+                            stock=_F('stock') + item.quantity,
+                            is_available=True
+                        )
 
             if new_state == 'READY_FOR_PICKUP':
                 from logistics.models import PickupCode

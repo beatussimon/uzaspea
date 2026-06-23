@@ -78,3 +78,12 @@ api.interceptors.response.use(
 
 export default api;
 export { API_BASE_URL };
+
+export function decodeJwtPayload(token: string): any | null {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}

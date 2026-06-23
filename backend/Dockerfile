@@ -18,4 +18,4 @@ RUN mkdir -p /app/staticfiles /app/media && chown -R appuser:appgroup /app
 USER appuser
 EXPOSE 8000
 # LIGHTSAIL-1GB: 1 worker for 1GB instance (docker-compose overrides this)
-CMD ["uvicorn", "uzachuo.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--ws", "websockets"]
+CMD ["uvicorn", "uzachuo.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--ws", "websockets"]
