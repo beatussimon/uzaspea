@@ -33,6 +33,7 @@ services:
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--accesslog=true"
       - "--accesslog.format=json"
+      - "--accesslog.fields.headers.defaultmode=keep"
     ports:
       - "80:80"
       - "443:443"
