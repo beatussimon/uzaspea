@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { setLogoutCallback } from '../api';
+import { setLogoutCallback, decodeJwtPayload } from '../api';
 
 interface User {
   user_id: number;
@@ -32,17 +32,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      setUser({
-        user_id: Number(localStorage.getItem('user_id')),
-        username: localStorage.getItem('username') || '',
-        is_verified: localStorage.getItem('is_verified') === 'true',
-        tier: localStorage.getItem('tier') || 'free',
-        is_staff: localStorage.getItem('is_staff') === 'true',
-        is_superuser: localStorage.getItem('is_superuser') === 'true',
-        is_inspector: localStorage.getItem('is_inspector') === 'true',
-        inspector_level: localStorage.getItem('inspector_level') || '',
-      });
+    const token = localStorage.getItem('access_token');
+    if (isAuthenticated && token) {
+      const payload = decodeJwtPayload(token);
+      if (payload) {
+        // Expiry check
+        if (payload.exp && payload.exp < Date.now() / 1000) {
+          logout();
+          return;
+        }
+        setUser({
+          user_id: Number(payload.user_id),
+          username: payload.username || '',
+          is_verified: payload.is_verified === true || payload.is_verified === 'true',
+          tier: payload.tier || 'free',
+          is_staff: payload.is_staff === true || payload.is_staff === 'true',
+          is_superuser: payload.is_superuser === true || payload.is_superuser === 'true',
+          is_inspector: payload.is_inspector === true || payload.is_inspector === 'true',
+          inspector_level: payload.inspector_level || '',
+        });
+      } else {
+        logout();
+      }
     } else {
       setUser(null);
     }
@@ -51,14 +62,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = (tokens: { access: string; refresh: string }, userData: any) => {
     localStorage.setItem('access_token', tokens.access);
     localStorage.setItem('refresh_token', tokens.refresh);
-    localStorage.setItem('user_id', String(userData.user_id));
-    localStorage.setItem('username', userData.username);
-    localStorage.setItem('is_verified', String(userData.is_verified || false));
-    localStorage.setItem('tier', userData.tier || 'free');
-    localStorage.setItem('is_staff', String(userData.is_staff || false));
-    localStorage.setItem('is_superuser', String(userData.is_superuser || false));
-    localStorage.setItem('is_inspector', String(userData.is_inspector || false));
-    localStorage.setItem('inspector_level', userData.inspector_level || '');
+    
+    const payload = decodeJwtPayload(tokens.access);
+    if (payload) {
+      localStorage.setItem('user_id', String(payload.user_id));
+      localStorage.setItem('username', payload.username || '');
+      localStorage.setItem('is_verified', String(payload.is_verified || false));
+      localStorage.setItem('tier', payload.tier || 'free');
+      localStorage.setItem('is_staff', String(payload.is_staff || false));
+      localStorage.setItem('is_superuser', String(payload.is_superuser || false));
+      localStorage.setItem('is_inspector', String(payload.is_inspector || false));
+      localStorage.setItem('inspector_level', payload.inspector_level || '');
+    } else {
+      localStorage.setItem('user_id', String(userData.user_id));
+      localStorage.setItem('username', userData.username);
+      localStorage.setItem('is_verified', String(userData.is_verified || false));
+      localStorage.setItem('tier', userData.tier || 'free');
+      localStorage.setItem('is_staff', String(userData.is_staff || false));
+      localStorage.setItem('is_superuser', String(userData.is_superuser || false));
+      localStorage.setItem('is_inspector', String(userData.is_inspector || false));
+      localStorage.setItem('inspector_level', userData.inspector_level || '');
+    }
+    
     setIsAuthenticated(true);
   };
 

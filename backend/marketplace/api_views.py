@@ -35,6 +35,9 @@ class RegisterRateThrottle(AnonRateThrottle):
 class LoginRateThrottle(AnonRateThrottle):
     scope = 'login'
 
+class OrderCreateThrottle(UserRateThrottle):
+    scope = 'order_create'
+
 class TicketRateThrottle(AnonRateThrottle):
     scope = 'ticket'
 
@@ -510,6 +513,11 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_throttles(self):
+        if self.action == 'create':
+            return [OrderCreateThrottle()]
+        return super().get_throttles()
+
     def get_queryset(self):
         user = self.request.user
         if user.is_staff or user.is_superuser:
@@ -745,11 +753,31 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if not has_completed_order:
             raise drf_serializers.ValidationError("You can only review products you have completely purchased and received.")
         
+        order = serializer.validated_data.get('order')
+        if order and order.user != self.request.user:
+            raise drf_serializers.ValidationError("Order does not belong to you.")
+
         # Check unique constraint to avoid 500 IntegrityError
         if Review.objects.filter(user=self.request.user, product=product).exists():
             raise drf_serializers.ValidationError("You have already reviewed this product.")
             
-        serializer.save(user=self.request.user, approved=True)
+        review = serializer.save(user=self.request.user, approved=False)
+
+        # Notify moderators (staff)
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        staff_users = User.objects.filter(is_staff=True)
+        for staff in staff_users:
+            try:
+                push_notification(
+                    staff,
+                    'review_moderation',
+                    'New Review Pending Moderation',
+                    f'User {self.request.user.username} submitted a review for "{product.name}" that needs approval.',
+                    '/staff'
+                )
+            except Exception:
+                pass
 
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsStaffMember])
     def approve(self, request, pk=None):
@@ -845,6 +873,39 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.password_validation import validate_password
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['user_id'] = user.id
+        token['username'] = user.username
+        token['is_staff'] = user.is_staff or user.is_superuser
+        token['is_superuser'] = user.is_superuser
+        
+        try:
+            token['is_verified'] = user.profile.is_verified
+            token['tier'] = user.profile.tier
+        except Exception:
+            token['is_verified'] = False
+            token['tier'] = 'customer'
+            
+        token['is_inspector'] = hasattr(user, 'inspector_profile')
+        token['inspector_level'] = (
+            user.inspector_profile.level
+            if hasattr(user, 'inspector_profile') else None
+        )
+        
+        from marketplace.models import TeamMember
+        member_record = TeamMember.objects.filter(user=user).first()
+        if member_record:
+            token['is_team_member'] = True
+            token['team_permissions'] = member_record.permissions
+            token['tier'] = 'business'
+        else:
+            token['is_team_member'] = False
+            token['team_permissions'] = {}
+            
+        return token
+
     def validate(self, attrs):
         data = super().validate(attrs)
         data['user_id'] = self.user.id
@@ -1192,10 +1253,13 @@ class ConversationViewSet(viewsets.ModelViewSet):
         if not (conv.buyer == request.user or conv.seller == request.user):
             return Response(status=403)
         if request.method == 'POST':
-            msg = Message.objects.create(
-                conversation=conv, sender=request.user,
-                content=request.data.get('content', '').strip()
-            )
+            # Create a mutable copy of request data or just set the conversation
+            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+            data['conversation'] = conv.id
+            serializer = MessageSerializer(data=data, context={'request': request})
+            serializer.is_valid(raise_exception=True)
+            msg = serializer.save(sender=request.user)
+            
             conv.save()  # bump updated_at
             other = conv.seller if request.user == conv.buyer else conv.buyer
             push_notification(other, 'new_message',
@@ -1220,7 +1284,9 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
             return Response(MessageSerializer(msg).data, status=201)
         Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user).update(is_read=True)
-        msgs = conv.messages.all()
+        # Fetch only last 50 messages, and order them chronologically
+        msgs = conv.messages.order_by('-created_at')[:50]
+        msgs = sorted(list(msgs), key=lambda x: x.created_at)
         return Response(MessageSerializer(msgs, many=True).data)
 
 

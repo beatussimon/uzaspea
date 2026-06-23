@@ -72,9 +72,8 @@ const DashboardProducts: React.FC = () => {
             const latStr = latitude.toFixed(6);
             const lngStr = longitude.toFixed(6);
             try {
-              const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
-              const data = await res.json();
-              const location_name = data.city || data.locality || data.principalSubdivision || 'Unknown Location';
+              const res = await api.get(`/api/geocode/?lat=${latitude}&lng=${longitude}`);
+              const location_name = res.data.address || 'Coordinates mapped';
               setLocData({ latitude: latStr, longitude: lngStr, location_name });
               setLocStatus(`Location: ${location_name}`);
             } catch {

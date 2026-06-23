@@ -81,3 +81,6 @@ askpass.sh
 push_expect.exp
 
 cookies.txt
+
+# Backend logs
+backend/logs/

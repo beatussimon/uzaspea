@@ -1,33 +1,12 @@
 from django.core.management.base import BaseCommand
-from django.utils import timezone
-from datetime import timedelta
-from marketplace.models import Order, Subscription
-from marketplace.services import OrderStateMachine
+from marketplace.tasks import perform_expiration_checks
 
 class Command(BaseCommand):
     help = 'Check and expire overdue orders and subscriptions'
 
     def handle(self, *args, **options):
-        now = timezone.now()
-        
-        # Expire orders sitting in AWAITING_PAYMENT for > 15 minutes
-        timeout_limit = now - timedelta(minutes=15)
-        expired_orders = Order.objects.filter(status='AWAITING_PAYMENT', order_date__lt=timeout_limit)
-        
-        count = 0
-        for order in expired_orders:
-            OrderStateMachine.transition_order(order, 'EXPIRED', notes="Auto-expired by system due to timeout.")
-            count += 1
-            
-        self.stdout.write(self.style.SUCCESS(f'Successfully expired {count} orders.'))
-
-        # Check Subscriptions
-        expired_subs = Subscription.objects.filter(is_active=True, end_date__lt=now)
-        sub_count = expired_subs.update(is_active=False)
-        self.stdout.write(self.style.SUCCESS(f'Successfully expired {sub_count} subscriptions.'))
-
-        # Check Sponsored Listings
-        from marketplace.models import SponsoredListing
-        expired_listings = SponsoredListing.objects.filter(status='approved', expires_at__lt=now)
-        list_count = expired_listings.update(status='expired')
-        self.stdout.write(self.style.SUCCESS(f'Successfully expired {list_count} sponsored listings.'))
+        results = perform_expiration_checks()
+        self.stdout.write(self.style.SUCCESS(f"Successfully expired {results['expired_awaiting_payment']} awaiting payment orders."))
+        self.stdout.write(self.style.SUCCESS(f"Successfully expired {results['expired_carts']} CART orders."))
+        self.stdout.write(self.style.SUCCESS(f"Successfully expired {results['expired_subscriptions']} subscriptions."))
+        self.stdout.write(self.style.SUCCESS(f"Successfully expired {results['expired_sponsored_listings']} sponsored listings."))

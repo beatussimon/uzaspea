@@ -25,6 +25,62 @@ def validate_image(image):
     if hasattr(image, 'content_type') and image.content_type not in valid_types:
         raise ValidationError('Only JPEG, PNG, and WebP images are allowed.')
 
+def validate_document(file):
+    valid_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+    max_size_mb = 10
+    if file.size > max_size_mb * 1024 * 1024:
+        raise ValidationError(f'File must be under {max_size_mb}MB.')
+    if hasattr(file, 'content_type') and file.content_type not in valid_types:
+        raise ValidationError('Only PDF, JPEG, PNG, and WebP files are accepted.')
+
+def convert_and_save_image(instance, field_name='image'):
+    """
+    Shared helper to resize image to 1200px width (preserving ratio)
+    and convert it to WebP format.
+    """
+    image_field = getattr(instance, field_name)
+    if image_field:
+        try:
+            import os
+            from PIL import Image as PILImage
+            from django.core.files.base import ContentFile
+            from io import BytesIO
+            
+            img_path = image_field.path
+            img = PILImage.open(img_path)
+            
+            # Resize if necessary
+            if img.width > 1200:
+                ratio = 1200 / img.width
+                img = img.resize((1200, int(img.height * ratio)), PILImage.LANCZOS)
+            
+            # Convert to WebP
+            if img.format != 'WEBP':
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGBA")
+                else:
+                    img = img.convert("RGB")
+                
+                webp_io = BytesIO()
+                img.save(webp_io, format='WEBP', quality=80)
+                
+                # Delete the old file
+                old_path = image_field.path
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+                
+                # Create new filename
+                base_name = os.path.splitext(os.path.basename(image_field.name))[0]
+                new_filename = f"{base_name}.webp"
+                
+                # Save the new file content into the ImageField
+                image_field.save(new_filename, ContentFile(webp_io.getvalue()), save=False)
+                
+                # Call super save again to update the db path
+                instance.save(update_fields=[field_name])
+        except Exception as e:
+            logger.exception("Failed to convert image to WebP format: %s", str(e))
+
 
 class SubscriptionTier(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -268,54 +324,10 @@ class ProductImage(models.Model):
         return f"Image for {self.product.name}"
 
     def save(self, *args, **kwargs):
-        # If the image is being initially created/uploaded
         is_new = self.pk is None
-        
         super().save(*args, **kwargs)
-        
         if is_new and self.image:
-            try:
-                import os
-                from PIL import Image as PILImage
-                from django.core.files.base import ContentFile
-                from io import BytesIO
-                
-                img_path = self.image.path
-                img = PILImage.open(img_path)
-                
-                # Resize if necessary
-                if img.width > 1200:
-                    ratio = 1200 / img.width
-                    img = img.resize((1200, int(img.height * ratio)), PILImage.LANCZOS)
-                
-                # Convert to WebP
-                if img.format != 'WEBP':
-                    # Drop alpha channel if necessary for JPEG-like behavior, 
-                    # though WebP supports alpha. RGB is safest for broad conversion.
-                    if img.mode in ("RGBA", "P"):
-                        img = img.convert("RGBA")
-                    else:
-                        img = img.convert("RGB")
-                    
-                    webp_io = BytesIO()
-                    img.save(webp_io, format='WEBP', quality=80)
-                    
-                    # Delete the old file
-                    old_path = self.image.path
-                    if os.path.exists(old_path):
-                        os.remove(old_path)
-                    
-                    # Create new filename
-                    base_name = os.path.splitext(os.path.basename(self.image.name))[0]
-                    new_filename = f"{base_name}.webp"
-                    
-                    # Save the new file content into the ImageField
-                    self.image.save(new_filename, ContentFile(webp_io.getvalue()), save=False)
-                    
-                    # Call super save again to update the db path
-                    super().save(update_fields=['image'])
-            except Exception as e:
-                logger.exception("Failed to convert product image to WebP format: %s", str(e))
+            convert_and_save_image(self, 'image')
 
 
 class Review(models.Model):
@@ -720,8 +732,6 @@ class Notification(models.Model):
         return f'{self.user.username}: {self.title}'
 
 
-import logging
-logger = logging.getLogger(__name__)  # FIX MED-05: add at top of file
 
 def push_notification(user, notification_type, title, message, link=''):
     """FIX B-11: Helper to create a notification and broadcast via WebSocket."""
@@ -841,6 +851,12 @@ class ProductVariant(models.Model):
     is_available = models.BooleanField(default=True)
     image = models.ImageField(upload_to='variant_images/', blank=True, null=True, validators=[validate_image])
 
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if is_new and self.image:
+            convert_and_save_image(self, 'image')
+
     class Meta:
         ordering = ['name']
 
@@ -914,8 +930,8 @@ class SellerApplication(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_applications')
     requested_tier = models.ForeignKey(SubscriptionTier, on_delete=models.PROTECT)
     business_name = models.CharField(max_length=150)
-    id_document = models.FileField(upload_to='seller_applications/id/')
-    business_document = models.FileField(upload_to='seller_applications/business/', blank=True, null=True)
+    id_document = models.FileField(upload_to='seller_applications/id/', validators=[validate_document])
+    business_document = models.FileField(upload_to='seller_applications/business/', blank=True, null=True, validators=[validate_document])
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_seller_applications')
     rejection_reason = models.TextField(blank=True, null=True)

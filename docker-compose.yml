@@ -61,7 +61,7 @@ services:
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
-             uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 1 --ws websockets --timeout-graceful-shutdown 30"
+             uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 2 --ws websockets --timeout-graceful-shutdown 30"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`) || PathPrefix(`/ws`)"
