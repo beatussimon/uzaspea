@@ -27,16 +27,27 @@ const SellerUpgradePage: React.FC = () => {
     }
   };
 
+  const getTierPrice = (tierLevel: string, defaultPrice: string) => {
+    const tier = tiers.find(t => t.tier_level === tierLevel);
+    if (!tier) return defaultPrice;
+    return `TZS ${Number(tier.price).toLocaleString()}`;
+  };
+
+  const getTierCommission = (tierLevel: string, defaultCommission: string) => {
+    const tier = tiers.find(t => t.tier_level === tierLevel);
+    if (!tier) return defaultCommission;
+    return `${parseFloat(tier.commission_rate)}%`;
+  };
+
   const fetchApplicationStatus = async () => {
     if (!isAuthenticated) return;
     setLoading(true);
     try {
       const res = await api.get('/api/seller-applications/me/');
-      const apps = res.data.results || res.data;
-      if (Array.isArray(apps) && apps.length > 0) {
-        setApplication(apps[0]);
-      } else {
+      if (res.data && res.data.status === 'none') {
         setApplication(null);
+      } else {
+        setApplication(res.data);
       }
     } catch (err: any) {
       if (err.response && err.response.status === 404) {
@@ -145,14 +156,14 @@ const SellerUpgradePage: React.FC = () => {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">Seller Pro</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">Unlock the seller dashboard, list products, and let us manage shipping.</p>
             <div className="text-3xl font-black text-gray-900 dark:text-white">
-              TZS 29,000 <span className="text-xs text-gray-400 font-normal">/ month</span>
+              {getTierPrice('seller_pro', 'TZS 29,000')} <span className="text-xs text-gray-400 font-normal">/ month</span>
             </div>
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300 pt-4 border-t dark:border-neutral-800">
               <li className="flex items-center gap-2">✓ Create product listings</li>
               <li className="flex items-center gap-2">✓ Manage inventory</li>
               <li className="flex items-center gap-2">✓ Complete seller dashboard</li>
               <li className="flex items-center gap-2">✓ Managed-commerce logistics</li>
-              <li className="flex items-center gap-2">✓ 10% platform commission</li>
+              <li className="flex items-center gap-2">✓ {getTierCommission('seller_pro', '10%')} platform commission</li>
             </ul>
           </div>
           <div className="pt-6">
@@ -175,7 +186,7 @@ const SellerUpgradePage: React.FC = () => {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">Business</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">For established teams requiring deep analytics, staff accounts, and priority listing.</p>
             <div className="text-3xl font-black text-gray-900 dark:text-white">
-              TZS 79,000 <span className="text-xs text-gray-400 font-normal">/ month</span>
+              {getTierPrice('business', 'TZS 79,000')} <span className="text-xs text-gray-400 font-normal">/ month</span>
             </div>
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300 pt-4 border-t dark:border-neutral-800">
               <li className="flex items-center gap-2">✓ Everything in Seller Pro</li>

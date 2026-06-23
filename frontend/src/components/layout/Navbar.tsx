@@ -68,8 +68,8 @@ const Navbar = () => {
       <div className="container-page relative flex items-center justify-between h-16 w-full">
 
         {/* ---- Left Navigation Links ---- */}
-        <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center gap-6">
-          <Link to="/products" className="hidden md:inline-flex items-center text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">
+        <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center justify-start pl-8 md:pl-12 gap-6">
+          <Link to="/products" className="hidden md:inline-flex items-center text-sm font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors">
             Products
           </Link>
         </div>
@@ -153,7 +153,7 @@ const Navbar = () => {
                             <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-none">{username}</p>
                             <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
                           </div>
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate uppercase tracking-wider font-semibold">{userTier} Member</p>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate font-semibold capitalize">{userTier} Member</p>
                         </div>
                       </div>
                     </div>
@@ -161,7 +161,7 @@ const Navbar = () => {
                     <div className="max-h-[400px] overflow-y-auto no-scrollbar py-2 px-1.5">
                       {/* Personal Portal */}
                       <div className="mb-2">
-                        <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">Personal Portal</p>
+                        <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">Personal Portal</p>
                         <div className="grid grid-cols-1 gap-0.5">
                           <Link to={`/profile/${username}`} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === `/profile/${username}` ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === `/profile/${username}` ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
@@ -190,7 +190,7 @@ const Navbar = () => {
                       <div className="mb-2 pt-2 border-t border-gray-100 dark:border-neutral-900">
                         {isSeller ? (
                           <>
-                            <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">Sell & Grow</p>
+                            <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">Sell & Grow</p>
                             <div className="grid grid-cols-1 gap-0.5">
                               <Link to="/dashboard" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
@@ -221,7 +221,7 @@ const Navbar = () => {
                       {/* Management Group */}
                       {(isStaff || isInspector) && (
                         <div className="mb-2 pt-2 border-t border-gray-100 dark:border-neutral-900">
-                          <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">Management</p>
+                          <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">Management</p>
                           <div className="grid grid-cols-1 gap-0.5">
                             {isSuperuser && (
                               <Link to="/staff-admin" className={`flex items-center gap-2.5 px-3 py-2 text-sm font-bold rounded-btn transition-all group ${location.pathname === '/staff-admin' ? 'text-brand-500 bg-brand-500/10' : 'text-brand-500 hover:bg-brand-500/10'}`} onClick={() => setProfileOpen(false)}>
@@ -231,7 +231,7 @@ const Navbar = () => {
                                 Admin Panel
                               </Link>
                             )}
-                            {isStaff && !isSuperuser && (
+                            {(isStaff || isSuperuser) && (
                               <Link to="/staff" className={`flex items-center gap-2.5 px-3 py-2 text-sm font-bold rounded-btn transition-all group ${location.pathname === '/staff' ? 'text-brand-500 bg-brand-500/10' : 'text-brand-500 hover:bg-brand-500/10'}`} onClick={() => setProfileOpen(false)}>
                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/staff' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                                   <LayoutDashboard size={14} />
@@ -253,7 +253,7 @@ const Navbar = () => {
 
                       {/* Support Group */}
                       <div className="pt-2 border-t border-gray-100 dark:border-neutral-900">
-                        <p className="px-3 py-1 text-[9px] font-bold text-brand-500 uppercase tracking-widest mb-1">System</p>
+                        <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">System</p>
                         <div className="grid grid-cols-1 gap-0.5">
                           <Link to="/dashboard/settings" onClick={() => setProfileOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/settings' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`}>
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/settings' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>

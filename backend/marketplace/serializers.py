@@ -88,7 +88,8 @@ class ProductSerializer(serializers.ModelSerializer):
                   'category', 'category_name', 'seller', 'seller_username', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition',
                   'avg_rating', 'like_count', 'is_liked', 'images', 'inspections', 'is_verified',
-                  'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude']
+                  'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude',
+                  'weight_kg', 'size']
         read_only_fields = ['seller', 'slug']
 
     def get_inspections(self, obj):
@@ -309,7 +310,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['id', 'user', 'username', 'is_verified', 'phone_number', 'instagram_username',
-                  'website', 'bio', 'tier', 'location', 'profile_picture', 'banner_image',
+                  'website', 'bio', 'tier', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
                   'preferred_currency', 'seller_rating']
         read_only_fields = ['user', 'is_verified', 'tier']  # FIX: S-07 — only staff should set these
 

@@ -33,9 +33,49 @@ class DeliveryOptionViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ShipmentViewSet(viewsets.ModelViewSet):
-    queryset = Shipment.objects.select_related('order', 'driver').all()
     serializer_class = ShipmentSerializer
-    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'latest_ping', 'ping']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsStaffMember()]
+
+    def get_queryset(self):
+        user = self.request.user
+        is_staff = user.is_superuser or (hasattr(user, 'staff_profile') and user.staff_profile.is_active)
+        queryset = Shipment.objects.select_related('order', 'driver').all()
+        
+        status_param = self.request.query_params.get('status')
+        order_param = self.request.query_params.get('order')
+        
+        if is_staff:
+            if status_param:
+                queryset = queryset.filter(status=status_param)
+            if order_param:
+                queryset = queryset.filter(order_id=order_param)
+            return queryset
+            
+        from django.db.models import Q
+        queryset = queryset.filter(
+            Q(order__user=user) |
+            Q(driver=user) |
+            Q(order__orderitem_set__product__seller=user)
+        ).distinct()
+        
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        if order_param:
+            queryset = queryset.filter(order_id=order_param)
+            
+        return queryset
+
+    @action(detail=True, methods=['get'], url_path='latest-ping')
+    def latest_ping(self, request, pk=None):
+        shipment = self.get_object()
+        ping = shipment.pings.order_by('-recorded_at').first()
+        if not ping:
+            return Response({'error': 'No location ping found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(LocationPingSerializer(ping).data)
 
     def perform_create(self, serializer):
         order = serializer.validated_data['order']
@@ -52,6 +92,11 @@ class ShipmentViewSet(viewsets.ModelViewSet):
                 OrderStateMachine.transition_order(order, 'IN_TRANSIT', notes="Shipment is in transit.")
             except Exception:
                 pass
+        elif order.status == 'RECEIVED_AT_WAREHOUSE':
+            try:
+                OrderStateMachine.transition_order(order, 'ASSIGNED_TRANSPORT', notes="Transport has been assigned for this shipment.")
+            except Exception:
+                pass
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -65,7 +110,6 @@ class ShipmentViewSet(viewsets.ModelViewSet):
 
         shipment = serializer.save()
 
-        # Update order status based on shipment status updates
         if new_status == 'in_transit' and instance.status != 'in_transit':
             try:
                 OrderStateMachine.transition_order(order, 'IN_TRANSIT', notes="Shipment is in transit.")
@@ -74,6 +118,11 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         elif new_status == 'delivered' and instance.status != 'delivered':
             try:
                 OrderStateMachine.transition_order(order, 'DELIVERED', notes="Shipment delivered to destination.")
+            except Exception:
+                pass
+        elif instance.status == 'pending' and order.status == 'RECEIVED_AT_WAREHOUSE':
+            try:
+                OrderStateMachine.transition_order(order, 'ASSIGNED_TRANSPORT', notes="Transport has been assigned for this shipment.")
             except Exception:
                 pass
 
@@ -173,9 +222,29 @@ class DeliveryQuoteView(views.APIView):
 
 
 class DriverPaymentViewSet(viewsets.ModelViewSet):
-    queryset = DriverPayment.objects.select_related('shipment', 'driver').all()
     serializer_class = DriverPaymentSerializer
-    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsStaffMember()]
+
+    def get_queryset(self):
+        user = self.request.user
+        is_staff = user.is_superuser or (hasattr(user, 'staff_profile') and user.staff_profile.is_active)
+        
+        if is_staff:
+            queryset = DriverPayment.objects.select_related('shipment__order', 'driver').all()
+            seller_view = self.request.query_params.get('seller_view')
+            if seller_view == 'true':
+                queryset = queryset.filter(shipment__order__orderitem_set__product__seller=user).distinct()
+            return queryset
+            
+        from django.db.models import Q
+        return DriverPayment.objects.filter(
+            Q(shipment__order__orderitem_set__product__seller=user) |
+            Q(driver=user)
+        ).distinct().select_related('shipment__order', 'driver')
 
     @action(detail=True, methods=['post'])
     def pay(self, request, pk=None):

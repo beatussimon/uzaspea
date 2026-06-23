@@ -428,7 +428,7 @@ const PlatformUserExplorer: React.FC = () => {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
-                    {u.is_superuser && <Badge text="Super" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" />}
+                    {u.is_superuser && <Badge text="Super" className="bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400" />}
                     {u.is_staff && <Badge text="Staff" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" />}
                     {u.is_inspector && <Badge text={`Inspector (${u.inspector_level})`} className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" />}
                   </div>
@@ -444,7 +444,7 @@ const PlatformUserExplorer: React.FC = () => {
                     <button onClick={() => handlePromoteInspector(u.id)} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[10px] font-bold rounded dark:bg-emerald-950/20 dark:text-emerald-400" title="Promote Inspector">
                       +Inspect
                     </button>
-                    <button onClick={() => handleChangeRole(u.id, u.is_staff, u.is_superuser)} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[10px] font-bold rounded dark:bg-indigo-950/20 dark:text-indigo-400" title="Change Roles">
+                    <button onClick={() => handleChangeRole(u.id, u.is_staff, u.is_superuser)} className="px-2.5 py-1 bg-brand-50 text-brand-700 hover:bg-brand-100 text-[10px] font-bold rounded dark:bg-brand-950/20 dark:text-brand-400" title="Change Roles">
                       Role
                     </button>
                   </div>
@@ -747,6 +747,12 @@ const PermissionMatrix: React.FC = () => {
     { key: 'can_manage_inspections', label: 'Inspections' },
     { key: 'can_view_reports', label: 'Reports' },
     { key: 'can_verify_requests', label: 'Upgrades' },
+    { key: 'can_confirm_upgrades', label: 'Confirm Upgrades' },
+    { key: 'can_manage_users', label: 'Users' },
+    { key: 'can_approve_actions', label: 'Actions' },
+    { key: 'can_manage_warehouse_intake', label: 'Warehouse Intake' },
+    { key: 'can_manage_warehouse_transfers', label: 'Warehouse Transfers' },
+    { key: 'can_manage_logistics', label: 'Logistics' },
   ];
 
   const fetchData = useCallback(() => {
@@ -867,7 +873,7 @@ const AuditLogViewer: React.FC = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
                     <div className="divide-y divide-gray-50 dark:divide-gray-700">
                         {logs.map(log => (
-                            <div key={log.id} onClick={() => setSelectedLog(log)} className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition cursor-pointer ${selectedLog?.id === log.id ? 'bg-indigo-50/30 dark:bg-indigo-950/10 border-l-4 border-indigo-600' : ''}`}>
+                            <div key={log.id} onClick={() => setSelectedLog(log)} className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition cursor-pointer ${selectedLog?.id === log.id ? 'bg-brand-50/30 dark:bg-brand-950/10 border-l-4 border-brand-600' : ''}`}>
                                 <div className="flex items-start gap-4">
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${statusColors[log.action] || 'bg-gray-100 text-gray-500'}`}>
                                         <Clock size={14} />
@@ -936,6 +942,7 @@ const StaffAdminLayout: React.FC = () => {
     { path: '/staff-admin/audit-log', label: 'Audit Logs', icon: ScrollText },
     { path: '/staff-admin/permissions', label: 'Permissions Matrix', icon: Shield },
     { path: '/staff-admin/inspections', label: 'Inspect Ops', icon: ClipboardList },
+    { path: '/staff', label: 'Staff Dashboard', icon: LayoutDashboard },
   ];
 
   return (
@@ -948,7 +955,11 @@ const StaffAdminLayout: React.FC = () => {
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">C&C Terminal</h3>
                 </div>
                 {navItems.map((item) => {
-                    const isActive = location.pathname === item.path || (item.path !== '/staff-admin' && location.pathname.startsWith(item.path));
+                    const isActive = location.pathname === item.path || (
+                        item.path !== '/staff-admin' && 
+                        (item.path !== '/staff' || !location.pathname.startsWith('/staff-admin')) && 
+                        location.pathname.startsWith(item.path)
+                    );
                     return (
                     <Link key={item.path} to={item.path}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition ${
@@ -964,7 +975,7 @@ const StaffAdminLayout: React.FC = () => {
                 })}
             </div>
             
-            <div className="bg-gradient-to-br from-indigo-600 to-brand-700 text-white rounded-2xl p-5 border-0 shadow-lg shadow-indigo-600/20">
+            <div className="bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-2xl p-5 border-0 shadow-lg shadow-brand-600/20">
                 <Shield size={24} className="mb-4 opacity-50" />
                 <h4 className="text-sm font-black uppercase tracking-widest mb-1">Admin Mode</h4>
                 <p className="text-[10px] text-white/70 leading-relaxed font-medium">You have unrestricted access to all operations, metrics, user accounts, and staff records.</p>

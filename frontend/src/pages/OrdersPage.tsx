@@ -37,6 +37,10 @@ const OrdersPage: React.FC = () => {
   // Seller Lipa Numbers State
   const [sellerLipa, setSellerLipa] = useState<Record<number, any[]>>({});
 
+  // Shipments & Pickup Codes State
+  const [shipmentsMap, setShipmentsMap] = useState<Record<number, any>>({});
+  const [pickupCodesMap, setPickupCodesMap] = useState<Record<number, string>>({});
+
   const location = useLocation();
   const highlightId = new URLSearchParams(location.search).get('highlight');
 
@@ -50,12 +54,53 @@ const OrdersPage: React.FC = () => {
       } catch {}
   };
 
+  const fetchShipment = async (order: any) => {
+    if (shipmentsMap[order.id]) return;
+    try {
+      const res = await api.get(`/api/logistics/shipments/?order=${order.id}`);
+      const data = res.data.results || res.data;
+      if (Array.isArray(data) && data.length > 0) {
+        setShipmentsMap(prev => ({ ...prev, [order.id]: data[0] }));
+      }
+    } catch {}
+  };
+
+  const fetchPickupCode = async (orderId: number) => {
+    if (pickupCodesMap[orderId]) return;
+    try {
+      const res = await api.get(`/api/orders/${orderId}/pickup-code/`);
+      setPickupCodesMap(prev => ({ ...prev, [orderId]: res.data.code }));
+    } catch {}
+  };
+
+  const handleOrderExpand = (order: any) => {
+    const isCurrentlyExpanded = expandedId === order.id;
+    setExpandedId(isCurrentlyExpanded ? null : order.id);
+    if (!isCurrentlyExpanded) {
+      fetchSellerLipa(order);
+      if (['ASSIGNED_TRANSPORT', 'IN_TRANSIT'].includes(order.status)) {
+        fetchShipment(order);
+      }
+      if (order.status === 'READY_FOR_PICKUP') {
+        fetchPickupCode(order.id);
+      }
+    }
+  };
+
   useEffect(() => {
     if (highlightId && orders.length > 0) {
       const id = parseInt(highlightId);
       setExpandedId(id);
       const order = orders.find(o => o.id === id);
-      if (order) fetchSellerLipa(order);
+      if (order) {
+        fetchSellerLipa(order);
+        if (['ASSIGNED_TRANSPORT', 'IN_TRANSIT'].includes(order.status)) {
+          fetchShipment(order);
+        }
+        if (order.status === 'READY_FOR_PICKUP') {
+          fetchPickupCode(order.id);
+        }
+      }
       setTimeout(() => {
           document.getElementById(`order-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 400);
@@ -244,15 +289,11 @@ const OrdersPage: React.FC = () => {
             return (
               <div id={`order-${order.id}`} key={order.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-shadow">
                 {/* Header */}
-                <div role="button" tabIndex={0} onClick={() => {
-                  setExpandedId(isExpanded ? null : order.id);
-                  if (!isExpanded) fetchSellerLipa(order);
-                }}
+                <div role="button" tabIndex={0} onClick={() => handleOrderExpand(order)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setExpandedId(isExpanded ? null : order.id);
-                      if (!isExpanded) fetchSellerLipa(order);
+                      handleOrderExpand(order);
                     }
                   }}
                   className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition group cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500">
@@ -388,14 +429,14 @@ const OrdersPage: React.FC = () => {
                     )}
 
                     {/* Live Tracking Button */}
-                    {order.shipments && order.shipments.length > 0 && (
+                    {(shipmentsMap[order.id] || (order.shipments && order.shipments.length > 0)) && (
                       <div className="px-6 py-4 bg-amber-500/5 dark:bg-amber-500/10 border-b border-gray-100 dark:border-gray-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
                         <div>
                           <p className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Live Delivery Tracking</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">This order has an active vehicle transport. Track the driver's location in real-time.</p>
                         </div>
                         <Link 
-                          to={`/shipments/${order.shipments[0].id}/track`}
+                          to={`/shipments/${(shipmentsMap[order.id] || order.shipments[0]).id}/track`}
                           className="btn-primary py-2 px-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
                         >
                           <Truck size={14} />
@@ -445,6 +486,25 @@ const OrdersPage: React.FC = () => {
                           <div className="bg-white dark:bg-gray-800 border-2 border-brand-200 dark:border-brand-800 rounded-xl px-6 py-3 shadow-inner text-center sm:text-left">
                             <span className="font-mono font-black text-2xl tracking-[0.2em] text-brand-600 dark:text-brand-400">
                               {order.delivery_code}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Warehouse Pickup Code */}
+                    {order.status === 'READY_FOR_PICKUP' && (
+                      <div className="px-6 py-5 bg-amber-50/50 dark:bg-amber-900/10 border-b border-amber-100 dark:border-amber-900/20 animate-pulse-subtle">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-black text-amber-900 dark:text-amber-100 uppercase tracking-wider mb-1">Your Warehouse Pickup Code</p>
+                            <p className="text-xs text-amber-700 dark:text-amber-300 font-medium max-w-sm font-semibold">
+                              This order is ready for pickup at the warehouse. Please provide this code to the warehouse agent to collect your items.
+                            </p>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 border-2 border-amber-200 dark:border-amber-800 rounded-xl px-6 py-3 shadow-md text-center sm:text-left">
+                            <span className="font-mono font-black text-2xl tracking-[0.2em] text-amber-600 dark:text-amber-400">
+                              {pickupCodesMap[order.id] || "Loading..."}
                             </span>
                           </div>
                         </div>

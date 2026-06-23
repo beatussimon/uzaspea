@@ -3,12 +3,13 @@ import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
   CheckCircle2, XCircle, Clock, AlertTriangle, Shield, Star,
-  CreditCard, FileText, Layers, MessageSquare, Send, Package
+  CreditCard, FileText, Layers, MessageSquare, Send, Package, Truck
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import StaffInspectionLayout from './inspections/StaffInspectionLayout';
 import WarehouseStaffLayout from './warehouse/WarehouseStaffLayout';
+import LogisticsManager from './logistics/LogisticsManager';
 
 // ============ Types ============
 interface StaffTask {
@@ -66,7 +67,7 @@ interface StaffHomeProps {
 const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
   const [claiming, setClaiming] = useState<number | null>(null);
 
-  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" /></div>;
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>;
   if (!data) return <p className="text-center text-gray-400 py-12">No data available</p>;
 
   const handleClaim = async (id: number) => {
@@ -198,11 +199,11 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
 
            {/* Inspection Shortcut */}
            {((data.user.permissions.includes('can_manage_inspections') || data.user.is_superuser)) && (
-              <Link to="/staff/inspections" className="block p-5 bg-indigo-600 rounded-xl text-white hover:bg-indigo-700 transition">
+              <Link to="/staff/inspections" className="block p-5 bg-brand-600 rounded-xl text-white hover:bg-brand-700 transition">
                  <h3 className="font-bold flex items-center gap-2 mb-1">
                    <Shield size={18} /> Manage Inspections
                  </h3>
-                 <p className="text-xs text-indigo-100 opacity-80">Access Dispatch Queue, QA Reviews, and Inspector controls.</p>
+                 <p className="text-xs text-brand-100 opacity-80">Access Dispatch Queue, QA Reviews, and Inspector controls.</p>
               </Link>
            )}
 
@@ -585,7 +586,7 @@ export const SellerApplicationsManager: React.FC = () => {
                   <h3 className="font-bold text-gray-900 dark:text-white">{item.business_name}</h3>
                   <p className="text-xs text-gray-500">Submitted by: @{item.username}</p>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400">
                   {item.requested_tier_name}
                 </span>
               </div>
@@ -990,7 +991,7 @@ export const PromotionQueue: React.FC = () => {
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{p.description || 'No description provided.'}</p>
                   
                   {p.transaction_reference && (
-                    <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2 font-mono font-bold">
+                    <p className="text-xs text-brand-600 dark:text-brand-400 mt-2 font-mono font-bold">
                       Tx Reference: {p.transaction_reference}
                     </p>
                   )}
@@ -1130,7 +1131,7 @@ export const DisputesManager: React.FC = () => {
             <h3 className="text-xl font-bold mb-4">Disputes</h3>
             {['open', 'under_review', 'resolved_buyer', 'resolved_seller'].map(s => (
                 <button key={s} onClick={() => setFilter(s)}
-                    className={`mr-2 text-xs px-3 py-1 rounded-full font-bold ${filter === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                    className={`mr-2 text-xs px-3 py-1 rounded-full font-bold ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}>
                     {s.replace(/_/g, ' ')}
                 </button>
             ))}
@@ -1236,7 +1237,7 @@ export const SupportTicketsManager: React.FC = () => {
           <div className="flex gap-1 overflow-x-auto pb-1">
             {['open', 'in_progress', 'resolved', 'closed'].map(s => (
               <button key={s} onClick={() => { setStatusFilter(s); setSelectedTicket(null); }}
-                className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition capitalize shrink-0 ${statusFilter === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+                className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition capitalize shrink-0 ${statusFilter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
                 {s}
               </button>
             ))}
@@ -1247,7 +1248,7 @@ export const SupportTicketsManager: React.FC = () => {
             <p className="text-xs text-gray-400 text-center py-8 italic">No {statusFilter} tickets</p>
           ) : filteredTickets.map(t => (
             <div key={t.id} onClick={() => handleSelectTicket(t)}
-              className={`p-4 cursor-pointer transition flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 ${selectedTicket?.id === t.id ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border-l-4 border-indigo-600' : ''}`}>
+              className={`p-4 cursor-pointer transition flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 ${selectedTicket?.id === t.id ? 'bg-brand-50/50 dark:bg-brand-950/20 border-l-4 border-brand-600' : ''}`}>
               <div>
                 <div className="flex justify-between items-start gap-1">
                   <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{t.subject}</p>
@@ -1298,9 +1299,9 @@ export const SupportTicketsManager: React.FC = () => {
               {/* Replies (if any) */}
               {(chatReplies[selectedTicket.id] || []).map((reply, idx) => (
                 <div key={idx} className="flex items-start gap-2 max-w-[80%] ml-auto flex-row-reverse">
-                  <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">S</div>
-                  <div className="p-3 rounded-2xl bg-indigo-600 text-white text-xs">
-                    <p className="font-semibold mb-1 text-[10px] text-indigo-200">Staff · {reply.timestamp.toLocaleTimeString()}</p>
+                  <div className="w-8 h-8 rounded-full bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold text-xs">S</div>
+                  <div className="p-3 rounded-2xl bg-brand-600 text-white text-xs">
+                    <p className="font-semibold mb-1 text-[10px] text-brand-200">Staff · {reply.timestamp.toLocaleTimeString()}</p>
                     <p>{reply.message}</p>
                   </div>
                 </div>
@@ -1356,6 +1357,7 @@ const StaffDashboardLayout: React.FC = () => {
   const canReviewPromo = perms.includes('can_review_promotions') || isSuper;
   const canManageInspections = perms.includes('can_manage_inspections') || isSuper;
   const canManageWarehouse = perms.includes('can_manage_warehouse_intake') || isSuper;
+  const canManageLogistics = perms.includes('can_manage_logistics') || isSuper;
 
   const navItems = [
     { path: '/staff', label: 'Overview', icon: LayoutDashboard },
@@ -1363,6 +1365,7 @@ const StaffDashboardLayout: React.FC = () => {
     { path: '/staff/subscriptions', label: 'Subscriptions', icon: CreditCard, show: canVerify },
     { path: '/staff/seller-applications', label: 'Seller Upgrades', icon: Shield, show: canVerify },
     { path: '/staff/warehouse', label: 'Warehouse Intake', icon: Package, show: canManageWarehouse },
+    { path: '/staff/logistics', label: 'Logistics Manager', icon: Truck, show: canManageLogistics },
     { path: '/staff/invoices', label: 'Commission Payments', icon: FileText, show: canVerify },
     { path: '/staff/products', label: 'Product Moderation', icon: Layers, show: canModerate },
     { 
@@ -1395,6 +1398,12 @@ const StaffDashboardLayout: React.FC = () => {
       icon: ClipboardList,
       show: data?.user?.is_inspector && !canManageInspections
     },
+    {
+      path: '/staff-admin',
+      label: 'Admin Panel',
+      icon: Shield,
+      show: isSuper
+    },
   ].filter(item => item.show === undefined || item.show);
 
   return (
@@ -1413,7 +1422,7 @@ const StaffDashboardLayout: React.FC = () => {
               <Link key={item.path} to={item.path}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
                   isActive
-                    ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-medium'
+                    ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}>
                 <item.icon size={16} />
@@ -1431,6 +1440,7 @@ const StaffDashboardLayout: React.FC = () => {
           <Route path="subscriptions" element={canVerify ? <SubscriptionConfirmation /> : <Navigate to="/staff" />} />
           <Route path="seller-applications" element={canVerify ? <SellerApplicationsManager /> : <Navigate to="/staff" />} />
           <Route path="warehouse" element={canManageWarehouse ? <WarehouseStaffLayout /> : <Navigate to="/staff" />} />
+          <Route path="logistics" element={canManageLogistics ? <LogisticsManager /> : <Navigate to="/staff" />} />
           <Route path="invoices" element={canVerify ? <CommissionPaymentsManager /> : <Navigate to="/staff" />} />
           <Route path="products" element={canModerate ? <ProductModeration /> : <Navigate to="/staff" />} />
           <Route path="promotions" element={(canReviewPromo || canApprove) ? <PromotionQueue /> : <Navigate to="/staff" />} />

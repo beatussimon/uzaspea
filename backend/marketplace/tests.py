@@ -128,10 +128,10 @@ class SellerApplicationTests(TestCase):
         self.assertEqual(res.status_code, 201)
         app_id = res.json()['id']
 
-        # Get me list
+        # Get me
         res_me = self.client.get('/api/seller-applications/me/')
         self.assertEqual(res_me.status_code, 200)
-        self.assertEqual(len(res_me.json()), 1)
+        self.assertEqual(res_me.json()['id'], app_id)
 
         # 2. Login as staff and approve
         staff_token = RefreshToken.for_user(self.staff)

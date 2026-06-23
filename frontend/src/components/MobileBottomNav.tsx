@@ -205,7 +205,7 @@ const MobileBottomNav = () => {
                         <ChevronRight size={18} className="text-brand-400" />
                       </Link>
                     )}
-                    {isStaff && !isSuperuser && (
+                    {(isStaff || isSuperuser) && (
                       <Link to="/staff" className="flex items-center justify-between p-3 rounded-btn bg-brand-50/50 dark:bg-brand-900/10 hover:bg-brand-100 dark:hover:bg-brand-900/30 group transition-colors">
                         <div className="flex items-center gap-4 text-brand-700 dark:text-brand-300">
                           <LayoutDashboard size={20} />
@@ -320,17 +320,43 @@ const MobileBottomNav = () => {
 
           {isAuthenticated ? (
             <>
-              {/* Sell (Only visible to sellers, styled as standard icon) */}
-              {isSeller && (
+              {/* Contextual Action Shortcut */}
+              {isStaff ? (
                 <Link 
-                  to="/dashboard/products" 
+                  to={isSuperuser ? "/staff-admin" : "/staff"} 
                   className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
                 >
                   <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
-                    <PlusCircle size={24} className={`transition-colors ${isActive('/dashboard/products') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/dashboard/products') ? 2.5 : 2} />
-                    <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/dashboard/products') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Sell</span>
+                    <ShieldCheck size={24} className={`transition-colors ${isActive('/staff') || isActive('/staff-admin') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/staff') || isActive('/staff-admin') ? 2.5 : 2} />
+                    <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/staff') || isActive('/staff-admin') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Staff</span>
                   </motion.div>
-                  {isActive('/dashboard/products') && (
+                  {(isActive('/staff') || isActive('/staff-admin')) && (
+                    <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+                  )}
+                </Link>
+              ) : isSeller ? (
+                <Link 
+                  to="/dashboard" 
+                  className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+                >
+                  <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+                    <LayoutDashboard size={24} className={`transition-colors ${isActive('/dashboard') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/dashboard') ? 2.5 : 2} />
+                    <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/dashboard') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Dashboard</span>
+                  </motion.div>
+                  {isActive('/dashboard') && (
+                    <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+                  )}
+                </Link>
+              ) : (
+                <Link 
+                  to="/upgrade" 
+                  className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+                >
+                  <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+                    <PlusCircle size={24} className={`transition-colors ${isActive('/upgrade') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/upgrade') ? 2.5 : 2} />
+                    <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/upgrade') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Upgrade</span>
+                  </motion.div>
+                  {isActive('/upgrade') && (
                     <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
                   )}
                 </Link>
