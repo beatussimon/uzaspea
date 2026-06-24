@@ -13,7 +13,7 @@ const DashboardProducts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true });
+  const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
   const [existingImages, setExistingImages] = useState<any[]>([]);
   const [locData, setLocData] = useState({ latitude: '', longitude: '', location_name: '' });
   const [locStatus, setLocStatus] = useState('');
@@ -135,6 +135,8 @@ const DashboardProducts: React.FC = () => {
       formData.append('category', form.category);
       formData.append('condition', form.condition);
       formData.append('is_available', String(form.is_available));
+      formData.append('weight_kg', form.weight_kg);
+      formData.append('size', form.size);
       if (locData.latitude) formData.append('latitude', locData.latitude);
       if (locData.longitude) formData.append('longitude', locData.longitude);
       if (locData.location_name) formData.append('location_name', locData.location_name);
@@ -157,7 +159,7 @@ const DashboardProducts: React.FC = () => {
 
       setShowForm(false);
       setEditingId(null);
-      setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true });
+      setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
       setImageFiles([]);
       setExistingImages([]);
       fetchProducts(1, true);
@@ -177,6 +179,8 @@ const DashboardProducts: React.FC = () => {
       category: String(product.category),
       condition: product.condition,
       is_available: product.is_available,
+      weight_kg: String(product.weight_kg || '1.0'),
+      size: product.size || 'small',
     });
     setEditingId(product.slug);
     setExistingImages(product.images || []);
@@ -204,7 +208,7 @@ const DashboardProducts: React.FC = () => {
             setShowForm(!showForm);
             setEditingId(null);
             setExistingImages([]);
-            setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true });
+            setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
           }}
           className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition text-sm"
         >
@@ -244,6 +248,17 @@ const DashboardProducts: React.FC = () => {
               className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white">
               <option value="New">New</option>
               <option value="Used">Used</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <input name="weight_kg" value={form.weight_kg} onChange={handleChange} placeholder="Weight (kg)" type="number" step="0.1" required
+              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+            <select name="size" value={form.size} onChange={handleChange}
+              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white">
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+              <option value="oversized">Oversized</option>
             </select>
           </div>
           <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
