@@ -123,7 +123,7 @@ const CheckoutPage: React.FC = () => {
 
   const activeQuote = quotes.find(q => q.code === selectedQuoteCode);
   const shippingFee = shippingMethod === 'DELIVERY' 
-    ? (activeQuote ? Number(activeQuote.price) : 5000) 
+    ? (activeQuote ? Number(activeQuote.price) : 0) 
     : 0;
   const finalTotal = totalPrice + shippingFee;
 
@@ -236,8 +236,8 @@ const CheckoutPage: React.FC = () => {
                 <span className="font-bold text-sm">Home Delivery</span>
                 <span className="text-xs">
                   {shippingMethod === 'DELIVERY' && activeQuote
-                    ? `TSh ${activeQuote.price.toLocaleString()}`
-                    : 'From TSh 2,000'}
+                    ? `~TSh ${activeQuote.price.toLocaleString()}`
+                    : 'Estimated'}
                 </span>
               </button>
               <button
@@ -285,7 +285,7 @@ const CheckoutPage: React.FC = () => {
                     {/* Delivery Speeds quote selection */}
                     {quotes.length > 0 && (
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                           Delivery Speed & Pricing
                         </label>
                         <div className="grid grid-cols-2 gap-3">
@@ -303,11 +303,14 @@ const CheckoutPage: React.FC = () => {
                                 }`}
                               >
                                 <span className="text-xs font-bold capitalize">{q.name}</span>
-                                <span className="text-xs font-black mt-1">TSh {q.price.toLocaleString()}</span>
+                                <span className="text-xs font-black mt-1">~TSh {q.price.toLocaleString()}</span>
                               </button>
                             );
                           })}
                         </div>
+                        <span className="text-xs text-gray-400 italic block mt-1" title="Final shipping is confirmed by SokoniMax logistics after your item reaches our warehouse. We'll notify you before charging.">
+                          Estimated — confirmed after warehouse receipt
+                        </span>
                       </div>
                     )}
 
@@ -433,8 +436,8 @@ const CheckoutPage: React.FC = () => {
             </div>
             <div className="flex justify-between items-center">
               <span className="font-medium text-gray-600 dark:text-gray-400">Shipping</span>
-              <span className="font-medium text-gray-900 dark:text-white">
-                {shippingMethod === 'PICKUP' ? 'Free' : (shippingFee > 0 ? `TSh ${shippingFee.toLocaleString()}` : 'Pending')}
+              <span className="font-medium text-gray-900 dark:text-white" title="Final shipping is confirmed by SokoniMax logistics after your item reaches our warehouse. We'll notify you before charging.">
+                {shippingMethod === 'PICKUP' ? 'Free' : (shippingFee > 0 ? `~TSh ${shippingFee.toLocaleString()}` : 'TBD')}
               </span>
             </div>
             <div className="border-t dark:border-gray-700 pt-2 flex justify-between items-center">
