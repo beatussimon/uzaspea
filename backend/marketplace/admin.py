@@ -225,7 +225,18 @@ class LipaNumberAdmin(admin.ModelAdmin):
     search_fields = ("number", "network__name")
 
 # FIX v5: Register new models
-admin.site.register(SiteSettings)
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(admin.ModelAdmin):
+    fieldsets = [
+        ('Platform Identity', {'fields': ['company_name', 'tagline']}),
+        ('Contact', {'fields': ['support_email', 'support_phone', 'whatsapp_number', 'address', 'working_hours']}),
+        ('Social', {'fields': ['facebook_url', 'instagram_url', 'twitter_url']}),
+        ('Business Rules', {'fields': ['commission_rate']}),
+    ]
+    def has_add_permission(self, request):
+        return not SiteSettings.objects.exists()  # Only one row allowed
+    def has_delete_permission(self, request, obj=None):
+        return False  # Singleton — never delete
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):

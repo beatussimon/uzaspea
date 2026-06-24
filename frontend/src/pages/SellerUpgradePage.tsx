@@ -14,6 +14,7 @@ const SellerUpgradePage: React.FC = () => {
   const [businessDocument, setBusinessDocument] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isLoadingTiers, setIsLoadingTiers] = useState(true);
   
   const [application, setApplication] = useState<any>(null);
   const [tiers, setTiers] = useState<any[]>([]);
@@ -29,15 +30,18 @@ const SellerUpgradePage: React.FC = () => {
   };
 
   const fetchTiers = async () => {
+    setIsLoadingTiers(true);
     try {
       const res = await api.get('/api/subscription-tiers/');
       setTiers(res.data.results || res.data || []);
     } catch (err) {
       console.error('Failed to load subscription tiers', err);
+    } finally {
+      setIsLoadingTiers(false);
     }
   };
 
-  const getTierPrice = (tierLevel: string, defaultPrice: string) => {
+  const getTierPrice = (tierLevel: string, defaultPrice: string | null) => {
     const tier = tiers.find(t => t.tier_level === tierLevel);
     if (!tier) return defaultPrice;
     return `TZS ${Number(tier.price).toLocaleString()}`;
@@ -166,9 +170,13 @@ const SellerUpgradePage: React.FC = () => {
           <div className="space-y-4">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">Seller Pro</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">Unlock the seller dashboard, list products, and let us manage shipping.</p>
-            <div className="text-3xl font-black text-gray-900 dark:text-white">
-              {getTierPrice('seller_pro', 'TZS 29,000')} <span className="text-xs text-gray-400 font-normal">/ month</span>
-            </div>
+            {isLoadingTiers ? (
+              <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+            ) : (
+              <div className="text-3xl font-black text-gray-900 dark:text-white">
+                {getTierPrice('seller_pro', null) || 'Contact us for pricing'} <span className="text-xs text-gray-400 font-normal">/ month</span>
+              </div>
+            )}
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300 pt-4 border-t dark:border-neutral-800">
               <li className="flex items-center gap-2">✓ Create product listings</li>
               <li className="flex items-center gap-2">✓ Manage inventory</li>
@@ -196,9 +204,13 @@ const SellerUpgradePage: React.FC = () => {
           <div className="space-y-4">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">Business</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">For established teams requiring deep analytics, staff accounts, and priority listing.</p>
-            <div className="text-3xl font-black text-gray-900 dark:text-white">
-              {getTierPrice('business', 'TZS 79,000')} <span className="text-xs text-gray-400 font-normal">/ month</span>
-            </div>
+            {isLoadingTiers ? (
+              <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+            ) : (
+              <div className="text-3xl font-black text-gray-900 dark:text-white">
+                {getTierPrice('business', null) || 'Contact us for pricing'} <span className="text-xs text-gray-400 font-normal">/ month</span>
+              </div>
+            )}
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300 pt-4 border-t dark:border-neutral-800">
               <li className="flex items-center gap-2">✓ Everything in Seller Pro</li>
               <li className="flex items-center gap-2">✓ Scoped team member management</li>
