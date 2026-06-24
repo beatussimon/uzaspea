@@ -598,16 +598,40 @@ export const SellerApplicationsManager: React.FC = () => {
                 )}
               </div>
 
+              <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1 border-t border-b dark:border-gray-700 py-2 my-2">
+                <div><strong>Registration No:</strong> {item.business_registration_number || 'N/A'}</div>
+                <div><strong>TIN:</strong> {item.tin_number || 'N/A'}</div>
+                <div><strong>Address:</strong> {item.business_address || 'N/A'}</div>
+                <div><strong>Region:</strong> {item.business_region || 'N/A'}</div>
+              </div>
+
               <div className="flex gap-2">
-                <a href={item.id_document} target="_blank" rel="noreferrer"
-                  className="flex-1 text-center py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition">
-                  ID Document
-                </a>
-                {item.business_document && (
-                  <a href={item.business_document} target="_blank" rel="noreferrer"
-                    className="flex-1 text-center py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition">
-                    Business Doc
+                <div className="flex-1 space-y-2">
+                  <a href={item.id_document} target="_blank" rel="noreferrer"
+                    className="block text-center py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition">
+                    View ID Document
                   </a>
+                  {item.id_document && item.id_document.match(/\.(jpeg|jpg|gif|png)$/i) && (
+                    <img src={item.id_document} alt="ID Document Preview" className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700" />
+                  )}
+                  {item.id_document && item.id_document.match(/\.(pdf)$/i) && (
+                    <iframe src={item.id_document} className="w-full h-32 rounded-lg border border-gray-200 dark:border-gray-700" title="ID Preview" />
+                  )}
+                </div>
+                
+                {item.business_document && (
+                  <div className="flex-1 space-y-2">
+                    <a href={item.business_document} target="_blank" rel="noreferrer"
+                      className="block text-center py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition">
+                      View Business Doc
+                    </a>
+                    {item.business_document.match(/\.(jpeg|jpg|gif|png)$/i) && (
+                      <img src={item.business_document} alt="Business Document Preview" className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700" />
+                    )}
+                    {item.business_document.match(/\.(pdf)$/i) && (
+                      <iframe src={item.business_document} className="w-full h-32 rounded-lg border border-gray-200 dark:border-gray-700" title="Business Doc Preview" />
+                    )}
+                  </div>
                 )}
               </div>
 
