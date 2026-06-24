@@ -293,4 +293,10 @@ class StoreImageAdmin(admin.ModelAdmin):
 class FAQAdmin(admin.ModelAdmin):
     list_display = ('question', 'order')
 
-admin.site.register(UserProfile)
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['user', 'tier', 'is_verified', 'is_location_verified', 'phone_number', 'location']
+    list_editable = ['is_verified', 'is_location_verified', 'tier']
+    list_filter = ['tier', 'is_verified', 'is_location_verified']
+    search_fields = ['user__username', 'phone_number', 'location']
+    readonly_fields = ['user']

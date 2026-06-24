@@ -150,6 +150,13 @@ const SettingsPage: React.FC = () => {
                     <MapPin size={18} className="text-brand-600" />
                     <h3 className="font-bold text-gray-900 dark:text-white">Business Location Coordinates</h3>
                 </div>
+                {profile.is_location_verified === false && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 rounded-r mb-4">
+                        <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                            Your business location is pending verification by SokoniMax staff.
+                        </p>
+                    </div>
+                )}
                 <p className="text-xs text-gray-500 leading-relaxed">
                     Set your business coordinates for delivery distance and price calculations. Selecting a preset city will automatically fill its coordinates, which you can adjust manually.
                 </p>
