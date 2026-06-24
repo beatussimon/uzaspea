@@ -10,6 +10,10 @@ const SellerUpgradePage: React.FC = () => {
   
   const [selectedTier, setSelectedTier] = useState<'seller_pro' | 'business'>('seller_pro');
   const [businessName, setBusinessName] = useState('');
+  const [businessRegNumber, setBusinessRegNumber] = useState('');
+  const [tinNumber, setTinNumber] = useState('');
+  const [businessAddress, setBusinessAddress] = useState('');
+  const [businessRegion, setBusinessRegion] = useState('');
   const [idDocument, setIdDocument] = useState<File | null>(null);
   const [businessDocument, setBusinessDocument] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -101,6 +105,10 @@ const SellerUpgradePage: React.FC = () => {
     const formData = new FormData();
     formData.append('requested_tier', targetTier.id.toString());
     formData.append('business_name', businessName);
+    formData.append('business_registration_number', businessRegNumber);
+    formData.append('tin_number', tinNumber);
+    formData.append('business_address', businessAddress);
+    formData.append('business_region', businessRegion);
     formData.append('id_document', idDocument);
     if (businessDocument) {
       formData.append('business_document', businessDocument);
@@ -333,6 +341,53 @@ const SellerUpgradePage: React.FC = () => {
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
               />
+            </div>
+
+            {/* Business Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Business Registration No. (Optional)</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. BRELA 123456"
+                  className="input w-full"
+                  value={businessRegNumber}
+                  onChange={(e) => setBusinessRegNumber(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">TIN Number (Optional)</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. 123-456-789"
+                  className="input w-full"
+                  value={tinNumber}
+                  onChange={(e) => setTinNumber(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Business Address (Optional)</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Plot 45, Uhuru Street"
+                  className="input w-full"
+                  value={businessAddress}
+                  onChange={(e) => setBusinessAddress(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Region (Optional)</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Dar es Salaam"
+                  className="input w-full"
+                  value={businessRegion}
+                  onChange={(e) => setBusinessRegion(e.target.value)}
+                />
+              </div>
             </div>
 
             {/* ID Document upload */}

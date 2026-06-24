@@ -933,6 +933,14 @@ class SellerApplication(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_applications')
     requested_tier = models.ForeignKey(SubscriptionTier, on_delete=models.PROTECT)
     business_name = models.CharField(max_length=150)
+    business_registration_number = models.CharField(
+        max_length=50, blank=True,
+        help_text="BRELA registration number or business license number"
+    )
+    tin_number = models.CharField(max_length=30, blank=True,
+        help_text="Tanzania Revenue Authority TIN number")
+    business_address = models.TextField(blank=True)
+    business_region = models.CharField(max_length=100, blank=True)
     id_document = models.FileField(upload_to='seller_applications/id/', validators=[validate_document])
     business_document = models.FileField(upload_to='seller_applications/business/', blank=True, null=True, validators=[validate_document])
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')

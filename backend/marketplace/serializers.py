@@ -508,7 +508,9 @@ class SellerApplicationSerializer(serializers.ModelSerializer):
         model = SellerApplication
         fields = [
             'id', 'user', 'username', 'requested_tier', 'requested_tier_name',
-            'business_name', 'id_document', 'business_document', 'status',
+            'business_name', 'business_registration_number', 'tin_number',
+            'business_address', 'business_region',
+            'id_document', 'business_document', 'status',
             'rejection_reason', 'created_at', 'updated_at'
         ]
         read_only_fields = ['user', 'status', 'rejection_reason', 'created_at', 'updated_at']
