@@ -436,8 +436,11 @@ const ProductDetailPage: React.FC = () => {
                 <button
                   onClick={async () => {
                     try {
-                      const res = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
-                      navigate(`/messages/${res.data.id}`);
+                      const convRes = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
+                      await api.post(`/api/conversations/${convRes.data.id}/messages/`, {
+                        text: `Hi, I am interested in your product: ${product.name}`
+                      });
+                      navigate(`/messages?conv=${convRes.data.id}`);
                     } catch { toast.error('Login to message seller'); }
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-brand-50 dark:bg-brand-900/30 border border-brand-100 dark:border-brand-900/40 text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider hover:bg-brand-100 dark:hover:bg-brand-900/50 transition-all shadow-sm"

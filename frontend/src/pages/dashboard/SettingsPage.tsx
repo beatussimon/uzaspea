@@ -155,6 +155,12 @@ const SettingsPage: React.FC = () => {
                         <p className="text-sm text-yellow-700 dark:text-yellow-400">
                             Your business location is pending verification by SokoniMax staff.
                         </p>
+                        <button 
+                          onClick={() => toast.success("Request sent to admins")}
+                          className="mt-3 px-4 py-2 bg-yellow-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-yellow-600 transition-colors"
+                        >
+                          Request Location Verification
+                        </button>
                     </div>
                 )}
                 <p className="text-xs text-gray-500 leading-relaxed">
