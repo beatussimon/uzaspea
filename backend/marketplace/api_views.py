@@ -482,7 +482,10 @@ class FAQViewSet(viewsets.ReadOnlyModelViewSet):
 class SupportTicketViewSet(viewsets.ModelViewSet):
     serializer_class = SupportTicketSerializer
     def get_permissions(self):
-        if self.action == 'create': return [permissions.AllowAny()]
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        if self.action in ['list', 'retrieve']:
+            return [permissions.IsAuthenticated()]
         return [permissions.IsAuthenticated(), IsStaffMember()]
     def get_throttles(self):  # FIX D-07
         if self.action == 'create':
