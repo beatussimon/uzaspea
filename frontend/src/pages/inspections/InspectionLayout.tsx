@@ -967,7 +967,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
             {report.report_hash ? (
               <span className="text-amber-400 font-bold">{report.report_hash.slice(0, 24)}...</span>
             ) : (
-              <span className="text-red-400">UNSIGNED</span>
+              <span className="text-red-400 uppercase tracking-widest text-[10px]">Unsigned</span>
             )}
           </div>
         </div>
