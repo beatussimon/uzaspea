@@ -117,6 +117,23 @@ class OrderStateMachine:
                         entry_type=CommissionLedgerEntry.EntryType.COMMISSION
                     )
 
+            # MED-7: Reverse commission if a previously COMPLETED order is cancelled
+            if new_state == 'CANCELLED' and old_state == 'COMPLETED':
+                from billing.models import CommissionLedgerEntry
+                existing_entries = CommissionLedgerEntry.objects.filter(
+                    order=locked_order,
+                    entry_type=CommissionLedgerEntry.EntryType.COMMISSION
+                )
+                for entry in existing_entries:
+                    CommissionLedgerEntry.objects.create(
+                        order=locked_order,
+                        seller=entry.seller,
+                        order_amount=-entry.order_amount,
+                        commission_rate=entry.commission_rate,
+                        commission_amount=-entry.commission_amount,
+                        entry_type=CommissionLedgerEntry.EntryType.REVERSAL
+                    )
+
             event = TrackingEvent.objects.create(
                 order=locked_order,
                 status=new_state,

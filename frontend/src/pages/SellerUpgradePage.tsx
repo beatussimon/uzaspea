@@ -451,30 +451,38 @@ const SellerUpgradePage: React.FC = () => {
         )}
       </div>
 
-      {/* Contact Info */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto pt-8">
-        <div className="card p-6 flex flex-col items-center text-center space-y-2">
-            <div className="w-12 h-12 bg-brand-100 dark:bg-brand-900/30 text-brand-600 flex items-center justify-center rounded-full">
+      {/* Contact Info — only show cards when SiteSettings has the value */}
+      {(siteSettings.support_phone || siteSettings.whatsapp_number || siteSettings.support_email) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto pt-8">
+          {siteSettings.support_phone && (
+            <a href={`tel:${siteSettings.support_phone}`} className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
+              <div className="w-12 h-12 bg-brand-100 dark:bg-brand-900/30 text-brand-600 flex items-center justify-center rounded-full">
                 <Phone size={24} />
-            </div>
-            <h3 className="font-bold text-gray-900 dark:text-white">Call Us</h3>
-            <p className="text-sm text-gray-500">{siteSettings.support_phone}</p>
-        </div>
-        <div className="card p-6 flex flex-col items-center text-center space-y-2">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center rounded-full">
+              </div>
+              <h3 className="font-bold text-gray-900 dark:text-white">Call Us</h3>
+              <p className="text-sm text-gray-500">{siteSettings.support_phone}</p>
+            </a>
+          )}
+          {siteSettings.whatsapp_number && (
+            <a href={`https://wa.me/${siteSettings.whatsapp_number.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center rounded-full">
                 <MessageCircle size={24} />
-            </div>
-            <h3 className="font-bold text-gray-900 dark:text-white">WhatsApp</h3>
-            <p className="text-sm text-gray-500">{siteSettings.whatsapp_number}</p>
-        </div>
-        <div className="card p-6 flex flex-col items-center text-center space-y-2">
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center rounded-full">
+              </div>
+              <h3 className="font-bold text-gray-900 dark:text-white">WhatsApp</h3>
+              <p className="text-sm text-gray-500">{siteSettings.whatsapp_number}</p>
+            </a>
+          )}
+          {siteSettings.support_email && (
+            <a href={`mailto:${siteSettings.support_email}`} className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center rounded-full">
                 <Mail size={24} />
-            </div>
-            <h3 className="font-bold text-gray-900 dark:text-white">Email Us</h3>
-            <p className="text-sm text-gray-500">{siteSettings.support_email}</p>
+              </div>
+              <h3 className="font-bold text-gray-900 dark:text-white">Email Us</h3>
+              <p className="text-sm text-gray-500">{siteSettings.support_email}</p>
+            </a>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };
