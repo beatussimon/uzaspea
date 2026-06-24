@@ -564,6 +564,24 @@ class StaffSupportTicketViewSet(viewsets.ModelViewSet):
         ticket.save()
         return Response({'status': 'resolved'})
 
+    @decorators.action(detail=True, methods=['post'])
+    def reply(self, request, pk=None):
+        from marketplace.models import push_notification
+        ticket = self.get_object()
+        reply_text = request.data.get('reply', '').strip()
+        if not reply_text:
+            return Response({'error': 'Reply cannot be empty.'}, status=400)
+        ticket.staff_reply = reply_text
+        ticket.status = 'in_progress'
+        ticket.assigned_to = request.user
+        ticket.save(update_fields=['staff_reply', 'status', 'assigned_to'])
+        if ticket.user:
+            push_notification(ticket.user, 'order_status',
+                'Support Reply',
+                f'Staff replied to your ticket: "{ticket.subject}"',
+                '/help')
+        return Response({'status': 'replied'})
+
 
 from marketplace.models import PaymentConfirmation, UserProfile, Product
 from billing.models import CommissionPayment

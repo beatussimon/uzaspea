@@ -29,7 +29,7 @@ class SupportTicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupportTicket
         fields = '__all__'
-        read_only_fields = ['user', 'status', 'assigned_to', 'staff_notes', 'resolved_at']
+        read_only_fields = ['user', 'status', 'assigned_to', 'staff_notes', 'staff_reply', 'resolved_at']
 
 class CategorySerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()
@@ -393,6 +393,8 @@ class MessageSerializer(serializers.ModelSerializer):  # FIX B-12
 class ConversationSerializer(serializers.ModelSerializer):  # FIX B-12
     buyer_username = serializers.CharField(source='buyer.username', read_only=True)
     seller_username = serializers.CharField(source='seller.username', read_only=True)
+    seller_verified = serializers.BooleanField(source='seller.profile.is_verified', read_only=True)
+    seller_tier = serializers.CharField(source='seller.profile.tier', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True, default=None)
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
@@ -400,6 +402,7 @@ class ConversationSerializer(serializers.ModelSerializer):  # FIX B-12
     class Meta:
         model = Conversation
         fields = ['id', 'buyer', 'buyer_username', 'seller', 'seller_username',
+                  'seller_verified', 'seller_tier',
                   'product', 'product_name', 'last_message', 'unread_count',
                   'created_at', 'updated_at']
         read_only_fields = ['buyer', 'created_at', 'updated_at']

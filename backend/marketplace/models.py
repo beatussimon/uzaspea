@@ -695,6 +695,7 @@ class SupportTicket(models.Model):
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
                                      related_name='assigned_tickets')
     staff_notes = models.TextField(blank=True)
+    staff_reply = models.TextField(blank=True, help_text="Response visible to the ticket creator")
     resolved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
