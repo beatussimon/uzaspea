@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Mail, Phone, MapPin, Search, ChevronDown, ChevronUp, Send } from 'lucide-react';
+import { Mail, Phone, MapPin, Search, ChevronDown, ChevronUp, Send, MessageCircle } from 'lucide-react';
 
 const HelpCenterPage: React.FC = () => {
     const [faqs, setFaqs] = useState<any[]>([]);
@@ -71,7 +71,7 @@ const HelpCenterPage: React.FC = () => {
             </div>
 
             {/* Contact Info — FIX B-18: dynamic from SiteSettings */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="card p-6 flex flex-col items-center text-center space-y-2">
                     <div className="w-12 h-12 bg-brand-100 dark:bg-brand-900/30 text-brand-600 flex items-center justify-center rounded-full">
                         <Phone size={24} />
@@ -81,6 +81,13 @@ const HelpCenterPage: React.FC = () => {
                 </div>
                 <div className="card p-6 flex flex-col items-center text-center space-y-2">
                     <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center rounded-full">
+                        <MessageCircle size={24} />
+                    </div>
+                    <h3 className="font-bold text-gray-900 dark:text-white">WhatsApp</h3>
+                    <p className="text-sm text-gray-500">{siteSettings.whatsapp_number || '+255 123 456 789'}</p>
+                </div>
+                <div className="card p-6 flex flex-col items-center text-center space-y-2">
+                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center rounded-full">
                         <Mail size={24} />
                     </div>
                     <h3 className="font-bold text-gray-900 dark:text-white">Email Us</h3>
