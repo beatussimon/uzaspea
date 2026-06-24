@@ -438,7 +438,7 @@ const ProductDetailPage: React.FC = () => {
                     try {
                       const convRes = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
                       await api.post(`/api/conversations/${convRes.data.id}/messages/`, {
-                        text: `Hi, I am interested in your product: ${product.name}`
+                        content: `Hi, I'm interested in your listing: "${product.name}" (TZS ${Number(product.price).toLocaleString()}). Could you provide more details?`
                       });
                       navigate(`/messages?conv=${convRes.data.id}`);
                     } catch { toast.error('Login to message seller'); }

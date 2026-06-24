@@ -65,7 +65,7 @@ const CheckoutPage: React.FC = () => {
           const data = res.data;
           setForm(prev => ({
             ...prev,
-            fullName: prev.fullName || data.username || '',
+            fullName: prev.fullName || `${data.user?.first_name || ''} ${data.user?.last_name || ''}`.trim() || data.username || '',
             phone: prev.phone || data.phone_number || '',
             deliveryAddress: prev.deliveryAddress || data.location || '',
           }));

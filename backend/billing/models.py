@@ -6,6 +6,7 @@ class CommissionLedgerEntry(models.Model):
     class EntryType(models.TextChoices):
         COMMISSION = 'COMMISSION', 'Platform Commission'
         CANCELLATION_FEE = 'CANCELLATION_FEE', 'Cancellation Fee'
+        REVERSAL = 'REVERSAL', 'Commission Reversal'
 
     order = models.ForeignKey('marketplace.Order', on_delete=models.PROTECT, related_name='commission_entries')
     # Seller reference for commission tracking in SokoniMax

@@ -89,8 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     const theme = localStorage.getItem('theme');
+    const savedCart = localStorage.getItem('sokonimax_cart');
     localStorage.clear();
     if (theme) localStorage.setItem('theme', theme);
+    if (savedCart) localStorage.setItem('sokonimax_cart', savedCart);
     setIsAuthenticated(false);
   };
 
