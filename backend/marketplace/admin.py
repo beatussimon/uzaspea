@@ -216,8 +216,14 @@ class MobileNetworkAdmin(admin.ModelAdmin):
 
 @admin.register(SubscriptionTier)
 class SubscriptionTierAdmin(admin.ModelAdmin):
-    list_display = ("name", "price")
-    search_fields = ("name",)
+    list_display = ('name', 'tier_level', 'price', 'commission_rate', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    fieldsets = [
+        ('Tier Info', {'fields': ['name', 'tier_level', 'is_active']}),
+        ('Pricing', {'fields': ['price', 'commission_rate']}),
+        ('Benefits', {'fields': ['benefits']}),
+    ]
 
 @admin.register(LipaNumber)
 class LipaNumberAdmin(admin.ModelAdmin):
@@ -274,8 +280,29 @@ class PriceAlertAdmin(admin.ModelAdmin):
 
 @admin.register(SellerApplication)
 class SellerApplicationAdmin(admin.ModelAdmin):
-    list_display = ('user', 'business_name', 'requested_tier', 'status', 'created_at')
+    list_display = ('user', 'business_name', 'requested_tier', 'business_registration_number', 'tin_number', 'status', 'created_at')
     list_filter = ('status', 'requested_tier')
+    search_fields = ('user__username', 'business_name', 'business_registration_number', 'tin_number')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = [
+        ('Applicant', {'fields': ['user', 'requested_tier', 'status', 'reviewed_by']}),
+        ('Business Identity', {'fields': ['business_name', 'business_registration_number', 'tin_number', 'business_address', 'business_region']}),
+        ('Documents', {'fields': ['id_document', 'business_document']}),
+        ('Timestamps', {'fields': ['created_at', 'updated_at']}),
+    ]
+
+    @admin.action(description='Approve selected applications')
+    def approve_applications(self, request, queryset):
+        for app in queryset.filter(status='pending'):
+            app.status = 'approved'
+            app.reviewed_by = request.user
+            app.save()
+
+    @admin.action(description='Reject selected applications')
+    def reject_applications(self, request, queryset):
+        queryset.filter(status='pending').update(status='rejected')
+
+    actions = ['approve_applications', 'reject_applications']
 
 @admin.register(PaymentConfirmation)
 class PaymentConfirmationAdmin(admin.ModelAdmin):
