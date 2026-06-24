@@ -69,7 +69,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
           <div className="flex-1 min-w-0 pr-8">
             <div className="flex items-center gap-1.5 mb-1 text-[9px] text-gray-400">
                {isSponsored && (
-                 <span className="text-white bg-brand-600 px-1.5 py-0.5 rounded text-[8px] uppercase font-black tracking-wider shrink-0 shadow-md">SPONSORED</span>
+                 <span className="text-white bg-brand-600 px-1.5 py-0.5 rounded text-[8px] uppercase font-black tracking-widest shrink-0 shadow-md">Sponsored</span>
                )}
                <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider shrink-0">{product.category_name}</span>
                <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
@@ -92,7 +92,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
                {product.is_verified && (
                  <div className="flex items-center gap-1 text-[9px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800 ml-auto shrink-0">
                    <Shield size={10} className="fill-current" />
-                   <span>VERIFIED</span>
+                   <span className="uppercase tracking-widest text-[8px]">Verified</span>
                  </div>
                )}
             </div>
@@ -168,13 +168,13 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
               {product.is_verified && (
                  <div className="flex items-center gap-1 text-[8px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800" title="Professionally Verified">
                    <Shield size={10} className="fill-current" />
-                   <span>VERIFIED</span>
+                   <span className="uppercase tracking-widest text-[8px]">Verified</span>
                  </div>
               )}
               {product.has_inspection && (
                  <div className="flex items-center gap-1 text-[8px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800" title="Professionally Inspected">
                    <Shield size={10} />
-                   <span>INSPECTED ✓</span>
+                   <span className="uppercase tracking-widest text-[8px]">Inspected ✓</span>
                  </div>
               )}
               <div className="flex gap-0.5 items-center">
@@ -215,7 +215,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
                 </>
               )}
             </div>
-            <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-1">PRO</span>
+            <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded uppercase tracking-widest text-[8px] font-bold shrink-0 ml-1">Pro</span>
           </div>
         </div>
       </Link>
