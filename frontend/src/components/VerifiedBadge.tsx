@@ -11,12 +11,12 @@ const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({ tier, isVerified, classNa
   
   const normalizedTier = tier?.toLowerCase();
   
-  if (normalizedTier === 'premium') {
-    return <img src="/gold_checkmark.png" alt="Premium" className={className} title="Premium Seller" />;
+  if (normalizedTier === 'business') {
+    return <img src="/gold_checkmark.png" alt="Business Verified" className={className} title="Business Verified Seller" />;
   }
   
-  if (normalizedTier === 'standard') {
-    return <img src="/greeen_ckeckmark.png" alt="Standard" className={className} title="Standard Seller" />;
+  if (normalizedTier === 'seller_pro') {
+    return <img src="/greeen_ckeckmark.png" alt="Verified Seller" className={className} title="Verified Seller" />;
   }
   
   return null;
