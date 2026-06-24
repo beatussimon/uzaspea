@@ -48,8 +48,10 @@ const RegisterPage: React.FC = () => {
       
       // Prevent state leakage between accounts
       const theme = localStorage.getItem('theme');
+      const savedCart = localStorage.getItem('sokonimax_cart');
       localStorage.clear();
       if (theme) localStorage.setItem('theme', theme);
+      if (savedCart) localStorage.setItem('sokonimax_cart', savedCart);
       
       localStorage.setItem('access_token', res.data.access);
       localStorage.setItem('refresh_token', res.data.refresh);
