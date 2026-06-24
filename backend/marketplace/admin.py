@@ -6,7 +6,8 @@ from .models import (
     SidebarOffer, SidebarNewsItem, Subscription, NewsletterSubscription,
     Like, Follow, ProductImage, SubscriptionTier, MobileNetwork, LipaNumber,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
-    Dispute, ProductVariant, SiteSettings, DeliveryZone
+    Dispute, ProductVariant, SiteSettings, DeliveryZone,
+    SellerApplication, PaymentConfirmation, SupportTicket, TeamMember, StoreImage, FAQ
 )
 from django.utils.html import format_html
 
@@ -259,3 +260,37 @@ class SavedSearchAdmin(admin.ModelAdmin):
 @admin.register(PriceAlert)
 class PriceAlertAdmin(admin.ModelAdmin):
     list_display = ('user', 'product', 'target_price', 'is_active', 'triggered_at')
+
+@admin.register(SellerApplication)
+class SellerApplicationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'business_name', 'requested_tier', 'status', 'created_at')
+    list_filter = ('status', 'requested_tier')
+
+@admin.register(PaymentConfirmation)
+class PaymentConfirmationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'tier', 'amount', 'status', 'created_at')
+    list_filter = ('status', 'tier')
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ('user', 'tier', 'is_active', 'start_date', 'end_date')
+    list_filter = ('is_active', 'tier')
+
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin):
+    list_display = ('user', 'subject', 'status', 'created_at')
+    list_filter = ('status',)
+
+@admin.register(TeamMember)
+class TeamMemberAdmin(admin.ModelAdmin):
+    list_display = ('owner', 'user', 'created_at')
+
+@admin.register(StoreImage)
+class StoreImageAdmin(admin.ModelAdmin):
+    list_display = ('profile', 'uploaded_at')
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ('question', 'order')
+
+admin.site.register(UserProfile)
