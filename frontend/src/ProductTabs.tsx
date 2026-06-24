@@ -87,7 +87,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
           }`}
           onClick={() => setActiveTab('reviews')}
         >
-          Verified Reviews ({reviews.length})
+          Reviews ({reviews.length})
         </button>
         <button
           className={`py-2 px-4 transition-colors ${
@@ -97,14 +97,14 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
           }`}
           onClick={() => setActiveTab('comments')}
         >
-          Community Comments ({comments.length})
+          Comments ({comments.length})
         </button>
       </div>
 
       <div className="py-4">
         {activeTab === 'reviews' && (
           <div className="animate-fade-in">
-            <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">Verified Purchases Only</h3>
+            <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">Verified buyers</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Reviews are locked until order status is COMPLETED.
             </p>
