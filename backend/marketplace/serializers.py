@@ -330,11 +330,38 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = ['id', 'user', 'user_id', 'username', 'is_verified', 'phone_number', 'instagram_username',
                   'website', 'bio', 'tier', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
-                  'preferred_currency', 'seller_rating', 'store_images']
-        read_only_fields = ['user', 'is_verified', 'tier']  # FIX: S-07 — only staff should set these
+                  'preferred_currency', 'seller_rating', 'store_images', 'is_location_verified']
+        read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified']  # FIX: S-07 — only staff should set these
 
     def get_seller_rating(self, obj):
         return obj.seller_rating  # FIX B-14
+
+    def update(self, instance, validated_data):
+        # Check if location coordinates changed
+        lat_changed = 'latitude' in validated_data and validated_data['latitude'] != instance.latitude
+        lng_changed = 'longitude' in validated_data and validated_data['longitude'] != instance.longitude
+
+        ret = super().update(instance, validated_data)
+
+        if lat_changed or lng_changed:
+            instance.is_location_verified = False
+            instance.save(update_fields=['is_location_verified'])
+            
+            # Log audit
+            request = self.context.get('request')
+            if request and hasattr(request, 'user'):
+                try:
+                    from staff.api_views import log_audit
+                    log_audit(
+                        user=request.user,
+                        action='LOCATION_CHANGED',
+                        description=f'User {instance.user.username} updated location to {instance.latitude}, {instance.longitude}',
+                        request=request
+                    )
+                except Exception:
+                    pass
+
+        return ret
 
 from .models import SponsoredListing
 
