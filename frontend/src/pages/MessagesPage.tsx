@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MessageSquare, Send, ArrowLeft } from 'lucide-react';
 import api from '../api';
+import VerifiedBadge from '../components/VerifiedBadge';
 
 // FIX B-12: Buyer-Seller Messaging Page
 const MessagesPage: React.FC = () => {
@@ -128,8 +129,11 @@ const MessagesPage: React.FC = () => {
                 id && parseInt(id) === conv.id ? 'bg-brand-50/50 dark:bg-brand-900/10' : ''
               }`}
             >
-              <p className="font-bold text-sm text-gray-900 dark:text-white">
+              <p className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1">
                 {conv.buyer === userId ? conv.seller_username : conv.buyer_username}
+                {conv.buyer === userId && (
+                  <VerifiedBadge tier={conv.seller_tier} isVerified={conv.seller_verified} />
+                )}
               </p>
               {conv.product_name && (
                 <p className="text-xs text-brand-600 mt-0.5">Re: {conv.product_name}</p>
@@ -158,8 +162,11 @@ const MessagesPage: React.FC = () => {
                 <button onClick={() => navigate('/messages')} className="md:hidden btn-ghost p-1">
                   <ArrowLeft size={18} />
                 </button>
-                <span className="font-bold text-gray-900 dark:text-white">
+                <span className="font-bold text-gray-900 dark:text-white flex items-center gap-1">
                   {activeConv ? (activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username) : 'Chat'}
+                  {activeConv && activeConv.buyer === userId && (
+                    <VerifiedBadge tier={activeConv.seller_tier} isVerified={activeConv.seller_verified} />
+                  )}
                 </span>
               </div>
 
