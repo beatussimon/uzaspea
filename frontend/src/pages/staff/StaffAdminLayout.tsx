@@ -483,6 +483,18 @@ const EmployeeManager: React.FC = () => {
         }
     };
 
+    const handleChangeDept = async (profileId: number) => {
+        const deptId = prompt('Enter new Department ID (or leave blank to clear):');
+        if (deptId === null) return;
+        try {
+            await api.patch(`/api/staff/profiles/${profileId}/`, { department: deptId || null });
+            toast.success('Department updated successfully');
+            fetchStaff();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to change department');
+        }
+    };
+
     if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
 
     return (
@@ -523,6 +535,10 @@ const EmployeeManager: React.FC = () => {
                                  <button onClick={() => handleAction(member.profile_id, member.is_active ? 'demote' : 'promote')}
                                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tighter transition ${member.is_active ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'}`}>
                                     {member.is_active ? <><UserMinus size={14} /> Demote</> : <><UserPlus size={14} /> Reactivate</>}
+                                 </button>
+                                 <button onClick={() => handleChangeDept(member.profile_id)}
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tighter transition text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                                    <Building2 size={14} /> Dept
                                  </button>
                                  <Link to={`/staff-admin/tasks?assigned_to=${member.id}`} className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
                                      <Briefcase size={16} />
