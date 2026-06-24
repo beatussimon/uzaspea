@@ -69,6 +69,11 @@ class OrderStateMachine:
                             stock=_F('stock') + item.quantity,
                             is_available=True
                         )
+                
+                # FIX MED-7: Zero out platform fee on cancellation to prevent accounting leaks
+                locked_order.platform_fee = 0
+                locked_order.save(update_fields=['platform_fee'])
+                order.platform_fee = 0
 
             if new_state == 'READY_FOR_PICKUP':
                 from logistics.models import PickupCode

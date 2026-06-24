@@ -59,6 +59,16 @@ class OrderTests(TestCase):
         with self.assertRaises(ValueError):
             OrderStateMachine.transition_order(order, 'COMPLETED')
 
+    def test_order_cancellation_zeroes_platform_fee(self):
+        from .services import OrderStateMachine
+        order = Order.objects.create(
+            user=self.buyer, status='CHECKOUT', shipping_method='PICKUP',
+            platform_fee=Decimal('5000.00')
+        )
+        OrderStateMachine.transition_order(order, 'CANCELLED')
+        order.refresh_from_db()
+        self.assertEqual(order.platform_fee, Decimal('0.00'))
+
 class LipaNumberTests(TestCase):
     def setUp(self):
         self.seller = User.objects.create_user('seller2', 'sl@test.com', 'SellerPass123!')
