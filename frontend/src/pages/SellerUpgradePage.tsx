@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { ShieldCheck, ArrowRight, Upload, AlertCircle, Clock, CheckCircle, RefreshCw } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Upload, AlertCircle, Clock, CheckCircle, RefreshCw, Phone, MessageCircle, Mail } from 'lucide-react';
 
 const SellerUpgradePage: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
@@ -17,6 +17,16 @@ const SellerUpgradePage: React.FC = () => {
   
   const [application, setApplication] = useState<any>(null);
   const [tiers, setTiers] = useState<any[]>([]);
+  const [siteSettings, setSiteSettings] = useState<any>({});
+
+  const fetchSiteSettings = async () => {
+    try {
+      const res = await api.get('/api/site-settings/');
+      setSiteSettings(res.data);
+    } catch (err) {
+      console.error('Failed to load site settings', err);
+    }
+  };
 
   const fetchTiers = async () => {
     try {
@@ -63,6 +73,7 @@ const SellerUpgradePage: React.FC = () => {
   useEffect(() => {
     fetchApplicationStatus();
     fetchTiers();
+    fetchSiteSettings();
   }, [isAuthenticated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -371,6 +382,31 @@ const SellerUpgradePage: React.FC = () => {
             </button>
           </form>
         )}
+      </div>
+
+      {/* Contact Info */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto pt-8">
+        <div className="card p-6 flex flex-col items-center text-center space-y-2">
+            <div className="w-12 h-12 bg-brand-100 dark:bg-brand-900/30 text-brand-600 flex items-center justify-center rounded-full">
+                <Phone size={24} />
+            </div>
+            <h3 className="font-bold text-gray-900 dark:text-white">Call Us</h3>
+            <p className="text-sm text-gray-500">{siteSettings.support_phone || '+255 123 456 789'}</p>
+        </div>
+        <div className="card p-6 flex flex-col items-center text-center space-y-2">
+            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center rounded-full">
+                <MessageCircle size={24} />
+            </div>
+            <h3 className="font-bold text-gray-900 dark:text-white">WhatsApp</h3>
+            <p className="text-sm text-gray-500">{siteSettings.whatsapp_number || '+255 123 456 789'}</p>
+        </div>
+        <div className="card p-6 flex flex-col items-center text-center space-y-2">
+            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center rounded-full">
+                <Mail size={24} />
+            </div>
+            <h3 className="font-bold text-gray-900 dark:text-white">Email Us</h3>
+            <p className="text-sm text-gray-500">{siteSettings.support_email || 'support@sokonimax.co.tz'}</p>
+        </div>
       </div>
     </div>
   );
