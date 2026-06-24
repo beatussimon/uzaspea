@@ -101,6 +101,16 @@ const Navbar = () => {
           >
             Products
           </Link>
+          <Link 
+            to="/help" 
+            className={`hidden md:inline-flex items-center text-sm font-semibold transition-colors ${
+              useLightStyle
+                ? 'text-white/80 hover:text-white'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
+            }`}
+          >
+            Help
+          </Link>
         </div>
 
         {/* ---- Center: Centered Clickable Brand Logo ---- */}
