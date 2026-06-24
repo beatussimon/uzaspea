@@ -269,6 +269,41 @@ const MobileBottomNav = () => {
       <div className={`lg:hidden fixed bottom-0 inset-x-0 z-[60] bg-white/70 dark:bg-gray-950/70 backdrop-blur-2xl border-t border-surface-border/50 dark:border-white/5 px-2 pb-safe pt-2 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] transition-transform duration-500 ease-out will-change-transform ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
         <div className="flex items-center justify-around max-w-md mx-auto h-16 relative">
           
+          {/* Home */}
+          <Link 
+            to="/" 
+            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+          >
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+              <Home size={24} className={`transition-colors ${isActive('/') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/') ? 2.5 : 2} />
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Home</span>
+            </motion.div>
+            {isActive('/') && (
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+            )}
+          </Link>
+
+          {/* Cart */}
+          <Link 
+            to="/cart" 
+            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+          >
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+              <div className="relative">
+                <ShoppingCart size={24} className={`transition-colors ${isActive('/cart') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/cart') ? 2.5 : 2} />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white dark:border-gray-900 px-1 shadow-sm">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/cart') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Cart</span>
+            </motion.div>
+            {isActive('/cart') && (
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+            )}
+          </Link>
+
           {/* Help */}
           <Link 
             to="/help" 
@@ -283,38 +318,19 @@ const MobileBottomNav = () => {
             )}
           </Link>
 
-              {/* Hamburger Menu (Toggles Slide-up Menu) */}
-              <button 
-                onClick={() => setIsMenuOpen(true)} 
-                className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
-              >
-                <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
-                  <Menu size={24} className={`transition-colors ${isMenuOpen ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isMenuOpen ? 2.5 : 2} />
-                  <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isMenuOpen ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Menu</span>
-                </motion.div>
-                {isMenuOpen && (
-                  <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
-                )}
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Sign In */}
-              <Link 
-                to="/login" 
-                className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
-              >
-                <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
-                  <User size={24} className={`transition-colors ${isActive('/login') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/login') ? 2.5 : 2} />
-                  <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/login') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Sign In</span>
-                </motion.div>
-                {isActive('/login') && (
-                  <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
-                )}
-              </Link>
-            </>
-          )}
-
+          {/* Hamburger Menu (Toggles Slide-up Menu) */}
+          <button 
+            onClick={() => setIsMenuOpen(true)} 
+            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+          >
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+              <Menu size={24} className={`transition-colors ${isMenuOpen ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isMenuOpen ? 2.5 : 2} />
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isMenuOpen ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Menu</span>
+            </motion.div>
+            {isMenuOpen && (
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+            )}
+          </button>
         </div>
       </div>
     </>
