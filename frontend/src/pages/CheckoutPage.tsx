@@ -56,6 +56,30 @@ const CheckoutPage: React.FC = () => {
     fetchSellerCoords();
   }, [items]);
 
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const username = localStorage.getItem('username');
+        if (username) {
+          const res = await api.get(`/api/profiles/${username}/`);
+          const data = res.data;
+          setForm(prev => ({
+            ...prev,
+            fullName: prev.fullName || data.username || '',
+            phone: prev.phone || data.phone_number || '',
+            deliveryAddress: prev.deliveryAddress || data.location || '',
+          }));
+          if (data.location && Object.keys(CITIES_COORDS).includes(data.location)) {
+            setSelectedCity(data.location);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch user profile', err);
+      }
+    };
+    fetchUserProfile();
+  }, []);
+
   const fetchQuotes = async (city: string) => {
     const coords = CITIES_COORDS[city];
     if (!coords) return;
