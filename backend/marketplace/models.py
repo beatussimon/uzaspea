@@ -398,6 +398,7 @@ class Order(models.Model):
     status = models.CharField(max_length=40, choices=STATUS_CHOICES, default='CART')
     shipping_method = models.CharField(max_length=15, choices=SHIPPING_CHOICES, default='DELIVERY')
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    platform_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     delivery_info = models.JSONField(null=True, blank=True, default=dict)  # FIX: L-02 — store buyer's name/phone/address
     delivery_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     delivery_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
