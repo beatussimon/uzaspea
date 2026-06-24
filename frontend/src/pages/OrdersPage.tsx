@@ -437,7 +437,7 @@ const OrdersPage: React.FC = () => {
                               This order has a vehicle transport shipment.
                             </p>
                           </div>
-                          {shipment.status === 'in_transit' && (
+                          {['ASSIGNED_TRANSPORT', 'IN_TRANSIT'].includes(order.status) && (
                             <Link 
                               to={`/shipments/${shipment.id}/track`}
                               className="btn-primary py-2 px-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
