@@ -9,6 +9,7 @@ const HelpCenterPage: React.FC = () => {
     const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
     const [ticketForm, setTicketForm] = useState({ subject: '', message: '' });
     const [submitting, setSubmitting] = useState(false);
+    const [userTickets, setUserTickets] = useState<any[]>([]);
     // FIX B-18: Dynamic site settings
     const [siteSettings, setSiteSettings] = useState<any>({
         support_phone: '+255 123 456 789',
@@ -33,11 +34,26 @@ const HelpCenterPage: React.FC = () => {
         fetchFaqs();
     }, [searchQuery]);
 
+    useEffect(() => {
+        const fetchTickets = async () => {
+            try {
+                const res = await api.get('/api/support-tickets/');
+                setUserTickets(res.data.results || res.data);
+            } catch (err) {
+                // Ignore if not logged in or failed
+            }
+        };
+        if (localStorage.getItem('access_token')) {
+            fetchTickets();
+        }
+    }, []);
+
     const handleTicketSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            await api.post('/api/support-tickets/', ticketForm);
+            const res = await api.post('/api/support-tickets/', ticketForm);
+            setUserTickets(prev => [res.data, ...prev]);
             toast.success('Support ticket submitted successfully. We will get back to you soon.');
             setTicketForm({ subject: '', message: '' });
         } catch (error) {
@@ -147,6 +163,37 @@ const HelpCenterPage: React.FC = () => {
                             {submitting ? 'Submitting...' : 'Submit Ticket'}
                         </button>
                     </form>
+
+                    {/* User's Tickets */}
+                    <div className="mt-8 border-t border-gray-100 dark:border-gray-700 pt-6">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Your Tickets</h2>
+                        <div className="space-y-4">
+                            {userTickets.map(ticket => (
+                                <div key={ticket.id} className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-semibold text-gray-900 dark:text-white">{ticket.subject}</h3>
+                                        <span className={`text-xs px-2 py-1 rounded-full ${
+                                            ticket.status === 'open' ? 'bg-blue-100 text-blue-800' :
+                                            ticket.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-green-100 text-green-800'
+                                        }`}>
+                                            {ticket.status.replace('_', ' ').toUpperCase()}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{ticket.message}</p>
+                                    {ticket.staff_reply && (
+                                        <div className="mt-3 p-3 bg-brand-50 dark:bg-brand-900/20 border-l-4 border-brand-500 rounded-r-lg">
+                                            <p className="text-xs font-bold text-brand-700 uppercase mb-1">Staff Reply:</p>
+                                            <p className="text-sm text-gray-800 dark:text-gray-200">{ticket.staff_reply}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            {userTickets.length === 0 && (
+                                <p className="text-sm text-gray-500 text-center py-2">You haven't submitted any tickets yet.</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
