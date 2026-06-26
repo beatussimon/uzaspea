@@ -117,22 +117,32 @@ class OrderStateMachine:
                         entry_type=CommissionLedgerEntry.EntryType.COMMISSION
                     )
 
-            # MED-7: Reverse commission if a previously COMPLETED order is cancelled
-            if new_state == 'CANCELLED' and old_state == 'COMPLETED':
+            # MED-7: Reverse commission when an order is cancelled after commission was charged.
+            # The real path is DELIVERED→DISPUTED→CANCELLED (COMPLETED→CANCELLED is blocked
+            # by the state machine), so we check for existing COMMISSION entries rather than
+            # relying on old_state == 'COMPLETED'.
+            if new_state == 'CANCELLED':
                 from billing.models import CommissionLedgerEntry
                 existing_entries = CommissionLedgerEntry.objects.filter(
                     order=locked_order,
                     entry_type=CommissionLedgerEntry.EntryType.COMMISSION
                 )
-                for entry in existing_entries:
-                    CommissionLedgerEntry.objects.create(
+                if existing_entries.exists():
+                    # Only create reversals that haven't been created yet (idempotency guard)
+                    already_reversed = CommissionLedgerEntry.objects.filter(
                         order=locked_order,
-                        seller=entry.seller,
-                        order_amount=-entry.order_amount,
-                        commission_rate=entry.commission_rate,
-                        commission_amount=-entry.commission_amount,
                         entry_type=CommissionLedgerEntry.EntryType.REVERSAL
-                    )
+                    ).exists()
+                    if not already_reversed:
+                        for entry in existing_entries:
+                            CommissionLedgerEntry.objects.create(
+                                order=locked_order,
+                                seller=entry.seller,
+                                order_amount=-entry.order_amount,
+                                commission_rate=entry.commission_rate,
+                                commission_amount=-entry.commission_amount,
+                                entry_type=CommissionLedgerEntry.EntryType.REVERSAL
+                            )
 
             event = TrackingEvent.objects.create(
                 order=locked_order,

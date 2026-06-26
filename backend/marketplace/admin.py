@@ -227,8 +227,9 @@ class SubscriptionTierAdmin(admin.ModelAdmin):
 
 @admin.register(LipaNumber)
 class LipaNumberAdmin(admin.ModelAdmin):
-    list_display = ("network", "number")
-    search_fields = ("number", "network__name")
+    list_display = ("network", "number", "name", "seller", "is_active")
+    list_filter = ("network", "is_active")
+    search_fields = ("number", "network__name", "seller__username")
 
 # FIX v5: Register new models
 @admin.register(SiteSettings)
