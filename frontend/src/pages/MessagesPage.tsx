@@ -61,7 +61,7 @@ const MessagesPage: React.FC = () => {
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log('WS connected');
+      // WebSocket connected
     };
 
     ws.onmessage = (e) => {

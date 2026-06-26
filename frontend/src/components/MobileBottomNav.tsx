@@ -243,7 +243,7 @@ const MobileBottomNav = () => {
                   </Link>
                   <Link to="/dashboard/help-center" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors">
                     <HelpCircle size={20} />
-                    <span>Help & Support center</span>
+                    <span>Help & Support</span>
                   </Link>
                 </div>
               </div>
