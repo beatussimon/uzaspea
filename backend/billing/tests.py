@@ -102,3 +102,65 @@ class BillingTestCase(TestCase):
         self.assertEqual(entry.commission_rate, Decimal("10.00"))
         self.assertEqual(entry.commission_amount, Decimal("10000.00"))
         self.assertEqual(entry.seller, self.seller)
+
+    def test_commission_reversal_on_cancellation(self):
+        """MED-7: Dispute then cancel an order with commission must produce net-zero commission.
+
+        Real path: DELIVERED → DISPUTED → CANCELLED.
+        The commission entry is created manually here to simulate an order that
+        was already completed/charged before being disputed.
+        """
+        from marketplace.services import OrderStateMachine
+        from marketplace.models import OrderItem, SiteSettings
+
+        settings = SiteSettings.get()
+        settings.commission_rate = Decimal("10.00")
+        settings.save()
+
+        # Create the order already at DELIVERED (commission has already been charged)
+        order = Order.objects.create(
+            user=self.buyer,
+            total_amount=Decimal("100000.00"),
+            status="DELIVERED",
+            delivery_info={"address": "Test Address"}
+        )
+
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            quantity=1,
+            price=Decimal("100000.00")
+        )
+
+        # Manually create a commission entry simulating what would have happened at COMPLETED
+        commission_entry = CommissionLedgerEntry.objects.create(
+            order=order,
+            seller=self.seller,
+            order_amount=Decimal("100000.00"),
+            commission_rate=Decimal("10.00"),
+            commission_amount=Decimal("10000.00"),
+            entry_type=CommissionLedgerEntry.EntryType.COMMISSION
+        )
+
+        # Dispute the delivered order (real-world dispute path)
+        OrderStateMachine.transition_order(order, "DISPUTED")
+
+        # Staff resolves in buyer's favour — cancel the disputed order
+        OrderStateMachine.transition_order(order, "CANCELLED")
+
+        reversal_entries = CommissionLedgerEntry.objects.filter(
+            order=order, entry_type=CommissionLedgerEntry.EntryType.REVERSAL
+        )
+        self.assertEqual(reversal_entries.count(), 1, "A reversal entry must be created on cancellation")
+
+        reversal = reversal_entries.first()
+
+        # Reversal amounts must exactly negate the original commission
+        self.assertEqual(reversal.order_amount, -commission_entry.order_amount)
+        self.assertEqual(reversal.commission_amount, -commission_entry.commission_amount)
+        self.assertEqual(reversal.seller, commission_entry.seller)
+
+        # Net commission across all entries must be zero
+        all_entries = CommissionLedgerEntry.objects.filter(order=order)
+        net = sum(e.commission_amount for e in all_entries)
+        self.assertEqual(net, Decimal("0.00"), "Net commission after cancellation must be zero")
