@@ -592,9 +592,15 @@ from .serializers import (
 from marketplace.serializers import ProductSerializer
 
 class PaymentConfirmationViewSet(viewsets.ModelViewSet):
-    queryset = PaymentConfirmation.objects.select_related('user', 'tier').all()
     serializer_class = PaymentConfirmationSerializer
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    def get_queryset(self):
+        qs = PaymentConfirmation.objects.select_related('user', 'tier').all().order_by('-created_at')
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        return qs
 
     @decorators.action(detail=True, methods=['post'])
     def verify(self, request, pk=None):
@@ -618,9 +624,16 @@ class PaymentConfirmationViewSet(viewsets.ModelViewSet):
 
 
 class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
-    queryset = CommissionPayment.objects.select_related('invoice__seller', 'reviewed_by').all()
     serializer_class = StaffCommissionPaymentSerializer
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    def get_queryset(self):
+        qs = CommissionPayment.objects.select_related('invoice__seller', 'reviewed_by').all().order_by('-created_at')
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            # Note: models define STATUS_CHOICES as uppercase strings like 'PENDING'
+            qs = qs.filter(status=status_filter.upper())
+        return qs
 
     @decorators.action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
