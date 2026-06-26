@@ -628,7 +628,7 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
 
     def get_queryset(self):
-        qs = CommissionPayment.objects.select_related('invoice__seller', 'reviewed_by').all().order_by('-created_at')
+        qs = CommissionPayment.objects.select_related('invoice__seller', 'reviewed_by').all().order_by('-submitted_at')
         status_filter = self.request.query_params.get('status')
         if status_filter:
             # Note: models define STATUS_CHOICES as uppercase strings like 'PENDING'
