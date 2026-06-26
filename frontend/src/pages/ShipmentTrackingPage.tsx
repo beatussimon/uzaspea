@@ -158,7 +158,7 @@ export const ShipmentTrackingPage: React.FC = () => {
     };
 
     ws.onclose = () => {
-      console.log("WebSocket disconnected");
+      // WebSocket disconnected
     };
 
     return () => {

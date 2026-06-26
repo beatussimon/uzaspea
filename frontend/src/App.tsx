@@ -34,6 +34,7 @@ const InspectionLayout = lazy(() => import('./pages/inspections/InspectionLayout
 const InspectorLayout = lazy(() => import('./pages/inspections/InspectorLayout'));
 const SellerUpgradePage = lazy(() => import('./pages/SellerUpgradePage'));
 const ShipmentTrackingPage = lazy(() => import('./pages/ShipmentTrackingPage'));
+const HelpCenterPage = lazy(() => import('./pages/dashboard/HelpCenterPage'));
 
 // Fallback loader for Lazy views
 const SuspenseLoader = () => (
@@ -111,6 +112,7 @@ function App() {
                         </ProtectedRoute>
                       } />
                       <Route path="/verify/:inspection_id" element={<PublicVerifyPage />} />
+                      <Route path="/help" element={<HelpCenterPage />} />
 
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/register" element={<RegisterPage />} />

@@ -28,7 +28,7 @@ const CartPage: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Shopping Cart</h1>
         <button
-          onClick={clearCart}
+          onClick={() => { if (window.confirm('Remove all items from your cart?')) clearCart(); }}
           className="text-sm text-red-500 hover:text-red-700 transition"
         >
           Clear All
