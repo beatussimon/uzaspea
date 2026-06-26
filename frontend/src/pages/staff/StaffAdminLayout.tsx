@@ -330,7 +330,7 @@ const PlatformUserExplorer: React.FC = () => {
 
   const handleToggleActive = async (id: number) => {
     try {
-      const res = await api.post(`/api/staff/users/${id}/toggle_active//`);
+      const res = await api.post(`/api/staff/users/${id}/toggle_active/`);
       toast.success(res.data.is_active ? 'User unbanned' : 'User banned');
       fetchUsers();
     } catch {
@@ -340,7 +340,7 @@ const PlatformUserExplorer: React.FC = () => {
 
   const handleToggleVerified = async (id: number) => {
     try {
-      const res = await api.post(`/api/staff/users/${id}/toggle_verified//`);
+      const res = await api.post(`/api/staff/users/${id}/toggle_verified/`);
       toast.success(res.data.is_verified ? 'User verified' : 'User unverified');
       fetchUsers();
     } catch {
@@ -352,7 +352,7 @@ const PlatformUserExplorer: React.FC = () => {
     const level = prompt('Select inspector level (junior, senior, specialist):', 'junior');
     if (!level) return;
     try {
-      await api.post(`/api/staff/users/${id}/promote_inspector//`, { level });
+      await api.post(`/api/staff/users/${id}/promote_inspector/`, { level });
       toast.success(`User promoted to ${level} inspector`);
       fetchUsers();
     } catch {
@@ -365,7 +365,7 @@ const PlatformUserExplorer: React.FC = () => {
     const makeSuper = confirm(`Make this user superuser? (Current: ${currentSuper ? 'YES' : 'NO'})`);
     
     try {
-      await api.post(`/api/staff/users/${id}/change_role//`, { is_staff: makeStaff, is_superuser: makeSuper });
+      await api.post(`/api/staff/users/${id}/change_role/`, { is_staff: makeStaff, is_superuser: makeSuper });
       toast.success('User roles updated');
       fetchUsers();
     } catch {
