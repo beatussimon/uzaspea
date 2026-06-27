@@ -298,9 +298,18 @@ const SellerUpgradePage: React.FC = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Congratulations! Your request has been approved. You now have full access to your seller dashboard.
                 </p>
-                <Link to="/dashboard" className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider shadow-lg shadow-brand-600/20">
+                <button onClick={async () => {
+                  const refresh = localStorage.getItem('refresh_token');
+                  if (refresh) {
+                    try {
+                      const res = await api.post('/api/auth/token/refresh/', { refresh });
+                      localStorage.setItem('access_token', res.data.access);
+                    } catch (e) {}
+                  }
+                  window.location.href = '/dashboard';
+                }} className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider shadow-lg shadow-brand-600/20">
                   Access Dashboard <ArrowRight size={16} />
-                </Link>
+                </button>
               </div>
             )}
 
