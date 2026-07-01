@@ -10,20 +10,7 @@ from marketplace.models import Order
 from marketplace.services import OrderStateMachine
 from uzachuo.permissions import IsStaffMember
 
-def is_vehicle_category(category):
-    if not category:
-        return False
-    if category.name.lower() == 'vehicles' or category.slug.lower() == 'vehicles':
-        return True
-    if category.parent:
-        return is_vehicle_category(category.parent)
-    return False
-
-def order_has_vehicles(order):
-    for item in order.orderitem_set.select_related('product__category').all():
-        if is_vehicle_category(item.product.category):
-            return True
-    return False
+from .utils import is_vehicle_category, order_has_vehicles
 
 
 class DeliveryOptionViewSet(viewsets.ReadOnlyModelViewSet):
@@ -81,14 +68,27 @@ class ShipmentViewSet(viewsets.ModelViewSet):
             return Response({'error': 'No location ping found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(LocationPingSerializer(ping).data)
 
+    @action(detail=False, methods=['get'])
+    def drivers(self, request):
+        from django.contrib.auth.models import User
+        from django.db.models import Q
+        # Fetch active staff or users with 'driver' in username
+        drivers = User.objects.filter(Q(username__icontains='driver') | Q(is_staff=True), is_active=True)
+        data = [{'id': u.id, 'username': u.username, 'email': u.email} for u in drivers]
+        return Response(data)
+
     def perform_create(self, serializer):
         order = serializer.validated_data['order']
         new_status = serializer.validated_data.get('status', 'pending')
         driver = serializer.validated_data.get('driver', None)
 
         if new_status == 'in_transit':
-            if order_has_vehicles(order) and not driver:
-                raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
+            if order_has_vehicles(order):
+                carrier_type = serializer.validated_data.get('carrier_type', 'driver')
+                if carrier_type == 'driver' and not driver:
+                    raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
+                elif carrier_type == 'third_party' and not serializer.validated_data.get('third_party_driver_info'):
+                    raise ValidationError("Third party driver info must be provided for vehicle-category shipments before transit.")
 
         shipment = serializer.save()
         if new_status == 'in_transit':
@@ -109,8 +109,12 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         driver = serializer.validated_data.get('driver', instance.driver)
 
         if new_status == 'in_transit' and instance.status != 'in_transit':
-            if order_has_vehicles(order) and not driver:
-                raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
+            if order_has_vehicles(order):
+                carrier_type = serializer.validated_data.get('carrier_type', instance.carrier_type)
+                if carrier_type == 'driver' and not driver:
+                    raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
+                elif carrier_type == 'third_party' and not serializer.validated_data.get('third_party_driver_info', instance.third_party_driver_info):
+                    raise ValidationError("Third party driver info must be provided for vehicle-category shipments before transit.")
 
         shipment = serializer.save()
 
@@ -120,10 +124,30 @@ class ShipmentViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
         elif new_status == 'arrived_at_hub' and instance.status != 'arrived_at_hub':
-            try:
-                OrderStateMachine.transition_order(order, 'ARRIVED_AT_REGIONAL_WAREHOUSE', notes="Shipment arrived at regional hub.")
-            except Exception:
-                pass
+            # Hand off visibility to destination warehouse if this was a transfer
+            from warehouses.models import WarehouseTransfer
+            transfer = WarehouseTransfer.objects.filter(order=order).order_by('-id').first()
+            if transfer:
+                if transfer.status != 'completed':
+                    transfer.status = 'completed'
+                    transfer.received_at = timezone.now()
+                    transfer.save()
+                
+                if not order.delivery_info:
+                    order.delivery_info = {}
+                order.delivery_info['warehouse_code'] = transfer.destination_warehouse.code
+                order.save(update_fields=['delivery_info'])
+
+            if order_has_vehicles(order):
+                try:
+                    OrderStateMachine.transition_order(order, 'READY_FOR_VEHICLE_HANDOVER', notes="Vehicle arrived at local hub and is ready for handover.")
+                except Exception:
+                    pass
+            else:
+                try:
+                    OrderStateMachine.transition_order(order, 'ARRIVED_AT_REGIONAL_WAREHOUSE', notes="Shipment arrived at regional hub.")
+                except Exception:
+                    pass
         elif new_status == 'delivered' and instance.status != 'delivered':
             try:
                 OrderStateMachine.transition_order(order, 'DELIVERED', notes="Shipment delivered to destination.")
@@ -134,6 +158,44 @@ class ShipmentViewSet(viewsets.ModelViewSet):
                 OrderStateMachine.transition_order(order, 'ASSIGNED_TRANSPORT', notes="Transport has been assigned for this shipment.")
             except Exception:
                 pass
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def confirm_delivery(self, request, pk=None):
+        shipment = self.get_object()
+        user = request.user
+        
+        # Check permissions: only assigned driver or staff
+        is_staff = user.is_superuser or (hasattr(user, 'staff_profile') and user.staff_profile.is_active)
+        if not is_staff and shipment.driver != user:
+            return Response({'error': 'You are not authorized to confirm this delivery.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        code = request.data.get('code')
+        if not code:
+            return Response({'error': 'Delivery code is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if shipment.order.delivery_code != code:
+            return Response({'error': 'Incorrect delivery code. Please verify with the customer.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if shipment.status == 'delivered':
+            return Response({'error': 'Shipment is already delivered.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        shipment.status = 'delivered'
+        shipment.save()
+        
+        # Once the correct code is provided, the delivery is guaranteed complete.
+        # Transition the order directly to COMPLETED to trigger payouts and prompt user for rating.
+        from marketplace.services import OrderStateMachine
+        try:
+            OrderStateMachine.transition_order(shipment.order, 'COMPLETED', notes="Delivery confirmed via secure code.")
+        except Exception as e:
+            # If for some reason it fails (e.g. state machine rules), we'll try DELIVERED first, then COMPLETED.
+            try:
+                OrderStateMachine.transition_order(shipment.order, 'DELIVERED', notes="Shipment delivered to destination.")
+                OrderStateMachine.transition_order(shipment.order, 'COMPLETED', notes="Delivery confirmed via secure code.")
+            except Exception:
+                pass
+        
+        return Response({'status': 'Delivery confirmed successfully.'})
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def ping(self, request, pk=None):

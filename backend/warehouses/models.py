@@ -18,12 +18,28 @@ class Warehouse(models.Model):
         return f"{self.name} ({self.code})"
 
 
+class HistoricalRoutePricing(models.Model):
+    origin_warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='origin_prices')
+    destination_warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='destination_prices')
+    average_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    data_points = models.PositiveIntegerField(default=0)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('origin_warehouse', 'destination_warehouse')
+
+    def __str__(self):
+        return f"{self.origin_warehouse.code} -> {self.destination_warehouse.code}: {self.average_cost}"
+
+
 class WarehouseIntake(models.Model):
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name='intakes')
     order = models.ForeignKey('marketplace.Order', on_delete=models.CASCADE, related_name='warehouse_intakes')
     intake_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='warehouse_intakes')
     package_condition = models.CharField(max_length=50, default='good')
     photo = models.ImageField(upload_to='warehouse_intakes/', blank=True, null=True)
+    seller_signature = models.TextField(blank=True, null=True, help_text="Base64 encoded seller signature")
+    staff_signature = models.TextField(blank=True, null=True, help_text="Base64 encoded staff signature")
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -48,3 +64,34 @@ class WarehouseTransfer(models.Model):
 
     def __str__(self):
         return f"Transfer of Order #{self.order_id} from {self.source_warehouse.name} to {self.destination_warehouse.name}"
+
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=WarehouseIntake)
+def auto_route_intake(sender, instance, created, **kwargs):
+    if created:
+        order = instance.order
+        current_warehouse = instance.warehouse
+        
+        # 1. Auto-create Shipment if one does not exist
+        from logistics.models import Shipment
+        Shipment.objects.get_or_create(
+            order=order,
+            defaults={'status': 'pending', 'carrier_type': 'driver'}
+        )
+        
+        # 2. Check if a warehouse transfer is required (i.e. destination warehouse is different from current)
+        dest_code = order.delivery_info.get('warehouse_code') if order.delivery_info else None
+        if dest_code and dest_code != current_warehouse.code:
+            try:
+                dest_warehouse = Warehouse.objects.get(code=dest_code)
+                WarehouseTransfer.objects.get_or_create(
+                    order=order,
+                    source_warehouse=current_warehouse,
+                    destination_warehouse=dest_warehouse,
+                    defaults={'status': 'pending'}
+                )
+            except Warehouse.DoesNotExist:
+                pass

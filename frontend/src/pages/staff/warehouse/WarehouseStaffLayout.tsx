@@ -1,70 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../api';
 import toast from 'react-hot-toast';
-import { Package, Camera, Upload, CheckCircle, FileText, MapPin, Key, ShieldCheck, Clock } from 'lucide-react';
+import { 
+  Package, CheckCircle, Clock, Truck, QrCode, X, Search, Activity, Camera, PenTool, ShieldCheck, Key, MapPin
+} from 'lucide-react';
+import SignatureCanvas from 'react-signature-canvas';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { useOrderTracking } from '../../../hooks/useOrderTracking';
 
 const WarehouseStaffLayout: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'intake' | 'pickup' | 'transfers'>('intake');
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
-  const [orderId, setOrderId] = useState('');
+  
+  // Queues
+  const [pendingIntakes, setPendingIntakes] = useState<any[]>([]);
+  const [receivedIntakes, setReceivedIntakes] = useState<any[]>([]);
+  const [awaitingPayments, setAwaitingPayments] = useState<any[]>([]);
+  const [outboundOrders, setOutboundOrders] = useState<any[]>([]);
+  const [readyForPickup, setReadyForPickup] = useState<any[]>([]);
+
+  // Smart Filters
+  const [queueFilter, setQueueFilter] = useState<'all' | 'origin' | 'destination'>('all');
+  const [loading, setLoading] = useState(true);
+
+  // Smart Scan
+  const [scanQuery, setScanQuery] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+
+  // Modals & Context
+  const [activeModal, setActiveModal] = useState<'intake' | 'origin_intake' | 'destination_intake' | 'last_mile_sorting' | 'pricing' | 'dispatch' | 'pickup' | 'verify' | null>(null);
+  const [orderPreview, setOrderPreview] = useState<any>(null);
+
+  // Intake Form State
   const [condition, setCondition] = useState('good');
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [requireSignatures, setRequireSignatures] = useState(true);
+  const sellerSigRef = useRef<SignatureCanvas>(null);
+  const staffSigRef = useRef<SignatureCanvas>(null);
+
+  // Pricing Form State
+  const [deliveryFee, setDeliveryFee] = useState('');
+  const [destinationWarehouseCode, setDestinationWarehouseCode] = useState('');
+
+  // Pickup Form State
+  const [pickupCode, setPickupCode] = useState('');
+
   const [submitting, setSubmitting] = useState(false);
 
-  // Pickup Verification States
-  const [pickupCode, setPickupCode] = useState('');
-  const [verifyingPickup, setVerifyingPickup] = useState(false);
-
-  // Transfers States
-  const [transfers, setTransfers] = useState<any[]>([]);
-  const [loadingTransfers, setLoadingTransfers] = useState(false);
-  const [transferOrderId, setTransferOrderId] = useState('');
-  const [destWarehouseId, setDestWarehouseId] = useState('');
-  const [creatingTransfer, setCreatingTransfer] = useState(false);
-
-  // Pending Intakes Queue States
-  const [pendingIntakes, setPendingIntakes] = useState<any[]>([]);
-  const [loadingQueue, setLoadingQueue] = useState(false);
-
-  const fetchPendingQueue = async (whId: string) => {
-    if (!whId) return;
-    setLoadingQueue(true);
-    try {
-      const res = await api.get(`/api/warehouses/warehouses/${whId}/pending-intakes/`);
-      setPendingIntakes(res.data.results || res.data || []);
-    } catch {
-      toast.error('Failed to load pending queue');
-    } finally {
-      setLoadingQueue(false);
-    }
-  };
-
-  const fetchTransfers = async (whId: string) => {
-    if (!whId) return;
-    setLoadingTransfers(true);
-    try {
-      const res = await api.get(`/api/warehouses/transfers/?warehouse=${whId}`);
-      setTransfers(res.data.results || res.data || []);
-    } catch {
-      toast.error('Failed to load warehouse transfers');
-    } finally {
-      setLoadingTransfers(false);
-    }
-  };
-
+  // Initialize
   useEffect(() => {
-    // Load warehouses list
     api.get('/api/warehouses/warehouses/')
       .then(res => {
         const list = res.data.results || res.data || [];
         setWarehouses(list);
         if (list.length > 0) {
           const savedId = localStorage.getItem('sokonimax_warehouse_id');
-          const exists = list.some((w: any) => w.id.toString() === savedId);
-          if (savedId && exists) {
+          if (savedId && list.some((w: any) => w.id.toString() === savedId)) {
             setSelectedWarehouseId(savedId);
           } else {
             setSelectedWarehouseId(list[0].id.toString());
@@ -74,541 +70,846 @@ const WarehouseStaffLayout: React.FC = () => {
       .catch(() => toast.error('Failed to load warehouses list'));
   }, []);
 
+  // Fetch all queues
+  const fetchAllQueues = async (whId: string) => {
+    if (!whId) return;
+    setLoading(true);
+    try {
+      const [pendingRes, pricingRes, waitingRes, dispatchRes, pickupRes] = await Promise.all([
+        api.get(`/api/warehouses/warehouses/${whId}/pending-intakes/`),
+        api.get(`/api/warehouses/warehouses/${whId}/received-intakes/`),
+        api.get(`/api/warehouses/warehouses/${whId}/awaiting-payment/`),
+        api.get(`/api/warehouses/warehouses/${whId}/outbound-queue/`),
+        api.get(`/api/warehouses/warehouses/${whId}/ready-for-pickup/`)
+      ]);
+      setPendingIntakes(pendingRes.data.results || pendingRes.data || []);
+      setReceivedIntakes(pricingRes.data.results || pricingRes.data || []);
+      setAwaitingPayments(waitingRes.data.results || waitingRes.data || []);
+      setOutboundOrders(dispatchRes.data.results || dispatchRes.data || []);
+      setReadyForPickup(pickupRes.data.results || pickupRes.data || []);
+    } catch (err) {
+      toast.error('Failed to sync warehouse data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedWarehouseId) {
       localStorage.setItem('sokonimax_warehouse_id', selectedWarehouseId);
-      fetchPendingQueue(selectedWarehouseId);
-      fetchTransfers(selectedWarehouseId);
+      fetchAllQueues(selectedWarehouseId);
+      const interval = setInterval(() => fetchAllQueues(selectedWarehouseId), 30000);
+      return () => clearInterval(interval);
     }
   }, [selectedWarehouseId]);
 
-  const handleCreateTransfer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedWarehouseId || !destWarehouseId || !transferOrderId) {
-      toast.error('All fields are required.');
-      return;
-    }
-    if (selectedWarehouseId === destWarehouseId) {
-      toast.error('Source and destination warehouse cannot be the same.');
-      return;
-    }
-    setCreatingTransfer(true);
+  const currentWh = warehouses.find(w => w.id.toString() === selectedWarehouseId);
+  useOrderTracking(currentWh?.code ? `warehouse_${currentWh.code}` : 'none', () => {
+    if (selectedWarehouseId) fetchAllQueues(selectedWarehouseId);
+  });
+
+  const applyFilter = (list: any[]) => {
+    if (queueFilter === 'all') return list;
+    return list.filter(order => {
+      const isDestination = order.delivery_info?.destination_warehouse_code === currentWh?.code;
+      if (queueFilter === 'destination') return isDestination;
+      return !isDestination;
+    });
+  };
+
+  // Handle Smart Scan
+  const processScan = async (queryText: string) => {
+    if (!queryText.trim()) return;
+    setScanning(true);
     try {
-      await api.post('/api/warehouses/transfers/', {
-        source_warehouse: selectedWarehouseId,
-        destination_warehouse: destWarehouseId,
-        order: transferOrderId,
-        status: 'pending'
-      });
-      toast.success('Warehouse transfer created successfully!');
-      setTransferOrderId('');
-      fetchTransfers(selectedWarehouseId);
+      const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${queryText.trim()}`);
+      const order = res.data;
+      setOrderPreview(order);
+      setScanQuery('');
+      scanInputRef.current?.blur();
+
+      switch (order.status) {
+        case 'SHIPPED_TO_WAREHOUSE':
+          setActiveModal('origin_intake');
+          break;
+        case 'IN_TRANSIT':
+          setActiveModal('destination_intake');
+          break;
+        case 'ARRIVED_AT_REGIONAL_WAREHOUSE':
+          setActiveModal('last_mile_sorting');
+          break;
+        case 'RECEIVED_AT_WAREHOUSE':
+          setActiveModal('pricing');
+          break;
+        case 'ASSIGNED_TRANSPORT':
+          setActiveModal('dispatch');
+          break;
+        case 'READY_FOR_PICKUP':
+          setActiveModal('pickup');
+          break;
+        default:
+          toast.error(`Order #${order.id} is in status ${order.status}, no action needed at this station.`);
+          setOrderPreview(null);
+      }
     } catch (err: any) {
-      const msg = err.response?.data?.detail || err.response?.data?.error || 'Failed to create transfer';
-      toast.error(msg);
+      toast.error(err.response?.data?.error || 'Order not found or invalid barcode.');
     } finally {
-      setCreatingTransfer(false);
+      setScanning(false);
     }
   };
 
-  const handleShipTransfer = async (id: number) => {
-    try {
-      await api.post(`/api/warehouses/transfers/${id}/ship/`);
-      toast.success('Transfer marked as shipped!');
-      fetchTransfers(selectedWarehouseId);
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to ship transfer');
-    }
-  };
-
-  const handleReceiveTransfer = async (id: number) => {
-    try {
-      await api.post(`/api/warehouses/transfers/${id}/receive/`);
-      toast.success('Transfer marked as received!');
-      fetchTransfers(selectedWarehouseId);
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to receive transfer');
-    }
-  };
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setPhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleIntakeSubmit = async (e: React.FormEvent) => {
+  const handleSmartScan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedWarehouseId) {
-      toast.error('Please select a warehouse hub.');
-      return;
-    }
-    if (!orderId) {
-      toast.error('Order ID is required.');
-      return;
-    }
+    await processScan(scanQuery);
+  };
 
+  useEffect(() => {
+    if (showScanner) {
+      const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+      scanner.render(
+        (decodedText) => {
+          setShowScanner(false);
+          scanner.clear();
+          setScanQuery(decodedText);
+          processScan(decodedText);
+        },
+        () => { /* ignore */ }
+      );
+      return () => {
+        scanner.clear().catch(() => {});
+      };
+    }
+  }, [showScanner]);
+
+  const handleActionClick = async (orderId: string, actionType: string) => {
+    setScanning(true);
+    try {
+      const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${orderId}`);
+      const order = res.data;
+      setOrderPreview(order);
+      if (actionType === 'intake') {
+        if (order.status === 'SHIPPED_TO_WAREHOUSE') setActiveModal('origin_intake');
+        else if (order.status === 'IN_TRANSIT' || order.status === 'FAILED_DELIVERY') setActiveModal('destination_intake');
+        else if (order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE') setActiveModal('last_mile_sorting');
+        else setActiveModal('origin_intake');
+      } else {
+        setActiveModal(actionType as any);
+      }
+    } catch {
+      toast.error('Failed to load order details');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  // Intake Submission
+  const submitIntake = async () => {
+    if (requireSignatures && (sellerSigRef.current?.isEmpty() || staffSigRef.current?.isEmpty())) {
+      toast.error('Both signatures are required for handover custody.');
+      return;
+    }
     setSubmitting(true);
     const formData = new FormData();
     formData.append('warehouse', selectedWarehouseId);
-    formData.append('order', orderId);
+    formData.append('order', orderPreview.id.toString());
     formData.append('package_condition', condition);
-    formData.append('notes', notes);
-    if (photo) {
-      formData.append('photo', photo);
-    }
+    formData.append('notes', notes || (requireSignatures ? '' : 'Intake check-in (Signatures bypassed)'));
+    formData.append('seller_signature', requireSignatures ? sellerSigRef.current?.toDataURL() || '' : '');
+    formData.append('staff_signature', requireSignatures ? staffSigRef.current?.toDataURL() || '' : '');
+    if (photo) formData.append('photo', photo);
 
     try {
-      await api.post('/api/warehouses/intakes/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      toast.success(`Order #${orderId} checked into warehouse successfully!`);
-      // Reset form
-      setOrderId('');
-      setNotes('');
-      setPhoto(null);
-      setPhotoPreview(null);
+      await api.post('/api/warehouses/intakes/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success(`Order #${orderPreview.id} securely checked into warehouse!`);
+      closeModal();
+      fetchAllQueues(selectedWarehouseId);
     } catch (err: any) {
-      const errMsg = err.response?.data?.detail || err.response?.data?.error || 'Failed to record warehouse intake. Make sure the order exists and is in the correct state (e.g. Shipped to Warehouse).';
-      toast.error(errMsg);
+      toast.error(err.response?.data?.detail || err.response?.data?.error || 'Failed to record intake.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handlePickupVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pickupCode || pickupCode.length !== 6) {
-      toast.error('Please enter a valid 6-digit pickup code.');
+  // Pricing Submission
+  const submitPricing = async () => {
+    if (!destinationWarehouseCode) {
+      toast.error('Please select a destination warehouse.');
       return;
     }
-
-    setVerifyingPickup(true);
+    if (!deliveryFee || isNaN(Number(deliveryFee))) {
+      toast.error('Please enter a valid amount.');
+      return;
+    }
+    setSubmitting(true);
     try {
-      const res = await api.post('/api/warehouses/pickup/verify/', { code: pickupCode });
-      toast.success(`Order #${res.data.order_id} verified and released successfully!`);
-      setPickupCode('');
+      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/set-delivery-fee/`, {
+        order_id: orderPreview.id,
+        fee: Number(deliveryFee),
+        destination_warehouse: destinationWarehouseCode
+      });
+      toast.success('Delivery fee confirmed!');
+      closeModal();
+      fetchAllQueues(selectedWarehouseId);
     } catch (err: any) {
-      const errMsg = err.response?.data?.detail || err.response?.data?.error || 'Failed to verify pickup code. Please make sure the code is correct and has not been used.';
-      toast.error(errMsg);
+      toast.error(err.response?.data?.error || 'Failed to set fee.');
     } finally {
-      setVerifyingPickup(false);
+      setSubmitting(false);
     }
   };
 
+  // Dispatch Submission
+  const submitDispatch = async () => {
+    setSubmitting(true);
+    try {
+      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/dispatch-order/`, {
+        order_id: orderPreview.id
+      });
+      toast.success('Order dispatched to transport!');
+      closeModal();
+      fetchAllQueues(selectedWarehouseId);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to dispatch order.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Verify Submission
+  const submitVerify = async (status: string) => {
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('status', status);
+      formData.append('notes', 'Payment verified by warehouse staff.');
+      
+      await api.post(`/api/orders/${orderPreview?.id}/advance/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success(status === 'ASSIGNED_TRANSPORT' ? 'Payment verified and assigned to transport!' : 'Payment rejected, customer notified.');
+      closeModal();
+      if (selectedWarehouseId) fetchAllQueues(selectedWarehouseId);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Failed to verify payment');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Pickup Submission
+  const submitPickup = async () => {
+    if (!pickupCode || pickupCode.length !== 6) {
+      toast.error('Please enter 6-digit code.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post('/api/warehouses/pickup/verify/', { code: pickupCode });
+      toast.success(`Order released successfully!`);
+      closeModal();
+      fetchAllQueues(selectedWarehouseId);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Verification failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const closeModal = () => {
+    setActiveModal(null);
+    setOrderPreview(null);
+    setCondition('good');
+    setNotes('');
+    setPhoto(null);
+    setPhotoPreview(null);
+    setDeliveryFee('');
+    setDestinationWarehouseCode('');
+    setPickupCode('');
+  };
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 bg-brand-500/10 text-brand-500 rounded-xl">
-          <Package size={24} />
+    <div className="w-full max-w-7xl mx-auto space-y-8 min-h-screen">
+      
+      {/* Header & Smart Scan */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-brand-500 shadow-[0_0_20px_rgba(249,115,22,0.8)]"></div>
+        <div className="pl-2">
+          <h1 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3">
+            <Activity className="text-brand-500" size={28} />
+            Operations Board
+          </h1>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Active Hub</span>
+            <select
+              className="text-xs font-bold bg-gray-100 dark:bg-neutral-800 border-none rounded-lg px-2 py-1 text-brand-600 dark:text-brand-400 outline-none cursor-pointer"
+              value={selectedWarehouseId}
+              onChange={(e) => setSelectedWarehouseId(e.target.value)}
+            >
+              {warehouses.map(w => (
+                <option key={w.id} value={w.id}>{w.name} ({w.code})</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Warehouse Operations Hub</h2>
-          <p className="text-xs text-gray-500">Manage incoming inventory intakes and secure customer package handovers.</p>
-        </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-neutral-800">
-        <button
-          onClick={() => setActiveTab('intake')}
-          className={`flex-1 py-3 text-center border-b-2 text-sm font-semibold transition-all duration-200 ${
-            activeTab === 'intake'
-              ? 'border-brand-600 text-brand-600 dark:text-white'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
-        >
-          Package Intake
-        </button>
-        <button
-          onClick={() => setActiveTab('pickup')}
-          className={`flex-1 py-3 text-center border-b-2 text-sm font-semibold transition-all duration-200 ${
-            activeTab === 'pickup'
-              ? 'border-brand-600 text-brand-600 dark:text-white'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
-        >
-          Customer Pickup Verification
-        </button>
-        <button
-          onClick={() => setActiveTab('transfers')}
-          className={`flex-1 py-3 text-center border-b-2 text-sm font-semibold transition-all duration-200 ${
-            activeTab === 'transfers'
-              ? 'border-brand-600 text-brand-600 dark:text-white'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
-        >
-          Warehouse Transfers
-        </button>
-      </div>
-
-      {/* Tab 1: Package Intake */}
-      {activeTab === 'intake' && (
-        <div className="space-y-6">
-          <form onSubmit={handleIntakeSubmit} className="card p-6 space-y-6 border-gray-100 dark:border-neutral-800">
-            {/* Select Warehouse */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                <span className="flex items-center gap-2"><MapPin size={16} /> Current Warehouse Hub</span>
-              </label>
-              <select
-                required
-                className="input w-full"
-                value={selectedWarehouseId}
-                onChange={(e) => setSelectedWarehouseId(e.target.value)}
-              >
-                {warehouses.map(w => (
-                  <option key={w.id} value={w.id}>{w.name} ({w.code})</option>
-                ))}
-              </select>
+        {/* Universal Scanner */}
+        <div className="w-full md:w-auto flex items-center gap-2">
+          <form onSubmit={handleSmartScan} className="relative group flex-1">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <QrCode className={`${scanning ? 'animate-pulse text-brand-500' : 'text-gray-400 group-focus-within:text-brand-500'} transition-colors`} size={20} />
             </div>
-
-            {/* Order ID */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                <span className="flex items-center gap-2"><FileText size={16} /> Order ID / Code</span>
-              </label>
-              <input
-                type="number"
-                required
-                placeholder="e.g. 1024"
-                className="input w-full"
-                value={orderId}
-                onChange={(e) => setOrderId(e.target.value)}
-              />
-            </div>
-
-            {/* Condition Check */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Package Condition</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { id: 'good', label: 'Good / Intact', color: 'border-green-500 text-green-600 dark:text-green-400 bg-green-50/20' },
-                  { id: 'opened', label: 'Box Opened', color: 'border-yellow-500 text-yellow-600 dark:text-yellow-400 bg-yellow-50/20' },
-                  { id: 'damaged', label: 'Damaged Pack', color: 'border-red-500 text-red-600 dark:text-red-400 bg-red-50/20' },
-                  { id: 'incomplete', label: 'Missing Item', color: 'border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-50/20' }
-                ].map(cond => {
-                  const active = condition === cond.id;
-                  return (
-                    <button
-                      key={cond.id}
-                      type="button"
-                      onClick={() => setCondition(cond.id)}
-                      className={`py-3 px-2 border rounded-xl text-xs font-bold text-center transition ${
-                        active
-                          ? cond.color + ' ring-2 ring-brand-500'
-                          : 'border-gray-200 dark:border-neutral-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-800'
-                      }`}
-                    >
-                      {cond.label}
-                    </button>
-                  );
-                })}
+            <input
+              ref={scanInputRef}
+              type="text"
+              placeholder="Scan Barcode / Order ID..."
+              value={scanQuery}
+              onChange={(e) => setScanQuery(e.target.value)}
+              disabled={scanning}
+              className="w-full md:w-80 h-14 pl-12 pr-12 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 transition-all shadow-inner disabled:opacity-50"
+            />
+            {scanning && (
+              <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                <div className="animate-spin h-5 w-5 border-2 border-brand-500 border-t-transparent rounded-full" />
               </div>
-            </div>
+            )}
+          </form>
+          <button 
+            type="button"
+            onClick={() => setShowScanner(true)}
+            className="h-14 px-4 bg-brand-100 hover:bg-brand-200 dark:bg-brand-900/30 dark:hover:bg-brand-900/50 text-brand-600 dark:text-brand-400 rounded-2xl flex items-center justify-center transition-colors shadow-sm"
+          >
+            <Camera size={24} />
+          </button>
+        </div>
+      </div>
 
-            {/* Photo Proof */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                <span className="flex items-center gap-2"><Camera size={16} /> Photo Verification Proof</span>
-              </label>
-              <div className="border-2 border-dashed border-gray-200 dark:border-neutral-700 rounded-xl p-6 text-center hover:border-brand-500 transition-colors relative cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  onChange={handlePhotoChange}
+      {/* Smart Filters */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 hide-scrollbar">
+        <button 
+          onClick={() => setQueueFilter('all')}
+          className={`whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-black uppercase tracking-widest transition-all ${queueFilter === 'all' ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-neutral-800 dark:text-gray-400 dark:hover:bg-neutral-700'}`}
+        >
+          All Tasks
+        </button>
+        <button 
+          onClick={() => setQueueFilter('origin')}
+          className={`whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-black uppercase tracking-widest transition-all ${queueFilter === 'origin' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-neutral-800 dark:text-gray-400 dark:hover:bg-neutral-700'}`}
+        >
+          Origin Hub
+        </button>
+        <button 
+          onClick={() => setQueueFilter('destination')}
+          className={`whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-black uppercase tracking-widest transition-all ${queueFilter === 'destination' ? 'bg-green-600 text-white shadow-lg shadow-green-500/30' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-neutral-800 dark:text-gray-400 dark:hover:bg-neutral-700'}`}
+        >
+          Destination Hub
+        </button>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {[
+          { title: 'Awaiting Intake', count: applyFilter(pendingIntakes).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+          { title: 'Pricing Queue', count: applyFilter(receivedIntakes).length, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+          { title: 'Hold Shelf', count: applyFilter(awaitingPayments).length, icon: ShieldCheck, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+          { title: 'Ready to Dispatch', count: applyFilter(outboundOrders).length, icon: Truck, color: 'text-green-500', bg: 'bg-green-500/10' },
+          { title: 'Ready for Pickup', count: applyFilter(readyForPickup).length, icon: Key, color: 'text-purple-500', bg: 'bg-purple-500/10' }
+        ].map((kpi, idx) => (
+          <motion.div 
+            key={kpi.title}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+            className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+          >
+            <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
+              <kpi.icon size={28} />
+            </div>
+            <div>
+              <p className="text-3xl font-black text-gray-900 dark:text-white">{loading ? '-' : kpi.count}</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{kpi.title}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Swimlanes */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        
+        {/* Lane 1: Awaiting Intake */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <Package size={16} /> Awaiting Intake
+          </h3>
+          {loading ? <SkeletonCards /> : applyFilter(pendingIntakes).length === 0 ? <EmptyState text="No pending intakes" /> : (
+            <div className="space-y-3">
+              {applyFilter(pendingIntakes).map(order => (
+                <QueueCard key={order.id} order={order} badge="Inbound" onClick={() => handleActionClick(order.id.toString(), 'intake')} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Lane 2: Pricing Confirmation */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <Clock size={16} /> Delivery Pricing
+          </h3>
+          {loading ? <SkeletonCards /> : applyFilter(receivedIntakes).length === 0 ? <EmptyState text="No pricing tasks" /> : (
+            <div className="space-y-3">
+              {applyFilter(receivedIntakes).map(order => (
+                <QueueCard key={order.id} order={order} badge="Received" onClick={() => handleActionClick(order.id.toString(), 'pricing')} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Lane 3: Hold Shelf */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <ShieldCheck size={16} /> Hold Shelf
+          </h3>
+          {loading ? <SkeletonCards /> : applyFilter(awaitingPayments).length === 0 ? <EmptyState text="No items held" /> : (
+            <div className="space-y-3">
+              {applyFilter(awaitingPayments).map(order => (
+                <QueueCard 
+                  key={order.id} 
+                  order={order} 
+                  badge={order.status === 'PENDING_DELIVERY_VERIFICATION' ? 'Verifying' : 'Hold'} 
+                  onClick={() => {
+                    if (order.status === 'PENDING_DELIVERY_VERIFICATION') {
+                      handleActionClick(order.id.toString(), 'verify');
+                    }
+                  }} 
                 />
-                {photoPreview ? (
-                  <div className="space-y-3 pointer-events-none">
-                    <img src={photoPreview} alt="Intake Proof Preview" className="max-h-48 mx-auto object-contain rounded-lg border dark:border-neutral-800" />
-                    <p className="text-xs text-brand-600 font-bold flex items-center justify-center gap-1">
-                      <CheckCircle size={14} /> {photo?.name}
-                    </p>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Lane 4: Dispatch Queue */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <Truck size={16} /> Dispatch Queue
+          </h3>
+          {loading ? <SkeletonCards /> : applyFilter(outboundOrders).length === 0 ? <EmptyState text="No dispatch tasks" /> : (
+            <div className="space-y-3">
+              {applyFilter(outboundOrders).map(order => (
+                <QueueCard key={order.id} order={order} badge="Ready" onClick={() => handleActionClick(order.id.toString(), 'dispatch')} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Lane 5: Ready for Pickup */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <Key size={16} /> Ready for Pickup
+          </h3>
+          {loading ? <SkeletonCards /> : applyFilter(readyForPickup).length === 0 ? <EmptyState text="No pickups" /> : (
+            <div className="space-y-3">
+              {applyFilter(readyForPickup).map(order => (
+                <QueueCard key={order.id} order={order} badge="Pickup" onClick={() => handleActionClick(order.id.toString(), 'pickup')} />
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* MODALS */}
+      <AnimatePresence>
+        {activeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-neutral-900 rounded-3xl w-full max-w-2xl shadow-2xl relative flex flex-col max-h-[90vh]"
+            >
+              <button onClick={closeModal} className="absolute top-4 right-4 p-2 bg-gray-100 dark:bg-neutral-800 rounded-full text-gray-500 hover:text-gray-900 dark:hover:text-white transition z-10">
+                <X size={20} />
+              </button>
+
+              <div className="p-6 md:p-8 overflow-y-auto flex-1">
+                {/* Modal Header */}
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-16 h-16 rounded-2xl bg-brand-500/10 flex items-center justify-center text-brand-500">
+                    {activeModal === 'intake' && <Package size={32} />}
+                    {activeModal === 'pricing' && <Clock size={32} />}
+                    {activeModal === 'dispatch' && <Truck size={32} />}
+                    {activeModal === 'verify' && <ShieldCheck size={32} />}
                   </div>
-                ) : (
-                  <div className="space-y-2 pointer-events-none">
-                    <Upload className="mx-auto text-gray-400" size={24} />
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Click to capture photo using camera or upload file
+                  <div>
+                    <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                      {activeModal === 'origin_intake' && 'Package Intake (From Seller)'}
+                      {activeModal === 'destination_intake' && 'Regional Hub Receipt'}
+                      {activeModal === 'last_mile_sorting' && 'Last-Mile Sorting'}
+                      {activeModal === 'pricing' && 'Confirm Pricing'}
+                      {activeModal === 'dispatch' && 'Dispatch Transfer'}
+                      {activeModal === 'pickup' && 'Verify Pickup'}
+                      {activeModal === 'verify' && 'Verify Payment'}
+                    </h2>
+                    <p className="text-sm text-gray-500 font-bold">Order #{orderPreview?.id}</p>
+                  </div>
+                </div>
+
+                {/* Context Details */}
+                <div className="bg-gray-50 dark:bg-neutral-800/50 rounded-2xl p-5 mb-8 grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Product</p>
+                    <p className="font-bold text-gray-900 dark:text-white">{orderPreview?.product_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Buyer</p>
+                    <p className="font-bold text-gray-900 dark:text-white">{orderPreview?.buyer_name}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Seller / Vendor</p>
+                    <p className="font-bold text-gray-900 dark:text-white">{orderPreview?.seller_name}</p>
+                  </div>
+                </div>
+
+                {/* Origin Intake Specific */}
+                {activeModal === 'origin_intake' && (
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Condition</label>
+                      <select 
+                        className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold outline-none"
+                        value={condition} onChange={e => setCondition(e.target.value)}
+                      >
+                        <option value="good">Good (No damage)</option>
+                        <option value="damaged">Damaged (Issues present)</option>
+                        <option value="needs_repack">Needs Repackaging</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Package Photo (Optional)</label>
+                      <label className="border-2 border-dashed border-gray-300 dark:border-neutral-700 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition">
+                        <Camera size={24} className="text-gray-400 mb-2" />
+                        <span className="text-sm font-bold text-gray-600 dark:text-gray-300">Tap to upload photo</span>
+                        <input type="file" className="hidden" accept="image/*" onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            setPhoto(e.target.files[0]);
+                            setPhotoPreview(URL.createObjectURL(e.target.files[0]));
+                          }
+                        }} />
+                      </label>
+                      {photoPreview && <img src={photoPreview} alt="Preview" className="w-full h-32 object-cover rounded-xl mt-2" />}
+                    </div>
+
+                    <div className="flex items-center gap-3 bg-brand-50 dark:bg-brand-900/20 p-4 rounded-xl cursor-pointer" onClick={() => setRequireSignatures(!requireSignatures)}>
+                      <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${requireSignatures ? 'bg-brand-500 text-white' : 'bg-gray-200 dark:bg-neutral-700'}`}>
+                        {requireSignatures && <CheckCircle size={14} />}
+                      </div>
+                      <span className="text-sm font-bold text-brand-700 dark:text-brand-400">Require Physical Signatures</span>
+                    </div>
+
+                    {requireSignatures && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Courier/Seller Signature</label>
+                          <div className="border-2 border-gray-100 dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
+                            <SignatureCanvas ref={sellerSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
+                          </div>
+                          <button type="button" onClick={() => sellerSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Staff Signature</label>
+                          <div className="border-2 border-gray-100 dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
+                            <SignatureCanvas ref={staffSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
+                          </div>
+                          <button type="button" onClick={() => staffSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
+                        </div>
+                      </div>
+                    )}
+
+                    <button onClick={submitIntake} disabled={submitting} className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6">
+                      {submitting ? 'Checking In...' : 'Confirm Intake'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Destination Intake Specific */}
+                {activeModal === 'destination_intake' && (
+                  <div className="space-y-6">
+                    <p className="text-sm text-gray-600 dark:text-gray-300 font-bold mb-4">
+                      Please confirm receipt from the regional transport driver. A photo of the package is required.
                     </p>
-                    <p className="text-[10px] text-gray-400">Support mobile camera snapshots</p>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Condition After Transit</label>
+                      <select 
+                        className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold outline-none"
+                        value={condition} onChange={e => setCondition(e.target.value)}
+                      >
+                        <option value="good">Good (No damage)</option>
+                        <option value="damaged">Damaged (Issues present)</option>
+                        <option value="needs_repack">Needs Repackaging</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-brand-500 uppercase tracking-wider flex items-center gap-2">
+                        Package Photo (Required) *
+                      </label>
+                      <label className="border-2 border-dashed border-brand-300 dark:border-brand-700 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-brand-50 dark:hover:bg-brand-900/20 transition">
+                        <Camera size={24} className="text-brand-500 mb-2" />
+                        <span className="text-sm font-bold text-brand-600 dark:text-brand-400">Tap to upload photo</span>
+                        <input type="file" className="hidden" accept="image/*" onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            setPhoto(e.target.files[0]);
+                            setPhotoPreview(URL.createObjectURL(e.target.files[0]));
+                          }
+                        }} />
+                      </label>
+                      {photoPreview && <img src={photoPreview} alt="Preview" className="w-full h-32 object-cover rounded-xl mt-2" />}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Transport Driver Signature</label>
+                        <div className="border-2 border-gray-100 dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
+                          <SignatureCanvas ref={sellerSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
+                        </div>
+                        <button type="button" onClick={() => sellerSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Staff Signature</label>
+                        <div className="border-2 border-gray-100 dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
+                          <SignatureCanvas ref={staffSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
+                        </div>
+                        <button type="button" onClick={() => staffSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => {
+                        if (!photo) {
+                          toast.error('A package photo is required for destination hub receipt.');
+                          return;
+                        }
+                        if (sellerSigRef.current?.isEmpty() || staffSigRef.current?.isEmpty()) {
+                          toast.error('Both signatures are required for transport handover.');
+                          return;
+                        }
+                        setRequireSignatures(true);
+                        submitIntake();
+                      }} 
+                      disabled={submitting} 
+                      className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6"
+                    >
+                      {submitting ? 'Confirming Receipt...' : 'Confirm Hub Receipt'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Last-Mile Sorting Specific */}
+                {activeModal === 'last_mile_sorting' && (
+                  <div className="space-y-6">
+                    <p className="text-gray-600 dark:text-gray-300 font-bold text-center">
+                      This package is ready to be sorted for final delivery.
+                    </p>
+                    <div className="bg-gray-50 dark:bg-neutral-800 p-6 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
+                      {orderPreview?.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE' && (
+                        <>
+                          <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-500">
+                            <MapPin size={32} />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-black text-gray-900 dark:text-white">Sort for Last-Mile</h3>
+                            <p className="text-sm text-gray-500 mt-1">Assign to courier or pickup shelf.</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <button 
+                      onClick={() => {
+                        setRequireSignatures(false);
+                        submitIntake();
+                      }} 
+                      disabled={submitting} 
+                      className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-blue-500/30 mt-6 flex items-center justify-center gap-2"
+                    >
+                      <Truck size={20} /> {submitting ? 'Sorting...' : 'Confirm Sorting Complete'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Pricing Specific */}
+                {activeModal === 'pricing' && (
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Destination Warehouse</label>
+                      <select 
+                        value={destinationWarehouseCode}
+                        onChange={e => setDestinationWarehouseCode(e.target.value)}
+                        className="w-full text-lg font-bold bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 outline-none"
+                      >
+                        <option value="" disabled>-- Select Destination --</option>
+                        {warehouses.map(w => (
+                          <option key={w.code} value={w.code}>{w.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Actual Delivery Fee (TSh)</label>
+                      <input 
+                        type="number"
+                        placeholder="e.g. 5000"
+                        value={deliveryFee}
+                        onChange={e => setDeliveryFee(e.target.value)}
+                        className="w-full text-2xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-4 outline-none"
+                      />
+                    </div>
+                    <button onClick={submitPricing} disabled={submitting} className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-amber-500/30 mt-6">
+                      {submitting ? 'Setting...' : 'Confirm & Notify Customer'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Dispatch Specific */}
+                {activeModal === 'dispatch' && (
+                  <div className="space-y-6">
+                    <p className="text-gray-600 dark:text-gray-300 font-medium text-center">
+                      {orderPreview?.delivery_info?.current_warehouse_code === orderPreview?.delivery_info?.destination_warehouse_code
+                        ? 'This package will be handed over to the local courier for final delivery to the customer.'
+                        : 'The package will be handed over to the regional transport vehicle. Are you sure you want to mark this as In Transit?'}
+                    </p>
+                    <button onClick={submitDispatch} disabled={submitting} className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30 mt-6 flex justify-center items-center gap-2">
+                      <Truck size={24} />
+                      {submitting ? 'Dispatching...' : (
+                        orderPreview?.delivery_info?.current_warehouse_code === orderPreview?.delivery_info?.destination_warehouse_code
+                          ? 'Handover to Local Courier'
+                          : 'Handover to Regional Transport'
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Pickup Specific */}
+                {activeModal === 'pickup' && (
+                  <div className="space-y-6">
+                    <div className="space-y-2 text-center">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer 6-Digit PIN</label>
+                      <input 
+                        type="text"
+                        maxLength={6}
+                        placeholder="••••••"
+                        value={pickupCode}
+                        onChange={e => setPickupCode(e.target.value.toUpperCase())}
+                        className="w-full text-center tracking-[1em] text-4xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-6 outline-none uppercase"
+                      />
+                    </div>
+                    <button onClick={submitPickup} disabled={submitting} className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6 flex justify-center items-center gap-2">
+                      <ShieldCheck size={24} /> {submitting ? 'Verifying...' : 'Verify & Release'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Verify Specific */}
+                {activeModal === 'verify' && (
+                  <div className="space-y-6">
+                    {(() => {
+                       const payment = orderPreview?.payments?.find((p: any) => p.status === 'PENDING_VERIFICATION');
+                       if (!payment) return <p className="text-sm text-gray-500 text-center">No pending payment records found.</p>;
+                       return (
+                         <div className="space-y-4">
+                            <div className="bg-gray-50 dark:bg-neutral-800 p-4 rounded-xl space-y-2">
+                               <p className="text-xs font-bold text-gray-500 uppercase">Transaction ID</p>
+                               <p className="font-mono text-lg font-bold dark:text-white bg-gray-100 dark:bg-neutral-900 px-3 py-2 rounded-lg inline-block">{payment.transaction_id || 'N/A'}</p>
+                            </div>
+                            
+                            {payment.proof_image && (
+                              <div className="space-y-2">
+                                 <p className="text-xs font-bold text-gray-500 uppercase">Proof Image</p>
+                                 <a href={payment.proof_image} target="_blank" rel="noreferrer" className="block w-full overflow-hidden rounded-xl border border-gray-200 dark:border-neutral-700 hover:opacity-90 transition">
+                                    <img src={payment.proof_image} alt="Proof" className="w-full object-contain max-h-64 bg-black/5" />
+                                 </a>
+                              </div>
+                            )}
+
+                            <div className="flex gap-3 pt-4">
+                               <button onClick={() => submitVerify('ASSIGNED_TRANSPORT')} disabled={submitting} className="flex-1 py-4 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl text-sm md:text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30">
+                                 {submitting ? 'Processing...' : 'Verify & Assign Transport'}
+                               </button>
+                               <button onClick={() => submitVerify('AWAITING_DELIVERY_PAYMENT')} disabled={submitting} className="flex-1 py-4 bg-red-100 hover:bg-red-200 text-red-600 font-black rounded-xl text-sm md:text-lg uppercase tracking-widest transition-colors">
+                                 Reject
+                               </button>
+                            </div>
+                         </div>
+                       );
+                    })()}
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Intake Logs / Notes</label>
-              <textarea
-                rows={3}
-                placeholder="Add any specific details regarding packaging, shipping label, or anomalies..."
-                className="input w-full"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider transition shadow-lg shadow-brand-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Recording Intake...' : 'Submit & Receive Package'}
-            </button>
-          </form>
-
-          {/* Pending Queue Card */}
-          <div className="card p-6 border-gray-100 dark:border-neutral-800 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-neutral-800 pb-3">
-              <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider flex items-center gap-2">
-                <Clock size={16} className="text-brand-500" /> Pending Intake Queue ({pendingIntakes.length})
-              </h3>
-              <button
-                type="button"
-                onClick={() => fetchPendingQueue(selectedWarehouseId)}
-                className="text-xs text-brand-600 hover:text-brand-700 font-bold"
-              >
-                Refresh
-              </button>
-            </div>
-
-            {loadingQueue ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
-              </div>
-            ) : pendingIntakes.length === 0 ? (
-              <div className="text-center py-6 text-xs text-gray-500">
-                No orders are currently waiting to be received at this warehouse.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
-                {pendingIntakes.map((order: any) => (
-                  <div
-                    key={order.id}
-                    onClick={() => setOrderId(order.id.toString())}
-                    className={`p-3 border rounded-xl hover:border-brand-500 transition cursor-pointer text-left ${
-                      orderId === order.id.toString()
-                        ? 'border-brand-600 bg-brand-50/20 ring-1 ring-brand-500'
-                        : 'border-gray-100 dark:border-neutral-800 hover:bg-gray-50/50 dark:hover:bg-neutral-800/20'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="text-xs font-bold text-gray-900 dark:text-white">Order #{order.id}</span>
-                      <span className="text-[9px] bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400 px-1.5 py-0.5 rounded-full font-bold uppercase">
-                        Pending
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-gray-500 mt-1 truncate">
-                      Buyer: {order.delivery_info?.fullName || order.buyer_username || 'Customer'}
-                    </p>
-                    <p className="text-[9px] text-gray-400 mt-0.5 truncate">
-                      {order.items?.map((i: any) => `${i.quantity}x ${i.product_name || i.name}`).join(', ')}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
-      {/* Tab 2: Pickup Verification */}
-      {activeTab === 'pickup' && (
-        <form onSubmit={handlePickupVerify} className="card p-6 space-y-6 border-gray-100 dark:border-neutral-800">
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-              <span className="flex items-center gap-2"><Key size={16} /> Enter 6-Digit Pickup Code</span>
-            </label>
-            <input
-              type="text"
-              required
-              maxLength={6}
-              placeholder="e.g. 832912"
-              className="input w-full text-center text-lg font-mono font-bold tracking-widest"
-              value={pickupCode}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, '');
-                if (val.length <= 6) setPickupCode(val);
-              }}
-            />
-            <p className="text-[11px] text-gray-400">The 6-digit secure code is sent to the customer once their package arrives at the regional hub.</p>
+      <AnimatePresence>
+        {showScanner && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white dark:bg-neutral-900 rounded-3xl overflow-hidden w-full max-w-md shadow-2xl relative p-6">
+              <button onClick={() => setShowScanner(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors z-10"><X size={24} /></button>
+              <h2 className="text-lg font-black text-gray-900 dark:text-white mb-4 uppercase tracking-widest text-center">Scan QR Code</h2>
+              <div id="reader" className="w-full overflow-hidden rounded-xl border border-gray-200 dark:border-neutral-800"></div>
+            </motion.div>
           </div>
-
-          <button
-            type="submit"
-            disabled={verifyingPickup || pickupCode.length !== 6}
-            className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider transition shadow-lg shadow-brand-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {verifyingPickup ? (
-              'Verifying Code...'
-            ) : (
-              <>
-                <ShieldCheck size={18} />
-                Verify & Release Package
-              </>
-            )}
-          </button>
-        </form>
-      )}
-
-      {/* Tab 3: Warehouse Transfers */}
-      {activeTab === 'transfers' && (
-        <div className="space-y-6">
-          {/* Create Transfer Form */}
-          <form onSubmit={handleCreateTransfer} className="card p-6 space-y-6 border-gray-100 dark:border-neutral-800">
-            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider border-b border-gray-100 dark:border-neutral-800 pb-3">
-              Initiate Inter-Warehouse Transfer
-            </h3>
-
-            {/* Source Warehouse */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Source Warehouse (Current)</label>
-              <input
-                type="text"
-                disabled
-                className="input w-full bg-gray-50 dark:bg-neutral-800 cursor-not-allowed"
-                value={warehouses.find(w => w.id.toString() === selectedWarehouseId)?.name || 'Loading source...'}
-              />
-            </div>
-
-            {/* Destination Warehouse */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Destination Warehouse</label>
-              <select
-                required
-                className="input w-full"
-                value={destWarehouseId}
-                onChange={(e) => setDestWarehouseId(e.target.value)}
-              >
-                <option value="">-- Select Destination --</option>
-                {warehouses.filter(w => w.id.toString() !== selectedWarehouseId).map(w => (
-                  <option key={w.id} value={w.id}>{w.name} ({w.code})</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Order ID */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Order ID</label>
-              <input
-                type="number"
-                required
-                placeholder="e.g. 1024"
-                className="input w-full"
-                value={transferOrderId}
-                onChange={(e) => setTransferOrderId(e.target.value)}
-              />
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={creatingTransfer || !destWarehouseId || !transferOrderId}
-              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider transition shadow-lg shadow-brand-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {creatingTransfer ? 'Creating Transfer...' : 'Initiate Transfer'}
-            </button>
-          </form>
-
-          {/* Transfers List */}
-          <div className="card p-6 border-gray-100 dark:border-neutral-800 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-neutral-800 pb-3">
-              <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                Hub Transfer Queue ({transfers.length})
-              </h3>
-              <button
-                type="button"
-                onClick={() => fetchTransfers(selectedWarehouseId)}
-                className="text-xs text-brand-600 hover:text-brand-700 font-bold"
-              >
-                Refresh
-              </button>
-            </div>
-
-            {loadingTransfers ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
-              </div>
-            ) : transfers.length === 0 ? (
-              <div className="text-center py-6 text-xs text-gray-500">
-                No active transfers recorded at this warehouse hub.
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                {transfers.map((t: any) => {
-                  const isSource = t.source_warehouse.toString() === selectedWarehouseId || t.source_warehouse?.id?.toString() === selectedWarehouseId;
-                  const isDest = t.destination_warehouse.toString() === selectedWarehouseId || t.destination_warehouse?.id?.toString() === selectedWarehouseId;
-                  
-                  return (
-                    <div key={t.id} className="p-4 border border-gray-100 dark:border-neutral-800 rounded-xl space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-gray-900 dark:text-white">Transfer #{t.id}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                          t.status === 'pending'
-                            ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
-                            : t.status === 'in_transit'
-                            ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400'
-                            : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                        }`}>
-                          {t.status}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-500">
-                        <div>
-                          <p className="font-bold text-gray-400 uppercase text-[9px]">Source</p>
-                          <p className="truncate font-semibold text-gray-700 dark:text-gray-300">
-                            {t.source_warehouse_name || `Hub #${t.source_warehouse}`}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-400 uppercase text-[9px]">Destination</p>
-                          <p className="truncate font-semibold text-gray-700 dark:text-gray-300">
-                            {t.destination_warehouse_name || `Hub #${t.destination_warehouse}`}
-                          </p>
-                        </div>
-                        <div className="col-span-2 border-t border-gray-50 dark:border-neutral-900 pt-2 mt-1">
-                          <p className="font-bold text-gray-400 uppercase text-[9px]">Order Reference</p>
-                          <p className="font-bold text-gray-800 dark:text-gray-200">Order #{t.order}</p>
-                        </div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex gap-2 pt-2 border-t border-gray-50 dark:border-neutral-900">
-                        {t.status === 'pending' && isSource && (
-                          <button
-                            onClick={() => handleShipTransfer(t.id)}
-                            className="flex-1 py-1.5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg text-xs uppercase tracking-wide transition"
-                          >
-                            Mark Shipped
-                          </button>
-                        )}
-                        {t.status === 'in_transit' && isDest && (
-                          <button
-                            onClick={() => handleReceiveTransfer(t.id)}
-                            className="flex-1 py-1.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-xs uppercase tracking-wide transition"
-                          >
-                            Mark Received
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 };
+
+// UI Subcomponents
+const SkeletonCards = () => (
+  <div className="space-y-3">
+    {[1,2,3].map(i => (
+      <div key={i} className="h-20 bg-gray-100 dark:bg-neutral-800/50 rounded-2xl animate-pulse"></div>
+    ))}
+  </div>
+);
+
+const EmptyState = ({ text }: { text: string }) => (
+  <div className="py-8 text-center border-2 border-dashed border-gray-200 dark:border-neutral-800 rounded-2xl">
+    <CheckCircle size={24} className="mx-auto text-gray-300 dark:text-gray-700 mb-2" />
+    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{text}</p>
+  </div>
+);
+
+const QueueCard = ({ order, badge, onClick }: { order: any, badge: string, onClick: () => void }) => (
+  <motion.div 
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className="p-4 bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer flex justify-between items-center group"
+  >
+    <div className="overflow-hidden">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] font-black uppercase tracking-widest bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">
+          #{order.id}
+        </span>
+        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+          badge === 'Inbound' ? 'bg-blue-50 text-blue-600' :
+          badge === 'Received' ? 'bg-amber-50 text-amber-600' :
+          'bg-green-50 text-green-600'
+        }`}>
+          {badge}
+        </span>
+      </div>
+      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+        {order.items?.[0]?.product_name || 'Multiple Items'}
+      </p>
+      <p className="text-xs text-gray-500 font-medium truncate mt-0.5">
+        Buyer: {order.buyer_username || 'Unknown'}
+      </p>
+    </div>
+    <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-neutral-800 flex items-center justify-center text-gray-400 group-hover:bg-brand-50 group-hover:text-brand-500 transition-colors shrink-0 ml-2">
+      <Search size={14} />
+    </div>
+  </motion.div>
+);
 
 export default WarehouseStaffLayout;

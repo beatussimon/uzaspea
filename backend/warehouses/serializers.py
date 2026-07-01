@@ -13,7 +13,7 @@ class WarehouseIntakeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WarehouseIntake
-        fields = ['id', 'warehouse', 'warehouse_name', 'order', 'intake_by', 'intake_by_username', 'package_condition', 'photo', 'notes', 'created_at']
+        fields = ['id', 'warehouse', 'warehouse_name', 'order', 'intake_by', 'intake_by_username', 'package_condition', 'photo', 'seller_signature', 'staff_signature', 'notes', 'created_at']
         read_only_fields = ['intake_by', 'created_at']
 
 

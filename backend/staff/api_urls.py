@@ -6,12 +6,16 @@ from .api_views import (
     StaffPermissionViewSet, StaffDashboardView, SponsoredListingReviewViewSet,
     StaffAdminDashboardView, StaffFAQViewSet, StaffSupportTicketViewSet,  # FIX CRIT-04
     PaymentConfirmationViewSet, StaffCommissionPaymentViewSet,
-    UserManagementViewSet, ProductModerationViewSet, StaffSellerApplicationViewSet
+    UserManagementViewSet, ProductModerationViewSet, StaffSellerApplicationViewSet,
+    DepartmentViewSet
 )
 
 from marketplace.api_views import PaymentViewSet  # FIX: C-04
 
+app_name = 'staff_api'
+
 router = DefaultRouter()
+router.register(r'departments', DepartmentViewSet, basename='staff-department')
 router.register(r'profiles', StaffProfileViewSet, basename='staff-profile')
 router.register(r'task-categories', TaskCategoryViewSet, basename='task-category')
 router.register(r'tasks', TaskViewSet, basename='task')

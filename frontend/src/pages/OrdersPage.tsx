@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck } from 'lucide-react';
+import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck, Shield } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 
 import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS } from '../constants/orderStatus';
@@ -34,8 +36,9 @@ const OrdersPage: React.FC = () => {
   // Dispute State
   const [openDisputeId, setOpenDisputeId] = useState<number | null>(null);
 
-  // Seller Lipa Numbers State
+  // Seller & System Lipa Numbers State
   const [sellerLipa, setSellerLipa] = useState<Record<number, any[]>>({});
+  const [systemLipa, setSystemLipa] = useState<any[]>([]);
 
   // Shipments & Pickup Codes State
   const [shipmentsMap, setShipmentsMap] = useState<Record<number, any>>({});
@@ -51,6 +54,14 @@ const OrdersPage: React.FC = () => {
       try {
           const res = await api.get(`/api/lipa-numbers/?seller=${sellerUsername}`);
           setSellerLipa(prev => ({ ...prev, [order.id]: res.data.results || res.data }));
+      } catch {}
+  };
+
+  const fetchSystemLipa = async () => {
+      if (systemLipa.length > 0) return;
+      try {
+          const res = await api.get(`/api/lipa-numbers/?system=true`);
+          setSystemLipa(res.data.results || res.data);
       } catch {}
   };
 
@@ -82,6 +93,9 @@ const OrdersPage: React.FC = () => {
       if (order.status === 'READY_FOR_PICKUP') {
         fetchPickupCode(order.id);
       }
+      if (order.status === 'AWAITING_DELIVERY_PAYMENT') {
+        fetchSystemLipa();
+      }
     }
   };
 
@@ -95,6 +109,9 @@ const OrdersPage: React.FC = () => {
         fetchShipment(order);
         if (order.status === 'READY_FOR_PICKUP') {
           fetchPickupCode(order.id);
+        }
+        if (order.status === 'AWAITING_DELIVERY_PAYMENT') {
+          fetchSystemLipa();
         }
       }
       setTimeout(() => {
@@ -114,7 +131,8 @@ const OrdersPage: React.FC = () => {
     api.get(`/api/orders/?page=${p}${filterStatus ? `&status=${filterStatus}` : ''}`)
       .then((res) => {
         const data = res.data.results || res.data;
-        const incoming = Array.isArray(data) ? data : [];
+        const incomingRaw = Array.isArray(data) ? data : [];
+        const incoming = incomingRaw.filter(o => o.status !== 'CART' && o.status !== 'CHECKOUT');
         
         if (reset) {
           setOrders(incoming);
@@ -165,18 +183,43 @@ const OrdersPage: React.FC = () => {
   useOrderTracking(
     'buyer', 
     (update: TrackingUpdate) => {
-      setOrders(prev => prev.map(o => {
-        if (o.id === update.order_id) {
-            const timelineEvent = {
-                 status: update.status,
-                 notes: update.notes,
-                 created_at: update.timestamp
-            };
-            const currentTimeline = o.timeline_events || [];
-             return { ...o, status: update.status, timeline_events: [timelineEvent, ...currentTimeline] };
-        }
-        return o;
-      }));
+      api.get(`/api/orders/${update.order_id}/`)
+        .then(res => {
+          const updatedOrder = res.data;
+          if (updatedOrder) {
+            setOrders(prev => prev.map(o => o.id === update.order_id ? updatedOrder : o));
+            if (update.status === 'COMPLETED' && update.old_status !== 'COMPLETED') {
+              if (updatedOrder.items && updatedOrder.items.length > 0) {
+                setReviewOrderId(updatedOrder.id);
+                setReviewProduct(updatedOrder.items[0]);
+              }
+            }
+          }
+        })
+        .catch(() => {
+          // Fallback to local state update
+          setOrders(prev => {
+            let targetOrder = prev.find(o => o.id === update.order_id);
+            if (targetOrder && update.status === 'COMPLETED' && targetOrder.status !== 'COMPLETED') {
+              if (targetOrder.items && targetOrder.items.length > 0) {
+                setReviewOrderId(targetOrder.id);
+                setReviewProduct(targetOrder.items[0]);
+              }
+            }
+            return prev.map(o => {
+              if (o.id === update.order_id) {
+                  const timelineEvent = {
+                       status: update.status,
+                       notes: update.notes,
+                       created_at: update.timestamp
+                  };
+                  const currentTimeline = o.timeline_events || [];
+                   return { ...o, status: update.status, timeline_events: [timelineEvent, ...currentTimeline] };
+              }
+              return o;
+            });
+          });
+        });
     },
     true
   );
@@ -185,8 +228,11 @@ const OrdersPage: React.FC = () => {
     if (!proofFile || !transactionId) return toast.error('Please provide both a transaction ID and a receipt screenshot');
     
     setSubmittingProof(orderId);
+    const order = orders.find(o => o.id === orderId);
+    const newStatus = order?.status === 'AWAITING_DELIVERY_PAYMENT' ? 'PENDING_DELIVERY_VERIFICATION' : 'PENDING_VERIFICATION';
+    
     const formData = new FormData();
-    formData.append('status', 'PENDING_VERIFICATION');
+    formData.append('status', newStatus);
     formData.append('transaction_id', transactionId);
     if (proofFile) formData.append('proof_image', proofFile);
 
@@ -280,7 +326,29 @@ const OrdersPage: React.FC = () => {
           {filtered.map((order: any) => {
             const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.CART;
             const isExpanded = expandedId === order.id;
-            const currentStepIdx = TRACKING_STEPS.indexOf(order.status);
+            const isActuallyWarehouse = ['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP'].includes(order.status) || order.timeline_events?.some((ev: any) => ['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE'].includes(ev.status));
+
+            const trackingSteps = (order.has_vehicles && !isActuallyWarehouse)
+              ? ['PAID', 'PROCESSING', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED']
+              : TRACKING_STEPS;
+            
+            const getEffectiveTrackingStatus = (st: string) => {
+              if (trackingSteps.includes(st)) return st;
+              
+              if (order.has_vehicles && !isActuallyWarehouse) {
+                 if (st === 'AWAITING_PAYMENT' || st === 'PENDING_VERIFICATION' || st === 'CART' || st === 'CHECKOUT') return trackingSteps[0]; // fallback
+                 if (['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT'].includes(st)) return 'PROCESSING';
+                 if (st === 'ARRIVED_AT_REGIONAL_WAREHOUSE' || st === 'READY_FOR_VEHICLE_HANDOVER' || st === 'READY_FOR_PICKUP') return 'SHIPPED';
+                 return trackingSteps[0];
+              }
+
+              if (st === 'AWAITING_PAYMENT' || st === 'PENDING_VERIFICATION') return 'CHECKOUT';
+              if (st === 'ASSIGNED_TRANSPORT') return 'RECEIVED_AT_WAREHOUSE';
+              if (st === 'AWAITING_DELIVERY_PAYMENT' || st === 'PENDING_DELIVERY_VERIFICATION') return 'RECEIVED_AT_WAREHOUSE';
+              if (st === 'READY_FOR_VEHICLE_HANDOVER') return 'ARRIVED_AT_REGIONAL_WAREHOUSE';
+              return trackingSteps[0];
+            };
+            const currentStepIdx = trackingSteps.indexOf(getEffectiveTrackingStatus(order.status));
 
             return (
               <div id={`order-${order.id}`} key={order.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-shadow">
@@ -424,6 +492,114 @@ const OrdersPage: React.FC = () => {
                       </div>
                     )}
 
+                    {/* Delivery Fee Payment section */}
+                    {order.status === 'AWAITING_DELIVERY_PAYMENT' && (
+                      <div className="px-6 py-8 bg-gradient-to-br from-brand-900 via-brand-800 to-brand-900 border-b border-brand-700/50 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                        <div className="relative z-10 flex flex-col md:flex-row items-start gap-8">
+                          <div className="flex-1 text-white">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="p-2.5 bg-brand-500/30 rounded-xl backdrop-blur-sm border border-brand-400/30">
+                                <Truck className="text-brand-300" size={24} />
+                              </div>
+                              <h4 className="font-black text-xl tracking-tight">Delivery Payment Required</h4>
+                            </div>
+                            <p className="text-sm font-medium text-brand-100/90 leading-relaxed max-w-md mb-6">
+                              Your items have been processed at our regional warehouse! The final, optimized delivery fee is <span className="font-black text-white text-lg bg-brand-950/40 px-2 py-0.5 rounded-md ml-1 inline-block">TSh {parseInt(order.shipping_fee || '0').toLocaleString()}</span>. 
+                              Please pay this fee to our official platform accounts below to instantly dispatch your package to its final destination.
+                            </p>
+                            
+                            <div className="mb-4">
+                                <p className="text-[10px] font-bold text-brand-300/80 mb-2 uppercase tracking-widest">
+                                    Official Logistics Payment Numbers:
+                                </p>
+                                {systemLipa.length === 0 ? (
+                                    <p className="text-sm text-yellow-300 font-medium">Loading official payment numbers...</p>
+                                ) : (
+                                    <div className="flex flex-wrap gap-3">
+                                        {systemLipa.map((lipa: any) => (
+                                            <div key={lipa.id} className="flex-1 min-w-[240px] flex items-center gap-3 bg-brand-950/40 backdrop-blur-md border border-brand-400/20 rounded-xl p-3 shadow-xl">
+                                                <div className={`rounded-lg bg-white/10 flex items-center justify-center overflow-hidden shrink-0 border border-white/5 ${lipa.network_logo ? 'w-16 h-10' : 'w-10 h-10'}`}>
+                                                    {lipa.network_logo ? (
+                                                        <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain p-1" />
+                                                    ) : (
+                                                        <Smartphone size={20} className="text-brand-300" />
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-brand-300/70 uppercase">{lipa.network_name}</p>
+                                                    <p className="font-mono font-black text-white text-sm tracking-wider">{lipa.number}</p>
+                                                    <p className="text-[11px] text-brand-200/80">{lipa.name}</p>
+                                                </div>
+                                                <button onClick={() => {navigator.clipboard.writeText(lipa.number); toast.success('Copied!');}}
+                                                    className="ml-auto text-[10px] py-1.5 px-3 bg-brand-500/20 hover:bg-brand-500/40 text-brand-100 font-bold uppercase tracking-wider rounded-lg transition border border-brand-400/30">Copy</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                          </div>
+                          
+                          <div className="w-full md:w-[340px] shrink-0 bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-2xl border border-brand-500/20">
+                            <h5 className="font-bold text-gray-900 dark:text-white text-sm mb-4 flex items-center gap-2">
+                                <Shield size={16} className="text-brand-500" /> Verify Payment
+                            </h5>
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Transaction ID / Reference</label>
+                                <input 
+                                  type="text" 
+                                  value={transactionId} 
+                                  onChange={(e) => setTransactionId(e.target.value)}
+                                  placeholder="e.g. 8K91QW2R"
+                                  className="input text-sm h-10 bg-gray-50 dark:bg-gray-800"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Receipt Screenshot (Required)</label>
+                                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-brand-200 dark:border-brand-800/50 rounded-xl cursor-pointer hover:bg-brand-50 dark:hover:bg-brand-900/10 transition group">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <Upload size={20} className="text-brand-400 group-hover:text-brand-600 transition mb-1" />
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center px-4">
+                                          {proofFile ? <span className="text-brand-600 font-bold">{proofFile.name}</span> : 'Click to upload screenshot'}
+                                        </p>
+                                    </div>
+                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
+                                </label>
+                              </div>
+                              <button 
+                                disabled={submittingProof === order.id || !transactionId || !proofFile}
+                                onClick={async () => {
+                                  if (!proofFile || !transactionId) return toast.error('Please provide transaction ID and receipt');
+                                  setSubmittingProof(order.id);
+                                  const formData = new FormData();
+                                  formData.append('status', 'ASSIGNED_TRANSPORT');
+                                  formData.append('notes', 'Submitted delivery fee payment proof.');
+                                  formData.append('transaction_id', transactionId);
+                                  formData.append('proof_image', proofFile);
+                                  
+                                  try {
+                                    await api.post(`/api/orders/${order.id}/advance/`, formData, { headers: { 'Content-Type': 'multipart/form-data' }});
+                                    toast.success('Delivery fee paid successfully! Dispatching order...');
+                                    setProofFile(null); setTransactionId('');
+                                    fetchOrders(1, true);
+                                  } catch (err: any) {
+                                    toast.error(err.response?.data?.error || 'Failed to pay delivery fee');
+                                  } finally {
+                                    setSubmittingProof(null);
+                                  }
+                                }}
+                                className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-sm uppercase tracking-wider rounded-xl transition shadow-lg shadow-brand-500/20 flex items-center justify-center gap-2"
+                              >
+                                {submittingProof === order.id ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <CheckCircle2 size={18} />}
+                                Confirm Payment
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Live Tracking Button */}
                     {(() => {
                       const shipment = shipmentsMap[order.id] || (order.shipments && order.shipments.length > 0 ? order.shipments[0] : null);
@@ -437,7 +613,7 @@ const OrdersPage: React.FC = () => {
                               This order has a vehicle transport shipment.
                             </p>
                           </div>
-                          {['ASSIGNED_TRANSPORT', 'IN_TRANSIT'].includes(order.status) && (
+                          {['ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'SHIPPED'].includes(order.status) && (
                             <Link 
                               to={`/shipments/${shipment.id}/track`}
                               className="btn-primary py-2 px-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
@@ -452,34 +628,75 @@ const OrdersPage: React.FC = () => {
 
                     {/* Progress Tracker */}
                     {currentStepIdx >= 0 && (
-                      <div className="px-6 py-6 border-b border-gray-100 dark:border-gray-700">
-                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-6">Delivery Progress</p>
-                        <div className="flex items-center justify-between relative px-2">
-                          <div className="absolute top-4 left-6 right-6 h-1 bg-gray-200 dark:bg-gray-700 rounded-full" />
-                          <div className="absolute top-4 left-6 h-1 bg-green-500 transition-all duration-700 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.5)]"
-                            style={{ width: `${(currentStepIdx / (TRACKING_STEPS.length - 1)) * 100}%`, maxWidth: 'calc(100% - 48px)' }} />
-                          {TRACKING_STEPS.map((step, i) => {
-                            const done = i <= currentStepIdx;
-                            const active = i === currentStepIdx;
-                            return (
-                              <div key={step} className="relative z-10 flex flex-col items-center">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
-                                  done ? 'bg-green-500 border-green-500 text-white shadow-md' : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'
-                                } ${active ? 'scale-110 ring-4 ring-green-100 dark:ring-green-900/30' : ''}`}>
-                                  {done ? <CheckCircle2 size={16} /> : <span className="text-xs font-bold">{i + 1}</span>}
+                      <div className="px-6 py-10 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-1">Journey of Your Package</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Follow your item every step of the way.</p>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto overflow-y-hidden no-scrollbar pb-6">
+                          <div className="flex items-start justify-between relative px-4 min-w-max gap-12">
+                            {/* Track Wrapper */}
+                            <div className="absolute top-[22px] left-[60px] right-[60px] h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(currentStepIdx / (trackingSteps.length - 1)) * 100}%` }}
+                                transition={{ duration: 1, ease: 'easeOut' }}
+                                className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-green-500 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]" 
+                              />
+                            </div>
+                            {trackingSteps.map((step, i) => {
+                              const done = i < currentStepIdx;
+                              const active = i === currentStepIdx;
+                              const StepIcon = STATUS_CONFIG[step]?.icon || Package;
+                              
+                              return (
+                                <div key={step} className="relative z-10 flex flex-col items-center w-28 group">
+                                  {active && (
+                                    <motion.div 
+                                      animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
+                                      transition={{ repeat: Infinity, duration: 2 }}
+                                      className={`absolute top-0 w-12 h-12 rounded-full blur-md ${STATUS_CONFIG[step]?.solidBg || 'bg-brand-500'}`}
+                                    />
+                                  )}
+                                  <motion.div 
+                                    whileHover={{ scale: 1.1 }}
+                                    className={`relative w-12 h-12 rounded-2xl flex items-center justify-center transition-colors duration-500 shadow-sm ${
+                                      done ? `${STATUS_CONFIG[step]?.solidBg || 'bg-brand-600'} text-white shadow-${(STATUS_CONFIG[step]?.color || 'text-brand-500').split('-')[1]}-500/30` : 
+                                      active ? `bg-white dark:bg-gray-800 border-2 border-${(STATUS_CONFIG[step]?.color || 'text-brand-500').split('-')[1]}-500 ${STATUS_CONFIG[step]?.color || 'text-brand-600'} shadow-lg shadow-${(STATUS_CONFIG[step]?.color || 'text-brand-500').split('-')[1]}-500/20` : 
+                                      'bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-400'
+                                    }`}
+                                  >
+                                    <StepIcon size={20} strokeWidth={active ? 2.5 : 2} />
+                                    {done && (
+                                        <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-900 rounded-full p-0.5">
+                                            <CheckCircle2 size={12} className={STATUS_CONFIG[step]?.color || 'text-brand-600'} />
+                                        </div>
+                                    )}
+                                  </motion.div>
+                                  <div className="mt-4 text-center">
+                                    <span className={`block text-[11px] font-black uppercase tracking-wider mb-1 transition-colors ${
+                                      active ? STATUS_CONFIG[step]?.color || 'text-brand-600' : 
+                                      done ? 'text-gray-900 dark:text-gray-200' : 
+                                      'text-gray-400 dark:text-gray-500'
+                                    }`}>
+                                      {STATUS_CONFIG[step]?.label || step}
+                                    </span>
+                                    <span className={`block text-[10px] font-medium leading-tight px-1 ${active ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}>
+                                        {active ? 'Happening now' : done ? 'Completed' : 'Upcoming'}
+                                    </span>
+                                  </div>
                                 </div>
-                                <span className={`text-[10px] sm:text-xs mt-2.5 font-bold whitespace-nowrap uppercase tracking-tighter ${done ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
-                                  {STATUS_CONFIG[step]?.label || step}
-                                </span>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     )}
 
                     {/* Delivery Code */}
-                    {order.delivery_code && ['PROCESSING', 'SHIPPED', 'DELIVERED'].includes(order.status) && (
+                    {order.delivery_code && ['PROCESSING', 'SHIPPED', 'DELIVERED', 'OUT_FOR_DELIVERY'].includes(order.status) && (
                       <div className="px-6 py-5 bg-brand-50/50 dark:bg-brand-900/10 border-b border-brand-100 dark:border-brand-900/20">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div>
@@ -507,10 +724,15 @@ const OrdersPage: React.FC = () => {
                               This order is ready for pickup at the warehouse. Please provide this code to the warehouse agent to collect your items.
                             </p>
                           </div>
-                          <div className="bg-white dark:bg-gray-800 border-2 border-amber-200 dark:border-amber-800 rounded-xl px-6 py-3 shadow-md text-center sm:text-left">
-                            <span className="font-mono font-black text-2xl tracking-[0.2em] text-amber-600 dark:text-amber-400">
-                              {pickupCodesMap[order.id] || "Loading..."}
-                            </span>
+                          <div className="flex items-center gap-4">
+                            <div className="bg-white dark:bg-gray-800 border-2 border-amber-200 dark:border-amber-800 rounded-xl px-6 py-3 shadow-md text-center">
+                              <span className="font-mono font-black text-2xl tracking-[0.2em] text-amber-600 dark:text-amber-400">
+                                {pickupCodesMap[order.id] || "Loading..."}
+                              </span>
+                            </div>
+                            <div className="p-2 bg-white dark:bg-neutral-800 rounded-2xl shadow-lg shrink-0">
+                              <QRCodeSVG value={order.id.toString()} size={80} bgColor="transparent" fgColor="currentColor" className="text-gray-900 dark:text-white" />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -536,7 +758,7 @@ const OrdersPage: React.FC = () => {
                             </div>
                             <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-50 dark:border-gray-700">
                                 <span className="font-bold text-gray-900 dark:text-white">TSh {parseInt(item.subtotal).toLocaleString()}</span>
-                                {order.status === 'COMPLETED' && (
+                                {order.status === 'COMPLETED' && !item.has_review && (
                                   <button 
                                     onClick={() => { setReviewOrderId(order.id); setReviewProduct(item); }}
                                     className="p-2 text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
@@ -557,7 +779,7 @@ const OrdersPage: React.FC = () => {
                         <div className="bg-gray-50/50 dark:bg-gray-800/50 px-6 py-5">
                             <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Activity Log</p>
                             <div className="space-y-4 relative pl-4 border-l-2 border-gray-200 dark:border-gray-700 py-1">
-                            {order.timeline_events?.map((ev: any, i: number) => (
+                            {order.timeline_events?.slice().reverse().map((ev: any, i: number) => (
                                 <div key={i} className="relative">
                                 <div className="absolute -left-[21.5px] w-3 h-3 rounded-full bg-brand-500 border-2 border-white dark:border-gray-800 shadow-sm" />
                                 <div className="ml-3">
@@ -616,13 +838,14 @@ const OrdersPage: React.FC = () => {
                                             Confirm Receipt
                                         </button>
                                     )}
-                                    {order.status === 'COMPLETED' && (
+                                    {order.status === 'COMPLETED' && order.items?.some((i: any) => !i.has_review) && (
                                         <button 
                                           onClick={(e) => { 
                                             e.stopPropagation(); 
-                                            if (order.items && order.items.length > 0) {
+                                            const unreviewedItem = order.items?.find((i: any) => !i.has_review);
+                                            if (unreviewedItem) {
                                               setReviewOrderId(order.id);
-                                              setReviewProduct(order.items[0]);
+                                              setReviewProduct(unreviewedItem);
                                             }
                                           }}
                                           className="btn-primary flex-1 py-1 text-[10px] bg-yellow-500 hover:bg-yellow-600 border-none text-white shadow-sm"
@@ -669,6 +892,7 @@ const OrdersPage: React.FC = () => {
         <ReviewModal 
             orderId={reviewOrderId} 
             product={reviewProduct} 
+            onSuccess={() => fetchOrders(1, true)}
             onClose={() => { setReviewOrderId(null); setReviewProduct(null); }} 
         />
       )}

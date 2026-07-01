@@ -60,7 +60,12 @@ const DashboardProducts: React.FC = () => {
     api.get('/api/categories/')
       .then((res) => setCategories(res.data.results || res.data))
       .catch(() => {});
-  }, [currentUser]);
+      
+    if (window.location.hash === '#new') {
+      setShowForm(true);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [fetchProducts]);
 
   useEffect(() => {
     if (showForm && !editingId) {
@@ -72,7 +77,7 @@ const DashboardProducts: React.FC = () => {
             const latStr = latitude.toFixed(6);
             const lngStr = longitude.toFixed(6);
             try {
-              const res = await api.get(`/api/geocode/?lat=${latitude}&lng=${longitude}`);
+              const res = await api.get(`/api/health/reverse_geocode/?lat=${latitude}&lng=${longitude}`);
               const location_name = res.data.address || 'Coordinates mapped';
               setLocData({ latitude: latStr, longitude: lngStr, location_name });
               setLocStatus(`Location: ${location_name}`);

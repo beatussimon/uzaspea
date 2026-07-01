@@ -73,6 +73,24 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
                 else:
                     await self.close()
                     return
+        elif self.order_id.startswith('warehouse_'):
+            # Warehouse mode: subscribe to a specific warehouse's queues
+            user = self.scope.get('user')
+            if user and user.is_authenticated and user.is_staff:
+                self.room_group_name = f'warehouse_orders_{self.order_id.split("_")[1]}'
+            else:
+                qs = parse_qs(self.scope.get('query_string', b'').decode())
+                token = qs.get('token', [None])[0]
+                if token:
+                    user = await get_user_from_token(token)
+                    if user and user.is_staff:
+                        self.room_group_name = f'warehouse_orders_{self.order_id.split("_")[1]}'
+                    else:
+                        await self.close()
+                        return
+                else:
+                    await self.close()
+                    return
         else:
             self.room_group_name = f'order_tracking_{self.order_id}'
             # FIX: M-07 — verify the connecting user owns this order

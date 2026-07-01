@@ -1,27 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, DollarSign, CheckCircle2, ExternalLink, User, Clipboard, AlertTriangle } from 'lucide-react';
+import { Truck, DollarSign, CheckCircle2, User, AlertTriangle, Package, Clock, X, MapPin } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../api';
 import toast from 'react-hot-toast';
 
+// Reusable Components matching Warehouse Ops design language
+const SkeletonCards = () => (
+  <div className="space-y-3">
+    {[1, 2, 3].map(i => (
+      <div key={i} className="animate-pulse bg-white dark:bg-[#111] h-32 rounded-3xl border border-gray-100 dark:border-neutral-800"></div>
+    ))}
+  </div>
+);
+
+const EmptyState = ({ text }: { text: string }) => (
+  <div className="text-center py-12 bg-white/50 dark:bg-[#111]/50 rounded-3xl border border-dashed border-gray-200 dark:border-neutral-800">
+    <div className="w-12 h-12 bg-gray-100 dark:bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-3">
+      <div className="w-1.5 h-1.5 bg-gray-300 dark:bg-neutral-700 rounded-full"></div>
+    </div>
+    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{text}</p>
+  </div>
+);
+
 const LogisticsManager: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'shipments' | 'create' | 'payments'>('shipments');
+  const [activeTab, setActiveTab] = useState<'shipments' | 'payments'>('shipments');
 
   // Shipment states
   const [shipments, setShipments] = useState<any[]>([]);
-  const [shipmentFilter, setShipmentFilter] = useState('');
-  const [loadingShipments, setLoadingShipments] = useState(false);
-
-  // Create Shipment states
-  const [orderId, setOrderId] = useState('');
-  const [carrierType, setCarrierType] = useState<'driver' | 'third_party'>('driver');
-  const [driverUsername, setDriverUsername] = useState('');
-  const [trackingNumber, setTrackingNumber] = useState('');
-  const [creatingShipment, setCreatingShipment] = useState(false);
+  const [loadingShipments, setLoadingShipments] = useState(true);
+  const [drivers, setDrivers] = useState<any[]>([]);
 
   // Payments states
   const [payments, setPayments] = useState<any[]>([]);
-  const [paymentFilter, setPaymentFilter] = useState(''); // '' (all), 'paid', 'unpaid'
-  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [loadingPayments, setLoadingPayments] = useState(true);
   const [payingId, setPayingId] = useState<number | null>(null);
 
   // Edit Shipment Modal states
@@ -34,10 +45,8 @@ const LogisticsManager: React.FC = () => {
   const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchShipments = async () => {
-    setLoadingShipments(true);
     try {
-      const url = shipmentFilter ? `/api/logistics/shipments/?status=${shipmentFilter}` : '/api/logistics/shipments/';
-      const res = await api.get(url);
+      const res = await api.get('/api/logistics/shipments/');
       setShipments(res.data.results || res.data || []);
     } catch {
       toast.error('Failed to load shipments.');
@@ -47,17 +56,9 @@ const LogisticsManager: React.FC = () => {
   };
 
   const fetchPayments = async () => {
-    setLoadingPayments(true);
     try {
       const res = await api.get('/api/logistics/driver-payments/');
-      const list = res.data.results || res.data || [];
-      if (paymentFilter === 'paid') {
-        setPayments(list.filter((p: any) => p.is_paid));
-      } else if (paymentFilter === 'unpaid') {
-        setPayments(list.filter((p: any) => !p.is_paid));
-      } else {
-        setPayments(list);
-      }
+      setPayments(res.data.results || res.data || []);
     } catch {
       toast.error('Failed to load driver payments.');
     } finally {
@@ -66,60 +67,26 @@ const LogisticsManager: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'shipments') {
+    api.get('/api/logistics/shipments/drivers/')
+      .then(res => setDrivers(res.data || []))
+      .catch(() => toast.error('Failed to load fleet drivers.'));
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
       fetchShipments();
-    } else if (activeTab === 'payments') {
       fetchPayments();
-    }
-  }, [activeTab, shipmentFilter, paymentFilter]);
-
-  const handleCreateShipment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orderId) {
-      toast.error('Order ID is required.');
-      return;
-    }
-    setCreatingShipment(true);
-    try {
-      // Find driver ID by username if driver is selected
-      let driverId = null;
-      if (carrierType === 'driver' && driverUsername) {
-        try {
-          const profileRes = await api.get(`/api/profiles/${driverUsername}/`);
-          driverId = profileRes.data.user_id || profileRes.data.user;
-        } catch {
-          toast.error(`Driver username @${driverUsername} not found.`);
-          setCreatingShipment(false);
-          return;
-        }
-      }
-
-      await api.post('/api/logistics/shipments/', {
-        order: orderId,
-        carrier_type: carrierType,
-        driver: driverId,
-        tracking_number: trackingNumber,
-        status: 'pending'
-      });
-
-      toast.success('Shipment record created successfully!');
-      setOrderId('');
-      setDriverUsername('');
-      setTrackingNumber('');
-      setActiveTab('shipments');
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || err.response?.data?.error || 'Failed to create shipment.';
-      toast.error(msg);
-    } finally {
-      setCreatingShipment(false);
-    }
-  };
+    }, 30000);
+    fetchShipments();
+    fetchPayments();
+    return () => clearInterval(interval);
+  }, []);
 
   const handleMarkPaid = async (id: number) => {
     setPayingId(id);
     try {
       await api.post(`/api/logistics/driver-payments/${id}/pay/`);
-      toast.success('Driver payment marked as paid.');
+      toast.success('Payment disbursed to driver successfully.');
       fetchPayments();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to process payment.');
@@ -132,47 +99,38 @@ const LogisticsManager: React.FC = () => {
     setSelectedShipment(shipment);
     setEditStatus(shipment.status);
     setEditCarrierType(shipment.carrier_type);
-    setEditDriver(shipment.driver_username || '');
+    setEditDriver(shipment.driver?.toString() || '');
     setEditTrackingNum(shipment.tracking_number || '');
     setEditDeliveryTime(shipment.estimated_delivery ? shipment.estimated_delivery.substring(0, 16) : '');
   };
 
-  const handleUpdateShipment = async (e: React.FormEvent) => {
+  const [deliveryCode, setDeliveryCode] = useState('');
+
+  const handleUpdateShipment = async (e: React.FormEvent, targetStatus?: string) => {
     e.preventDefault();
     if (!selectedShipment) return;
-
-    // Enforce driver assignment for vehicles before in_transit
-    if (editStatus === 'in_transit' && editCarrierType === 'driver' && !editDriver) {
-      if (selectedShipment.has_vehicles) {
-        toast.error("Vehicle shipments must have a driver assigned before they can transition to transit!");
-        return;
-      }
-    }
-
     setSavingEdit(true);
     try {
-      let driverId = null;
-      if (editCarrierType === 'driver' && editDriver) {
-        try {
-          const profileRes = await api.get(`/api/profiles/${editDriver}/`);
-          driverId = profileRes.data.user_id || profileRes.data.user;
-        } catch {
-          toast.error(`Driver username @${editDriver} not found.`);
+      if (targetStatus === 'delivered') {
+        if (!deliveryCode || deliveryCode.length !== 6) {
+          toast.error('Please enter the 6-digit delivery code.');
           setSavingEdit(false);
           return;
         }
+        await api.post(`/api/logistics/shipments/${selectedShipment.id}/confirm_delivery/`, { code: deliveryCode });
+      } else {
+        const driverId = editCarrierType === 'driver' && editDriver ? parseInt(editDriver) : null;
+        await api.patch(`/api/logistics/shipments/${selectedShipment.id}/`, {
+          status: targetStatus || editStatus,
+          carrier_type: editCarrierType,
+          driver: driverId,
+          tracking_number: editTrackingNum,
+          estimated_delivery: editDeliveryTime ? new Date(editDeliveryTime).toISOString() : null
+        });
       }
-
-      await api.patch(`/api/logistics/shipments/${selectedShipment.id}/`, {
-        status: editStatus,
-        carrier_type: editCarrierType,
-        driver: driverId,
-        tracking_number: editTrackingNum,
-        estimated_delivery: editDeliveryTime ? new Date(editDeliveryTime).toISOString() : null
-      });
-
       toast.success('Shipment updated successfully!');
       setSelectedShipment(null);
+      setDeliveryCode('');
       fetchShipments();
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.response?.data?.error || 'Failed to update shipment.';
@@ -182,401 +140,418 @@ const LogisticsManager: React.FC = () => {
     }
   };
 
+  // Derived Queues
+  const pendingShipments = shipments.filter(s => s.status === 'pending');
+  const transitShipments = shipments.filter(s => s.status === 'in_transit');
+  const hubShipments = shipments.filter(s => s.status === 'arrived_at_hub');
+  const deliveredShipments = shipments.filter(s => s.status === 'delivered');
+
+  const unpaidPayments = payments.filter(p => !p.is_paid);
+  const paidPayments = payments.filter(p => p.is_paid);
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 bg-brand-500/10 text-brand-500 rounded-xl">
-          <Truck size={24} />
+    <div className="w-full max-w-7xl mx-auto space-y-8 min-h-screen pb-12">
+      
+      {/* Header & Mode Switcher */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-brand-500 shadow-[0_0_20px_rgba(249,115,22,0.8)]"></div>
+        <div className="pl-2">
+          <h1 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3">
+            <Truck className="text-brand-500" size={28} />
+            Logistics Command
+          </h1>
+          <p className="text-xs font-bold text-gray-500 mt-1 uppercase tracking-widest">Fleet & Carrier Operations</p>
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Logistics & Shipments Management</h2>
-          <p className="text-xs text-gray-500">Monitor vehicle dispatching, driver assignments, and secure shipping fees payout.</p>
-        </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-neutral-800">
-        {[
-          { id: 'shipments', label: 'All Shipments', count: loadingShipments ? undefined : shipments.length },
-          { id: 'create', label: 'Create Shipment' },
-          { id: 'payments', label: 'Driver Payments', count: loadingPayments ? undefined : payments.length }
-        ].map((tab: any) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-3 text-center border-b-2 text-sm font-semibold transition-all duration-200 flex justify-center items-center gap-2 ${
-              activeTab === tab.id
-                ? 'border-brand-600 text-brand-600 dark:text-white'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            {tab.label}
-            {tab.count !== undefined && (
-              <span className="text-[10px] bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-400 font-bold">
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Shipments List */}
-      {activeTab === 'shipments' && (
-        <div className="space-y-4">
-          {/* Filters */}
-          <div className="flex gap-2 flex-wrap bg-white dark:bg-[#0a0a0a] p-2 rounded-xl border border-gray-100 dark:border-neutral-800">
-            {['', 'pending', 'in_transit', 'arrived_at_hub', 'delivered'].map((st: string) => (
-              <button
-                key={st}
-                onClick={() => setShipmentFilter(st)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition ${
-                  shipmentFilter === st
-                    ? 'bg-brand-600 text-white'
-                    : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-neutral-800'
-                }`}
-              >
-                {st ? st.replace('_', ' ') : 'All Statuses'}
-              </button>
-            ))}
-          </div>
-
-          {loadingShipments ? (
-            <div className="flex justify-center py-16">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" />
-            </div>
-          ) : shipments.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 card">
-              No shipments found matching the selected filter.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {shipments.map((ship: any) => (
-                <div key={ship.id} className="card p-5 border-gray-100 dark:border-neutral-800 space-y-4 flex flex-col justify-between hover:border-brand-500 transition-colors">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Shipment #{ship.id}</span>
-                        <h4 className="text-sm font-bold text-gray-800 dark:text-gray-100 mt-0.5">Order Ref: Order #{ship.order}</h4>
-                      </div>
-                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase ${
-                        ship.status === 'pending'
-                          ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
-                          : ship.status === 'in_transit'
-                          ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400'
-                          : ship.status === 'arrived_at_hub'
-                          ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400'
-                          : ship.status === 'delivered'
-                          ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                          : 'bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-gray-400'
-                      }`}>
-                        {ship.status.replace('_', ' ')}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 text-xs text-gray-500 pt-1 border-t border-gray-50 dark:border-neutral-900">
-                      <div>
-                        <p className="text-[9px] font-bold uppercase text-gray-400">Carrier</p>
-                        <p className="font-semibold text-gray-700 dark:text-gray-300 capitalize">{ship.carrier_type.replace('_', ' ')}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold uppercase text-gray-400">Driver</p>
-                        <p className="font-semibold text-gray-700 dark:text-gray-300 truncate">
-                          {ship.driver_username ? `@${ship.driver_username}` : 'None Assigned'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold uppercase text-gray-400">Tracking Code</p>
-                        <p className="font-semibold text-gray-700 dark:text-gray-300 font-mono truncate">{ship.tracking_number || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold uppercase text-gray-400">Est. Handover</p>
-                        <p className="font-semibold text-gray-700 dark:text-gray-300 truncate">
-                          {ship.estimated_delivery ? new Date(ship.estimated_delivery).toLocaleString() : 'Not Set'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {ship.has_vehicles && (
-                      <div className="flex items-center gap-1.5 text-[10px] text-amber-500 bg-amber-500/10 p-2 rounded-lg font-bold border border-amber-500/20">
-                        <AlertTriangle size={14} />
-                        <span>Contains Vehicle (Driver assignment mandatory before transit)</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 pt-2 border-t border-gray-50 dark:border-neutral-900 mt-2">
-                    <button
-                      onClick={() => openEditModal(ship)}
-                      className="flex-1 py-2 bg-gray-50 dark:bg-neutral-800 hover:bg-gray-100 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs uppercase tracking-wide transition border dark:border-neutral-800"
-                    >
-                      Update
-                    </button>
-                    {ship.status !== 'pending' && (
-                      <a
-                        href={`/shipments/${ship.id}/track`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="py-2 px-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-xs uppercase tracking-wide transition flex items-center justify-center gap-1.5"
-                      >
-                        <ExternalLink size={14} /> Track
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Create Shipment Form */}
-      {activeTab === 'create' && (
-        <form onSubmit={handleCreateShipment} className="card p-6 space-y-6 border-gray-100 dark:border-neutral-800">
-          <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider border-b border-gray-100 dark:border-neutral-800 pb-3">
-            Register New Order Shipment
-          </h3>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-              <Clipboard size={16} /> Order ID
-            </label>
-            <input
-              type="number"
-              required
-              placeholder="e.g. 1045"
-              className="input w-full"
-              value={orderId}
-              onChange={(e) => setOrderId(e.target.value)}
-            />
-            <p className="text-[10px] text-gray-400">Order should ideally be in SELLER_CONFIRMED, PACKAGING, or RECEIVED_AT_WAREHOUSE states.</p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Carrier Type</label>
-            <select
-              className="input w-full"
-              value={carrierType}
-              onChange={(e) => setCarrierType(e.target.value as any)}
+        {/* Universal Mode Switcher (Warehouse Ops Style) */}
+        <div className="flex bg-gray-100 dark:bg-neutral-900 p-1 rounded-xl shadow-inner w-full md:w-auto">
+          {[
+            { id: 'shipments', label: 'Shipments Kanban' },
+            { id: 'payments', label: 'Payouts Kanban' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex-1 md:w-48 py-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${
+                activeTab === tab.id
+                  ? 'bg-white dark:bg-neutral-800 text-brand-600 dark:text-brand-400 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
             >
-              <option value="driver">SokoniMax Fleet Driver</option>
-              <option value="third_party">Third-Party Courier</option>
-            </select>
-          </div>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          {carrierType === 'driver' && (
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                <User size={16} /> Driver Username
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. driver_john"
-                className="input w-full"
-                value={driverUsername}
-                onChange={(e) => setDriverUsername(e.target.value)}
-              />
-              <p className="text-[10px] text-gray-400">Enter the exact system username of the driver (without the @ symbol).</p>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Tracking Number / Reference</label>
-            <input
-              type="text"
-              placeholder="e.g. SNX-TRACK-19485"
-              className="input w-full"
-              value={trackingNumber}
-              onChange={(e) => setTrackingNumber(e.target.value)}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={creatingShipment || !orderId}
-            className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider transition shadow-lg shadow-brand-600/20 disabled:opacity-50"
-          >
-            {creatingShipment ? 'Creating Shipment...' : 'Create Shipment Record'}
-          </button>
-        </form>
-      )}
-
-      {/* Driver Payments Tab */}
-      {activeTab === 'payments' && (
-        <div className="space-y-4">
-          <div className="flex gap-2 bg-white dark:bg-[#0a0a0a] p-2 rounded-xl border border-gray-100 dark:border-neutral-800">
-            {['', 'unpaid', 'paid'].map((f: string) => (
-              <button
-                key={f}
-                onClick={() => setPaymentFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition ${
-                  paymentFilter === f
-                    ? 'bg-brand-600 text-white'
-                    : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-neutral-800'
-                }`}
+      {activeTab === 'shipments' ? (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[
+              { title: 'Pending Dispatch', count: pendingShipments.length, icon: Package, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+              { title: 'In Transit', count: transitShipments.length, icon: Truck, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+              { title: 'At Hub', count: hubShipments.length, icon: MapPin, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+              { title: 'Delivered', count: deliveredShipments.length, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
+            ].map((kpi, idx) => (
+              <motion.div 
+                key={kpi.title}
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
+                className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
               >
-                {f ? f : 'All Payments'}
-              </button>
+                <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
+                  <kpi.icon size={28} />
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-gray-900 dark:text-white">{loadingShipments ? '-' : kpi.count}</p>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">{kpi.title}</p>
+                </div>
+              </motion.div>
             ))}
           </div>
 
-          {loadingPayments ? (
-            <div className="flex justify-center py-16">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" />
-            </div>
-          ) : payments.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 card">
-              No driver payments recorded.
-            </div>
-          ) : (
-            <div className="card overflow-x-auto border-gray-100 dark:border-neutral-800">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-neutral-900 border-b border-gray-100 dark:border-neutral-800 font-bold uppercase text-[9px] text-gray-400">
-                    <th className="p-4">Payment ID</th>
-                    <th className="p-4">Driver</th>
-                    <th className="p-4">Shipment / Order</th>
-                    <th className="p-4">Amount</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-neutral-900">
-                  {payments.map((pay: any) => (
-                    <tr key={pay.id} className="hover:bg-gray-50/50 dark:hover:bg-neutral-800/10">
-                      <td className="p-4 font-mono font-bold">#{pay.id}</td>
-                      <td className="p-4">
-                        <span className="font-semibold">@{pay.driver_username || 'Unknown'}</span>
-                      </td>
-                      <td className="p-4">
-                        <p className="font-semibold text-gray-700 dark:text-gray-300">Shipment #{pay.shipment}</p>
-                        <p className="text-[10px] text-gray-400 font-bold">Order #{pay.shipment_order_id}</p>
-                      </td>
-                      <td className="p-4 font-bold text-gray-800 dark:text-gray-100">
-                        TZS {Number(pay.amount).toLocaleString()}
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[9px] ${
-                          pay.is_paid
-                            ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                            : 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
-                        }`}>
-                          {pay.is_paid ? 'Paid' : 'Unpaid'}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        {!pay.is_paid && (
-                          <button
-                            onClick={() => handleMarkPaid(pay.id)}
-                            disabled={payingId === pay.id}
-                            className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider transition shadow shadow-green-600/20 flex items-center gap-1"
-                          >
-                            <DollarSign size={12} />
-                            {payingId === pay.id ? 'Processing...' : 'Mark Paid'}
-                          </button>
-                        )}
-                        {pay.is_paid && (
-                          <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                            <CheckCircle2 size={12} className="text-green-500" />
-                            {new Date(pay.paid_at).toLocaleDateString()}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
+          {/* Kanban Swimlanes */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            {/* Lane 1: Pending */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Package size={16} /> Pending
+              </h3>
+              {loadingShipments ? <SkeletonCards /> : pendingShipments.length === 0 ? <EmptyState text="No pending tasks" /> : (
+                <div className="space-y-3">
+                  {pendingShipments.map(ship => (
+                    <ShipmentCard key={ship.id} ship={ship} onClick={() => openEditModal(ship)} badge="Pending" badgeColor="amber" />
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Edit Shipment Modal */}
-      {selectedShipment && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="card max-w-md w-full p-6 border-neutral-800 space-y-6 shadow-2xl relative">
-            <h3 className="text-base font-bold text-gray-900 dark:text-white uppercase tracking-wider border-b border-gray-100 dark:border-neutral-800 pb-3 flex items-center gap-2">
-              <Truck size={18} className="text-brand-500" /> Update Shipment #{selectedShipment.id}
-            </h3>
-
-            <form onSubmit={handleUpdateShipment} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400">Order Reference</label>
-                <input type="text" disabled className="input w-full bg-gray-50 dark:bg-neutral-900 cursor-not-allowed text-xs" value={`Order #${selectedShipment.order}`} />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400">Shipment Status</label>
-                <select required className="input w-full text-xs" value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
-                  <option value="pending">Pending</option>
-                  <option value="in_transit">In Transit</option>
-                  <option value="arrived_at_hub">Arrived At Hub</option>
-                  <option value="delivered">Delivered</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400">Carrier Type</label>
-                <select required className="input w-full text-xs" value={editCarrierType} onChange={(e) => setEditCarrierType(e.target.value as any)}>
-                  <option value="driver">SokoniMax Fleet Driver</option>
-                  <option value="third_party">Third-Party Courier</option>
-                </select>
-              </div>
-
-              {editCarrierType === 'driver' && (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400">Driver Username</label>
-                  <input
-                    type="text"
-                    placeholder="driver_john"
-                    className="input w-full text-xs"
-                    value={editDriver}
-                    onChange={(e) => setEditDriver(e.target.value)}
-                  />
                 </div>
               )}
+            </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400">Tracking number / Waybill</label>
-                <input
-                  type="text"
-                  placeholder="SNX-..."
-                  className="input w-full text-xs font-mono"
-                  value={editTrackingNum}
-                  onChange={(e) => setEditTrackingNum(e.target.value)}
-                />
-              </div>
+            {/* Lane 2: In Transit */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Truck size={16} /> In Transit
+              </h3>
+              {loadingShipments ? <SkeletonCards /> : transitShipments.length === 0 ? <EmptyState text="Empty lane" /> : (
+                <div className="space-y-3">
+                  {transitShipments.map(ship => (
+                    <ShipmentCard key={ship.id} ship={ship} onClick={() => openEditModal(ship)} badge="Transit" badgeColor="blue" />
+                  ))}
+                </div>
+              )}
+            </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400">Est. Delivery / Handover Time</label>
-                <input
-                  type="datetime-local"
-                  className="input w-full text-xs"
-                  value={editDeliveryTime}
-                  onChange={(e) => setEditDeliveryTime(e.target.value)}
-                />
-              </div>
+            {/* Lane 3: At Hub */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <MapPin size={16} /> Destination Hub
+              </h3>
+              {loadingShipments ? <SkeletonCards /> : hubShipments.length === 0 ? <EmptyState text="No arrivals" /> : (
+                <div className="space-y-3">
+                  {hubShipments.map(ship => (
+                    <ShipmentCard key={ship.id} ship={ship} onClick={() => openEditModal(ship)} badge="Hub" badgeColor="purple" />
+                  ))}
+                </div>
+              )}
+            </div>
 
-              <div className="flex gap-3 pt-4 border-t border-gray-50 dark:border-neutral-900">
-                <button
-                  type="button"
-                  onClick={() => setSelectedShipment(null)}
-                  className="flex-1 py-2 bg-gray-50 dark:bg-neutral-800 hover:bg-gray-100 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs uppercase transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingEdit}
-                  className="flex-1 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-xs uppercase transition shadow shadow-brand-600/20"
-                >
-                  {savingEdit ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
+            {/* Lane 4: Delivered */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <CheckCircle2 size={16} /> Delivered
+              </h3>
+              {loadingShipments ? <SkeletonCards /> : deliveredShipments.length === 0 ? <EmptyState text="No deliveries" /> : (
+                <div className="space-y-3">
+                  {deliveredShipments.map(ship => (
+                    <ShipmentCard key={ship.id} ship={ship} onClick={() => openEditModal(ship)} badge="Done" badgeColor="emerald" />
+                  ))}
+                </div>
+              )}
+            </div>
+
           </div>
-        </div>
+        </>
+      ) : (
+        <>
+          {/* KPI Cards for Payments */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[
+              { title: 'Awaiting Payouts', count: unpaidPayments.length, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+              { title: 'Disbursed', count: paidPayments.length, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
+            ].map((kpi, idx) => (
+              <motion.div 
+                key={kpi.title}
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
+                className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+              >
+                <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
+                  <kpi.icon size={28} />
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-gray-900 dark:text-white">{loadingPayments ? '-' : kpi.count}</p>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">{kpi.title}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Kanban Swimlanes for Payments */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Lane 1: Unpaid */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Clock size={16} /> Awaiting Payout
+              </h3>
+              {loadingPayments ? <SkeletonCards /> : unpaidPayments.length === 0 ? <EmptyState text="All clear!" /> : (
+                <div className="space-y-3">
+                  {unpaidPayments.map(pay => (
+                    <PaymentCard 
+                      key={pay.id} 
+                      pay={pay} 
+                      onAction={() => handleMarkPaid(pay.id)} 
+                      loading={payingId === pay.id}
+                      status="unpaid" 
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Lane 2: Paid */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <CheckCircle2 size={16} /> Disbursed
+              </h3>
+              {loadingPayments ? <SkeletonCards /> : paidPayments.length === 0 ? <EmptyState text="Empty lane" /> : (
+                <div className="space-y-3">
+                  {paidPayments.map(pay => (
+                    <PaymentCard 
+                      key={pay.id} 
+                      pay={pay} 
+                      onAction={() => {}} 
+                      loading={false}
+                      status="paid" 
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
+
+      {/* Edit Shipment Modal - Warehouse Style */}
+      <AnimatePresence>
+        {selectedShipment && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-neutral-900 rounded-3xl w-full max-w-xl shadow-2xl relative flex flex-col max-h-[90vh]"
+            >
+              <button onClick={() => setSelectedShipment(null)} className="absolute top-4 right-4 p-2 bg-gray-100 dark:bg-neutral-800 rounded-full text-gray-500 hover:text-gray-900 dark:hover:text-white transition z-10">
+                <X size={20} />
+              </button>
+
+              <div className="p-6 md:p-8 overflow-y-auto flex-1">
+                {/* Modal Header */}
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-16 h-16 rounded-2xl bg-brand-500/10 flex items-center justify-center text-brand-500">
+                    <Truck size={32} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                      Manage Shipment
+                    </h2>
+                    <p className="text-sm text-gray-500 font-bold">SHP-{selectedShipment.id.toString().padStart(5, '0')}</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleUpdateShipment} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Carrier Mode</label>
+                      <select required className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white" value={editCarrierType} onChange={(e) => setEditCarrierType(e.target.value as any)}>
+                        <option value="driver">SokoniMax Fleet</option>
+                        <option value="third_party">Third-Party Courier</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <AnimatePresence mode="popLayout">
+                    {editCarrierType === 'driver' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Assign Fleet Driver</label>
+                        <select className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white" value={editDriver} onChange={(e) => setEditDriver(e.target.value)}>
+                          <option value="">-- Unassigned --</option>
+                          {drivers.map(d => (
+                            <option key={d.id} value={d.id.toString()}>@{d.username} ({d.first_name} {d.last_name})</option>
+                          ))}
+                        </select>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Waybill / Tracking ID</label>
+                    <input
+                      type="text"
+                      placeholder="Optional tracking code"
+                      className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold font-mono outline-none text-gray-900 dark:text-white"
+                      value={editTrackingNum}
+                      onChange={(e) => setEditTrackingNum(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Est. Delivery / Handover Window</label>
+                    <input
+                      type="datetime-local"
+                      className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white"
+                      value={editDeliveryTime}
+                      onChange={(e) => setEditDeliveryTime(e.target.value)}
+                    />
+                  </div>
+
+                  {selectedShipment.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleUpdateShipment(e, 'in_transit')}
+                      disabled={savingEdit}
+                      className="w-full py-4 bg-brand-600 hover:bg-brand-500 text-white font-black rounded-xl text-sm uppercase tracking-widest transition-colors shadow-[0_0_20px_rgba(249,115,22,0.3)] disabled:opacity-50 mt-6"
+                    >
+                      {savingEdit ? 'Syncing...' : 'Dispatch (Mark In Transit)'}
+                    </button>
+                  )}
+
+                  {selectedShipment.status === 'in_transit' && (
+                    <div className="flex flex-col gap-3 mt-6">
+                      <button
+                        type="button"
+                        onClick={(e) => handleUpdateShipment(e, 'arrived_at_hub')}
+                        disabled={savingEdit}
+                        className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-white font-black rounded-xl text-sm uppercase tracking-widest transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)] disabled:opacity-50"
+                      >
+                        {savingEdit ? 'Syncing...' : 'Mark Arrived at Hub'}
+                      </button>
+                    </div>
+                  )}
+
+                  {(selectedShipment.status === 'in_transit' || selectedShipment.status === 'arrived_at_hub') && (
+                    <div className="flex flex-col gap-3 mt-6">
+                      <div className="pt-4 border-t border-gray-200 dark:border-neutral-800">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-2 block">Customer Delivery Code (Required)</label>
+                        <input
+                          type="text"
+                          value={deliveryCode}
+                          onChange={(e) => setDeliveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="Enter 6-digit Code"
+                          className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-center font-mono font-bold text-xl tracking-[0.2em] text-gray-900 dark:text-white outline-none mb-3"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => handleUpdateShipment(e, 'delivered')}
+                          disabled={savingEdit || deliveryCode.length !== 6}
+                          className="w-full py-4 bg-green-500 hover:bg-green-400 text-white font-black rounded-xl text-sm uppercase tracking-widest transition-colors shadow-[0_0_20px_rgba(34,197,94,0.3)] disabled:opacity-50"
+                        >
+                          {savingEdit ? 'Syncing...' : 'Mark Delivered to Customer'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedShipment.status === 'delivered' && (
+                    <div className="mt-6 p-4 rounded-xl bg-gray-100 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-center">
+                      <p className="text-sm font-bold text-gray-500">
+                        Shipment delivered to customer.
+                      </p>
+                      <p className="text-[10px] uppercase font-black tracking-widest text-gray-400 mt-1">Status Locked</p>
+                    </div>
+                  )}
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// Sub-components for Kanban Cards (matching Warehouse Ops QueueCard design)
+const ShipmentCard = ({ ship, onClick, badge, badgeColor }: { ship: any, onClick: () => void, badge: string, badgeColor: string }) => {
+  return (
+    <div 
+      onClick={onClick}
+      className="bg-white dark:bg-[#111] border border-gray-100 dark:border-neutral-800 rounded-3xl p-4 cursor-pointer hover:border-brand-500 hover:shadow-xl transition-all group relative overflow-hidden"
+    >
+      <div className={`absolute top-0 left-0 w-1 h-full bg-${badgeColor}-500 opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">SHP-{ship.id.toString().padStart(5, '0')}</p>
+          <h4 className="text-sm font-black text-gray-900 dark:text-white mt-0.5">Order #{ship.order}</h4>
+        </div>
+        <span className={`px-2 py-1 bg-${badgeColor}-500/10 text-${badgeColor}-500 text-[9px] font-black uppercase tracking-widest rounded-lg border border-${badgeColor}-500/20`}>
+          {badge}
+        </span>
+      </div>
+      
+      <div className="space-y-2 mt-4 pt-3 border-t border-gray-50 dark:border-neutral-800/50">
+        <div className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300">
+          {ship.carrier_type === 'driver' ? <User size={14} className="text-gray-400" /> : <Truck size={14} className="text-gray-400" />}
+          {ship.carrier_type === 'driver' ? (ship.driver_username ? `@${ship.driver_username}` : 'Unassigned') : 'External Courier'}
+        </div>
+        
+        {ship.has_vehicles && (
+          <div className="inline-flex items-center gap-1.5 text-[9px] text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full font-bold border border-amber-500/20 uppercase mt-1">
+            <AlertTriangle size={10} /> Needs Driver
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const PaymentCard = ({ pay, onAction, loading, status }: { pay: any, onAction: () => void, loading: boolean, status: 'paid' | 'unpaid' }) => {
+  return (
+    <div className="bg-white dark:bg-[#111] border border-gray-100 dark:border-neutral-800 rounded-3xl p-4 hover:border-brand-500 transition-colors relative overflow-hidden group">
+      <div className={`absolute top-0 left-0 w-1 h-full ${status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500'} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">PAY-{pay.id.toString().padStart(4, '0')}</p>
+          <h4 className="text-lg font-black text-gray-900 dark:text-white mt-0.5">TZS {Number(pay.amount).toLocaleString()}</h4>
+        </div>
+      </div>
+      
+      <div className="space-y-2 text-xs font-bold text-gray-500 pt-3 border-t border-gray-50 dark:border-neutral-800/50">
+        <p className="flex justify-between">
+          <span className="text-gray-400 uppercase tracking-widest text-[9px]">Driver</span>
+          <span className="text-gray-900 dark:text-white">@{pay.driver_username || 'Unknown'}</span>
+        </p>
+        <p className="flex justify-between">
+          <span className="text-gray-400 uppercase tracking-widest text-[9px]">Context</span>
+          <span className="text-brand-600 dark:text-brand-400">Order #{pay.shipment_order_id}</span>
+        </p>
+      </div>
+
+      <div className="mt-4 pt-3 border-t border-gray-50 dark:border-neutral-800/50">
+        {status === 'unpaid' ? (
+          <button
+            onClick={onAction}
+            disabled={loading}
+            className="w-full py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-black rounded-xl text-[10px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+          >
+            {loading ? <div className="animate-spin h-3 w-3 border-2 border-emerald-500 border-t-transparent rounded-full" /> : <DollarSign size={14} />}
+            Disburse Now
+          </button>
+        ) : (
+          <div className="flex items-center justify-center gap-2 text-emerald-500 text-[10px] font-black uppercase tracking-widest py-2.5 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+            <CheckCircle2 size={14} /> Disbursed on {new Date(pay.paid_at).toLocaleDateString()}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

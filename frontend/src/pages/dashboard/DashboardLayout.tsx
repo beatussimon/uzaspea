@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet } from 'lucide-react';
+import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import SettingsPage from './SettingsPage';
 import HelpCenterPage from './HelpCenterPage';
 
@@ -28,14 +29,33 @@ const DashboardLayout: React.FC = () => {
     { path: '/dashboard/payment-numbers', label: 'Payment Numbers', icon: CreditCard },
   ];
 
+  const { user } = useAuth();
+
   if (isBusiness) {
     navItems.push({ path: '/dashboard/team', label: 'Team Members', icon: Shield });
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
-      {/* Sidebar */}
-      <aside className="w-full lg:w-56 shrink-0">
+    <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6">
+      {/* Expired Subscription Banner */}
+      {user?.subscription_active === false && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-400 p-4 rounded-xl flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <AlertCircle size={24} className="text-red-500" />
+            <div>
+              <h4 className="font-bold">Subscription Expired</h4>
+              <p className="text-sm">Your seller subscription has expired. Please renew it to keep your account active and avoid listing suspension.</p>
+            </div>
+          </div>
+          <Link to="/dashboard/billing" className="btn-primary py-2 px-4 bg-red-600 hover:bg-red-700 border-none text-white text-sm whitespace-nowrap">
+            Renew Now
+          </Link>
+        </div>
+      )}
+
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Sidebar */}
+        <aside className="w-full lg:w-56 shrink-0">
         <nav className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-2 space-y-1">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
@@ -108,6 +128,7 @@ const DashboardLayout: React.FC = () => {
           <Route path="help-center" element={<HelpCenterPage />} />
         </Routes>
       </main>
+      </div>
     </div>
   );
 };

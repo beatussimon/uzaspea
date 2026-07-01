@@ -17,11 +17,17 @@ from marketplace.serializers import SponsoredListingSerializer
 from .serializers import (
     StaffProfileSerializer, TaskSerializer, TaskCategorySerializer,
     TaskActionSerializer, ApprovalSerializer, AuditLogSerializer,
-    StaffPermissionSerializer
+    StaffPermissionSerializer, DepartmentSerializer
 )
 
 
 from uzachuo.permissions import IsSuperUser, IsStaffMember, has_staff_permission
+
+class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
+    from .models import Department
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
 
 
 def log_audit(user, action, description, target_user=None, task=None, request=None):
@@ -693,6 +699,9 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=['post'])
     def toggle_active(self, request, pk=None):
         user = self.get_object()
+        if user == request.user:
+            return Response({'error': 'You cannot ban yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+            
         if user.is_superuser and not request.user.is_superuser:
             return Response({'error': 'Cannot toggle active status of superusers'}, status=status.HTTP_403_FORBIDDEN)
         

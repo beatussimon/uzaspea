@@ -131,15 +131,13 @@ const DashboardOverview: React.FC = () => {
             </div>
           </div>
 
-          {stats?.has_advanced_analytics && (
-            <div className="card p-5 space-y-2">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Commission Paid (This Month)</p>
-              <p className="text-2xl font-black text-gray-900 dark:text-white">
-                TZS {(stats.commission_paid || 0).toLocaleString()}
-              </p>
-              <p className="text-xs text-gray-400">Calculated at {stats.commission_rate || 10}% on completed orders</p>
-            </div>
-          )}
+          <div className="card p-5 space-y-2">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Commission Paid (This Month)</p>
+            <p className="text-2xl font-black text-gray-900 dark:text-white">
+              TZS {(stats?.commission_paid || 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-gray-400">Calculated at {stats?.commission_rate || 10}% on completed orders</p>
+          </div>
         </div>
 
         {/* Low Stock Alerts */}

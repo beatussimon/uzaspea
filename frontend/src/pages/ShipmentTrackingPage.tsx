@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
-import { Shield, Clock, MapPin, Truck, AlertTriangle } from 'lucide-react';
+import { Shield, Clock, MapPin, Truck, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const getWsBase = () => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -107,10 +108,13 @@ const LeafletMap: React.FC<{ lat: number; lng: number; stale: boolean }> = ({ la
 
 export const ShipmentTrackingPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [loading, setLoading] = useState(true);
   const [latestPing, setLatestPing] = useState<Ping | null>(null);
   const [stale, setStale] = useState(false);
+  const [deliveryCode, setDeliveryCode] = useState('');
+  const [confirming, setConfirming] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
   // Poll for staleness every 10 seconds
@@ -205,6 +209,29 @@ export const ShipmentTrackingPage: React.FC = () => {
 
     fetchShipmentData();
   }, [id]);
+
+  const handleConfirmDelivery = async () => {
+    if (!deliveryCode || deliveryCode.length !== 6) {
+      toast.error("Please enter a valid 6-digit delivery code.");
+      return;
+    }
+    
+    setConfirming(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.post(`${API_BASE_URL}/api/logistics/shipments/${id}/confirm_delivery/`, 
+        { code: deliveryCode },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success("Delivery confirmed successfully!");
+      setShipment(prev => prev ? { ...prev, status: 'delivered' } : prev);
+      setDeliveryCode('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to confirm delivery. Check the code.");
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -327,6 +354,35 @@ export const ShipmentTrackingPage: React.FC = () => {
                 </p>
               )}
             </div>
+
+            {/* Driver Console */}
+            {user && (user.username === shipment.driver_username || user.is_staff) && shipment.status !== 'delivered' && (
+              <div className="border-t border-gray-900 pt-6 mt-6">
+                <h3 className="text-sm font-black uppercase tracking-wider text-amber-500 mb-4 flex items-center gap-2">
+                  <Shield size={16} /> Driver Console
+                </h3>
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-400">
+                    Ask the customer for their 6-digit delivery code to finalize this delivery.
+                  </p>
+                  <input
+                    type="text"
+                    value={deliveryCode}
+                    onChange={(e) => setDeliveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="Enter 6-digit Code"
+                    className="w-full bg-[#111] border-2 border-gray-800 focus:border-amber-500 rounded-xl px-4 py-3 text-center font-mono font-bold text-xl tracking-[0.2em] text-white outline-none"
+                  />
+                  <button
+                    onClick={handleConfirmDelivery}
+                    disabled={confirming || deliveryCode.length !== 6}
+                    className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-xl uppercase tracking-widest text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {confirming ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <CheckCircle size={16} />}
+                    {confirming ? 'Confirming...' : 'Confirm Delivery'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

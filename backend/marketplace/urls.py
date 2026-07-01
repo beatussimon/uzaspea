@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .api_views import (
     ProductViewSet, CategoryViewSet, ReviewViewSet,
     CommentViewSet, OrderViewSet, PaymentViewSet,
-    CustomTokenObtainPairView, RegisterView,
+    CustomTokenObtainPairView, CustomTokenRefreshView, RegisterView,
     SponsoredListingViewSet, UserProfileViewSet,
     LipaNumberViewSet, FAQViewSet, SupportTicketViewSet, ChangePasswordView,
     VerifySuperuserView, NotificationViewSet, ConversationViewSet,
@@ -12,7 +12,7 @@ from .api_views import (
     DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet,
     MobileNetworkViewSet, TrendingAnalyticsView, reverse_geocode,
     SubscriptionTierViewSet, UserPaymentConfirmationViewSet, SellerApplicationViewSet,
-    TeamMemberViewSet
+    TeamMemberViewSet, UserSubscriptionViewSet
 )
 
 router = DefaultRouter()
@@ -32,6 +32,7 @@ router.register(r'subscription-tiers', SubscriptionTierViewSet, basename='subscr
 router.register(r'subscription-payments', UserPaymentConfirmationViewSet, basename='subscription-payment')
 router.register(r'seller-applications', SellerApplicationViewSet, basename='seller-application')
 router.register(r'team-members', TeamMemberViewSet, basename='team-member')
+router.register(r'subscriptions', UserSubscriptionViewSet, basename='subscription')
 # FIX v5: new viewsets
 router.register(r'notifications', NotificationViewSet, basename='notification')
 router.register(r'conversations', ConversationViewSet, basename='conversation')
@@ -43,7 +44,7 @@ router.register(r'variants', ProductVariantViewSet, basename='variant')
 urlpatterns = [
     path('api/', include(router.urls)),
     path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/register/', RegisterView.as_view(), name='auth_register'),
     path('api/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('api/auth/verify-superuser/', VerifySuperuserView.as_view(), name='verify_superuser'),  # FIX D-02/D-03

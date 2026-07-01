@@ -122,6 +122,14 @@ class LipaNumber(models.Model):
     name = models.CharField(max_length=100, help_text="Account or payee name shown to buyer")
     is_active = models.BooleanField(default=True)
     display_order = models.PositiveIntegerField(default=0)
+    is_system = models.BooleanField(default=False, help_text="True if this is a global platform payment method")
+    
+    PURPOSE_CHOICES = [
+        ('general', 'General'),
+        ('subscriptions', 'Subscriptions & Upgrades'),
+        ('commissions', 'Commission Payments'),
+    ]
+    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES, default='general')
 
     class Meta:
         ordering = ['display_order', 'network__name']
@@ -337,7 +345,7 @@ class Review(models.Model):
     rating = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    approved = models.BooleanField(default=False)
+    approved = models.BooleanField(default=True)
 
     class Meta:
         unique_together = ('user', 'product')  # One review per user per product
@@ -374,20 +382,26 @@ class Order(models.Model):
         ('AWAITING_PAYMENT', 'Awaiting Payment'),
         ('PENDING_VERIFICATION', 'Pending Verification'),
         ('PAID', 'Paid'),
+        ('PAID_PRODUCT', 'Paid Product'),
         ('SELLER_CONFIRMED', 'Seller Confirmed'),
         ('PREPARING', 'Preparing'),
         ('PACKAGING', 'Packaging'),
         ('SHIPPED_TO_WAREHOUSE', 'Shipped To Warehouse'),
         ('RECEIVED_AT_WAREHOUSE', 'Received At Warehouse'),
+        ('AWAITING_DELIVERY_PAYMENT', 'Awaiting Delivery Payment'),
+        ('PENDING_DELIVERY_VERIFICATION', 'Pending Delivery Verification'),
         ('ASSIGNED_TRANSPORT', 'Assigned Transport'),
         ('IN_TRANSIT', 'In Transit'),
         ('ARRIVED_AT_REGIONAL_WAREHOUSE', 'Arrived At Regional Warehouse'),
         ('READY_FOR_PICKUP', 'Ready For Pickup'),
+        ('READY_FOR_VEHICLE_HANDOVER', 'Ready For Vehicle Handover'),
         ('PROCESSING', 'Processing'),
         ('SHIPPED', 'Shipped'),
+        ('OUT_FOR_DELIVERY', 'Out For Delivery'),
         ('DELIVERED', 'Delivered'),
         ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
+        ('FAILED_DELIVERY', 'Failed Delivery'),
         ('EXPIRED', 'Expired'),
         ('DISPUTED', 'Disputed'),
     )
@@ -397,8 +411,8 @@ class Order(models.Model):
     )
     status = models.CharField(max_length=40, choices=STATUS_CHOICES, default='CART')
     shipping_method = models.CharField(max_length=15, choices=SHIPPING_CHOICES, default='DELIVERY')
-    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    platform_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    platform_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     delivery_info = models.JSONField(null=True, blank=True, default=dict)  # FIX: L-02 — store buyer's name/phone/address
     delivery_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     delivery_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -536,12 +550,13 @@ def save_user_profile(sender, instance, **kwargs):
 @receiver(post_save, sender=PaymentConfirmation)
 def activate_subscription_on_payment_approval(sender, instance, **kwargs):
     """FIX: S-11 — Activate subscription when payment confirmation is approved."""
-    if instance.status == 'approved':
+    if instance.status.lower() == 'approved':
         from datetime import timedelta
-        sub, _ = Subscription.objects.get_or_create(
-            user=instance.user,
-            defaults={'tier': instance.tier}
-        )
+        # Get the latest subscription or create a new one
+        sub = Subscription.objects.filter(user=instance.user).order_by('-start_date').first()
+        if not sub:
+            sub = Subscription(user=instance.user)
+            
         sub.tier = instance.tier
         sub.is_active = True
         sub.start_date = timezone.now()
@@ -552,7 +567,9 @@ def activate_subscription_on_payment_approval(sender, instance, **kwargs):
             profile = instance.user.profile
             if instance.tier:
                 profile.tier = instance.tier.tier_level
-            profile.save(update_fields=['tier'])
+                if instance.tier.tier_level in ['seller_pro', 'business']:
+                    profile.is_verified = True
+            profile.save(update_fields=['tier', 'is_verified'])
         except UserProfile.DoesNotExist:
             pass
 
@@ -976,7 +993,9 @@ def handle_seller_application_status_change(sender, instance, **kwargs):
         try:
             profile = instance.user.profile
             profile.tier = instance.requested_tier.tier_level
-            profile.save(update_fields=['tier'])
+            if instance.requested_tier.tier_level in ['seller_pro', 'business']:
+                profile.is_verified = True
+            profile.save(update_fields=['tier', 'is_verified'])
         except UserProfile.DoesNotExist:
             pass
 

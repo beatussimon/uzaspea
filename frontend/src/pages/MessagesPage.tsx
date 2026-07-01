@@ -1,5 +1,6 @@
+import toast from 'react-hot-toast';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { MessageSquare, Send, ArrowLeft } from 'lucide-react';
 import api from '../api';
 import VerifiedBadge from '../components/VerifiedBadge';
@@ -8,6 +9,7 @@ import VerifiedBadge from '../components/VerifiedBadge';
 const MessagesPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [conversations, setConversations] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -47,8 +49,35 @@ const MessagesPage: React.FC = () => {
         .catch(() => {});
       const conv = conversations.find(c => c.id === parseInt(id));
       if (conv) setActiveConv(conv);
+    } else {
+      // Handle ?user= query param
+      const targetUser = searchParams.get('user');
+      if (targetUser && !loading) {
+        const existing = conversations.find(c => 
+          c.buyer?.username === targetUser || c.seller?.username === targetUser
+        );
+        if (existing) {
+          navigate(`/messages/${existing.id}`, { replace: true });
+        } else {
+          // Fetch profile to get user_id, then create conversation
+          api.get(`/api/profiles/${targetUser}/`)
+            .then(res => {
+              const targetUserId = res.data.user_id;
+              if (targetUserId) {
+                return api.post('/api/conversations/', { seller: targetUserId });
+              }
+              throw new Error('User ID not found');
+            })
+            .then(res => {
+              // Refresh conversations and navigate
+              setConversations(prev => [res.data, ...prev]);
+              navigate(`/messages/${res.data.id}`, { replace: true });
+            })
+            .catch(() => toast.error(`Could not start conversation with ${targetUser}`));
+        }
+      }
     }
-  }, [id, conversations]);
+  }, [id, conversations, searchParams, navigate, loading]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);

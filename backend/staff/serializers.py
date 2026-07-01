@@ -2,8 +2,13 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
     StaffProfile, Task, TaskCategory, TaskAction, Approval,
-    AuditLog, StaffPermission
+    AuditLog, StaffPermission, Department
 )
+
+class DepartmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Department
+        fields = ['id', 'name', 'description']
 
 
 class StaffProfileSerializer(serializers.ModelSerializer):

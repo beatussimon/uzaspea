@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck } from 'lucide-react';
+import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck, Shield } from 'lucide-react';
 
 const BillingPage: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
   const [driverPayments, setDriverPayments] = useState<any[]>([]);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'invoices' | 'ledger' | 'driver_payments'>('invoices');
+  const [activeTab, setActiveTab] = useState<'subscriptions' | 'invoices' | 'ledger' | 'driver_payments'>('subscriptions');
 
   // Pay Modal State
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [adminLipa, setAdminLipa] = useState<any[]>([]);
   const [loadingPaymentData, setLoadingPaymentData] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
@@ -22,24 +24,30 @@ const BillingPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [invRes, ledRes, dpRes] = await Promise.all([
+      const [invRes, ledRes, dpRes, subRes] = await Promise.all([
         api.get('/api/billing/invoices/'),
         api.get('/api/billing/ledger/'),
-        api.get('/api/logistics/driver-payments/?seller_view=true')
+        api.get('/api/logistics/driver-payments/?seller_view=true'),
+        api.get('/api/subscriptions/me/')
       ]);
       setInvoices(invRes.data.results || invRes.data || []);
       setLedger(ledRes.data.results || ledRes.data || []);
+      if (subRes.data && subRes.data.status !== 'none') {
+        setSubscriptions([subRes.data]);
+      } else {
+        setSubscriptions([]);
+      }
       const paymentsList = dpRes.data.results || dpRes.data || [];
       setDriverPayments(paymentsList);
-      if (paymentsList.length === 0) {
-        setActiveTab(prev => prev === 'driver_payments' ? 'invoices' : prev);
+      if (paymentsList.length === 0 && activeTab === 'driver_payments') {
+        setActiveTab('subscriptions');
       }
     } catch {
       toast.error('Failed to load billing information');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     fetchData();
@@ -50,8 +58,13 @@ const BillingPage: React.FC = () => {
     setShowPayModal(true);
     setLoadingPaymentData(true);
     try {
-      const res = await api.get('/api/lipa-numbers/?seller=admin');
-      setAdminLipa(res.data.results || res.data || []);
+      const res = await api.get('/api/lipa-numbers/?is_system=true&purpose=commissions');
+      let numbers = res.data.results || res.data || [];
+      if (numbers.length === 0) {
+        const fallbackRes = await api.get('/api/lipa-numbers/?is_system=true&purpose=general');
+        numbers = fallbackRes.data.results || fallbackRes.data || [];
+      }
+      setAdminLipa(numbers);
     } catch {
       toast.error('Failed to load payment options');
     } finally {
@@ -61,25 +74,38 @@ const BillingPage: React.FC = () => {
 
   const handlePaySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedInvoice) return;
+    if (!selectedInvoice && !selectedSubscription) return;
     if (!refId) return toast.error('Please enter the transaction reference');
     if (!proofFile) return toast.error('Please upload proof of payment screenshot');
 
     setSubmittingPayment(true);
     const fd = new FormData();
-    fd.append('amount', selectedInvoice.total_commission);
-    fd.append('transaction_id', refId);
-    fd.append('receipt_screenshot', proofFile);
 
     try {
-      await api.post(`/api/billing/${selectedInvoice.id}/pay_invoice/`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      toast.success('Commission payment submitted successfully! Staff will verify it shortly.');
+      if (selectedInvoice) {
+        fd.append('amount', selectedInvoice.total_commission);
+        fd.append('transaction_id', refId);
+        fd.append('receipt_screenshot', proofFile);
+        await api.post(`/api/billing/${selectedInvoice.id}/pay_invoice/`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        toast.success('Commission payment submitted successfully! Staff will verify it shortly.');
+      } else if (selectedSubscription) {
+        fd.append('amount', selectedSubscription.tier.price);
+        fd.append('reference', refId);
+        fd.append('proof', proofFile);
+        fd.append('tier', selectedSubscription.tier.id);
+        await api.post(`/api/subscription-payments/`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        toast.success('Subscription renewal payment submitted successfully! Staff will verify it shortly.');
+      }
+      
       setShowPayModal(false);
       setRefId('');
       setProofFile(null);
       setSelectedInvoice(null);
+      setSelectedSubscription(null);
       fetchData();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Failed to submit payment details');
@@ -119,10 +145,20 @@ const BillingPage: React.FC = () => {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="flex gap-6">
+        <nav className="flex gap-6 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setActiveTab('subscriptions')}
+            className={`py-3.5 border-b-2 text-sm font-bold transition-all whitespace-nowrap ${
+              activeTab === 'subscriptions'
+                ? 'border-brand-600 text-brand-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            My Subscriptions
+          </button>
           <button
             onClick={() => setActiveTab('invoices')}
-            className={`py-3.5 border-b-2 text-sm font-bold transition-all ${
+            className={`py-3.5 border-b-2 text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === 'invoices'
                 ? 'border-brand-600 text-brand-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
@@ -158,6 +194,67 @@ const BillingPage: React.FC = () => {
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
+        </div>
+      ) : activeTab === 'subscriptions' ? (
+        <div className="space-y-4">
+          {subscriptions.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+              <Shield size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+              <p className="text-gray-500">You don't have an active seller subscription.</p>
+            </div>
+          ) : (
+            subscriptions.map((sub: any) => (
+              <div key={sub.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+                    <span className="capitalize">{sub.tier?.name || 'Unknown Tier'}</span> Plan
+                    {sub.is_expired ? (
+                      <span className="px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs rounded-full uppercase tracking-wider font-bold">Expired</span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs rounded-full uppercase tracking-wider font-bold">Active</span>
+                    )}
+                  </h3>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
+                    <p>Started: <span className="font-semibold text-gray-900 dark:text-gray-300">{new Date(sub.start_date).toLocaleDateString()}</span></p>
+                    <p>Expires: <span className="font-semibold text-gray-900 dark:text-gray-300">{new Date(sub.end_date).toLocaleDateString()}</span></p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-3 text-right w-full md:w-auto">
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Renewal Due</div>
+                    <div className="text-xl font-black text-gray-900 dark:text-white">TZS {Number(sub.tier?.price || 0).toLocaleString()}</div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedSubscription(sub);
+                      setShowPayModal(true);
+                      setLoadingPaymentData(true);
+                      api.get('/api/lipa-numbers/?is_system=true&purpose=subscriptions').then(res => {
+                        let numbers = res.data.results || res.data || [];
+                        if (numbers.length === 0) {
+                          api.get('/api/lipa-numbers/?is_system=true&purpose=general').then(fallbackRes => {
+                            setAdminLipa(fallbackRes.data.results || fallbackRes.data || []);
+                            setLoadingPaymentData(false);
+                          });
+                        } else {
+                          setAdminLipa(numbers);
+                          setLoadingPaymentData(false);
+                        }
+                      }).catch(() => {
+                        toast.error('Failed to load payment options');
+                        setLoadingPaymentData(false);
+                      });
+                    }}
+                    className={`btn-primary py-2 px-6 rounded-lg text-sm font-bold shadow-md w-full md:w-auto ${
+                      sub.is_expired ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/20' : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/20'
+                    }`}
+                  >
+                    {sub.is_expired ? 'Renew Now' : 'Pay Renewal Early'}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       ) : activeTab === 'invoices' ? (
         <div className="space-y-4">
@@ -361,17 +458,19 @@ const BillingPage: React.FC = () => {
       )}
 
       {/* Pay Invoice Modal */}
-      {showPayModal && selectedInvoice && (
+      {showPayModal && (selectedInvoice || selectedSubscription) && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border dark:border-gray-700 animate-scale-in my-8">
             <button
-              onClick={() => { setShowPayModal(false); setSelectedInvoice(null); }}
+              onClick={() => { setShowPayModal(false); setSelectedInvoice(null); setSelectedSubscription(null); }}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
             >
               <X size={20} />
             </button>
 
-            <h3 className="text-lg font-black text-gray-900 dark:text-white mb-4">Pay Commission Invoice</h3>
+            <h3 className="text-lg font-black text-gray-900 dark:text-white mb-4">
+              {selectedInvoice ? 'Pay Commission Invoice' : 'Renew Subscription'}
+            </h3>
 
             {loadingPaymentData ? (
               <div className="flex justify-center py-12">
@@ -380,14 +479,29 @@ const BillingPage: React.FC = () => {
             ) : (
               <form onSubmit={handlePaySubmit} className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-900/30 rounded-xl">
-                  <div>
-                    <p className="text-xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider leading-none">Invoice Period</p>
-                    <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mt-1">{formatMonth(selectedInvoice.year, selectedInvoice.month)}</h4>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 leading-none">Commission Due</p>
-                    <p className="font-black text-brand-600 text-sm mt-1">TSh {Number(selectedInvoice.total_commission).toLocaleString()}</p>
-                  </div>
+                  {selectedInvoice ? (
+                    <>
+                      <div>
+                        <p className="text-xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider leading-none">Invoice Period</p>
+                        <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mt-1">{formatMonth(selectedInvoice.year, selectedInvoice.month)}</h4>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500 leading-none">Commission Due</p>
+                        <p className="font-black text-brand-600 text-sm mt-1">TSh {Number(selectedInvoice.total_commission).toLocaleString()}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider leading-none">Subscription</p>
+                        <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mt-1">{selectedSubscription?.tier?.name} Plan</h4>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500 leading-none">Renewal Due</p>
+                        <p className="font-black text-brand-600 text-sm mt-1">TSh {Number(selectedSubscription?.tier?.price || 0).toLocaleString()}</p>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div>

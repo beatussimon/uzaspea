@@ -19,14 +19,150 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         from marketplace.serializers import OrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
-            Q(status='SHIPPED_TO_WAREHOUSE') &
-            (Q(delivery_info__warehouse_code=warehouse.code) |
+            (Q(status='SHIPPED_TO_WAREHOUSE') & (Q(delivery_info__warehouse_code=warehouse.code) | Q(delivery_info__isnull=True) | Q(delivery_info={}))) |
+            (Q(status__in=['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'FAILED_DELIVERY']) & Q(delivery_info__destination_warehouse_code=warehouse.code))
+        ).order_by('order_date')
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='received-intakes')
+    def received_intakes(self, request, pk=None):
+        warehouse = self.get_object()
+        from marketplace.serializers import OrderSerializer
+        from django.db.models import Q
+        orders = Order.objects.filter(
+            Q(status='RECEIVED_AT_WAREHOUSE') &
+            (Q(delivery_info__current_warehouse_code=warehouse.code) |
+             Q(delivery_info__warehouse_code=warehouse.code) |
+             Q(delivery_info__destination_warehouse_code=warehouse.code) |
              Q(delivery_info__isnull=True) |
-             Q(delivery_info__warehouse_code__isnull=True) |
              Q(delivery_info={}))
         ).order_by('order_date')
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='set-delivery-fee')
+    def set_delivery_fee(self, request, pk=None):
+        order_id = request.data.get('order_id')
+        fee = request.data.get('fee')
+        dest_code = request.data.get('destination_warehouse')
+        current_warehouse = self.get_object()
+        
+        try:
+            order = Order.objects.get(id=order_id)
+            if order.status != 'RECEIVED_AT_WAREHOUSE':
+                return Response({'error': 'Order must be RECEIVED_AT_WAREHOUSE to set fee.'}, status=400)
+            
+            if dest_code:
+                if not order.delivery_info:
+                    order.delivery_info = {}
+                order.delivery_info['destination_warehouse_code'] = dest_code
+                order.shipping_fee = fee
+                order.save(update_fields=['shipping_fee', 'delivery_info'])
+                
+                if dest_code != current_warehouse.code:
+                    from warehouses.models import Warehouse, WarehouseTransfer
+                    try:
+                        dest_warehouse = Warehouse.objects.get(code=dest_code)
+                        WarehouseTransfer.objects.get_or_create(
+                            order=order,
+                            source_warehouse=current_warehouse,
+                            destination_warehouse=dest_warehouse,
+                            defaults={'status': 'pending'}
+                        )
+                    except Warehouse.DoesNotExist:
+                        pass
+            else:
+                order.shipping_fee = fee
+                order.save(update_fields=['shipping_fee'])
+            
+            # Transition
+            OrderStateMachine.transition_order(order, 'AWAITING_DELIVERY_PAYMENT', notes=f"Final delivery fee confirmed: TSh {fee}")
+            return Response({'status': 'success', 'shipping_fee': fee})
+        except Order.DoesNotExist:
+            return Response({'error': 'Order not found'}, status=404)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+    @action(detail=True, methods=['get'], url_path='awaiting-payment')
+    def awaiting_payment(self, request, pk=None):
+        warehouse = self.get_object()
+        from marketplace.serializers import OrderSerializer
+        from django.db.models import Q
+        orders = Order.objects.filter(
+            Q(status__in=['AWAITING_DELIVERY_PAYMENT', 'PENDING_DELIVERY_VERIFICATION']) &
+            (Q(delivery_info__current_warehouse_code=warehouse.code) |
+             Q(delivery_info__warehouse_code=warehouse.code) |
+             Q(delivery_info__destination_warehouse_code=warehouse.code) |
+             Q(delivery_info__isnull=True) |
+             Q(delivery_info={}))
+        ).order_by('order_date')
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='outbound-queue')
+    def outbound_queue(self, request, pk=None):
+        warehouse = self.get_object()
+        from marketplace.serializers import OrderSerializer
+        from django.db.models import Q
+        orders = Order.objects.filter(
+            Q(status__in=['ASSIGNED_TRANSPORT', 'READY_FOR_TRANSIT']) &
+            (Q(delivery_info__current_warehouse_code=warehouse.code) |
+             (Q(delivery_info__isnull=True) | Q(delivery_info={})))
+        ).order_by('order_date')
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='ready-for-pickup')
+    def ready_for_pickup(self, request, pk=None):
+        warehouse = self.get_object()
+        from marketplace.serializers import OrderSerializer
+        from django.db.models import Q
+        orders = Order.objects.filter(
+            Q(status__in=['READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER']) &
+            (Q(delivery_info__current_warehouse_code=warehouse.code) |
+             Q(delivery_info__warehouse_code=warehouse.code) |
+             Q(delivery_info__destination_warehouse_code=warehouse.code) |
+             Q(delivery_info__isnull=True) |
+             Q(delivery_info={}))
+        ).order_by('order_date')
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='dispatch-order')
+    def dispatch_order(self, request, pk=None):
+        warehouse = self.get_object()
+        order_id = request.data.get('order_id')
+        try:
+            order = Order.objects.get(id=order_id)
+            if order.status != 'ASSIGNED_TRANSPORT':
+                return Response({'error': 'Order must be in ASSIGNED_TRANSPORT state to be dispatched.'}, status=400)
+            
+            is_last_mile = order.delivery_info and order.delivery_info.get('current_warehouse_code') == order.delivery_info.get('destination_warehouse_code')
+            if is_last_mile:
+                notes = f"Package handed over to last-mile courier at {warehouse.name} for final delivery."
+                new_status = 'OUT_FOR_DELIVERY'
+            else:
+                notes = f"Package dispatched from origin warehouse ({warehouse.name}) and is in transit to destination hub."
+                new_status = 'IN_TRANSIT'
+            
+            OrderStateMachine.transition_order(
+                order, 
+                new_status, 
+                notes=notes
+            )
+            
+            # Update transfer record if it exists
+            WarehouseTransfer.objects.filter(
+                order=order,
+                source_warehouse=warehouse,
+                status='pending'
+            ).update(status='in_transit', shipped_at=timezone.now())
+            return Response({'status': 'success'})
+        except Order.DoesNotExist:
+            return Response({'error': 'Order not found'}, status=404)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
 
 
 class WarehouseIntakeViewSet(viewsets.ModelViewSet):
@@ -39,15 +175,81 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
         warehouse = serializer.validated_data['warehouse']
         package_condition = serializer.validated_data.get('package_condition', 'good')
 
-        # 1. Transition the order status
+        from logistics.utils import order_has_vehicles
+        if order.status == 'ARRIVED_AT_REGIONAL_WAREHOUSE':
+            is_home_delivery = order.delivery_info and order.delivery_info.get('shipping_speed')
+            if order_has_vehicles(order):
+                new_status = 'READY_FOR_VEHICLE_HANDOVER'
+            elif is_home_delivery:
+                new_status = 'ASSIGNED_TRANSPORT'
+            else:
+                new_status = 'READY_FOR_PICKUP'
+            notes = f"Package inspected and shelved at destination hub ({warehouse.name}). Ready for final delivery/pickup. Condition: {package_condition}"
+        elif order.status == 'IN_TRANSIT':
+            new_status = 'ARRIVED_AT_REGIONAL_WAREHOUSE'
+            notes = f"Package received at destination warehouse ({warehouse.name}). Condition: {package_condition}"
+        else:
+            new_status = 'RECEIVED_AT_WAREHOUSE'
+            notes = f"Package received at origin warehouse ({warehouse.name}). Condition: {package_condition}"
+
         OrderStateMachine.transition_order(
             order,
-            'RECEIVED_AT_WAREHOUSE',
-            notes=f"Package received at {warehouse.name}. Condition: {package_condition}"
+            new_status,
+            notes=notes
         )
+
+        if not order.delivery_info:
+            order.delivery_info = {}
+        order.delivery_info['current_warehouse_code'] = warehouse.code
+        order.save(update_fields=['delivery_info'])
+
+        # Mark any incoming transfer as completed
+        WarehouseTransfer.objects.filter(
+            order=order,
+            destination_warehouse=warehouse,
+            status='in_transit'
+        ).update(status='completed', received_at=timezone.now())
 
         # 2. Save with current staff member
         serializer.save(intake_by=self.request.user)
+
+    @action(detail=False, methods=['get'], url_path='preview-order')
+    def preview_order(self, request):
+        order_id = request.query_params.get('order_id')
+        if not order_id:
+            return Response({'error': 'order_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            order = Order.objects.get(id=order_id)
+            
+            # Get primary product name/image
+            first_item = order.orderitem_set.first()
+            product_name = first_item.product.name if first_item else 'Unknown Product'
+            product_image = None
+            if first_item and first_item.product.images.exists():
+                product_image = first_item.product.images.first().image.url
+                
+            buyer_name = order.user.get_full_name() or order.user.username
+            seller_name = "Unknown Seller"
+            if first_item:
+                seller = first_item.product.seller
+                seller_name = seller.get_full_name() or seller.username
+                
+            from marketplace.serializers import PaymentSerializer
+            payments = PaymentSerializer(order.payments.all(), many=True).data
+
+            return Response({
+                'id': order.id,
+                'status': order.status,
+                'product_name': product_name,
+                'product_image': product_image,
+                'buyer_name': buyer_name,
+                'seller_name': seller_name,
+                'payments': payments,
+                'delivery_info': order.delivery_info,
+            })
+        except Order.DoesNotExist:
+            return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class WarehouseTransferViewSet(viewsets.ModelViewSet):
