@@ -4,7 +4,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Lock, ChevronRight, ChevronLeft, Calendar } from 'lucide-react';
+import { User, Mail, Lock, ChevronRight, ChevronLeft, Calendar, Eye, EyeOff } from 'lucide-react';
 
 const RegisterPage: React.FC = () => {
   const [step, setStep] = useState(1);
@@ -17,6 +17,8 @@ const RegisterPage: React.FC = () => {
     password: '',
     confirm_password: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const isAuthenticated = !!localStorage.getItem('access_token');
 
@@ -192,17 +194,33 @@ const RegisterPage: React.FC = () => {
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                           <input
-                            type="password" name="password" required minLength={8}
-                            className="input pl-10 h-12 rounded-xl" value={formData.password} onChange={handleChange} placeholder="••••••••"
+                            type={showPassword ? "text" : "password"} name="password" required minLength={8}
+                            className="input pl-10 pr-10 h-12 rounded-xl" value={formData.password} onChange={handleChange} placeholder="••••••••"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
                         </div>
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">Confirm</label>
-                        <input
-                          type="password" name="confirm_password" required minLength={8}
-                          className="input h-12 rounded-xl" value={formData.confirm_password} onChange={handleChange} placeholder="••••••••"
-                        />
+                        <div className="relative">
+                          <input
+                            type={showConfirmPassword ? "text" : "password"} name="confirm_password" required minLength={8}
+                            className="input pr-10 h-12 rounded-xl" value={formData.confirm_password} onChange={handleChange} placeholder="••••••••"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                       </div>
                     </div>
 

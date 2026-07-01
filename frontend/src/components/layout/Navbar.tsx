@@ -133,7 +133,7 @@ const Navbar = () => {
                 {/* Sell button (Only visible to verified sellers) */}
                 {isSeller && (
                   <Link 
-                    to="/dashboard/products" 
+                    to="/dashboard/products#new" 
                     className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 shadow-sm mr-1 ${
                       useLightStyle
                         ? 'bg-white text-gray-900 hover:bg-gray-100'
@@ -249,7 +249,7 @@ const Navbar = () => {
                                 </div>
                                 <span className="font-medium">Seller Dashboard</span>
                               </Link>
-                              <Link to="/dashboard/products" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/products' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
+                              <Link to="/dashboard/products#new" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/products' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/products' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                                   <PlusCircle size={14} />
                                 </div>

@@ -1,0 +1,1 @@
+﻿WITH RECURSIVE cat_tree AS ( SELECT id, name, slug, parent_id FROM marketplace_category WHERE id = 31 UNION ALL SELECT c.id, c.name, c.slug, c.parent_id FROM marketplace_category c JOIN cat_tree ct ON c.id = ct.parent_id) SELECT * FROM cat_tree;

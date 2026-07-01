@@ -147,4 +147,25 @@
     letter-spacing: -0.03em;
     filter: drop-shadow(0 1px 2px rgba(255,255,255,0.06));
   }
+
+  /* Completely hide all scrollbars as per user request, but maintain scroll functionality */
+  ::-webkit-scrollbar {
+    display: none;
+    width: 0px;
+    height: 0px;
+  }
+  
+  * {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+
+  /* Utility class fallback */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

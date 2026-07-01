@@ -122,10 +122,12 @@ const CheckoutPage: React.FC = () => {
   }, [shippingMethod, selectedCity, items, sellerCoords]);
 
   const activeQuote = quotes.find(q => q.code === selectedQuoteCode);
-  const shippingFee = shippingMethod === 'DELIVERY' 
+  const estimatedShippingFee = shippingMethod === 'DELIVERY' 
     ? (activeQuote ? Number(activeQuote.price) : 0) 
     : 0;
-  const finalTotal = totalPrice + shippingFee;
+  
+  // They pay 0 for delivery at checkout. They only pay product price fully.
+  const finalTotal = totalPrice;
 
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
@@ -180,14 +182,15 @@ const CheckoutPage: React.FC = () => {
         })),
         total_amount: finalTotal,
         shipping_method: shippingMethod,
-        shipping_fee: shippingFee,
+        shipping_fee: 0, // 0 at checkout
         delivery_info: {
           full_name: form.fullName,
           phone: form.phone,
           address: `${form.deliveryAddress}, ${selectedCity}`,
           notes: form.notes,
           shipping_speed: shippingMethod === 'DELIVERY' ? selectedQuoteCode : undefined,
-          warehouse_code: nearestWarehouseCode
+          warehouse_code: nearestWarehouseCode,
+          estimated_shipping_fee: estimatedShippingFee
         },
       };
 
@@ -197,7 +200,7 @@ const CheckoutPage: React.FC = () => {
       // Advance status to AWAITING_PAYMENT after creation
       await api.post(`/api/orders/${orderId}/advance/`, { 
         status: 'AWAITING_PAYMENT',
-        notes: 'Checkout completed.' 
+        notes: 'Order placed, awaiting offline payment proof.' 
       });
 
       setCheckoutSuccess(true);
@@ -387,7 +390,7 @@ const CheckoutPage: React.FC = () => {
                   <div className="bg-brand-50 dark:bg-brand-900/20 p-4 rounded-xl border border-brand-100 dark:border-brand-800 mt-6">
                     <p className="text-sm text-brand-700 dark:text-brand-300 flex items-center gap-2">
                       <Shield size={16} />
-                      Your order will be held at our main hub in Kariakoo. A secure pickup code will be generated upon arrival.
+                      Your order will be held at our main warehouse. A secure pickup code will be generated upon arrival.
                     </p>
                   </div>
                 </motion.div>
@@ -401,7 +404,7 @@ const CheckoutPage: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-bold rounded-xl transition shadow-xl shadow-brand-600/20"
           >
             <CreditCard size={20} />
-            {submitting ? 'Placing Order...' : `Place Order — TSh ${finalTotal.toLocaleString()}`}
+            {submitting ? 'Placing Order...' : `Pay Product Price — TSh ${finalTotal.toLocaleString()}`}
           </button>
         </form>
 
@@ -429,19 +432,19 @@ const CheckoutPage: React.FC = () => {
           </div>
           <div className="border-t dark:border-gray-700 pt-3 space-y-2">
             <div className="flex justify-between items-center">
-              <span className="font-medium text-gray-600 dark:text-gray-400">Subtotal</span>
+              <span className="font-medium text-gray-600 dark:text-gray-400">Product Subtotal</span>
               <span className="font-medium text-gray-900 dark:text-white">
                 TSh {totalPrice.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="font-medium text-gray-600 dark:text-gray-400">Shipping</span>
-              <span className="font-medium text-gray-900 dark:text-white" title="Final shipping is confirmed by SokoniMax logistics after your item reaches our warehouse. We'll notify you before charging.">
-                {shippingMethod === 'PICKUP' ? 'Free' : (shippingFee > 0 ? `~TSh ${shippingFee.toLocaleString()}` : 'TBD')}
+              <span className="font-medium text-gray-600 dark:text-gray-400">Shipping (Billed Later)</span>
+              <span className="font-medium text-amber-600 dark:text-amber-400 text-sm" title="Final shipping is confirmed by warehouse staff after your item is dropped off.">
+                {shippingMethod === 'PICKUP' ? 'Free' : (estimatedShippingFee > 0 ? `Est. TSh ${estimatedShippingFee.toLocaleString()}` : 'TBD')}
               </span>
             </div>
             <div className="border-t dark:border-gray-700 pt-2 flex justify-between items-center">
-              <span className="font-bold text-gray-900 dark:text-white">Total</span>
+              <span className="font-bold text-gray-900 dark:text-white">Due Today</span>
               <span className="text-xl font-black text-brand-600 dark:text-brand-400">
                 TSh {finalTotal.toLocaleString()}
               </span>

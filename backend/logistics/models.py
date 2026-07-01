@@ -9,21 +9,7 @@ User = get_user_model()
 def generate_pickup_code():
     return str(secrets.randbelow(900000) + 100000)
 
-def is_vehicle_category(category):
-    if not category:
-        return False
-    if category.name.lower() == 'vehicles' or category.slug.lower() == 'vehicles':
-        return True
-    if category.parent:
-        return is_vehicle_category(category.parent)
-    return False
-
-def order_has_vehicles(order):
-    for item in order.orderitem_set.select_related('product__category').all():
-        if is_vehicle_category(item.product.category):
-            return True
-    return False
-
+from .utils import is_vehicle_category, order_has_vehicles
 
 class DeliveryOption(models.Model):
     name = models.CharField(max_length=50)
@@ -51,6 +37,7 @@ class Shipment(models.Model):
     order = models.ForeignKey('marketplace.Order', on_delete=models.CASCADE, related_name='shipments')
     carrier_type = models.CharField(max_length=20, choices=CARRIER_CHOICES, default='driver')
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='shipments')
+    third_party_driver_info = models.CharField(max_length=255, blank=True, help_text="Info for third-party drivers (Name, Phone, etc.)")
     tracking_number = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     estimated_delivery = models.DateTimeField(null=True, blank=True)
@@ -65,8 +52,9 @@ class Shipment(models.Model):
         super().save(*args, **kwargs)
         
         if self.status == 'delivered' and old_status != 'delivered':
-            if order_has_vehicles(self.order) and self.driver:
-                amount = self.order.shipping_fee if (self.order.shipping_fee and self.order.shipping_fee > 0) else Decimal('15000.00')
+            if self.carrier_type == 'driver' and self.driver and order_has_vehicles(self.order):
+                # Give a fixed vehicle delivery payout rather than the entire shipping_fee
+                amount = Decimal('15000.00')
                 DriverPayment.objects.get_or_create(
                     shipment=self,
                     driver=self.driver,
@@ -118,4 +106,18 @@ class DriverPayment(models.Model):
 
     def __str__(self):
         return f"Payment of {self.amount} to {self.driver.username if self.driver else 'None'} ({'Paid' if self.is_paid else 'Unpaid'})"
+
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from marketplace.models import Order
+
+@receiver(post_save, sender=Order)
+def auto_create_shipment_on_paid(sender, instance, created, **kwargs):
+    # Auto-create pending shipment when order is PAID or RECEIVED_AT_WAREHOUSE
+    if instance.status in ('PAID', 'RECEIVED_AT_WAREHOUSE'):
+        Shipment.objects.get_or_create(
+            order=instance,
+            defaults={'status': 'pending', 'carrier_type': 'driver'}
+        )
 

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, MessageSquare, XCircle } from 'lucide-react';
+import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, MessageSquare, XCircle, MapPin } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, SELLER_ADVANCE_MAP } from '../../constants/orderStatus';
 
@@ -14,17 +15,19 @@ const getStatusExplanation = (status: string) => {
     case 'PENDING_VERIFICATION':
       return "Payment verification in progress. SokoniMax administration is reviewing the buyer's payment reference/receipt.";
     case 'SHIPPED_TO_WAREHOUSE':
-      return "Items are currently en route to the SokoniMax Warehouse Hub. Awaiting intake scan by warehouse staff.";
+      return "Items are currently en route to the SokoniMax Warehouse. Awaiting intake scan by warehouse staff.";
     case 'RECEIVED_AT_WAREHOUSE':
-      return "Items have been safely received at the warehouse hub. Awaiting logistics staff to assign a driver or courier.";
+      return "Items have been safely received at the warehouse. Awaiting logistics staff to assign a driver or courier.";
     case 'ASSIGNED_TRANSPORT':
       return "Logistics staff has assigned a driver for delivery. Awaiting dispatch to put the shipment in transit.";
     case 'IN_TRANSIT':
-      return "The driver is currently delivering the order. You can monitor the progress on the tracking map.";
+      return "The line-haul truck is currently en route to the destination warehouse.";
+    case 'OUT_FOR_DELIVERY':
+      return "The local courier is currently delivering the order. You can monitor the progress on the tracking map.";
     case 'ARRIVED_AT_REGIONAL_WAREHOUSE':
-      return "Order has arrived at the regional destination hub. Awaiting final pickup code activation.";
+      return "Order has arrived at the regional destination warehouse. Awaiting final pickup code activation.";
     case 'READY_FOR_PICKUP':
-      return "The order is ready for buyer collection. Awaiting the buyer to present their pickup code at the hub.";
+      return "The order is ready for buyer collection. Awaiting the buyer to present their pickup code at the warehouse.";
     case 'DELIVERED':
       return "Items have been successfully delivered to the customer. Awaiting customer confirmation to finalize transaction.";
     case 'COMPLETED':
@@ -49,6 +52,18 @@ const DashboardOrders: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [advancing, setAdvancing] = useState<number | null>(null);
+  
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [shipModalOpen, setShipModalOpen] = useState<number | null>(null);
+  const [shipNotes, setShipNotes] = useState('');
+  const [shipWarehouseCode, setShipWarehouseCode] = useState('');
+
+  useEffect(() => {
+    api.get('/api/warehouses/warehouses/').then(res => {
+      const list = res.data.results || res.data || [];
+      setWarehouses(Array.isArray(list) ? list : []);
+    }).catch(() => {});
+  }, []);
 
   const fetchOrders = useCallback((p: number, reset = false) => {
     if (reset) {
@@ -106,21 +121,33 @@ const DashboardOrders: React.FC = () => {
   }, [hasMore, loadingMore, loading, fetchOrders]);
 
   useOrderTracking('seller', (update: TrackingUpdate) => {
-    setOrders(prev => prev.map(o => {
-      if (o.id === update.order_id) {
-        const newTimelineEvent = {
-          status: update.status,
-          notes: update.notes,
-          created_at: update.timestamp
-        };
-        const currentTimeline = o.timeline || [];
-        return { ...o, status: update.status, timeline: [newTimelineEvent, ...currentTimeline] };
-      }
-      return o;
-    }));
+    // Re-fetch the specific updated order to get full details (like payments list)
+    api.get(`/api/orders/incoming/?order_id=${update.order_id}`)
+      .then(res => {
+        const data = res.data.results || res.data;
+        const updatedOrder = Array.isArray(data) && data.length > 0 ? data[0] : null;
+        if (updatedOrder) {
+          setOrders(prev => prev.map(o => o.id === update.order_id ? updatedOrder : o));
+        }
+      })
+      .catch(() => {
+        // Fallback to local state update if fetch fails
+        setOrders(prev => prev.map(o => {
+          if (o.id === update.order_id) {
+            const newTimelineEvent = {
+              status: update.status,
+              notes: update.notes,
+              created_at: update.timestamp
+            };
+            const currentTimeline = o.timeline || [];
+            return { ...o, status: update.status, timeline: [newTimelineEvent, ...currentTimeline] };
+          }
+          return o;
+        }));
+      });
   });
 
-  const handleAdvance = async (orderId: number, nextStatus: string, notes: string = "") => {
+  const handleAdvance = async (orderId: number, nextStatus: string, notes: string = "", warehouseCode?: string) => {
     let delivery_code;
     if (nextStatus === 'DELIVERED') {
       delivery_code = prompt('Enter the 6-digit delivery code provided by the buyer:');
@@ -128,9 +155,13 @@ const DashboardOrders: React.FC = () => {
     }
     setAdvancing(orderId);
     try {
-      await api.post(`/api/orders/${orderId}/advance/`, { status: nextStatus, notes, delivery_code });
+      const payload: any = { status: nextStatus, notes, delivery_code };
+      if (warehouseCode) payload.warehouse_code = warehouseCode;
+      
+      await api.post(`/api/orders/${orderId}/advance/`, payload);
       toast.success(`Order #${orderId} moved to ${ORDER_STATUS_CFG[nextStatus]?.label || nextStatus}`);
       fetchOrders(1, true);
+      setShipModalOpen(null);
     } catch (err: any) { 
       toast.error(err.response?.data?.error || 'Failed to update order'); 
     } finally { setAdvancing(null); }
@@ -148,7 +179,7 @@ const DashboardOrders: React.FC = () => {
     finally { setAdvancing(null); }
   };
 
-  const filterTabs = ['', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'DELIVERED', 'COMPLETED', 'CANCELLED'];
+  const filterTabs = ['', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'AWAITING_DELIVERY_PAYMENT', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'DELIVERED', 'FAILED_DELIVERY', 'COMPLETED', 'CANCELLED'];
 
   return (
     <div className="space-y-4">
@@ -175,7 +206,9 @@ const DashboardOrders: React.FC = () => {
               { id: 'PROCESSING', label: 'In Processing', icon: Clock, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/10' },
               { id: 'SHIPPED', label: 'Active Shipments', icon: Truck, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/10' },
           ].map((stat) => {
-              const count = orders.filter(o => o.status === stat.id).length;
+              const count = stat.id === 'PENDING_VERIFICATION' 
+                ? orders.filter(o => o.status === 'PENDING_VERIFICATION' || o.status === 'PENDING_DELIVERY_VERIFICATION').length
+                : orders.filter(o => o.status === stat.id).length;
               return (
                   <button key={stat.id} onClick={() => setFilterStatus(stat.id)} 
                     className={`card p-4 flex flex-col items-center text-center transition-all ${filterStatus === stat.id ? 'ring-2 ring-brand-500 scale-105' : 'hover:scale-[1.02]'}`}>
@@ -200,8 +233,18 @@ const DashboardOrders: React.FC = () => {
           {orders.map((order: any) => {
             const cfg = ORDER_STATUS_CFG[order.status] || ORDER_STATUS_CFG.CART;
             const isExpanded = expandedId === order.id;
-            const nextStatus = SELLER_ADVANCE_MAP[order.status];
-            const hasPendingPayment = order.status === 'PENDING_VERIFICATION';
+            const getNextVehicleStatus = (st: string) => {
+               if (st === 'PAID') return 'PROCESSING';
+               if (st === 'PROCESSING' || ['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT'].includes(st)) return 'SHIPPED';
+               return undefined;
+            };
+
+            const nextStatus = order.has_vehicles
+              ? getNextVehicleStatus(order.status)
+              : SELLER_ADVANCE_MAP[order.status];
+            const isMainPayment = order.status === 'PENDING_VERIFICATION';
+            const isDeliveryPayment = order.status === 'PENDING_DELIVERY_VERIFICATION';
+            const hasPendingPayment = isMainPayment || isDeliveryPayment;
 
             return (
               <div key={order.id} className={`bg-white dark:bg-gray-800 rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'shadow-xl ring-1 ring-brand-500/20' : 'shadow-sm hover:shadow-md border-gray-100 dark:border-gray-700'}`}>
@@ -298,14 +341,17 @@ const DashboardOrders: React.FC = () => {
                               
                               <div className="bg-white/50 dark:bg-gray-800/50 p-5 rounded-2xl border border-brand-100/50 dark:border-brand-900/20 flex flex-col justify-center gap-3">
                                   <p className="text-xs text-gray-600 dark:text-gray-400 italic">
-                                     "Review the transaction ID and receipt above. Once confirmed, mark as PAID to allow the order to proceed to processing."
+                                     {isDeliveryPayment 
+                                        ? "Review the delivery fee transaction above. Once confirmed, assign the order to transport."
+                                        : "Review the transaction ID and receipt above. Once confirmed, mark as PAID to allow the order to proceed to processing."}
                                   </p>
                                   <div className="flex gap-2 mt-2">
                                       <button 
-                                          onClick={() => handleAdvance(order.id, 'PAID', 'Payment verified by seller.')}
-                                          className="flex-1 btn-primary py-2.5 bg-green-600 hover:bg-green-700 border-green-600 text-[11px] font-black uppercase tracking-widest shadow-lg shadow-green-600/20"
+                                          onClick={() => handleAdvance(order.id, isDeliveryPayment ? 'ASSIGNED_TRANSPORT' : 'PAID', 'Payment successfully verified by system/admin.')}
+                                          disabled={advancing === order.id}
+                                          className="btn-primary py-2 px-4 flex-1 text-xs"
                                       >
-                                          Confirm Payment
+                                          {advancing === order.id ? 'Processing...' : (isDeliveryPayment ? 'Verify & Assign Transport' : 'Verify & Mark as PAID')}
                                       </button>
                                       <button 
                                           onClick={() => handleAdvance(order.id, 'AWAITING_PAYMENT', 'Payment rejected. Incorrect transaction ID or proof.')}
@@ -344,8 +390,8 @@ const DashboardOrders: React.FC = () => {
                         <div className="lg:col-span-2 p-6 bg-gray-50/50 dark:bg-gray-800/10 flex flex-col justify-between">
                             <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5">Order History</p>
-                                <div className="space-y-4 relative pl-4 border-l-2 border-brand-100 dark:border-brand-900/30 py-1">
-                                    {order.timeline?.slice(0, 3).map((ev: any, i: number) => (
+                                <div className="space-y-4 pt-1 relative pl-4 border-l-2 border-brand-100 dark:border-brand-900/30">
+                                    {[...(order.timeline || [])].reverse().slice(0, 3).map((ev: any, i: number) => (
                                         <div key={i} className="relative">
                                             <div className="absolute -left-[21.5px] w-2.5 h-2.5 rounded-full bg-brand-400 border-2 border-white dark:border-gray-800 shadow-sm" />
                                             <div className="ml-3">
@@ -368,7 +414,8 @@ const DashboardOrders: React.FC = () => {
                                                 if (nextStatus === 'SHIPPED') {
                                                   promptNotes = prompt('Enter tracking number or courier info:') || "";
                                                 } else if (nextStatus === 'SHIPPED_TO_WAREHOUSE') {
-                                                  promptNotes = prompt('Enter delivery agent/vehicle info for SokoniMax Hub:') || "";
+                                                  setShipModalOpen(order.id);
+                                                  return;
                                                 }
                                                 handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
                                             }}
@@ -382,7 +429,7 @@ const DashboardOrders: React.FC = () => {
                                                   {nextStatus === 'SELLER_CONFIRMED' && 'Confirm Order'}
                                                   {nextStatus === 'PREPARING' && 'Start Preparing'}
                                                   {nextStatus === 'PACKAGING' && 'Package Order'}
-                                                  {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to SokoniMax Hub'}
+                                                  {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to SokoniMax Warehouse'}
                                                   {nextStatus === 'PROCESSING' && 'Accept & Process Order'}
                                                   {nextStatus === 'SHIPPED' && 'Mark as Shipped'}
                                                   {nextStatus === 'DELIVERED' && 'Confirm Delivery'}
@@ -393,15 +440,15 @@ const DashboardOrders: React.FC = () => {
                                             )}
                                         </button>
                                     ) : order.status === 'AWAITING_PAYMENT' ? (
-                                        <div className="flex-[3] flex flex-col gap-2">
-                                            <button
-                                                onClick={() => handleAdvance(order.id, 'AWAITING_PAYMENT', 'Order accepted by seller. Awaiting customer payment.')}
-                                                disabled={advancing === order.id}
-                                                className="w-full btn-primary py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-3"
-                                            >
-                                                {advancing === order.id ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <><ShieldCheck size={20} /> Acknowledge Order</>}
-                                            </button>
-                                            <p className="text-[10px] text-gray-500 font-bold text-center">Awaiting customer payment before processing can begin.</p>
+                                        <div className="flex-[3] bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 p-4 rounded-xl text-center flex items-center justify-center flex-col gap-2">
+                                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 leading-relaxed">
+                                                Awaiting customer payment before processing can begin.
+                                            </p>
+                                            {order.buyer_contact?.name && (
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                    Buyer Contact: {order.buyer_contact.name} ({order.buyer_contact.phone})
+                                                </p>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="flex-[3] bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 p-4 rounded-xl text-center flex items-center justify-center">
@@ -411,7 +458,7 @@ const DashboardOrders: React.FC = () => {
                                         </div>
                                     )}
                                     
-                                    {!['COMPLETED', 'CANCELLED', 'DELIVERED', 'SHIPPED'].includes(order.status) && (
+                                    {['AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'PROCESSING'].includes(order.status) && (
                                         <button 
                                             onClick={() => handleCancel(order.id)}
                                             disabled={advancing === order.id}
@@ -422,8 +469,22 @@ const DashboardOrders: React.FC = () => {
                                         </button>
                                     )}
                                 </div>
+                                
+                                {order.status === 'SHIPPED_TO_WAREHOUSE' && (
+                                  <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-6 bg-brand-50/50 dark:bg-brand-900/10 p-4 rounded-xl border border-brand-100 dark:border-brand-900/20">
+                                    <div className="flex-1">
+                                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest mb-1">Origin Drop-off Tag</p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        Present this QR Code to the warehouse staff upon arrival. 
+                                      </p>
+                                    </div>
+                                    <div className="p-3 bg-white dark:bg-neutral-800 rounded-2xl shadow-lg border-2 border-brand-500/30 shrink-0">
+                                      <QRCodeSVG value={order.id.toString()} size={80} bgColor="transparent" fgColor="currentColor" className="text-gray-900 dark:text-white" />
+                                    </div>
+                                  </div>
+                                )}
 
-                                {['RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'].includes(order.status) && (
+                                {['RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'].includes(order.status) && (
                                     <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 p-3 bg-brand-50/50 dark:bg-brand-950/20 border border-brand-100/50 dark:border-brand-900/30 rounded-xl">
                                         <Truck size={14} className="text-brand-500 shrink-0" />
                                         <span>SokoniMax logistics is handling this delivery — no action required from you.</span>
@@ -465,9 +526,75 @@ const DashboardOrders: React.FC = () => {
             <div ref={sentinelRef} className="h-4" />
         </div>
       )}
+
+      {/* Ship to Warehouse Modal */}
+      {shipModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-up border border-gray-100 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+                <MapPin className="text-brand-500" />
+                Select Destination Warehouse
+              </h3>
+              <button onClick={() => setShipModalOpen(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <XCircle size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Destination Warehouse</label>
+                <select
+                  required
+                  className="input w-full"
+                  value={shipWarehouseCode}
+                  onChange={(e) => setShipWarehouseCode(e.target.value)}
+                >
+                  <option value="" disabled>-- Select Warehouse --</option>
+                  {warehouses.map(w => (
+                    <option key={w.code} value={w.code}>{w.name} ({w.region})</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">This order will automatically appear in this warehouse's intake queue.</p>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Courier / Delivery Notes</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Sent via Bodaboda, Plate MC 123"
+                  className="input w-full"
+                  value={shipNotes}
+                  onChange={(e) => setShipNotes(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
+              <button onClick={() => setShipModalOpen(null)} className="px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition">
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  if (!shipWarehouseCode) {
+                    toast.error("Please select a destination warehouse.");
+                    return;
+                  }
+                  handleAdvance(shipModalOpen, 'SHIPPED_TO_WAREHOUSE', shipNotes || 'Dispatched to Warehouse Operations', shipWarehouseCode);
+                }}
+                disabled={!shipWarehouseCode || advancing === shipModalOpen}
+                className="btn-primary px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg disabled:opacity-50"
+              >
+                {advancing === shipModalOpen ? 'Processing...' : 'Confirm Shipment'}
+                <Truck size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
-
 
 export default DashboardOrders;

@@ -5,9 +5,10 @@ from .models import Order, OrderItem, TrackingEvent
 
 class OrderStateMachine:
     VALID_TRANSITIONS = {
-        'CART': ['CHECKOUT', 'AWAITING_PAYMENT', 'CANCELLED'],
+        'CART': ['CHECKOUT', 'AWAITING_PAYMENT', 'PAID_PRODUCT', 'CANCELLED'],
         'Pending': ['AWAITING_PAYMENT', 'CANCELLED'],  # FIX CRIT-04: bridge for legacy orders
-        'CHECKOUT': ['AWAITING_PAYMENT', 'CANCELLED'],
+        'CHECKOUT': ['PAID_PRODUCT', 'AWAITING_PAYMENT', 'CANCELLED'],
+        'PAID_PRODUCT': ['SHIPPED_TO_WAREHOUSE', 'CANCELLED'],
         'AWAITING_PAYMENT': ['PENDING_VERIFICATION', 'EXPIRED', 'CANCELLED'],  # FIX L-15: removed self-loop
         'PENDING_VERIFICATION': ['PAID', 'AWAITING_PAYMENT', 'CANCELLED'],
         'PAID': ['SELLER_CONFIRMED', 'PROCESSING', 'CANCELLED'],
@@ -15,15 +16,20 @@ class OrderStateMachine:
         'PREPARING': ['PACKAGING', 'CANCELLED'],
         'PACKAGING': ['SHIPPED_TO_WAREHOUSE', 'CANCELLED'],
         'SHIPPED_TO_WAREHOUSE': ['RECEIVED_AT_WAREHOUSE'],
-        'RECEIVED_AT_WAREHOUSE': ['ASSIGNED_TRANSPORT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'],
-        'ASSIGNED_TRANSPORT': ['IN_TRANSIT'],
-        'IN_TRANSIT': ['ARRIVED_AT_REGIONAL_WAREHOUSE', 'DELIVERED'],
-        'ARRIVED_AT_REGIONAL_WAREHOUSE': ['READY_FOR_PICKUP', 'DELIVERED'],
+        'RECEIVED_AT_WAREHOUSE': ['AWAITING_DELIVERY_PAYMENT', 'ASSIGNED_TRANSPORT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'],
+        'AWAITING_DELIVERY_PAYMENT': ['PENDING_DELIVERY_VERIFICATION', 'CANCELLED'],
+        'PENDING_DELIVERY_VERIFICATION': ['ASSIGNED_TRANSPORT', 'AWAITING_DELIVERY_PAYMENT', 'CANCELLED'],
+        'ASSIGNED_TRANSPORT': ['IN_TRANSIT', 'OUT_FOR_DELIVERY'],
+        'IN_TRANSIT': ['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED'],
+        'OUT_FOR_DELIVERY': ['DELIVERED', 'FAILED_DELIVERY'],
+        'ARRIVED_AT_REGIONAL_WAREHOUSE': ['ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED'],
+        'READY_FOR_VEHICLE_HANDOVER': ['DELIVERED', 'COMPLETED'],
         'READY_FOR_PICKUP': ['DELIVERED', 'COMPLETED'],
         'PROCESSING': ['SHIPPED', 'CANCELLED'],
-        'SHIPPED': ['DELIVERED'],
+        'SHIPPED': ['DELIVERED', 'IN_TRANSIT'],
         'DELIVERED': ['COMPLETED', 'DISPUTED'],  # FIX B-15: buyer can dispute after delivery
         'DISPUTED': ['PROCESSING', 'CANCELLED'],  # FIX B-15: staff resolves
+        'FAILED_DELIVERY': ['READY_FOR_PICKUP', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'CANCELLED'],
         'COMPLETED': [],
         'CANCELLED': [],
         'EXPIRED': [],
@@ -40,8 +46,9 @@ class OrderStateMachine:
                 cant_cancel_states = [
                     'COMPLETED', 'DELIVERED', 'SHIPPED', 'CANCELLED',
                     'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE',
-                    'ASSIGNED_TRANSPORT', 'IN_TRANSIT',
-                    'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'
+                    'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY',
+                    'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP',
+                    'READY_FOR_VEHICLE_HANDOVER', 'FAILED_DELIVERY'
                 ]
                 if new_state == 'CANCELLED' and locked_order.status not in cant_cancel_states:
                     pass
@@ -195,6 +202,20 @@ class OrderStateMachine:
                     f"seller_orders_{seller_id}",
                     payload
                 )
+
+            # 4. Broadcast to relevant warehouse queues if the order is tracked at a warehouse
+            if order.delivery_info and isinstance(order.delivery_info, dict):
+                current_wh = order.delivery_info.get('current_warehouse_code')
+                dest_wh = order.delivery_info.get('destination_warehouse_code')
+                origin_wh = order.delivery_info.get('warehouse_code')
+                
+                wh_codes = set(filter(None, [current_wh, dest_wh, origin_wh]))
+                for wh_code in wh_codes:
+                    async_to_sync(channel_layer.group_send)(
+                        f"warehouse_orders_{wh_code}",
+                        payload
+                    )
+
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)

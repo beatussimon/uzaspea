@@ -7,9 +7,10 @@ interface ReviewModalProps {
   orderId: number;
   product: any;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose }) => {
+const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, onSuccess }) => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -27,6 +28,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose }) 
         comment
       });
       toast.success('Review submitted successfully!');
+      if (onSuccess) onSuccess();
       onClose();
     } catch (err: any) {
       const msg = err.response?.data?.non_field_errors?.[0] || err.response?.data?.detail || err.response?.data?.[0] || 'Failed to submit review';

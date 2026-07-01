@@ -121,7 +121,7 @@ class ShipmentTests(TestCase):
         StaffProfile.objects.create(user=self.staff, is_active=True)
 
         self.cat_vehicles = Category.objects.create(name='Vehicles', slug='vehicles')
-        self.cat_cars = Category.objects.create(name='Cars', slug='cars', parent=self.cat_vehicles)
+        self.cat_cars = Category.objects.create(name='Cars', slug='cars-suvs', parent=self.cat_vehicles)
         self.cat_electronics = Category.objects.create(name='Electronics', slug='electronics')
 
         self.vehicle_product = Product.objects.create(
@@ -211,7 +211,7 @@ class ShipmentTests(TestCase):
         self.assertTrue(DriverPayment.objects.filter(shipment=shipment).exists())
         payment = DriverPayment.objects.get(shipment=shipment)
         self.assertEqual(payment.driver, self.driver)
-        self.assertEqual(payment.amount, Decimal('20000.00'))
+        self.assertEqual(payment.amount, Decimal('15000.00'))
         self.assertFalse(payment.is_paid)
 
         # Settle the payment

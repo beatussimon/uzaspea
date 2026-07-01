@@ -19,6 +19,7 @@ import {
   DisputesManager,
   SupportTicketsManager
 } from './StaffDashboardLayout';
+import SystemPaymentMethodsManager from './SystemPaymentMethodsManager';
 
 // ============ Types ============
 interface Task {
@@ -314,6 +315,16 @@ const PlatformUserExplorer: React.FC = () => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
 
+  // Modal States
+  const [showInspectorModal, setShowInspectorModal] = useState(false);
+  const [inspectorUser, setInspectorUser] = useState<any>(null);
+  const [inspectorLevel, setInspectorLevel] = useState('junior');
+
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [roleUser, setRoleUser] = useState<any>(null);
+  const [isStaffRole, setIsStaffRole] = useState(false);
+  const [isSuperRole, setIsSuperRole] = useState(false);
+
   const fetchUsers = useCallback(() => {
     setLoading(true);
     api.get('/api/staff/users/')
@@ -348,25 +359,24 @@ const PlatformUserExplorer: React.FC = () => {
     }
   };
 
-  const handlePromoteInspector = async (id: number) => {
-    const level = prompt('Select inspector level (junior, senior, specialist):', 'junior');
-    if (!level) return;
+  const submitInspectorPromotion = async () => {
+    if (!inspectorUser) return;
     try {
-      await api.post(`/api/staff/users/${id}/promote_inspector/`, { level });
-      toast.success(`User promoted to ${level} inspector`);
+      await api.post(`/api/staff/users/${inspectorUser.id}/promote_inspector/`, { level: inspectorLevel });
+      toast.success(`User promoted to ${inspectorLevel} inspector`);
+      setShowInspectorModal(false);
       fetchUsers();
     } catch {
       toast.error('Failed to promote user to inspector');
     }
   };
 
-  const handleChangeRole = async (id: number, currentStaff: boolean, currentSuper: boolean) => {
-    const makeStaff = confirm(`Make this user staff? (Current: ${currentStaff ? 'YES' : 'NO'})`);
-    const makeSuper = confirm(`Make this user superuser? (Current: ${currentSuper ? 'YES' : 'NO'})`);
-    
+  const submitRoleChange = async () => {
+    if (!roleUser) return;
     try {
-      await api.post(`/api/staff/users/${id}/change_role/`, { is_staff: makeStaff, is_superuser: makeSuper });
+      await api.post(`/api/staff/users/${roleUser.id}/change_role/`, { is_staff: isStaffRole, is_superuser: isSuperRole });
       toast.success('User roles updated');
+      setShowRoleModal(false);
       fetchUsers();
     } catch {
       toast.error('Failed to update roles (Superusers only)');
@@ -441,10 +451,10 @@ const PlatformUserExplorer: React.FC = () => {
                     <button onClick={() => handleToggleVerified(u.id)} className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-650 text-[10px] font-bold rounded" title="Toggle Verification">
                       Verify
                     </button>
-                    <button onClick={() => handlePromoteInspector(u.id)} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[10px] font-bold rounded dark:bg-emerald-950/20 dark:text-emerald-400" title="Promote Inspector">
+                    <button onClick={() => { setInspectorUser(u); setShowInspectorModal(true); }} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[10px] font-bold rounded dark:bg-emerald-950/20 dark:text-emerald-400" title="Promote Inspector">
                       +Inspect
                     </button>
-                    <button onClick={() => handleChangeRole(u.id, u.is_staff, u.is_superuser)} className="px-2.5 py-1 bg-brand-50 text-brand-700 hover:bg-brand-100 text-[10px] font-bold rounded dark:bg-brand-950/20 dark:text-brand-400" title="Change Roles">
+                    <button onClick={() => { setRoleUser(u); setIsStaffRole(u.is_staff); setIsSuperRole(u.is_superuser); setShowRoleModal(true); }} className="px-2.5 py-1 bg-brand-50 text-brand-700 hover:bg-brand-100 text-[10px] font-bold rounded dark:bg-brand-950/20 dark:text-brand-400" title="Change Roles">
                       Role
                     </button>
                   </div>
@@ -454,6 +464,64 @@ const PlatformUserExplorer: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Inspector Promotion Modal */}
+      {showInspectorModal && inspectorUser && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border dark:border-gray-700">
+            <button onClick={() => setShowInspectorModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <XCircle size={20} />
+            </button>
+            <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2">Promote Inspector</h3>
+            <p className="text-xs text-gray-500 mb-4">Assigning inspector privileges to <span className="font-bold">@{inspectorUser.username}</span></p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Inspector Level</label>
+                <select value={inspectorLevel} onChange={e => setInspectorLevel(e.target.value)} className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                  <option value="junior">Junior Inspector</option>
+                  <option value="senior">Senior Inspector</option>
+                  <option value="specialist">Specialist</option>
+                </select>
+              </div>
+              <button onClick={submitInspectorPromotion} className="btn-primary w-full py-2 rounded-lg text-sm font-bold">
+                Confirm Promotion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Change Modal */}
+      {showRoleModal && roleUser && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border dark:border-gray-700">
+            <button onClick={() => setShowRoleModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <XCircle size={20} />
+            </button>
+            <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2">Manage User Roles</h3>
+            <p className="text-xs text-gray-500 mb-4">Modifying permissions for <span className="font-bold">@{roleUser.username}</span></p>
+            <div className="space-y-4">
+              <label className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750">
+                <div>
+                  <div className="font-bold text-gray-900 dark:text-white text-sm">Staff Privileges</div>
+                  <div className="text-xs text-gray-500">Access to C&C Terminal dashboard</div>
+                </div>
+                <input type="checkbox" checked={isStaffRole} onChange={e => setIsStaffRole(e.target.checked)} className="rounded text-brand-600 focus:ring-brand-500 h-5 w-5" />
+              </label>
+              <label className="flex items-center justify-between p-3 border border-red-200 dark:border-red-900/30 rounded-xl cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/10">
+                <div>
+                  <div className="font-bold text-red-700 dark:text-red-400 text-sm">Superuser Privileges</div>
+                  <div className="text-[10px] text-red-500">Full system access (Danger)</div>
+                </div>
+                <input type="checkbox" checked={isSuperRole} onChange={e => setIsSuperRole(e.target.checked)} className="rounded text-red-600 focus:ring-red-500 h-5 w-5" />
+              </label>
+              <button onClick={submitRoleChange} className="bg-gray-900 hover:bg-black dark:bg-gray-700 dark:hover:bg-gray-600 text-white w-full py-2 rounded-lg text-sm font-bold transition">
+                Save Roles
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -462,13 +530,21 @@ const PlatformUserExplorer: React.FC = () => {
 const EmployeeManager: React.FC = () => {
     const [staff, setStaff] = useState<Staffer[]>([]);
     const [loading, setLoading] = useState(true);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [showDeptModal, setShowDeptModal] = useState(false);
+    const [deptStaffer, setDeptStaffer] = useState<any>(null);
+    const [selectedDept, setSelectedDept] = useState('');
 
     const fetchStaff = () => {
         setLoading(true);
-        api.get('/api/staff/admin-dashboard/')
-            .then(res => setStaff(res.data.staffers))
-            .catch(() => toast.error('Failed to load employee list'))
-            .finally(() => setLoading(false));
+        Promise.all([
+            api.get('/api/staff/admin-dashboard/'),
+            api.get('/api/staff/departments/')
+        ]).then(([staffRes, deptRes]) => {
+            setStaff(staffRes.data.staffers);
+            setDepartments(deptRes.data.results || deptRes.data || []);
+        }).catch(() => toast.error('Failed to load employee data'))
+        .finally(() => setLoading(false));
     };
 
     useEffect(() => { fetchStaff(); }, []);
@@ -483,12 +559,12 @@ const EmployeeManager: React.FC = () => {
         }
     };
 
-    const handleChangeDept = async (profileId: number) => {
-        const deptId = prompt('Enter new Department ID (or leave blank to clear):');
-        if (deptId === null) return;
+    const submitChangeDept = async () => {
+        if (!deptStaffer) return;
         try {
-            await api.patch(`/api/staff/profiles/${profileId}/`, { department: deptId || null });
+            await api.patch(`/api/staff/profiles/${deptStaffer.profile_id}/`, { department: selectedDept || null });
             toast.success('Department updated successfully');
+            setShowDeptModal(false);
             fetchStaff();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Failed to change department');
@@ -536,7 +612,7 @@ const EmployeeManager: React.FC = () => {
                                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tighter transition ${member.is_active ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'}`}>
                                     {member.is_active ? <><UserMinus size={14} /> Demote</> : <><UserPlus size={14} /> Reactivate</>}
                                  </button>
-                                 <button onClick={() => handleChangeDept(member.profile_id)}
+                                 <button onClick={() => { setDeptStaffer(member); setSelectedDept(member.department || ''); setShowDeptModal(true); }}
                                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tighter transition text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20">
                                     <Building2 size={14} /> Dept
                                  </button>
@@ -551,6 +627,39 @@ const EmployeeManager: React.FC = () => {
                     </div>
                 ))}
             </div>
+
+            {/* Department Change Modal */}
+            {showDeptModal && deptStaffer && (
+              <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border dark:border-gray-700">
+                  <button onClick={() => setShowDeptModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                    <XCircle size={20} />
+                  </button>
+                  <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2">Change Department</h3>
+                  <p className="text-xs text-gray-500 mb-4">Assigning <span className="font-bold">@{deptStaffer.username}</span> to a new department.</p>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Select Department</label>
+                      <select 
+                        value={selectedDept} 
+                        onChange={e => setSelectedDept(e.target.value)}
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="">No Department (General)</option>
+                        {departments.map((dept: any) => (
+                          <option key={dept.id} value={dept.id}>{dept.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <button onClick={submitChangeDept} className="btn-primary w-full py-2 rounded-lg text-sm font-bold shadow-md">
+                      Update Department
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
         </div>
     );
 };
@@ -950,6 +1059,7 @@ const StaffAdminLayout: React.FC = () => {
     { path: '/staff-admin/tasks', label: 'Work Board', icon: ClipboardList },
     { path: '/staff-admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
     { path: '/staff-admin/invoices', label: 'Commission Payments', icon: FileText },
+    { path: '/staff-admin/payment-methods', label: 'Payment Methods', icon: CreditCard },
     { path: '/staff-admin/products', label: 'Product Moderation', icon: Layers },
     { path: '/staff-admin/promotions', label: 'Promotions', icon: Megaphone },
     { path: '/staff-admin/reviews', label: 'Reviews', icon: Star },
@@ -1007,6 +1117,7 @@ const StaffAdminLayout: React.FC = () => {
           <Route path="tasks" element={<TaskBoard />} />
           <Route path="subscriptions" element={<SubscriptionConfirmation />} />
           <Route path="invoices" element={<CommissionPaymentsManager />} />
+          <Route path="payment-methods" element={<SystemPaymentMethodsManager />} />
           <Route path="products" element={<ProductModeration />} />
           <Route path="promotions" element={<PromotionQueue />} />
           <Route path="reviews" element={<ReviewsManager />} />

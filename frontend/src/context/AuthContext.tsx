@@ -10,6 +10,8 @@ interface User {
   is_superuser: boolean;
   is_inspector: boolean;
   inspector_level: string;
+  subscription_active?: boolean;
+  subscription_end_date?: string | null;
 }
 
 interface AuthContextType {
@@ -50,6 +52,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_superuser: payload.is_superuser === true || payload.is_superuser === 'true',
           is_inspector: payload.is_inspector === true || payload.is_inspector === 'true',
           inspector_level: payload.inspector_level || '',
+          subscription_active: payload.subscription_active,
+          subscription_end_date: payload.subscription_end_date,
         });
       } else {
         logout();

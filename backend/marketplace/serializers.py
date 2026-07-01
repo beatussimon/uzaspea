@@ -16,9 +16,9 @@ class LipaNumberSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LipaNumber
-        fields = ['id', 'network', 'network_name', 'network_logo', 'number', 'name',
-                  'is_active', 'display_order']
-        read_only_fields = ['seller']
+        fields = ['id', 'seller', 'network', 'network_name', 'network_logo', 'number', 'name',
+                  'is_active', 'display_order', 'purpose', 'is_system']
+        read_only_fields = ['seller', 'network_name', 'network_logo', 'is_system']
 
 class FAQSerializer(serializers.ModelSerializer):
     class Meta:
@@ -180,11 +180,17 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_image = serializers.SerializerMethodField()
     seller_username = serializers.CharField(source='product.seller.username', read_only=True)
+    has_review = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'variant', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal']
+        fields = ['id', 'product', 'variant', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'has_review']
         read_only_fields = ['price']
+
+    def get_has_review(self, obj):
+        from .models import Review
+        # Check if a review exists for this product and order
+        return Review.objects.filter(order=obj.order, product=obj.product).exists()
 
     def get_product_image(self, obj):
         img = obj.product.images.first()
@@ -200,15 +206,52 @@ class OrderSerializer(serializers.ModelSerializer):
     seller_subtotal = serializers.SerializerMethodField()
     delivery_code = serializers.SerializerMethodField()
     shipments = serializers.SerializerMethodField()
+    has_vehicles = serializers.SerializerMethodField()
+    buyer_contact = serializers.SerializerMethodField()
+    seller_contacts = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
         fields = [
             'id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status',
             'shipping_method', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
-            'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments'
+            'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
+            'has_vehicles', 'buyer_contact', 'seller_contacts'
         ]
         read_only_fields = ['user', 'total_amount']
+
+    def get_buyer_contact(self, obj):
+        try:
+            profile = obj.user.profile
+            return {
+                'phone': profile.phone_number,
+                'full_name': f"{obj.user.first_name} {obj.user.last_name}".strip()
+            }
+        except Exception:
+            return None
+
+    def get_seller_contacts(self, obj):
+        from .models import OrderItem
+        sellers = set()
+        for item in obj.orderitem_set.select_related('product__seller__profile').all():
+            sellers.add(item.product.seller)
+        
+        contacts = []
+        for seller in sellers:
+            try:
+                profile = seller.profile
+                contacts.append({
+                    'username': seller.username,
+                    'phone': profile.phone_number,
+                    'full_name': f"{seller.first_name} {seller.last_name}".strip()
+                })
+            except Exception:
+                pass
+        return contacts
+
+    def get_has_vehicles(self, obj):
+        from logistics.models import order_has_vehicles
+        return order_has_vehicles(obj)
 
     def get_shipments(self, obj):
         from logistics.serializers import ShipmentSerializer
@@ -380,6 +423,22 @@ class SubscriptionTierSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubscriptionTier
         fields = ['id', 'name', 'price', 'benefits', 'duration', 'is_active', 'tier_level', 'commission_rate']
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    tier = SubscriptionTierSerializer(read_only=True)
+    is_expired = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Subscription
+        fields = ['id', 'user', 'tier', 'start_date', 'end_date', 'is_active', 'is_expired']
+        
+    def get_is_expired(self, obj):
+        from django.utils import timezone
+        if not obj.end_date:
+            return False
+        return timezone.now() > obj.end_date
+
 
 
 class UserPaymentConfirmationSerializer(serializers.ModelSerializer):

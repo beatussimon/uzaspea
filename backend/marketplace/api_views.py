@@ -347,6 +347,13 @@ class ProductViewSet(viewsets.ModelViewSet):
         category_breakdown = []
         commission_paid = 0.0
 
+        # --- Commission Paid --- (Always visible for all sellers)
+        from billing.models import MonthlyInvoice
+        commission_paid = float(MonthlyInvoice.objects.filter(
+            seller=stats_user,
+            status='PAID'
+        ).aggregate(total=Sum('total_commission'))['total'] or 0)
+
         if is_business:
             # --- Revenue pipeline (last 7 days) ---
             start_date = today - datetime.timedelta(days=6)
@@ -400,13 +407,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
             category_breakdown = [{'category': c['product__category__name'] or 'Other', 'revenue': float(c['rev'] or 0), 'items': c['count']} for c in cat_data]
 
-            # --- Commission Paid ---
-            from billing.models import MonthlyInvoice
-            commission_paid = float(MonthlyInvoice.objects.filter(
-                seller=stats_user,
-                status='PAID'
-            ).aggregate(total=Sum('total_commission'))['total'] or 0)
-
         # --- Stock alerts (stock <= 3) --- always visible
         low_stock = list(products.filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10])
         for ls in low_stock:
@@ -449,13 +449,26 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
+        is_system_query = self.request.query_params.get('is_system')
         seller_username = self.request.query_params.get('seller')
+        purpose = self.request.query_params.get('purpose')
+        
+        if is_system_query == 'true':
+            qs = LipaNumber.objects.filter(is_system=True, is_active=True).select_related('network')
+            if purpose:
+                qs = qs.filter(purpose=purpose)
+            return qs
+
         if seller_username:
-            return LipaNumber.objects.filter(
-                seller__username=seller_username, is_active=True
+            qs = LipaNumber.objects.filter(
+                seller__username=seller_username, is_system=False, is_active=True
             ).select_related('network')
+            if purpose:
+                qs = qs.filter(purpose=purpose)
+            return qs
+            
         if self.request.user.is_authenticated:
-            return LipaNumber.objects.filter(seller=self.request.user).select_related('network')
+            return LipaNumber.objects.filter(seller=self.request.user, is_system=False).select_related('network')
         return LipaNumber.objects.none()
 
     def get_permissions(self):
@@ -466,7 +479,12 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
         return [permissions.AllowAny()]
 
     def perform_create(self, serializer):
-        serializer.save(seller=self.request.user)
+        # Admin UI will pass is_system in request data. We must manually set it because it's read_only in serializer
+        is_system_flag = self.request.data.get('is_system', False)
+        if str(is_system_flag).lower() == 'true' and self.request.user.is_superuser:
+            serializer.save(seller=self.request.user, is_system=True)
+        else:
+            serializer.save(seller=self.request.user, is_system=False)
 
 class FAQViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FAQSerializer
@@ -531,6 +549,35 @@ class OrderViewSet(viewsets.ModelViewSet):
             Q(user=user) | Q(orderitem_set__product__seller_id__in=sellers)
         ).distinct().prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            # Extract readable errors for frontend toast
+            err_strings = []
+            for field, messages in serializer.errors.items():
+                if isinstance(messages, list):
+                    err_strings.append(f"{field}: {', '.join(str(m) for m in messages)}")
+                else:
+                    err_strings.append(f"{field}: {messages}")
+            return Response({'detail': "Validation Error: " + " | ".join(err_strings)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            self.perform_create(serializer)
+        except drf_serializers.ValidationError as e:
+            err_msg = str(e.detail)
+            if isinstance(e.detail, list) and len(e.detail) > 0:
+                err_msg = str(e.detail[0])
+            elif isinstance(e.detail, dict):
+                first_key = list(e.detail.keys())[0]
+                if isinstance(e.detail[first_key], list):
+                    err_msg = f"{first_key}: {e.detail[first_key][0]}"
+                else:
+                    err_msg = f"{first_key}: {e.detail[first_key]}"
+            return Response({'detail': err_msg}, status=status.HTTP_400_BAD_REQUEST)
+            
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
@@ -551,56 +598,77 @@ class OrderViewSet(viewsets.ModelViewSet):
             if check_team_permission(request.user, seller_id, 'manage_orders'):
                 is_seller = True
                 break
-        is_buyer = order.user == request.user  # FIX: S-06
+        is_buyer = order.user_id == request.user.id  # FIX: S-06
 
         new_state = request.data.get('status')
         notes = request.data.get('notes', '')
 
+        # Fallback for cached frontend clients trying to skip verification
+        if new_state == 'ASSIGNED_TRANSPORT' and order.status == 'AWAITING_DELIVERY_PAYMENT':
+            new_state = 'PENDING_DELIVERY_VERIFICATION'
+
         # FIX: S-06 — Enforce who can trigger which transitions
         STAFF_ONLY_STATES = {
-            'PAID', 'EXPIRED', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT',
+            'PAID', 'EXPIRED', 'RECEIVED_AT_WAREHOUSE', 'AWAITING_DELIVERY_PAYMENT',
             'IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'DELIVERED'
         }
         SELLER_ALLOWED_STATES = {
             'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE',
             'PROCESSING', 'SHIPPED', 'DELIVERED', 'DISPUTED'
         }
-        BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED'}
+        BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED', 'READY_FOR_TRANSIT', 'ASSIGNED_TRANSPORT', 'PAID_PRODUCT'}
 
-        if new_state in STAFF_ONLY_STATES and not (request.user.is_staff or request.user.is_superuser):
+        # Allow warehouse role staff to transition to warehouse states
+        is_warehouse_staff = request.user.groups.filter(name='warehouse').exists() or request.user.is_superuser or request.user.is_staff
+        
+        if new_state in STAFF_ONLY_STATES and not is_warehouse_staff:
             return Response(
-                {'error': f'Only staff can set order status to {new_state}.'},
+                {'detail': f'ERR_STAFF_ONLY: Only staff or warehouse operators can set order status to {new_state}.'},
                 status=403
             )
-        if new_state in SELLER_ALLOWED_STATES and not (request.user.is_staff or request.user.is_superuser or is_seller):
+        if new_state in SELLER_ALLOWED_STATES and not (is_warehouse_staff or is_seller):
             return Response(
-                {'error': f'Only the seller or staff can advance order to {new_state}.'},
+                {'detail': f'ERR_SELLER_ONLY: Only the seller or staff can advance order to {new_state}.'},
                 status=403
             )
-        if new_state in BUYER_ALLOWED_STATES and not (request.user.is_staff or request.user.is_superuser or is_buyer):
+        if new_state in BUYER_ALLOWED_STATES and not (is_warehouse_staff or is_buyer):
             return Response(
-                {'error': f'Only the buyer or staff can move order to {new_state}.'},
+                {'detail': f'ERR_BUYER_ONLY: Only the buyer or staff can move order to {new_state}. (is_buyer={is_buyer}, user_id={request.user.id}, order_user_id={order.user_id})'},
                 status=403
             )
 
         # If not staff, buyer, or seller — deny
-        if not (request.user.is_staff or request.user.is_superuser or is_seller or is_buyer):
-            return Response({'detail': 'No permission to transition this order.'}, status=403)
+        if not (is_warehouse_staff or is_seller or is_buyer):
+            return Response({'detail': f'ERR_NO_ROLE: No permission to transition this order. (is_buyer={is_buyer}, user_id={request.user.id}, order_user_id={order.user_id})'}, status=403)
 
-        # If transitioning to PENDING_VERIFICATION, we might want to attach a payment record
-        if new_state == 'PENDING_VERIFICATION':
+        # If transitioning to PENDING_VERIFICATION or PENDING_DELIVERY_VERIFICATION, we might want to attach a payment record
+        if new_state in ['PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'ASSIGNED_TRANSPORT']:
             proof = request.FILES.get('proof_image')
             transaction_id = request.data.get('transaction_id', '')
             if proof or transaction_id:
+                # Use delivery fee if advancing to PENDING_DELIVERY_VERIFICATION or ASSIGNED_TRANSPORT, otherwise total_amount
+                amount = order.total_amount
+                if new_state in ['PENDING_DELIVERY_VERIFICATION', 'ASSIGNED_TRANSPORT']:
+                    amount = order.shipping_fee
+                
                 Payment.objects.create(
                     order=order,
                     payment_method='OFFLINE',
                     proof_image=proof,
                     transaction_id=transaction_id,
-                    amount=order.total_amount,
+                    amount=amount,
                     status='PENDING_VERIFICATION'
                 )
                 notes = notes or f"Payment proof submitted: {transaction_id}"
+
+        if new_state == 'SHIPPED_TO_WAREHOUSE':
+            dropoff_warehouse_code = request.data.get('warehouse_code')
+            if dropoff_warehouse_code:
+                if isinstance(order.delivery_info, dict):
+                    order.delivery_info['warehouse_code'] = dropoff_warehouse_code
+                else:
+                    order.delivery_info = {'warehouse_code': dropoff_warehouse_code}
+                order.save(update_fields=['delivery_info'])
 
         if new_state == 'DELIVERED':
             delivery_code = request.data.get('delivery_code')
@@ -610,7 +678,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         try:
             OrderStateMachine.transition_order(order, new_state, notes=notes)
         except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'status': order.status})
 
     @decorators.action(detail=True, methods=['get'], url_path='pickup-code')
@@ -648,11 +716,16 @@ class OrderViewSet(viewsets.ModelViewSet):
         if order.status in ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED') and not (request.user.is_staff or request.user.is_superuser):
             return Response({'error': 'Paid orders can only be cancelled by staff administrators.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Block seller cancellation if already dispatched to warehouse
+        if is_seller and order.status not in ('CART', 'CHECKOUT', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID_PRODUCT', 'PREPARING', 'PACKAGING'):
+            if not (request.user.is_staff or request.user.is_superuser):
+                return Response({'error': 'You cannot cancel an order once it has been dispatched to the warehouse.'}, status=status.HTTP_400_BAD_REQUEST)
+
         notes = request.data.get('notes', 'Order cancelled.')
         try:
             OrderStateMachine.transition_order(order, 'CANCELLED', notes=notes)
         except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'status': order.status})
 
     @decorators.action(detail=False, methods=['get'])
@@ -677,6 +750,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         status_filter = request.query_params.get('status', None)
         if status_filter:
             orders = orders.filter(status=status_filter)
+
+        order_id_filter = request.query_params.get('order_id', None)
+        if order_id_filter:
+            orders = orders.filter(id=order_id_filter)
 
         page = self.paginate_queryset(orders)
         
@@ -706,11 +783,17 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'created_at': p.created_at.isoformat()
             } for p in order.payments.all()]
 
+            from logistics.utils import order_has_vehicles
             return {
                 'id': order.id,
                 'buyer': order.user.username,
+                'buyer_contact': {
+                    'name': order.delivery_info.get('contact_name', '') if order.delivery_info else '',
+                    'phone': order.delivery_info.get('contact_phone', '') if order.delivery_info else ''
+                },
                 'order_date': order.order_date.isoformat(),
                 'status': order.status,
+                'has_vehicles': order_has_vehicles(order),
                 'total_amount': float(order.total_amount),
                 'seller_subtotal': sum(i['subtotal'] for i in items_data),
                 'items': items_data,
@@ -730,11 +813,15 @@ class ReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        # FIX: L-05 — non-staff only see approved reviews
+        # FIX: L-05 — non-staff only see approved reviews, plus their own unapproved reviews
         product_id = self.request.query_params.get('product', None)
         qs = Review.objects.all()
         if not self.request.user.is_staff:
-            qs = qs.filter(approved=True)
+            from django.db.models import Q
+            if self.request.user.is_authenticated:
+                qs = qs.filter(Q(approved=True) | Q(user=self.request.user))
+            else:
+                qs = qs.filter(approved=True)
         if product_id:
             qs = qs.filter(product_id=product_id)
         return qs
@@ -764,7 +851,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if Review.objects.filter(user=self.request.user, product=product).exists():
             raise drf_serializers.ValidationError("You have already reviewed this product.")
             
-        review = serializer.save(user=self.request.user, approved=False)
+        review = serializer.save(user=self.request.user, approved=True)
 
         # Notify moderators (staff)
         from django.contrib.auth import get_user_model
@@ -838,7 +925,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Payment is not pending verification.'}, status=400)
         payment.status = 'VERIFIED'
         payment.save(update_fields=['status'])
-        if payment.order:
+        if payment.order and payment.order.status == 'PENDING_VERIFICATION':
             try:
                 OrderStateMachine.transition_order(
                     payment.order, 'PAID',
@@ -876,6 +963,48 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.password_validation import validate_password
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        from django.contrib.auth.models import User
+        username = attrs.get('username')
+        password = attrs.get('password')
+        try:
+            user = User.objects.get(username=username)
+            if not user.is_active and user.check_password(password):
+                from rest_framework.exceptions import AuthenticationFailed
+                raise AuthenticationFailed('Your account has been banned.', code='user_banned')
+        except User.DoesNotExist:
+            pass
+            
+        data = super().validate(attrs)
+        data['user_id'] = self.user.id
+        data['username'] = self.user.username
+        data['is_staff'] = self.user.is_staff or self.user.is_superuser
+        data['is_superuser'] = self.user.is_superuser
+        try:
+            data['is_verified'] = self.user.profile.is_verified
+            data['tier'] = self.user.profile.tier
+        except (UserProfile.DoesNotExist, AttributeError):
+            data['is_verified'] = False
+            data['tier'] = 'customer'
+        
+        data['is_inspector'] = hasattr(self.user, 'inspector_profile')
+        data['inspector_level'] = (
+            self.user.inspector_profile.level
+            if hasattr(self.user, 'inspector_profile') else None
+        )
+
+        from marketplace.models import TeamMember
+        member_record = TeamMember.objects.filter(user=self.user).first()
+        if member_record:
+            data['is_team_member'] = True
+            data['team_permissions'] = member_record.permissions
+            data['tier'] = 'business'
+        else:
+            data['is_team_member'] = False
+            data['team_permissions'] = {}
+
+        return data
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
@@ -907,38 +1036,42 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             token['is_team_member'] = False
             token['team_permissions'] = {}
             
+        from marketplace.models import Subscription
+        from django.utils import timezone
+        sub = Subscription.objects.filter(user=user).order_by('-start_date').first()
+        if sub and sub.end_date:
+            token['subscription_active'] = timezone.now() <= sub.end_date
+            token['subscription_end_date'] = sub.end_date.isoformat()
+        else:
+            token['subscription_active'] = False
+            token['subscription_end_date'] = None
+            
         return token
 
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.views import TokenRefreshView
+
+class CustomTokenRefreshSerializer(TokenRefreshSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
-        data['user_id'] = self.user.id
-        data['username'] = self.user.username
-        data['is_staff'] = self.user.is_staff or self.user.is_superuser
-        data['is_superuser'] = self.user.is_superuser
-        try:
-            data['is_verified'] = self.user.profile.is_verified  # FIX: S-10
-            data['tier'] = self.user.profile.tier
-        except (UserProfile.DoesNotExist, AttributeError):  # FIX: S-10 — replace bare except with specific exceptions
-            data['is_verified'] = False
-            data['tier'] = 'customer'
+        refresh = self.token_class(attrs['refresh'])
+        user_id = refresh.payload.get('user_id')
         
-        data['is_inspector'] = hasattr(self.user, 'inspector_profile')
-        data['inspector_level'] = (
-            self.user.inspector_profile.level
-            if hasattr(self.user, 'inspector_profile') else None
-        )
-
-        from marketplace.models import TeamMember
-        member_record = TeamMember.objects.filter(user=self.user).first()
-        if member_record:
-            data['is_team_member'] = True
-            data['team_permissions'] = member_record.permissions
-            data['tier'] = 'business'
-        else:
-            data['is_team_member'] = False
-            data['team_permissions'] = {}
-
+        if user_id:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            try:
+                user = User.objects.get(id=user_id)
+                # Generate a brand new access token with up-to-date claims
+                new_token = CustomTokenObtainPairSerializer.get_token(user)
+                data['access'] = str(new_token.access_token)
+            except User.DoesNotExist:
+                pass
+                
         return data
+
+class CustomTokenRefreshView(TokenRefreshView):
+    serializer_class = CustomTokenRefreshSerializer
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -1550,6 +1683,24 @@ class SubscriptionTierViewSet(viewsets.ReadOnlyModelViewSet):
     from .serializers import SubscriptionTierSerializer
     serializer_class = SubscriptionTierSerializer
     permission_classes = [permissions.AllowAny]
+
+
+class UserSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
+    from .serializers import SubscriptionSerializer
+    serializer_class = SubscriptionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        from .models import Subscription
+        return Subscription.objects.filter(user=self.request.user).select_related('tier').order_by('-start_date')
+
+    @decorators.action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        sub = self.get_queryset().first()
+        if not sub:
+            return Response({'status': 'none'}, status=200)
+        serializer = self.get_serializer(sub)
+        return Response(serializer.data)
 
 
 class UserPaymentConfirmationViewSet(viewsets.ModelViewSet):

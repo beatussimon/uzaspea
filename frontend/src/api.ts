@@ -42,8 +42,13 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
+    if (error.response?.status === 401) {
+      if (error.response.data?.code === 'user_inactive' || error.response.data?.code === 'user_banned') {
+        localStorage.setItem('account_banned', 'true');
+      }
+      
+      if (!originalRequest._retry && error.response.data?.code !== 'user_banned') {
+        originalRequest._retry = true;
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
         try {
@@ -70,6 +75,7 @@ api.interceptors.response.use(
           localStorage.removeItem('refresh_token');
           window.location.href = '/login';
         }
+      }
       }
     }
     return Promise.reject(error);
