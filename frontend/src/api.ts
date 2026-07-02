@@ -87,9 +87,21 @@ export { API_BASE_URL };
 
 export function decodeJwtPayload(token: string): any | null {
   try {
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(base64));
-  } catch {
+    let base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const pad = base64.length % 4;
+    if (pad) {
+      if (pad === 1) throw new Error('InvalidLengthError');
+      base64 += new Array(5 - pad).join('=');
+    }
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error("JWT Decode Error:", error);
     return null;
   }
 }

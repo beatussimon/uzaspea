@@ -33,10 +33,11 @@ class SupportTicketSerializer(serializers.ModelSerializer):
 
 class CategorySerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()
+    product_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'parent', 'children']
+        fields = ['id', 'name', 'slug', 'description', 'parent', 'children', 'image', 'product_count']
 
     def get_children(self, obj):
         depth = self.context.get('_cat_depth', 0)  # FIX C-17: depth guard
@@ -49,6 +50,14 @@ class CategorySerializer(serializers.ModelSerializer):
             kids, many=True,
             context={**self.context, '_cat_depth': depth + 1}
         ).data
+
+    def get_product_count(self, obj):
+        if hasattr(obj, 'annotated_product_count'):
+            return obj.annotated_product_count
+        count = obj.products.count()
+        for child in obj.children.all():
+            count += child.products.count()
+        return count
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -264,7 +273,7 @@ class OrderSerializer(serializers.ModelSerializer):
             user = request.user
             if not (user.is_staff or user.is_superuser or instance.user == user):
                 from uzachuo.permissions import get_effective_sellers
-                sellers = get_effective_sellers(user)
+                sellers = get_effective_sellers(user, required_permission='manage_products')
                 filtered_items = instance.orderitem_set.filter(product__seller_id__in=sellers)
                 ret['items'] = OrderItemSerializer(filtered_items, many=True, context=self.context).data
         return ret
@@ -582,8 +591,8 @@ class TeamMemberSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TeamMember
-        fields = ['id', 'owner', 'owner_username', 'user', 'username', 'user_details', 'permissions', 'created_at']
-        read_only_fields = ['id', 'owner', 'user', 'created_at']
+        fields = ['id', 'owner', 'owner_username', 'user', 'username', 'user_details', 'permissions', 'invitation_status', 'is_active', 'role_preset', 'created_at']
+        read_only_fields = ['id', 'owner', 'user', 'invitation_status', 'created_at']
 
     def get_user_details(self, obj):
         return {
@@ -611,6 +620,15 @@ class TeamMemberSerializer(serializers.ModelSerializer):
         if not is_business:
             raise serializers.ValidationError("Only users with a Business tier subscription can invite team members.")
 
+        # Enforce seat limit if the owner's active Business subscription defines one.
+        active_sub = owner.subscriptions.filter(is_active=True, tier__tier_level='business').select_related('tier').first()
+        if active_sub and active_sub.tier.max_team_members is not None:
+            current_count = TeamMember.objects.filter(owner=owner, invitation_status__in=['pending', 'accepted']).count()
+            if current_count >= active_sub.tier.max_team_members:
+                raise serializers.ValidationError(
+                    f"Your Business plan allows up to {active_sub.tier.max_team_members} team members. Remove an existing member or upgrade your plan to invite more."
+                )
+
         if owner == user:
             raise serializers.ValidationError("You cannot invite yourself to your own team.")
 
@@ -620,5 +638,26 @@ class TeamMemberSerializer(serializers.ModelSerializer):
         permissions = validated_data.get('permissions', {})
         if not isinstance(permissions, dict):
             permissions = {}
+        # manage_messages permission is reserved for future seller-messaging-as-team-member support; not yet enforced
+            
+        role_preset = validated_data.get('role_preset', '')
 
-        return TeamMember.objects.create(owner=owner, user=user, permissions=permissions)
+        member = TeamMember.objects.create(
+            owner=owner, user=user, permissions=permissions, 
+            invitation_status='pending', role_preset=role_preset
+        )
+        from .models import push_notification, TeamMemberAuditLog
+        try:
+            push_notification(
+                user, 'order_status', 'Team invitation',
+                f'{owner.username} has invited you to join their business team. Review and accept in your account settings.',
+                '/dashboard/team-invitations'
+            )
+        except Exception:
+            pass
+            
+        TeamMemberAuditLog.objects.create(
+            owner=owner, target_user=user, performed_by=owner,
+            action='invited', detail={'permissions': permissions, 'role_preset': role_preset}
+        )
+        return member

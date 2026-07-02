@@ -8,6 +8,115 @@ import VerifiedBadge from './VerifiedBadge';
 import { useCart } from '../context/CartContext';
 import { timeAgo } from '../utils/timeAgo';
 
+const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const images = product.images || [];
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const scrollLeft = scrollRef.current.scrollLeft;
+    const width = scrollRef.current.offsetWidth;
+    const index = Math.round(scrollLeft / width);
+    if (index !== currentIndex) {
+      setCurrentIndex(index);
+    }
+  };
+
+  const scrollToIndex = (index: number) => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTo({ left: scrollRef.current.offsetWidth * index, behavior: 'smooth' });
+    setCurrentIndex(index);
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    if (currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
+  };
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    if (currentIndex > 0) scrollToIndex(currentIndex - 1);
+  };
+
+  return (
+    <div className={`relative ${viewMode === 'list' ? 'w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg' : 'aspect-[4/3]'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel`}>
+      <div 
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full w-full"
+      >
+        {images.length > 0 ? (
+          images.map((img: any, i: number) => (
+            <div key={i} className="flex-none w-full h-full snap-center">
+              <SafeImage
+                src={img.image || ''}
+                alt={`${product.name} - ${i + 1}`}
+                category={product.category_name}
+                className="object-cover w-full h-full"
+              />
+            </div>
+          ))
+        ) : (
+          <div className="flex-none w-full h-full snap-center">
+            <SafeImage src="" alt={product.name} category={product.category_name} className="object-cover w-full h-full" />
+          </div>
+        )}
+      </div>
+
+      {viewMode === 'list' ? (
+        <span className={`absolute top-1 left-1 text-[8px] px-1.5 py-0.5 rounded font-bold text-white shadow-sm uppercase z-10 ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
+          {product.condition || 'New'}
+        </span>
+      ) : (
+        <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
+          {isSponsored && (
+            <span className="bg-brand-600 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase tracking-wider">
+              Sponsored
+            </span>
+          )}
+          <span className={`text-[9px] px-2 py-0.5 rounded font-bold text-white shadow-md uppercase tracking-wider w-fit ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
+            {product.condition || 'New'}
+          </span>
+          {product.old_price > product.price && (
+            <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase w-fit">
+              -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
+            </span>
+          )}
+        </div>
+      )}
+
+      {images.length > 1 && (
+        <>
+          <button 
+            onClick={handlePrev}
+            disabled={currentIndex === 0}
+            className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center bg-black/40 hover:bg-black/60 text-white rounded-full opacity-0 group-hover/carousel:opacity-100 disabled:opacity-0 transition-opacity z-10"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <button 
+            onClick={handleNext}
+            disabled={currentIndex === images.length - 1}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center bg-black/40 hover:bg-black/60 text-white rounded-full opacity-0 group-hover/carousel:opacity-100 disabled:opacity-0 transition-opacity z-10"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10 pointer-events-none">
+            {images.map((_: any, i: number) => (
+              <div 
+                key={i} 
+                className={`w-1 h-1 rounded-full transition-all ${i === currentIndex ? 'bg-white scale-150' : 'bg-white/50'}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean }) => {
   const { addToCart } = useCart();
   const [liked, setLiked] = React.useState(product.is_liked || false);
@@ -50,20 +159,10 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
 
   if (viewMode === 'list') {
     return (
-      <div className="group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300">
+      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-400/60 dark:ring-yellow-500/40' : ''}`}>
         <Link to={`/product/${product.slug}`} className="flex flex-row items-center gap-4 flex-1 min-w-0">
-          {/* Horizontal Image */}
-          <div className="relative w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800/50">
-            <SafeImage
-              src={product.images?.[0]?.image || ''}
-              alt={product.name}
-              category={product.category_name}
-              className="object-cover w-full h-full"
-            />
-            <span className={`absolute top-1 left-1 text-[8px] px-1.5 py-0.5 rounded font-bold text-white shadow-sm uppercase ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
-              {product.condition || 'New'}
-            </span>
-          </div>
+          {/* Horizontal Image Carousel */}
+          <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} />
 
           {/* Content */}
           <div className="flex-1 min-w-0 pr-8">
@@ -132,33 +231,10 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
   }
 
   return (
-    <div className="group relative card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300">
+    <div className={`group relative card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300`}>
       <Link to={`/product/${product.slug}`} className="flex flex-col h-full">
-        {/* Image — 4:3 ratio */}
-        <div className="relative aspect-[4/3] bg-gray-100 dark:bg-gray-800/50 overflow-hidden">
-          <SafeImage
-            src={product.images?.[0]?.image || ''}
-            alt={product.name}
-            category={product.category_name}
-            className="object-cover w-full h-full"
-          />
-          {/* Condition badge */}
-          <div className="absolute top-2 left-2 flex flex-col gap-1.5">
-            {isSponsored && (
-              <span className="bg-brand-600 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase tracking-wider">
-                Sponsored
-              </span>
-            )}
-            <span className={`text-[9px] px-2 py-0.5 rounded font-bold text-white shadow-md uppercase tracking-wider ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
-              {product.condition || 'New'}
-            </span>
-            {product.old_price > product.price && (
-              <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase">
-                -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
-              </span>
-            )}
-          </div>
-        </div>
+        {/* Image Carousel — 4:3 ratio */}
+        <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} />
 
         {/* Card body */}
         <div className="p-3.5 flex flex-col flex-1">
@@ -177,10 +253,6 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
                    <span className="uppercase tracking-widest text-[8px]">Inspected ✓</span>
                  </div>
               )}
-              <div className="flex gap-0.5 items-center">
-                <Star size={10} className="fill-yellow-400 text-yellow-400" />
-                <span className="text-[10px] text-gray-500 font-medium">{product.avg_rating || '5.0'}</span>
-              </div>
             </div>
           </div>
           <h3 className="font-bold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{product.name}</h3>
@@ -215,7 +287,10 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
                 </>
               )}
             </div>
-            <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded uppercase tracking-widest text-[8px] font-bold shrink-0 ml-1">Pro</span>
+            <div className="flex gap-0.5 items-center shrink-0 ml-1">
+              <Star size={10} className={product.avg_rating > 0 ? "fill-yellow-400 text-yellow-400" : "text-gray-300 dark:text-gray-600"} />
+              <span className="text-[10px] text-gray-500 font-medium">{product.avg_rating > 0 ? product.avg_rating : '0.0'}</span>
+            </div>
           </div>
         </div>
       </Link>

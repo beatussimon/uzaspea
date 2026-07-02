@@ -74,7 +74,7 @@ function App() {
             <DialogProvider>
               <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300">
                 <Navbar />
-                <div className="h-16" /> {/* Spacer matching navbar height */}
+                <div className="h-20" /> {/* Spacer matching navbar height */}
 
                 <main className="flex-1 pt-4 md:pt-6">
                   <ErrorBoundary>

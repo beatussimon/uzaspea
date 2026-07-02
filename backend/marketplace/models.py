@@ -100,6 +100,10 @@ class SubscriptionTier(models.Model):
         max_digits=5, decimal_places=2, default=Decimal('10.00'),
         help_text="Platform commission % charged to sellers on this tier"
     )
+    max_team_members = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Maximum number of team members allowed on this tier. Leave blank for unlimited."
+    )
 
     def __str__(self):
         return f"{self.name} ({self.price})"
@@ -187,6 +191,7 @@ class Category(models.Model):
     slug = models.SlugField(unique=True, blank=True)
     description = models.TextField(blank=True)
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children')
+    image = models.ImageField(upload_to='category_images/', blank=True, null=True)
 
     class Meta:
         verbose_name_plural = "Categories"
@@ -1049,17 +1054,65 @@ def invalidate_category_cache(sender, instance, **kwargs):
         cache.clear()
 
 
+TEAM_ROLE_PRESETS = {
+    'store_manager': {
+        'label': 'Store manager',
+        'permissions': {'manage_orders': True, 'manage_products': True, 'manage_messages': True, 'view_analytics': True},
+    },
+    'inventory': {
+        'label': 'Inventory staff',
+        'permissions': {'manage_orders': False, 'manage_products': True, 'manage_messages': False, 'view_analytics': False},
+    },
+    'support_staff': {
+        'label': 'Support staff',
+        'permissions': {'manage_orders': True, 'manage_products': False, 'manage_messages': True, 'view_analytics': False},
+    },
+    'bookkeeper': {
+        'label': 'Bookkeeper',
+        'permissions': {'manage_orders': False, 'manage_products': False, 'manage_messages': False, 'view_analytics': True},
+    },
+}
+
 class TeamMember(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+    ]
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_members')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_memberships')
     permissions = models.JSONField(default=dict, help_text="JSON representation of permissions, e.g. {'manage_orders': true, 'manage_products': true}")
+    invitation_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    is_active = models.BooleanField(default=True, help_text="Set to False to suspend access without losing the permission configuration.")
+    role_preset = models.CharField(max_length=30, blank=True, help_text="Optional label of the role preset this member was invited under, for display purposes only. The `permissions` field is always the actual source of truth.")
     created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ('owner', 'user')
 
     def __str__(self):
-        return f"{self.user.username} in {self.owner.username}'s team"
+        return f"{self.user.username} in {self.owner.username}'s team ({self.invitation_status})"
+
+class TeamMemberAuditLog(models.Model):
+    ACTION_CHOICES = [
+        ('invited', 'Invited'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('permissions_changed', 'Permissions Changed'),
+        ('suspended', 'Suspended'),
+        ('reactivated', 'Reactivated'),
+        ('removed', 'Removed'),
+    ]
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_audit_entries')
+    target_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_audit_entries_about_me')
+    performed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='team_audit_entries_performed')
+    action = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    detail = models.JSONField(default=dict, blank=True, help_text="e.g. {'before': {...}, 'after': {...}} for permission changes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 class StoreImage(models.Model):
@@ -1074,3 +1127,20 @@ class StoreImage(models.Model):
         return f"Store image for {self.profile.user.username} ({self.id})"
 
 
+
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.core.cache import cache
+
+def invalidate_category_cache(*args, **kwargs):
+    try:
+        cache.incr('categories_cache_version')
+    except ValueError:
+        cache.set('categories_cache_version', 1)
+
+@receiver(post_save, sender=Category)
+@receiver(post_delete, sender=Category)
+@receiver(post_save, sender=Product)
+@receiver(post_delete, sender=Product)
+def handle_category_invalidation(sender, **kwargs):
+    invalidate_category_cache()

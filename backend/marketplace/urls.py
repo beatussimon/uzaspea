@@ -12,7 +12,7 @@ from .api_views import (
     DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet,
     MobileNetworkViewSet, TrendingAnalyticsView, reverse_geocode,
     SubscriptionTierViewSet, UserPaymentConfirmationViewSet, SellerApplicationViewSet,
-    TeamMemberViewSet, UserSubscriptionViewSet
+    TeamMemberViewSet, UserSubscriptionViewSet, TeamRolePresetsView
 )
 
 router = DefaultRouter()
@@ -51,4 +51,5 @@ urlpatterns = [
     path('api/site-settings/', SiteSettingsView.as_view(), name='site-settings'),  # FIX B-18
     path('api/analytics/trending/', TrendingAnalyticsView.as_view(), name='analytics-trending'),
     path('api/health/reverse_geocode/', reverse_geocode, name='reverse-geocode'),
+    path('api/team-role-presets/', TeamRolePresetsView.as_view(), name='team-role-presets'),
 ]

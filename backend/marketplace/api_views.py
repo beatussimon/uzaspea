@@ -98,7 +98,6 @@ def reverse_geocode(request):
     except requests.RequestException as e:
         return Response({'error': str(e)}, status=503)
 
-@method_decorator(cache_page(60 * 60 * 2), name='list')
 @method_decorator(vary_on_headers('Authorization', 'Cookie'), name='list')
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().prefetch_related('images', 'likes')
@@ -169,7 +168,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         # FIX S-17: sellers can retrieve their own products regardless of availability
         if user.is_authenticated and self.request.query_params.get('mine') == 'true':
             from uzachuo.permissions import get_effective_sellers
-            sellers = get_effective_sellers(user)
+            sellers = get_effective_sellers(user, required_permission='manage_products')
             queryset = base.filter(seller_id__in=sellers)
         elif self.request.query_params.get('following') and user.is_authenticated:
             from .models import Follow
@@ -321,9 +320,18 @@ class ProductViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
         import datetime
         user = request.user
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(user, required_permission='view_analytics')
+        
         from marketplace.models import TeamMember
-        membership = TeamMember.objects.filter(user=user).first()
-        stats_user = membership.owner if membership else user
+        membership = TeamMember.objects.filter(user=user, invitation_status='accepted', is_active=True).first()
+        if membership:
+            if membership.owner.id not in sellers:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You do not have permission to view analytics for this team.")
+            stats_user = membership.owner
+        else:
+            stats_user = user
 
         is_business = stats_user.profile.tier == 'business' or stats_user.subscriptions.filter(is_active=True, tier__tier_level='business').exists()
 
@@ -525,10 +533,25 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(user=user)
 
-@method_decorator(cache_page(60 * 60 * 2), name='list')
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    pagination_class = None
+
+    def list(self, request, *args, **kwargs):
+        from django.core.cache import cache
+        from rest_framework.response import Response
+        version = cache.get('categories_cache_version', 1)
+        page = request.GET.get('page', 1)
+        cache_key = f"categories_list_page_{page}"
+        data = cache.get(cache_key, version=version)
+        
+        if not data:
+            response = super().list(request, *args, **kwargs)
+            data = response.data
+            cache.set(cache_key, data, 60 * 60 * 2, version=version)
+            
+        return Response(data)
 
 class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
@@ -544,7 +567,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if user.is_staff or user.is_superuser:
             return Order.objects.all().prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
         from uzachuo.permissions import get_effective_sellers
-        sellers = get_effective_sellers(user)
+        sellers = get_effective_sellers(user, required_permission='manage_orders')
         return Order.objects.filter(
             Q(user=user) | Q(orderitem_set__product__seller_id__in=sellers)
         ).distinct().prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
@@ -737,7 +760,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """Orders containing the current seller's products."""
         user = request.user
         from uzachuo.permissions import get_effective_sellers
-        sellers = get_effective_sellers(user)
+        sellers = get_effective_sellers(user, required_permission='manage_orders')
         
         # Prefetch only for these sellers' items to avoid N+1 and leaking other seller's item data
         seller_items_prefetch = Prefetch(
@@ -1264,13 +1287,36 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
         user = self.request.user
         from django.utils import timezone as tz
         is_public = self.request.query_params.get('public', 'false').lower() == 'true'
+        category_slug = self.request.query_params.get('category', None)
+        query = self.request.query_params.get('q', None)
 
         if is_public:
-            return SponsoredListing.objects.filter(
+            qs = SponsoredListing.objects.filter(
                 status='approved'
             ).filter(
                 django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now())
-            ).order_by('-created_at')
+            )
+            
+            if category_slug:
+                from .models import Category
+                try:
+                    cat = Category.objects.get(slug=category_slug)
+                    descendants = cat.get_descendants(include_self=True)
+                    qs = qs.filter(product__category__in=descendants)
+                except Category.DoesNotExist:
+                    qs = qs.filter(product__category__slug=category_slug)
+            
+            if query:
+                from django.db import connection
+                if connection.vendor == 'postgresql':
+                    from django.contrib.postgres.search import SearchVector, SearchQuery
+                    search_vector = SearchVector('product__name', weight='A') + SearchVector('product__description', weight='B')
+                    search_query = SearchQuery(query, search_type='websearch')
+                    qs = qs.annotate(search=search_vector).filter(search=search_query)
+                else:
+                    qs = qs.filter(django_models.Q(product__name__icontains=query) | django_models.Q(product__description__icontains=query))
+
+            return qs.order_by('-created_at')
 
         if user.is_staff:
             return SponsoredListing.objects.all().order_by('-created_at')
@@ -1470,11 +1516,17 @@ class DisputeViewSet(viewsets.ModelViewSet):
         order = serializer.validated_data['order']
         if order.user != self.request.user:
             raise drf_serializers.ValidationError('You can only dispute your own orders.')
-        if order.status not in ['DELIVERED']:
-            raise drf_serializers.ValidationError('Can only dispute orders in DELIVERED status.')
+            
+        allowed_statuses = ['DELIVERED', 'AWAITING_DELIVERY_PAYMENT', 'PAYMENT_VERIFIED', 'OUT_FOR_DELIVERY']
+        if order.status not in allowed_statuses:
+            raise drf_serializers.ValidationError('Can only dispute orders in DELIVERED or in-transit statuses.')
+            
         serializer.save(opened_by=self.request.user)
-        from .services import OrderStateMachine
-        OrderStateMachine.transition_order(order, 'DISPUTED', notes='Dispute opened by buyer.')
+        
+        action_mode = self.request.data.get('action_mode', 'halt')
+        if action_mode == 'halt':
+            from .services import OrderStateMachine
+            OrderStateMachine.transition_order(order, 'DISPUTED', notes='Dispute opened by buyer and fulfillment paused.')
         first_item = order.orderitem_set.first()
         if first_item:
             push_notification(
@@ -1743,6 +1795,12 @@ class SellerApplicationViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+class TeamRolePresetsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def get(self, request):
+        from .models import TEAM_ROLE_PRESETS
+        return Response(TEAM_ROLE_PRESETS)
+
 class TeamMemberViewSet(viewsets.ModelViewSet):
     from .models import TeamMember
     from .serializers import TeamMemberSerializer
@@ -1757,9 +1815,15 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         ).select_related('owner', 'user').order_by('-created_at')
 
     def perform_destroy(self, instance):
-        if instance.owner != self.request.user:
+        if instance.owner != self.request.user and instance.user != self.request.user:
             from rest_framework import exceptions
-            raise exceptions.PermissionDenied("Only the team owner can remove team members.")
+            raise exceptions.PermissionDenied("Only the team owner or the team member themselves can remove this membership.")
+            
+        from .models import TeamMemberAuditLog
+        TeamMemberAuditLog.objects.create(
+            owner=instance.owner, target_user=instance.user, performed_by=self.request.user,
+            action='removed', detail={}
+        )
         instance.delete()
 
     def perform_update(self, serializer):
@@ -1767,5 +1831,58 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         if instance.owner != self.request.user:
             from rest_framework import exceptions
             raise exceptions.PermissionDenied("Only the team owner can modify team member permissions.")
-        serializer.save()
+            
+        before = dict(instance.permissions)
+        updated = serializer.save()
+        from .models import TeamMemberAuditLog
+        TeamMemberAuditLog.objects.create(
+            owner=instance.owner, target_user=instance.user, performed_by=self.request.user,
+            action='permissions_changed', detail={'before': before, 'after': dict(updated.permissions)}
+        )
+
+    @decorators.action(detail=True, methods=['post'])
+    def accept(self, request, pk=None):
+        member = self.get_object()
+        if member.user != request.user:
+            return Response({'error': 'Only the invited user can accept this invitation.'}, status=403)
+        member.invitation_status = 'accepted'
+        
+        from django.utils import timezone
+        member.responded_at = timezone.now()
+        member.save(update_fields=['invitation_status', 'responded_at'])
+        
+        from .models import TeamMemberAuditLog
+        TeamMemberAuditLog.objects.create(
+            owner=member.owner, target_user=member.user, performed_by=request.user,
+            action='accepted', detail={}
+        )
+        return Response({'status': 'accepted'})
+
+    @decorators.action(detail=True, methods=['post'])
+    def decline(self, request, pk=None):
+        member = self.get_object()
+        if member.user != request.user:
+            return Response({'error': 'Only the invited user can decline this invitation.'}, status=403)
+        member.invitation_status = 'declined'
+        
+        from django.utils import timezone
+        member.responded_at = timezone.now()
+        member.save(update_fields=['invitation_status', 'responded_at'])
+        
+        from .models import TeamMemberAuditLog
+        TeamMemberAuditLog.objects.create(
+            owner=member.owner, target_user=member.user, performed_by=request.user,
+            action='declined', detail={}
+        )
+        return Response({'status': 'declined'})
+
+    @decorators.action(detail=False, methods=['get'])
+    def audit_log(self, request):
+        from .models import TeamMemberAuditLog
+        entries = TeamMemberAuditLog.objects.filter(owner=request.user).select_related('target_user', 'performed_by')[:100]
+        data = [{
+            'id': e.id, 'target_user': e.target_user.username, 'performed_by': e.performed_by.username if e.performed_by else None,
+            'action': e.action, 'detail': e.detail, 'created_at': e.created_at.isoformat(),
+        } for e in entries]
+        return Response(data)
 
