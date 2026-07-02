@@ -682,7 +682,7 @@ const ProductDetailPage: React.FC = () => {
 
           {/* Premium Verification & Inspection Services */}
           {(isOwnProduct || (product.inspections && product.inspections.length > 0)) && (
-            <div className="p-6 rounded-3xl border border-brand-100/80 dark:border-brand-900/30 bg-gradient-to-br from-brand-50/50 to-white dark:from-brand-950/10 dark:to-gray-900/20 shadow-sm mb-6">
+            <div className="card p-6 bg-white dark:bg-[#0A0A0A] border-emerald-100 dark:border-emerald-800/50 mt-8 mb-6">
               <div className="flex items-start gap-3.5 mb-4">
                 <div className="p-3 bg-brand-100 dark:bg-brand-900/40 rounded-2xl text-brand-600 dark:text-brand-400">
                   <Shield size={20} />
@@ -741,10 +741,10 @@ const ProductDetailPage: React.FC = () => {
                 )}
               </div>
             </div>
-          )}        </div>
-
+          )}
         </div>
 
+        </div>
       {/* Tabs: Reviews & Comments (Mobile/Tablet) */}
       {!isDesktop && (
         <div className="mt-8">

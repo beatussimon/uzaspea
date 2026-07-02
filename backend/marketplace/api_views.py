@@ -1679,14 +1679,11 @@ class TrendingAnalyticsView(APIView):
     def get(self, request):
         now = timezone.now()
         thirty_days_ago = now - timedelta(days=30)
+        seven_days_ago = now - timedelta(days=7)
         
         # 1. Active Users: Users who logged in within the last 30 days
         from django.contrib.auth.models import User
         active_users_count = User.objects.filter(last_login__gte=thirty_days_ago).count()
-        # Fallback for new platforms: if active_users is very low, just use total users
-        total_users = User.objects.count()
-        if active_users_count < 10:
-             active_users_count = total_users
 
         # 2. Products Sold: Sum of quantities in completed/paid orders
         products_sold_dict = OrderItem.objects.filter(
@@ -1694,9 +1691,8 @@ class TrendingAnalyticsView(APIView):
         ).aggregate(total=Sum('quantity'))
         products_sold = products_sold_dict['total'] or 0
 
-        # 3. Weekly Visits (proxy): Since we don't track raw hits, we approximate based on active users.
-        # A realistic heuristic for an active marketplace: 1 active user ~ 3-5 weekly visits.
-        weekly_visits = active_users_count * 4 + 150  # base of 150 for brand new instances
+        # 3. Weekly Visits (proxy): Unique users who logged in the last 7 days
+        weekly_visits = User.objects.filter(last_login__gte=seven_days_ago).count()
 
         # 4. Top Categories by Interest (Market Share)
         # We annotate categories with their product count.
@@ -1709,12 +1705,22 @@ class TrendingAnalyticsView(APIView):
         ]
 
         # 5. Trending Products
-        # Top 8 products ordered by Like count, then fallback to newest
+        # Top 8 products ordered by weekly sales, then fallback to likes/newest
+        from django.db.models.functions import Coalesce
+        from django.db.models import Sum, Count, Q
+
         trending_products_qs = Product.objects.prefetch_related('images', 'likes').filter(
             is_available=True
         ).annotate(
-            like_count=Count('likes')
-        ).order_by('-like_count', '-created_at')[:8]
+            weekly_sales=Coalesce(Sum(
+                'orderitem__quantity',
+                filter=Q(
+                    orderitem__order__created_at__gte=seven_days_ago,
+                    orderitem__order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED']
+                )
+            ), 0),
+            like_count=Count('likes', distinct=True)
+        ).order_by('-weekly_sales', '-like_count', '-created_at')[:8]
         
         trending_serialized = ProductSerializer(
             trending_products_qs, many=True, context={'request': request}

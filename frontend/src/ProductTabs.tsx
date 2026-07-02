@@ -105,9 +105,6 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
         {activeTab === 'reviews' && (
           <div className="animate-fade-in">
             <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">Verified buyers</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              Reviews are locked until order status is COMPLETED.
-            </p>
 
             {loadingReviews ? (
               <div className="flex justify-center py-8">
