@@ -268,7 +268,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
           </div>
 
           {/* Seller Info */}
-          <div className="text-[10px] text-gray-400 dark:text-gray-500 border-t border-surface-border/40 dark:border-surface-dark-border/40 pt-2.5 mt-2.5 flex items-center justify-between">
+          <div className="text-[10px] text-gray-400 dark:text-gray-500 border-t border-surface-border/40 dark:border-surface-dark-border/40 pt-2.5 mt-2.5 flex items-center justify-between font-medium">
             <div className="flex items-center gap-1.5 min-w-0 text-[9px]">
               <div className="flex items-center gap-1 shrink-0">
                 <span className="truncate font-medium text-gray-600 dark:text-gray-300">{product.seller_username || 'Seller'}</span>
@@ -276,13 +276,13 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
               </div>
               {product.location_name && (
                 <>
-                  <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                  <span className="text-gray-400/60 dark:text-gray-600 shrink-0">•</span>
                   <span className="flex items-center gap-0.5 truncate max-w-[50px] shrink-0"><MapPin size={8} /> {product.location_name}</span>
                 </>
               )}
               {product.created_at && (
                 <>
-                  <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                  <span className="text-gray-400/60 dark:text-gray-600 shrink-0">•</span>
                   <span className="flex items-center gap-0.5 whitespace-nowrap shrink-0"><Clock size={8} /> {timeAgo(product.created_at)}</span>
                 </>
               )}
