@@ -152,7 +152,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
             {/* Comment Form */}
             <div className="mt-2 mb-8 flex flex-col items-end">
               <textarea
-                className="w-full bg-transparent border-0 border-b border-gray-300 dark:border-gray-700 pb-2 text-sm focus:ring-0 focus:outline-none dark:text-white resize-none focus:border-brand-600 dark:focus:border-brand-500 transition-colors"
+                className="w-full bg-transparent border-x-0 border-t-0 border-b border-gray-300 dark:border-gray-700 pb-2 text-sm focus:ring-0 focus:outline-none dark:text-white resize-none focus:border-brand-600 dark:focus:border-brand-500 transition-colors shadow-none"
                 placeholder="Add a comment..."
                 rows={1}
                 onFocus={(e) => e.target.rows = 3}
@@ -237,7 +237,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                       <div className="ml-12 mt-2 flex flex-col items-end">
                         <input
                           type="text"
-                          className="w-full bg-transparent border-0 border-b border-gray-300 dark:border-gray-600 pb-1 text-sm dark:text-white focus:ring-0 focus:outline-none focus:border-brand-600 dark:focus:border-brand-500 transition-colors"
+                          className="w-full bg-transparent border-x-0 border-t-0 border-b border-gray-300 dark:border-gray-600 pb-1 text-sm dark:text-white focus:ring-0 focus:outline-none focus:border-brand-600 dark:focus:border-brand-500 transition-colors shadow-none"
                           placeholder="Add a reply..."
                           autoFocus
                           value={replyText}

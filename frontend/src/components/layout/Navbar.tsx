@@ -87,7 +87,7 @@ const Navbar = () => {
 
   return (
     <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${visible ? 'translate-y-0' : '-translate-y-full'} ${navBackgroundClass}`}>
-      <div className="container-page relative flex items-center justify-between h-16 w-full">
+      <div className="container-page relative flex items-center justify-between h-20 w-full">
 
         {/* ---- Left Navigation Links ---- */}
         <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center justify-start pl-8 md:pl-12 gap-6">
@@ -119,7 +119,7 @@ const Navbar = () => {
             <img 
               src="/logo_dark.png" 
               alt="SokoniMax Logo" 
-              className="h-12 md:h-14 w-auto object-contain transition-transform duration-200 hover:scale-105 select-none"
+              className="h-14 md:h-16 w-auto object-contain transition-transform duration-200 hover:scale-105 select-none"
             />
           </Link>
         </div>

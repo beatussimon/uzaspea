@@ -67,15 +67,27 @@ class IsAssignedInspectorOrStaff(permissions.BasePermission):
             
         return False
 
-def get_effective_sellers(user):
+def get_effective_sellers(user, required_permission=None):
     """
     Returns a list of user IDs that this user can act as seller for.
-    Includes the user's own ID, plus any team owners they belong to.
+    Includes the user's own ID, plus any team owners they belong to —
+    but only owners who have granted `required_permission` to this user,
+    if a required_permission is specified. Owner-status itself (no permission
+    check) is used only when required_permission is None, for backward-compat
+    call sites that are being phased out — new call sites should always pass
+    a required_permission.
     """
     if not user or not user.is_authenticated:
         return []
     from marketplace.models import TeamMember
-    owners = list(TeamMember.objects.filter(user=user).values_list('owner_id', flat=True))
+    qs = TeamMember.objects.filter(user=user, invitation_status='accepted', is_active=True)
+    if required_permission:
+        owners = [
+            tm.owner_id for tm in qs
+            if isinstance(tm.permissions, dict) and tm.permissions.get(required_permission, False)
+        ]
+    else:
+        owners = list(qs.values_list('owner_id', flat=True))
     return [user.id] + owners
 
 

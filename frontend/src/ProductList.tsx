@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, Bell, X } from 'lucide-react';
+import { Search, Bell, X, LayoutGrid } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from './api';
 import ProductCard from './components/ProductCard';
@@ -24,8 +24,26 @@ type GridEntry =
 // ProductList
 // ================================================================
 const ProductList = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
+  const selectedCategory = searchParams.get('category') || '';
+  const selectedSubcategory = searchParams.get('subcategory') || '';
+  const minPrice = searchParams.get('min_price') || '';
+  const maxPrice = searchParams.get('max_price') || '';
+  const condition = searchParams.get('condition') || '';
+  const sortBy = searchParams.get('sort_by') || '';
+
+  const updateFilters = (updates: Record<string, string>) => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value) newParams.set(key, value);
+        else newParams.delete(key);
+      });
+      return newParams;
+    });
+  };
+
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [sponsoredAds, setSponsoredAds] = useState<any[]>([]);
@@ -34,12 +52,6 @@ const ProductList = () => {
   const [hasMore, setHasMore] = useState(true);
   const [_page, setPage] = useState(1);
 
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedSubcategory, setSelectedSubcategory] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [condition, setCondition] = useState('');
-  const [sortBy, setSortBy] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(!!urlQuery);
 
@@ -86,6 +98,12 @@ const ProductList = () => {
       
       isFetchingRef.current = true;
       
+      if (reset) {
+        api.get('/api/sponsored/', { params: { ...buildParams(1), public: 'true' } })
+          .then((r: any) => setSponsoredAds(r.data.results || r.data))
+          .catch(() => {});
+      }
+      
       api.get('/api/products/', { params: buildParams(p) })
         .then((res) => {
           const data = res.data.results || res.data;
@@ -130,7 +148,6 @@ const ProductList = () => {
 
   useEffect(() => { 
     api.get('/api/categories/').then((r: any) => setCategories(r.data.results || r.data)).catch(() => {}); 
-    api.get('/api/sponsored/?public=true').then((r: any) => setSponsoredAds(r.data.results || r.data)).catch(() => {});
   }, []);
 
   // Infinite scroll
@@ -189,7 +206,7 @@ const ProductList = () => {
       id: 'minPrice',
       label: 'Min Price',
       value: `TSh ${parseInt(minPrice).toLocaleString()}`,
-      onRemove: () => { setMinPrice(''); setTempMinPrice(''); },
+      onRemove: () => { updateFilters({ min_price: '' }); setTempMinPrice(''); },
     });
   }
   if (maxPrice) {
@@ -197,7 +214,7 @@ const ProductList = () => {
       id: 'maxPrice',
       label: 'Max Price',
       value: `TSh ${parseInt(maxPrice).toLocaleString()}`,
-      onRemove: () => { setMaxPrice(''); setTempMaxPrice(''); },
+      onRemove: () => { updateFilters({ max_price: '' }); setTempMaxPrice(''); },
     });
   }
   if (condition) {
@@ -205,7 +222,7 @@ const ProductList = () => {
       id: 'condition',
       label: 'Condition',
       value: condition,
-      onRemove: () => { setCondition(''); setTempCondition(''); },
+      onRemove: () => { updateFilters({ condition: '' }); setTempCondition(''); },
     });
   }
   if (sortBy) {
@@ -221,7 +238,7 @@ const ProductList = () => {
       id: 'sortBy',
       label: 'Sort',
       value: sortLabel,
-      onRemove: () => { setSortBy(''); setTempSortBy(''); },
+      onRemove: () => { updateFilters({ sort_by: '' }); setTempSortBy(''); },
     });
   }
   if (selectedCategory) {
@@ -231,8 +248,7 @@ const ProductList = () => {
       label: 'Category',
       value: catName,
       onRemove: () => {
-        setSelectedCategory('');
-        setSelectedSubcategory('');
+        updateFilters({ category: '', subcategory: '' });
       },
     });
   }
@@ -242,7 +258,7 @@ const ProductList = () => {
       id: 'subcategory',
       label: 'Subcategory',
       value: subName,
-      onRemove: () => setSelectedSubcategory(''),
+      onRemove: () => updateFilters({ subcategory: '' }),
     });
   }
 
@@ -254,7 +270,6 @@ const ProductList = () => {
     let promoIdx = 0;
 
     const injectSponsoredRow = () => {
-      entries.push({ type: 'header' });
       for (let i = 0; i < COLS; i++) {
         if (promoIdx < promoted.length) {
           entries.push({ type: 'promo', product: promoted[promoIdx].product_details || promoted[promoIdx] });
@@ -288,132 +303,45 @@ const ProductList = () => {
       {/* ===== Unified Search & Filter Section ===== */}
       <div className="mb-6 space-y-4">
 
-        {/* Active Filter Pills (drawn from kiboss project inspiration) */}
-        {activePills.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1 animate-fade-in">
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">
-              Active Filters:
-            </span>
-            {activePills.map((pill) => (
-              <div
-                key={pill.id}
-                className="flex items-center gap-1.5 px-3 py-1 bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800 rounded-full text-xs font-bold text-brand-700 dark:text-brand-400 animate-in zoom-in-95 duration-200"
-              >
-                <span className="opacity-60 font-medium">{pill.label}:</span>
-                <span>{pill.value}</span>
-                <button
-                  onClick={pill.onRemove}
-                  className="p-0.5 hover:bg-brand-100 dark:hover:bg-brand-800 rounded-full transition-colors"
-                  aria-label={`Remove ${pill.label} filter`}
-                >
-                  <X className="h-3 w-3" />
-                </button>
+
+
+        {/* Category Row */}
+        <div className="w-full pt-1 pb-2">
+          {/* Horizontal Category Slider (Image Circles) */}
+          <div className="flex items-start justify-center md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-4 w-full px-4 scroll-smooth">
+            <div className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group" onClick={() => { updateFilters({ category: '', subcategory: '' }); }}>
+              <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 border-2 ${!selectedCategory ? 'border-neutral-900 dark:border-neutral-100 bg-neutral-200 dark:bg-neutral-800 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
+                <LayoutGrid className="w-8 h-8 md:w-10 md:h-10 text-neutral-800 dark:text-neutral-100 stroke-[1.5]" />
               </div>
-            ))}
-            {activePills.length > 1 && (
-              <button
-                onClick={() => {
-                  setMinPrice('');
-                  setMaxPrice('');
-                  setCondition('');
-                  setSortBy('');
-                  setTempMinPrice('');
-                  setTempMaxPrice('');
-                  setTempCondition('');
-                  setTempSortBy('');
-                  setSelectedCategory('');
-                  setSelectedSubcategory('');
-                }}
-                className="text-xs font-bold text-gray-400 hover:text-brand-600 transition-colors ml-1 uppercase tracking-tighter"
-              >
-                Clear All
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Integrated Action & Category Row */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Horizontal Category Slider (Mobile optimized) */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 flex-1 -mx-4 px-4 md:mx-0 md:px-0 scroll-smooth">
-            <button onClick={() => { setSelectedCategory(''); setSelectedSubcategory(''); }}
-              className={`pill shrink-0 ${!selectedCategory ? 'pill-active' : 'pill-inactive'}`}>All Products</button>
-            {topCategories.map((cat: any) => (
-              <button key={cat.id}
-                onClick={() => { setSelectedCategory(selectedCategory === cat.slug ? '' : cat.slug); setSelectedSubcategory(''); }}
-                className={`pill shrink-0 ${selectedCategory === cat.slug ? 'pill-active' : 'pill-inactive'}`}>
-                {cat.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Action controls aligned to the right */}
-          <div className="flex items-center justify-between md:justify-end gap-2.5 shrink-0">
-            {urlQuery && isAuthenticated && (
-              <button 
-                onClick={async () => {
-                  await api.post('/api/saved-searches/', { query: urlQuery, category: selectedCategory, min_price: minPrice, max_price: maxPrice, notify_on_match: true });
-                  toast.success('Search saved! You\'ll be notified of new matches.');
-                }} 
-                className="flex text-[10px] text-brand-600 dark:text-brand-400 font-black uppercase tracking-wider items-center gap-1 hover:underline"
-              >
-                <Bell size={12} /> Save search
-              </button>
-            )}
-
-            {/* View Mode Toggle */}
-            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-xl p-1 flex shadow-sm">
-              <button 
-                onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                title="Grid View"
-              >
-                <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg>
-              </button>
-              <button 
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                title="List View"
-              >
-                <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M3 4h18v2H3zm0 7h18v2H3zm0 7h18v2H3z"/></svg>
-              </button>
+              <span className={`text-xs font-bold text-center max-w-[5.5rem] md:max-w-[6.5rem] leading-tight line-clamp-2 ${!selectedCategory ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>All Products</span>
             </div>
 
-            {/* Search Toggle Button */}
-            <button 
-              onClick={() => setSearchOpen(!searchOpen)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm ${
-                searchOpen 
-                  ? 'bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900' 
-                  : urlQuery
-                    ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400'
-                    : 'bg-white border-gray-200 text-gray-700 dark:bg-[#0A0A0A] dark:border-neutral-800 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
-              }`}
-            >
-              <Search size={12} />
-              <span>Search</span>
-              {urlQuery && (
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-500 dark:bg-brand-400 ml-0.5 animate-pulse" />
-              )}
-            </button>
-
-            {/* Filter Toggle Button */}
-            <button 
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm ${
-                filtersOpen 
-                  ? 'bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900' 
-                  : hasActiveFilters
-                    ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400'
-                    : 'bg-white border-gray-200 text-gray-700 dark:bg-[#0A0A0A] dark:border-neutral-800 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
-              }`}
-            >
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M3 4h18M7 9h10M10 14h4"/></svg>
-              <span>Filters</span>
-              {hasActiveFilters && (
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-500 dark:bg-brand-400 ml-0.5 animate-pulse" />
-              )}
-            </button>
+            {topCategories.filter((cat: any) => cat.product_count > 0).map((cat: any) => {
+              const isActive = selectedCategory === cat.slug;
+              
+              return (
+                <div key={cat.id} 
+                  className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group"
+                  onClick={() => { updateFilters({ category: isActive ? '' : cat.slug, subcategory: '' }); }}
+                >
+                  <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 overflow-visible border-2 bg-neutral-100 dark:bg-neutral-800 ${isActive ? 'border-neutral-900 dark:border-neutral-100 shadow-lg' : 'border-transparent shadow-sm hover:shadow-md'}`}>
+                    {cat.product_count > 0 && (
+                      <span className="absolute -top-1.5 -right-1 bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-neutral-200 dark:border-neutral-700 shadow-sm z-10">
+                        {cat.product_count.toLocaleString()}
+                      </span>
+                    )}
+                    {cat.image ? (
+                      <img src={cat.image} alt={cat.name} className="w-14 h-14 md:w-16 md:h-16 object-contain" />
+                    ) : (
+                      <span className="text-2xl font-black text-black/30 dark:text-white/30 uppercase tracking-widest">{cat.name.charAt(0)}</span>
+                    )}
+                  </div>
+                  <span className={`text-xs font-bold text-center max-w-[5.5rem] md:max-w-[6.5rem] leading-tight line-clamp-2 ${isActive ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>
+                    {cat.name}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -512,7 +440,6 @@ const ProductList = () => {
                     </select>
                   </div>
                 </div>
-
                 <div className="flex gap-2 justify-end mt-4 pt-4 border-t border-gray-100 dark:border-neutral-900">
                   <button 
                     onClick={() => {
@@ -520,10 +447,14 @@ const ProductList = () => {
                       setTempMaxPrice('');
                       setTempCondition('');
                       setTempSortBy('');
-                      setMinPrice('');
-                      setMaxPrice('');
-                      setCondition('');
-                      setSortBy('');
+                      updateFilters({
+                        min_price: '',
+                        max_price: '',
+                        condition: '',
+                        sort_by: ''
+                      });
+                      setPage(1);
+                      setFiltersOpen(false);
                     }}
                     className="px-4 py-2 border border-gray-200 dark:border-neutral-800 text-gray-700 dark:text-gray-300 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors"
                   >
@@ -531,10 +462,12 @@ const ProductList = () => {
                   </button>
                   <button 
                     onClick={() => {
-                      setMinPrice(tempMinPrice);
-                      setMaxPrice(tempMaxPrice);
-                      setCondition(tempCondition);
-                      setSortBy(tempSortBy);
+                      updateFilters({
+                        min_price: tempMinPrice,
+                        max_price: tempMaxPrice,
+                        condition: tempCondition,
+                        sort_by: tempSortBy
+                      });
                       setPage(1);
                       setFiltersOpen(false);
                     }} 
@@ -548,15 +481,129 @@ const ProductList = () => {
           )}
         </AnimatePresence>
 
+        {/* Action Controls Row */}
+        <div className="flex justify-end w-full px-4 md:px-0 mb-3">
+          <div className="flex items-center gap-2.5 shrink-0">
+            {urlQuery && isAuthenticated && (
+              <button 
+                onClick={async () => {
+                  await api.post('/api/saved-searches/', { query: urlQuery, category: selectedCategory, min_price: minPrice, max_price: maxPrice, notify_on_match: true });
+                  toast.success('Search saved! You\'ll be notified of new matches.');
+                }} 
+                className="flex text-[10px] text-brand-600 dark:text-brand-400 font-black uppercase tracking-wider items-center gap-1 hover:underline"
+              >
+                <Bell size={12} /> Save search
+              </button>
+            )}
+
+            {/* View Mode Toggle */}
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-xl p-1 flex shadow-sm">
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                title="Grid View"
+              >
+                <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg>
+              </button>
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                title="List View"
+              >
+                <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M3 4h18v2H3zm0 7h18v2H3zm0 7h18v2H3z"/></svg>
+              </button>
+            </div>
+
+            {/* Search Toggle Button */}
+            <button 
+              onClick={() => setSearchOpen(!searchOpen)}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm ${
+                searchOpen 
+                  ? 'bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900' 
+                  : urlQuery
+                    ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400'
+                    : 'bg-white border-gray-200 text-gray-700 dark:bg-[#0A0A0A] dark:border-neutral-800 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
+              }`}
+            >
+              <Search size={12} />
+              <span>Search</span>
+              {urlQuery && (
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-500 dark:bg-brand-400 ml-0.5 animate-pulse" />
+              )}
+            </button>
+
+            {/* Filter Toggle Button */}
+            <button 
+              onClick={() => setFiltersOpen(!filtersOpen)}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm ${
+                filtersOpen 
+                  ? 'bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900' 
+                  : hasActiveFilters
+                    ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400'
+                    : 'bg-white border-gray-200 text-gray-700 dark:bg-[#0A0A0A] dark:border-neutral-800 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
+              }`}
+            >
+              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M3 4h18M7 9h10M10 14h4"/></svg>
+              <span>Filters</span>
+              {hasActiveFilters && (
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-500 dark:bg-brand-400 ml-0.5 animate-pulse" />
+              )}
+            </button>
+          </div>
+        </div>
+
         {/* Subcategory slider */}
         {subcategories.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            <button onClick={() => setSelectedSubcategory('')}
-              className={`pill text-xs py-1 shrink-0 ${!selectedSubcategory ? 'pill-active' : 'pill-inactive'}`}>All {activeParent?.name}</button>
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 px-4 md:px-0">
+            <button onClick={() => updateFilters({ subcategory: '' })}
+              className={`pill text-xs py-1 shrink-0 ${!selectedSubcategory ? 'pill-active' : 'pill-inactive'}`}>
+              All {activeParent?.name} <span className="opacity-60 ml-1">{activeParent?.product_count}</span>
+            </button>
             {subcategories.map((s: any) => (
-              <button key={s.id} onClick={() => setSelectedSubcategory(s.slug)}
-                className={`pill text-xs py-1 shrink-0 ${selectedSubcategory === s.slug ? 'pill-active' : 'pill-inactive'}`}>{s.name}</button>
+              <button key={s.id} onClick={() => updateFilters({ subcategory: s.slug })}
+                className={`pill text-xs py-1 shrink-0 ${selectedSubcategory === s.slug ? 'pill-active' : 'pill-inactive'}`}>
+                {s.name} <span className="opacity-60 ml-1">{s.product_count}</span>
+              </button>
             ))}
+          </div>
+        )}
+
+        {/* Active Filter Pills */}
+        {activePills.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-2 animate-fade-in">
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">
+              Active Filters:
+            </span>
+            {activePills.map((pill) => (
+              <div
+                key={pill.id}
+                className="flex items-center gap-1.5 px-3 py-1 bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800 rounded-full text-xs font-bold text-brand-700 dark:text-brand-400 animate-in zoom-in-95 duration-200"
+              >
+                <span className="opacity-60 font-medium">{pill.label}:</span>
+                <span>{pill.value}</span>
+                <button
+                  onClick={pill.onRemove}
+                  className="p-0.5 hover:bg-brand-100 dark:hover:bg-brand-800 rounded-full transition-colors"
+                  aria-label={`Remove ${pill.label} filter`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            {activePills.length > 1 && (
+              <button
+                onClick={() => {
+                  updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '' });
+                  setTempMinPrice('');
+                  setTempMaxPrice('');
+                  setTempCondition('');
+                  setTempSortBy('');
+                }}
+                className="text-xs font-bold text-gray-400 hover:text-brand-600 transition-colors ml-1 uppercase tracking-tighter"
+              >
+                Clear All
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -586,21 +633,10 @@ const ProductList = () => {
               <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
                 <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">No products match your filters.</p>
-                <button onClick={() => { setMinPrice(''); setMaxPrice(''); setCondition(''); setSortBy(''); setTempMinPrice(''); setTempMaxPrice(''); setTempCondition(''); setTempSortBy(''); setSelectedCategory(''); }} className="text-brand-600 dark:text-brand-400 text-sm mt-2 hover:underline">Clear all filters</button>
+                <button onClick={() => { updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '' }); setTempMinPrice(''); setTempMaxPrice(''); setTempCondition(''); setTempSortBy(''); }} className="text-brand-600 dark:text-brand-400 text-sm mt-2 hover:underline">Clear all filters</button>
               </div>
             ) : (
               gridEntries.map((entry, idx) => {
-                if (entry.type === 'header') {
-                  if (viewMode !== 'grid') return null;
-                  return (
-                    <div key={`header-${idx}`} className="col-span-full flex items-center gap-2 mt-4 mb-2">
-                      <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-850" />
-                      <span className="text-[10px] font-black text-neutral-400 dark:text-neutral-500 uppercase tracking-widest">Sponsored</span>
-                      <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-850" />
-                    </div>
-                  );
-                }
-
                 if (entry.type === 'placeholder') {
                   if (viewMode !== 'grid') return null;
                   return (
@@ -609,16 +645,18 @@ const ProductList = () => {
                     </div>
                   );
                 }
+                if ('product' in entry) {
+                  const product = entry.product;
+                  if (!product) return null;
+                  const isPromo = entry.type === 'promo';
 
-                const product = entry.product;
-                if (!product) return null;
-                const isPromo = entry.type === 'promo';
-
-                return (
-                  <motion.div key={`${product.id}-${idx}`} variants={cardVariants}>
-                    <ProductCard product={product} viewMode={viewMode} isSponsored={isPromo} />
-                  </motion.div>
-                );
+                  return (
+                    <motion.div key={`${product.id}-${idx}`} variants={cardVariants}>
+                      <ProductCard product={product} viewMode={viewMode} isSponsored={isPromo} />
+                    </motion.div>
+                  );
+                }
+                return null;
               })
             )}
           </motion.div>

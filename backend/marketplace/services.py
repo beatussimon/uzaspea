@@ -95,6 +95,52 @@ class OrderStateMachine:
                 except Exception:
                     pass
 
+            if new_state == 'AWAITING_DELIVERY_PAYMENT':
+                from marketplace.models import push_notification
+                try:
+                    push_notification(
+                        locked_order.user, 'order_status', 'Delivery fee awaiting payment',
+                        f'Your order #{locked_order.id} has arrived at our warehouse. A delivery fee of TSh {locked_order.shipping_fee:,.0f} is now due — please pay to continue.',
+                        f'/orders?highlight={locked_order.id}'
+                    )
+                except Exception:
+                    pass
+
+            if new_state == 'RECEIVED_AT_WAREHOUSE':
+                from marketplace.models import push_notification
+                from warehouses.models import WarehouseIntake
+                try:
+                    seller_ids_notified = set()
+                    for item in locked_order.orderitem_set.select_related('product__seller'):
+                        if item.product.seller_id not in seller_ids_notified:
+                            seller_ids_notified.add(item.product.seller_id)
+                            intake = WarehouseIntake.objects.filter(order=locked_order).order_by('-created_at').first()
+                            if intake and intake.package_condition != 'good':
+                                push_notification(
+                                    item.product.seller, 'order_status', 'Warehouse flagged a condition issue',
+                                    f'Order #{locked_order.id} arrived at our warehouse marked "{intake.package_condition}". Our team will follow up.',
+                                    f'/dashboard/orders?highlight={locked_order.id}'
+                                )
+                            else:
+                                push_notification(
+                                    item.product.seller, 'order_status', 'Shipment received at warehouse',
+                                    f'Order #{locked_order.id} was received in good condition at our warehouse.',
+                                    f'/dashboard/orders?highlight={locked_order.id}'
+                                )
+                except Exception:
+                    pass
+
+            if new_state == 'FAILED_DELIVERY':
+                from marketplace.models import push_notification
+                try:
+                    push_notification(
+                        locked_order.user, 'order_status', 'Delivery attempt failed',
+                        f'We attempted to deliver order #{locked_order.id} but were unable to complete it. {notes or "Our team will follow up shortly."}',
+                        f'/orders?highlight={locked_order.id}'
+                    )
+                except Exception:
+                    pass
+
             # Phase 2: Platform Economics - Log commission on COMPLETED
             if new_state == 'COMPLETED' and old_state != 'COMPLETED':
                 from billing.models import CommissionLedgerEntry

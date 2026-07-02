@@ -92,6 +92,17 @@ class ShipmentViewSet(viewsets.ModelViewSet):
                     raise ValidationError("Third party driver info must be provided for vehicle-category shipments before transit.")
 
         shipment = serializer.save()
+        if driver:
+            from marketplace.models import push_notification
+            try:
+                push_notification(
+                    driver, 'delivery_assigned', 'New delivery assigned',
+                    f'You have been assigned order #{order.id} for delivery.',
+                    f'/driver/deliveries?highlight={order.id}'
+                )
+            except Exception:
+                pass
+
         if new_status == 'in_transit':
             try:
                 OrderStateMachine.transition_order(order, 'IN_TRANSIT', notes="Shipment is in transit.")
@@ -121,6 +132,17 @@ class ShipmentViewSet(viewsets.ModelViewSet):
                     raise ValidationError("Third party driver info must be provided for vehicle-category shipments before transit.")
 
         shipment = serializer.save()
+
+        if driver and instance.driver != driver:
+            from marketplace.models import push_notification
+            try:
+                push_notification(
+                    driver, 'delivery_assigned', 'New delivery assigned',
+                    f'You have been assigned order #{order.id} for delivery.',
+                    f'/driver/deliveries?highlight={order.id}'
+                )
+            except Exception:
+                pass
 
         if new_status == 'in_transit' and instance.status != 'in_transit':
             try:
@@ -200,6 +222,27 @@ class ShipmentViewSet(viewsets.ModelViewSet):
                 pass
         
         return Response({'status': 'Delivery confirmed successfully.'})
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def report_failure(self, request, pk=None):
+        shipment = self.get_object()
+        user = request.user
+        
+        is_staff = user.is_superuser or (hasattr(user, 'staff_profile') and user.staff_profile.is_active)
+        if not is_staff and shipment.driver != user:
+            return Response({'error': 'You are not authorized to report failure for this delivery.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        reason = request.data.get('reason', 'No reason provided')
+        shipment.status = 'failed'
+        shipment.save()
+        
+        from marketplace.services import OrderStateMachine
+        try:
+            OrderStateMachine.transition_order(shipment.order, 'FAILED_DELIVERY', notes=f"Delivery failed: {reason}")
+        except Exception:
+            pass
+            
+        return Response({'status': 'Delivery failure reported.'})
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def ping(self, request, pk=None):

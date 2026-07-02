@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, Bell, ChevronDown, ChevronUp, MapPin, Clock } from 'lucide-react';
+import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, Bell, ChevronDown, ChevronUp, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import { useCart } from '../context/CartContext';
@@ -60,25 +60,145 @@ interface ProductVariant {
 }
 
 // ===== Fullscreen Image Lightbox =====
-const ImageLightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) => (
-  <div
-    className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
-    onClick={onClose}
-  >
-    <button
-      onClick={onClose}
-      className="absolute top-4 right-4 p-2 text-white hover:bg-white/10 rounded-full transition"
-    >
-      <X size={28} />
-    </button>
-    <img
-      src={src}
-      alt={alt}
-      className="max-w-full max-h-full object-contain rounded"
-      onClick={(e) => e.stopPropagation()}
-    />
-  </div>
-);
+const ImageLightbox = ({ 
+  images, 
+  initialIndex, 
+  onClose 
+}: { 
+  images: any[]; 
+  initialIndex: number; 
+  onClose: () => void;
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight' && currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
+      if (e.key === 'ArrowLeft' && currentIndex > 0) scrollToIndex(currentIndex - 1);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, images.length, onClose]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ left: scrollRef.current.offsetWidth * currentIndex, behavior: 'auto' });
+    }
+  }, []);
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const scrollLeft = scrollRef.current.scrollLeft;
+    const width = scrollRef.current.offsetWidth;
+    const index = Math.round(scrollLeft / width);
+    if (index !== currentIndex) {
+      setCurrentIndex(index);
+    }
+  };
+
+  const scrollToIndex = (index: number) => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTo({ left: scrollRef.current.offsetWidth * index, behavior: 'smooth' });
+    setCurrentIndex(index);
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
+  };
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentIndex > 0) scrollToIndex(currentIndex - 1);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black flex flex-col" onClick={onClose}>
+      
+      {/* Top right close button (modeled as exit-fullscreen) */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        className="absolute top-4 right-4 p-3 text-white hover:bg-white/10 rounded-xl transition z-50"
+        aria-label="Close fullscreen"
+      >
+        <X size={28} />
+      </button>
+
+      {/* Main Image Slider */}
+      <div className="flex-1 relative w-full overflow-hidden flex items-center justify-center">
+        
+        {/* Swipeable Container */}
+        <div 
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {images.map((img, i) => (
+            <div key={i} className="flex-none w-full h-full snap-center flex items-center justify-center p-4 md:p-12">
+              <img
+                src={img.image || ''}
+                alt={`Image ${i + 1}`}
+                className="max-w-full max-h-full object-contain drop-shadow-2xl"
+                draggable={false}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Left Arrow */}
+        {currentIndex > 0 && (
+          <button 
+            onClick={handlePrev}
+            className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 z-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+          >
+            <ChevronLeft size={48} strokeWidth={2} />
+          </button>
+        )}
+
+        {/* Right Arrow */}
+        {currentIndex < images.length - 1 && (
+          <button 
+            onClick={handleNext}
+            className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 z-50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+          >
+            <ChevronRight size={48} strokeWidth={2} />
+          </button>
+        )}
+      </div>
+
+      {/* Thumbnails strip at bottom */}
+      {images.length > 1 && (
+        <div 
+          className="h-24 md:h-32 bg-black/80 border-t border-white/10 flex items-center justify-center gap-2 p-4 overflow-x-auto no-scrollbar w-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {images.map((img, i) => (
+            <button
+              key={i}
+              onClick={() => scrollToIndex(i)}
+              className={`relative h-full aspect-[4/3] shrink-0 overflow-hidden rounded bg-gray-900 transition-all ${
+                currentIndex === i 
+                  ? 'ring-2 ring-brand-500 opacity-100 scale-105' 
+                  : 'opacity-50 hover:opacity-80'
+              }`}
+            >
+              <img 
+                src={img.image || ''} 
+                alt={`Thumbnail ${i + 1}`}
+                className="w-full h-full object-cover"
+                draggable={false}
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+    </div>
+  );
+};
 
 const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -214,8 +334,8 @@ const ProductDetailPage: React.FC = () => {
       {/* Lightbox */}
       {lightboxOpen && (
         <ImageLightbox
-          src={currentImageSrc}
-          alt={product.name}
+          images={images}
+          initialIndex={selectedImage}
           onClose={() => setLightboxOpen(false)}
         />
       )}
