@@ -52,13 +52,18 @@ class Shipment(models.Model):
         super().save(*args, **kwargs)
         
         if self.status == 'delivered' and old_status != 'delivered':
-            if self.carrier_type == 'driver' and self.driver and order_has_vehicles(self.order):
-                # Give a fixed vehicle delivery payout rather than the entire shipping_fee
-                amount = Decimal('15000.00')
+            if self.carrier_type == 'driver' and self.driver:
+                if order_has_vehicles(self.order):
+                    amount = Decimal('15000.00')
+                else:
+                    from marketplace.models import SiteSettings
+                    settings_obj = SiteSettings.get()
+                    driver_share_pct = getattr(settings_obj, 'driver_payout_percentage', Decimal('70.00'))
+                    shipping_fee = self.order.shipping_fee or Decimal('0.00')
+                    amount = (shipping_fee * driver_share_pct / Decimal('100')).quantize(Decimal('1.00'))
+                    amount = max(amount, Decimal('2000.00'))
                 DriverPayment.objects.get_or_create(
-                    shipment=self,
-                    driver=self.driver,
-                    defaults={'amount': amount}
+                    shipment=self, driver=self.driver, defaults={'amount': amount}
                 )
 
     def __str__(self):
@@ -121,3 +126,15 @@ def auto_create_shipment_on_paid(sender, instance, created, **kwargs):
             defaults={'status': 'pending', 'carrier_type': 'driver'}
         )
 
+
+class Driver(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='driver_profile')
+    is_active = models.BooleanField(default=True)
+    vehicle_type = models.CharField(max_length=50, blank=True, help_text="e.g. Motorcycle, Pickup, Truck")
+    vehicle_plate = models.CharField(max_length=20, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True)
+    assigned_region = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} ({self.vehicle_type or 'Driver'})"

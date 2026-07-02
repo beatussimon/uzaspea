@@ -31,3 +31,15 @@ class WarehouseTransferSerializer(serializers.ModelSerializer):
             'shipped_at', 'received_at', 'created_at'
         ]
         read_only_fields = ['transfer_by', 'shipped_at', 'received_at', 'created_at']
+
+from .models import WarehouseStaffAssignment
+
+class WarehouseStaffAssignmentSerializer(serializers.ModelSerializer):
+    warehouse_name = serializers.CharField(source='warehouse.name', read_only=True)
+    warehouse_code = serializers.CharField(source='warehouse.code', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = WarehouseStaffAssignment
+        fields = ['id', 'user', 'username', 'warehouse', 'warehouse_name', 'warehouse_code', 'is_manager', 'assigned_at']
+        read_only_fields = ['assigned_at']

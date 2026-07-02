@@ -95,3 +95,17 @@ def auto_route_intake(sender, instance, created, **kwargs):
                 )
             except Warehouse.DoesNotExist:
                 pass
+
+class WarehouseStaffAssignment(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='warehouse_assignments')
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='staff_assignments')
+    is_manager = models.BooleanField(default=False, help_text="Managers can edit/void intake records and view reports for this warehouse.")
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'warehouse')
+        verbose_name = "Warehouse Staff Assignment"
+        verbose_name_plural = "Warehouse Staff Assignments"
+
+    def __str__(self):
+        return f"{self.user.username} @ {self.warehouse.code}" + (" (Manager)" if self.is_manager else "")

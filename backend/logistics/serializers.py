@@ -41,3 +41,14 @@ class DriverPaymentSerializer(serializers.ModelSerializer):
         fields = ['id', 'shipment', 'shipment_order_id', 'driver', 'driver_username', 'amount', 'is_paid', 'paid_at', 'created_at']
         read_only_fields = ['id', 'shipment', 'driver', 'amount', 'paid_at', 'created_at']
 
+
+from .models import Driver
+
+class DriverSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.CharField(source='user.email', read_only=True)
+
+    class Meta:
+        model = Driver
+        fields = ['id', 'user', 'username', 'email', 'is_active', 'vehicle_type', 'vehicle_plate', 'phone_number', 'assigned_region', 'created_at']
+        read_only_fields = ['created_at']
