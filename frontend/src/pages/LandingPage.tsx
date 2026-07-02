@@ -90,7 +90,7 @@ const LandingPage = () => {
   return (
     <div className="space-y-16 pb-24">
       {/* Hero Search Section */}
-      <section className="relative h-[100vh] min-h-[540px] w-full flex items-center justify-center overflow-hidden -mt-20 md:-mt-[88px] pt-16 md:pt-20">
+      <section className="relative h-[100vh] min-h-[540px] w-full flex items-center justify-center overflow-hidden -mt-[96px] md:-mt-[104px] pt-16 md:pt-20">
         <div className="absolute inset-0 z-0 overflow-hidden flex cursor-grab active:cursor-grabbing" ref={constraintsRef}>
           <AnimatePresence mode="wait">
             <motion.img

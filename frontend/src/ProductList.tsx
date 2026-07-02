@@ -52,6 +52,37 @@ const ProductList = () => {
   const [hasMore, setHasMore] = useState(true);
   const [_page, setPage] = useState(1);
 
+  const [gridCols, setGridCols] = useState(() => {
+    if (typeof window === 'undefined') return 5;
+    const w = window.innerWidth;
+    if (w >= 1536) return 5;
+    if (w >= 1280) return 4;
+    if (w >= 1024) return 3;
+    if (w >= 640) return 2;
+    return 1;
+  });
+
+  useEffect(() => {
+    let timeoutId: any;
+    const handleResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const w = window.innerWidth;
+        let c = 1;
+        if (w >= 1536) c = 5;
+        else if (w >= 1280) c = 4;
+        else if (w >= 1024) c = 3;
+        else if (w >= 640) c = 2;
+        setGridCols(c);
+      }, 150);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(!!urlQuery);
 
@@ -264,7 +295,7 @@ const ProductList = () => {
 
   // Interleave sponsored items natively inside CSS grid
   const buildGridEntries = (regular: any[], promoted: any[]): GridEntry[] => {
-    const COLS = 4;
+    const COLS = gridCols;
     const REGULAR_ROWS_BETWEEN = 3; // 3 rows of regular items between each sponsored row
     const entries: GridEntry[] = [];
     let promoIdx = 0;
@@ -612,7 +643,7 @@ const ProductList = () => {
       {loading ? (
         <div 
           className={viewMode === 'grid' 
-            ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5"
+            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5"
             : "flex flex-col gap-3"
           }
         >
@@ -624,7 +655,7 @@ const ProductList = () => {
         <>
           <motion.div 
             className={viewMode === 'grid' 
-              ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5"
+              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5"
               : "flex flex-col gap-3"
             }
             variants={containerVariants} initial="hidden" animate="visible"
