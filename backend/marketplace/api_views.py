@@ -23,7 +23,7 @@ from .serializers import (
     MobileNetworkSerializer
 )
 
-from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove
+from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove, has_staff_permission
 from django.db.models import Prefetch
 from django.db import transaction
 
@@ -619,7 +619,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED', 'READY_FOR_TRANSIT', 'ASSIGNED_TRANSPORT', 'PAID_PRODUCT'}
 
         # Allow warehouse role staff to transition to warehouse states
-        is_warehouse_staff = request.user.groups.filter(name='warehouse').exists() or request.user.is_superuser or request.user.is_staff
+        is_warehouse_staff = (
+            request.user.is_superuser
+            or has_staff_permission(request.user, 'can_manage_warehouse_intake')
+            or has_staff_permission(request.user, 'can_manage_logistics')
+        )
         
         if new_state in STAFF_ONLY_STATES and not is_warehouse_staff:
             return Response(

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../api';
 import toast from 'react-hot-toast';
 import { 
-  Package, CheckCircle, Clock, Truck, QrCode, X, Search, Activity, Camera, PenTool, ShieldCheck, Key, MapPin
+  Package, CheckCircle, Clock, Truck, QrCode, X, Search, Activity, Camera, PenTool, ShieldCheck, Key, MapPin, Zap
 } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -46,6 +46,8 @@ const WarehouseStaffLayout: React.FC = () => {
   // Pricing Form State
   const [deliveryFee, setDeliveryFee] = useState('');
   const [destinationWarehouseCode, setDestinationWarehouseCode] = useState('');
+  const [suggestedFee, setSuggestedFee] = useState<number | null>(null);
+  const [feeDataPoints, setFeeDataPoints] = useState(0);
 
   // Pickup Form State
   const [pickupCode, setPickupCode] = useState('');
@@ -69,6 +71,27 @@ const WarehouseStaffLayout: React.FC = () => {
       })
       .catch(() => toast.error('Failed to load warehouses list'));
   }, []);
+
+  useEffect(() => {
+    if (activeModal === 'pricing' && destinationWarehouseCode && selectedWarehouseId) {
+      api.get(`/api/warehouses/warehouses/${selectedWarehouseId}/suggested-fee/?destination_warehouse=${destinationWarehouseCode}`)
+        .then(res => {
+          if (res.data.suggested_fee) {
+            setSuggestedFee(res.data.suggested_fee);
+            setFeeDataPoints(res.data.data_points);
+            setDeliveryFee(res.data.suggested_fee.toString());
+          } else {
+            setSuggestedFee(null);
+            setFeeDataPoints(0);
+            setDeliveryFee('');
+          }
+        })
+        .catch(() => {
+          setSuggestedFee(null);
+          setFeeDataPoints(0);
+        });
+    }
+  }, [destinationWarehouseCode, activeModal, selectedWarehouseId]);
 
   // Fetch all queues
   const fetchAllQueues = async (whId: string) => {
@@ -761,6 +784,12 @@ const WarehouseStaffLayout: React.FC = () => {
                         onChange={e => setDeliveryFee(e.target.value)}
                         className="w-full text-2xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-4 outline-none"
                       />
+                      {suggestedFee !== null && (
+                        <p className="text-sm text-brand-600 dark:text-brand-400 mt-1">
+                          <Zap size={14} className="inline mb-1 mr-1" />
+                          Suggested fee based on {feeDataPoints} past {feeDataPoints === 1 ? 'delivery' : 'deliveries'}: TSh {suggestedFee.toLocaleString()}
+                        </p>
+                      )}
                     </div>
                     <button onClick={submitPricing} disabled={submitting} className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-amber-500/30 mt-6">
                       {submitting ? 'Setting...' : 'Confirm & Notify Customer'}

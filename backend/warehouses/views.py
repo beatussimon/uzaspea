@@ -2,20 +2,40 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.utils import timezone
-from .models import Warehouse, WarehouseIntake, WarehouseTransfer
-from .serializers import WarehouseSerializer, WarehouseIntakeSerializer, WarehouseTransferSerializer
+from .models import Warehouse, WarehouseIntake, WarehouseTransfer, WarehouseStaffAssignment
+from .serializers import WarehouseSerializer, WarehouseIntakeSerializer, WarehouseTransferSerializer, WarehouseStaffAssignmentSerializer
 from marketplace.models import Order
 from marketplace.services import OrderStateMachine
-from uzachuo.permissions import IsStaffMember
+from uzachuo.permissions import IsStaffMember, has_staff_permission
+
+
+def user_can_access_warehouse(user, warehouse):
+    """Returns True if the user may operate on this specific warehouse's queues."""
+    if user.is_superuser:
+        return True
+    from uzachuo.permissions import has_staff_permission
+    if has_staff_permission(user, 'can_manage_logistics'):
+        return True  # Logistics managers are cross-warehouse by design
+    return WarehouseStaffAssignment.objects.filter(user=user, warehouse=warehouse).exists()
+
+class IsSuperUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_superuser)
 
 class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Warehouse.objects.filter(is_active=True)
     serializer_class = WarehouseSerializer
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsStaffMember()]
 
     @action(detail=True, methods=['get'], url_path='pending-intakes')
     def pending_intakes(self, request, pk=None):
         warehouse = self.get_object()
+        if not user_can_access_warehouse(request.user, warehouse):
+            return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
         from marketplace.serializers import OrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
@@ -28,6 +48,8 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['get'], url_path='received-intakes')
     def received_intakes(self, request, pk=None):
         warehouse = self.get_object()
+        if not user_can_access_warehouse(request.user, warehouse):
+            return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
         from marketplace.serializers import OrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
@@ -43,10 +65,15 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='set-delivery-fee')
     def set_delivery_fee(self, request, pk=None):
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_warehouse_intake')):
+            return Response({'error': 'You do not have permission to perform this action.'}, status=403)
+        
         order_id = request.data.get('order_id')
         fee = request.data.get('fee')
         dest_code = request.data.get('destination_warehouse')
         current_warehouse = self.get_object()
+        if not user_can_access_warehouse(request.user, current_warehouse):
+            return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
         
         try:
             order = Order.objects.get(id=order_id)
@@ -60,6 +87,26 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                 order.shipping_fee = fee
                 order.save(update_fields=['shipping_fee', 'delivery_info'])
                 
+
+                # Update historical route pricing (rolling average) for future staff guidance.
+                from .models import HistoricalRoutePricing
+                try:
+                    dest_wh_obj = Warehouse.objects.get(code=dest_code)
+                    hrp, _ = HistoricalRoutePricing.objects.get_or_create(
+                        origin_warehouse=current_warehouse,
+                        destination_warehouse=dest_wh_obj,
+                        defaults={'average_cost': fee, 'data_points': 1}
+                    )
+                    if hrp.data_points >= 1 and not _:
+                        from decimal import Decimal
+                        n = hrp.data_points
+                        new_avg = hrp.average_cost + (Decimal(str(fee)) - hrp.average_cost) / Decimal(str(n + 1))
+                        hrp.average_cost = new_avg
+                        hrp.data_points = n + 1
+                        hrp.save(update_fields=['average_cost', 'data_points'])
+                except Warehouse.DoesNotExist:
+                    pass
+
                 if dest_code != current_warehouse.code:
                     from warehouses.models import Warehouse, WarehouseTransfer
                     try:
@@ -84,9 +131,36 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=400)
 
+
+    @action(detail=True, methods=['get'], url_path='suggested-fee')
+    def suggested_fee(self, request, pk=None):
+        warehouse = self.get_object()
+        dest_code = request.query_params.get('destination_warehouse')
+        if not dest_code:
+            return Response({'error': 'destination_warehouse query param is required'}, status=400)
+        from .models import HistoricalRoutePricing
+        from decimal import Decimal
+        try:
+            dest_wh = Warehouse.objects.get(code=dest_code)
+            hrp = HistoricalRoutePricing.objects.filter(
+                origin_warehouse=warehouse, destination_warehouse=dest_wh
+            ).first()
+            if hrp and hrp.data_points > 0:
+                return Response({
+                    'suggested_fee': float(hrp.average_cost),
+                    'data_points': hrp.data_points,
+                    'low_range': float(hrp.average_cost * Decimal('0.85')),
+                    'high_range': float(hrp.average_cost * Decimal('1.15')),
+                })
+            return Response({'suggested_fee': None, 'data_points': 0})
+        except Warehouse.DoesNotExist:
+            return Response({'error': 'Destination warehouse not found'}, status=404)
+
     @action(detail=True, methods=['get'], url_path='awaiting-payment')
     def awaiting_payment(self, request, pk=None):
         warehouse = self.get_object()
+        if not user_can_access_warehouse(request.user, warehouse):
+            return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
         from marketplace.serializers import OrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
@@ -103,6 +177,8 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['get'], url_path='outbound-queue')
     def outbound_queue(self, request, pk=None):
         warehouse = self.get_object()
+        if not user_can_access_warehouse(request.user, warehouse):
+            return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
         from marketplace.serializers import OrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
@@ -116,6 +192,8 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['get'], url_path='ready-for-pickup')
     def ready_for_pickup(self, request, pk=None):
         warehouse = self.get_object()
+        if not user_can_access_warehouse(request.user, warehouse):
+            return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
         from marketplace.serializers import OrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
@@ -131,7 +209,12 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='dispatch-order')
     def dispatch_order(self, request, pk=None):
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_warehouse_intake')):
+            return Response({'error': 'You do not have permission to perform this action.'}, status=403)
+        
         warehouse = self.get_object()
+        if not user_can_access_warehouse(request.user, warehouse):
+            return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
         order_id = request.data.get('order_id')
         try:
             order = Order.objects.get(id=order_id)
@@ -171,6 +254,9 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
 
     def perform_create(self, serializer):
+        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_manage_warehouse_intake')):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You do not have permission to manage warehouse intake.')
         order = serializer.validated_data['order']
         warehouse = serializer.validated_data['warehouse']
         package_condition = serializer.validated_data.get('package_condition', 'good')
@@ -212,6 +298,18 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
 
         # 2. Save with current staff member
         serializer.save(intake_by=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only superusers can delete these records.")
+        return super().destroy(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only superusers can update these records.")
+        return super().update(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'], url_path='preview-order')
     def preview_order(self, request):
@@ -271,10 +369,27 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_manage_warehouse_transfers')):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You do not have permission to manage warehouse transfers.')
         serializer.save(transfer_by=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only superusers can delete these records.")
+        return super().destroy(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only superusers can update these records.")
+        return super().update(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'])
     def ship(self, request, pk=None):
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_warehouse_transfers')):
+            return Response({'error': 'You do not have permission to manage warehouse transfers.'}, status=403)
         transfer = self.get_object()
         if transfer.status != 'pending':
             return Response({'error': 'Transfer has already been shipped or completed'}, status=status.HTTP_400_BAD_REQUEST)
@@ -298,6 +413,8 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def receive(self, request, pk=None):
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_warehouse_transfers')):
+            return Response({'error': 'You do not have permission to manage warehouse transfers.'}, status=403)
         transfer = self.get_object()
         if transfer.status != 'in_transit':
             return Response({'error': 'Transfer is not in transit'}, status=status.HTTP_400_BAD_REQUEST)
@@ -318,6 +435,12 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
 
 from rest_framework.views import APIView
 from django.db import transaction
+
+
+class WarehouseStaffAssignmentViewSet(viewsets.ModelViewSet):
+    queryset = WarehouseStaffAssignment.objects.select_related('user', 'warehouse').all()
+    serializer_class = WarehouseStaffAssignmentSerializer
+    permission_classes = [permissions.IsAuthenticated, IsSuperUser]
 
 class PickupVerifyView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]

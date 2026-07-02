@@ -87,7 +87,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
           }`}
           onClick={() => setActiveTab('reviews')}
         >
-          Reviews ({reviews.length})
+          Reviews {reviews.length}
         </button>
         <button
           className={`py-2 px-4 transition-colors ${
@@ -97,7 +97,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
           }`}
           onClick={() => setActiveTab('comments')}
         >
-          Comments ({comments.length})
+          Comments {comments.length}
         </button>
       </div>
 
@@ -114,7 +114,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
               </div>
             ) : reviews.length === 0 ? (
-              <p className="text-gray-400 py-8 text-center">No reviews yet. Be the first to review after purchase!</p>
+              <p className="text-gray-400 py-8 text-center">No reviews</p>
             ) : (
               <div className="space-y-4">
                 {reviews.map((review) => (
@@ -150,21 +150,33 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
             <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">Ask a Question</h3>
 
             {/* Comment Form */}
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mt-2 mb-6">
+            <div className="mt-2 mb-8 flex flex-col items-end">
               <textarea
-                className="w-full bg-transparent outline-none dark:text-white resize-none"
-                placeholder="Write a comment..."
-                rows={3}
+                className="w-full bg-transparent border-0 border-b border-gray-300 dark:border-gray-700 pb-2 text-sm focus:ring-0 focus:outline-none dark:text-white resize-none focus:border-brand-600 dark:focus:border-brand-500 transition-colors"
+                placeholder="Add a comment..."
+                rows={1}
+                onFocus={(e) => e.target.rows = 3}
+                onBlur={(e) => { if (!commentText.trim()) e.target.rows = 1; }}
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
               />
-              <button
-                onClick={handlePostComment}
-                disabled={submitting || !commentText.trim()}
-                className="bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white px-4 py-2 rounded mt-2 text-sm transition"
-              >
-                {submitting ? 'Posting...' : 'Post'}
-              </button>
+              <div className="mt-3 flex justify-end gap-2 w-full">
+                {commentText.trim() && (
+                  <button
+                    onClick={() => setCommentText('')}
+                    className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={handlePostComment}
+                  disabled={submitting || !commentText.trim()}
+                  className="bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-500 text-white font-bold px-4 py-2 rounded-full text-sm transition"
+                >
+                  {submitting ? 'Posting...' : 'Comment'}
+                </button>
+              </div>
             </div>
 
             {loadingComments ? (
@@ -172,42 +184,49 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
               </div>
             ) : comments.length === 0 ? (
-              <p className="text-gray-400 py-4 text-center">No comments yet. Start the conversation!</p>
+              <p className="text-gray-400 py-4 text-center">No comments</p>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6 mt-6">
                 {parentComments.map((comment) => (
                   <div key={comment.id} className="space-y-2">
-                    <div className={`p-4 rounded-lg border ${comment.username === sellerUsername ? 'bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800 shadow-sm' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900 dark:text-white text-sm">{comment.username}</span>
-                          {comment.username === sellerUsername && (
-                            <span className="text-[10px] font-bold bg-brand-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Owner</span>
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-400">{formatDate(comment.created_at)}</span>
+                    <div className="flex gap-3">
+                      {/* Avatar */}
+                      <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center font-bold text-lg uppercase ${comment.username === sellerUsername ? 'bg-brand-600 text-white' : 'bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'}`}>
+                        {comment.username.charAt(0)}
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{comment.body}</p>
-                      <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-xs font-semibold text-brand-600 hover:text-brand-700 transition">
-                        {replyingTo === comment.id ? 'Cancel Reply' : 'Reply'}
-                      </button>
+                      <div className="flex-1 flex flex-col pt-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[13px] font-bold ${comment.username === sellerUsername ? 'bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 px-2 py-0.5 rounded-full text-[11px]' : 'text-gray-900 dark:text-white'}`}>
+                            {comment.username === sellerUsername ? comment.username : `@${comment.username}`}
+                          </span>
+                          <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
+                        </div>
+                        <p className="text-[14px] text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">{comment.body}</p>
+                        <div className="flex items-center gap-4 mt-2">
+                          <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-xs font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white transition">
+                            {replyingTo === comment.id ? 'Cancel' : 'Reply'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Replies */}
                     {getReplies(comment.id).length > 0 && (
-                      <div className="ml-8 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+                      <div className="ml-12 space-y-4 pt-2">
                         {getReplies(comment.id).map((reply) => (
-                          <div key={reply.id} className={`p-3 rounded-lg border ${reply.username === sellerUsername ? 'bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-gray-900 dark:text-white text-sm">{reply.username}</span>
-                                {reply.username === sellerUsername && (
-                                  <span className="text-[10px] font-bold bg-brand-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Owner</span>
-                                )}
-                              </div>
-                              <span className="text-xs text-gray-400">{formatDate(reply.created_at)}</span>
+                          <div key={reply.id} className="flex gap-3">
+                            <div className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center font-bold text-xs uppercase ${reply.username === sellerUsername ? 'bg-brand-600 text-white' : 'bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'}`}>
+                              {reply.username.charAt(0)}
                             </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{reply.body}</p>
+                            <div className="flex-1 flex flex-col">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className={`text-[12px] font-bold ${reply.username === sellerUsername ? 'bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 px-2 py-0.5 rounded-full text-[10px]' : 'text-gray-900 dark:text-white'}`}>
+                                  {reply.username === sellerUsername ? reply.username : `@${reply.username}`}
+                                </span>
+                                <span className="text-[11px] text-gray-500">{formatDate(reply.created_at)}</span>
+                              </div>
+                              <p className="text-[13px] text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">{reply.body}</p>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -215,39 +234,43 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
 
                     {/* Reply Input */}
                     {replyingTo === comment.id && (
-                      <div className="ml-8 pl-4 flex gap-2">
+                      <div className="ml-12 mt-2 flex flex-col items-end">
                         <input
                           type="text"
-                          className="flex-1 bg-transparent border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm dark:text-white outline-none focus:border-brand-500"
-                          placeholder="Write a reply..."
+                          className="w-full bg-transparent border-0 border-b border-gray-300 dark:border-gray-600 pb-1 text-sm dark:text-white focus:ring-0 focus:outline-none focus:border-brand-600 dark:focus:border-brand-500 transition-colors"
+                          placeholder="Add a reply..."
+                          autoFocus
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
                         />
-                        <button
-                          onClick={async () => {
-                            if (!replyText.trim()) return;
-                            setSubmitting(true);
-                            try {
-                              const res = await api.post('/api/comments/', {
-                                product: productId,
-                                body: replyText,
-                                parent: comment.id,
-                              });
-                              setComments((prev) => [...prev, res.data]);
-                              setReplyText('');
-                              setReplyingTo(null);
-                              toast.success('Reply posted!');
-                            } catch {
-                              toast.error('Failed to post reply');
-                            } finally {
-                              setSubmitting(false);
-                            }
-                          }}
-                          disabled={submitting || !replyText.trim()}
-                          className="bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white px-4 py-1.5 rounded-lg text-sm transition"
-                        >
-                          {submitting ? '...' : 'Reply'}
-                        </button>
+                        <div className="flex gap-2 mt-2">
+                          <button onClick={() => { setReplyingTo(null); setReplyText(''); }} className="px-3 py-1.5 text-sm font-bold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition">Cancel</button>
+                          <button
+                            onClick={async () => {
+                              if (!replyText.trim()) return;
+                              setSubmitting(true);
+                              try {
+                                const res = await api.post('/api/comments/', {
+                                  product: productId,
+                                  body: replyText,
+                                  parent: comment.id,
+                                });
+                                setComments((prev) => [...prev, res.data]);
+                                setReplyText('');
+                                setReplyingTo(null);
+                                toast.success('Reply posted!');
+                              } catch {
+                                toast.error('Failed to post reply');
+                              } finally {
+                                setSubmitting(false);
+                              }
+                            }}
+                            disabled={submitting || !replyText.trim()}
+                            className="bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-500 text-white font-bold px-4 py-1.5 rounded-full text-sm transition"
+                          >
+                            {submitting ? '...' : 'Reply'}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

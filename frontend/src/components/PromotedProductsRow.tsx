@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import api from '../api';
 import ProductCard from './ProductCard';
 import SponsorCard from './SponsorCard';
@@ -25,6 +27,9 @@ const PromotedProductsRow: React.FC = () => {
                     <h2 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">Featured Listings</h2>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest -mt-0.5">Premium placements and handpicked recommendations</p>
                 </div>
+                <Link to="/products" className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline">
+                    View all products <ArrowRight className="h-4 w-4" />
+                </Link>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">

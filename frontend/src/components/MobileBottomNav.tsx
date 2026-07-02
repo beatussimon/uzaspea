@@ -36,29 +36,37 @@ const MobileBottomNav = () => {
     setIsMenuOpen(false);
   }, [location.pathname]);
 
-  // Scroll logic — optimized with ref to avoid redundant re-renders
-  const [isVisible, setIsVisible] = useState(true);
-  const lastScrollY = useRef(0);
+  // Scroll logic — hide by default, show on scroll, disappear after 2.5s
+  const [isVisible, setIsVisible] = useState(false);
+  const timeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (isMenuOpen) {
+      setIsVisible(true);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    } else {
+      timeoutRef.current = setTimeout(() => setIsVisible(false), 2500);
+    }
+  }, [isMenuOpen]);
 
   useEffect(() => {
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
       if (isMenuOpen) return;
-
-      // Small threshold to avoid twitchy behavior
-      if (Math.abs(currentScrollY - lastScrollY.current) < 10) return;
-
-      if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
+      
+      setIsVisible(true);
+      
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      
+      timeoutRef.current = setTimeout(() => {
         setIsVisible(false);
-      } else {
-        setIsVisible(true);
-      }
-      lastScrollY.current = currentScrollY;
+      }, 2500);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [isMenuOpen]);
 
   // Prevent background scroll when menu is open
@@ -241,7 +249,7 @@ const MobileBottomNav = () => {
                     <Settings size={20} />
                     <span>Settings</span>
                   </Link>
-                  <Link to="/dashboard/help-center" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors">
+                  <Link to="/help" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors">
                     <HelpCircle size={20} />
                     <span>Help & Support</span>
                   </Link>
@@ -283,6 +291,20 @@ const MobileBottomNav = () => {
             )}
           </Link>
 
+          {/* Products */}
+          <Link 
+            to="/products" 
+            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+          >
+            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+              <ShoppingBag size={24} className={`transition-colors ${isActive('/products') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') ? 2.5 : 2} />
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Products</span>
+            </motion.div>
+            {isActive('/products') && (
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+            )}
+          </Link>
+
           {/* Cart */}
           <Link 
             to="/cart" 
@@ -300,20 +322,6 @@ const MobileBottomNav = () => {
               <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/cart') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Cart</span>
             </motion.div>
             {isActive('/cart') && (
-              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
-            )}
-          </Link>
-
-          {/* Help */}
-          <Link 
-            to="/help" 
-            className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
-          >
-            <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
-              <HelpCircle size={24} className={`transition-colors ${isActive('/help') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/help') ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/help') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Help</span>
-            </motion.div>
-            {isActive('/help') && (
               <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
             )}
           </Link>

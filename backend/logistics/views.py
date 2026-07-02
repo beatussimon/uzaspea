@@ -8,7 +8,7 @@ from .serializers import ShipmentSerializer, DeliveryOptionSerializer, LocationP
 from .pricing import calculate_delivery_price
 from marketplace.models import Order
 from marketplace.services import OrderStateMachine
-from uzachuo.permissions import IsStaffMember
+from uzachuo.permissions import IsStaffMember, has_staff_permission
 
 from .utils import is_vehicle_category, order_has_vehicles
 
@@ -70,14 +70,15 @@ class ShipmentViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def drivers(self, request):
-        from django.contrib.auth.models import User
-        from django.db.models import Q
-        # Fetch active staff or users with 'driver' in username
-        drivers = User.objects.filter(Q(username__icontains='driver') | Q(is_staff=True), is_active=True)
-        data = [{'id': u.id, 'username': u.username, 'email': u.email} for u in drivers]
+        from .models import Driver
+        drivers = Driver.objects.filter(is_active=True).select_related('user')
+        data = [{'id': d.user.id, 'username': d.user.username, 'email': d.user.email, 'vehicle_type': d.vehicle_type, 'assigned_region': d.assigned_region} for d in drivers]
         return Response(data)
 
     def perform_create(self, serializer):
+        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_manage_logistics')):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You do not have permission to manage logistics.')
         order = serializer.validated_data['order']
         new_status = serializer.validated_data.get('status', 'pending')
         driver = serializer.validated_data.get('driver', None)
@@ -103,6 +104,9 @@ class ShipmentViewSet(viewsets.ModelViewSet):
                 pass
 
     def perform_update(self, serializer):
+        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_manage_logistics')):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You do not have permission to manage logistics.')
         instance = self.get_object()
         order = serializer.validated_data.get('order', instance.order)
         new_status = serializer.validated_data.get('status', instance.status)
@@ -319,6 +323,8 @@ class DriverPaymentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def pay(self, request, pk=None):
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_logistics')):
+            return Response({'error': 'You do not have permission to disburse driver payments.'}, status=403)
         payment = self.get_object()
         if payment.is_paid:
             return Response({'error': 'Payment already processed.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -330,3 +336,19 @@ class DriverPaymentViewSet(viewsets.ModelViewSet):
             'is_paid': payment.is_paid,
             'paid_at': payment.paid_at
         })
+
+from .serializers import DriverSerializer
+from .models import Driver
+
+class DriverViewSet(viewsets.ModelViewSet):
+    serializer_class = DriverSerializer
+    queryset = Driver.objects.select_related('user').all()
+
+    def get_permissions(self):
+        return [permissions.IsAuthenticated(), IsStaffMember()]
+
+    def perform_create(self, serializer):
+        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_manage_logistics')):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You do not have permission to manage drivers.')
+        serializer.save()
