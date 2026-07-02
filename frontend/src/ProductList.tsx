@@ -295,6 +295,14 @@ const ProductList = () => {
 
   // Interleave sponsored items natively inside CSS grid
   const buildGridEntries = (regular: any[], promoted: any[]): GridEntry[] => {
+    // Filter out regular items that are already shown as promoted
+    const uniqueRegular = regular.filter((regItem) => {
+      return !promoted.some((promoItem) => {
+        const promoId = promoItem.product_details?.id || promoItem.product?.id || promoItem.id;
+        return promoId === regItem.id;
+      });
+    });
+
     const COLS = gridCols;
     const REGULAR_ROWS_BETWEEN = 3; // 3 rows of regular items between each sponsored row
     const entries: GridEntry[] = [];
@@ -311,11 +319,11 @@ const ProductList = () => {
       }
     };
 
-    if (regular.length > 0) {
+    if (uniqueRegular.length > 0) {
       injectSponsoredRow();
 
       let regularCount = 0;
-      for (const item of regular) {
+      for (const item of uniqueRegular) {
         entries.push({ type: 'regular', product: item });
         regularCount++;
         if (regularCount % (COLS * REGULAR_ROWS_BETWEEN) === 0) {
