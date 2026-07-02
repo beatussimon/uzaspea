@@ -42,7 +42,10 @@ const LandingPage = () => {
   const { isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [latestProducts, setLatestProducts] = useState<any[]>([]);
+  const [promotions, setPromotions] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingPromotions, setLoadingPromotions] = useState(true);
 
   // Framer motion values for the drag-to-wiggle effect
   const constraintsRef = useRef<HTMLDivElement>(null);
@@ -67,13 +70,32 @@ const LandingPage = () => {
       img.src = src;
     });
 
-    api.get('/api/products/?page_size=8')
-      .then((res) => {
-        const data = res.data.results || res.data;
-        setLatestProducts(Array.isArray(data) ? data.slice(0, 8) : []);
+    // Fetch stats
+    api.get('/api/analytics/trending/')
+      .then(res => setStats(res.data.stats))
+      .catch(() => {});
+
+    // Fetch promotions and products, filtering out duplicates
+    api.get('/api/sponsored/?public=true&page_size=16')
+      .then((promoRes) => {
+        const promoData = Array.isArray(promoRes.data.results || promoRes.data) 
+          ? (promoRes.data.results || promoRes.data) : [];
+        setPromotions(promoData);
+        setLoadingPromotions(false);
+        
+        return api.get('/api/products/?page_size=16').then((prodRes) => {
+          const prodData = Array.isArray(prodRes.data.results || prodRes.data) 
+            ? (prodRes.data.results || prodRes.data) : [];
+          // Filter out products that are already in promotions
+          const filtered = prodData.filter((p: any) => !promoData.some((promo: any) => promo.product_details.id === p.id));
+          setLatestProducts(filtered.slice(0, 8));
+          setLoading(false);
+        });
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {
+        setLoading(false);
+        setLoadingPromotions(false);
+      });
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -136,7 +158,7 @@ const LandingPage = () => {
 
           <motion.div 
             style={{ rotate: rotateForm, skewX: skewForm }}
-            className="bg-white/95 dark:bg-black/90 p-2 rounded-[2rem] shadow-2xl flex flex-col md:flex-row gap-2 max-w-2xl mx-auto border-4 border-white/10 backdrop-blur-md pointer-events-auto origin-center"
+            className="bg-white/95 dark:bg-black/90 p-2 rounded-full shadow-2xl flex flex-col md:flex-row gap-2 max-w-2xl mx-auto border-4 border-white/10 backdrop-blur-md pointer-events-auto origin-center"
           >
             <form onSubmit={handleSearch} className="flex-1 flex relative w-full">
               <input
@@ -144,7 +166,7 @@ const LandingPage = () => {
                 placeholder="What are you looking for?"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-6 pr-14 py-3 bg-transparent text-gray-900 dark:text-white focus:outline-none font-bold text-base md:text-lg"
+                className="w-full pl-6 pr-14 py-3 bg-transparent text-gray-900 dark:text-white focus:outline-none font-bold text-base md:text-lg rounded-full"
               />
               <button
                 type="submit"
@@ -155,6 +177,21 @@ const LandingPage = () => {
               </button>
             </form>
           </motion.div>
+
+          {stats && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              transition={{ delay: 0.5 }}
+              className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-white/90 drop-shadow-md tracking-wide"
+            >
+              <span>{stats.active_users.toLocaleString()} Active Users</span>
+              <span>•</span>
+              <span>{stats.products_sold.toLocaleString()} Products Sold</span>
+              <span>•</span>
+              <span>{stats.weekly_visits > 1000 ? `${(stats.weekly_visits / 1000).toFixed(1)}K` : stats.weekly_visits} Weekly Visits</span>
+            </motion.div>
+          )}
         </div>
 
         {/* Scroll Indicator */}
@@ -168,14 +205,14 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Featured Selections Section */}
-      <div className="container-page">
-        <PromotedProductsRow />
-      </div>
-
       {/* Platform Insights */}
       <div className="container-page">
         <PlatformInsights />
+      </div>
+
+      {/* Featured Selections Section */}
+      <div className="container-page">
+        <PromotedProductsRow promotions={promotions} loading={loadingPromotions} />
       </div>
 
       {/* Latest Products Listings Section */}
@@ -183,7 +220,6 @@ const LandingPage = () => {
         <div className="flex justify-between items-end mb-6">
           <div>
             <h2 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">Latest Listings</h2>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest -mt-0.5">Explore the newest uploads from our community</p>
           </div>
           <Link to="/products" className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline">
             View all <ArrowRight className="h-4 w-4" />

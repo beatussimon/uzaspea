@@ -17,6 +17,12 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
     api.get('/api/notifications/unread_count/').then(r => setCount(r.data.count)).catch(() => {});
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    const closePanel = () => setOpen(false);
+    document.addEventListener('click', closePanel);
+    return () => document.removeEventListener('click', closePanel);
+  }, []);
+
   const openPanel = () => {
     setOpen(!open);
     if (!open) {
