@@ -141,7 +141,7 @@ services:
       - "-c"
       - "effective_cache_size=256MB"
       - "-c"
-      - "max_connections=30"
+      - "max_connections=100"
     volumes:
       - ./persistent_data/postgres:/var/lib/postgresql/data
     healthcheck:
