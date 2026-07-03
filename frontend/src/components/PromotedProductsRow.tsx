@@ -31,12 +31,12 @@ const PromotedProductsRow: React.FC<PromotedProductsRowProps> = ({ promotions, l
                     ))
                 ) : (
                     <>
-                        {promotions.slice(0, 8).map((promo) => (
+                        {promotions.filter((promo) => promo.product_details).slice(0, 8).map((promo) => (
                             <div key={promo.id} className="relative group">
                                 <ProductCard product={promo.product_details} viewMode="grid" isSponsored={true} />
                             </div>
                         ))}
-                        {Array.from({ length: Math.max(0, 8 - promotions.slice(0, 8).length) }).map((_, i) => (
+                        {Array.from({ length: Math.max(0, 8 - promotions.filter((p) => p.product_details).slice(0, 8).length) }).map((_, i) => (
                             <div key={`sponsor-placeholder-${i}`} className="relative h-full">
                                 <SponsorCard />
                             </div>

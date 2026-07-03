@@ -322,7 +322,7 @@ const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const images = product.images.length > 0
+  const images = (product.images && product.images.length > 0)
     ? product.images
     : [{ id: 0, image: '' }];
 

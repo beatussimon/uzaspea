@@ -87,7 +87,7 @@ const LandingPage = () => {
           const prodData = Array.isArray(prodRes.data.results || prodRes.data) 
             ? (prodRes.data.results || prodRes.data) : [];
           // Filter out products that are already in promotions
-          const filtered = prodData.filter((p: any) => !promoData.some((promo: any) => promo.product_details.id === p.id));
+          const filtered = prodData.filter((p: any) => !promoData.some((promo: any) => promo.product_details?.id === p.id));
           setLatestProducts(filtered.slice(0, 8));
           setLoading(false);
         });
