@@ -1707,17 +1707,19 @@ class TrendingAnalyticsView(APIView):
         # 5. Trending Products
         # Top 8 products ordered by weekly sales, then fallback to likes/newest
         from django.db.models.functions import Coalesce
-        from django.db.models import Sum, Count, Q
+
+        # Get IDs of orders that qualify as "this week's" completed orders
+        weekly_order_ids = Order.objects.filter(
+            order_date__gte=seven_days_ago,
+            status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED']
+        ).values_list('id', flat=True)
 
         trending_products_qs = Product.objects.prefetch_related('images', 'likes').filter(
             is_available=True
         ).annotate(
             weekly_sales=Coalesce(Sum(
                 'orderitem__quantity',
-                filter=Q(
-                    orderitem__order__created_at__gte=seven_days_ago,
-                    orderitem__order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED']
-                )
+                filter=Q(orderitem__order_id__in=weekly_order_ids)
             ), 0),
             like_count=Count('likes', distinct=True)
         ).order_by('-weekly_sales', '-like_count', '-created_at')[:8]
