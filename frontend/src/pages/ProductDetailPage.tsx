@@ -172,7 +172,7 @@ const ImageLightbox = ({
       {/* Thumbnails strip at bottom */}
       {images.length > 1 && (
         <div 
-          className="h-24 md:h-32 bg-black/80 border-t border-white/10 flex items-center justify-center gap-2 p-4 overflow-x-auto no-scrollbar w-full"
+          className="h-24 md:h-32 bg-black/80 border-t border-white/10 flex items-center justify-start md:justify-center gap-2 p-4 overflow-x-auto no-scrollbar w-full"
           onClick={(e) => e.stopPropagation()}
         >
           {images.map((img, i) => (
