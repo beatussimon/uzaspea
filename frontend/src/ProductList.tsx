@@ -347,7 +347,7 @@ const ProductList = () => {
         {/* Category Row */}
         <div className="w-full pt-1 pb-2">
           {/* Horizontal Category Slider (Image Circles) */}
-          <div className="flex items-start justify-center md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-4 w-full px-4 scroll-smooth">
+          <div className="flex items-start justify-start md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-4 w-full px-4 scroll-smooth">
             <div className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group" onClick={() => { updateFilters({ category: '', subcategory: '' }); }}>
               <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 border-2 ${!selectedCategory ? 'border-neutral-900 dark:border-neutral-100 bg-neutral-200 dark:bg-neutral-800 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
                 <LayoutGrid className="w-8 h-8 md:w-10 md:h-10 text-neutral-800 dark:text-neutral-100 stroke-[1.5]" />
