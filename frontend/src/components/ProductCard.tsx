@@ -119,6 +119,9 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
 
 const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean }) => {
   const { addToCart } = useCart();
+
+  if (!product) return null;
+
   const [liked, setLiked] = React.useState(product.is_liked || false);
   const isOwnProduct = product.seller_username === localStorage.getItem('username');
 
