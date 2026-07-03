@@ -82,8 +82,8 @@ const Navbar = () => {
     : 'p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
 
   const navBackgroundClass = isHomepage
-    ? 'bg-transparent border-t-0 border-x-0 border-b border-transparent backdrop-blur-none shadow-none'
-    : 'glass border-t-0 border-x-0 border-b border-gray-200 dark:border-neutral-800 shadow-sm';
+    ? 'bg-transparent border-none backdrop-blur-none shadow-none'
+    : 'glass border-none shadow-sm';
 
   return (
     <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${visible ? 'translate-y-0' : '-translate-y-full'} ${navBackgroundClass}`}>
