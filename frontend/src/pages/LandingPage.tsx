@@ -60,8 +60,8 @@ const LandingPage = () => {
   const rotateForm = useTransform(smoothVelocity, [-1000, 0, 1000], [-1, 0, 1]);
   const skewForm = useTransform(smoothVelocity, [-1000, 0, 1000], [2, 0, -2]);
 
-  const lightHero = '/kariakoo_daytime.png';
-  const darkHero = '/kariakoo_nightscape.png';
+  const lightHero = '/kariakoo_daytime.png?v=2';
+  const darkHero = '/kariakoo_nightscape.png?v=2';
 
   useEffect(() => {
     // Preload hero images for seamless transitions
