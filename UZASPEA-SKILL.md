@@ -187,8 +187,8 @@ Fix: Add `-f docker-compose.prod.yml` to all docker compose calls in both script
 
 ### 🟢 LOW
 
-**LOW-01 · `deploy.sh` uses `--pull` — downloads base images every deploy**
-Fix: Remove `--pull` from the `docker compose build` line in `scripts/deploy.sh`.
+**LOW-01 · [RESOLVED] `deploy.sh` uses `--pull`**
+Resolved: Consolidated all deploy logic into a local `./deploy.sh` script which connects over SSH and runs `docker compose up -d --build --remove-orphans` without `--pull`.
 
 **LOW-02 · `MessagesPage.tsx` identifies messages by username string**
 Fix: Use sender ID integer comparison instead of username string.
@@ -572,16 +572,9 @@ In `scripts/remote_build.sh` and `scripts/remote_launch.sh`:
 
 ---
 
-### Step 12 — Fix LOW-01: Remove --pull from deploy.sh
+### Step 12 — [RESOLVED] Fix LOW-01: Remove --pull from deploy.sh
 
-In `scripts/deploy.sh`:
-```bash
-# FROM:
-docker compose -f "$COMPOSE_FILE" build --pull
-
-# TO:
-docker compose -f "$COMPOSE_FILE" build
-```
+The deploy workflow has been completely rewritten into a single root `deploy.sh` script that connects via SSH and runs `docker compose up -d --build --remove-orphans` locally. The `--pull` argument has been completely removed to prevent downloading base images on every deployment.
 
 ---
 
