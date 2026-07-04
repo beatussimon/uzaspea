@@ -81,13 +81,14 @@ const Navbar = () => {
     ? 'p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
     : 'p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
 
-  const navBackgroundClass = isHomepage
+  const isAtTop = currentScrollY < 20;
+  const navBackgroundClass = isAtTop
     ? 'bg-transparent border-none backdrop-blur-none shadow-none'
     : 'glass border-none shadow-sm';
 
   return (
     <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${visible ? 'translate-y-0' : '-translate-y-full'} ${navBackgroundClass}`}>
-      <div className="container-page relative flex items-center justify-between h-20 w-full">
+      <div className="container-page relative flex items-center justify-between h-14 md:h-20 w-full">
 
         {/* ---- Left Navigation Links ---- */}
         <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center justify-start pl-8 md:pl-12 gap-6">

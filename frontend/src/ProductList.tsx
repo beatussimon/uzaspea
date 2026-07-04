@@ -332,6 +332,11 @@ const ProductList = () => {
       }
     }
 
+    // Always inject any remaining sponsored items at the end
+    while (promoIdx < promoted.length) {
+      injectSponsoredRow();
+    }
+
     return entries;
   };
 
@@ -668,7 +673,7 @@ const ProductList = () => {
             }
             variants={containerVariants} initial="hidden" animate="visible"
           >
-            {products.length === 0 ? (
+            {gridEntries.length === 0 ? (
               <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
                 <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">No products match your filters.</p>
