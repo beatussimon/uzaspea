@@ -46,7 +46,7 @@ const Navbar = () => {
           const currentY = window.pageYOffset;
           setCurrentScrollY(currentY);
           if (currentY <= 0) setVisible(true);
-          else if (currentY > lastScrollY.current && currentY > 100) setVisible(false);
+          else if (currentY > lastScrollY.current) setVisible(false);
           else setVisible(true);
           lastScrollY.current = currentY;
           ticking = false;
