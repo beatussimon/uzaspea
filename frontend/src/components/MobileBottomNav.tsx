@@ -40,7 +40,6 @@ const MobileBottomNav = () => {
   const navRef = useRef<HTMLDivElement>(null);
   const currentOffset = useRef(0);
   const lastScrollY = useRef(0);
-  const scrollDelta = useRef(0);
 
   useEffect(() => {
     let ticking = false;
