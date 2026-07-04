@@ -1202,11 +1202,25 @@ class PublicVerifyView(APIView):
             'is_verified': False,
         }
         if hasattr(obj, 'report') and obj.report.is_locked:
+            flagged = obj.report.responses.filter(flagged=True)
+            flagged_items = [
+                {
+                    'label': r.checklist_item.label,
+                    'severity': r.checklist_item.severity,
+                    'response': r.response_value,
+                    'notes': r.notes
+                }
+                for r in flagged
+            ]
             data.update({
                 'verdict': obj.report.verdict,
                 'report_hash': obj.report.report_hash,
                 'inspected_at': obj.report.approved_at,
                 'is_verified': True,
+                'summary': obj.report.summary,
+                'grade': obj.report.grade,
+                'quality_score': obj.report.quality_score,
+                'flagged_items': flagged_items,
             })
         return Response(data)
 

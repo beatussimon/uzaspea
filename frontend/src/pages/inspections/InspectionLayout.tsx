@@ -573,11 +573,47 @@ const BillDisplay: React.FC<{ request: InspectionRequest; onPaid: () => void }> 
 
 // ─── Inspection Timeline ────────────────────
 const Timeline: React.FC<{ status: string }> = ({ status }) => {
+  // Handle terminal/special statuses outside main flow
+  if (status === 'cancelled') {
+    return (
+      <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center gap-3">
+        <X size={18} className="text-red-500 shrink-0" />
+        <div>
+          <p className="font-semibold text-red-700 dark:text-red-400">Inspection Cancelled</p>
+          <p className="text-xs text-red-500 dark:text-red-500 mt-0.5">This inspection request has been cancelled. Contact support if you need help.</p>
+        </div>
+      </div>
+    );
+  }
+  if (status === 'blocked') {
+    return (
+      <div className="p-4 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 flex items-center gap-3">
+        <AlertTriangle size={18} className="text-orange-500 shrink-0" />
+        <div>
+          <p className="font-semibold text-orange-700 dark:text-orange-400">On Hold</p>
+          <p className="text-xs text-orange-500 dark:text-orange-500 mt-0.5">Your inspection is temporarily on hold. Our team will be in touch shortly.</p>
+        </div>
+      </div>
+    );
+  }
+  if (status === 'rescheduled') {
+    return (
+      <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 flex items-center gap-3">
+        <RefreshCw size={18} className="text-blue-500 shrink-0" />
+        <div>
+          <p className="font-semibold text-blue-700 dark:text-blue-400">Rescheduled</p>
+          <p className="text-xs text-blue-500 dark:text-blue-500 mt-0.5">Your inspection has been rescheduled. A new time will be confirmed shortly.</p>
+        </div>
+      </div>
+    );
+  }
+
   const steps = [
     { key: 'requested', label: 'Requested' },
     { key: 'bill_sent', label: 'Bill Ready' },
     { key: 'awaiting_payment', label: 'Awaiting Payment' },
     { key: 'deposit_paid', label: 'Deposit Paid' },
+    { key: 'pre_inspection', label: 'Pre-Inspection' },
     { key: 'assigned', label: 'Inspector Assigned' },
     { key: 'in_progress', label: 'Inspection Running' },
     { key: 'qa_review', label: 'QA Review' },
@@ -838,7 +874,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
                 {flaggedCount > 0 && <span className="text-red-600 text-xs">{flaggedCount} issues found</span>}
               </div>
 
-              {isOpen && (
+              <div className={isOpen ? 'block' : 'hidden print:block'}>
                 <div className="divide-y divide-gray-100 dark:divide-slate-800">
                   {items.map((r) => {
                     const itemEvidences = request.evidence.filter(ev => ev.checklist_item === r.checklist_item);
@@ -902,7 +938,7 @@ const ReportView: React.FC<{ request: InspectionRequest; onReInspect: () => void
                     );
                   })}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
@@ -1146,13 +1182,19 @@ const RequestDetail: React.FC = () => {
             <Timeline status={request.status} />
 
             {request.assignment && (
-              <div className="mt-5 pt-4 border-t border-surface-border dark:border-surface-dark-border">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Inspector</p>
+              <div className="mt-5 pt-4 border-t border-surface-border dark:border-surface-dark-border space-y-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Assigned Inspector</p>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
                   {request.assignment.inspector_name}
                 </p>
                 <Badge text={request.assignment.inspector_level}
                   className="badge-blue mt-1 capitalize" />
+                {request.assignment.sla_deadline && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                    <Clock size={12} />
+                    <span>Expected by {fmtDate(request.assignment.sla_deadline)}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1514,6 +1556,61 @@ export const PublicVerifyPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Render full report if verified */}
+            {result.is_verified && result.summary && (
+              <div className="mt-5 pt-5 border-t border-green-200 dark:border-green-800/50 space-y-4">
+                <div className="flex items-center gap-4 flex-wrap">
+                  {result.quality_score && (
+                    <div className="text-center shrink-0">
+                      <div className="text-2xl font-black text-gray-900 dark:text-white">{parseFloat(result.quality_score).toFixed(1)}%</div>
+                      <div className="text-[10px] uppercase font-bold text-gray-500">Score</div>
+                    </div>
+                  )}
+                  {result.grade && (
+                    <div className="text-center shrink-0">
+                      <div className={`text-2xl font-black ${
+                        result.grade.startsWith('A') ? 'text-green-600' :
+                        result.grade.startsWith('B') ? 'text-blue-600' :
+                        result.grade.startsWith('C') ? 'text-amber-500' : 'text-red-500'
+                      }`}>{result.grade}</div>
+                      <div className="text-[10px] uppercase font-bold text-gray-500">Grade</div>
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-[200px]">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 italic">"{result.summary}"</p>
+                  </div>
+                </div>
+
+                {result.flagged_items && result.flagged_items.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Flagged Issues ({result.flagged_items.length})</p>
+                    <div className="divide-y divide-green-200/50 dark:divide-green-800/30">
+                      {result.flagged_items.map((fi: any, idx: number) => (
+                        <div key={idx} className="py-2.5 flex items-start gap-3">
+                          <AlertTriangle size={14} className={
+                            fi.severity === 'critical' ? 'text-red-500 mt-0.5 shrink-0' :
+                            fi.severity === 'major' ? 'text-amber-500 mt-0.5 shrink-0' : 'text-blue-500 mt-0.5 shrink-0'
+                          } />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm text-gray-900 dark:text-white">{fi.label}</span>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                                fi.severity === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400' :
+                                fi.severity === 'major' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' :
+                                'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                              }`}>{fi.severity}</span>
+                            </div>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Found: <span className="font-medium text-gray-800 dark:text-gray-200">{fi.response}</span></p>
+                            {fi.notes && <p className="text-xs text-gray-500 mt-0.5 italic">{fi.notes}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

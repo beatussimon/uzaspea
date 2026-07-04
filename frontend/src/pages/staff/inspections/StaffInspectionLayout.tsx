@@ -470,6 +470,82 @@ const StaffRequestDetail: React.FC = () => {
             <CheckCircle2 size={16} className="text-purple-600" /> QA Review
           </h3>
 
+          {/* Report summary */}
+          <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-surface-border dark:border-surface-dark-border space-y-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className={`text-lg font-black uppercase ${
+                request.report.verdict === 'pass' ? 'text-green-600 dark:text-green-400'
+                : request.report.verdict === 'conditional' ? 'text-amber-500'
+                : 'text-red-500'
+              }`}>{request.report.verdict}</span>
+              {request.report.quality_score && (
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Score: <span className="font-bold text-gray-900 dark:text-white">{parseFloat(request.report.quality_score).toFixed(1)}%</span>
+                  {request.report.grade && <span className="ml-1 font-bold">({request.report.grade})</span>}
+                </span>
+              )}
+            </div>
+            {request.report.summary && (
+              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{request.report.summary}</p>
+            )}
+          </div>
+
+          {/* Report responses grouped by section */}
+          {request.report.responses && request.report.responses.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Checklist Responses ({request.report.responses.length})</p>
+              {Object.entries(
+                request.report.responses.reduce((acc: Record<string, any[]>, r: any) => {
+                  const sec = r.section || 'General';
+                  if (!acc[sec]) acc[sec] = [];
+                  acc[sec].push(r);
+                  return acc;
+                }, {})
+              ).map(([section, items]: [string, any[]]) => (
+                <div key={section} className="border border-surface-border dark:border-surface-dark-border rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{section}</span>
+                    {items.filter(i => i.flagged).length > 0 && (
+                      <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+                        {items.filter(i => i.flagged).length} issues
+                      </span>
+                    )}
+                  </div>
+                  <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {items.map((r: any) => (
+                      <div key={r.id} className={`px-4 py-2.5 flex items-center justify-between gap-3 text-sm ${
+                        r.flagged ? 'bg-red-50/40 dark:bg-red-950/10' : ''
+                      }`}>
+                        <div className="flex-1 min-w-0">
+                          <span className={`font-medium ${r.flagged ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                            {r.item_label}
+                          </span>
+                          <span className={`ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                            r.severity === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+                            : r.severity === 'major' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                          }`}>{r.severity}</span>
+                          {r.notes && <p className="text-xs text-gray-400 mt-0.5 truncate">{r.notes}</p>}
+                        </div>
+                        <span className={`shrink-0 text-xs font-bold px-2 py-1 rounded-lg ${
+                          r.flagged ? 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                          : 'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400'
+                        }`}>{r.response_value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {request.report.qa_notes && (
+            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+              <p className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-1">Previous QA Notes</p>
+              <p className="text-sm text-orange-700 dark:text-orange-300">{request.report.qa_notes}</p>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button onClick={handleQaApprove}
               className="flex-1 btn-primary bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 py-2.5">
@@ -646,22 +722,28 @@ const PaymentApprovals: React.FC = () => {
         <div className="space-y-3">
           {payments.map((p) => (
             <div key={p.id} className="card p-5">
-              <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div>
+              <div className="flex items-start gap-4 flex-wrap">
+                {/* Inline payment proof image */}
+                {p.proof_image && (
+                  <a href={p.proof_image} target="_blank" rel="noreferrer" className="shrink-0 group">
+                    <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700 relative">
+                      <img src={p.proof_image} alt="Payment proof" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Eye size={16} className="text-white" />
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-center text-gray-400 mt-1">View full</p>
+                  </a>
+                )}
+                <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 dark:text-white capitalize">{p.stage} Payment</p>
                   <p className="text-sm text-gray-500 mt-0.5">Amount: <span className="font-medium text-gray-900 dark:text-white">{fmtMoney(p.amount)}</span></p>
                   {p.transaction_reference && (
-                    <p className="text-xs text-gray-400 mt-0.5">Ref: {p.transaction_reference}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 font-mono">Ref: {p.transaction_reference}</p>
                   )}
                   <p className="text-xs text-gray-400 mt-0.5">{fmtDate(p.created_at)}</p>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  {p.proof_image && (
-                    <a href={p.proof_image} target="_blank" rel="noreferrer"
-                      className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1">
-                      <Eye size={12} /> View Proof
-                    </a>
-                  )}
+                <div className="flex items-center gap-3 flex-wrap shrink-0">
                   <button onClick={() => handleApprove(p.id)}
                     className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition">
                     <CheckCircle2 size={14} /> Approve

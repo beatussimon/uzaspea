@@ -30,10 +30,19 @@ function getLocation(): Promise<{ lat: number; lng: number }> {
       reject(new Error('Geolocation not supported'));
       return;
     }
+    
+    // Try high accuracy first
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => reject(err),
-      { enableHighAccuracy: true, timeout: 10000 }
+      (err) => {
+        // Fallback to low accuracy (cell tower/WiFi) if high accuracy fails or times out
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          (fallbackErr) => reject(fallbackErr),
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+        );
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   });
 }
@@ -198,47 +207,74 @@ const PhotoCapture: React.FC<{
   captured?: boolean;
 }> = ({ label, onCapture, captured }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [gpsStatus, setGpsStatus] = useState<'idle' | 'acquiring' | 'ready' | 'unavailable'>('idle');
 
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    setGpsStatus('acquiring');
     let lat: number | null = null;
     let lng: number | null = null;
     try {
       const pos = await getLocation();
       lat = pos.lat;
       lng = pos.lng;
+      setGpsStatus('ready');
     } catch {
+      setGpsStatus('unavailable');
+      const confirmNoGps = window.confirm('GPS Location is unavailable. Your check-in will be flagged. Do you want to proceed without GPS?');
+      if (!confirmNoGps) {
+        e.target.value = '';
+        setGpsStatus('idle');
+        return;
+      }
       toast('Location unavailable — photo saved without GPS', { icon: '⚠️' });
     }
     onCapture(file, lat, lng);
-    toast.success(`${label} captured`);
+    if (lat !== null) {
+      toast.success(`${label} captured with GPS`);
+    }
   };
 
   return (
-    <label className={`flex flex-col items-center gap-2 p-5 border-2 border-dashed rounded-xl cursor-pointer transition ${
-      captured
-        ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
-        : 'border-surface-border dark:border-surface-dark-border hover:border-brand-400 bg-white dark:bg-gray-800'
-    }`}>
-      {captured ? (
-        <CheckCircle size={28} className="text-green-500" />
-      ) : (
-        <Camera size={28} className="text-gray-400" />
+    <div className="flex flex-col gap-2 w-full">
+      {gpsStatus !== 'idle' && (
+        <div className={`flex items-center justify-center gap-1.5 text-xs font-semibold py-1 px-2 rounded-md ${
+          gpsStatus === 'acquiring' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 animate-pulse' :
+          gpsStatus === 'ready' ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
+          'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+        }`}>
+          {gpsStatus === 'acquiring' && '📍 Acquiring GPS...'}
+          {gpsStatus === 'ready' && '📍 GPS Ready'}
+          {gpsStatus === 'unavailable' && '⚠️ GPS Unavailable'}
+        </div>
       )}
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        {captured ? `${label} ✓` : label}
-      </span>
-      <span className="text-xs text-gray-400">GPS auto-tagged</span>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleCapture}
-      />
-    </label>
+      
+      <label className={`flex flex-col items-center gap-2 p-5 border-2 border-dashed rounded-xl cursor-pointer transition ${
+        captured
+          ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
+          : 'border-surface-border dark:border-surface-dark-border hover:border-brand-400 bg-white dark:bg-gray-800'
+      }`}>
+        {captured ? (
+          <CheckCircle size={28} className="text-green-500" />
+        ) : (
+          <Camera size={28} className="text-gray-400" />
+        )}
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {captured ? `${label} ✓` : label}
+        </span>
+        <span className="text-xs text-gray-400">GPS auto-tagged</span>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleCapture}
+        />
+      </label>
+    </div>
   );
 };
 
@@ -587,6 +623,33 @@ const ChecklistForm: React.FC<{
           </span>
         </div>
       </div>
+
+      {/* Completion Progress */}
+      {(() => {
+        const allItems = template.items;
+        const answeredCount = allItems.filter(item =>
+          item.item_type === 'media' ? !!evidence[item.id] : !!responses[item.id]?.value
+        ).length;
+        const pct = allItems.length > 0 ? Math.round((answeredCount / allItems.length) * 100) : 0;
+        return (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-medium">
+              <span className="text-gray-500 dark:text-gray-400">Completion</span>
+              <span className={pct === 100 ? 'text-green-600 dark:text-green-400 font-bold' : 'text-gray-700 dark:text-gray-300'}>
+                {answeredCount} / {allItems.length} items answered
+              </span>
+            </div>
+            <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  pct === 100 ? 'bg-green-500' : pct >= 60 ? 'bg-brand-600' : 'bg-amber-400'
+                }`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Section Accordions */}
       <div className="space-y-3">
