@@ -37,17 +37,39 @@ const Navbar = () => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // Navbar auto-hide on scroll
+  // Amazon-style Navbar auto-hide on scroll
   useEffect(() => {
     let ticking = false;
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentY = window.pageYOffset;
+          const delta = currentY - lastScrollY.current;
+          
           setCurrentScrollY(currentY);
-          if (currentY <= 0) setVisible(true);
-          else if (currentY > lastScrollY.current) setVisible(false);
-          else setVisible(true);
+
+          // 1. Grace zone: Always show if near the top
+          if (currentY <= 60) {
+            setVisible(true);
+            scrollDelta.current = 0;
+          } 
+          // 2. Scrolling Down
+          else if (delta > 0) {
+            scrollDelta.current = Math.max(0, scrollDelta.current + delta);
+            // Hide if scrolled down consistently > 15px
+            if (scrollDelta.current > 15) {
+              setVisible(false);
+            }
+          } 
+          // 3. Scrolling Up
+          else if (delta < 0) {
+            scrollDelta.current = Math.min(0, scrollDelta.current + delta);
+            // Show if scrolled up consistently > 15px
+            if (scrollDelta.current < -15) {
+              setVisible(true);
+            }
+          }
+
           lastScrollY.current = currentY;
           ticking = false;
         });
