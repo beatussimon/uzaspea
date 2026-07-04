@@ -34,7 +34,7 @@ function getLocation(): Promise<{ lat: number; lng: number }> {
     // Try high accuracy first
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => {
+      () => {
         // Fallback to low accuracy (cell tower/WiFi) if high accuracy fails or times out
         navigator.geolocation.getCurrentPosition(
           (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
