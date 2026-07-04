@@ -16,7 +16,6 @@ const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const lastScrollY = useRef(0);
-  const scrollDelta = useRef(0);
   const navbarRef = useRef<HTMLElement>(null);
   const currentOffset = useRef(0);
   const { cartCount } = useCart();
