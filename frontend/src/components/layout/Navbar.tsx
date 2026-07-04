@@ -12,12 +12,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
 const Navbar = () => {
-  const [visible, setVisible] = useState(true);
   const [profileOpen, setProfileOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const lastScrollY = useRef(0);
   const scrollDelta = useRef(0);
+  const navbarRef = useRef<HTMLElement>(null);
+  const currentOffset = useRef(0);
   const { cartCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,12 +34,15 @@ const Navbar = () => {
 
   // Reset scroll and keep navbar visible on route change
   useEffect(() => {
-    setVisible(true);
+    currentOffset.current = 0;
+    if (navbarRef.current) {
+      navbarRef.current.style.transform = `translateY(0px)`;
+    }
     setCurrentScrollY(0);
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // Amazon-style Navbar auto-hide on scroll
+  // Natural 1:1 Navbar auto-hide on scroll
   useEffect(() => {
     let ticking = false;
     const handleScroll = () => {
@@ -51,24 +55,17 @@ const Navbar = () => {
 
           // 1. Grace zone: Always show if near the top
           if (currentY <= 60) {
-            setVisible(true);
-            scrollDelta.current = 0;
+            currentOffset.current = 0;
           } 
-          // 2. Scrolling Down
-          else if (delta > 0) {
-            scrollDelta.current = Math.max(0, scrollDelta.current + delta);
-            // Hide if scrolled down consistently > 15px
-            if (scrollDelta.current > 15) {
-              setVisible(false);
-            }
-          } 
-          // 3. Scrolling Up
-          else if (delta < 0) {
-            scrollDelta.current = Math.min(0, scrollDelta.current + delta);
-            // Show if scrolled up consistently > 15px
-            if (scrollDelta.current < -15) {
-              setVisible(true);
-            }
+          // 2. Normal scroll behavior: move exactly with the scroll delta
+          else {
+            // Maximum height to hide (navbar is ~80px on md, 56px on mobile)
+            const maxHide = 80;
+            currentOffset.current = Math.max(-maxHide, Math.min(0, currentOffset.current - delta));
+          }
+
+          if (navbarRef.current) {
+            navbarRef.current.style.transform = `translateY(${currentOffset.current}px)`;
           }
 
           lastScrollY.current = currentY;
@@ -110,7 +107,11 @@ const Navbar = () => {
     : 'glass border-none shadow-sm';
 
   return (
-    <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${visible ? 'translate-y-0' : '-translate-y-full'} ${navBackgroundClass}`}>
+    <nav 
+      ref={navbarRef}
+      className={`fixed top-0 inset-x-0 z-50 ${navBackgroundClass}`}
+      style={{ willChange: 'transform' }}
+    >
       <div className="container-page relative flex items-center justify-between h-14 md:h-20 w-full">
 
         {/* ---- Left Navigation Links ---- */}

@@ -36,8 +36,9 @@ const MobileBottomNav = () => {
     setIsMenuOpen(false);
   }, [location.pathname]);
 
-  // Amazon-style scroll logic — hide on scroll down, show on scroll up
-  const [isVisible, setIsVisible] = useState(true);
+  // Natural 1:1 scroll logic — hide on scroll down, show on scroll up
+  const navRef = useRef<HTMLDivElement>(null);
+  const currentOffset = useRef(0);
   const lastScrollY = useRef(0);
   const scrollDelta = useRef(0);
 
@@ -53,22 +54,17 @@ const MobileBottomNav = () => {
           
           // 1. Grace zone: Always show if near the top
           if (currentY <= 60) {
-            setIsVisible(true);
-            scrollDelta.current = 0;
+            currentOffset.current = 0;
           } 
-          // 2. Scrolling Down (hide bottom nav)
-          else if (delta > 0) {
-            scrollDelta.current = Math.max(0, scrollDelta.current + delta);
-            if (scrollDelta.current > 15) {
-              setIsVisible(false);
-            }
-          } 
-          // 3. Scrolling Up (show bottom nav)
-          else if (delta < 0) {
-            scrollDelta.current = Math.min(0, scrollDelta.current + delta);
-            if (scrollDelta.current < -15) {
-              setIsVisible(true);
-            }
+          // 2. Normal scroll behavior: move exactly with the scroll delta
+          else {
+            // Maximum height to hide (bottom nav is ~80px tall)
+            const maxHide = 80; // Positive translation moves it down, out of view
+            currentOffset.current = Math.max(0, Math.min(maxHide, currentOffset.current + delta));
+          }
+
+          if (navRef.current) {
+            navRef.current.style.transform = `translateY(${currentOffset.current}px)`;
           }
 
           lastScrollY.current = currentY;
@@ -287,7 +283,10 @@ const MobileBottomNav = () => {
       </div>
 
       {/* --- Footer Base Navigation --- */}
-      <div className={`lg:hidden fixed bottom-0 inset-x-0 z-[60] bg-white/70 dark:bg-gray-950/70 backdrop-blur-2xl border-t border-surface-border/50 dark:border-white/5 px-2 pb-safe pt-2 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] transition-transform duration-500 ease-out will-change-transform ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div 
+        ref={navRef}
+        className="lg:hidden fixed bottom-0 inset-x-0 z-[60] bg-white/70 dark:bg-gray-950/70 backdrop-blur-2xl border-t border-surface-border/50 dark:border-white/5 px-2 pb-safe pt-2 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] will-change-transform"
+      >
         <div className="flex items-center justify-around max-w-md mx-auto h-16 relative">
           
           {/* Home */}
