@@ -36,37 +36,50 @@ const MobileBottomNav = () => {
     setIsMenuOpen(false);
   }, [location.pathname]);
 
-  // Scroll logic — hide by default, show on scroll, disappear after 2.5s
-  const [isVisible, setIsVisible] = useState(false);
-  const timeoutRef = useRef<any>(null);
+  // Amazon-style scroll logic — hide on scroll down, show on scroll up
+  const [isVisible, setIsVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const scrollDelta = useRef(0);
 
   useEffect(() => {
-    if (isMenuOpen) {
-      setIsVisible(true);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    } else {
-      timeoutRef.current = setTimeout(() => setIsVisible(false), 2500);
-    }
-  }, [isMenuOpen]);
-
-  useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
       if (isMenuOpen) return;
       
-      setIsVisible(true);
-      
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      
-      timeoutRef.current = setTimeout(() => {
-        setIsVisible(false);
-      }, 2500);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentY = window.pageYOffset;
+          const delta = currentY - lastScrollY.current;
+          
+          // 1. Grace zone: Always show if near the top
+          if (currentY <= 60) {
+            setIsVisible(true);
+            scrollDelta.current = 0;
+          } 
+          // 2. Scrolling Down (hide bottom nav)
+          else if (delta > 0) {
+            scrollDelta.current = Math.max(0, scrollDelta.current + delta);
+            if (scrollDelta.current > 15) {
+              setIsVisible(false);
+            }
+          } 
+          // 3. Scrolling Up (show bottom nav)
+          else if (delta < 0) {
+            scrollDelta.current = Math.min(0, scrollDelta.current + delta);
+            if (scrollDelta.current < -15) {
+              setIsVisible(true);
+            }
+          }
+
+          lastScrollY.current = currentY;
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, [isMenuOpen]);
 
   // Prevent background scroll when menu is open
