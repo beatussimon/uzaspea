@@ -177,13 +177,13 @@ The stack is orchestrated using `docker-compose.prod.yml`:
 
 ## 8. Deployment, Auto-Heal & Backups
 
-### Deployment Workflow (`scripts/deploy.sh`)
-An automated deployment cron job runs every 5 minutes on the server:
-- Runs `git fetch origin master`.
-- Compares local commit SHA against origin master.
-- If updates exist, pulls master code, builds docker containers using `docker-compose.prod.yml`, and spins up.
-- Executes health checks by polling `http://localhost/api/site-settings/` for up to 2 minutes. If healthy, prunes old docker image layers.
-- Cron Entry: `*/5 * * * * /home/ubuntu/uzaspea/scripts/deploy.sh >> /var/log/uzaspea-deploy.log 2>&1`
+### Deployment Workflow (`deploy.sh`)
+Deployment is strictly manual and executed from the local machine by the owner.
+- Run `./deploy.sh` locally.
+- The script automatically pushes code to GitHub.
+- It connects to the production server via SSH, runs a database backup, and performs a hard reset of the code to origin/master.
+- It rebuilds the Docker containers and automatically seeds the database.
+- There are NO auto-deploy cron jobs or webhooks to prevent unintended deployments.
 
 ### Database Backups (`scripts/backup.sh`)
 - Executed via cron daily at 2:00 AM.
