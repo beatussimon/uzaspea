@@ -354,8 +354,8 @@ const ProductList = () => {
           {/* Horizontal Category Slider (Image Circles) */}
           <div className="flex items-start justify-start md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-4 w-full px-4 scroll-smooth">
             <div className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group" onClick={() => { updateFilters({ category: '', subcategory: '' }); }}>
-              <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 border-2 ${!selectedCategory ? 'border-neutral-900 dark:border-neutral-100 bg-neutral-200 dark:bg-neutral-800 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
-                <LayoutGrid className="w-8 h-8 md:w-10 md:h-10 text-neutral-800 dark:text-neutral-100 stroke-[1.5]" />
+              <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 border-2 ${!selectedCategory ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
+                <LayoutGrid className={`w-8 h-8 md:w-10 md:h-10 stroke-[1.5] ${!selectedCategory ? 'text-brand-600 dark:text-brand-400' : 'text-neutral-800 dark:text-neutral-100'}`} />
               </div>
               <span className={`text-xs font-bold text-center max-w-[5.5rem] md:max-w-[6.5rem] leading-tight line-clamp-2 ${!selectedCategory ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>All Products</span>
             </div>
@@ -368,7 +368,7 @@ const ProductList = () => {
                   className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group"
                   onClick={() => { updateFilters({ category: isActive ? '' : cat.slug, subcategory: '' }); }}
                 >
-                  <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 overflow-visible border-2 bg-neutral-100 dark:bg-neutral-800 ${isActive ? 'border-neutral-900 dark:border-neutral-100 shadow-lg' : 'border-transparent shadow-sm hover:shadow-md'}`}>
+                  <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 overflow-visible border-2 ${isActive ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
                     {cat.product_count > 0 && (
                       <span className="absolute -top-1.5 -right-1 bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-neutral-200 dark:border-neutral-700 shadow-sm z-10">
                         {cat.product_count.toLocaleString()}
@@ -596,44 +596,37 @@ const ProductList = () => {
           </div>
         </div>
 
-        {/* Subcategory slider */}
-        {subcategories.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 px-4 md:px-0">
-            <button onClick={() => updateFilters({ subcategory: '' })}
-              className={`pill text-xs py-1 shrink-0 ${!selectedSubcategory ? 'pill-active' : 'pill-inactive'}`}>
-              All {activeParent?.name} <span className="opacity-60 ml-1">{activeParent?.product_count}</span>
-            </button>
-            {subcategories.map((s: any) => (
-              <button key={s.id} onClick={() => updateFilters({ subcategory: s.slug })}
-                className={`pill text-xs py-1 shrink-0 ${selectedSubcategory === s.slug ? 'pill-active' : 'pill-inactive'}`}>
-                {s.name} <span className="opacity-60 ml-1">{s.product_count}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* Active Filter Pills */}
         {activePills.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-2 animate-fade-in">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pb-2 mb-2 animate-fade-in px-4 md:px-0">
             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">
               Active Filters:
             </span>
-            {activePills.map((pill) => (
+            {activePills.map((pill) => {
+              let pillClasses = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold animate-in zoom-in-95 duration-200 border ";
+              if (pill.id === 'category') {
+                pillClasses += "bg-transparent border-brand-500 text-gray-800 dark:text-gray-200";
+              } else {
+                pillClasses += "bg-gray-100 dark:bg-neutral-800 border-transparent text-gray-800 dark:text-gray-200";
+              }
+
+              return (
               <div
                 key={pill.id}
-                className="flex items-center gap-1.5 px-3 py-1 bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800 rounded-full text-xs font-bold text-brand-700 dark:text-brand-400 animate-in zoom-in-95 duration-200"
+                className={pillClasses}
               >
                 <span className="opacity-60 font-medium">{pill.label}:</span>
                 <span>{pill.value}</span>
                 <button
                   onClick={pill.onRemove}
-                  className="p-0.5 hover:bg-brand-100 dark:hover:bg-brand-800 rounded-full transition-colors"
+                  className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
                   aria-label={`Remove ${pill.label} filter`}
                 >
                   <X className="h-3 w-3" />
                 </button>
               </div>
-            ))}
+              );
+            })}
             {activePills.length > 1 && (
               <button
                 onClick={() => {
@@ -648,6 +641,22 @@ const ProductList = () => {
                 Clear All
               </button>
             )}
+          </div>
+        )}
+
+        {/* Subcategory slider */}
+        {subcategories.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 px-4 md:px-0">
+            <button onClick={() => updateFilters({ subcategory: '' })}
+              className={`pill text-xs py-1 shrink-0 ${!selectedSubcategory ? 'pill-active' : 'pill-inactive'}`}>
+              All {activeParent?.name} <span className="opacity-60 ml-1">{activeParent?.product_count}</span>
+            </button>
+            {subcategories.map((s: any) => (
+              <button key={s.id} onClick={() => updateFilters({ subcategory: s.slug })}
+                className={`pill text-xs py-1 shrink-0 ${selectedSubcategory === s.slug ? 'pill-active' : 'pill-inactive'}`}>
+                {s.name} <span className="opacity-60 ml-1">{s.product_count}</span>
+              </button>
+            ))}
           </div>
         )}
       </div>

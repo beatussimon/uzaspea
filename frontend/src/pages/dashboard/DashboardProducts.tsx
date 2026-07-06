@@ -5,6 +5,7 @@ import { Package, Plus } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
 import { useDialog } from '../../components/ui/Dialogs';
+import ProductVariantsModal from './ProductVariantsModal';
 
 // ============ Dashboard Products ============
 const DashboardProducts: React.FC = () => {
@@ -13,7 +14,8 @@ const DashboardProducts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
+  const [variantProductId, setVariantProductId] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
   const [existingImages, setExistingImages] = useState<any[]>([]);
   const [locData, setLocData] = useState({ latitude: '', longitude: '', location_name: '' });
   const [locStatus, setLocStatus] = useState('');
@@ -136,6 +138,7 @@ const DashboardProducts: React.FC = () => {
       formData.append('name', form.name);
       formData.append('description', form.description);
       formData.append('price', form.price);
+      if (form.sale_price) formData.append('sale_price', form.sale_price);
       formData.append('stock', form.stock);
       formData.append('category', form.category);
       formData.append('condition', form.condition);
@@ -164,7 +167,7 @@ const DashboardProducts: React.FC = () => {
 
       setShowForm(false);
       setEditingId(null);
-      setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
+      setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
       setImageFiles([]);
       setExistingImages([]);
       fetchProducts(1, true);
@@ -180,6 +183,7 @@ const DashboardProducts: React.FC = () => {
       name: product.name,
       description: product.description,
       price: product.price,
+      sale_price: product.sale_price || '',
       stock: String(product.stock),
       category: String(product.category),
       condition: product.condition,
@@ -213,7 +217,7 @@ const DashboardProducts: React.FC = () => {
             setShowForm(!showForm);
             setEditingId(null);
             setExistingImages([]);
-            setForm({ name: '', description: '', price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
+            setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
           }}
           className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition text-sm"
         >
@@ -235,8 +239,10 @@ const DashboardProducts: React.FC = () => {
             className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
           <textarea name="description" value={form.description} onChange={handleChange} placeholder="Description" required rows={3}
             className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white resize-none" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <input name="price" value={form.price} onChange={handleChange} placeholder="Price" type="number" required
+              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+            <input name="sale_price" value={form.sale_price} onChange={handleChange} placeholder="Sale Price (Optional)" type="number"
               className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
             <input name="stock" value={form.stock} onChange={handleChange} placeholder="Stock" type="number" required
               className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
@@ -348,6 +354,10 @@ const DashboardProducts: React.FC = () => {
                   className="px-3 py-1.5 text-xs text-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-300">
                   Edit
                 </button>
+                <button onClick={() => setVariantProductId(product.id.toString())}
+                  className="px-3 py-1.5 text-xs text-center border border-brand-300 dark:border-brand-600 text-brand-600 dark:text-brand-400 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition">
+                  Variants
+                </button>
                 <button onClick={() => handleDelete(product.slug)}
                   className="px-3 py-1.5 text-xs text-center border border-red-300 text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
                   Delete
@@ -359,6 +369,13 @@ const DashboardProducts: React.FC = () => {
         {hasMore && <div ref={sentinelRef} className="h-4" />}
         {loadingMore && <div className="text-center py-4 text-gray-500 text-sm">Loading more...</div>}
         </>
+      )}
+
+      {variantProductId && (
+        <ProductVariantsModal 
+          productId={variantProductId} 
+          onClose={() => setVariantProductId(null)} 
+        />
       )}
     </div>
   );

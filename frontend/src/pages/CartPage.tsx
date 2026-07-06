@@ -2,10 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useTranslation } from 'react-i18next';
 import SafeImage from '../components/SafeImage';
 
 const CartPage: React.FC = () => {
   const { items, totalPrice, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { t } = useTranslation();
 
   if (items.length === 0) {
     return (
@@ -95,22 +97,22 @@ const CartPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Summary */}
       <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-6">
         <div className="flex justify-between items-center mb-4">
           <span className="text-gray-600 dark:text-gray-400">
             {items.reduce((s, i) => s + i.quantity, 0)} item(s)
           </span>
-          <span className="text-2xl font-bold text-gray-900 dark:text-white">
-            TSh {totalPrice.toLocaleString()}
-          </span>
+          <div className="flex items-center text-lg font-bold text-gray-900 dark:text-white gap-2">
+            <span>{t('total')}:</span>
+            <span>TSh {totalPrice.toLocaleString()}</span>
+          </div>
         </div>
+
         <Link
           to="/checkout"
-          className="flex items-center justify-center gap-2 w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg transition shadow-md"
+          className="w-full flex items-center justify-center gap-2 py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl transition shadow-sm hover:shadow-md active:scale-[0.98]"
         >
-          Proceed to Checkout
-          <ArrowRight size={18} />
+          {t('checkout')} <ArrowRight size={20} />
         </Link>
       </div>
     </div>

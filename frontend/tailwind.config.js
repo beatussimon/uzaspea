@@ -15,18 +15,7 @@ export default {
       },
       colors: {
         gray: colors.neutral,
-        brand: {
-          50:  '#f4f4f5', // zinc 100
-          100: '#e4e4e7', // zinc 200
-          200: '#d4d4d8', // zinc 300
-          300: '#a1a1aa', // zinc 400
-          400: '#71717a', // zinc 500
-          500: '#27272a', // zinc 800
-          600: '#18181b', // zinc 900
-          700: '#09090b', // zinc 950
-          800: '#040405',
-          900: '#000000',
-        },
+        brand: colors.yellow,
         surface: {
           DEFAULT: '#ffffff',
           muted: '#f9fafb',

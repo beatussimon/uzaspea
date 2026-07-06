@@ -84,12 +84,13 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         driver = serializer.validated_data.get('driver', None)
 
         if new_status == 'in_transit':
+            carrier_type = serializer.validated_data.get('carrier_type', 'driver')
             if order_has_vehicles(order):
-                carrier_type = serializer.validated_data.get('carrier_type', 'driver')
                 if carrier_type == 'driver' and not driver:
                     raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
-                elif carrier_type == 'third_party' and not serializer.validated_data.get('third_party_driver_info'):
-                    raise ValidationError("Third party driver info must be provided for vehicle-category shipments before transit.")
+            
+            if carrier_type == 'third_party' and not serializer.validated_data.get('third_party_driver_info'):
+                raise ValidationError("Third party driver info must be provided for shipments before transit.")
 
         shipment = serializer.save()
         if driver:
@@ -124,12 +125,13 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         driver = serializer.validated_data.get('driver', instance.driver)
 
         if new_status == 'in_transit' and instance.status != 'in_transit':
+            carrier_type = serializer.validated_data.get('carrier_type', instance.carrier_type)
             if order_has_vehicles(order):
-                carrier_type = serializer.validated_data.get('carrier_type', instance.carrier_type)
                 if carrier_type == 'driver' and not driver:
                     raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
-                elif carrier_type == 'third_party' and not serializer.validated_data.get('third_party_driver_info', instance.third_party_driver_info):
-                    raise ValidationError("Third party driver info must be provided for vehicle-category shipments before transit.")
+            
+            if carrier_type == 'third_party' and not serializer.validated_data.get('third_party_driver_info', instance.third_party_driver_info):
+                raise ValidationError("Third party driver info must be provided for shipments before transit.")
 
         shipment = serializer.save()
 
@@ -140,6 +142,17 @@ class ShipmentViewSet(viewsets.ModelViewSet):
                     driver, 'delivery_assigned', 'New delivery assigned',
                     f'You have been assigned order #{order.id} for delivery.',
                     f'/driver/deliveries?highlight={order.id}'
+                )
+            except Exception:
+                pass
+        
+        if instance.driver and instance.driver != driver:
+            from marketplace.models import push_notification
+            try:
+                push_notification(
+                    instance.driver, 'delivery_assigned', 'Delivery unassigned',
+                    f'You have been unassigned from order #{order.id}.',
+                    f'/driver/deliveries'
                 )
             except Exception:
                 pass
@@ -249,6 +262,9 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         shipment = self.get_object()
         if not request.user.is_staff and shipment.driver != request.user:
             raise ValidationError("You are not the driver assigned to this shipment.")
+            
+        if shipment.status != 'in_transit':
+            raise ValidationError("Location pinging is only allowed when shipment is in transit.")
         
         lat = request.data.get('lat')
         lng = request.data.get('lng')
@@ -352,7 +368,7 @@ class DriverPaymentViewSet(viewsets.ModelViewSet):
         is_staff = user.is_superuser or (hasattr(user, 'staff_profile') and user.staff_profile.is_active)
         
         if is_staff:
-            queryset = DriverPayment.objects.select_related('shipment__order', 'driver').all()
+            queryset = DriverPayment.objects.filter(is_cancelled=False).select_related('shipment__order', 'driver')
             seller_view = self.request.query_params.get('seller_view')
             if seller_view == 'true':
                 queryset = queryset.filter(shipment__order__orderitem_set__product__seller=user).distinct()
@@ -361,7 +377,8 @@ class DriverPaymentViewSet(viewsets.ModelViewSet):
         from django.db.models import Q
         return DriverPayment.objects.filter(
             Q(shipment__order__orderitem_set__product__seller=user) |
-            Q(driver=user)
+            Q(driver=user),
+            is_cancelled=False
         ).distinct().select_related('shipment__order', 'driver')
 
     @action(detail=True, methods=['post'])

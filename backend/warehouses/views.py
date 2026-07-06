@@ -65,13 +65,29 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='set-delivery-fee')
     def set_delivery_fee(self, request, pk=None):
-        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_warehouse_intake')):
-            return Response({'error': 'You do not have permission to perform this action.'}, status=403)
+        current_warehouse = self.get_object()
+        
+        # Manager check
+        user = request.user
+        is_manager = False
+        if user.is_superuser:
+            is_manager = True
+        else:
+            from uzachuo.permissions import has_staff_permission
+            if has_staff_permission(user, 'can_manage_logistics'):
+                is_manager = True
+            else:
+                assignment = WarehouseStaffAssignment.objects.filter(user=user, warehouse=current_warehouse).first()
+                if assignment and assignment.is_manager:
+                    is_manager = True
+                    
+        if not is_manager:
+            return Response({'error': 'Only warehouse managers can override delivery fees.'}, status=403)
         
         order_id = request.data.get('order_id')
         fee = request.data.get('fee')
         dest_code = request.data.get('destination_warehouse')
-        current_warehouse = self.get_object()
+        
         if not user_can_access_warehouse(request.user, current_warehouse):
             return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
         
@@ -90,20 +106,23 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
 
                 # Update historical route pricing (rolling average) for future staff guidance.
                 from .models import HistoricalRoutePricing
+                from django.db import transaction
+                from decimal import Decimal
                 try:
                     dest_wh_obj = Warehouse.objects.get(code=dest_code)
-                    hrp, _ = HistoricalRoutePricing.objects.get_or_create(
-                        origin_warehouse=current_warehouse,
-                        destination_warehouse=dest_wh_obj,
-                        defaults={'average_cost': fee, 'data_points': 1}
-                    )
-                    if hrp.data_points >= 1 and not _:
-                        from decimal import Decimal
-                        n = hrp.data_points
-                        new_avg = hrp.average_cost + (Decimal(str(fee)) - hrp.average_cost) / Decimal(str(n + 1))
-                        hrp.average_cost = new_avg
-                        hrp.data_points = n + 1
-                        hrp.save(update_fields=['average_cost', 'data_points'])
+                    fee_dec = Decimal(str(fee))
+                    with transaction.atomic():
+                        hrp, created = HistoricalRoutePricing.objects.select_for_update().get_or_create(
+                            origin_warehouse=current_warehouse,
+                            destination_warehouse=dest_wh_obj,
+                            defaults={'average_cost': fee_dec, 'data_points': 1}
+                        )
+                        if not created:
+                            n = hrp.data_points
+                            new_avg = hrp.average_cost + (fee_dec - hrp.average_cost) / Decimal(str(n + 1))
+                            hrp.average_cost = new_avg
+                            hrp.data_points = n + 1
+                            hrp.save(update_fields=['average_cost', 'data_points'])
                 except Warehouse.DoesNotExist:
                     pass
 
@@ -235,6 +254,13 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                 notes=notes
             )
             
+            # Sync Shipment state
+            from logistics.models import Shipment
+            shipment = Shipment.objects.filter(order=order).order_by('-created_at').first()
+            if shipment and shipment.status == 'pending':
+                shipment.status = 'in_transit'
+                shipment.save(update_fields=['status'])
+            
             # Update transfer record if it exists
             WarehouseTransfer.objects.filter(
                 order=order,
@@ -262,7 +288,34 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
         package_condition = serializer.validated_data.get('package_condition', 'good')
 
         from logistics.utils import order_has_vehicles
-        if order.status == 'ARRIVED_AT_REGIONAL_WAREHOUSE':
+        
+        if order.status == 'FAILED_DELIVERY':
+            new_status = 'RETURNED_TO_HUB'
+            notes = f"Failed delivery package returned to hub ({warehouse.name}). Condition: {package_condition}"
+            
+            origin_code = order.delivery_info.get('warehouse_code') if order.delivery_info else None
+            if origin_code and origin_code != warehouse.code:
+                # Need to route it back to origin warehouse for seller pickup
+                try:
+                    origin_wh = Warehouse.objects.get(code=origin_code)
+                    WarehouseTransfer.objects.create(
+                        order=order,
+                        source_warehouse=warehouse,
+                        destination_warehouse=origin_wh,
+                        status='pending'
+                    )
+                except Warehouse.DoesNotExist:
+                    pass
+        elif order.status == 'IN_TRANSIT':
+            is_home_delivery = order.delivery_info and order.delivery_info.get('shipping_speed')
+            if order_has_vehicles(order):
+                new_status = 'READY_FOR_VEHICLE_HANDOVER'
+            elif is_home_delivery:
+                new_status = 'ASSIGNED_TRANSPORT'
+            else:
+                new_status = 'READY_FOR_PICKUP'
+            notes = f"Package received at destination warehouse ({warehouse.name}). Ready for final delivery/pickup. Condition: {package_condition}"
+        elif order.status == 'ARRIVED_AT_REGIONAL_WAREHOUSE':
             is_home_delivery = order.delivery_info and order.delivery_info.get('shipping_speed')
             if order_has_vehicles(order):
                 new_status = 'READY_FOR_VEHICLE_HANDOVER'
@@ -271,9 +324,6 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
             else:
                 new_status = 'READY_FOR_PICKUP'
             notes = f"Package inspected and shelved at destination hub ({warehouse.name}). Ready for final delivery/pickup. Condition: {package_condition}"
-        elif order.status == 'IN_TRANSIT':
-            new_status = 'ARRIVED_AT_REGIONAL_WAREHOUSE'
-            notes = f"Package received at destination warehouse ({warehouse.name}). Condition: {package_condition}"
         else:
             new_status = 'RECEIVED_AT_WAREHOUSE'
             notes = f"Package received at origin warehouse ({warehouse.name}). Condition: {package_condition}"

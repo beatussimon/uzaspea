@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import toast from 'react-hot-toast';
 
 interface CartItem {
-  productId: number;
+  productId: string | number;
   name: string;
   price: number;
   stock: number;
@@ -20,8 +20,8 @@ interface CartContextType {
   cartCount: number;
   totalPrice: number;
   addToCart: (product: any, quantity?: number) => void;
-  removeFromCart: (productId: number) => void;
-  updateQuantity: (productId: number, quantity: number) => void;
+  removeFromCart: (productId: string | number) => void;
+  updateQuantity: (productId: string | number, quantity: number) => void;
   clearCart: () => void;
 }
 
@@ -53,6 +53,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addToCart = useCallback((product: any, quantity = 1) => {
     setItems((prev) => {
+      const currentUsername = localStorage.getItem('username');
+      if (currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase()) {
+        toast.error("You cannot add your own product to the cart");
+        return prev;
+      }
+
       const existing = prev.find((i) => i.productId === product.id);
       const firstImage = product.images?.[0]?.image || '';
 
@@ -93,7 +99,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const removeFromCart = useCallback((productId: number) => {
+  const removeFromCart = useCallback((productId: string | number) => {
     setItems((prev) => {
       const item = prev.find((i) => i.productId === productId);
       if (item) toast.success(`${item.name} removed from cart`);
@@ -101,7 +107,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const updateQuantity = useCallback((productId: number, quantity: number) => {
+  const updateQuantity = useCallback((productId: string | number, quantity: number) => {
     setItems((prev) => {
       if (quantity <= 0) {
         return prev.filter((i) => i.productId !== productId);

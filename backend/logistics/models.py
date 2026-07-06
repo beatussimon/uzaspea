@@ -106,11 +106,13 @@ class DriverPayment(models.Model):
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='driver_payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     is_paid = models.BooleanField(default=False)
+    is_cancelled = models.BooleanField(default=False)
     paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Payment of {self.amount} to {self.driver.username if self.driver else 'None'} ({'Paid' if self.is_paid else 'Unpaid'})"
+        status_str = 'Cancelled' if self.is_cancelled else ('Paid' if self.is_paid else 'Unpaid')
+        return f"Payment of {self.amount} to {self.driver.username if self.driver else 'None'} ({status_str})"
 
 
 from django.db.models.signals import post_save
