@@ -176,10 +176,20 @@ const CheckoutPage: React.FC = () => {
       const nearestWarehouseCode = getNearestWarehouseCode(sellerLat, sellerLng);
 
       const orderData = {
-        items: items.map((item) => ({
-          product: item.productId,
-          quantity: item.quantity,
-        })),
+        items: items.map((item) => {
+          let productId = item.productId;
+          let variantId = null;
+          if (typeof productId === 'string' && productId.includes('-')) {
+            const parts = productId.split('-');
+            productId = parseInt(parts[0], 10);
+            variantId = parseInt(parts[1], 10);
+          }
+          return {
+            product: productId,
+            variant: variantId,
+            quantity: item.quantity,
+          };
+        }),
         total_amount: finalTotal,
         shipping_method: shippingMethod,
         shipping_fee: 0, // 0 at checkout

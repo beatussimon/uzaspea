@@ -29,7 +29,8 @@ class OrderStateMachine:
         'SHIPPED': ['DELIVERED', 'IN_TRANSIT'],
         'DELIVERED': ['COMPLETED', 'DISPUTED'],  # FIX B-15: buyer can dispute after delivery
         'DISPUTED': ['PROCESSING', 'CANCELLED'],  # FIX B-15: staff resolves
-        'FAILED_DELIVERY': ['READY_FOR_PICKUP', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'CANCELLED'],
+        'FAILED_DELIVERY': ['READY_FOR_PICKUP', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'RETURNED_TO_HUB', 'CANCELLED'],
+        'RETURNED_TO_HUB': ['ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'READY_FOR_PICKUP', 'COMPLETED', 'CANCELLED'],
         'COMPLETED': [],
         'CANCELLED': [],
         'EXPIRED': [],
@@ -48,7 +49,7 @@ class OrderStateMachine:
                     'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE',
                     'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY',
                     'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP',
-                    'READY_FOR_VEHICLE_HANDOVER', 'FAILED_DELIVERY'
+                    'READY_FOR_VEHICLE_HANDOVER', 'FAILED_DELIVERY', 'RETURNED_TO_HUB'
                 ]
                 if new_state == 'CANCELLED' and locked_order.status not in cant_cancel_states:
                     pass
@@ -196,6 +197,16 @@ class OrderStateMachine:
                                 commission_amount=-entry.commission_amount,
                                 entry_type=CommissionLedgerEntry.EntryType.REVERSAL
                             )
+                            
+                # Reverse unpaid driver payments
+                from logistics.models import DriverPayment
+                unpaid_payments = DriverPayment.objects.filter(
+                    shipment__order=locked_order,
+                    is_paid=False,
+                    is_cancelled=False
+                )
+                if unpaid_payments.exists():
+                    unpaid_payments.update(is_cancelled=True)
 
             event = TrackingEvent.objects.create(
                 order=locked_order,

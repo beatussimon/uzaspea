@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Star, Heart, Share2, ShoppingCart, Shield, MapPin, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import SafeImage from './SafeImage';
 import toast from 'react-hot-toast';
@@ -40,7 +41,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
   };
 
   return (
-    <div className={`relative ${viewMode === 'list' ? 'w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg' : 'aspect-[4/3]'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel`}>
+    <div className={`relative ${viewMode === 'list' ? 'w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg' : 'aspect-square'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel`}>
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
@@ -119,11 +120,13 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
 
 const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean }) => {
   const { addToCart } = useCart();
+  const { t } = useTranslation();
 
   if (!product) return null;
 
   const [liked, setLiked] = React.useState(product.is_liked || false);
-  const isOwnProduct = product.seller_username === localStorage.getItem('username');
+  const currentUsername = localStorage.getItem('username');
+  const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -162,7 +165,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
 
   if (viewMode === 'list') {
     return (
-      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-400/60 dark:ring-yellow-500/40' : ''}`}>
+      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-300 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-400/60 dark:ring-yellow-500/40' : ''}`}>
         <Link to={`/product/${product.slug}`} className="flex flex-row items-center gap-4 flex-1 min-w-0">
           {/* Horizontal Image Carousel */}
           <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} />
@@ -199,15 +202,14 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
                )}
             </div>
             <h3 className="font-bold text-sm md:text-base text-gray-900 dark:text-white line-clamp-1 mb-1">{product.name}</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-1 mb-2 hidden md:block">{product.description}</p>
             
             <div className="flex items-end justify-between">
               <div className="flex flex-col">
-                 {product.old_price > product.price && (
-                   <span className="text-[10px] text-gray-400 line-through">TSh {parseInt(product.old_price).toLocaleString()}</span>
+                 {product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) && (
+                   <span className="text-[10px] text-gray-400 line-through">TSh {parseInt(product.price).toLocaleString()}</span>
                  )}
-                 <span className="font-black text-brand-600 dark:text-brand-400 text-base md:text-lg">
-                   TSh {parseInt(product.price).toLocaleString()}
+                 <span className="font-black text-gray-900 dark:text-white text-base md:text-lg">
+                   TSh {parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price).toLocaleString()}
                  </span>
               </div>
               <div className="flex gap-1 items-center mb-1">
@@ -234,7 +236,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
   }
 
   return (
-    <div className={`group relative card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-brand-400 dark:hover:border-brand-600 hover:shadow-card-hover active:scale-95 transition-all duration-300`}>
+    <div className={`group relative card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-300`}>
       <Link to={`/product/${product.slug}`} className="flex flex-col h-full">
         {/* Image Carousel — 4:3 ratio */}
         <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} />
@@ -251,22 +253,21 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
                  </div>
               )}
               {product.has_inspection && (
-                 <div className="flex items-center gap-1 text-[8px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800" title="Professionally Inspected">
+                 <div className="flex items-center gap-1 text-[8px] text-emerald-600 dark:emerald-400 font-black bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800" title="Professionally Inspected">
                    <Shield size={10} />
                    <span className="uppercase tracking-widest text-[8px]">Inspected ✓</span>
                  </div>
               )}
             </div>
           </div>
-          <h3 className="font-bold text-sm text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{product.name}</h3>
-          <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-1 mt-0.5 mb-3 flex-1">{product.description}</p>
-
+          <h3 className="font-bold text-sm text-gray-900 dark:text-white line-clamp-1 mt-0.5 mb-3 flex-1 transition-colors">{product.name}</h3>
+          
           <div className="flex items-baseline gap-2 mt-auto">
-            {product.old_price > product.price && (
-              <span className="text-xs text-gray-400 line-through font-medium">TSh {parseInt(product.old_price).toLocaleString()}</span>
+            {product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) && (
+              <span className="text-xs text-gray-400 line-through font-medium">TSh {parseInt(product.price).toLocaleString()}</span>
             )}
-            <span className="font-black text-brand-600 dark:text-brand-400 text-base">
-              TSh {parseInt(product.price).toLocaleString()}
+            <span className="font-black text-gray-900 dark:text-white text-base">
+              TSh {parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price).toLocaleString()}
             </span>
           </div>
 
@@ -304,8 +305,8 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
           <Heart size={14} className={liked ? 'fill-current' : ''} />
         </button>
         {!isOwnProduct && (
-          <button onClick={handleAddToCart} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-brand-50 dark:hover:bg-brand-900/30 text-gray-500 hover:text-brand-500 transition-colors" title="Add to Cart">
-            <ShoppingCart size={14} />
+          <button onClick={handleAddToCart} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-brand-50 dark:hover:bg-brand-900/30 text-gray-500 hover:text-brand-500 transition-colors" title={t('add_to_cart')}>
+            <ShoppingCart size={16} />
           </button>
         )}
         <button onClick={handleShare} className="w-8 h-8 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors" title="Share">

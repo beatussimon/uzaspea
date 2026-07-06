@@ -3,8 +3,9 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Moon, Sun, Shield, User, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, HelpCircle, 
-  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart
+  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Globe
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import VerifiedBadge from '../VerifiedBadge';
 import { useCart } from '../../context/CartContext';
 import NotificationBell from './NotificationBell';
@@ -13,15 +14,17 @@ import { useTheme } from '../../context/ThemeContext';
 
 const Navbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
+  const { i18n } = useTranslation();
   const { isAuthenticated, user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const lastScrollY = useRef(0);
-  const navbarRef = useRef<HTMLElement>(null);
   const currentOffset = useRef(0);
+  const navbarRef = useRef<HTMLElement>(null);
+  const lastReactScrollY = useRef(0);
   const { cartCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  const [currentScrollY, setCurrentScrollY] = useState(window.pageYOffset);
+  const [currentScrollY, setCurrentScrollY] = useState(window.pageYOffset || 0);
 
   const isVerified = user?.is_verified || false;
   const userTier = user?.tier || 'free';
@@ -41,7 +44,7 @@ const Navbar = () => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // Natural 1:1 Navbar auto-hide on scroll
+  // Natural 1:1 Navbar auto-hide on scroll using zero-lag absolute positioning
   useEffect(() => {
     let ticking = false;
     const handleScroll = () => {
@@ -49,22 +52,36 @@ const Navbar = () => {
         window.requestAnimationFrame(() => {
           const currentY = window.pageYOffset;
           const delta = currentY - lastScrollY.current;
+          const nav = navbarRef.current;
           
-          setCurrentScrollY(currentY);
-
-          // 1. Grace zone: Always show if near the top
-          if (currentY <= 60) {
-            currentOffset.current = 0;
-          } 
-          // 2. Normal scroll behavior: move exactly with the scroll delta
-          else {
-            // Maximum height to hide (navbar is ~80px on md, 56px on mobile)
-            const maxHide = 80;
-            currentOffset.current = Math.max(-maxHide, Math.min(0, currentOffset.current - delta));
+          // Throttle React state updates to avoid rendering lag during scroll
+          if (
+            Math.abs(currentY - lastReactScrollY.current) > 50 ||
+            (currentY < 20 !== lastReactScrollY.current < 20) ||
+            (currentY < 400 !== lastReactScrollY.current < 400)
+          ) {
+            setCurrentScrollY(currentY);
+            lastReactScrollY.current = currentY;
           }
 
-          if (navbarRef.current) {
-            navbarRef.current.style.transform = `translateY(${currentOffset.current}px)`;
+          if (nav) {
+            // Mathematical 1:1 scroll tracking
+            if (delta > 0) {
+              // Scrolling down
+              const maxHide = nav.offsetHeight || 80;
+              currentOffset.current = Math.min(maxHide, currentOffset.current + delta);
+            } else if (delta < 0) {
+              // Scrolling up
+              if (currentY <= 60) {
+                // Smart Grace Zone: if we scroll up and reach within 60px of top,
+                // instantly snap to fully visible so there's never a gap near the top.
+                currentOffset.current = 0;
+              } else {
+                currentOffset.current = Math.max(0, currentOffset.current + delta);
+              }
+            }
+            
+            nav.style.transform = `translateY(-${currentOffset.current}px)`;
           }
 
           lastScrollY.current = currentY;
@@ -109,7 +126,7 @@ const Navbar = () => {
     <nav 
       ref={navbarRef}
       className={`fixed top-0 inset-x-0 z-50 ${navBackgroundClass}`}
-      style={{ willChange: 'transform' }}
+      style={{ willChange: 'transform', transform: 'translateY(0px)' }}
     >
       <div className="container-page relative flex items-center justify-between h-14 md:h-20 w-full">
 
@@ -189,6 +206,15 @@ const Navbar = () => {
 
             <button onClick={toggleTheme} className={themeButtonClass} aria-label="Toggle theme">
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <button 
+              onClick={() => i18n.changeLanguage(i18n.language === 'sw' ? 'en' : 'sw')} 
+              className={themeButtonClass} 
+              aria-label="Toggle Language"
+              title={`Switch to ${i18n.language === 'sw' ? 'English' : 'Swahili'}`}
+            >
+              <Globe size={18} />
+              <span className="text-[10px] font-bold ml-1">{i18n.language === 'sw' ? 'EN' : 'SW'}</span>
             </button>
           </div>
 

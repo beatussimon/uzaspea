@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import { 
   Home, PlusCircle, ShoppingBag, User, X, 
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
-  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun
+  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun, Globe
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
 import { useCart } from '../context/CartContext';
@@ -16,6 +17,7 @@ const MobileBottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { cartCount } = useCart();
+  const { i18n } = useTranslation();
   
   const { isAuthenticated, user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -51,15 +53,19 @@ const MobileBottomNav = () => {
           const currentY = window.pageYOffset;
           const delta = currentY - lastScrollY.current;
           
-          // 1. Grace zone: Always show if near the top
-          if (currentY <= 60) {
-            currentOffset.current = 0;
-          } 
-          // 2. Normal scroll behavior: move exactly with the scroll delta
-          else {
-            // Maximum height to hide (bottom nav is ~80px tall)
-            const maxHide = 80; // Positive translation moves it down, out of view
-            currentOffset.current = Math.max(0, Math.min(maxHide, currentOffset.current + delta));
+          // Smart Grace Zone & Normal Scroll
+          if (delta > 0) {
+            // Scrolling down
+            const maxHide = 80;
+            currentOffset.current = Math.min(maxHide, currentOffset.current + delta);
+          } else if (delta < 0) {
+            // Scrolling up
+            if (currentY <= 60) {
+              // Smart Grace Zone: Snap to fully visible if near top and scrolling up
+              currentOffset.current = 0;
+            } else {
+              currentOffset.current = Math.max(0, currentOffset.current + delta);
+            }
           }
 
           if (navRef.current) {
@@ -252,6 +258,10 @@ const MobileBottomNav = () => {
                   <button onClick={toggleTheme} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors text-left w-full">
                     {isDark ? <Sun size={20} /> : <Moon size={20} />}
                     <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+                  </button>
+                  <button onClick={() => i18n.changeLanguage(i18n.language === 'sw' ? 'en' : 'sw')} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors text-left w-full">
+                    <Globe size={20} />
+                    <span>{i18n.language === 'sw' ? 'English' : 'Kiswahili'}</span>
                   </button>
                   <Link to="/dashboard/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors">
                     <Settings size={20} />

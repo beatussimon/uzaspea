@@ -247,6 +247,7 @@ class Product(models.Model):
     slug = models.SlugField(unique=True, blank=True)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     stock = models.PositiveIntegerField(default=0)
     is_available = models.BooleanField(default=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
@@ -409,6 +410,7 @@ class Order(models.Model):
         ('FAILED_DELIVERY', 'Failed Delivery'),
         ('EXPIRED', 'Expired'),
         ('DISPUTED', 'Disputed'),
+        ('RETURNED_TO_HUB', 'Returned To Hub'),
     )
     SHIPPING_CHOICES = (
         ('PICKUP', 'Physical Pickup'),
