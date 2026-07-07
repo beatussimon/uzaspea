@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, X, LayoutGrid } from 'lucide-react';
+import { Search, X, LayoutGrid, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from './api';
 import ProductCard from './components/ProductCard';
