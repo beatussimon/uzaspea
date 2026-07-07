@@ -534,23 +534,32 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         serializer.save(user=user)
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = None
+
+    def get_queryset(self):
+        from django.db.models import Count, Prefetch
+        # Pre-annotate children with their product counts to avoid N+1 queries
+        children_qs = Category.objects.annotate(
+            annotated_product_count=Count('products', distinct=True)
+        )
+        # Return only root categories, with children prefetched and parent counts annotated
+        return Category.objects.filter(parent__isnull=True).annotate(
+            annotated_product_count=Count('products', distinct=True)
+        ).prefetch_related(
+            Prefetch('children', queryset=children_qs)
+        ).order_by('name')
 
     def list(self, request, *args, **kwargs):
         from django.core.cache import cache
         from rest_framework.response import Response
-        version = cache.get('categories_cache_version', 1)
-        page = request.GET.get('page', 1)
-        cache_key = f"categories_list_page_{page}"
-        data = cache.get(cache_key, version=version)
-        
+        cache_key = 'categories_list_v2'
+        data = cache.get(cache_key)
         if not data:
             response = super().list(request, *args, **kwargs)
             data = response.data
-            cache.set(cache_key, data, 60 * 60 * 2, version=version)
-            
+            # Cache for 2 hours; invalidate externally when categories change
+            cache.set(cache_key, data, 60 * 60 * 2)
         return Response(data)
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -692,7 +701,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             dropoff_warehouse_code = request.data.get('warehouse_code')
             if dropoff_warehouse_code:
                 if isinstance(order.delivery_info, dict):
-                    order.delivery_info['warehouse_code'] = dropoff_warehouse_code
+                    new_di = dict(order.delivery_info)
+                    new_di['warehouse_code'] = dropoff_warehouse_code
+                    order.delivery_info = new_di
                 else:
                     order.delivery_info = {'warehouse_code': dropoff_warehouse_code}
                 order.save(update_fields=['delivery_info'])

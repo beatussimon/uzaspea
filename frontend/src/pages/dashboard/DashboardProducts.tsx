@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { Package, Plus } from 'lucide-react';
@@ -22,6 +22,20 @@ const DashboardProducts: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  // Flatten the nested category tree from the API into a flat list for the <select> dropdown
+  const flatCategories = useMemo(() => {
+    const result: any[] = [];
+    for (const cat of categories) {
+      result.push({ id: cat.id, name: cat.name, depth: 0 });
+      if (cat.children?.length) {
+        for (const child of cat.children) {
+          result.push({ id: child.id, name: `  › ${child.name}`, depth: 1 });
+        }
+      }
+    }
+    return result;
+  }, [categories]);
 
   // Infinite Scroll state
   const [, setPage] = useState(1);
@@ -251,7 +265,7 @@ const DashboardProducts: React.FC = () => {
             <select name="category" value={form.category} onChange={handleChange} required
               className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white">
               <option value="">Select Category</option>
-              {categories.map((cat: any) => (
+              {flatCategories.map((cat: any) => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>

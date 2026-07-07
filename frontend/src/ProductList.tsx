@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, Bell, X, LayoutGrid } from 'lucide-react';
+import { Search, X, LayoutGrid } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from './api';
 import ProductCard from './components/ProductCard';
 import SponsorCard from './components/SponsorCard';
 import { ProductCardSkeleton } from './components/Skeleton';
+import SafeImage from './components/SafeImage';
 
 const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } } as any;
 const cardVariants = {
@@ -177,8 +178,14 @@ const ProductList = () => {
     }
   }, [urlQuery]);
 
-  useEffect(() => { 
-    api.get('/api/categories/').then((r: any) => setCategories(r.data.results || r.data)).catch(() => {}); 
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  useEffect(() => {
+    setCategoriesLoading(true);
+    api.get('/api/categories/')
+      .then((r: any) => setCategories(r.data.results || r.data))
+      .catch(() => {})
+      .finally(() => setCategoriesLoading(false));
   }, []);
 
   // Infinite scroll
@@ -204,9 +211,9 @@ const ProductList = () => {
     return () => obs.disconnect();
   }, [hasMore, loadingMore, loading, fetchProducts]);
 
-  const topCategories = categories.filter((c: any) => !c.parent);
-  const activeParent = topCategories.find((c: any) => c.slug === selectedCategory);
-  const subcategories = activeParent?.children || [];
+  const topCategories = useMemo(() => categories.filter((c: any) => !c.parent), [categories]);
+  const activeParent = useMemo(() => topCategories.find((c: any) => c.slug === selectedCategory), [topCategories, selectedCategory]);
+  const subcategories = useMemo(() => activeParent?.children || [], [activeParent]);
 
   const [localSearch, setLocalSearch] = useState(urlQuery);
   const navigate = useNavigate();
@@ -353,6 +360,7 @@ const ProductList = () => {
         <div className="w-full pt-1 pb-2">
           {/* Horizontal Category Slider (Image Circles) */}
           <div className="flex items-start justify-start md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-4 w-full px-4 scroll-smooth">
+            {/* All Products pill */}
             <div className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group" onClick={() => { updateFilters({ category: '', subcategory: '' }); }}>
               <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 border-2 ${!selectedCategory ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
                 <LayoutGrid className={`w-8 h-8 md:w-10 md:h-10 stroke-[1.5] ${!selectedCategory ? 'text-brand-600 dark:text-brand-400' : 'text-neutral-800 dark:text-neutral-100'}`} />
@@ -360,7 +368,14 @@ const ProductList = () => {
               <span className={`text-xs font-bold text-center max-w-[5.5rem] md:max-w-[6.5rem] leading-tight line-clamp-2 ${!selectedCategory ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>All Products</span>
             </div>
 
-            {topCategories.filter((cat: any) => cat.product_count > 0).map((cat: any) => {
+            {categoriesLoading
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-2 shrink-0 animate-pulse">
+                    <div className="w-20 h-20 rounded-full bg-neutral-200 dark:bg-neutral-700" />
+                    <div className="w-14 h-3 rounded-full bg-neutral-200 dark:bg-neutral-700" />
+                  </div>
+                ))
+              : topCategories.filter((cat: any) => cat.product_count > 0).map((cat: any) => {
               const isActive = selectedCategory === cat.slug;
               
               return (
@@ -375,7 +390,14 @@ const ProductList = () => {
                       </span>
                     )}
                     {cat.image ? (
-                      <img src={cat.image} alt={cat.name} className="w-14 h-14 md:w-16 md:h-16 object-contain" />
+                      <SafeImage
+                        src={cat.image}
+                        alt={cat.name}
+                        category={cat.name}
+                        className="w-14 h-14 md:w-16 md:h-16 object-contain"
+                        loading="lazy"
+                        decoding="async"
+                      />
                     ) : (
                       <span className="text-2xl font-black text-black/30 dark:text-white/30 uppercase tracking-widest">{cat.name.charAt(0)}</span>
                     )}

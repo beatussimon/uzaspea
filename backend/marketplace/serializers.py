@@ -43,8 +43,12 @@ class CategorySerializer(serializers.ModelSerializer):
         depth = self.context.get('_cat_depth', 0)  # FIX C-17: depth guard
         if depth >= 2:
             return []
-        kids = obj.children.all()
-        if not kids.exists():
+        # Use prefetched children (no extra query if prefetch was done in the viewset)
+        try:
+            kids = obj.children.all()
+        except Exception:
+            return []
+        if not kids:
             return []
         return CategorySerializer(
             kids, many=True,
@@ -52,12 +56,10 @@ class CategorySerializer(serializers.ModelSerializer):
         ).data
 
     def get_product_count(self, obj):
+        # Always prefer the DB-annotated count to avoid any extra queries
         if hasattr(obj, 'annotated_product_count'):
             return obj.annotated_product_count
-        count = obj.products.count()
-        for child in obj.children.all():
-            count += child.products.count()
-        return count
+        return obj.products.count()
 
 
 class ProductImageSerializer(serializers.ModelSerializer):

@@ -99,11 +99,12 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
             if dest_code:
                 if not order.delivery_info:
                     order.delivery_info = {}
-                order.delivery_info['destination_warehouse_code'] = dest_code
+                new_di = dict(order.delivery_info)
+                new_di['destination_warehouse_code'] = dest_code
+                order.delivery_info = new_di
                 order.shipping_fee = fee
                 order.save(update_fields=['shipping_fee', 'delivery_info'])
                 
-
                 # Update historical route pricing (rolling average) for future staff guidance.
                 from .models import HistoricalRoutePricing
                 from django.db import transaction
@@ -336,7 +337,9 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
 
         if not order.delivery_info:
             order.delivery_info = {}
-        order.delivery_info['current_warehouse_code'] = warehouse.code
+        new_di = dict(order.delivery_info)
+        new_di['current_warehouse_code'] = warehouse.code
+        order.delivery_info = new_di
         order.save(update_fields=['delivery_info'])
 
         # Mark any incoming transfer as completed
