@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, Bell, ChevronDown, ChevronUp, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
@@ -37,6 +37,7 @@ interface ProductData {
   is_verified: boolean;
   location_name?: string;
   created_at?: string;
+  sale_price?: string | null;
 }
 
 interface InspectionSummary {
@@ -226,7 +227,6 @@ const ProductDetailPage: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  const isAuthenticated = !!localStorage.getItem('access_token');
 
   useEffect(() => {
     if (!slug) return;
