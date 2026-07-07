@@ -97,6 +97,11 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                 return Response({'error': 'Order must be RECEIVED_AT_WAREHOUSE to set fee.'}, status=400)
             
             if dest_code:
+                from warehouses.models import Warehouse as _Warehouse, WarehouseTransfer
+                from .models import HistoricalRoutePricing
+                from django.db import transaction
+                from decimal import Decimal
+
                 if not order.delivery_info:
                     order.delivery_info = {}
                 new_di = dict(order.delivery_info)
@@ -104,13 +109,10 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                 order.delivery_info = new_di
                 order.shipping_fee = fee
                 order.save(update_fields=['shipping_fee', 'delivery_info'])
-                
+
                 # Update historical route pricing (rolling average) for future staff guidance.
-                from .models import HistoricalRoutePricing
-                from django.db import transaction
-                from decimal import Decimal
                 try:
-                    dest_wh_obj = Warehouse.objects.get(code=dest_code)
+                    dest_wh_obj = _Warehouse.objects.get(code=dest_code)
                     fee_dec = Decimal(str(fee))
                     with transaction.atomic():
                         hrp, created = HistoricalRoutePricing.objects.select_for_update().get_or_create(
@@ -124,20 +126,19 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                             hrp.average_cost = new_avg
                             hrp.data_points = n + 1
                             hrp.save(update_fields=['average_cost', 'data_points'])
-                except Warehouse.DoesNotExist:
+                except _Warehouse.DoesNotExist:
                     pass
 
                 if dest_code != current_warehouse.code:
-                    from warehouses.models import Warehouse, WarehouseTransfer
                     try:
-                        dest_warehouse = Warehouse.objects.get(code=dest_code)
+                        dest_warehouse = _Warehouse.objects.get(code=dest_code)
                         WarehouseTransfer.objects.get_or_create(
                             order=order,
                             source_warehouse=current_warehouse,
                             destination_warehouse=dest_warehouse,
                             defaults={'status': 'pending'}
                         )
-                    except Warehouse.DoesNotExist:
+                    except _Warehouse.DoesNotExist:
                         pass
             else:
                 order.shipping_fee = fee
