@@ -1130,15 +1130,15 @@ class StoreImage(models.Model):
 
 
 
+
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.core.cache import cache
 
 def invalidate_category_cache(*args, **kwargs):
-    try:
-        cache.incr('categories_cache_version')
-    except ValueError:
-        cache.set('categories_cache_version', 1)
+    # Delete both legacy and current cache keys
+    cache.delete('categories_list_v2')
+    cache.delete('categories_list_v1')
 
 @receiver(post_save, sender=Category)
 @receiver(post_delete, sender=Category)
@@ -1146,3 +1146,4 @@ def invalidate_category_cache(*args, **kwargs):
 @receiver(post_delete, sender=Product)
 def handle_category_invalidation(sender, **kwargs):
     invalidate_category_cache()
+
