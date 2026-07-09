@@ -427,8 +427,13 @@ class ProductViewSet(viewsets.ModelViewSet):
             if c:
                 status_counts[s] = c
 
-        settings_obj = SiteSettings.get()
-        commission_rate_val = float(settings_obj.commission_rate) if settings_obj else 10.0
+        from marketplace.models import Subscription
+        active_sub = Subscription.objects.filter(user=request.user, is_active=True).select_related('tier').first()
+        if active_sub and active_sub.tier:
+            commission_rate_val = float(active_sub.tier.commission_rate)
+        else:
+            settings_obj = SiteSettings.get()
+            commission_rate_val = float(settings_obj.commission_rate) if settings_obj else 10.0
 
         return Response({
             'total_products': products.count(),

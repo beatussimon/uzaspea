@@ -85,9 +85,10 @@ class ShipmentViewSet(viewsets.ModelViewSet):
 
         if new_status == 'in_transit':
             carrier_type = serializer.validated_data.get('carrier_type', 'driver')
-            if order_has_vehicles(order):
-                if carrier_type == 'driver' and not driver:
-                    raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
+            # Fleet driver assignment is optional for now and not enforced
+            # if order_has_vehicles(order):
+            #     if carrier_type == 'driver' and not driver:
+            #         raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
             
             if carrier_type == 'third_party' and not serializer.validated_data.get('third_party_driver_info'):
                 raise ValidationError("Third party driver info must be provided for shipments before transit.")
@@ -126,9 +127,10 @@ class ShipmentViewSet(viewsets.ModelViewSet):
 
         if new_status == 'in_transit' and instance.status != 'in_transit':
             carrier_type = serializer.validated_data.get('carrier_type', instance.carrier_type)
-            if order_has_vehicles(order):
-                if carrier_type == 'driver' and not driver:
-                    raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
+            # Fleet driver assignment is optional for now and not enforced
+            # if order_has_vehicles(order):
+            #     if carrier_type == 'driver' and not driver:
+            #         raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
             
             if carrier_type == 'third_party' and not serializer.validated_data.get('third_party_driver_info', instance.third_party_driver_info):
                 raise ValidationError("Third party driver info must be provided for shipments before transit.")

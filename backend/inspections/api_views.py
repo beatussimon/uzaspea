@@ -326,24 +326,33 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         product = get_object_or_404(Product, id=product_id)
         
         # 1. Ensure matching InspectionCategory exists
-        cat_name = product.category.name
-        # Match by name (case-insensitive)
-        insp_cat = InspectionCategory.objects.filter(name__iexact=cat_name).first()
+        # Match by linked marketplace category first, then by name (case-insensitive)
+        insp_cat = InspectionCategory.objects.filter(marketplace_category=product.category).first()
+        if not insp_cat:
+            cat_name = product.category.name
+            insp_cat = InspectionCategory.objects.filter(name__iexact=cat_name).first()
         
         if not insp_cat:
+            cat_name = product.category.name
             if not (request.user.is_staff or request.user.is_superuser):
                 return Response({'detail': f'Inspection category for "{cat_name}" does not exist and auto-creation requires staff privileges.'}, status=403)
                 
-            # Borrow the category: Create a new inspection category
-            # Use 'marketplace' (slug) as a parent if it exists, otherwise root
-            parent = InspectionCategory.objects.filter(name__iexact='Marketplace').first()
+            # Try to find parent by marketplace link or name
+            parent = None
+            if product.category.parent:
+                parent = InspectionCategory.objects.filter(marketplace_category=product.category.parent).first()
+                if not parent:
+                    parent = InspectionCategory.objects.filter(name__iexact=product.category.parent.name).first()
+            
             if not parent:
-                parent = InspectionCategory.objects.create(
-                    name='Marketplace',
-                    slug='marketplace',
-                    level='domain',
-                    description='Automatic category for marketplace items'
-                )
+                parent = InspectionCategory.objects.filter(name__iexact='Marketplace').first()
+                if not parent:
+                    parent = InspectionCategory.objects.create(
+                        name='Marketplace',
+                        slug='marketplace',
+                        level='domain',
+                        description='Automatic category for marketplace items'
+                    )
             
             slug = product.category.slug
             if InspectionCategory.objects.filter(slug=slug).exists():
@@ -354,7 +363,8 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
                 slug=slug,
                 level='category',
                 parent=parent,
-                description=f"Auto-created from marketplace: {product.category.description}"
+                description=f"Auto-created from marketplace: {product.category.description}",
+                marketplace_category=product.category
             )
             # Ensure it has a base price if inherited or default
             insp_cat.base_price = 50000.00  # Default base price for new categories
@@ -758,8 +768,14 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
             request_obj.status = 'in_progress'
             request_obj.save(update_fields=['status'])
             
-            # Simple lookup for a template to get version
-            latest_template = ChecklistTemplate.objects.filter(category=request_obj.category, is_active=True).order_by('-version').first()
+            # Hierarchical lookup for a template to get version
+            current = request_obj.category
+            latest_template = None
+            while current:
+                latest_template = ChecklistTemplate.objects.filter(category=current, is_active=True).order_by('-version').first()
+                if latest_template:
+                    break
+                current = current.parent
             version = latest_template.version if latest_template else 1
 
             report, created = InspectionReport.objects.get_or_create(

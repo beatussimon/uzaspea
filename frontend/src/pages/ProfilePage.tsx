@@ -251,13 +251,7 @@ const ProfilePage: React.FC = () => {
 
           {/* Row 3: Bio & Meta Details */}
           <div className="space-y-2 text-sm text-gray-800 dark:text-neutral-200">
-            {/* Display name or verified status */}
-            <div className="font-semibold text-gray-950 dark:text-white flex items-center gap-2">
-              <span>SokoniMax Partner</span>
-              <span className="text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-neutral-400 scale-90">
-                {profile.tier?.replace('_', ' ')}
-              </span>
-            </div>
+
 
             {/* Biography */}
             {profile.bio ? (
