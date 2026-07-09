@@ -259,9 +259,9 @@ const MobileBottomNav = () => {
                     {isDark ? <Sun size={20} /> : <Moon size={20} />}
                     <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
                   </button>
-                  <button onClick={() => i18n.changeLanguage(i18n.language === 'sw' ? 'en' : 'sw')} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors text-left w-full">
+                  <button onClick={() => i18n.changeLanguage(i18n.language?.startsWith('sw') ? 'en' : 'sw')} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors text-left w-full">
                     <Globe size={20} />
-                    <span>{i18n.language === 'sw' ? 'English' : 'Kiswahili'}</span>
+                    <span>{i18n.language?.startsWith('sw') ? 'English' : 'Kiswahili'}</span>
                   </button>
                   <Link to="/dashboard/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors">
                     <Settings size={20} />

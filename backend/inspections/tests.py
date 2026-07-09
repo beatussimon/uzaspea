@@ -11,8 +11,8 @@ User = get_user_model()
 class InspectionPricingTestCase(TestCase):
     def setUp(self):
         self.category = InspectionCategory.objects.create(
-            name="Electronics",
-            slug="electronics",
+            name="Electronics Test",
+            slug="electronics-test",
             base_price=Decimal("100000.00"),
             required_inspector_level="senior"
         )
@@ -86,8 +86,8 @@ class InspectionStateMachineTestCase(TestCase):
         self.superuser = User.objects.create_superuser(username="admin", password="password")
         
         self.category = InspectionCategory.objects.create(
-            name="General",
-            slug="general",
+            name="General Test",
+            slug="general-test",
             base_price=Decimal("50000.00")
         )
         self.request_obj = InspectionRequest.objects.create(
@@ -145,8 +145,8 @@ class AdvancedInspectionWorkflowTestCase(TestCase):
         self.client_user = User.objects.create_user(username="client2", password="password")
         self.inspector_user = User.objects.create_user(username="inspector2", password="password")
         self.category = InspectionCategory.objects.create(
-            name="Vehicles",
-            slug="vehicles",
+            name="Vehicles Test",
+            slug="vehicles-test",
             base_price=Decimal("150000.00")
         )
         self.request_obj = InspectionRequest.objects.create(

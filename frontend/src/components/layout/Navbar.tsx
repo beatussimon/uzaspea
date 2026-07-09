@@ -208,13 +208,13 @@ const Navbar = () => {
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <button 
-              onClick={() => i18n.changeLanguage(i18n.language === 'sw' ? 'en' : 'sw')} 
+              onClick={() => i18n.changeLanguage(i18n.language?.startsWith('sw') ? 'en' : 'sw')} 
               className={themeButtonClass} 
               aria-label="Toggle Language"
-              title={`Switch to ${i18n.language === 'sw' ? 'English' : 'Swahili'}`}
+              title={`Switch to ${i18n.language?.startsWith('sw') ? 'English' : 'Swahili'}`}
             >
               <Globe size={18} />
-              <span className="text-[10px] font-bold ml-1">{i18n.language === 'sw' ? 'EN' : 'SW'}</span>
+              <span className="text-[10px] font-bold ml-1">{i18n.language?.startsWith('sw') ? 'EN' : 'SW'}</span>
             </button>
           </div>
 

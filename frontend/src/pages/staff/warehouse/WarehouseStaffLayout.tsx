@@ -156,10 +156,8 @@ const WarehouseStaffLayout: React.FC = () => {
           setActiveModal('origin_intake');
           break;
         case 'IN_TRANSIT':
-          setActiveModal('destination_intake');
-          break;
         case 'ARRIVED_AT_REGIONAL_WAREHOUSE':
-          setActiveModal('last_mile_sorting');
+          setActiveModal('destination_intake');
           break;
         case 'RECEIVED_AT_WAREHOUSE':
           setActiveModal('pricing');
@@ -212,8 +210,7 @@ const WarehouseStaffLayout: React.FC = () => {
       setOrderPreview(order);
       if (actionType === 'intake') {
         if (order.status === 'SHIPPED_TO_WAREHOUSE') setActiveModal('origin_intake');
-        else if (order.status === 'IN_TRANSIT' || order.status === 'FAILED_DELIVERY') setActiveModal('destination_intake');
-        else if (order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE') setActiveModal('last_mile_sorting');
+        else if (order.status === 'IN_TRANSIT' || order.status === 'FAILED_DELIVERY' || order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE') setActiveModal('destination_intake');
         else setActiveModal('origin_intake');
       } else {
         setActiveModal(actionType as any);

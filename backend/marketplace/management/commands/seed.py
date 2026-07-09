@@ -291,8 +291,13 @@ class Command(BaseCommand):
 
     def _seed_inspections(self):
         from inspections.models import InspectionCategory
+        from marketplace.models import Category as MarketCategory
 
-        def cat(name, parent=None, level='category', base_price=50000, inspector_level='junior'):
+        def cat(name, parent=None, level='category', base_price=50000, inspector_level='junior', marketplace_slug=None):
+            mkt_cat = None
+            if marketplace_slug:
+                mkt_cat = MarketCategory.objects.filter(slug=marketplace_slug).first()
+            
             obj, created = InspectionCategory.objects.get_or_create(
                 name=name,
                 defaults={
@@ -301,96 +306,292 @@ class Command(BaseCommand):
                     'base_price': base_price,
                     'required_inspector_level': inspector_level,
                     'is_active': True,
+                    'marketplace_category': mkt_cat,
                 }
             )
+            if not created and mkt_cat and not obj.marketplace_category:
+                obj.marketplace_category = mkt_cat
+                obj.save()
             if created:
                 self.stdout.write(f'  + {obj.get_full_path()}')
             return obj
 
         # ── DOMAINS ──────────────────────────────────────────────────────
-        vehicles   = cat('Vehicles',             level='domain', base_price=0)
-        electronics = cat('Electronics',          level='domain', base_price=0)
-        prop       = cat('Property',              level='domain', base_price=0)
-        machinery  = cat('Machinery & Equipment', level='domain', base_price=0)
-        agri_dom   = cat('Agriculture',           level='domain', base_price=0)
+        vehicles    = cat('Vehicles',             level='domain', base_price=0, marketplace_slug='vehicles')
+        electronics = cat('Electronics',          level='domain', base_price=0, marketplace_slug='electronics')
+        prop        = cat('Property',              level='domain', base_price=0, marketplace_slug='property')
+        machinery   = cat('Machinery & Tools',     level='domain', base_price=0, marketplace_slug='machinery')
+        agri_dom    = cat('Agriculture',           level='domain', base_price=0, marketplace_slug='agriculture')
+        fashion_dom = cat('Fashion & Clothing',    level='domain', base_price=0, marketplace_slug='fashion')
+        home_garden = cat('Home & Garden',         level='domain', base_price=0, marketplace_slug='home-garden')
+        sports_dom  = cat('Sports & Fitness',      level='domain', base_price=0, marketplace_slug='sports')
+        baby_kids   = cat('Baby & Kids',           level='domain', base_price=0, marketplace_slug='baby-kids')
+        books_media = cat('Books, Music & Movies', level='domain', base_price=0, marketplace_slug='books-media')
+        services    = cat('Services',              level='domain', base_price=0, marketplace_slug='services')
+        other_dom   = cat('Other Categories',      level='domain', base_price=0, marketplace_slug='other')
 
         # ── VEHICLE SUBCATEGORIES ────────────────────────────────────────
-        cars         = cat('Cars & SUVs',               vehicles,  base_price=60000,  inspector_level='senior')
-        motorcycles  = cat('Motorcycles & Boda Boda',   vehicles,  base_price=35000)
-        trucks       = cat('Trucks & Commercial',        vehicles,  base_price=90000,  inspector_level='specialist')
-        spare_parts  = cat('Vehicle Spare Parts',        vehicles,  base_price=20000)
+        cars         = cat('Cars & SUVs',               vehicles,  base_price=60000,  inspector_level='senior',     marketplace_slug='cars-suvs')
+        motorcycles  = cat('Motorcycles & Boda Boda',   vehicles,  base_price=35000,  inspector_level='junior',     marketplace_slug='motorcycles')
+        trucks       = cat('Trucks & Commercial',        vehicles,  base_price=90000,  inspector_level='specialist', marketplace_slug='trucks')
+        spare_parts  = cat('Vehicle Spare Parts',        vehicles,  base_price=20000,  inspector_level='junior',     marketplace_slug='spare-parts')
 
         # ── ELECTRONICS SUBCATEGORIES ────────────────────────────────────
-        phones       = cat('Smartphones & Tablets',      electronics, base_price=25000)
-        laptops      = cat('Laptops & Computers',        electronics, base_price=35000, inspector_level='senior')
-        tv_audio     = cat('TVs & Audio Equipment',      electronics, base_price=20000)
-        cameras      = cat('Cameras & Photography',      electronics, base_price=25000)
+        phones       = cat('Smartphones & Tablets',      electronics, base_price=25000, inspector_level='junior',     marketplace_slug='smartphones')
+        laptops      = cat('Laptops & Computers',        electronics, base_price=35000, inspector_level='senior',     marketplace_slug='laptops')
+        tv_audio     = cat('TVs & Audio Equipment',      electronics, base_price=20000, inspector_level='junior',     marketplace_slug='tvs-audio')
+        cameras      = cat('Cameras & Photography',      electronics, base_price=25000, inspector_level='junior',     marketplace_slug='cameras')
+        gaming       = cat('Gaming & Consoles',          electronics, base_price=25000, inspector_level='junior',     marketplace_slug='gaming')
 
         # ── PROPERTY SUBCATEGORIES ────────────────────────────────────────
-        residential  = cat('Residential Property', prop, base_price=150000, inspector_level='specialist')
-        commercial   = cat('Commercial Property',  prop, base_price=200000, inspector_level='specialist')
-        land         = cat('Land & Plots',         prop, base_price=80000,  inspector_level='senior')
+        residential  = cat('Residential Property', prop, base_price=150000, inspector_level='specialist', marketplace_slug='houses')
+        commercial   = cat('Commercial Property',  prop, base_price=200000, inspector_level='specialist', marketplace_slug='commercial-property')
+        land         = cat('Land & Plots',         prop, base_price=80000,  inspector_level='senior',     marketplace_slug='land')
 
         # ── MACHINERY SUBCATEGORIES ───────────────────────────────────────
-        generators   = cat('Generators & Power',       machinery, base_price=50000, inspector_level='senior')
-        construction = cat('Construction Equipment',    machinery, base_price=70000, inspector_level='senior')
-        power_tools  = cat('Power Tools & Equipment',  machinery, base_price=25000)
+        generators   = cat('Generators & Power',       machinery, base_price=50000, inspector_level='senior',     marketplace_slug='generators')
+        construction = cat('Construction Equipment',    machinery, base_price=70000, inspector_level='senior',     marketplace_slug='construction-equipment')
+        power_tools  = cat('Power Tools',              machinery, base_price=25000, inspector_level='junior',     marketplace_slug='power-tools')
+        hand_tools   = cat('Hand Tools',               machinery, base_price=15000, inspector_level='junior',     marketplace_slug='hand-tools')
 
         # ── AGRICULTURE SUBCATEGORIES ─────────────────────────────────────
-        farm_mach    = cat('Farm Machinery',            agri_dom, base_price=80000, inspector_level='specialist')
-        livestock    = cat('Livestock & Poultry',       agri_dom, base_price=40000, inspector_level='senior')
+        farm_mach    = cat('Farm Machinery',            agri_dom, base_price=80000, inspector_level='specialist', marketplace_slug='farm-machinery')
+        livestock    = cat('Livestock & Poultry',       agri_dom, base_price=40000, inspector_level='senior',     marketplace_slug='livestock')
+        seeds_fert   = cat('Seeds & Fertilizers',       agri_dom, base_price=15000, inspector_level='junior',     marketplace_slug='seeds-fertilizers')
+        irrigation   = cat('Irrigation Equipment',      agri_dom, base_price=30000, inspector_level='junior',     marketplace_slug='irrigation')
+
+        # ── FASHION SUBCATEGORIES ─────────────────────────────────────────
+        mens_clothing = cat("Men's Clothing",   fashion_dom, base_price=10000, inspector_level='junior', marketplace_slug='mens-clothing')
+        womens_clothing = cat("Women's Clothing", fashion_dom, base_price=10000, inspector_level='junior', marketplace_slug='womens-clothing')
+        shoes         = cat('Shoes & Footwear',  fashion_dom, base_price=15000, inspector_level='junior', marketplace_slug='shoes')
+        bags          = cat('Bags & Luggage',    fashion_dom, base_price=15000, inspector_level='junior', marketplace_slug='bags')
+        watches_jw    = cat('Watches & Jewellery', fashion_dom, base_price=25000, inspector_level='senior', marketplace_slug='watches-jewellery')
+
+        # ── HOME & GARDEN SUBCATEGORIES ───────────────────────────────────
+        furniture     = cat('Furniture',           home_garden, base_price=30000, inspector_level='junior', marketplace_slug='furniture')
+        kitchen_app   = cat('Kitchen & Appliances', home_garden, base_price=25000, inspector_level='junior', marketplace_slug='kitchen-appliances')
+        home_decor    = cat('Home Décor',          home_garden, base_price=15000, inspector_level='junior', marketplace_slug='home-decor')
+        garden        = cat('Garden & Outdoor',    home_garden, base_price=15000, inspector_level='junior', marketplace_slug='garden')
+
+        # ── SPORTS SUBCATEGORIES ──────────────────────────────────────────
+        fitness       = cat('Fitness Equipment',    sports_dom, base_price=25000, inspector_level='junior', marketplace_slug='fitness')
+        outdoor       = cat('Outdoor & Adventure',  sports_dom, base_price=20000, inspector_level='junior', marketplace_slug='outdoor')
+        team_sports   = cat('Team Sports Equipment', sports_dom, base_price=15000, inspector_level='junior', marketplace_slug='team-sports')
+
+        # ── BABY & KIDS SUBCATEGORIES ─────────────────────────────────────
+        baby_gear     = cat('Baby Gear',            baby_kids, base_price=20000, inspector_level='junior', marketplace_slug='baby-gear')
+        toys          = cat('Toys & Games',         baby_kids, base_price=15000, inspector_level='junior', marketplace_slug='toys')
+        kids_clothing = cat("Children's Clothing",  baby_kids, base_price=10000, inspector_level='junior', marketplace_slug='kids-clothing')
+
+        # ── BOOKS & MEDIA SUBCATEGORIES ───────────────────────────────────
+        books         = cat('Books & Textbooks',    books_media, base_price=10000, inspector_level='junior', marketplace_slug='books')
+        music         = cat('Music & Instruments',  books_media, base_price=25000, inspector_level='senior', marketplace_slug='music')
+
+        # ── SERVICES SUBCATEGORIES ────────────────────────────────────────
+        repair        = cat('Repair & Maintenance', services, base_price=20000, inspector_level='junior', marketplace_slug='repair')
+        tutoring      = cat('Tutoring & Education', services, base_price=15000, inspector_level='junior', marketplace_slug='tutoring')
+        bus_services  = cat('Business Services',    services, base_price=30000, inspector_level='senior', marketplace_slug='business-services')
+
+        # ── OTHER SUBCATEGORIES ───────────────────────────────────────────
+        other         = cat('Other Items',          other_dom, base_price=15000, inspector_level='junior', marketplace_slug='other')
 
         # ══════════════════════════════════════════════════════════════════
-        # CHECKLISTS
+        # CHECKLIST SEEDING
         # ══════════════════════════════════════════════════════════════════
 
-        # ── CARS — 45 items (existing — idempotent) ──────────────────────
+        # ── VEHICLES ──
         self._checklist_cars(cars)
-
-        # ── MOTORCYCLES & BODA BODA — 28 items ──────────────────────────
         self._checklist_motorcycles(motorcycles)
-
-        # ── TRUCKS & COMMERCIAL — 35 items ──────────────────────────────
         self._checklist_trucks(trucks)
-
-        # ── SPARE PARTS ──────────────────────────────────────────────────
         self._checklist_spare_parts(spare_parts)
 
-        # ── SMARTPHONES & TABLETS (existing — idempotent) ────────────────
+        # ── ELECTRONICS ──
         self._checklist_phones(phones)
-
-        # ── LAPTOPS (existing — idempotent) ──────────────────────────────
         self._checklist_laptops(laptops)
-
-        # ── TVs & AUDIO — 22 items ───────────────────────────────────────
         self._checklist_tv_audio(tv_audio)
-
-        # ── CAMERAS — 20 items ───────────────────────────────────────────
         self._checklist_cameras(cameras)
+        
+        # Gaming
+        self.create_checklist(gaming, [
+            ('Console & Controller Button Response', 'scale', True, True, '', 'Check all buttons, triggers, and analog sticks for stick drift or stickiness'),
+            ('Optical Drive / Disc Reading', 'pass_fail', False, False, '', 'Verify if console reads physical game discs or Blu-rays successfully'),
+            ('HDMI & USB Ports Physical Condition', 'pass_fail', True, True, '', 'Check for bent pins, looseness, or burnt smells in ports'),
+            ('Fan Noise & Overheating Assessment', 'scale', True, True, '', 'Run console for 10 minutes — check for excessive fan noise or heat shutdown'),
+        ])
 
-        # ── RESIDENTIAL PROPERTY (existing — idempotent) ─────────────────
+        # ── PROPERTY ──
         self._checklist_residential(residential)
-
-        # ── COMMERCIAL PROPERTY — 30 items ───────────────────────────────
         self._checklist_commercial(commercial)
-
-        # ── LAND & PLOTS — 18 items ───────────────────────────────────────
         self._checklist_land(land)
 
-        # ── GENERATORS (existing — idempotent) ───────────────────────────
+        # ── MACHINERY ──
         self._checklist_generators(generators)
-
-        # ── CONSTRUCTION EQUIPMENT — 22 items ────────────────────────────
         self._checklist_construction(construction)
-
-        # ── POWER TOOLS ──────────────────────────────────────────────────
         self._checklist_power_tools(power_tools)
+        
+        # Hand Tools
+        self.create_checklist(hand_tools, [
+            ('Handle Grip & Safety Condition', 'scale', True, False, '', 'Check rubber grips, welds and overall handle integrity'),
+            ('Metal Corrosion & Wear Assessment', 'scale', True, True, '', 'Check for structural rust, cracks or deformation on working edges'),
+            ('Joint / Moving Parts Operation', 'pass_fail', True, False, '', 'For pliers, adjustables, clamps — verify smooth movement and no locking'),
+        ])
 
-        # ── FARM MACHINERY — 25 items ─────────────────────────────────────
+        # ── AGRICULTURE ──
         self._checklist_farm_machinery(farm_mach)
-
-        # ── LIVESTOCK — 20 items ─────────────────────────────────────────
         self._checklist_livestock(livestock)
+        
+        # Seeds & Fertilizers
+        self.create_checklist(seeds_fert, [
+            ('Packaging & Seal Integrity', 'pass_fail', True, True, '', 'Verify bags are factory sealed, dry and free of tears/infestation'),
+            ('Expiry Date & Batch Number Code', 'pass_fail', True, True, '', 'Must show clear expiry date and batch information'),
+            ('Government Certification Stamps', 'pass_fail', True, True, '', 'Verify TOSCI/TFDA stamp or other agricultural certification'),
+        ])
+        
+        # Irrigation
+        self.create_checklist(irrigation, [
+            ('Pump Operation & Engine Compression', 'pass_fail', True, True, '', 'Start pump engine/motor — check for smooth start, fuel leaks, correct sound'),
+            ('Hoses, Pipes, & Connectors Leak Check', 'pass_fail', True, True, '', 'Connect and pressurize system — inspect all joints and pipes for water leaks'),
+            ('Valves & Pressure Gauge Readings', 'scale', True, False, '', 'Ensure pressure gauges operate and control valves adjust flow correctly'),
+        ])
+
+        # ── FASHION ──
+        clothing_items = [
+            ('Stitching Quality & Seam Integrity', 'scale', True, False, '', 'Inspect seams under tension — check for loose threads or unraveling'),
+            ('Zippers, Buttons & Fasteners Function', 'pass_fail', True, True, '', 'Slide all zippers up/down and test all buttons/press studs'),
+            ('Fabric Condition (Tears, Stains, Holes)', 'scale', True, True, '', 'Check front, back, interior for holes, discoloration, or heavy wear'),
+            ('Brand Tag & Care Label Presence', 'pass_fail', False, False, '', 'Check label presence and care instructions readability'),
+        ]
+        self.create_checklist(mens_clothing, clothing_items)
+        self.create_checklist(womens_clothing, clothing_items)
+        self.create_checklist(kids_clothing, clothing_items)
+        
+        # Shoes
+        self.create_checklist(shoes, [
+            ('Sole Wear & Tread Depth', 'scale', True, True, '', 'Inspect shoe soles for tread wear, cracks, or loose glue lines'),
+            ('Upper Material Condition (Scuffs, Tears)', 'scale', True, True, '', 'Inspect leather/fabric for scuffs, cracks, holes, or staining'),
+            ('Insole & Interior Lining Condition', 'scale', True, False, '', 'Check inside for wear, tearing, or hygiene issues'),
+            ('Authenticity & Quality Hallmarks', 'pass_fail', True, True, '', 'For branded shoes — verify labels, logo stitching, box labels, and serials'),
+        ])
+        
+        # Bags
+        self.create_checklist(bags, [
+            ('Handle & Strap Attachment Strength', 'scale', True, True, '', 'Pull test on handles/straps — check stitching and metal loop condition'),
+            ('Zippers & Lock Mechanisms Operation', 'pass_fail', True, True, '', 'Test all zip openings and buckle locks'),
+            ('Interior Lining & Pockets Condition', 'scale', True, False, '', 'Inspect interior for tears, stains, or damage'),
+            ('Authenticity Verification', 'pass_fail', True, True, '', 'Verify tags, brand engraving, alignment of logos and stitch patterns'),
+        ])
+        
+        # Watches & Jewellery
+        self.create_checklist(watches_jw, [
+            ('Movement Accuracy & Battery Condition', 'pass_fail', True, True, '', 'Verify watch keeps time correctly. If automatic, test rotor swing'),
+            ('Case, Bezel, and Crystal Scratch Check', 'scale', True, True, '', 'Check glass face for cracks/scratches, check case/bracelet finish'),
+            ('Crown & Dial Adjustments Function', 'pass_fail', True, True, '', 'Pull crown and test setting time/date, chronograph buttons'),
+            ('Authenticity Hallmarks & Material Purity', 'pass_fail', True, True, '', 'Verify stamps (e.g. 925, 18K), model serial number, and paperwork'),
+        ])
+
+        # ── HOME & GARDEN ──
+        # Furniture
+        self.create_checklist(furniture, [
+            ('Joint Stability & Weld Strength', 'scale', True, True, '', 'Check for wobbling, loose joints, or weak welds under load'),
+            ('Surface Finish, Paint, & Veneer Condition', 'scale', True, False, '', 'Check for scratches, chips, missing veneer, or water damage'),
+            ('Upholstery Upholstery Wear & Staining', 'scale', True, True, '', 'For sofas/chairs — inspect fabric/leather for rips, stains, or sagging'),
+            ('Drawers, Hinges, & Doors Alignment', 'pass_fail', False, False, '', 'Open and close all drawers/doors to verify correct alignment and slide'),
+        ])
+        
+        # Kitchen Appliances
+        self.create_checklist(kitchen_app, [
+            ('Heating / Cooling Temp Benchmarks', 'pass_fail', True, True, '', 'Verify appliance reaches correct operational temperature (fridge, oven, kettle)'),
+            ('Electrical Cord, Plug & Grounding safety', 'pass_fail', True, True, '', 'Inspect power cord for fraying, check plug grounding pin'),
+            ('Door Gaskets & Seals Condition', 'scale', True, False, '', 'Inspect door rubber seals to ensure proper closing and seal'),
+            ('Controls, Knobs, & Displays Function', 'pass_fail', True, False, '', 'Verify all button options, knobs, and digital displays function correctly'),
+        ])
+        
+        # Home Decor
+        self.create_checklist(home_decor, [
+            ('Physical Integrity (No Cracks, Chips)', 'scale', True, True, '', 'Verify item is structurally whole with no damage'),
+            ('Finish & Paint Aesthetics Quality', 'scale', True, False, '', 'Inspect surface aesthetics, colors, paint and textures'),
+        ])
+        
+        # Garden
+        self.create_checklist(garden, [
+            ('Structure & Mechanical Components Integrity', 'scale', True, False, '', 'Check handles, wheels, or moving mechanical joints'),
+            ('Rust, Corrosion, & Environmental Wear', 'scale', True, True, '', 'Check steel/iron parts for rust and UV damage on plastics'),
+        ])
+
+        # ── SPORTS ──
+        # Fitness
+        self.create_checklist(fitness, [
+            ('Frame Stability & Weld Integrity', 'scale', True, True, '', 'Inspect structural frame and bolts under load for movement or cracking'),
+            ('Cables, Pulleys, and Belts Tension', 'scale', True, True, '', 'Check tension, fraying on cables, belt cracking, and smooth operation'),
+            ('Electronic Monitor & Screen Operation', 'pass_fail', False, False, '', 'Verify console boots, buttons work, and sensor feedback functions'),
+        ])
+        
+        # Outdoor
+        self.create_checklist(outdoor, [
+            ('Zipper & Fabric Water Resistance', 'scale', True, True, '', 'Check zippers and seams on tents/sleeping bags. Inspect fabric condition'),
+            ('Poles, Buckles & Strap Strength', 'scale', True, False, '', 'Check poles for bends, check all straps and plastic buckle clips'),
+        ])
+        
+        # Team Sports
+        self.create_checklist(team_sports, [
+            ('Pressure Retention & Physical Form', 'pass_fail', True, True, '', 'Check for pressure leaks in balls. Verify safety shields/guards structural form'),
+            ('Nets, Posts & Protective Mesh Condition', 'scale', True, False, '', 'Inspect netting or posts for fraying or structural stability'),
+        ])
+
+        # ── BABY & KIDS ──
+        # Baby Gear
+        self.create_checklist(baby_gear, [
+            ('Harness & Buckle Safety System', 'pass_fail', True, True, '', 'Test child lock buckle and ensure straps lock securely'),
+            ('Folding Mechanism & Brake Locks', 'pass_fail', True, True, '', 'Ensure stroller/cot folds cleanly and brakes lock wheels perfectly'),
+            ('Fabric Cleanliness & Frame Strength', 'scale', True, True, '', 'Check for stains, check frames under structural load'),
+        ])
+        
+        # Toys
+        self.create_checklist(toys, [
+            ('Choking Hazards & Sharp Edges Inspection', 'pass_fail', True, True, '', 'Verify no sharp edges or loose small components suitable for swallowing'),
+            ('Battery Compartment Safety & Function', 'pass_fail', False, False, '', 'Verify battery cover locks securely. Test clean contacts and battery runtime'),
+        ])
+
+        # ── BOOKS & MEDIA ──
+        # Books
+        self.create_checklist(books, [
+            ('Spine & Page Binding Integrity', 'scale', True, True, '', 'Verify pages are not falling out and the spine is secure'),
+            ('Completeness Check (No Missing Pages)', 'pass_fail', True, True, '', 'Verify page sequence — no torn or missing pages'),
+            ('Markings, Highlighting & Cover Wear', 'scale', True, False, '', 'Check for notations, stains, or creasing on covers'),
+        ])
+        
+        # Music
+        self.create_checklist(music, [
+            ('Neck Alignment & Tuning Stability', 'scale', True, True, '', 'For stringed instruments — check neck straightness and tuners hold pitch'),
+            ('Pickups, Knobs & Input Jack Function', 'pass_fail', False, False, '', 'Connect to amplifier — check volume, tone pots, and jack connection noise'),
+            ('Keys, Valves & Pad Action Response', 'scale', True, False, '', 'Ensure key/valve movement is smooth with no sticking or air leaks'),
+        ])
+
+        # ── SERVICES ──
+        # Repair
+        self.create_checklist(repair, [
+            ('Company Permits & Technician Credentials', 'pass_fail', True, True, '', 'Verify business permit and technician licenses/certifications'),
+            ('Service Warranty & Scope Agreement', 'text', True, False, '', 'Verify service contract terms and length of repair warranty'),
+            ('Equipment and Tools Professional Standard', 'scale', True, False, '', 'Evaluate diagnostic gear and tools used by service team'),
+        ])
+        # Tutoring
+        self.create_checklist(tutoring, [
+            ('Educational Qualifications Verification', 'pass_fail', True, True, '', 'Verify academic degrees, transcripts and tutoring licenses'),
+            ('Syllabus & Course Delivery Plan', 'text', True, False, '', 'Verify tutoring schedule and curriculum alignment'),
+        ])
+        # Business Services
+        self.create_checklist(bus_services, [
+            ('Professional Registration & Certifications', 'pass_fail', True, True, '', 'Verify professional body membership (CPAs, Bar association etc.)'),
+            ('Service Level Agreement (SLA) Review', 'text', True, True, '', 'Check standard deliverables and timelines listed in the contract'),
+        ])
+
+        # ── OTHER ──
+        # Other
+        self.create_checklist(other, [
+            ('General Physical Condition & Form', 'scale', True, True, '', 'Inspect physical shape, finish, and structural condition'),
+            ('Basic Functionality Check', 'pass_fail', True, True, '', 'Verify if item performs its primary function successfully'),
+            ('Packaging & Manuals Presence', 'scale', False, False, '', 'Check if original boxes, manuals, and accessories are present'),
+        ])
 
         self.stdout.write(self.style.SUCCESS('  ✓ Inspection categories and checklists complete'))
 

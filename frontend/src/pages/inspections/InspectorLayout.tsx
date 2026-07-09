@@ -207,12 +207,85 @@ const PhotoCapture: React.FC<{
   captured?: boolean;
 }> = ({ label, onCapture, captured }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'acquiring' | 'ready' | 'unavailable'>('idle');
+  const [showCamera, setShowCamera] = useState(false);
 
-  const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const startCamera = async () => {
+    setShowCamera(true);
+    setGpsStatus('idle');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      streamRef.current = stream;
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err) {
+      console.error("Camera access failed, falling back to upload:", err);
+      toast.error("Could not start live camera. Falling back to upload.");
+      setShowCamera(false);
+      inputRef.current?.click();
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setShowCamera(false);
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    
+    setGpsStatus('acquiring');
+    getLocation().then(pos => {
+      setGpsStatus('ready');
+      finishCapture(pos.lat, pos.lng);
+    }).catch(() => {
+      setGpsStatus('unavailable');
+      const confirmNoGps = window.confirm('GPS Location is unavailable. Proceed without GPS?');
+      if (confirmNoGps) {
+        finishCapture(null, null);
+      } else {
+        setGpsStatus('idle');
+      }
+    });
+  };
+
+  const finishCapture = (lat: number | null, lng: number | null) => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `${label.toLowerCase().replace(/[^a-z0-9]/g, '_')}_live.jpg`, { type: 'image/jpeg' });
+          onCapture(file, lat, lng);
+          if (lat !== null) {
+            toast.success(`${label} captured with GPS`);
+          } else {
+            toast.success(`${label} captured (no GPS)`);
+          }
+          stopCamera();
+        }
+      }, 'image/jpeg', 0.85);
+    }
+  };
+
+  const handleFallbackUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
     setGpsStatus('acquiring');
     let lat: number | null = null;
     let lng: number | null = null;
@@ -223,23 +296,24 @@ const PhotoCapture: React.FC<{
       setGpsStatus('ready');
     } catch {
       setGpsStatus('unavailable');
-      const confirmNoGps = window.confirm('GPS Location is unavailable. Your check-in will be flagged. Do you want to proceed without GPS?');
+      const confirmNoGps = window.confirm('GPS Location is unavailable. Proceed without GPS?');
       if (!confirmNoGps) {
         e.target.value = '';
         setGpsStatus('idle');
         return;
       }
-      toast('Location unavailable — photo saved without GPS', { icon: '⚠️' });
     }
     onCapture(file, lat, lng);
     if (lat !== null) {
       toast.success(`${label} captured with GPS`);
+    } else {
+      toast.success(`${label} captured (no GPS)`);
     }
   };
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      {gpsStatus !== 'idle' && (
+      {gpsStatus !== 'idle' && !showCamera && (
         <div className={`flex items-center justify-center gap-1.5 text-xs font-semibold py-1 px-2 rounded-md ${
           gpsStatus === 'acquiring' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 animate-pulse' :
           gpsStatus === 'ready' ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
@@ -251,29 +325,76 @@ const PhotoCapture: React.FC<{
         </div>
       )}
       
-      <label className={`flex flex-col items-center gap-2 p-5 border-2 border-dashed rounded-xl cursor-pointer transition ${
-        captured
-          ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
-          : 'border-surface-border dark:border-surface-dark-border hover:border-brand-400 bg-white dark:bg-gray-800'
-      }`}>
+      <button 
+        type="button"
+        onClick={startCamera}
+        className={`flex flex-col items-center gap-2 p-5 border-2 border-dashed rounded-xl cursor-pointer transition w-full ${
+          captured
+            ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
+            : 'border-surface-border dark:border-surface-dark-border hover:border-brand-400 bg-white dark:bg-gray-800'
+        }`}
+      >
         {captured ? (
           <CheckCircle size={28} className="text-green-500" />
         ) : (
           <Camera size={28} className="text-gray-400" />
         )}
         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {captured ? `${label} ✓` : label}
+          {captured ? `${label} ✓` : `Take Live ${label}`}
         </span>
-        <span className="text-xs text-gray-400">GPS auto-tagged</span>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handleCapture}
-        />
-      </label>
+        <span className="text-xs text-gray-400">Live Camera only</span>
+      </button>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFallbackUpload}
+      />
+
+      {showCamera && (
+        <div className="fixed inset-0 bg-neutral-950/95 z-[9999] flex flex-col items-center justify-between p-6">
+          <div className="w-full flex items-center justify-between max-w-md">
+            <h3 className="text-white font-bold text-lg">Live Capture: {label}</h3>
+            <button 
+              type="button" 
+              onClick={stopCamera} 
+              className="p-2 bg-neutral-800 text-white rounded-full hover:bg-neutral-700 transition"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="relative w-full max-w-md aspect-[3/4] bg-neutral-900 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center">
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              className="w-full h-full object-cover" 
+            />
+            {gpsStatus === 'acquiring' && (
+              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 text-white">
+                <div className="animate-spin w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full" />
+                <span className="text-sm font-semibold">Acquiring GPS location...</span>
+              </div>
+            )}
+          </div>
+
+          <div className="w-full flex flex-col items-center gap-4 max-w-md">
+            <button 
+              type="button" 
+              onClick={capturePhoto} 
+              className="w-20 h-20 bg-white border-[6px] border-neutral-300 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition cursor-pointer"
+            >
+              <div className="w-14 h-14 bg-red-600 rounded-full" />
+            </button>
+            <p className="text-xs text-neutral-400 text-center">
+              Align the item in frame and press the shutter button.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -14,7 +14,52 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    api.get('/api/notifications/unread_count/').then(r => setCount(r.data.count)).catch(() => {});
+
+    // Request HTML5 notification permission
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+
+    const checkNotifications = async () => {
+      try {
+        const res = await api.get('/api/notifications/');
+        const list = res.data.results || res.data || [];
+        if (list.length > 0) {
+          const sorted = [...list].sort((a, b) => b.id - a.id);
+          const newest = sorted[0];
+          const storedLastId = localStorage.getItem('last_notified_notification_id');
+          
+          if (storedLastId) {
+            const lastId = parseInt(storedLastId, 10);
+            const newUnreads = sorted.filter(n => n.id > lastId && !n.is_read);
+            
+            newUnreads.reverse().forEach(n => {
+              if (Notification.permission === 'granted') {
+                try {
+                  new Notification(n.title, {
+                    body: n.message,
+                  });
+                } catch (e) {
+                  console.error('Failed to trigger native notification:', e);
+                }
+              }
+            });
+          }
+          localStorage.setItem('last_notified_notification_id', String(newest.id));
+        }
+
+        const countRes = await api.get('/api/notifications/unread_count/');
+        setCount(countRes.data.count);
+      } catch (err) {
+        console.error('Error fetching notifications:', err);
+      }
+    };
+
+    checkNotifications();
+    const interval = setInterval(checkNotifications, 30000);
+    return () => clearInterval(interval);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -26,7 +71,14 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
   const openPanel = () => {
     setOpen(!open);
     if (!open) {
-      api.get('/api/notifications/').then(r => setNotifications(r.data.results || r.data)).catch(() => {});
+      api.get('/api/notifications/').then(r => {
+        const list = r.data.results || r.data || [];
+        setNotifications(list);
+        if (list.length > 0) {
+          const sorted = [...list].sort((a, b) => b.id - a.id);
+          localStorage.setItem('last_notified_notification_id', String(sorted[0].id));
+        }
+      }).catch(() => {});
       api.post('/api/notifications/mark_all_read/').then(() => setCount(0)).catch(() => {});
     }
   };

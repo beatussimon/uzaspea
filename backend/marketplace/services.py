@@ -11,10 +11,10 @@ class OrderStateMachine:
         'PAID_PRODUCT': ['SHIPPED_TO_WAREHOUSE', 'CANCELLED'],
         'AWAITING_PAYMENT': ['PENDING_VERIFICATION', 'EXPIRED', 'CANCELLED'],  # FIX L-15: removed self-loop
         'PENDING_VERIFICATION': ['PAID', 'AWAITING_PAYMENT', 'CANCELLED'],
-        'PAID': ['SELLER_CONFIRMED', 'PROCESSING', 'CANCELLED'],
-        'SELLER_CONFIRMED': ['PREPARING', 'CANCELLED'],
-        'PREPARING': ['PACKAGING', 'CANCELLED'],
-        'PACKAGING': ['SHIPPED_TO_WAREHOUSE', 'CANCELLED'],
+        'PAID': ['SELLER_CONFIRMED', 'PROCESSING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
+        'SELLER_CONFIRMED': ['PREPARING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
+        'PREPARING': ['PACKAGING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
+        'PACKAGING': ['SHIPPED_TO_WAREHOUSE', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'SHIPPED_TO_WAREHOUSE': ['RECEIVED_AT_WAREHOUSE'],
         'RECEIVED_AT_WAREHOUSE': ['AWAITING_DELIVERY_PAYMENT', 'ASSIGNED_TRANSPORT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'],
         'AWAITING_DELIVERY_PAYMENT': ['PENDING_DELIVERY_VERIFICATION', 'CANCELLED'],
@@ -34,7 +34,7 @@ class OrderStateMachine:
         'COMPLETED': [],
         'CANCELLED': [],
         'EXPIRED': [],
-    }
+      }
 
     @classmethod
     def transition_order(cls, order, new_state, notes="", visible_to_customer=True):
@@ -42,6 +42,9 @@ class OrderStateMachine:
             locked_order = Order.objects.select_for_update().get(id=order.id)
             old_state = locked_order.status
             
+            if old_state == new_state:
+                return
+
             if new_state not in cls.VALID_TRANSITIONS.get(locked_order.status, []):
                 # FIX: L-08 — cannot cancel once shipped, delivered, completed, or already cancelled
                 cant_cancel_states = [
@@ -158,9 +161,13 @@ class OrderStateMachine:
                 
                 # Create a ledger entry for each seller
                 for seller, amount in seller_totals.items():
-                    from marketplace.models import SiteSettings
-                    settings_obj = SiteSettings.get()
-                    rate = settings_obj.commission_rate / Decimal('100')
+                    from marketplace.models import Subscription, SiteSettings
+                    active_sub = Subscription.objects.filter(user=seller, is_active=True).select_related('tier').first()
+                    if active_sub and active_sub.tier:
+                        rate = active_sub.tier.commission_rate / Decimal('100')
+                    else:
+                        settings_obj = SiteSettings.get()
+                        rate = settings_obj.commission_rate / Decimal('100')
                     commission_amount = amount * rate
                     CommissionLedgerEntry.objects.create(
                         order=locked_order,
