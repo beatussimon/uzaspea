@@ -145,38 +145,36 @@ class OrderStateMachine:
                 except Exception:
                     pass
 
-            # Phase 2: Platform Economics - Log commission on COMPLETED
-            if new_state == 'COMPLETED' and old_state != 'COMPLETED':
+            # Phase 2: Platform Economics - Log commission on DELIVERED or COMPLETED
+            if new_state in ('DELIVERED', 'COMPLETED'):
                 from billing.models import CommissionLedgerEntry
                 from decimal import Decimal
                 
-                # Orders might contain items from multiple sellers. Group totals by seller.
-                seller_totals = {}
-                for item in locked_order.orderitem_set.select_related('product__seller').all():
-                    seller = item.product.seller
-                    item_total = item.quantity * item.price
-                    if seller not in seller_totals:
-                        seller_totals[seller] = Decimal('0.00')
-                    seller_totals[seller] += Decimal(str(item_total))
-                
-                # Create a ledger entry for each seller
-                for seller, amount in seller_totals.items():
-                    from marketplace.models import Subscription, SiteSettings
-                    active_sub = Subscription.objects.filter(user=seller, is_active=True).select_related('tier').first()
-                    if active_sub and active_sub.tier:
-                        rate = active_sub.tier.commission_rate / Decimal('100')
-                    else:
-                        settings_obj = SiteSettings.get()
-                        rate = settings_obj.commission_rate / Decimal('100')
-                    commission_amount = amount * rate
-                    CommissionLedgerEntry.objects.create(
-                        order=locked_order,
-                        seller=seller,
-                        order_amount=amount,
-                        commission_rate=rate * 100,
-                        commission_amount=commission_amount,
-                        entry_type=CommissionLedgerEntry.EntryType.COMMISSION
-                    )
+                # Check if commission has already been charged to prevent double charging
+                if not CommissionLedgerEntry.objects.filter(order=locked_order, entry_type=CommissionLedgerEntry.EntryType.COMMISSION).exists():
+                    # Orders might contain items from multiple sellers. Group totals by seller.
+                    seller_totals = {}
+                    for item in locked_order.orderitem_set.select_related('product__seller').all():
+                        seller = item.product.seller
+                        item_total = item.quantity * item.price
+                        if seller not in seller_totals:
+                            seller_totals[seller] = Decimal('0.00')
+                        seller_totals[seller] += Decimal(str(item_total))
+                    
+                    # Create a ledger entry for each seller using flat SiteSettings commission rate
+                    from marketplace.models import SiteSettings
+                    settings_obj = SiteSettings.get()
+                    rate = (settings_obj.commission_rate / Decimal('100')) if settings_obj else Decimal('0.10')
+                    for seller, amount in seller_totals.items():
+                        commission_amount = amount * rate
+                        CommissionLedgerEntry.objects.create(
+                            order=locked_order,
+                            seller=seller,
+                            order_amount=amount,
+                            commission_rate=rate * 100,
+                            commission_amount=commission_amount,
+                            entry_type=CommissionLedgerEntry.EntryType.COMMISSION
+                        )
 
             # MED-7: Reverse commission when an order is cancelled after commission was charged.
             # The real path is DELIVERED→DISPUTED→CANCELLED (COMPLETED→CANCELLED is blocked
