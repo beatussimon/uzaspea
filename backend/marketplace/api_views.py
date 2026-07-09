@@ -457,11 +457,11 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        is_system_query = self.request.query_params.get('is_system')
+        is_system_query = self.request.query_params.get('is_system') or self.request.query_params.get('system')
         seller_username = self.request.query_params.get('seller')
         purpose = self.request.query_params.get('purpose')
         
-        if is_system_query == 'true':
+        if is_system_query in ('true', '1', 'True'):
             qs = LipaNumber.objects.filter(is_system=True, is_active=True).select_related('network')
             if purpose:
                 qs = qs.filter(purpose=purpose)

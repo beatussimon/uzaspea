@@ -227,9 +227,15 @@ class SubscriptionTierAdmin(admin.ModelAdmin):
 
 @admin.register(LipaNumber)
 class LipaNumberAdmin(admin.ModelAdmin):
-    list_display = ("network", "number", "name", "seller", "is_active")
-    list_filter = ("network", "is_active")
-    search_fields = ("number", "network__name", "seller__username")
+    list_display = ("network", "number", "name", "seller", "purpose", "is_system", "is_active", "display_order")
+    list_filter = ("network", "is_active", "is_system", "purpose")
+    search_fields = ("number", "network__name", "seller__username", "name")
+    list_editable = ("is_active", "display_order", "is_system", "purpose")
+    fieldsets = [
+        (None, {'fields': ['seller', 'network', 'number', 'name', 'display_order']}),
+        ('Classification', {'fields': ['purpose', 'is_system', 'is_active'],
+                            'description': 'Set <strong>is_system = True</strong> and <strong>purpose = Logistics & Delivery Fees</strong> to show this number on the delivery payment screen.'}),
+    ]
 
 # FIX v5: Register new models
 @admin.register(SiteSettings)

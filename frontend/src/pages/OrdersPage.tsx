@@ -57,12 +57,15 @@ const OrdersPage: React.FC = () => {
       } catch {}
   };
 
+  const [systemLipaLoaded, setSystemLipaLoaded] = useState(false);
+
   const fetchSystemLipa = async () => {
-      if (systemLipa.length > 0) return;
+      if (systemLipaLoaded) return;
       try {
-          const res = await api.get(`/api/lipa-numbers/?system=true`);
+          const res = await api.get(`/api/lipa-numbers/?system=true&purpose=logistics`);
           setSystemLipa(res.data.results || res.data);
       } catch {}
+      setSystemLipaLoaded(true);
   };
 
   const fetchShipment = async (order: any) => {
@@ -514,7 +517,11 @@ const OrdersPage: React.FC = () => {
                                     Official Logistics Payment Numbers:
                                 </p>
                                 {systemLipa.length === 0 ? (
-                                    <p className="text-sm text-yellow-300 font-medium">Loading official payment numbers...</p>
+                                    <p className="text-sm text-yellow-300/80 font-medium">
+                                      {systemLipaLoaded
+                                        ? 'No logistics payment numbers configured yet. Contact support for payment instructions.'
+                                        : 'Loading payment numbers...'}
+                                    </p>
                                 ) : (
                                     <div className="flex flex-wrap gap-3">
                                         {systemLipa.map((lipa: any) => (

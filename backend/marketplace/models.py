@@ -132,6 +132,7 @@ class LipaNumber(models.Model):
         ('general', 'General'),
         ('subscriptions', 'Subscriptions & Upgrades'),
         ('commissions', 'Commission Payments'),
+        ('logistics', 'Logistics & Delivery Fees'),
     ]
     purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES, default='general')
 
