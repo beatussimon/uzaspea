@@ -52,8 +52,13 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
 
         const countRes = await api.get('/api/notifications/unread_count/');
         setCount(countRes.data.count);
-      } catch (err) {
-        console.error('Error fetching notifications:', err);
+      } catch (err: any) {
+        if (err.response?.status === 401) {
+          // Token expired or invalid, silently ignore to avoid console spam
+          clearInterval(interval);
+        } else {
+          console.error('Error fetching notifications:', err);
+        }
       }
     };
 

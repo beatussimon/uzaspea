@@ -9,8 +9,10 @@ import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
 import ProductCard from '../components/ProductCard';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { useTranslation } from 'react-i18next';
 
 const ProfilePage: React.FC = () => {
+  const { t } = useTranslation();
   const { username } = useParams<{ username: string }>();
   const [profile, setProfile] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
@@ -198,7 +200,7 @@ const ProfilePage: React.FC = () => {
                   onClick={() => setIsEditing(true)} 
                   className="px-5 py-1.5 rounded-lg border border-gray-350 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-xs font-semibold text-gray-700 dark:text-neutral-300 transition duration-150 active:scale-95"
                 >
-                  <span className="flex items-center gap-1.5"><Settings size={13} className="text-gray-400 dark:text-gray-500" /> Edit Profile</span>
+                  <span className="flex items-center gap-1.5"><Settings size={13} className="text-gray-400 dark:text-gray-500" /> {t('edit_profile')}</span>
                 </button>
               ) : currentUser ? (
                 <div className="flex flex-wrap items-center gap-2">
@@ -210,7 +212,7 @@ const ProfilePage: React.FC = () => {
                         : 'bg-brand-500 hover:bg-brand-600 text-white shadow-sm'
                     }`}
                   >
-                    {followStatus.following ? 'Following' : 'Follow'}
+                    {followStatus.following ? t('following') : t('follow')}
                   </button>
                   {profile?.phone_number && (
                     <a 
@@ -218,7 +220,7 @@ const ProfilePage: React.FC = () => {
                       className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-200 dark:border-brand-900 text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/10 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition active:scale-95 flex items-center gap-1.5"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                      Call
+                      {t('call')}
                     </a>
                   )}
                   <a 
@@ -226,7 +228,7 @@ const ProfilePage: React.FC = () => {
                     className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition active:scale-95 flex items-center gap-1.5"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-                    Message
+                    {t('message')}
                   </a>
                 </div>
               ) : null}
@@ -237,15 +239,15 @@ const ProfilePage: React.FC = () => {
           <div className="flex items-center gap-8 text-sm">
             <div>
               <span className="font-bold text-gray-900 dark:text-neutral-100">{products.length}</span>
-              <span className="text-gray-500 dark:text-neutral-400 ml-1">listings</span>
+              <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('listings')}</span>
             </div>
             <div>
               <span className="font-bold text-gray-900 dark:text-neutral-100">{followStatus.followers_count}</span>
-              <span className="text-gray-500 dark:text-neutral-400 ml-1">followers</span>
+              <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('followers')}</span>
             </div>
             <div>
               <span className="font-bold text-gray-900 dark:text-neutral-100">{followStatus.following_count}</span>
-              <span className="text-gray-500 dark:text-neutral-400 ml-1">following</span>
+              <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('following_count')}</span>
             </div>
           </div>
 
@@ -321,7 +323,7 @@ const ProfilePage: React.FC = () => {
             }`}
           >
             <ShoppingBag size={14} />
-            <span>Listings</span>
+            <span>{t('listings_tab')}</span>
           </button>
           <button
             onClick={() => setActiveTab('about')}
@@ -332,7 +334,7 @@ const ProfilePage: React.FC = () => {
             }`}
           >
             <Info size={14} />
-            <span>About Shop</span>
+            <span>{t('about_shop')}</span>
           </button>
         </div>
 
@@ -342,12 +344,14 @@ const ProfilePage: React.FC = () => {
             {products.length === 0 ? (
               <div className="p-16 text-center text-gray-400 dark:text-neutral-500 bg-gray-50/50 dark:bg-neutral-900/30 border border-dashed border-gray-200 dark:border-neutral-800 rounded-2xl max-w-md mx-auto">
                 <ShoppingBag size={32} className="mx-auto mb-3 opacity-40 text-brand-500" />
-                <p className="text-sm font-semibold">No active products found in this storefront.</p>
+                <p className="text-sm font-semibold">{t('no_active_products')}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 items-stretch p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
                 {products.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <div key={p.id} className="flex flex-col">
+                    <ProductCard product={p} />
+                  </div>
                 ))}
               </div>
             )}
@@ -364,32 +368,32 @@ const ProfilePage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-gray-100 dark:border-neutral-800">
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">Account Type</p>
+                <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">{t('account_type')}</p>
                 <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                   <VerifiedBadge tier={profile.tier} isVerified={profile.is_verified} className="w-4 h-4" />
-                  <span>{profile.is_verified ? 'Verified Seller' : profile.tier === 'customer' || !profile.tier ? 'Buyer Account' : 'Seller Account'}</span>
+                  <span>{profile.is_verified ? t('verified_shop') : profile.tier === 'customer' || !profile.tier ? t('buyer_account') : t('seller_account')}</span>
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">Verification Status</p>
+                <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">{t('verification_status')}</p>
                 <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                   {profile.is_verified ? (
                     <>
                       <CheckCircle size={14} className="text-green-500" />
-                      <span>Verified Shop</span>
+                      <span>{t('verified_shop')}</span>
                     </>
                   ) : (
-                    <span>Standard Account</span>
+                    <span>{t('standard_account')}</span>
                   )}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">Currency Setup</p>
+                <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">{t('currency_setup')}</p>
                 <p className="text-sm font-bold text-gray-900 dark:text-white">{profile.preferred_currency || 'TZS'}</p>
               </div>
               {profile.phone_number && (
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">Phone</p>
+                  <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">{t('phone')}</p>
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{profile.phone_number}</p>
                 </div>
               )}
@@ -400,11 +404,11 @@ const ProfilePage: React.FC = () => {
               <div className="pt-6 border-t border-gray-100 dark:border-neutral-800 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-gray-400 dark:text-neutral-500 uppercase tracking-widest">
-                    Store Showcase ({(profile.store_images || []).length}/9)
+                    {t('store_showcase')} ({(profile.store_images || []).length}/9)
                   </h3>
                   {isOwner && (profile.store_images || []).length < 9 && (
                     <label className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer flex items-center gap-1">
-                      <Plus size={14} /> Add Picture
+                      <Plus size={14} /> {t('add_picture')}
                       <input 
                         type="file" 
                         accept="image/*" 
@@ -462,7 +466,7 @@ const ProfilePage: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Bio</label>
                 <textarea 
                   rows={3} 
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 dark:focus:ring-brand-500 outline-none resize-none transition" 
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white focus:border-gray-900 dark:focus:border-white dark:focus:ring-gray-900 dark:focus:ring-white outline-none resize-none transition" 
                   value={editForm.bio} 
                   onChange={(e) => setEditForm({...editForm, bio: e.target.value})} 
                   placeholder="Tell buyers about yourself..." 
@@ -474,7 +478,7 @@ const ProfilePage: React.FC = () => {
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Location</label>
                   <input 
                     type="text" 
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition" 
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white focus:border-gray-900 dark:focus:border-white outline-none transition" 
                     value={editForm.location} 
                     onChange={(e) => setEditForm({...editForm, location: e.target.value})} 
                     placeholder="e.g. Dar es Salaam" 
@@ -484,7 +488,7 @@ const ProfilePage: React.FC = () => {
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Phone Number</label>
                   <input 
                     type="tel" 
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition" 
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white focus:border-gray-900 dark:focus:border-white outline-none transition" 
                     value={editForm.phone_number} 
                     onChange={(e) => setEditForm({...editForm, phone_number: e.target.value})} 
                     placeholder="+255..." 
@@ -497,7 +501,7 @@ const ProfilePage: React.FC = () => {
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Website URL</label>
                   <input 
                     type="url" 
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition" 
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white focus:border-gray-900 dark:focus:border-white outline-none transition" 
                     value={editForm.website} 
                     onChange={(e) => setEditForm({...editForm, website: e.target.value})} 
                     placeholder="https://..." 
@@ -507,7 +511,7 @@ const ProfilePage: React.FC = () => {
                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Instagram Username</label>
                   <input 
                     type="text" 
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition" 
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white focus:border-gray-900 dark:focus:border-white outline-none transition" 
                     value={editForm.instagram_username} 
                     onChange={(e) => setEditForm({...editForm, instagram_username: e.target.value})} 
                     placeholder="@username" 

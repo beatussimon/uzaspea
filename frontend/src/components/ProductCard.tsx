@@ -13,6 +13,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const images = product.images || [];
+  const { t } = useTranslation();
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -41,7 +42,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
   };
 
   return (
-    <div className={`relative ${viewMode === 'list' ? 'w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg' : 'aspect-square'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel`}>
+    <div className={`relative ${viewMode === 'list' ? 'w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg' : 'h-48'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel`}>
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
@@ -54,30 +55,30 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
                 src={img.image || ''}
                 alt={`${product.name} - ${i + 1}`}
                 category={product.category_name}
-                className="object-cover w-full h-full"
+                className="object-cover object-top w-full h-full"
               />
             </div>
           ))
         ) : (
           <div className="flex-none w-full h-full snap-center">
-            <SafeImage src="" alt={product.name} category={product.category_name} className="object-cover w-full h-full" />
+            <SafeImage src="" alt={product.name} category={product.category_name} className="object-cover object-top w-full h-full" />
           </div>
         )}
       </div>
 
       {viewMode === 'list' ? (
         <span className={`absolute top-1 left-1 text-[8px] px-1.5 py-0.5 rounded font-bold text-white shadow-sm uppercase z-10 ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
-          {product.condition || 'New'}
+          {product.condition === 'New' ? t('new', 'New') : t('used', 'Used')}
         </span>
       ) : (
         <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
           {isSponsored && (
             <span className="bg-brand-600 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase tracking-wider">
-              Sponsored
+              {t('sponsored', 'Sponsored')}
             </span>
           )}
           <span className={`text-[9px] px-2 py-0.5 rounded font-bold text-white shadow-md uppercase tracking-wider w-fit ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
-            {product.condition || 'New'}
+            {product.condition === 'New' ? t('new', 'New') : t('used', 'Used')}
           </span>
           {product.old_price > product.price && (
             <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded font-black shadow-md uppercase w-fit">
@@ -174,7 +175,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
           <div className="flex-1 min-w-0 pr-8">
             <div className="flex items-center gap-1.5 mb-1 text-[9px] text-gray-400">
                {isSponsored && (
-                 <span className="text-white bg-brand-600 px-1.5 py-0.5 rounded text-[8px] uppercase font-black tracking-widest shrink-0 shadow-md">Sponsored</span>
+                 <span className="text-white bg-brand-600 px-1.5 py-0.5 rounded text-[8px] uppercase font-black tracking-widest shrink-0 shadow-md">{t('sponsored', 'Sponsored')}</span>
                )}
                <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider shrink-0">{product.category_name}</span>
                <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
@@ -195,9 +196,9 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
                  </>
                )}
                {product.is_verified && (
-                 <div className="flex items-center gap-1 text-[9px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800 ml-auto shrink-0">
+                 <div className="flex items-center gap-1 text-[9px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800 ml-auto shrink-0" title={t('verified_seller', 'Verified Seller')}>
                    <Shield size={10} className="fill-current" />
-                   <span className="uppercase tracking-widest text-[8px]">Verified</span>
+                   <span className="uppercase tracking-widest text-[8px]">{t('verified', 'Verified')}</span>
                  </div>
                )}
             </div>
@@ -236,9 +237,9 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
   }
 
   return (
-    <div className={`group relative card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-300`}>
+    <div className={`group relative card overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-300`}>
       <Link to={`/product/${product.slug}`} className="flex flex-col h-full">
-        {/* Image Carousel — 4:3 ratio */}
+        {/* Image Carousel — fixed height */}
         <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} />
 
         {/* Card body */}
@@ -247,15 +248,15 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
             <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider">{product.category_name}</span>
             <div className="flex items-center gap-2">
               {product.is_verified && (
-                 <div className="flex items-center gap-1 text-[8px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800" title="Professionally Verified">
+                 <div className="flex items-center gap-1 text-[8px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800" title={t('verified_seller', 'Verified Seller')}>
                    <Shield size={10} className="fill-current" />
-                   <span className="uppercase tracking-widest text-[8px]">Verified</span>
+                   <span className="uppercase tracking-widest text-[8px]">{t('verified', 'Verified')}</span>
                  </div>
               )}
               {product.has_inspection && (
-                 <div className="flex items-center gap-1 text-[8px] text-emerald-600 dark:emerald-400 font-black bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800" title="Professionally Inspected">
+                 <div className="flex items-center gap-1 text-[8px] text-emerald-600 dark:emerald-400 font-black bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800" title={t('professionally_inspected', 'Professionally Inspected')}>
                    <Shield size={10} />
-                   <span className="uppercase tracking-widest text-[8px]">Inspected ✓</span>
+                   <span className="uppercase tracking-widest text-[8px]">{t('inspected_label', 'Inspected ✓')}</span>
                  </div>
               )}
             </div>

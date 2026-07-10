@@ -14,7 +14,7 @@ import { useTheme } from '../../context/ThemeContext';
 
 const Navbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isAuthenticated, user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const lastScrollY = useRef(0);
@@ -140,7 +140,7 @@ const Navbar = () => {
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
             }`}
           >
-            Products
+            {t('products_nav')}
           </Link>
           <Link 
             to="/help" 
@@ -150,7 +150,7 @@ const Navbar = () => {
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
             }`}
           >
-            Help
+            {t('help')}
           </Link>
         </div>
 
@@ -182,7 +182,7 @@ const Navbar = () => {
                     }`}
                   >
                     <PlusCircle size={14} />
-                    <span>Sell</span>
+                    <span>{t('sell')}</span>
                   </Link>
                 )}
 
@@ -209,12 +209,12 @@ const Navbar = () => {
             </button>
             <button 
               onClick={() => i18n.changeLanguage(i18n.language?.startsWith('sw') ? 'en' : 'sw')} 
-              className={themeButtonClass} 
+              className={`${themeButtonClass} inline-flex items-center justify-center gap-1`}
               aria-label="Toggle Language"
               title={`Switch to ${i18n.language?.startsWith('sw') ? 'English' : 'Swahili'}`}
             >
               <Globe size={18} />
-              <span className="text-[10px] font-bold ml-1">{i18n.language?.startsWith('sw') ? 'EN' : 'SW'}</span>
+              <span className="text-[10px] font-bold">{i18n.language?.startsWith('sw') ? 'EN' : 'SW'}</span>
             </button>
           </div>
 
@@ -254,7 +254,7 @@ const Navbar = () => {
                             <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-none">{username}</p>
                             <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
                           </div>
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate font-semibold capitalize">{userTier} Member</p>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate font-semibold capitalize">{userTier} {t('member')}</p>
                         </div>
                       </div>
                     </div>
@@ -262,26 +262,26 @@ const Navbar = () => {
                     <div className="max-h-[400px] overflow-y-auto no-scrollbar py-2 px-1.5">
                       {/* Personal Portal */}
                       <div className="mb-2">
-                        <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">Personal Portal</p>
+                        <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">{t('personal_portal')}</p>
                         <div className="grid grid-cols-1 gap-0.5">
                           <Link to={`/profile/${username}`} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === `/profile/${username}` ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === `/profile/${username}` ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                               <User size={14} />
                             </div>
-                            <span className="font-medium">My Profile</span>
+                            <span className="font-medium">{t('my_profile')}</span>
                           </Link>
                           <Link to="/orders" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/orders' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/orders' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                               <ShoppingBag size={14} />
                             </div>
-                            <span className="font-medium">My Orders</span>
+                            <span className="font-medium">{t('my_orders')}</span>
                           </Link>
                           {(isSeller || isInspector) && (
                             <Link to="/inspections" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/inspections' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
                               <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/inspections' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                                 <ClipboardList size={14} />
                               </div>
-                              <span className="font-medium">My Inspections</span>
+                              <span className="font-medium">{t('my_inspections')}</span>
                             </Link>
                           )}
                         </div>
@@ -291,19 +291,19 @@ const Navbar = () => {
                       <div className="mb-2 pt-2 border-t border-gray-100 dark:border-neutral-900">
                         {isSeller ? (
                           <>
-                            <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">Sell & Grow</p>
+                            <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">{t('sell_and_grow')}</p>
                             <div className="grid grid-cols-1 gap-0.5">
                               <Link to="/dashboard" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                                   <LayoutDashboard size={14} />
                                 </div>
-                                <span className="font-medium">Seller Dashboard</span>
+                                <span className="font-medium">{t('seller_dashboard')}</span>
                               </Link>
                               <Link to="/dashboard/products#new" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/products' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/products' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                                   <PlusCircle size={14} />
                                 </div>
-                                <span className="font-medium">Add New Product</span>
+                                <span className="font-medium">{t('add_new_product')}</span>
                               </Link>
                             </div>
                           </>
@@ -313,7 +313,7 @@ const Navbar = () => {
                               <div className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white">
                                 <PlusCircle size={14} />
                               </div>
-                              <span className="font-medium">Become a Seller</span>
+                              <span className="font-medium">{t('become_a_seller')}</span>
                             </Link>
                           </div>
                         )}
@@ -322,14 +322,14 @@ const Navbar = () => {
                       {/* Management Group */}
                       {(isStaff || isInspector) && (
                         <div className="mb-2 pt-2 border-t border-gray-100 dark:border-neutral-900">
-                          <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">Management</p>
+                          <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">{t('management')}</p>
                           <div className="grid grid-cols-1 gap-0.5">
                             {isSuperuser && (
                               <Link to="/staff-admin" className={`flex items-center gap-2.5 px-3 py-2 text-sm font-bold rounded-btn transition-all group ${location.pathname === '/staff-admin' ? 'text-brand-500 bg-brand-500/10' : 'text-brand-500 hover:bg-brand-500/10'}`} onClick={() => setProfileOpen(false)}>
                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/staff-admin' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                                   <ShieldCheck size={14} />
                                 </div>
-                                Admin Panel
+                                {t('admin_panel')}
                               </Link>
                             )}
                             {(isStaff || isSuperuser) && (
@@ -337,7 +337,7 @@ const Navbar = () => {
                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/staff' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                                   <LayoutDashboard size={14} />
                                 </div>
-                                Staff Dashboard
+                                {t('staff_dashboard')}
                               </Link>
                             )}
                             {isInspector && (
@@ -345,7 +345,7 @@ const Navbar = () => {
                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/inspector/jobs' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                                   <Shield size={14} />
                                 </div>
-                                <span className="font-medium">Inspector Portal</span>
+                                <span className="font-medium">{t('inspector_portal')}</span>
                               </Link>
                             )}
                           </div>
@@ -354,19 +354,19 @@ const Navbar = () => {
 
                       {/* Support Group */}
                       <div className="pt-2 border-t border-gray-100 dark:border-neutral-900">
-                        <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">System</p>
+                        <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">{t('system')}</p>
                         <div className="grid grid-cols-1 gap-0.5">
                           <Link to="/dashboard/settings" onClick={() => setProfileOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/settings' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`}>
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/settings' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                               <Settings size={14} />
                             </div>
-                            <span className="font-medium">Settings</span>
+                            <span className="font-medium">{t('settings')}</span>
                           </Link>
                           <Link to="/dashboard/help-center" onClick={() => setProfileOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/help-center' ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-brand-500/10 hover:text-brand-500'}`}>
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/help-center' ? 'bg-brand-500 text-white' : 'bg-brand-500/10 text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
                               <HelpCircle size={14} />
                             </div>
-                            <span className="font-medium">Support</span>
+                            <span className="font-medium">{t('support')}</span>
                           </Link>
                         </div>
                       </div>
@@ -377,7 +377,7 @@ const Navbar = () => {
                         onClick={() => { logout(); sessionStorage.clear(); setProfileOpen(false); navigate('/'); }}
                         className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-500/10 rounded-btn transition-all active:scale-95 border border-red-500/10"
                       >
-                        <LogOut size={14} /> Sign Out
+                        <LogOut size={14} /> {t('sign_out')}
                       </button>
                     </div>
                   </div>
@@ -392,7 +392,7 @@ const Navbar = () => {
                     : 'bg-brand-500 hover:bg-brand-600 text-white shadow-md shadow-brand-500/10 hover:shadow-brand-500/25'
                 }`}
               >
-                Login
+                {t('login')}
               </Link>
             )}
           </div>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, X, LayoutGrid, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import api from './api';
 import ProductCard from './components/ProductCard';
 import SponsorCard from './components/SponsorCard';
@@ -25,6 +26,7 @@ type GridEntry =
 // ProductList
 // ================================================================
 const ProductList = () => {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
   const selectedCategory = searchParams.get('category') || '';
@@ -365,7 +367,7 @@ const ProductList = () => {
               <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 border-2 ${!selectedCategory ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
                 <LayoutGrid className={`w-8 h-8 md:w-10 md:h-10 stroke-[1.5] ${!selectedCategory ? 'text-brand-600 dark:text-brand-400' : 'text-neutral-800 dark:text-neutral-100'}`} />
               </div>
-              <span className={`text-xs font-bold text-center max-w-[5.5rem] md:max-w-[6.5rem] leading-tight line-clamp-2 ${!selectedCategory ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>All Products</span>
+              <span className={`text-xs font-bold text-center max-w-[5.5rem] md:max-w-[6.5rem] leading-tight line-clamp-2 ${!selectedCategory ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>{t('all_products', 'All Products')}</span>
             </div>
 
             {categoriesLoading
@@ -429,7 +431,7 @@ const ProductList = () => {
                     value={localSearch}
                     onChange={(e) => setLocalSearch(e.target.value)}
                     placeholder="Search products, categories, or brands..."
-                    className="w-full pl-12 pr-12 py-3 text-sm bg-white dark:bg-[#0A0A0A] text-gray-950 dark:text-white rounded-xl border border-gray-200 dark:border-neutral-800 shadow-sm focus:border-brand-500 focus:bg-white dark:focus:bg-black outline-none transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                    className="w-full pl-12 pr-12 py-3 text-sm bg-white dark:bg-[#0A0A0A] text-gray-950 dark:text-white rounded-xl border border-gray-200 dark:border-neutral-800 shadow-sm focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black outline-none transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-600"
                     aria-label="Search products"
                   />
                   {localSearch && (
@@ -467,7 +469,7 @@ const ProductList = () => {
                       value={tempMinPrice} 
                       onChange={(e) => setTempMinPrice(e.target.value)} 
                       placeholder="0" 
-                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-black transition-all" 
+                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all" 
                     />
                   </div>
                   <div>
@@ -477,32 +479,32 @@ const ProductList = () => {
                       value={tempMaxPrice} 
                       onChange={(e) => setTempMaxPrice(e.target.value)} 
                       placeholder="Any" 
-                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-black transition-all" 
+                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all" 
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Condition</label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">{t('condition', 'Condition')}</label>
                     <select 
                       value={tempCondition} 
                       onChange={(e) => setTempCondition(e.target.value)} 
-                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-black transition-all"
+                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
                     >
-                      <option value="">All Conditions</option>
-                      <option value="New">New</option>
-                      <option value="Used">Used</option>
+                      <option value="">{t('all_conditions', 'All Conditions')}</option>
+                      <option value="New">{t('new', 'New')}</option>
+                      <option value="Used">{t('used', 'Used')}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Sort By</label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">{t('sort_by', 'Sort By')}</label>
                     <select 
                       value={tempSortBy} 
                       onChange={(e) => setTempSortBy(e.target.value)} 
-                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-black transition-all"
+                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
                     >
-                      <option value="">Newest Listings</option>
-                      <option value="price_asc">Price: Low to High</option>
-                      <option value="price_desc">Price: High to Low</option>
-                      <option value="rating">Top Rated</option>
+                      <option value="">{t('newest_listings', 'Newest Listings')}</option>
+                      <option value="price_asc">{t('price_low_high', 'Price: Low to High')}</option>
+                      <option value="price_desc">{t('price_high_low', 'Price: High to Low')}</option>
+                      <option value="rating">{t('top_rated', 'Top Rated')}</option>
                     </select>
                   </div>
                 </div>
@@ -524,7 +526,7 @@ const ProductList = () => {
                     }}
                     className="px-4 py-2 border border-gray-200 dark:border-neutral-800 text-gray-700 dark:text-gray-300 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors"
                   >
-                    Reset Filters
+                    {t('reset_filters', 'Reset Filters')}
                   </button>
                   <button 
                     onClick={() => {
@@ -539,7 +541,7 @@ const ProductList = () => {
                     }} 
                     className="px-6 py-2 bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
                   >
-                    Apply Filters
+                    {t('apply_filters', 'Apply Filters')}
                   </button>
                 </div>
               </div>
@@ -592,7 +594,7 @@ const ProductList = () => {
               }`}
             >
               <Search size={12} />
-              <span>Search</span>
+              <span>{t('search', 'Search')}</span>
               {urlQuery && (
                 <span className="w-1.5 h-1.5 rounded-full bg-brand-500 dark:bg-brand-400 ml-0.5 animate-pulse" />
               )}
@@ -699,7 +701,7 @@ const ProductList = () => {
         <>
           <motion.div 
             className={viewMode === 'grid' 
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5"
+              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none"
               : "flex flex-col gap-3"
             }
             variants={containerVariants} initial="hidden" animate="visible"
@@ -707,8 +709,8 @@ const ProductList = () => {
             {gridEntries.length === 0 ? (
               <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
                 <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
-                <p className="text-gray-500 dark:text-gray-400 font-medium">No products match your filters.</p>
-                <button onClick={() => { updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '' }); setTempMinPrice(''); setTempMaxPrice(''); setTempCondition(''); setTempSortBy(''); }} className="text-brand-600 dark:text-brand-400 text-sm mt-2 hover:underline">Clear all filters</button>
+                <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
+                <button onClick={() => { updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '' }); setTempMinPrice(''); setTempMaxPrice(''); setTempCondition(''); setTempSortBy(''); }} className="text-brand-600 dark:text-brand-400 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
               </div>
             ) : (
               gridEntries.map((entry, idx) => {
@@ -726,7 +728,7 @@ const ProductList = () => {
                   const isPromo = entry.type === 'promo';
 
                   return (
-                    <motion.div key={`${product.id}-${idx}`} variants={cardVariants}>
+                    <motion.div key={`${product.id}-${idx}`} variants={cardVariants} className="h-full">
                       <ProductCard product={product} viewMode={viewMode} isSponsored={isPromo} />
                     </motion.div>
                   );
@@ -743,7 +745,7 @@ const ProductList = () => {
           )}
 
           {!hasMore && products.length > 0 && (
-            <p className="text-center py-6 text-sm text-gray-400 dark:text-gray-500">You've reached the end</p>
+            <p className="text-center py-6 text-sm text-gray-400 dark:text-gray-500">{t('reached_end', "You've reached the end")}</p>
           )}
           <div ref={sentinelRef} className="h-1" />
         </>

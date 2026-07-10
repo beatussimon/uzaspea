@@ -23,6 +23,7 @@ interface CartContextType {
   removeFromCart: (productId: string | number) => void;
   updateQuantity: (productId: string | number, quantity: number) => void;
   clearCart: () => void;
+  clearCartByMerchant: (merchant: string) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -130,9 +131,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('sokonimax_cart');  // FIX: C-12
   }, []);
 
+  const clearCartByMerchant = useCallback((merchant: string) => {
+    setItems((prev) => {
+      const remaining = prev.filter((i) => (i.seller_username || 'Unknown Store') !== merchant);
+      saveCart(remaining);
+      return remaining;
+    });
+  }, []);
+
   return (
     <CartContext.Provider
-      value={{ items, cartCount, totalPrice, addToCart, removeFromCart, updateQuantity, clearCart }}
+      value={{ items, cartCount, totalPrice, addToCart, removeFromCart, updateQuantity, clearCart, clearCartByMerchant }}
     >
       {children}
     </CartContext.Provider>

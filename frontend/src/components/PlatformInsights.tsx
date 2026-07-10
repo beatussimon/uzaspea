@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Flame } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import ProductCard from './ProductCard';
 
 const PlatformInsights: React.FC = () => {
+    const { t } = useTranslation();
     const [stats, setStats] = useState<any>(null);
     const [trendingProducts, setTrendingProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ const PlatformInsights: React.FC = () => {
                             <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-950/40 flex items-center justify-center">
                                 <Flame size={16} className="text-orange-500" />
                             </div>
-                            <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">Trending Right Now</h3>
+                            <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">{t('trending_right_now')}</h3>
                         </div>
                     </div>
 

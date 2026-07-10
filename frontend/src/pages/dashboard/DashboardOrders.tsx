@@ -420,7 +420,7 @@ const DashboardOrders: React.FC = () => {
                                                 handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
                                             }}
                                             disabled={advancing === order.id}
-                                            className="flex-[3] btn-primary py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-sm font-black uppercase tracking-widest shadow-xl shadow-brand-600/20 flex items-center justify-center gap-3 group ring-offset-2 focus:ring-2 focus:ring-brand-500"
+                                            className="flex-[3] btn-primary py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-sm font-black uppercase tracking-widest shadow-xl shadow-brand-600/20 flex items-center justify-center gap-3 group ring-offset-2 focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white"
                                         >
                                             {advancing === order.id ? (
                                                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
