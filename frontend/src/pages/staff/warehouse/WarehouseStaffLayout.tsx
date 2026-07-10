@@ -441,7 +441,7 @@ const WarehouseStaffLayout: React.FC = () => {
               value={scanQuery}
               onChange={(e) => setScanQuery(e.target.value)}
               disabled={scanning}
-              className="w-full md:w-80 h-14 pl-12 pr-12 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 transition-all shadow-inner disabled:opacity-50"
+              className="w-full md:w-80 h-14 pl-12 pr-12 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:border-gray-900 dark:focus:border-white focus:ring-4 focus:ring-gray-900/10 dark:focus:ring-white/10 transition-all shadow-inner disabled:opacity-50"
             />
             {scanning && (
               <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
@@ -767,7 +767,7 @@ const WarehouseStaffLayout: React.FC = () => {
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Condition</label>
                       <select 
-                        className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold outline-none"
+                        className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-sm font-bold outline-none"
                         value={condition} onChange={e => setCondition(e.target.value)}
                       >
                         <option value="good">Good (No damage)</option>
@@ -832,7 +832,7 @@ const WarehouseStaffLayout: React.FC = () => {
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Condition After Transit</label>
                       <select 
-                        className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold outline-none"
+                        className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-sm font-bold outline-none"
                         value={condition} onChange={e => setCondition(e.target.value)}
                       >
                         <option value="good">Good (No damage)</option>
@@ -937,7 +937,7 @@ const WarehouseStaffLayout: React.FC = () => {
                       <select 
                         value={destinationWarehouseCode}
                         onChange={e => setDestinationWarehouseCode(e.target.value)}
-                        className="w-full text-lg font-bold bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 outline-none"
+                        className="w-full text-lg font-bold bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none"
                       >
                         <option value="" disabled>-- Select Destination --</option>
                         {warehouses.map(w => (
@@ -952,7 +952,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         placeholder="e.g. 5000"
                         value={deliveryFee}
                         onChange={e => setDeliveryFee(e.target.value)}
-                        className="w-full text-2xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-4 outline-none"
+                        className="w-full text-2xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-4 outline-none"
                       />
                       {suggestedFee !== null && (
                         <p className="text-sm text-brand-600 dark:text-brand-400 mt-1">
@@ -996,7 +996,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         <select
                           value={selectedDriverId}
                           onChange={e => setSelectedDriverId(e.target.value)}
-                          className="w-full text-sm font-bold bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 outline-none"
+                          className="w-full text-sm font-bold bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none"
                         >
                           <option value="">-- Select Driver --</option>
                           {drivers.map((d: any) => (
@@ -1015,7 +1015,7 @@ const WarehouseStaffLayout: React.FC = () => {
                             placeholder="e.g. DHL - Juma Omar, +255 712..."
                             value={thirdPartyDriverInfo}
                             onChange={e => setThirdPartyDriverInfo(e.target.value)}
-                            className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 outline-none"
+                            className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none"
                           />
                         </div>
                         <div className="space-y-2">
@@ -1025,7 +1025,7 @@ const WarehouseStaffLayout: React.FC = () => {
                             placeholder="e.g. TRK987654321"
                             value={trackingNumber}
                             onChange={e => setTrackingNumber(e.target.value)}
-                            className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 outline-none"
+                            className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none"
                           />
                         </div>
                       </div>
@@ -1037,7 +1037,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         type="datetime-local"
                         value={estimatedDelivery}
                         onChange={e => setEstimatedDelivery(e.target.value)}
-                        className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 outline-none animate-none"
+                        className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none animate-none"
                       />
                     </div>
 
@@ -1065,7 +1065,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         placeholder="••••••"
                         value={pickupCode}
                         onChange={e => setPickupCode(e.target.value.toUpperCase())}
-                        className="w-full text-center tracking-[1em] text-4xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-6 outline-none uppercase"
+                        className="w-full text-center tracking-[1em] text-4xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-6 outline-none uppercase"
                       />
                     </div>
                     <button onClick={submitPickup} disabled={submitting} className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6 flex justify-center items-center gap-2">

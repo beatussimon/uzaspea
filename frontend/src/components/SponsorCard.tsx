@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Megaphone, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function SponsorCard() {
+  const { t } = useTranslation();
+
   return (
     <Link
       to="/dashboard"
@@ -18,15 +21,15 @@ export default function SponsorCard() {
       </div>
 
       <h3 className="font-bold text-sm text-neutral-800 dark:text-neutral-200 mb-1 uppercase tracking-wide">
-        Sponsor Your Item Here
+        {t('sponsor_your_item_here', 'Sponsor Your Item Here')}
       </h3>
 
       <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed max-w-[180px] mb-4">
-        Boost your listing visibility and reach more customers
+        {t('boost_your_listing', 'Boost your listing visibility and reach more customers')}
       </p>
 
       <span className="inline-flex items-center gap-1 text-[10px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest group-hover:gap-2 transition-all">
-        Get Started <ArrowRight className="h-3 w-3" />
+        {t('get_started', 'Get Started')} <ArrowRight className="h-3 w-3" />
       </span>
     </Link>
   );

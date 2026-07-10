@@ -141,13 +141,25 @@ CORS_ALLOW_CREDENTIALS = True
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 
 import sys
-if 'test' in sys.argv:
+_in_docker = os.path.exists('/.dockerenv')
+_in_test   = 'test' in sys.argv
+
+if _in_test:
+    # Tests: no-op cache so throttling doesn't block unit tests
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
         }
     }
+elif not _in_docker:
+    # Local dev outside Docker: use in-process memory cache — no Redis needed
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
 else:
+    # Docker / production: use Redis
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",

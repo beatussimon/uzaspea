@@ -8,7 +8,7 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
   const [variants, setVariants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', price_adjustment: '0', stock: '0', is_available: true });
+  const [form, setForm] = useState({ color: '', size: '', material: '', custom: '', price_adjustment: '0', stock: '0', is_available: true });
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   useEffect(() => {
@@ -25,9 +25,19 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Combine attributes into the name field for the backend
+    const attributes = [];
+    if (form.color.trim()) attributes.push(form.color.trim());
+    if (form.size.trim()) attributes.push(form.size.trim());
+    if (form.material.trim()) attributes.push(form.material.trim());
+    if (form.custom.trim()) attributes.push(form.custom.trim());
+    
+    const finalName = attributes.length > 0 ? attributes.join(' / ') : 'Default Variation';
+
     const formData = new FormData();
     formData.append('product', productId);
-    formData.append('name', form.name);
+    formData.append('name', finalName);
     formData.append('price_adjustment', form.price_adjustment);
     formData.append('stock', form.stock);
     formData.append('is_available', String(form.is_available));
@@ -37,7 +47,7 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
       await api.post('/api/variants/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       toast.success('Variant added!');
       setShowForm(false);
-      setForm({ name: '', price_adjustment: '0', stock: '0', is_available: true });
+      setForm({ color: '', size: '', material: '', custom: '', price_adjustment: '0', stock: '0', is_available: true });
       setImageFile(null);
       fetchVariants();
     } catch {
@@ -102,12 +112,37 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
                   <Plus size={16} /> Add Variant
                 </button>
               ) : (
-                <form onSubmit={handleSubmit} className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl space-y-3">
-                  <h3 className="font-bold text-sm text-gray-900 dark:text-white">New Variant</h3>
-                  <input name="name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Variant Name (e.g. XL - Blue)" required className="w-full p-2.5 text-sm border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white" />
+                <form onSubmit={handleSubmit} className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-xl space-y-4 border border-gray-100 dark:border-gray-800">
+                  <h3 className="font-bold text-sm text-gray-900 dark:text-white pb-2 border-b border-gray-200 dark:border-gray-700">Add New Variation Options</h3>
+                  
                   <div className="grid grid-cols-2 gap-3">
-                    <input name="price_adjustment" value={form.price_adjustment} onChange={e => setForm({...form, price_adjustment: e.target.value})} placeholder="Price Adjustment" type="number" required className="w-full p-2.5 text-sm border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white" />
-                    <input name="stock" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} placeholder="Stock" type="number" required className="w-full p-2.5 text-sm border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white" />
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Color</label>
+                      <input name="color" value={form.color} onChange={e => setForm({...form, color: e.target.value})} placeholder="e.g. Red, Matte Black" className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:border-gray-900 dark:focus:border-white focus:ring-1 focus:ring-gray-900 dark:focus:ring-white outline-none transition" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Size</label>
+                      <input name="size" value={form.size} onChange={e => setForm({...form, size: e.target.value})} placeholder="e.g. XL, 42, 13-inch" className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:border-gray-900 dark:focus:border-white focus:ring-1 focus:ring-gray-900 dark:focus:ring-white outline-none transition" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Material</label>
+                      <input name="material" value={form.material} onChange={e => setForm({...form, material: e.target.value})} placeholder="e.g. Leather, Cotton" className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:border-gray-900 dark:focus:border-white focus:ring-1 focus:ring-gray-900 dark:focus:ring-white outline-none transition" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Other (Custom)</label>
+                      <input name="custom" value={form.custom} onChange={e => setForm({...form, custom: e.target.value})} placeholder="e.g. 128GB, v2.0" className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:border-gray-900 dark:focus:border-white focus:ring-1 focus:ring-gray-900 dark:focus:ring-white outline-none transition" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Price Adjustment (+ / -)</label>
+                      <input name="price_adjustment" value={form.price_adjustment} onChange={e => setForm({...form, price_adjustment: e.target.value})} placeholder="0" type="number" required className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:border-gray-900 dark:focus:border-white focus:ring-1 focus:ring-gray-900 dark:focus:ring-white outline-none transition" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Stock Available</label>
+                      <input name="stock" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} placeholder="0" type="number" required className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:border-gray-900 dark:focus:border-white focus:ring-1 focus:ring-gray-900 dark:focus:ring-white outline-none transition" />
+                    </div>
                   </div>
                   <div>
                     <label className="text-xs font-bold text-gray-400 block mb-1">Image (Optional)</label>

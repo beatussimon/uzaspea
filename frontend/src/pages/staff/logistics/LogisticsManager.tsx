@@ -373,7 +373,7 @@ const LogisticsManager: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Carrier Mode</label>
-                      <select required className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white" value={editCarrierType} onChange={(e) => setEditCarrierType(e.target.value as any)}>
+                      <select required className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white" value={editCarrierType} onChange={(e) => setEditCarrierType(e.target.value as any)}>
                         <option value="driver">SokoniMax Fleet</option>
                         <option value="third_party">Third-Party Courier</option>
                       </select>
@@ -384,7 +384,7 @@ const LogisticsManager: React.FC = () => {
                     {editCarrierType === 'driver' && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Assign Fleet Driver</label>
-                        <select className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white" value={editDriver} onChange={(e) => setEditDriver(e.target.value)}>
+                        <select className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white" value={editDriver} onChange={(e) => setEditDriver(e.target.value)}>
                           <option value="">-- Unassigned --</option>
                           {drivers.map(d => (
                             <option key={d.id} value={d.id.toString()}>@{d.username} ({d.first_name} {d.last_name})</option>
@@ -399,7 +399,7 @@ const LogisticsManager: React.FC = () => {
                     <input
                       type="text"
                       placeholder="Optional tracking code"
-                      className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold font-mono outline-none text-gray-900 dark:text-white"
+                      className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-sm font-bold font-mono outline-none text-gray-900 dark:text-white"
                       value={editTrackingNum}
                       onChange={(e) => setEditTrackingNum(e.target.value)}
                     />
@@ -409,7 +409,7 @@ const LogisticsManager: React.FC = () => {
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Est. Delivery / Handover Window</label>
                     <input
                       type="datetime-local"
-                      className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white"
+                      className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white"
                       value={editDeliveryTime}
                       onChange={(e) => setEditDeliveryTime(e.target.value)}
                     />
@@ -448,7 +448,7 @@ const LogisticsManager: React.FC = () => {
                           value={deliveryCode}
                           onChange={(e) => setDeliveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                           placeholder="Enter 6-digit Code"
-                          className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 text-center font-mono font-bold text-xl tracking-[0.2em] text-gray-900 dark:text-white outline-none mb-3"
+                          className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-center font-mono font-bold text-xl tracking-[0.2em] text-gray-900 dark:text-white outline-none mb-3"
                         />
                         <button
                           type="button"

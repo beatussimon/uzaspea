@@ -36,6 +36,8 @@ interface ProductData {
   inspections: InspectionSummary[];
   is_verified: boolean;
   location_name?: string;
+  latitude?: string;
+  longitude?: string;
   created_at?: string;
   sale_price?: string | null;
 }
@@ -202,6 +204,51 @@ const ImageLightbox = ({
   );
 };
 
+const ProductMap = ({ lat, lng, isDesktop, locationName }: { lat: string | number, lng: string | number, isDesktop: boolean, locationName?: string }) => {
+  const [showMap, setShowMap] = React.useState(isDesktop);
+
+  if (!lat || !lng) return null;
+
+  return (
+    <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
+      <div className="flex items-center justify-between mb-4">
+         <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+           <MapPin className="text-brand-500" />
+           Location
+         </h3>
+         {!isDesktop && (
+           <button onClick={() => setShowMap(!showMap)} className="text-xs px-3 py-1.5 rounded-full bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-400 font-bold hover:bg-brand-100 transition border border-brand-100 dark:border-brand-800">
+             {showMap ? 'Hide Map' : 'Show Map'}
+           </button>
+         )}
+      </div>
+      {locationName && <p className="text-sm text-gray-500 mb-4 flex items-center gap-1.5"><MapPin size={14}/>{locationName}</p>}
+      
+      {showMap && (
+        <div className="w-full h-64 md:h-96 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 relative z-0 bg-gray-100 dark:bg-gray-800">
+          <iframe
+            title="Location Map"
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            scrolling="no"
+            marginHeight={0}
+            marginWidth={0}
+            loading="lazy"
+            src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(lng)-0.02}%2C${Number(lat)-0.02}%2C${Number(lng)+0.02}%2C${Number(lat)+0.02}&layer=mapnik&marker=${lat}%2C${lng}`}
+            className="w-full h-full"
+          />
+          <div className="absolute bottom-2 right-2 bg-white/90 dark:bg-black/90 px-3 py-1.5 text-[11px] rounded-lg shadow-lg z-10 backdrop-blur-md border border-gray-200 dark:border-gray-800">
+            <a href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`} target="_blank" rel="noreferrer" className="text-brand-600 dark:text-brand-400 font-bold hover:underline flex items-center gap-1">
+               Open Map
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { t } = useTranslation();
@@ -239,7 +286,16 @@ const ProductDetailPage: React.FC = () => {
         setLoading(false);
         // Fetch variants
         api.get(`/api/variants/?product=${res.data.id}`)
-          .then((vRes) => setVariants(vRes.data.results || vRes.data))
+          .then((vRes) => {
+            const list = vRes.data.results || vRes.data;
+            setVariants(list);
+            if (res.data.stock <= 0 && list.length > 0) {
+              const firstAvailable = list.find((v: any) => v.stock > 0);
+              if (firstAvailable) {
+                setSelectedVariant(firstAvailable);
+              }
+            }
+          })
           .catch(() => {});
       })
       .catch(() => {
@@ -297,6 +353,26 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
+  const images = React.useMemo(() => {
+    if (!product) return [{ id: 0, image: '' }];
+    const baseImages = (product.images && product.images.length > 0)
+      ? product.images
+      : [{ id: 0, image: '' }];
+    
+    const vImages = variants
+      .filter(v => v.image)
+      .map(v => ({ id: `v-${v.id}`, image: v.image, variantId: v.id }));
+      
+    // Deduplicate exact same URLs if needed, but simple append works for gallery
+    const combined = [...baseImages];
+    for (const vImg of vImages) {
+      if (!combined.find(img => img.image === vImg.image)) {
+        combined.push(vImg);
+      }
+    }
+    return combined;
+  }, [product, variants]);
+
   if (loading) {
     return (
       <div className="container-page py-10 space-y-10">
@@ -317,15 +393,11 @@ const ProductDetailPage: React.FC = () => {
   if (!product) {
     return (
       <div className="text-center py-20">
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300">Product not found</h2>
-        <Link to="/" className="text-brand-600 mt-4 inline-block hover:underline">← Back to products</Link>
+        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300">{t('product_not_found')}</h2>
+        <Link to="/" className="text-brand-600 mt-4 inline-block hover:underline">← {t('back_to_products')}</Link>
       </div>
     );
   }
-
-  const images = (product.images && product.images.length > 0)
-    ? product.images
-    : [{ id: 0, image: '' }];
 
   const currentImageSrc = images[selectedImage]?.image || '';
   const currentUsername = localStorage.getItem('username');
@@ -347,7 +419,7 @@ const ProductDetailPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
         {/* Left Column: Image Gallery + Comments (Desktop) */}
-        <div className="flex flex-col gap-6 w-full lg:col-span-5">
+        <div className="flex flex-col gap-6 w-full lg:col-span-6">
           <div className="flex flex-col md:flex-row-reverse gap-4">
             <div
               className="flex-1 aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm cursor-zoom-in relative"
@@ -371,6 +443,31 @@ const ProductDetailPage: React.FC = () => {
                   />
                 </motion.div>
               </AnimatePresence>
+
+              {/* Floating Like + Share on image */}
+              <div className="absolute top-4 right-4 flex flex-col gap-3 z-10" onClick={e => e.stopPropagation()}>
+                <button
+                  onClick={handleLike}
+                  className={`w-14 h-14 rounded-full backdrop-blur-md flex items-center justify-center shadow-lg transition-all duration-200 active:scale-95 ${
+                    liked
+                      ? 'bg-red-50/90 dark:bg-red-950/80 text-red-500'
+                      : 'bg-white/90 dark:bg-gray-800/90 text-gray-500 hover:text-red-500 hover:bg-red-50/90 dark:hover:bg-red-950/80'
+                  }`}
+                  title="Like"
+                >
+                  <Heart size={28} className={liked ? 'fill-current' : ''} />
+                </button>
+                {likeCount > 0 && (
+                  <span className="text-center text-[11px] font-black text-white drop-shadow">{likeCount}</span>
+                )}
+                <button
+                  onClick={handleShare}
+                  className="w-14 h-14 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-md flex items-center justify-center shadow-lg text-gray-500 hover:text-brand-500 hover:bg-brand-50/90 dark:hover:bg-brand-950/80 transition-all duration-200 active:scale-95"
+                  title="Share"
+                >
+                  <Share2 size={28} />
+                </button>
+              </div>
             </div>
             {images.length > 1 && (
               <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto pb-2 md:pb-0 md:w-20 shrink-0 no-scrollbar">
@@ -400,7 +497,7 @@ const ProductDetailPage: React.FC = () => {
         </div>
 
         {/* Product Info */}
-        <div className="flex flex-col gap-6 w-full lg:col-span-7">
+        <div className="flex flex-col gap-6 w-full lg:col-span-6">
           {/* Header Area */}
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -434,7 +531,7 @@ const ProductDetailPage: React.FC = () => {
               {product.created_at && (
                 <span className="flex items-center gap-1">
                   <Clock size={13} className="text-gray-400" />
-                  Posted {timeAgo(product.created_at)}
+                  {t('posted')} {timeAgo(product.created_at)}
                 </span>
               )}
             </div>
@@ -442,94 +539,94 @@ const ProductDetailPage: React.FC = () => {
 
           <hr className="border-gray-100 dark:border-gray-800" />
 
-          {/* Price & Actions */}
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div className="space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">Price</span>
-                <div className="flex flex-wrap items-baseline gap-3">
-                  <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-                    TSh {selectedVariant ? selectedVariant.final_price.toLocaleString() : parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price).toLocaleString()}
-                  </p>
-                  {product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) && !selectedVariant && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg text-gray-400 line-through font-medium">
-                        TSh {parseInt(product.price).toLocaleString()}
-                      </span>
-                      <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-black rounded-md uppercase tracking-wider shadow-sm shadow-red-500/20">
-                        {Math.round(((parseInt(product.price) - parseInt(product.sale_price)) / parseInt(product.price)) * 100)}% OFF
-                      </span>
-                    </div>
-                  )}
+          {/* Price & Badge */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+                TSh {(selectedVariant ? parseInt(selectedVariant.price_adjustment) + parseInt(product.price) : parseInt(product.sale_price || product.price)).toLocaleString()}
+              </span>
+              {product.sale_price && !selectedVariant && (
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-gray-400 line-through decoration-red-500/50 decoration-2">
+                    TSh {parseInt(product.price).toLocaleString()}
+                  </span>
+                  <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-black rounded-md uppercase tracking-wider shadow-sm shadow-red-500/20">
+                    {Math.round(((parseInt(product.price) - parseInt(product.sale_price)) / parseInt(product.price)) * 100)}% {t('off_caps')}
+                  </span>
                 </div>
+              )}
+            </div>
+          </div>
+
+          {variants.length > 0 && (
+            <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800 mt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">Select Variation</span>
+                {selectedVariant && (
+                  <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
+                    TSh {(parseInt(product.price) + parseInt(selectedVariant.price_adjustment)).toLocaleString()}
+                  </span>
+                )}
               </div>
-              <div className="flex gap-2">
+              
+              {/* Visual variant selector instead of select dropdown */}
+              <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={handleLike}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-200 active:scale-95 ${
-                    liked
-                      ? 'border-red-500 bg-red-50 dark:bg-red-950/20 text-red-500 shadow-sm'
-                      : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-red-400 hover:text-red-500'
+                  onClick={() => {
+                    setSelectedVariant(null);
+                    setSelectedImage(0); // Go back to default image
+                  }}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border-2 ${
+                    !selectedVariant 
+                      ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400 dark:border-brand-500' 
+                      : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                   }`}
                 >
-                  <Heart size={18} className={liked ? 'fill-current' : ''} />
-                  <span className="text-xs font-bold">{likeCount}</span>
+                  Standard
                 </button>
-                <button
-                  onClick={handleShare}
-                  className="flex items-center justify-center p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-500 hover:border-brand-500 hover:text-brand-500 transition shadow-sm bg-white dark:bg-gray-800"
-                  title="Share Product"
-                >
-                  <Share2 size={18} />
-                </button>
+                {variants.map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => {
+                      setSelectedVariant(v);
+                      if (v.image) {
+                        const idx = images.findIndex((img: any) => img.variantId === v.id || img.image === v.image);
+                        if (idx !== -1) setSelectedImage(idx);
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border-2 flex items-center gap-2 ${
+                      selectedVariant?.id === v.id
+                        ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400 dark:border-brand-500'
+                        : v.stock <= 0
+                          ? 'border-transparent bg-gray-50 text-gray-400 cursor-not-allowed dark:bg-gray-800/50 dark:text-gray-600'
+                          : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {v.image && (
+                      <SafeImage src={v.image} alt={v.name} category="product" className={`w-5 h-5 rounded-full object-cover shrink-0 ${v.stock <= 0 ? 'opacity-50 grayscale' : ''}`} />
+                    )}
+                    <span className={v.stock <= 0 ? 'line-through opacity-70' : ''}>{v.name}</span>
+                    {v.stock <= 0 ? (
+                      <span className="text-[10px] uppercase text-red-500/80 dark:text-red-400/80 font-black ml-1">(Out of stock)</span>
+                    ) : v.price_adjustment !== '0.00' && (
+                      <span className="opacity-75 text-xs ml-1">
+                        (+TSh {parseInt(v.price_adjustment).toLocaleString()})
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
-
-            </div>
+          )}
 
           <hr className="border-gray-100 dark:border-gray-800" />
 
           {/* Cart & Variants */}
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400 font-medium">Availability</span>
-              {product.stock > 0 ? (
-                <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded text-xs font-bold">
-                  {product.stock} in stock
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded text-xs font-bold">
-                  Out of stock
-                </span>
-              )}
-            </div>
-
-            {variants.length > 0 && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Select Option</label>
-                <select
-                  className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-sm focus:ring-1 focus:ring-brand-500 outline-none transition"
-                  value={selectedVariant?.id || ''}
-                  onChange={(e) => {
-                     const v = variants.find(x => x.id.toString() === e.target.value);
-                     setSelectedVariant(v || null);
-                     setQuantity(1);
-                  }}
-                >
-                  <option value="">Default Option</option>
-                  {variants.map(v => (
-                     <option key={v.id} value={v.id} disabled={!v.is_available || v.stock === 0}>
-                       {v.name} {v.price_adjustment !== '0.00' ? `(+TSh ${parseInt(v.price_adjustment).toLocaleString()})` : ''} {v.stock === 0 ? '- Out of Stock' : ''}
-                     </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
               isOwnProduct ? (
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-center border border-gray-100 dark:border-gray-700 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  This is your own listing
+                  {t('this_is_your_listing')}
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
@@ -541,9 +638,18 @@ const ProductDetailPage: React.FC = () => {
                   <button onClick={handleAddToCart} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold rounded-xl transition shadow-sm active:scale-98 text-sm">
                     <ShoppingCart size={16} /> {t('add_to_cart')}
                   </button>
+                  <span className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold whitespace-nowrap">
+                    {selectedVariant ? selectedVariant.stock : product.stock} {t('in_stock')}
+                  </span>
                 </div>
               )
-            ) : null}
+            ) : (
+              <div className="flex items-center gap-3">
+                <button disabled className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold rounded-xl cursor-not-allowed text-sm">
+                  {t('out_of_stock')}
+                </button>
+              </div>
+            )}
           </div>
 
           <hr className="border-gray-100 dark:border-gray-800" />
@@ -593,7 +699,7 @@ const ProductDetailPage: React.FC = () => {
                       <span className="text-[10px] font-bold text-gray-500">({product.avg_rating})</span>
                     </>
                   ) : (
-                    <span className="text-[10px] text-gray-400 italic">No reviews yet</span>
+                    <span className="text-[10px] text-gray-400 italic">{t('no_reviews_yet', 'No reviews yet')}</span>
                   )}
                 </div>
               </div>
@@ -612,7 +718,7 @@ const ProductDetailPage: React.FC = () => {
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold transition-colors"
               >
-                <MessageSquare size={14} /> Contact
+                <MessageSquare size={14} /> {t('contact')}
               </button>
             )}
           </div>
@@ -625,7 +731,7 @@ const ProductDetailPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Shield size={16} className="text-brand-500" />
                   <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">
-                    {product.inspections?.length > 0 ? 'Inspection History' : 'Professional Inspection'}
+                    {product.inspections?.length > 0 ? t('inspection_history') : t('professional_inspection')}
                   </h4>
                   {product.is_verified && (
                     <span className="px-1.5 py-0.5 bg-brand-600 text-white text-[8px] font-black rounded uppercase tracking-widest">Verified</span>
@@ -645,7 +751,7 @@ const ProductDetailPage: React.FC = () => {
                           {insp.verdict ? `Verdict: ${insp.verdict.toUpperCase()}` : `Status: ${insp.status.replace('_', ' ').toUpperCase()}`}
                         </span>
                       </div>
-                      <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase">Report →</span>
+                      <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase">{t('report')} →</span>
                     </Link>
                   ))}
 
@@ -653,12 +759,17 @@ const ProductDetailPage: React.FC = () => {
                     <Link to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name)}&marketplace_product_id=${product.id}`}
                       className="block w-full py-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest text-center transition"
                     >
-                      {product.inspections?.length > 0 ? 'Request Re-Inspection' : 'Request Inspection'}
+                      {product.inspections?.length > 0 ? t('request_reinspection') : t('request_inspection')}
                     </Link>
                   )}
                 </div>
               </div>
             </>
+          )}
+
+          {/* Map Location (Right Column) */}
+          {product.latitude && product.longitude && (
+            <ProductMap lat={product.latitude} lng={product.longitude} locationName={product.location_name} isDesktop={isDesktop} />
           )}
         </div>
 

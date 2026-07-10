@@ -506,7 +506,7 @@ const PlatformUserExplorer: React.FC = () => {
                   <div className="font-bold text-gray-900 dark:text-white text-sm">Staff Privileges</div>
                   <div className="text-xs text-gray-500">Access to C&C Terminal dashboard</div>
                 </div>
-                <input type="checkbox" checked={isStaffRole} onChange={e => setIsStaffRole(e.target.checked)} className="rounded text-brand-600 focus:ring-brand-500 h-5 w-5" />
+                <input type="checkbox" checked={isStaffRole} onChange={e => setIsStaffRole(e.target.checked)} className="rounded text-brand-600 focus:ring-gray-900 dark:focus:ring-white h-5 w-5" />
               </label>
               <label className="flex items-center justify-between p-3 border border-red-200 dark:border-red-900/30 rounded-xl cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/10">
                 <div>
@@ -954,7 +954,7 @@ const PermissionMatrix: React.FC = () => {
                         type="checkbox" 
                         checked={hasPerm} 
                         onChange={() => handleToggle(member.id, p.key)}
-                        className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-gray-300 dark:border-gray-600 cursor-pointer"
+                        className="w-4 h-4 rounded text-brand-600 focus:ring-gray-900 dark:focus:ring-white border-gray-300 dark:border-gray-600 cursor-pointer"
                       />
                     </td>
                   );

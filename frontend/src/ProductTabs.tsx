@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from './api';
 import toast from 'react-hot-toast';
 
@@ -21,6 +22,7 @@ interface Comment {
 }
 
 export const ProductTabs = ({ productId, sellerUsername }: { productId: number, sellerUsername?: string }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'reviews' | 'comments'>('reviews');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -87,7 +89,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
           }`}
           onClick={() => setActiveTab('reviews')}
         >
-          Reviews {reviews.length}
+          {t('reviews_tab')} {reviews.length}
         </button>
         <button
           className={`py-2 px-4 transition-colors ${
@@ -97,21 +99,21 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
           }`}
           onClick={() => setActiveTab('comments')}
         >
-          Comments {comments.length}
+          {t('comments_tab')} {comments.length}
         </button>
       </div>
 
       <div className="py-4">
         {activeTab === 'reviews' && (
           <div className="animate-fade-in">
-            <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">Verified buyers</h3>
+            <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">{t('verified_buyers')}</h3>
 
             {loadingReviews ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
               </div>
             ) : reviews.length === 0 ? (
-              <p className="text-gray-400 py-8 text-center">No reviews</p>
+              <p className="text-gray-400 py-8 text-center">{t('no_reviews_tab')}</p>
             ) : (
               <div className="space-y-4">
                 {reviews.map((review) => (
@@ -144,13 +146,13 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
 
         {activeTab === 'comments' && (
           <div className="animate-fade-in">
-            <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">Ask a Question</h3>
+            <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">{t('ask_a_question')}</h3>
 
             {/* Comment Form */}
             <div className="mt-2 mb-8 flex flex-col items-end">
               <textarea
-                className="w-full bg-transparent border-x-0 border-t-0 border-b border-gray-300 dark:border-gray-700 pb-2 text-sm focus:ring-0 focus:outline-none dark:text-white resize-none focus:border-brand-600 dark:focus:border-brand-500 transition-colors shadow-none"
-                placeholder="Add a comment..."
+                className="w-full bg-transparent border-x-0 border-t-0 border-b border-gray-300 dark:border-gray-700 pb-2 text-sm focus:ring-0 focus:outline-none dark:text-white resize-none focus:border-brand-600 dark:focus:border-gray-900 dark:focus:border-white transition-colors shadow-none"
+                placeholder={t('add_a_comment')}
                 rows={1}
                 onFocus={(e) => e.target.rows = 3}
                 onBlur={(e) => { if (!commentText.trim()) e.target.rows = 1; }}
@@ -163,7 +165,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                     onClick={() => setCommentText('')}
                     className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition"
                   >
-                    Cancel
+                    {t('cancel')}
                   </button>
                 )}
                 <button
@@ -171,7 +173,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                   disabled={submitting || !commentText.trim()}
                   className="bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-500 text-white font-bold px-4 py-2 rounded-full text-sm transition"
                 >
-                  {submitting ? 'Posting...' : 'Comment'}
+                  {submitting ? t('posting') : t('comment_btn')}
                 </button>
               </div>
             </div>
@@ -181,7 +183,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
               </div>
             ) : comments.length === 0 ? (
-              <p className="text-gray-400 py-4 text-center">No comments</p>
+              <p className="text-gray-400 py-4 text-center">{t('no_comments')}</p>
             ) : (
               <div className="space-y-6 mt-6">
                 {parentComments.map((comment) => (
@@ -201,7 +203,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                         <p className="text-[14px] text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">{comment.body}</p>
                         <div className="flex items-center gap-4 mt-2">
                           <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-xs font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white transition">
-                            {replyingTo === comment.id ? 'Cancel' : 'Reply'}
+                            {replyingTo === comment.id ? t('cancel') : t('reply')}
                           </button>
                         </div>
                       </div>
@@ -234,14 +236,14 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                       <div className="ml-12 mt-2 flex flex-col items-end">
                         <input
                           type="text"
-                          className="w-full bg-transparent border-x-0 border-t-0 border-b border-gray-300 dark:border-gray-600 pb-1 text-sm dark:text-white focus:ring-0 focus:outline-none focus:border-brand-600 dark:focus:border-brand-500 transition-colors shadow-none"
-                          placeholder="Add a reply..."
+                          className="w-full bg-transparent border-x-0 border-t-0 border-b border-gray-300 dark:border-gray-600 pb-1 text-sm dark:text-white focus:ring-0 focus:outline-none focus:border-brand-600 dark:focus:border-gray-900 dark:focus:border-white transition-colors shadow-none"
+                          placeholder={t('add_a_reply')}
                           autoFocus
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
                         />
                         <div className="flex gap-2 mt-2">
-                          <button onClick={() => { setReplyingTo(null); setReplyText(''); }} className="px-3 py-1.5 text-sm font-bold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition">Cancel</button>
+                          <button onClick={() => { setReplyingTo(null); setReplyText(''); }} className="px-3 py-1.5 text-sm font-bold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition">{t('cancel')}</button>
                           <button
                             onClick={async () => {
                               if (!replyText.trim()) return;
@@ -265,7 +267,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                             disabled={submitting || !replyText.trim()}
                             className="bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-500 text-white font-bold px-4 py-1.5 rounded-full text-sm transition"
                           >
-                            {submitting ? '...' : 'Reply'}
+                            {submitting ? '...' : t('reply')}
                           </button>
                         </div>
                       </div>

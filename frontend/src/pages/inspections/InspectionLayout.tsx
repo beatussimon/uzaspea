@@ -281,7 +281,7 @@ const RequestForm: React.FC = () => {
             <div className="flex items-center gap-3 pt-5">
               <input type="checkbox" id="is_complex" checked={form.is_complex}
                 onChange={(e) => setForm({ ...form, is_complex: e.target.checked })}
-                className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-gray-900 dark:focus:ring-white" />
               <label htmlFor="is_complex" className="text-sm text-gray-700 dark:text-gray-300">
                 Mark as unusually complex (+20%)
               </label>
@@ -340,7 +340,7 @@ const RequestForm: React.FC = () => {
             <div className="flex items-start gap-3">
               <input type="checkbox" id="reinspection" checked={form.reinspection_coverage}
                 onChange={(e) => setForm({ ...form, reinspection_coverage: e.target.checked })}
-                className="w-4 h-4 mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                className="w-4 h-4 mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-gray-900 dark:focus:ring-white" />
               <label htmlFor="reinspection" className="text-sm text-gray-700 dark:text-gray-300">
                 <span className="font-medium">Re-inspection coverage (+10%)</span>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">

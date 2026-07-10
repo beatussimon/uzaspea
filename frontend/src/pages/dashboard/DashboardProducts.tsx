@@ -1,11 +1,25 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, Plus } from 'lucide-react';
+import { Package, Plus, Trash } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
 import { useDialog } from '../../components/ui/Dialogs';
 import ProductVariantsModal from './ProductVariantsModal';
+
+const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
+  'electronics': ['Color', 'Storage Capacity'],
+  'electronics-mobile-phones': ['Color', 'Storage Capacity', 'RAM'],
+  'electronics-computers-laptops': ['Processor', 'RAM', 'Storage Capacity'],
+  'electronics-tvs-audio': ['Screen Size', 'Color'],
+  'mens-fashion': ['Size', 'Color'],
+  'mens-fashion-clothing': ['Size', 'Color', 'Material'],
+  'mens-fashion-shoes': ['Shoe Size', 'Color'],
+  'mens-fashion-watches': ['Strap Color', 'Dial Color'],
+  'womens-fashion': ['Size', 'Color', 'Material'],
+  'vehicles-cars': ['Color', 'Trim Level'],
+  'vehicles-vehicle-parts-accessories': ['Compatibility', 'Color'],
+};
 
 // ============ Dashboard Products ============
 const DashboardProducts: React.FC = () => {
@@ -14,28 +28,50 @@ const DashboardProducts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
+  const [form, setForm] = useState({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
+  const [newVariants, setNewVariants] = useState<any[]>([]);
   const [existingImages, setExistingImages] = useState<any[]>([]);
   const [locData, setLocData] = useState({ latitude: '', longitude: '', location_name: '' });
   const [locStatus, setLocStatus] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [variationColumns, setVariationColumns] = useState<string[]>(['Option 1']);
+  const [showCustomColumnInput, setShowCustomColumnInput] = useState(false);
+  const [customColumnName, setCustomColumnName] = useState('');
+  const [deletedVariantIds, setDeletedVariantIds] = useState<number[]>([]);
 
   // Flatten the nested category tree from the API into a flat list for the <select> dropdown
   const flatCategories = useMemo(() => {
     const result: any[] = [];
     for (const cat of categories) {
-      result.push({ id: cat.id, name: cat.name, depth: 0 });
+      result.push({ id: cat.id, name: cat.name, slug: cat.slug, depth: 0 });
       if (cat.children?.length) {
         for (const child of cat.children) {
-          result.push({ id: child.id, name: `  › ${child.name}`, depth: 1 });
+          result.push({ id: child.id, name: `  › ${child.name}`, slug: child.slug, depth: 1 });
         }
       }
     }
     return result;
   }, [categories]);
+
+  useEffect(() => {
+    if (!editingId && form.category) {
+      const selectedCat = flatCategories.find(c => String(c.id) === String(form.category));
+      if (selectedCat && selectedCat.slug) {
+         const defaults = CATEGORY_VARIATION_DEFAULTS[selectedCat.slug];
+         setVariationColumns(defaults || ['Option 1']);
+         // Ensure existing newVariants have the right fields initialized
+         setNewVariants(prev => prev.map(v => {
+           const newFields: Record<string, string> = {};
+           (defaults || ['Option 1']).forEach(col => newFields[col] = v.fields?.[col] || '');
+           return { ...v, fields: newFields };
+         }));
+      }
+    }
+  }, [form.category, editingId, flatCategories]);
 
   // Infinite Scroll state
   const [, setPage] = useState(1);
@@ -157,8 +193,6 @@ const DashboardProducts: React.FC = () => {
       formData.append('category', form.category);
       formData.append('condition', form.condition);
       formData.append('is_available', String(form.is_available));
-      formData.append('weight_kg', form.weight_kg);
-      formData.append('size', form.size);
       if (locData.latitude) formData.append('latitude', locData.latitude);
       if (locData.longitude) formData.append('longitude', locData.longitude);
       if (locData.location_name) formData.append('location_name', locData.location_name);
@@ -167,23 +201,70 @@ const DashboardProducts: React.FC = () => {
         formData.append('uploaded_images', file);
       });
 
+      let baseProductId = null;
       if (editingId) {
         await api.put(`/api/products/${editingId}/`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         toast.success('Product updated!');
+        baseProductId = editingProductId;
       } else {
-        await api.post('/api/products/', formData, {
+        const res = await api.post('/api/products/', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         toast.success('Product created!');
+        baseProductId = res.data.id;
+      }
+
+      if (newVariants.length > 0 && baseProductId) {
+        for (const nv of newVariants) {
+          const parts = variationColumns.map(col => nv.fields?.[col]).filter(Boolean);
+          if (parts.length === 0) continue;
+          const finalName = parts.join(' / ');
+          const finalAdjustment = nv.price_adj_sign === '-' ? `-${nv.price_adjustment || '0'}` : (nv.price_adjustment || '0');
+          const vData = new FormData();
+          vData.append('product', String(baseProductId));
+          vData.append('name', finalName);
+          vData.append('price_adjustment', finalAdjustment);
+          vData.append('stock', nv.stock || '0');
+          vData.append('is_available', 'true');
+          if (nv.imageFile) {
+            vData.append('image', nv.imageFile);
+          }
+          try {
+            if (nv.id) {
+              await api.put(`/api/variants/${nv.id}/`, vData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            } else {
+              await api.post('/api/variants/', vData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            }
+          } catch (err) {
+            console.error('Variant save failed:', err);
+          }
+        }
+        toast.success('Variations saved!');
+      }
+
+      if (deletedVariantIds.length > 0) {
+        for (const id of deletedVariantIds) {
+          try {
+            const vData = new FormData();
+            vData.append('is_available', 'false');
+            vData.append('stock', '0');
+            await api.patch(`/api/variants/${id}/`, vData);
+          } catch (e) {
+            console.error('Failed to soft delete variant', e);
+          }
+        }
       }
 
       setShowForm(false);
       setEditingId(null);
-      setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
+      setEditingProductId(null);
+      setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
       setImageFiles([]);
       setExistingImages([]);
+      setNewVariants([]);
+      setDeletedVariantIds([]);
       fetchProducts(1, true);
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to save product');
@@ -192,7 +273,7 @@ const DashboardProducts: React.FC = () => {
     }
   };
 
-  const handleEdit = (product: any) => {
+  const handleEdit = async (product: any) => {
     setForm({
       name: product.name,
       description: product.description,
@@ -202,12 +283,49 @@ const DashboardProducts: React.FC = () => {
       category: String(product.category),
       condition: product.condition,
       is_available: product.is_available,
-      weight_kg: String(product.weight_kg || '1.0'),
-      size: product.size || 'small',
     });
     setEditingId(product.slug);
+    setEditingProductId(product.id);
     setExistingImages(product.images || []);
+    setNewVariants([]);
     setShowForm(true);
+
+    try {
+      const vRes = await api.get(`/api/variants/?product=${product.id}`);
+      const fetchedVars = (vRes.data.results || vRes.data).filter((v: any) => v.is_available !== false);
+      // Determine columns for editing
+      const selectedCat = flatCategories.find(c => String(c.id) === String(product.category));
+      let cols = ['Option 1'];
+      if (selectedCat && selectedCat.slug && CATEGORY_VARIATION_DEFAULTS[selectedCat.slug]) {
+         cols = [...CATEGORY_VARIATION_DEFAULTS[selectedCat.slug]];
+      }
+
+      const parsedVars = fetchedVars.map((v: any) => {
+        const parts = v.name.split(' / ');
+        const fields: Record<string, string> = {};
+        
+        while (cols.length < parts.length) {
+           cols.push(`Custom ${cols.length + 1}`);
+        }
+        
+        parts.forEach((p: string, idx: number) => {
+           fields[cols[idx]] = p;
+        });
+
+        return {
+          id: v.id,
+          fields,
+          price_adj_sign: v.price_adjustment.startsWith('-') ? '-' : '+',
+          price_adjustment: v.price_adjustment.replace('-', ''),
+          stock: String(v.stock),
+          existingImageUrl: v.image
+        };
+      });
+      setVariationColumns(cols);
+      setNewVariants(parsedVars);
+    } catch {
+      toast.error('Failed to load existing variations');
+    }
   };
 
   const handleDelete = async (slug: string) => {
@@ -231,7 +349,8 @@ const DashboardProducts: React.FC = () => {
             setShowForm(!showForm);
             setEditingId(null);
             setExistingImages([]);
-            setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, weight_kg: '1.0', size: 'small' });
+            setNewVariants([]);
+            setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
           }}
           className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition text-sm"
         >
@@ -275,17 +394,6 @@ const DashboardProducts: React.FC = () => {
               <option value="Used">Used</option>
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <input name="weight_kg" value={form.weight_kg} onChange={handleChange} placeholder="Weight (kg)" type="number" step="0.1" required
-              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
-            <select name="size" value={form.size} onChange={handleChange}
-              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white">
-              <option value="small">Small</option>
-              <option value="medium">Medium</option>
-              <option value="large">Large</option>
-              <option value="oversized">Oversized</option>
-            </select>
-          </div>
           <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
             <input 
               type="checkbox" 
@@ -293,11 +401,135 @@ const DashboardProducts: React.FC = () => {
               id="is_available"
               checked={form.is_available} 
               onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
-              className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500" 
+              className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-gray-900 dark:focus:ring-white" 
             />
             <label htmlFor="is_available" className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Product is Available for Sale
             </label>
+          </div>
+          <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-4">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4">
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white">Product Variations</h4>
+                <p className="text-xs text-gray-500">Configure category-specific variations like size, color, or capacity.</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {variationColumns.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Active Columns:</span>
+                    {variationColumns.map((col, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300 shadow-sm">
+                        {col}
+                        <button type="button" onClick={() => setVariationColumns(variationColumns.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded p-0.5 transition" title="Remove column">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2 items-center">
+                  {showCustomColumnInput ? (
+                    <div className="flex items-center gap-2">
+                      <input 
+                        autoFocus
+                        placeholder="e.g. Length"
+                        value={customColumnName}
+                        onChange={e => setCustomColumnName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && customColumnName.trim()) {
+                            const col = customColumnName.trim();
+                            setVariationColumns([...variationColumns, col]);
+                            setNewVariants(prev => prev.map(v => ({ ...v, fields: { ...v.fields, [col]: '' } })));
+                            setCustomColumnName('');
+                            setShowCustomColumnInput(false);
+                          } else if (e.key === 'Escape') {
+                            setShowCustomColumnInput(false);
+                          }
+                        }}
+                        className="text-xs p-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white outline-none focus:border-brand-500 w-24"
+                      />
+                      <button type="button" onClick={() => {
+                          if (customColumnName.trim()) {
+                            const col = customColumnName.trim();
+                            setVariationColumns([...variationColumns, col]);
+                            setNewVariants(prev => prev.map(v => ({ ...v, fields: { ...v.fields, [col]: '' } })));
+                            setCustomColumnName('');
+                          }
+                          setShowCustomColumnInput(false);
+                      }} className="text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 px-2 py-1.5 rounded-lg transition">
+                        Add
+                      </button>
+                      <button type="button" onClick={() => setShowCustomColumnInput(false)} className="text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-2 py-1.5">
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setShowCustomColumnInput(true)} className="text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 px-3 py-1.5 rounded-lg flex items-center gap-1 transition whitespace-nowrap">
+                      <Plus size={14} /> Add Custom Column
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setNewVariants([...newVariants, { fields: {}, price_adj_sign: '+', price_adjustment: '0', stock: '0' }])} className="text-xs font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/20 dark:hover:bg-brand-900/40 px-3 py-1.5 rounded-lg flex items-center gap-1 transition whitespace-nowrap">
+                    <Plus size={14} /> Add Option
+                  </button>
+                </div>
+              </div>
+            </div>
+            {newVariants.length > 0 && (
+              <div className="space-y-3 mb-4 overflow-x-auto pb-2">
+                {newVariants.map((v, i) => (
+                  <div key={i} className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 relative min-w-max">
+                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
+                      <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Variation Option {i + 1}</h5>
+                      <button type="button" onClick={() => { 
+                          const nv = [...newVariants]; 
+                          const removed = nv.splice(i, 1)[0]; 
+                          setNewVariants(nv); 
+                          if (removed.id) setDeletedVariantIds(prev => [...prev, removed.id]);
+                        }} className="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        Remove Option
+                      </button>
+                    </div>
+                    <div className="flex gap-3 items-end">
+                       {variationColumns.map((col, colIdx) => (
+                         <div key={colIdx} className="w-32 shrink-0">
+                           <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1 truncate" title={col}>{col}</label>
+                           <input placeholder={`e.g. Value`} value={v.fields?.[col] || ''} onChange={e => { const nv = [...newVariants]; if (!nv[i].fields) nv[i].fields = {}; nv[i].fields[col] = e.target.value; setNewVariants(nv); }} className="w-full p-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:ring-1 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition" />
+                         </div>
+                       ))}
+                       <div className="w-24 shrink-0">
+                         <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Stock</label>
+                         <input placeholder="0" type="number" value={v.stock} onChange={e => { const nv = [...newVariants]; nv[i].stock = e.target.value; setNewVariants(nv); }} className="w-full p-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:ring-1 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition" required />
+                       </div>
+                       <div className="w-32 shrink-0">
+                         <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Price Adj.</label>
+                         <div className="flex border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus-within:ring-1 focus-within:ring-gray-900/10 dark:focus-within:ring-white/10 focus-within:border-gray-900 dark:focus-within:border-white transition overflow-hidden">
+                           <select value={v.price_adj_sign} onChange={e => { const nv = [...newVariants]; nv[i].price_adj_sign = e.target.value; setNewVariants(nv); }} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-2 text-sm outline-none border-r border-gray-200 dark:border-gray-600 font-bold">
+                             <option value="+">+</option>
+                             <option value="-">-</option>
+                           </select>
+                           <input placeholder="0" type="number" value={v.price_adjustment} onChange={e => { const nv = [...newVariants]; nv[i].price_adjustment = e.target.value; setNewVariants(nv); }} className="w-full p-2 text-sm bg-transparent dark:text-white outline-none" />
+                         </div>
+                       </div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-3">
+                      {v.existingImageUrl && !v.imageFile && (
+                        <SafeImage src={v.existingImageUrl} alt="Variant" category="product" className="w-10 h-10 rounded border dark:border-gray-700 object-cover shrink-0" />
+                      )}
+                      {v.imageFile && (
+                        <div className="w-10 h-10 rounded border border-brand-500 bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center shrink-0">
+                          <Package size={16} className="text-brand-500" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Variation Image (Optional)</label>
+                        <input type="file" accept="image/*" onChange={e => { const nv = [...newVariants]; nv[i].imageFile = e.target.files?.[0]; setNewVariants(nv); }} className="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 outline-none" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           {existingImages.length > 0 && (
             <div>
@@ -323,10 +555,24 @@ const DashboardProducts: React.FC = () => {
               <p className="text-xs text-gray-400 mt-1">{imageFiles.length} file(s) selected</p>
             )}
           </div>
-          <button type="submit" disabled={submitting}
-            className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-semibold rounded-lg transition">
-            {submitting ? 'Saving...' : editingId ? 'Update Product' : 'Create Product'}
-          </button>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={() => {
+              setShowForm(false);
+              setEditingId(null);
+              setEditingProductId(null);
+              setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
+              setImageFiles([]);
+              setExistingImages([]);
+              setNewVariants([]);
+              setDeletedVariantIds([]);
+            }} disabled={submitting} className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting}
+              className="flex-[2] py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-semibold rounded-lg transition">
+              {submitting ? 'Saving...' : editingId ? 'Update Product' : 'Create Product'}
+            </button>
+          </div>
         </form>
       )}
 

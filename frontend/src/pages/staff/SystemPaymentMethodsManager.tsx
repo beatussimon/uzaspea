@@ -101,7 +101,7 @@ const SystemPaymentMethodsManager: React.FC = () => {
                 required
                 value={formData.network}
                 onChange={e => setFormData({ ...formData, network: e.target.value })}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-gray-900 dark:focus:ring-white focus:border-gray-900 dark:focus:border-white"
               >
                 {networks.map(n => (
                   <option key={n.id} value={n.id}>{n.name}</option>
@@ -116,7 +116,7 @@ const SystemPaymentMethodsManager: React.FC = () => {
                 placeholder="e.g. 0700 000 000"
                 value={formData.number}
                 onChange={e => setFormData({ ...formData, number: e.target.value })}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-gray-900 dark:focus:ring-white focus:border-gray-900 dark:focus:border-white"
               />
             </div>
             <div>
@@ -127,7 +127,7 @@ const SystemPaymentMethodsManager: React.FC = () => {
                 placeholder="Uzaspea Limited"
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-gray-900 dark:focus:ring-white focus:border-gray-900 dark:focus:border-white"
               />
             </div>
             <div>
@@ -136,7 +136,7 @@ const SystemPaymentMethodsManager: React.FC = () => {
                 required
                 value={formData.purpose}
                 onChange={e => setFormData({ ...formData, purpose: e.target.value })}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-gray-900 dark:focus:ring-white focus:border-gray-900 dark:focus:border-white"
               >
                 <option value="general">General (Fallback)</option>
                 <option value="subscriptions">Subscriptions & Upgrades</option>

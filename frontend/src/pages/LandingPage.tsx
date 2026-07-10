@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ArrowRight, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useVelocity, useSpring, useTransform } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import ProductCard from '../components/ProductCard';
 import PromotedProductsRow from '../components/PromotedProductsRow';
@@ -40,6 +41,7 @@ const WavyText = ({ text, velocity, startIndex = 0 }: { text: string, velocity: 
 const LandingPage = () => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [latestProducts, setLatestProducts] = useState<any[]>([]);
   const [promotions, setPromotions] = useState<any[]>([]);
@@ -136,24 +138,24 @@ const LandingPage = () => {
         <div className="relative z-10 w-full max-w-4xl px-10 sm:px-14 md:px-16 text-center -translate-y-12 md:-translate-y-16 pointer-events-none">
           <h1 className="text-4xl md:text-6.5xl font-black text-white mb-4 drop-shadow-xl tracking-tight leading-tight origin-center flex flex-col items-center justify-center">
             <div className="inline-block">
-              <WavyText text="Buy and Sell " velocity={smoothVelocity} />
+              <WavyText text={t('buy_and_sell')} velocity={smoothVelocity} />
               <span className="text-yellow-400 inline-block">
-                <WavyText text="Anything" velocity={smoothVelocity} startIndex={13} />
+                <WavyText text={t('anything')} velocity={smoothVelocity} startIndex={13} />
               </span>
               <WavyText text="," velocity={smoothVelocity} startIndex={21} /> 
             </div>
             <div className="hidden md:inline-block">
-              <WavyText text="Instantly." velocity={smoothVelocity} startIndex={22} />
+              <WavyText text={t('instantly')} velocity={smoothVelocity} startIndex={22} />
             </div>
             <div className="inline-block md:hidden">
-              <WavyText text="Instantly." velocity={smoothVelocity} startIndex={22} />
+              <WavyText text={t('instantly')} velocity={smoothVelocity} startIndex={22} />
             </div>
           </h1>
           <motion.p 
             style={{ rotate: rotateP, x: xP }}
             className="text-base md:text-lg text-gray-200 mb-8 drop-shadow-md font-medium max-w-xl mx-auto origin-center"
           >
-            The community marketplace for new, used, and verified products in Tanzania.
+            {t('marketplace_desc')}
           </motion.p>
 
           <motion.div 
@@ -163,7 +165,7 @@ const LandingPage = () => {
             <form onSubmit={handleSearch} className="flex-1 flex relative w-full">
               <input
                 type="text"
-                placeholder="What are you looking for?"
+                placeholder={t('search_placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-6 pr-14 py-3 bg-transparent text-gray-900 dark:text-white focus:outline-none font-bold text-base md:text-lg rounded-full"
@@ -185,11 +187,11 @@ const LandingPage = () => {
               transition={{ delay: 0.5 }}
               className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-white/90 drop-shadow-md tracking-wide"
             >
-              <span>{stats.active_users.toLocaleString()} Active Users</span>
+              <span>{stats.active_users.toLocaleString()} {t('active_users')}</span>
               <span>•</span>
-              <span>{stats.products_sold.toLocaleString()} Products Sold</span>
+              <span>{stats.products_sold.toLocaleString()} {t('products_sold')}</span>
               <span>•</span>
-              <span>{stats.weekly_visits > 1000 ? `${(stats.weekly_visits / 1000).toFixed(1)}K` : stats.weekly_visits} Weekly Visits</span>
+              <span>{stats.weekly_visits > 1000 ? `${(stats.weekly_visits / 1000).toFixed(1)}K` : stats.weekly_visits} {t('weekly_visits')}</span>
             </motion.div>
           )}
         </div>
@@ -219,10 +221,10 @@ const LandingPage = () => {
       <section className="container-page">
         <div className="flex justify-between items-end mb-6">
           <div>
-            <h2 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">Latest Listings</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">{t('latest_listings', 'Latest Listings')}</h2>
           </div>
           <Link to="/products" className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline">
-            View all <ArrowRight className="h-4 w-4" />
+            {t('view_all', 'View all')} <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 

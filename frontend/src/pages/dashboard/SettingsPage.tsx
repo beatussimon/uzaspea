@@ -27,6 +27,28 @@ const SettingsPage: React.FC = () => {
     const [proofFile, setProofFile] = useState<File | null>(null);
     const [loadingUpgradeData, setLoadingUpgradeData] = useState(false);
 
+    const [pushPermission, setPushPermission] = useState<NotificationPermission>(
+        typeof window !== 'undefined' ? Notification.permission : 'default'
+    );
+
+    const enablePushNotifications = async () => {
+        if (!('Notification' in window)) {
+            toast.error('This browser does not support push notifications.');
+            return;
+        }
+        try {
+            const permission = await Notification.requestPermission();
+            setPushPermission(permission);
+            if (permission === 'granted') {
+                toast.success('Push notifications enabled!');
+            } else if (permission === 'denied') {
+                toast.error('Notification permission denied. Enable it in browser settings.');
+            }
+        } catch (err) {
+            toast.error('Failed to request permission.');
+        }
+    };
+
     const handleOpenUpgrade = async () => {
         setShowUpgradeModal(true);
         setLoadingUpgradeData(true);
@@ -227,6 +249,34 @@ const SettingsPage: React.FC = () => {
                     </div>
                     {profile.tier !== 'premium' && (
                         <button onClick={handleOpenUpgrade} className="btn-primary text-sm">Upgrade Plan</button>
+                    )}
+                </div>
+            </div>
+
+            {/* Push Notifications Card */}
+            <div className="card p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <Bell size={18} className="text-brand-600 animate-bounce" />
+                    <h3 className="font-bold text-gray-900 dark:text-white">Push Notifications</h3>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                    Enable push notifications to receive real-time updates about orders, transfers, and chats directly on your device.
+                </p>
+                <div className="flex items-center justify-between bg-gray-50 dark:bg-neutral-800/40 p-4 rounded-xl">
+                    <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Status</p>
+                        <p className="text-xs text-gray-400 capitalize mt-0.5">
+                            {pushPermission === 'granted' ? 'Enabled (Granted)' : pushPermission === 'denied' ? 'Disabled (Denied)' : 'Not Enabled Yet'}
+                        </p>
+                    </div>
+                    {pushPermission !== 'granted' ? (
+                        <button onClick={enablePushNotifications} className="btn-primary text-sm px-4 py-2">
+                            Enable Push Notifications
+                        </button>
+                    ) : (
+                        <span className="text-xs font-bold text-green-500 bg-green-500/10 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                            <CheckCircle2 size={14} /> Active
+                        </span>
                     )}
                 </div>
             </div>

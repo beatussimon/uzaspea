@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CreditCard, MapPin, Phone, User, Truck, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
@@ -16,8 +16,14 @@ const CITIES_COORDS: Record<string, { lat: number; lng: number }> = {
 };
 
 const CheckoutPage: React.FC = () => {
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, clearCartByMerchant } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
+  const merchant = new URLSearchParams(location.search).get('merchant') || 'Unknown Store';
+  
+  const checkoutItems = useMemo(() => items.filter(i => (i.seller_username || 'Unknown Store') === merchant), [items, merchant]);
+  const checkoutTotal = useMemo(() => checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0), [checkoutItems]);
+
   const [submitting, setSubmitting] = useState(false);
   const [shippingMethod, setShippingMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
   
@@ -36,8 +42,8 @@ const CheckoutPage: React.FC = () => {
 
   useEffect(() => {
     const fetchSellerCoords = async () => {
-      if (items.length > 0) {
-        const sellerUsername = items[0].seller_username;
+      if (checkoutItems.length > 0) {
+        const sellerUsername = checkoutItems[0].seller_username;
         if (sellerUsername) {
           try {
             const res = await api.get(`/api/profiles/${sellerUsername}/`);
@@ -54,7 +60,7 @@ const CheckoutPage: React.FC = () => {
       }
     };
     fetchSellerCoords();
-  }, [items]);
+  }, [checkoutItems]);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -84,10 +90,10 @@ const CheckoutPage: React.FC = () => {
     const coords = CITIES_COORDS[city];
     if (!coords) return;
     
-    const totalWeight = items.reduce((acc, item) => acc + (item.quantity * (item.weight_kg ?? 1.0)), 0);
+    const totalWeight = checkoutItems.reduce((acc, item) => acc + (item.quantity * (item.weight_kg ?? 1.0)), 0);
     const sizesPriority: Record<string, number> = { 'small': 0, 'medium': 1, 'large': 2, 'oversized': 3 };
     let maxSize = 'small';
-    for (const item of items) {
+    for (const item of checkoutItems) {
       const itemSize = (item.size || 'small').toLowerCase();
       if ((sizesPriority[itemSize] || 0) > (sizesPriority[maxSize] || 0)) {
         maxSize = itemSize;
@@ -116,10 +122,10 @@ const CheckoutPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (shippingMethod === 'DELIVERY' && items.length > 0) {
+    if (shippingMethod === 'DELIVERY' && checkoutItems.length > 0) {
       fetchQuotes(selectedCity);
     }
-  }, [shippingMethod, selectedCity, items, sellerCoords]);
+  }, [shippingMethod, selectedCity, checkoutItems, sellerCoords]);
 
   const activeQuote = quotes.find(q => q.code === selectedQuoteCode);
   const estimatedShippingFee = shippingMethod === 'DELIVERY' 
@@ -127,17 +133,17 @@ const CheckoutPage: React.FC = () => {
     : 0;
   
   // They pay 0 for delivery at checkout. They only pay product price fully.
-  const finalTotal = totalPrice;
+  const finalTotal = checkoutTotal;
 
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
   useEffect(() => {
-    if (items.length === 0 && !checkoutSuccess) {
+    if (checkoutItems.length === 0 && !checkoutSuccess) {
       navigate('/cart', { replace: true });
     }
-  }, [items.length, navigate, checkoutSuccess]);
+  }, [checkoutItems.length, navigate, checkoutSuccess]);
 
-  if (items.length === 0) {
+  if (checkoutItems.length === 0) {
     return null;
   }
 
@@ -176,7 +182,7 @@ const CheckoutPage: React.FC = () => {
       const nearestWarehouseCode = getNearestWarehouseCode(sellerLat, sellerLng);
 
       const orderData = {
-        items: items.map((item) => {
+        items: checkoutItems.map((item) => {
           let productId = item.productId;
           let variantId = null;
           if (typeof productId === 'string' && productId.includes('-')) {
@@ -214,7 +220,7 @@ const CheckoutPage: React.FC = () => {
       });
 
       setCheckoutSuccess(true);
-      clearCart();
+      clearCartByMerchant(merchant);
       toast.success('Order placed successfully!');
       setTimeout(() => {
         navigate(`/orders?highlight=${orderId}`);
@@ -228,7 +234,10 @@ const CheckoutPage: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto p-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Checkout</h1>
+      <div className="mb-6 flex flex-col gap-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Checkout</h1>
+        <p className="text-sm font-medium text-brand-600 dark:text-brand-400">Store: @{merchant}</p>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Delivery Form */}
@@ -286,7 +295,7 @@ const CheckoutPage: React.FC = () => {
                       <select
                         value={selectedCity}
                         onChange={(e) => setSelectedCity(e.target.value)}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition"
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition"
                         required
                       >
                         {Object.keys(CITIES_COORDS).map((city) => (
@@ -336,7 +345,7 @@ const CheckoutPage: React.FC = () => {
                         name="fullName"
                         value={form.fullName}
                         onChange={handleChange}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition"
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition"
                         placeholder="Enter your full name"
                         required
                       />
@@ -351,7 +360,7 @@ const CheckoutPage: React.FC = () => {
                         name="phone"
                         value={form.phone}
                         onChange={handleChange}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition"
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition"
                         placeholder="+255 7XX XXX XXX"
                         required
                       />
@@ -366,7 +375,7 @@ const CheckoutPage: React.FC = () => {
                         name="deliveryAddress"
                         value={form.deliveryAddress}
                         onChange={handleChange}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition"
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition"
                         placeholder="Street, Area"
                         required
                       />
@@ -381,7 +390,7 @@ const CheckoutPage: React.FC = () => {
                         value={form.notes}
                         onChange={handleChange}
                         rows={3}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition resize-none"
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition resize-none"
                         placeholder="Special delivery instructions..."
                       />
                     </div>
@@ -420,9 +429,9 @@ const CheckoutPage: React.FC = () => {
 
         {/* Order Summary */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-6 h-fit sticky top-24">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Order Summary</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Order Summary (@{merchant})</h2>
           <div className="space-y-3 mb-4">
-            {items.map((item) => (
+            {checkoutItems.map((item) => (
               <div key={item.productId} className="flex items-center gap-3">
                 <SafeImage
                   src={item.image}
@@ -444,7 +453,7 @@ const CheckoutPage: React.FC = () => {
             <div className="flex justify-between items-center">
               <span className="font-medium text-gray-600 dark:text-gray-400">Product Subtotal</span>
               <span className="font-medium text-gray-900 dark:text-white">
-                TSh {totalPrice.toLocaleString()}
+                TSh {checkoutTotal.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
