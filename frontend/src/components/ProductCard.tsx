@@ -41,7 +41,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
   };
 
   return (
-    <div className={`relative ${viewMode === 'list' ? 'w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg' : 'aspect-square'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel`}>
+    <div className={`relative ${viewMode === 'list' ? 'w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-2xl' : 'aspect-square'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel`}>
       <div 
         ref={scrollRef}
         onScroll={handleScroll}

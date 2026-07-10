@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, MapPin, Clock, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
@@ -350,9 +350,32 @@ const ProductDetailPage: React.FC = () => {
         <div className="flex flex-col gap-6 w-full lg:col-span-5">
           <div className="flex flex-col md:flex-row-reverse gap-4">
             <div
-              className="flex-1 aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm cursor-zoom-in relative"
+              className="flex-1 aspect-square bg-gray-100 dark:bg-gray-800 rounded-3xl overflow-hidden shadow-sm cursor-zoom-in relative group"
               onClick={() => setLightboxOpen(true)}
             >
+              {/* Floating CTAs on Main Image */}
+              <div 
+                className="absolute top-4 right-4 flex gap-2 z-20"
+                onClick={(e) => { e.stopPropagation(); }}
+              >
+                <button
+                  onClick={handleLike}
+                  className={`w-10 h-10 rounded-full bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md flex items-center justify-center shadow-lg border border-gray-100 dark:border-neutral-850 hover:scale-110 active:scale-95 transition-all ${
+                    liked ? 'text-red-500' : 'text-gray-600 dark:text-gray-300'
+                  }`}
+                  title="Like"
+                >
+                  <Heart size={18} className={liked ? 'fill-current' : ''} />
+                </button>
+                <button
+                  onClick={handleShare}
+                  className="w-10 h-10 rounded-full bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md flex items-center justify-center shadow-lg border border-gray-100 dark:border-neutral-850 hover:scale-110 active:scale-95 transition-all text-gray-600 dark:text-gray-300"
+                  title="Share"
+                >
+                  <Share2 size={18} />
+                </button>
+              </div>
+
               <AnimatePresence mode="wait">
                 <motion.div
                   key={selectedImage}
@@ -437,17 +460,21 @@ const ProductDetailPage: React.FC = () => {
                   Posted {timeAgo(product.created_at)}
                 </span>
               )}
+              <span className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
+                <Heart size={13} className="text-red-500 fill-current animate-pulse" />
+                <span>{likeCount} likes</span>
+              </span>
             </div>
           </div>
 
           <hr className="border-gray-100 dark:border-gray-800" />
 
-          {/* Price & Actions */}
-          <div className="flex flex-col gap-4">
+          {/* Price & Valuation Badges */}
+          <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div className="space-y-1">
                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">Price</span>
-                <div className="flex flex-wrap items-baseline gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
                     TSh {selectedVariant ? selectedVariant.final_price.toLocaleString() : parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price).toLocaleString()}
                   </p>
@@ -456,49 +483,66 @@ const ProductDetailPage: React.FC = () => {
                       <span className="text-lg text-gray-400 line-through font-medium">
                         TSh {parseInt(product.price).toLocaleString()}
                       </span>
-                      <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-black rounded-md uppercase tracking-wider shadow-sm shadow-red-500/20">
+                      <span className="px-2.5 py-0.5 bg-red-500 text-white text-[10px] font-black rounded-full uppercase tracking-wider shadow-sm shadow-red-500/20">
                         {Math.round(((parseInt(product.price) - parseInt(product.sale_price)) / parseInt(product.price)) * 100)}% OFF
                       </span>
                     </div>
                   )}
+                  
+                  {/* Certified Inspection Badge next to Price */}
+                  {product.inspections && product.inspections.length > 0 && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/5 dark:text-emerald-400 border border-emerald-500/20">
+                      <CheckCircle size={11} className="fill-current text-emerald-500" />
+                      Inspected & Certified
+                    </span>
+                  )}
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleLike}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-200 active:scale-95 ${
-                    liked
-                      ? 'border-red-500 bg-red-50 dark:bg-red-950/20 text-red-500 shadow-sm'
-                      : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-red-400 hover:text-red-500'
-                  }`}
-                >
-                  <Heart size={18} className={liked ? 'fill-current' : ''} />
-                  <span className="text-xs font-bold">{likeCount}</span>
-                </button>
-                <button
-                  onClick={handleShare}
-                  className="flex items-center justify-center p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-500 hover:border-brand-500 hover:text-brand-500 transition shadow-sm bg-white dark:bg-gray-800"
-                  title="Share Product"
-                >
-                  <Share2 size={18} />
-                </button>
               </div>
             </div>
 
-            </div>
+            {/* Valuation Deal Recommendations based on Inspection Verdict */}
+            {(() => {
+              const latest = product.inspections && product.inspections.length > 0
+                ? product.inspections[product.inspections.length - 1]
+                : null;
+              if (!latest) return null;
+              
+              const isPass = latest.verdict === 'pass';
+              const isConditional = latest.verdict === 'conditional';
+
+              return (
+                <div className="flex items-center gap-2 mt-1.5 p-3 rounded-2xl border border-gray-100 dark:border-neutral-900 bg-gray-50/50 dark:bg-neutral-950/20 w-fit">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase shadow-sm ${
+                    isPass ? 'bg-emerald-500 text-white'
+                      : isConditional ? 'bg-amber-500 text-white'
+                      : 'bg-red-500 text-white'
+                  }`}>
+                    {isPass ? 'Great Value' : isConditional ? 'Fair Deal' : 'Needs Work'}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Suggested Deal Rating: <span className="font-bold text-gray-700 dark:text-gray-300">
+                      {isPass ? 'Suggested Pass' : isConditional ? 'Suggested Conditional' : 'Suggested Fail'}
+                    </span>
+                  </span>
+                </div>
+              );
+            })()}
+          </div>
 
           <hr className="border-gray-100 dark:border-gray-800" />
 
-          {/* Cart & Variants */}
-          <div className="flex flex-col gap-4">
+          {/* Purchase Options Card */}
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-150 dark:border-neutral-850 rounded-3xl p-6 shadow-md flex flex-col gap-4">
+            <h3 className="text-sm font-extrabold text-gray-900 dark:text-white uppercase tracking-wider mb-1">Purchase Options</h3>
+            
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500 dark:text-gray-400 font-medium">Availability</span>
               {product.stock > 0 ? (
-                <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded text-xs font-bold">
+                <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold border border-emerald-100 dark:border-emerald-900/40">
                   {product.stock} in stock
                 </span>
               ) : (
-                <span className="px-2 py-0.5 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded text-xs font-bold">
+                <span className="px-3 py-1 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-full text-xs font-bold border border-rose-100 dark:border-rose-900/40">
                   Out of stock
                 </span>
               )}
@@ -508,7 +552,7 @@ const ProductDetailPage: React.FC = () => {
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Select Option</label>
                 <select
-                  className="w-full p-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-sm focus:ring-1 focus:ring-brand-500 outline-none transition"
+                  className="w-full p-2.5 px-4 border border-gray-200 dark:border-gray-700 rounded-full bg-gray-50 dark:bg-gray-900 text-sm focus:ring-1 focus:ring-brand-500 outline-none transition"
                   value={selectedVariant?.id || ''}
                   onChange={(e) => {
                      const v = variants.find(x => x.id.toString() === e.target.value);
@@ -528,17 +572,17 @@ const ProductDetailPage: React.FC = () => {
 
             {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
               isOwnProduct ? (
-                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-center border border-gray-100 dark:border-gray-700 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-full text-center border border-gray-100 dark:border-gray-700 text-xs font-bold text-gray-400 uppercase tracking-wider">
                   This is your own listing
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0">
-                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-sm">−</button>
+                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-full bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0">
+                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-3.5 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-sm">−</button>
                     <span className="px-3 py-2.5 font-extrabold text-gray-900 dark:text-white border-x border-gray-200 dark:border-gray-700 min-w-[40px] text-center text-sm">{quantity}</span>
-                    <button onClick={() => setQuantity(Math.min((selectedVariant ? selectedVariant.stock : product.stock), quantity + 1))} className="px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-sm">+</button>
+                    <button onClick={() => setQuantity(Math.min((selectedVariant ? selectedVariant.stock : product.stock), quantity + 1))} className="px-3.5 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-sm">+</button>
                   </div>
-                  <button onClick={handleAddToCart} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold rounded-xl transition shadow-sm active:scale-98 text-sm">
+                  <button onClick={handleAddToCart} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold rounded-full transition shadow-md active:scale-98 text-sm">
                     <ShoppingCart size={16} /> {t('add_to_cart')}
                   </button>
                 </div>
