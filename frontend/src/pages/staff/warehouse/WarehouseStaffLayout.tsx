@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../api';
 import toast from 'react-hot-toast';
 import { 
-  Package, CheckCircle, Clock, Truck, QrCode, X, Search, Activity, Camera, PenTool, ShieldCheck, Key, MapPin, Zap
+  Package, CheckCircle, Clock, Truck, QrCode, X, Search, Activity, Camera, PenTool, ShieldCheck, Key, MapPin, Zap,
+  RefreshCw, Download, Upload
 } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,6 +20,8 @@ const WarehouseStaffLayout: React.FC = () => {
   const [awaitingPayments, setAwaitingPayments] = useState<any[]>([]);
   const [outboundOrders, setOutboundOrders] = useState<any[]>([]);
   const [readyForPickup, setReadyForPickup] = useState<any[]>([]);
+  const [incomingTransfers, setIncomingTransfers] = useState<any[]>([]);
+  const [outgoingTransfers, setOutgoingTransfers] = useState<any[]>([]);
 
   // Smart Filters
   const [queueFilter, setQueueFilter] = useState<'all' | 'origin' | 'destination'>('all');
@@ -52,6 +55,14 @@ const WarehouseStaffLayout: React.FC = () => {
   // Pickup Form State
   const [pickupCode, setPickupCode] = useState('');
 
+  // Dispatch Form State
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [carrierType, setCarrierType] = useState<'driver' | 'third_party'>('driver');
+  const [selectedDriverId, setSelectedDriverId] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [thirdPartyDriverInfo, setThirdPartyDriverInfo] = useState('');
+  const [estimatedDelivery, setEstimatedDelivery] = useState('');
+
   const [submitting, setSubmitting] = useState(false);
 
   // Initialize
@@ -70,6 +81,12 @@ const WarehouseStaffLayout: React.FC = () => {
         }
       })
       .catch(() => toast.error('Failed to load warehouses list'));
+
+    api.get('/api/logistics/shipments/drivers/')
+      .then(res => {
+        setDrivers(res.data.results || res.data || []);
+      })
+      .catch(() => toast.error('Failed to load drivers list'));
   }, []);
 
   useEffect(() => {
@@ -98,18 +115,30 @@ const WarehouseStaffLayout: React.FC = () => {
     if (!whId) return;
     setLoading(true);
     try {
-      const [pendingRes, pricingRes, waitingRes, dispatchRes, pickupRes] = await Promise.all([
+      const [pendingRes, pricingRes, waitingRes, dispatchRes, pickupRes, transfersInTransitRes, transfersPendingRes] = await Promise.all([
         api.get(`/api/warehouses/warehouses/${whId}/pending-intakes/`),
         api.get(`/api/warehouses/warehouses/${whId}/received-intakes/`),
         api.get(`/api/warehouses/warehouses/${whId}/awaiting-payment/`),
         api.get(`/api/warehouses/warehouses/${whId}/outbound-queue/`),
-        api.get(`/api/warehouses/warehouses/${whId}/ready-for-pickup/`)
+        api.get(`/api/warehouses/warehouses/${whId}/ready-for-pickup/`),
+        api.get(`/api/warehouses/transfers/?warehouse=${whId}&status=in_transit`),
+        api.get(`/api/warehouses/transfers/?warehouse=${whId}&status=pending`)
       ]);
       setPendingIntakes(pendingRes.data.results || pendingRes.data || []);
       setReceivedIntakes(pricingRes.data.results || pricingRes.data || []);
       setAwaitingPayments(waitingRes.data.results || waitingRes.data || []);
       setOutboundOrders(dispatchRes.data.results || dispatchRes.data || []);
       setReadyForPickup(pickupRes.data.results || pickupRes.data || []);
+
+      const incoming = (transfersInTransitRes.data.results || transfersInTransitRes.data || []).filter(
+        (t: any) => t.destination_warehouse.toString() === whId
+      );
+      setIncomingTransfers(incoming);
+
+      const outgoing = (transfersPendingRes.data.results || transfersPendingRes.data || []).filter(
+        (t: any) => t.source_warehouse.toString() === whId
+      );
+      setOutgoingTransfers(outgoing);
     } catch (err) {
       toast.error('Failed to sync warehouse data');
     } finally {
@@ -156,8 +185,10 @@ const WarehouseStaffLayout: React.FC = () => {
           setActiveModal('origin_intake');
           break;
         case 'IN_TRANSIT':
-        case 'ARRIVED_AT_REGIONAL_WAREHOUSE':
           setActiveModal('destination_intake');
+          break;
+        case 'ARRIVED_AT_REGIONAL_WAREHOUSE':
+          setActiveModal('last_mile_sorting');
           break;
         case 'RECEIVED_AT_WAREHOUSE':
           setActiveModal('pricing');
@@ -210,7 +241,8 @@ const WarehouseStaffLayout: React.FC = () => {
       setOrderPreview(order);
       if (actionType === 'intake') {
         if (order.status === 'SHIPPED_TO_WAREHOUSE') setActiveModal('origin_intake');
-        else if (order.status === 'IN_TRANSIT' || order.status === 'FAILED_DELIVERY' || order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE') setActiveModal('destination_intake');
+        else if (order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE') setActiveModal('last_mile_sorting');
+        else if (order.status === 'IN_TRANSIT' || order.status === 'FAILED_DELIVERY') setActiveModal('destination_intake');
         else setActiveModal('origin_intake');
       } else {
         setActiveModal(actionType as any);
@@ -281,14 +313,39 @@ const WarehouseStaffLayout: React.FC = () => {
   const submitDispatch = async () => {
     setSubmitting(true);
     try {
+      // 1. Check if shipment already exists for this order, or create it
+      const shipRes = await api.get(`/api/logistics/shipments/?order=${orderPreview.id}`);
+      const shipmentsList = shipRes.data.results || shipRes.data || [];
+      const existingShipment = shipmentsList[0];
+
+      const driverId = carrierType === 'driver' && selectedDriverId ? parseInt(selectedDriverId) : null;
+      const shipmentData: any = {
+        order: orderPreview.id,
+        carrier_type: carrierType,
+        driver: driverId,
+        tracking_number: trackingNumber,
+        estimated_delivery: estimatedDelivery ? new Date(estimatedDelivery).toISOString() : null,
+      };
+
+      if (carrierType === 'third_party') {
+        shipmentData.third_party_driver_info = thirdPartyDriverInfo;
+      }
+
+      if (existingShipment) {
+        await api.patch(`/api/logistics/shipments/${existingShipment.id}/`, shipmentData);
+      } else {
+        await api.post(`/api/logistics/shipments/`, shipmentData);
+      }
+
+      // 2. Call dispatch-order in warehouses ViewSet
       await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/dispatch-order/`, {
         order_id: orderPreview.id
       });
-      toast.success('Order dispatched to transport!');
+      toast.success('Order dispatched successfully with carrier details!');
       closeModal();
       fetchAllQueues(selectedWarehouseId);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to dispatch order.');
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Failed to dispatch order.');
     } finally {
       setSubmitting(false);
     }
@@ -534,6 +591,122 @@ const WarehouseStaffLayout: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Inter-Warehouse Transfers Section */}
+      <div className="mt-12 space-y-6">
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-neutral-800 pb-4">
+          <div>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+              <RefreshCw size={20} className="text-brand-500 animate-spin-slow" />
+              Inter-Warehouse Transfers
+            </h2>
+            <p className="text-xs font-medium text-gray-505 dark:text-neutral-400 mt-1">
+              Manage transfer shipments moving between regional hubs
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-500">
+              Incoming: {incomingTransfers.length}
+            </span>
+            <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-500">
+              Outgoing: {outgoingTransfers.length}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Incoming Transfers */}
+          <div className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 space-y-4">
+            <h3 className="text-sm font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-2">
+              <Download size={16} /> Incoming Transfers (In Transit)
+            </h3>
+            {incomingTransfers.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 dark:text-neutral-600 italic text-sm">
+                No incoming transfers at this time.
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                {incomingTransfers.map((transfer: any) => (
+                  <div key={transfer.id} className="p-5 bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-gray-900 dark:text-white">Order #{transfer.order}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-500">In Transit</span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+                        Origin Hub: <span className="font-semibold text-gray-700 dark:text-neutral-300">{transfer.source_warehouse_name}</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400 dark:text-neutral-500 mt-0.5">
+                        Created: {new Date(transfer.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await api.post(`/api/warehouses/transfers/${transfer.id}/receive/`);
+                          toast.success(`Transfer #${transfer.id} received successfully.`);
+                          fetchAllQueues(selectedWarehouseId);
+                        } catch {
+                          toast.error('Failed to confirm receipt of transfer.');
+                        }
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-lg uppercase tracking-wider transition-all"
+                    >
+                      Confirm Receipt
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Outgoing Transfers */}
+          <div className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 space-y-4">
+            <h3 className="text-sm font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest flex items-center gap-2">
+              <Upload size={16} /> Outgoing Transfers (Pending Ship)
+            </h3>
+            {outgoingTransfers.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 dark:text-neutral-600 italic text-sm">
+                No outgoing transfers pending dispatch.
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                {outgoingTransfers.map((transfer: any) => (
+                  <div key={transfer.id} className="p-5 bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-gray-900 dark:text-white">Order #{transfer.order}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-500">Pending</span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+                        Destination: <span className="font-semibold text-gray-700 dark:text-neutral-300">{transfer.destination_warehouse_name}</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400 dark:text-neutral-500 mt-0.5">
+                        Created: {new Date(transfer.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await api.post(`/api/warehouses/transfers/${transfer.id}/ship/`);
+                          toast.success(`Transfer #${transfer.id} shipped successfully.`);
+                          fetchAllQueues(selectedWarehouseId);
+                        } catch {
+                          toast.error('Failed to dispatch transfer.');
+                        }
+                      }}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-lg uppercase tracking-wider transition-all"
+                    >
+                      Ship Package
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
 
       {/* MODALS */}
       <AnimatePresence>
@@ -797,18 +970,86 @@ const WarehouseStaffLayout: React.FC = () => {
                 {/* Dispatch Specific */}
                 {activeModal === 'dispatch' && (
                   <div className="space-y-6">
-                    <p className="text-gray-600 dark:text-gray-300 font-medium text-center">
+                    <div className="border-b border-gray-100 dark:border-neutral-800 pb-4 mb-4">
+                      <h3 className="text-sm font-black text-gray-505 dark:text-neutral-400 uppercase tracking-wider mb-2">Carrier Assignment</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setCarrierType('driver')}
+                          className={`py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${carrierType === 'driver' ? 'border-brand-500 bg-brand-500/10 text-brand-500' : 'border-gray-250 dark:border-neutral-700 text-gray-500'}`}
+                        >
+                          Fleet Driver
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCarrierType('third_party')}
+                          className={`py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${carrierType === 'third_party' ? 'border-brand-500 bg-brand-500/10 text-brand-500' : 'border-gray-250 dark:border-neutral-700 text-gray-500'}`}
+                        >
+                          External Courier
+                        </button>
+                      </div>
+                    </div>
+
+                    {carrierType === 'driver' ? (
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Select Fleet Driver</label>
+                        <select
+                          value={selectedDriverId}
+                          onChange={e => setSelectedDriverId(e.target.value)}
+                          className="w-full text-sm font-bold bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 outline-none"
+                        >
+                          <option value="">-- Select Driver --</option>
+                          {drivers.map((d: any) => (
+                            <option key={d.id} value={d.id}>
+                              {d.username} ({d.vehicle_type || 'No Vehicle'} - {d.assigned_region || 'No Region'})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Courier Info (Name, Phone, Co.)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. DHL - Juma Omar, +255 712..."
+                            value={thirdPartyDriverInfo}
+                            onChange={e => setThirdPartyDriverInfo(e.target.value)}
+                            className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tracking Number</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. TRK987654321"
+                            value={trackingNumber}
+                            onChange={e => setTrackingNumber(e.target.value)}
+                            className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Estimated Delivery Time</label>
+                      <input
+                        type="datetime-local"
+                        value={estimatedDelivery}
+                        onChange={e => setEstimatedDelivery(e.target.value)}
+                        className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 outline-none animate-none"
+                      />
+                    </div>
+
+                    <p className="text-xs text-gray-400 dark:text-neutral-500 text-center italic mt-2">
                       {orderPreview?.delivery_info?.current_warehouse_code === orderPreview?.delivery_info?.destination_warehouse_code
-                        ? 'This package will be handed over to the local courier for final delivery to the customer.'
-                        : 'The package will be handed over to the regional transport vehicle. Are you sure you want to mark this as In Transit?'}
+                        ? 'Ready for local delivery. Dispatching will mark order as OUT_FOR_DELIVERY.'
+                        : 'Transfer shipment. Dispatching will mark order as IN_TRANSIT.'}
                     </p>
+
                     <button onClick={submitDispatch} disabled={submitting} className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30 mt-6 flex justify-center items-center gap-2">
                       <Truck size={24} />
-                      {submitting ? 'Dispatching...' : (
-                        orderPreview?.delivery_info?.current_warehouse_code === orderPreview?.delivery_info?.destination_warehouse_code
-                          ? 'Handover to Local Courier'
-                          : 'Handover to Regional Transport'
-                      )}
+                      {submitting ? 'Dispatching...' : 'Confirm Dispatch & Handover'}
                     </button>
                   </div>
                 )}

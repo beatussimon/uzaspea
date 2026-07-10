@@ -776,7 +776,33 @@ class InspectionCheckInViewSet(viewsets.ModelViewSet):
                 if latest_template:
                     break
                 current = current.parent
-            version = latest_template.version if latest_template else 1
+
+            if not latest_template:
+                # Dynamically create fallback default template
+                latest_template, _ = ChecklistTemplate.objects.get_or_create(
+                    category=request_obj.category,
+                    version=1,
+                    defaults={'is_active': True}
+                )
+                # Add default checklist items
+                fallback_items = [
+                    ('General Physical Condition & Form', 'scale', True, True, '', 'Inspect physical shape, finish, and structural condition'),
+                    ('Basic Functionality Check', 'pass_fail', True, True, '', 'Verify if item performs its primary function successfully'),
+                    ('Packaging & Manuals Presence', 'scale', False, False, '', 'Check if original boxes, manuals, and accessories are present'),
+                ]
+                for idx, (label, ctype, mandatory, fail_flag, unit, help_text) in enumerate(fallback_items):
+                    ChecklistItem.objects.get_or_create(
+                        template=latest_template, label=label,
+                        defaults={
+                            'item_type': ctype,
+                            'is_mandatory': mandatory,
+                            'order': idx,
+                            'fail_triggers_flag': fail_flag,
+                            'unit': unit,
+                            'help_text': help_text,
+                        }
+                    )
+            version = latest_template.version
 
             report, created = InspectionReport.objects.get_or_create(
                 request=request_obj,
