@@ -215,15 +215,42 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Category not found.'}, status=404)
 
         current = category
+        template = None
         while current:
             template = ChecklistTemplate.objects.filter(
                 category=current, is_active=True
             ).order_by('-version').first()
             if template:
-                return Response(ChecklistTemplateSerializer(template).data)
+                break
             current = current.parent
 
-        return Response({'detail': 'No template found for this category or its ancestors.'}, status=404)
+        if not template:
+            # Dynamically create fallback default template
+            template, _ = ChecklistTemplate.objects.get_or_create(
+                category=category,
+                version=1,
+                defaults={'is_active': True}
+            )
+            # Add default checklist items
+            fallback_items = [
+                ('General Physical Condition & Form', 'scale', True, True, '', 'Inspect physical shape, finish, and structural condition'),
+                ('Basic Functionality Check', 'pass_fail', True, True, '', 'Verify if item performs its primary function successfully'),
+                ('Packaging & Manuals Presence', 'scale', False, False, '', 'Check if original boxes, manuals, and accessories are present'),
+            ]
+            for idx, (label, ctype, mandatory, fail_flag, unit, help_text) in enumerate(fallback_items):
+                ChecklistItem.objects.get_or_create(
+                    template=template, label=label,
+                    defaults={
+                        'item_type': ctype,
+                        'is_mandatory': mandatory,
+                        'order': idx,
+                        'fail_triggers_flag': fail_flag,
+                        'unit': unit,
+                        'help_text': help_text,
+                    }
+                )
+
+        return Response(ChecklistTemplateSerializer(template).data)
 
 
 # ──────────────────────────────────────────────
