@@ -2,12 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { useTranslation } from 'react-i18next';
 import SafeImage from '../components/SafeImage';
 
 const CartPage: React.FC = () => {
-  const { items, totalPrice, updateQuantity, removeFromCart, clearCart } = useCart();
-  const { t } = useTranslation();
+  const { items, updateQuantity, removeFromCart, clearCart } = useCart();
 
   if (items.length === 0) {
     return (

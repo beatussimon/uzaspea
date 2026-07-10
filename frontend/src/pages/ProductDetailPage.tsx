@@ -361,10 +361,10 @@ const ProductDetailPage: React.FC = () => {
     
     const vImages = variants
       .filter(v => v.image)
-      .map(v => ({ id: `v-${v.id}`, image: v.image, variantId: v.id }));
+      .map(v => ({ id: `v-${v.id}`, image: v.image as string, variantId: v.id }));
       
     // Deduplicate exact same URLs if needed, but simple append works for gallery
-    const combined = [...baseImages];
+    const combined: Array<{ id: string | number; image: string; variantId?: number }> = [...baseImages];
     for (const vImg of vImages) {
       if (!combined.find(img => img.image === vImg.image)) {
         combined.push(vImg);
