@@ -42,7 +42,7 @@
 
   /* Focus ring for accessibility */
   :focus-visible {
-    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface-muted dark:ring-offset-surface-dark;
+    @apply outline-none ring-2 ring-brand-500;
   }
 
   /* Remove default tap highlight on mobile */
@@ -94,7 +94,7 @@
   /* ── Button System ─────────────────────────────────────────── */
   /* Base button shared styles */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-btn text-sm font-bold cursor-pointer select-none transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-btn text-sm font-bold cursor-pointer select-none transition-all duration-200 focus:outline-none focus-visible:ring-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
   }
 
   /* Primary — high contrast CTA button */

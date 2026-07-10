@@ -261,6 +261,126 @@ class Command(BaseCommand):
             ('Service History & Hours', 'text', True, False, 'hours', 'Record hourmeter reading — oil change due every 250 hours'),
         ])
 
+        # MOTORCYCLES & BODA BODA — 18 items
+        self.create_template(motorcycles, [
+            ('Spark Plug & Ignition System', 'pass_fail', True, True, '', 'Check electrode deposits and starting spark reliability'),
+            ('Carburetor / Fuel Injection Tuning', 'pass_fail', True, True, '', 'Cold start behavior, idle stability, and throttle response'),
+            ('Clutch Engagement & Shifting', 'scale', True, True, '', 'Smooth shifting through gears, no transmission slipping'),
+            ('Engine Oil Level & Color', 'pass_fail', True, True, '', 'Check dipstick/sight-glass level and note any dark sludge/milky residue'),
+            ('Exhaust Smoke & Metallic Sounds', 'pass_fail', True, True, '', 'Listen for metallic tapping; check smoke color (blue/white/black = fail)'),
+            ('Drive Chain Tension & Slack', 'measurement', True, False, 'mm', 'Measure chain slack (optimal 20–30mm). Check sprocket tooth wear'),
+            ('Frame Alignment & Welds', 'pass_fail', True, True, '', 'Inspect frame tubes and welded junctions for alignment cracks/bends'),
+            ('Wheel Rims & Spokes', 'scale', True, False, '', 'Check spoke tension and rims for flat spots or deformation'),
+            ('Tyre Tread Depth (Front & Rear)', 'measurement', True, True, 'mm', 'Check tread depth at center groove. Legal minimum is 1.0mm'),
+            ('Front Fork Seals & Oil Leaks', 'pass_fail', True, True, '', 'Check chrome fork tubes for oil residue from blown fork seals'),
+            ('Rear Shock Absorber Damping', 'scale', True, False, '', 'Test rear bounce damping and check for hydraulic leaks'),
+            ('Front Disc Brake Pad Thickness', 'measurement', True, True, 'mm', 'Verify remaining friction material. Minimum is 2.0mm'),
+            ('Rear Drum Brake Linkage & Play', 'scale', True, False, '', 'Inspect pedal free play and braking responsiveness'),
+            ('Speedometer & Odometer Function', 'pass_fail', True, False, '', 'Verify that instrument needles sweep and odometer advances'),
+            ('Headlights, Turn Indicators & Horn', 'pass_fail', True, False, '', 'Test high/low beam, horn volume, and indicator switch'),
+            ('Battery Voltage (Key On)', 'measurement', True, False, 'V', 'Measure static battery voltage (nominal 12.6V or above)'),
+            ('Chassis VIN Engraving Match', 'pass_fail', True, True, '', 'Compare frame headstock VIN directly against title deed'),
+            ('Road License & Insurance Validity', 'pass_fail', True, True, '', 'Verify expiration dates on registration documents'),
+        ])
+
+        # TRUCKS & COMMERCIAL — 18 items
+        self.create_template(trucks, [
+            ('Turbocharger & Air Intake System', 'pass_fail', True, True, '', 'Listen for boost leaks, check intake pipes for excessive oil accumulation'),
+            ('Air Brake Compressor & Build Time', 'measurement', True, True, 'bar', 'Time taken to build pressure from 0 to cut-out (should be under 3 min)'),
+            ('Cooling System & Radiator Leaks', 'pass_fail', True, True, '', 'Inspect radiator fins, hoses, and expansion bottle for pressure leaks'),
+            ('Engine Oil & Fuel Filters Service Info', 'text', False, False, '', 'Note mileage/date of last oil and filter change'),
+            ('Range Splitter Gearbox Engagement', 'scale', True, True, '', 'Test high-to-low range shift action and splitter cylinder operation'),
+            ('Leaf Spring Packs & U-Bolts', 'scale', True, True, '', 'Look for cracked leaf springs, shifted leaf packs, or loose U-bolts'),
+            ('Fifth Wheel Coupling & Kingpin Lock', 'pass_fail', True, True, '', 'Inspect coupling plate wear, lock jaw play, and safety latch'),
+            ('Chassis Rail Structural Integrity', 'pass_fail', True, True, '', 'Check main chassis rails for sagging, rust cracks, or unauthorized welds'),
+            ('Air Brake Chambers & Pushrod Travel', 'pass_fail', True, True, '', 'Verify air chambers do not leak on brake application; check pushrod stroke'),
+            ('S-Cam Brake Lining Thickness', 'measurement', True, True, 'mm', 'Measure brake drum lining thickness (minimum legal limit is 6.0mm)'),
+            ('Tyre Sidewall Cuts & Lug Wear', 'scale', True, True, '', 'Inspect dual-assembly tyres for cuts, sidewall bulges, or uneven wear'),
+            ('Wheel Nut Torque & Indicators', 'pass_fail', True, True, '', 'Verify no missing nuts or loose indicator arrow misalignments'),
+            ('Tachograph & Speed Limiter Status', 'pass_fail', True, False, '', 'Verify speed limiter calibration sticker validity'),
+            ('Cab Suspension Airbags & Latches', 'pass_fail', True, False, '', 'Verify cab tilt mechanism locks properly and airbags hold pressure'),
+            ('LATRA Carrier Licensing Compliance', 'pass_fail', True, True, '', 'Verify valid commercial transport permissions on door decals'),
+            ('Gross Vehicle Weight Door Markings', 'pass_fail', True, False, '', 'Check legibility of Tare, Payload, and GVW side markings'),
+            ('Reflective Safety Strips & Decals', 'pass_fail', True, False, '', 'Check presence of mandatory yellow/red rear warning strips'),
+            ('Hydraulic Tipping Ram & Pump', 'pass_fail', False, False, '', 'Test hoist cylinder for oil leaks and smooth lift/drop speed'),
+        ])
+
+        # TVs & AUDIO EQUIPMENT — 15 items
+        self.create_template(tv_audio, [
+            ('LED Panel Backlight Uniformity', 'scale', True, False, '', 'Check solid white background for dark corners or clouding'),
+            ('Dead & Stuck Pixel Verification', 'pass_fail', True, True, '', 'Display solid red, green, blue screens to locate stuck pixels'),
+            ('Polarizer Surface Protection', 'scale', True, False, '', 'Inspect outer display film for scratches, scrapes, or delamination'),
+            ('Screen Resolution & Frame Rate', 'text', True, False, '', 'Verify output parameters match panel specification (e.g. 4K @ 60Hz)'),
+            ('HDMI Connection (All Ports)', 'pass_fail', True, True, '', 'Verify all physical HDMI inputs accept input signal successfully'),
+            ('USB Port Media Playback', 'pass_fail', True, False, '', 'Connect thumb drive and play test media (image & sound)'),
+            ('Optical Audio Out & ARC', 'pass_fail', False, False, '', 'Verify digital audio signals transfer cleanly to external systems'),
+            ('Built-in Speaker Sound Quality', 'scale', True, True, '', 'Play sweep audio at max volume to check for cabinet buzz or rattle'),
+            ('Smart OS Hub & Wi-Fi Setup', 'pass_fail', True, False, '', 'Connect to network and verify App Hub (Netflix, YouTube) launches'),
+            ('Remote Control Sensor Range', 'pass_fail', True, False, '', 'Verify Bluetooth/Infrared keys respond from 5 meters away'),
+            ('Cabinet Frame & Bezels', 'scale', True, False, '', 'Check plastic chassis and stand mounts for structural cracks'),
+            ('Wall Mount Thread Condition', 'pass_fail', True, False, '', 'Verify all 4 VESA screw threads are intact and not stripped'),
+            ('Power Supply Unit Input Stability', 'pass_fail', True, True, '', 'Check power socket wiggle play and note any high-frequency buzz'),
+            ('Bluetooth Headphone Sync', 'pass_fail', False, False, '', 'Test wireless audio sync with compatible headset'),
+            ('Serial Number & Board Matches', 'text', True, True, '', 'Log panel firmware serial number against rear sticker label'),
+        ])
+
+        # COMMERCIAL PROPERTY — 18 items
+        self.create_template(commercial, [
+            ('Concrete Columns & Beam Spalling', 'scale', True, True, '', 'Inspect load-bearing structure for exposed rebar or concrete scaling'),
+            ('Glazing Seals & Curtain Walls', 'scale', True, False, '', 'Inspect glass panels for seal leaks, water fogging, or bracket rust'),
+            ('Roof Membrane & Asphalt Seams', 'scale', True, True, '', 'Check flat roof seals for cracking, water ponding, or blisters'),
+            ('Stormwater Outlets & Downspouts', 'pass_fail', True, False, '', 'Verify roof drains are clear of silt and debris'),
+            ('Firewall Penetrations & Collars', 'pass_fail', True, True, '', 'Check utility pipe sleeves through firewalls for fire stop sealants'),
+            ('Central Chiller & VRF HVAC Units', 'scale', True, False, '', 'Verify compressor operating pressure and cooling temp delta'),
+            ('Main Distribution Board Busbars', 'pass_fail', True, True, '', 'Verify busbar tightening and breaker thermal profiles'),
+            ('Three-Phase Power Balance', 'measurement', True, True, 'A', 'Measure current load balance across phases (allow max 15% imbalance)'),
+            ('Automatic Transfer Switch (ATS)', 'pass_fail', True, True, '', 'Test ATS automatic load transfer on main grid power cut'),
+            ('Emergency Exit Signs & Battery', 'pass_fail', True, True, '', 'Test emergency exit light battery backups for 90-minute discharge'),
+            ('Elevator Inspection Validity', 'pass_fail', True, True, '', 'Verify current elevator certification decals inside the cabin'),
+            ('Fire Sprinkler Valve Pressure', 'measurement', True, True, 'psi', 'Check main riser pressure gauge (minimum operating limit is 100psi)'),
+            ('Municipal Occupancy Permit Status', 'pass_fail', True, True, '', 'Verify building occupancy certificate is issued and valid'),
+            ('Fire Safety Clearance Certificate', 'pass_fail', True, True, '', 'Check current fire brigade certification documents'),
+            ('Commercial Zoning Boundaries', 'text', True, True, '', 'Verify property dimensions match title survey diagram'),
+            ('Lift Pump & Sump Valve Operation', 'pass_fail', True, False, '', 'Test backup bilge pumps in basement storage rooms'),
+            ('Access Control Gates & Turnstiles', 'pass_fail', False, False, '', 'Verify badge scanning readers function cleanly'),
+            ('Diesel Generator Fuel Reserves', 'measurement', True, False, 'L', 'Verify generator main fuel tank reserves meet 24hr load requirements'),
+        ])
+
+        # LAND & PLOTS — 12 items
+        self.create_template(land, [
+            ('Survey Beacon Verification', 'pass_fail', True, True, '', 'Locate all corner concrete cadastral beacons physically'),
+            ('Boundary Fence Line Encroachment', 'scale', True, True, '', 'Measure boundaries against neighbor fences to check for encroachment'),
+            ('Topography Slope & Drainage', 'text', True, False, '', 'Document terrain slope, marshlands, rock outcroppings, or soil type'),
+            ('Road Access Width & Status', 'text', True, False, '', 'Record access road width and surface material (tarmac/murram/track)'),
+            ('DAWASCO Water Mains Proximity', 'pass_fail', True, False, '', 'Locate nearest water supply mains pipe valve connection'),
+            ('TANESCO Power Pole Proximity', 'pass_fail', True, False, '', 'Determine distance to nearest power line connection point'),
+            ('Cadastral Map Registry Verification', 'pass_fail', True, True, '', 'Cross-check registry map coordinates with physical plot layout'),
+            ('Municipal Zoning Classification', 'text', True, True, '', 'Confirm zoning status (Residential, Commercial, Agricultural)'),
+            ('Land Rates Clearance Certificate', 'pass_fail', True, True, '', 'Verify rates clearance stamp from municipal council'),
+            ('Soil Bearing Capacity Report', 'pass_fail', False, False, '', 'Note presence of geotechnical soil test document'),
+            ('High-Voltage Cable Caveats', 'pass_fail', True, True, '', 'Check for overhead power line or pipeline easements across land'),
+            ('Active Land Disputes / Caveats', 'pass_fail', True, True, '', 'Verify land title deed is free of caveat court orders'),
+        ])
+
+        # AGRICULTURAL EQUIPMENT — 15 items
+        self.create_template(agri, [
+            ('PTO Splines & Protective Shield', 'scale', True, True, '', 'Inspect PTO shaft splines for twisting and verify safety shield rotates free'),
+            ('Three-Point Linkage Lift Capacity', 'scale', True, True, '', 'Test hydraulic arms under load for lift speed and bleed-down drift'),
+            ('4WD Engagement & Differential Lock', 'pass_fail', True, True, '', 'Verify front axle drive engaged under traction load; test lock pedal'),
+            ('Diesel Engine Compression Blow-by', 'pass_fail', True, True, '', 'Check for excess vapor/oil drops blowing from engine oil breather tube'),
+            ('Drawbar Pin Hole Wear & Cracks', 'scale', True, True, '', 'Check tow bar hitch hole play and structural welds for fatigue cracks'),
+            ('Agri Tyre Lug Tread Depth', 'measurement', True, True, 'mm', 'Measure tread height on tractor drive wheels (minimum 15mm)'),
+            ('Pesticide Cabin Air Carbon Filter', 'pass_fail', True, False, '', 'Check presence and rating of cabin chemical carbon filter cartridge'),
+            ('Transmission Creeper Gear Engagement', 'pass_fail', True, False, '', 'Verify super-low creeper ratios shift and lock correctly'),
+            ('Hydraulic Valve Remote Leak-Down', 'scale', True, True, '', 'Check auxiliary spool valves for external leaks and internal bypass'),
+            ('Engine Cooling Fan & Fan Guard', 'pass_fail', True, False, '', 'Check plastic/metal blades for cracks; check guard mounting bolts'),
+            ('Alternator Charging Output', 'measurement', True, False, 'V', 'Measure voltage at battery terminals with engine revs high (13.8–14.4V)'),
+            ('Fuel Sediment Trap & Water Filter', 'pass_fail', True, True, '', 'Check diesel water separator bowl for water or particulate sludge'),
+            ('Front Axle Pivot Pin Play', 'scale', True, False, '', 'Lever front axle to test center pivot bush play'),
+            ('Rear Axle Oil Leaks (Trumpet Seals)', 'pass_fail', True, True, '', 'Inspect brake drum/trumpet housing bottoms for wet gear oil'),
+            ('PTO Speed Output Select (540/1000)', 'pass_fail', True, False, '', 'Test selector lever shift through 540, 540E, and 1000 RPM ratios'),
+        ])
+
         # Ensure EVERY category and subcategory has a template checklist
         all_categories = InspectionCategory.objects.all()
         for cat in all_categories:
