@@ -83,7 +83,7 @@ def auto_route_intake(sender, instance, created, **kwargs):
         )
         
         # 2. Check if a warehouse transfer is required (i.e. destination warehouse is different from current)
-        dest_code = order.delivery_info.get('warehouse_code') if order.delivery_info else None
+        dest_code = order.delivery_info.get('destination_warehouse_code') if order.delivery_info else None
         if dest_code and dest_code != current_warehouse.code:
             try:
                 dest_warehouse = Warehouse.objects.get(code=dest_code)
