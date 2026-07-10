@@ -358,7 +358,7 @@ const ProfilePage: React.FC = () => {
             <div className="space-y-3">
               <h3 className="text-xs font-black text-gray-400 dark:text-neutral-500 uppercase tracking-widest">Biography</h3>
               <p className="text-sm text-gray-700 dark:text-neutral-300 leading-relaxed">
-                {profile.bio || "No biography details provided by this partner."}
+                {profile.bio || "No biography details provided by this seller."}
               </p>
             </div>
 
