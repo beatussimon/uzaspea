@@ -69,3 +69,33 @@ class CommissionPayment(models.Model):
 
     def __str__(self):
         return f"{self.invoice.seller.username} Payment - {self.amount} ({self.status})"
+
+
+def get_seller_commission_rate(seller):
+    """
+    Returns the Decimal commission rate (as a percentage, e.g. Decimal('6.00'))
+    that should be charged to this specific seller.
+
+    Resolution order:
+      1. The seller's currently ACTIVE Subscription's tier.commission_rate,
+         if they have an active subscription with a tier attached.
+      2. SiteSettings.commission_rate as the platform default fallback,
+         for sellers with no active paid subscription (i.e. free/customer tier).
+
+    This must be used everywhere commission is calculated so that paid-tier
+    sellers are actually charged their tier's rate instead of the global default.
+    """
+    from marketplace.models import Subscription, SiteSettings
+
+    active_sub = (
+        Subscription.objects
+        .filter(user=seller, is_active=True, tier__isnull=False)
+        .select_related('tier')
+        .order_by('-start_date')
+        .first()
+    )
+    if active_sub and active_sub.tier and active_sub.tier.commission_rate is not None:
+        return active_sub.tier.commission_rate
+
+    settings_obj = SiteSettings.get()
+    return settings_obj.commission_rate
