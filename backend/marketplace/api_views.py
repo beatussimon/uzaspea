@@ -427,8 +427,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             if c:
                 status_counts[s] = c
 
-        settings_obj = SiteSettings.get()
-        commission_rate_val = float(settings_obj.commission_rate) if settings_obj else 10.0
+        from billing.models import get_seller_commission_rate
+        commission_rate_val = float(get_seller_commission_rate(stats_user))
 
         return Response({
             'total_products': products.count(),

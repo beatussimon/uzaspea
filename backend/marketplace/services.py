@@ -161,17 +161,17 @@ class OrderStateMachine:
                             seller_totals[seller] = Decimal('0.00')
                         seller_totals[seller] += Decimal(str(item_total))
                     
-                    # Create a ledger entry for each seller using flat SiteSettings commission rate
-                    from marketplace.models import SiteSettings
-                    settings_obj = SiteSettings.get()
-                    rate = (settings_obj.commission_rate / Decimal('100')) if settings_obj else Decimal('0.10')
+                    # Create a ledger entry for each seller using their actual tier commission rate
+                    from billing.models import get_seller_commission_rate
                     for seller, amount in seller_totals.items():
+                        seller_rate_pct = get_seller_commission_rate(seller)
+                        rate = seller_rate_pct / Decimal('100')
                         commission_amount = amount * rate
                         CommissionLedgerEntry.objects.create(
                             order=locked_order,
                             seller=seller,
                             order_amount=amount,
-                            commission_rate=rate * 100,
+                            commission_rate=seller_rate_pct,
                             commission_amount=commission_amount,
                             entry_type=CommissionLedgerEntry.EntryType.COMMISSION
                         )
