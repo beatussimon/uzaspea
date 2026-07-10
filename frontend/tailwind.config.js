@@ -32,9 +32,9 @@ export default {
         '18': '4.5rem',    /* 72px — navbar height */
       },
       borderRadius: {
-        'card': '1.5rem',     /* 24px */
+        'card': '1rem',       /* 16px */
         'pill': '9999px',
-        'btn': '9999px',      /* Pill-shaped buttons */
+        'btn': '0.75rem',     /* 12px */
       },
       fontSize: {
         '2xs': ['0.625rem', { lineHeight: '0.875rem' }],  /* 10px - restrict usage */
@@ -45,8 +45,8 @@ export default {
         'heading-lg': ['2rem', { lineHeight: '2.5rem', letterSpacing: '-0.02em' }],
       },
       boxShadow: {
-        'card': '0 10px 30px -10px rgba(0,0,0,0.06)',
-        'card-hover': '0 20px 40px -15px rgba(0,0,0,0.12)',
+        'card': '0 8px 30px rgba(0,0,0,0.04)',
+        'card-hover': '0 12px 40px rgba(0,0,0,0.08)',
         'nav': '0 4px 20px rgba(0,0,0,0.03)',
         'glow': '0 0 30px rgba(0, 0, 0, 0.02)',
         'glow-strong': '0 0 40px rgba(0, 0, 0, 0.04)',

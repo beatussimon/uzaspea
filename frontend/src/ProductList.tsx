@@ -351,175 +351,13 @@ const ProductList = () => {
 
   return (
     <div id="browse" className="container-page py-4 pb-24 md:pb-8">
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        
-        {/* ================================================================ */}
-        {/* DESKTOP SIDEBAR COLUMN (Categories + Filters)                    */}
-        {/* ================================================================ */}
-        <div className="hidden lg:flex flex-col gap-5 w-64 shrink-0 sticky top-24">
-          {/* Categories Block */}
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-3xl p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Categories</h3>
-            <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto no-scrollbar">
-              {/* All Products Item */}
-              <button 
-                onClick={() => updateFilters({ category: '', subcategory: '' })}
-                className={`w-full flex items-center justify-between px-3 py-2 text-xs font-bold rounded-xl transition-all ${
-                  !selectedCategory 
-                    ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' 
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <LayoutGrid size={14} className="stroke-[2]" />
-                  <span>All Products</span>
-                </div>
-              </button>
-              
-              {/* Individual Category Items */}
-              {categories.filter((cat: any) => cat.product_count > 0).map((cat: any) => {
-                const isActive = selectedCategory === cat.slug;
-                return (
-                  <div key={cat.id} className="space-y-1">
-                    <button 
-                      onClick={() => updateFilters({ category: isActive ? '' : cat.slug, subcategory: '' })}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-xs font-bold rounded-xl transition-all ${
-                        isActive 
-                          ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' 
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
-                      }`}
-                    >
-                      <span className="truncate">{cat.name}</span>
-                      <span className="text-[10px] text-gray-400 bg-gray-50 dark:bg-neutral-900 border px-1.5 py-0.5 rounded-full shrink-0 font-medium">{cat.product_count}</span>
-                    </button>
-                    
-                    {/* Nested Subcategories List if active */}
-                    {isActive && subcategories.length > 0 && (
-                      <div className="pl-3 border-l border-brand-100 dark:border-brand-900/40 ml-4 space-y-0.5 animate-fade-in flex flex-col">
-                        <button 
-                          onClick={() => updateFilters({ subcategory: '' })}
-                          className={`text-left px-2 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
-                            !selectedSubcategory 
-                              ? 'text-brand-600 dark:text-brand-400' 
-                              : 'text-gray-500 hover:text-gray-955 dark:text-gray-400 dark:hover:text-white'
-                          }`}
-                        >
-                          All {cat.name}
-                        </button>
-                        {subcategories.map((sub: any) => (
-                          <button 
-                            key={sub.id}
-                            onClick={() => updateFilters({ subcategory: sub.slug })}
-                            className={`text-left px-2 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
-                              selectedSubcategory === sub.slug 
-                                ? 'text-brand-600 dark:text-brand-400' 
-                                : 'text-gray-500 hover:text-gray-955 dark:text-gray-400 dark:hover:text-white'
-                            }`}
-                          >
-                            {sub.name} <span className="opacity-60 font-medium">({sub.product_count})</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          
-          {/* Filters Block (Price, Condition, Sorting) */}
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-3xl p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Filters</h3>
-            
-            {/* Price Inputs */}
-            <div className="space-y-1.5">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Price Range (TSh)</label>
-              <div className="flex gap-2">
-                <input 
-                  type="number" 
-                  value={tempMinPrice}
-                  onChange={(e) => setTempMinPrice(e.target.value)}
-                  placeholder="Min" 
-                  className="input px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 dark:border-neutral-800 rounded-xl"
-                />
-                <input 
-                  type="number" 
-                  value={tempMaxPrice}
-                  onChange={(e) => setTempMaxPrice(e.target.value)}
-                  placeholder="Max" 
-                  className="input px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 dark:border-neutral-800 rounded-xl"
-                />
-              </div>
-            </div>
-            
-            {/* Condition Select */}
-            <div className="space-y-1.5">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Condition</label>
-              <select 
-                value={tempCondition} 
-                onChange={(e) => setTempCondition(e.target.value)}
-                className="input px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 dark:border-neutral-800 rounded-xl"
-              >
-                <option value="">All Conditions</option>
-                <option value="New">New</option>
-                <option value="Used">Used</option>
-              </select>
-            </div>
-            
-            {/* Sort Select */}
-            <div className="space-y-1.5">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">Sort By</label>
-              <select 
-                value={tempSortBy} 
-                onChange={(e) => setTempSortBy(e.target.value)}
-                className="input px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 dark:border-neutral-800 rounded-xl"
-              >
-                <option value="">Newest Listings</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="rating">Top Rated</option>
-              </select>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex gap-2 pt-2">
-              <button 
-                onClick={() => {
-                  setTempMinPrice('');
-                  setTempMaxPrice('');
-                  setTempCondition('');
-                  setTempSortBy('');
-                  updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '' });
-                  setPage(1);
-                }}
-                className="flex-1 py-2 border border-gray-200 dark:border-neutral-800 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                Reset
-              </button>
-              <button 
-                onClick={() => {
-                  updateFilters({ min_price: tempMinPrice, max_price: tempMaxPrice, condition: tempCondition, sort_by: tempSortBy });
-                  setPage(1);
-                }}
-                className="flex-1 py-2 bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-brand-500 dark:hover:bg-brand-600 hover:text-black transition-colors"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ================================================================ */}
-        {/* MAIN PRODUCT GRID COLUMN                                         */}
-        {/* ================================================================ */}
-        <div className="flex-1 w-full space-y-4">
-          {/* ===== Unified Search & Filter Section ===== */}
-          <div className="mb-6 space-y-4">
+      {/* ===== Unified Search & Filter Section ===== */}
+      <div className="mb-6 space-y-4">
 
 
 
         {/* Category Row */}
-        <div className="w-full pt-1 pb-2 lg:hidden">
+        <div className="w-full pt-1 pb-2">
           {/* Horizontal Category Slider (Image Circles) */}
           <div className="flex items-start justify-start md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-4 w-full px-4 scroll-smooth">
             {/* All Products pill */}
@@ -618,7 +456,7 @@ const ProductList = () => {
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="overflow-hidden lg:hidden"
+              className="overflow-hidden"
             >
               <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-2xl p-5 shadow-md my-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
@@ -763,7 +601,7 @@ const ProductList = () => {
             {/* Filter Toggle Button */}
             <button 
               onClick={() => setFiltersOpen(!filtersOpen)}
-              className={`flex lg:hidden items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm ${
                 filtersOpen 
                   ? 'bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900' 
                   : hasActiveFilters
@@ -830,7 +668,7 @@ const ProductList = () => {
 
         {/* Subcategory slider */}
         {subcategories.length > 0 && (
-          <div className="flex lg:hidden items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 px-4 md:px-0">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 px-4 md:px-0">
             <button onClick={() => updateFilters({ subcategory: '' })}
               className={`pill text-xs py-1 shrink-0 ${!selectedSubcategory ? 'pill-active' : 'pill-inactive'}`}>
               All {activeParent?.name} <span className="opacity-60 ml-1">{activeParent?.product_count}</span>
@@ -849,7 +687,7 @@ const ProductList = () => {
       {loading ? (
         <div 
           className={viewMode === 'grid' 
-            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-5"
+            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5"
             : "flex flex-col gap-3"
           }
         >
@@ -861,7 +699,7 @@ const ProductList = () => {
         <>
           <motion.div 
             className={viewMode === 'grid' 
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-5"
+              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5"
               : "flex flex-col gap-3"
             }
             variants={containerVariants} initial="hidden" animate="visible"
@@ -910,8 +748,6 @@ const ProductList = () => {
           <div ref={sentinelRef} className="h-1" />
         </>
       )}
-        </div> {/* closing main product grid column */}
-      </div> {/* closing two-column flex container */}
     </div>
   );
 };
