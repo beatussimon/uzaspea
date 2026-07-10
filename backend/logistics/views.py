@@ -83,16 +83,8 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         new_status = serializer.validated_data.get('status', 'pending')
         driver = serializer.validated_data.get('driver', None)
 
-        if new_status == 'in_transit':
-            carrier_type = serializer.validated_data.get('carrier_type', 'driver')
-            # Fleet driver assignment is optional for now and not enforced
-            # if order_has_vehicles(order):
-            #     if carrier_type == 'driver' and not driver:
-            #         raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
-            
-            if carrier_type == 'third_party' and not serializer.validated_data.get('third_party_driver_info'):
-                raise ValidationError("Third party driver info must be provided for shipments before transit.")
-
+        # NOTE: driver / third-party-driver assignment is intentionally OPTIONAL for now.
+        # Do not re-add a hard block here without an explicit product decision to do so.
         shipment = serializer.save()
         if driver:
             from marketplace.models import push_notification
@@ -125,16 +117,8 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         new_status = serializer.validated_data.get('status', instance.status)
         driver = serializer.validated_data.get('driver', instance.driver)
 
-        if new_status == 'in_transit' and instance.status != 'in_transit':
-            carrier_type = serializer.validated_data.get('carrier_type', instance.carrier_type)
-            # Fleet driver assignment is optional for now and not enforced
-            # if order_has_vehicles(order):
-            #     if carrier_type == 'driver' and not driver:
-            #         raise ValidationError("A driver must be assigned to vehicle-category shipments before transit.")
-            
-            if carrier_type == 'third_party' and not serializer.validated_data.get('third_party_driver_info', instance.third_party_driver_info):
-                raise ValidationError("Third party driver info must be provided for shipments before transit.")
-
+        # NOTE: driver / third-party-driver assignment is intentionally OPTIONAL for now.
+        # Do not re-add a hard block here without an explicit product decision to do so.
         shipment = serializer.save()
 
         if driver and instance.driver != driver:
@@ -176,7 +160,9 @@ class ShipmentViewSet(viewsets.ModelViewSet):
                 
                 if not order.delivery_info:
                     order.delivery_info = {}
-                order.delivery_info['warehouse_code'] = transfer.destination_warehouse.code
+                new_di = dict(order.delivery_info)
+                new_di['current_warehouse_code'] = transfer.destination_warehouse.code
+                order.delivery_info = new_di
                 order.save(update_fields=['delivery_info'])
 
             if order_has_vehicles(order):

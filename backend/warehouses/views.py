@@ -230,12 +230,13 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='dispatch-order')
     def dispatch_order(self, request, pk=None):
-        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_warehouse_intake')):
-            return Response({'error': 'You do not have permission to perform this action.'}, status=403)
-        
         warehouse = self.get_object()
-        if not user_can_access_warehouse(request.user, warehouse):
-            return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
+        if not (
+            request.user.is_superuser
+            or has_staff_permission(request.user, 'can_manage_warehouse_intake')
+            or user_can_access_warehouse(request.user, warehouse)
+        ):
+            return Response({'error': 'You do not have permission to perform this action.'}, status=403)
         order_id = request.data.get('order_id')
         try:
             order = Order.objects.get(id=order_id)
@@ -282,11 +283,15 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
 
     def perform_create(self, serializer):
-        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_manage_warehouse_intake')):
+        warehouse = serializer.validated_data['warehouse']
+        if not (
+            self.request.user.is_superuser
+            or has_staff_permission(self.request.user, 'can_manage_warehouse_intake')
+            or user_can_access_warehouse(self.request.user, warehouse)
+        ):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('You do not have permission to manage warehouse intake.')
         order = serializer.validated_data['order']
-        warehouse = serializer.validated_data['warehouse']
         package_condition = serializer.validated_data.get('package_condition', 'good')
 
         from logistics.utils import order_has_vehicles
@@ -423,7 +428,12 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_manage_warehouse_transfers')):
+        source_warehouse = serializer.validated_data.get('source_warehouse')
+        if not (
+            self.request.user.is_superuser
+            or has_staff_permission(self.request.user, 'can_manage_warehouse_transfers')
+            or (source_warehouse and user_can_access_warehouse(self.request.user, source_warehouse))
+        ):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('You do not have permission to manage warehouse transfers.')
         serializer.save(transfer_by=self.request.user)
@@ -442,9 +452,13 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def ship(self, request, pk=None):
-        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_warehouse_transfers')):
-            return Response({'error': 'You do not have permission to manage warehouse transfers.'}, status=403)
         transfer = self.get_object()
+        if not (
+            request.user.is_superuser
+            or has_staff_permission(request.user, 'can_manage_warehouse_transfers')
+            or user_can_access_warehouse(request.user, transfer.source_warehouse)
+        ):
+            return Response({'error': 'You do not have permission to manage warehouse transfers.'}, status=403)
         if transfer.status != 'pending':
             return Response({'error': 'Transfer has already been shipped or completed'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -467,9 +481,13 @@ class WarehouseTransferViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def receive(self, request, pk=None):
-        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_warehouse_transfers')):
-            return Response({'error': 'You do not have permission to manage warehouse transfers.'}, status=403)
         transfer = self.get_object()
+        if not (
+            request.user.is_superuser
+            or has_staff_permission(request.user, 'can_manage_warehouse_transfers')
+            or user_can_access_warehouse(request.user, transfer.destination_warehouse)
+        ):
+            return Response({'error': 'You do not have permission to manage warehouse transfers.'}, status=403)
         if transfer.status != 'in_transit':
             return Response({'error': 'Transfer is not in transit'}, status=status.HTTP_400_BAD_REQUEST)
         

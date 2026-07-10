@@ -607,8 +607,8 @@ const WarehouseStaffLayout: React.FC = () => {
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Package Photo (Optional)</label>
                       <label className="border-2 border-dashed border-gray-300 dark:border-neutral-700 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition">
                         <Camera size={24} className="text-gray-400 mb-2" />
-                        <span className="text-sm font-bold text-gray-600 dark:text-gray-300">Tap to upload photo</span>
-                        <input type="file" className="hidden" accept="image/*" onChange={e => {
+                        <span className="text-sm font-bold text-gray-600 dark:text-gray-300">Tap to take photo</span>
+                        <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => {
                           if (e.target.files && e.target.files[0]) {
                             setPhoto(e.target.files[0]);
                             setPhotoPreview(URL.createObjectURL(e.target.files[0]));
@@ -674,8 +674,8 @@ const WarehouseStaffLayout: React.FC = () => {
                       </label>
                       <label className="border-2 border-dashed border-brand-300 dark:border-brand-700 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-brand-50 dark:hover:bg-brand-900/20 transition">
                         <Camera size={24} className="text-brand-500 mb-2" />
-                        <span className="text-sm font-bold text-brand-600 dark:text-brand-400">Tap to upload photo</span>
-                        <input type="file" className="hidden" accept="image/*" onChange={e => {
+                        <span className="text-sm font-bold text-brand-600 dark:text-brand-400">Tap to take photo</span>
+                        <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => {
                           if (e.target.files && e.target.files[0]) {
                             setPhoto(e.target.files[0]);
                             setPhotoPreview(URL.createObjectURL(e.target.files[0]));
