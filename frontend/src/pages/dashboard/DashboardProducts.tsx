@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, Plus, Trash } from 'lucide-react';
+import { Package, Plus } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
 import { useDialog } from '../../components/ui/Dialogs';
