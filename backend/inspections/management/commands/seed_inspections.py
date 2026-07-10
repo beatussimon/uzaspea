@@ -261,4 +261,29 @@ class Command(BaseCommand):
             ('Service History & Hours', 'text', True, False, 'hours', 'Record hourmeter reading — oil change due every 250 hours'),
         ])
 
+        # Ensure EVERY category and subcategory has a template checklist
+        all_categories = InspectionCategory.objects.all()
+        for cat in all_categories:
+            if not ChecklistTemplate.objects.filter(category=cat, is_active=True).exists():
+                template, _ = ChecklistTemplate.objects.get_or_create(
+                    category=cat, version=1, defaults={'is_active': True}
+                )
+                fallback_items = [
+                    ('General Physical Condition & Form', 'scale', True, True, '', 'Inspect physical shape, finish, and structural condition'),
+                    ('Basic Functionality Check', 'pass_fail', True, True, '', 'Verify if item performs its primary function successfully'),
+                    ('Packaging & Manuals Presence', 'scale', False, False, '', 'Check if original boxes, manuals, and accessories are present'),
+                ]
+                for idx, (label, ctype, mandatory, fail_flag, unit, help_text) in enumerate(fallback_items):
+                    ChecklistItem.objects.get_or_create(
+                        template=template, label=label,
+                        defaults={
+                            'item_type': ctype,
+                            'is_mandatory': mandatory,
+                            'order': idx,
+                            'fail_triggers_flag': fail_flag,
+                            'unit': unit,
+                            'help_text': help_text,
+                        }
+                    )
+
         self.stdout.write(self.style.SUCCESS('Seeded comprehensive inspection checklists successfully'))

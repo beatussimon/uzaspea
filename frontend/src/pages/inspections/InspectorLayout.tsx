@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ClipboardList, Camera, MapPin, CheckCircle,
-  AlertTriangle, ChevronRight, Send, LogIn, LogOut,
+  AlertTriangle, ChevronRight, Send, LogIn, LogOut, PlusCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../api';
 import inspectionApi from '../../api/inspectionApi';
 import {
   InspectionRequest, ChecklistTemplate, ChecklistItem,
@@ -412,8 +413,38 @@ const ChecklistForm: React.FC<{
   const [submitting, setSubmitting] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('');
 
+  const [localTemplate, setLocalTemplate] = useState<ChecklistTemplate>(template);
+  const [newLabel, setNewLabel] = useState('');
+  const [newType, setNewType] = useState('pass_fail');
+  const [addingItem, setAddingItem] = useState(false);
+
+  useEffect(() => {
+    setLocalTemplate(template);
+  }, [template]);
+
+  const handleAddCustomItem = async () => {
+    if (!newLabel.trim()) return toast.error('Please enter what to check');
+    setAddingItem(true);
+    try {
+      const res = await api.post(`/api/inspections/templates/${localTemplate.id}/add-item/`, {
+        label: newLabel,
+        item_type: newType,
+        is_mandatory: true,
+        section: activeSection || 'General',
+        severity: 'major'
+      });
+      setLocalTemplate(res.data);
+      setNewLabel('');
+      toast.success('Custom item added to checklist!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to add custom item');
+    } finally {
+      setAddingItem(false);
+    }
+  };
+
   // Group items by section
-  const sections = Array.from(new Set(template.items.map(item => item.section || 'General')));
+  const sections = Array.from(new Set(localTemplate.items.map(item => item.section || 'General')));
 
   // Initialize first section as active
   useEffect(() => {
@@ -452,7 +483,7 @@ const ChecklistForm: React.FC<{
   };
 
   const isSectionComplete = (sec: string) => {
-    const secItems = template.items.filter((item) => (item.section || 'General') === sec);
+    const secItems = localTemplate.items.filter((item) => (item.section || 'General') === sec);
     return secItems.every((item) => {
       if (!item.is_mandatory) return true;
       if (item.item_type === 'media') return !!evidence[item.id];
@@ -465,7 +496,7 @@ const ChecklistForm: React.FC<{
     let totalObtained = 0;
     let hasCriticalFailure = false;
 
-    template.items.forEach((item) => {
+    localTemplate.items.forEach((item) => {
       const resp = responses[item.id];
       const severity = item.severity || 'major';
       let weight = 1;
@@ -532,7 +563,7 @@ const ChecklistForm: React.FC<{
 
   const handleSubmit = async () => {
     // Validate mandatory items
-    const missing = template.items
+    const missing = localTemplate.items
       .filter((item) => item.is_mandatory && !responses[item.id]?.value)
       .map((item) => item.label);
     if (missing.length > 0) {
@@ -540,7 +571,7 @@ const ChecklistForm: React.FC<{
       return;
     }
 
-    const missingMedia = template.items
+    const missingMedia = localTemplate.items
       .filter((item) => item.item_type === 'media' && item.is_mandatory && !evidence[item.id])
       .map((item) => item.label);
     if (missingMedia.length > 0) {
@@ -551,7 +582,7 @@ const ChecklistForm: React.FC<{
     setSubmitting(true);
     try {
       // Submit checklist responses
-      const responsePayloads = template.items
+      const responsePayloads = localTemplate.items
         .filter((item) => responses[item.id]?.value)
         .map((item) => ({
           report: reportId,
@@ -748,7 +779,7 @@ const ChecklistForm: React.FC<{
 
       {/* Completion Progress */}
       {(() => {
-        const allItems = template.items;
+        const allItems = localTemplate.items;
         const answeredCount = allItems.filter(item =>
           item.item_type === 'media' ? !!evidence[item.id] : !!responses[item.id]?.value
         ).length;
@@ -777,7 +808,7 @@ const ChecklistForm: React.FC<{
       <div className="space-y-3">
         {sections.map((sec) => {
           const secName = sec || 'General';
-          const secItems = template.items.filter((item) => (item.section || 'General') === secName);
+          const secItems = localTemplate.items.filter((item) => (item.section || 'General') === secName);
           const complete = isSectionComplete(secName);
           const isOpen = activeSection === secName;
 
@@ -810,6 +841,47 @@ const ChecklistForm: React.FC<{
             </div>
           );
         })}
+      </div>
+
+      {/* Dynamic Checklist Item Creator */}
+      <div className="card p-5 border border-dashed border-brand-500/30 bg-brand-500/5 dark:bg-brand-500/2 space-y-4 rounded-card">
+        <div className="flex items-center gap-2">
+          <PlusCircle size={18} className="text-brand-600 animate-pulse" />
+          <h4 className="font-bold text-sm text-gray-900 dark:text-white">Add Custom Checklist Item</h4>
+        </div>
+        <p className="text-2xs text-gray-400 leading-tight">
+          As a fallback or extra verification step, dynamically add something new to check. It will appear immediately in the active section.
+        </p>
+        <div className="flex flex-col md:flex-row gap-3">
+          <input
+            type="text"
+            className="input text-xs flex-1 h-9"
+            placeholder="e.g. Check for water spots in boot"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <select
+              className="select text-xs h-9 py-1 px-2 border dark:border-neutral-700 bg-white dark:bg-neutral-850 text-gray-900 dark:text-white rounded-lg"
+              value={newType}
+              onChange={(e) => setNewType(e.target.value)}
+            >
+              <option value="pass_fail">Pass / Fail</option>
+              <option value="scale">Scale 1–5</option>
+              <option value="measurement">Measurement</option>
+              <option value="text">Text Note</option>
+              <option value="media">Photo / Attachment</option>
+            </select>
+            <button
+              type="button"
+              onClick={handleAddCustomItem}
+              disabled={addingItem}
+              className="btn-primary text-xs py-2 px-4 whitespace-nowrap h-9"
+            >
+              {addingItem ? 'Adding...' : 'Add to Checklist'}
+            </button>
+          </div>
+        </div>
       </div>
 
       <button

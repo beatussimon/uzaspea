@@ -203,7 +203,7 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = ChecklistTemplateSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'for_category']:
+        if self.action in ['list', 'retrieve', 'for_category', 'add_item']:
             return [permissions.IsAuthenticated()]
         return [IsSuperUser()]
 
@@ -251,6 +251,35 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
                 )
 
         return Response(ChecklistTemplateSerializer(template).data)
+
+    @decorators.action(detail=True, methods=['post'], url_path='add-item')
+    def add_item(self, request, pk=None):
+        template = self.get_object()
+        label = request.data.get('label')
+        item_type = request.data.get('item_type', 'pass_fail')
+        is_mandatory = request.data.get('is_mandatory', True)
+        section = request.data.get('section', 'General')
+        severity = request.data.get('severity', 'major')
+        help_text = request.data.get('help_text', '')
+
+        if not label:
+            return Response({'detail': 'Label is required.'}, status=400)
+
+        # Get next order index
+        next_order = template.items.count()
+
+        item = ChecklistItem.objects.create(
+            template=template,
+            label=label,
+            item_type=item_type,
+            is_mandatory=is_mandatory,
+            section=section,
+            severity=severity,
+            order=next_order,
+            help_text=help_text
+        )
+
+        return Response(ChecklistTemplateSerializer(template).data, status=201)
 
 
 # ──────────────────────────────────────────────
