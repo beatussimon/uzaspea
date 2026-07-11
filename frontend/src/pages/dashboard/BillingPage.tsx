@@ -8,6 +8,7 @@ const BillingPage: React.FC = () => {
   const [ledger, setLedger] = useState<any[]>([]);
   const [driverPayments, setDriverPayments] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [tiers, setTiers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'invoices' | 'ledger' | 'driver_payments'>('subscriptions');
 
@@ -24,11 +25,12 @@ const BillingPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [invRes, ledRes, dpRes, subRes] = await Promise.all([
+      const [invRes, ledRes, dpRes, subRes, tierRes] = await Promise.all([
         api.get('/api/billing/invoices/'),
         api.get('/api/billing/ledger/'),
         api.get('/api/logistics/driver-payments/?seller_view=true'),
-        api.get('/api/subscriptions/me/')
+        api.get('/api/subscriptions/me/'),
+        api.get('/api/subscription-tiers/').catch(() => ({ data: [] }))
       ]);
       setInvoices(invRes.data.results || invRes.data || []);
       setLedger(ledRes.data.results || ledRes.data || []);
@@ -37,6 +39,7 @@ const BillingPage: React.FC = () => {
       } else {
         setSubscriptions([]);
       }
+      setTiers(tierRes.data.results || tierRes.data || []);
       const paymentsList = dpRes.data.results || dpRes.data || [];
       setDriverPayments(paymentsList);
       if (paymentsList.length === 0 && activeTab === 'driver_payments') {
@@ -59,6 +62,25 @@ const BillingPage: React.FC = () => {
     setLoadingPaymentData(true);
     try {
       const res = await api.get('/api/lipa-numbers/?is_system=true&purpose=commissions');
+      let numbers = res.data.results || res.data || [];
+      if (numbers.length === 0) {
+        const fallbackRes = await api.get('/api/lipa-numbers/?is_system=true&purpose=general');
+        numbers = fallbackRes.data.results || fallbackRes.data || [];
+      }
+      setAdminLipa(numbers);
+    } catch {
+      toast.error('Failed to load payment options');
+    } finally {
+      setLoadingPaymentData(false);
+    }
+  };
+
+  const handleOpenSubscriptionPayModal = async (subOrTier: any) => {
+    setSelectedSubscription(subOrTier);
+    setShowPayModal(true);
+    setLoadingPaymentData(true);
+    try {
+      const res = await api.get('/api/lipa-numbers/?is_system=true&purpose=subscriptions');
       let numbers = res.data.results || res.data || [];
       if (numbers.length === 0) {
         const fallbackRes = await api.get('/api/lipa-numbers/?is_system=true&purpose=general');
@@ -198,62 +220,92 @@ const BillingPage: React.FC = () => {
       ) : activeTab === 'subscriptions' ? (
         <div className="space-y-4">
           {subscriptions.length === 0 ? (
-            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
-              <Shield size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-              <p className="text-gray-500">You don't have an active seller subscription.</p>
-            </div>
-          ) : (
-            subscriptions.map((sub: any) => (
-              <div key={sub.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-                    <span className="capitalize">{sub.tier?.name || 'Unknown Tier'}</span> Plan
-                    {sub.is_expired ? (
-                      <span className="px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs rounded-full uppercase tracking-wider font-bold">Expired</span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs rounded-full uppercase tracking-wider font-bold">Active</span>
-                    )}
-                  </h3>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
-                    <p>Started: <span className="font-semibold text-gray-900 dark:text-gray-300">{new Date(sub.start_date).toLocaleDateString()}</span></p>
-                    <p>Expires: <span className="font-semibold text-gray-900 dark:text-gray-300">{new Date(sub.end_date).toLocaleDateString()}</span></p>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-3 text-right w-full md:w-auto">
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Renewal Due</div>
-                    <div className="text-xl font-black text-gray-900 dark:text-white">TZS {Number(sub.tier?.price || 0).toLocaleString()}</div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedSubscription(sub);
-                      setShowPayModal(true);
-                      setLoadingPaymentData(true);
-                      api.get('/api/lipa-numbers/?is_system=true&purpose=subscriptions').then(res => {
-                        let numbers = res.data.results || res.data || [];
-                        if (numbers.length === 0) {
-                          api.get('/api/lipa-numbers/?is_system=true&purpose=general').then(fallbackRes => {
-                            setAdminLipa(fallbackRes.data.results || fallbackRes.data || []);
-                            setLoadingPaymentData(false);
-                          });
-                        } else {
-                          setAdminLipa(numbers);
-                          setLoadingPaymentData(false);
-                        }
-                      }).catch(() => {
-                        toast.error('Failed to load payment options');
-                        setLoadingPaymentData(false);
-                      });
-                    }}
-                    className={`btn-primary py-2 px-6 rounded-lg text-sm font-bold shadow-md w-full md:w-auto ${
-                      sub.is_expired ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/20' : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/20'
-                    }`}
-                  >
-                    {sub.is_expired ? 'Renew Now' : 'Pay Renewal Early'}
-                  </button>
+            <div className="space-y-6">
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 shadow-sm">
+                <Shield size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                <p className="text-gray-500 font-medium mb-1">You don't have an active seller subscription.</p>
+                <p className="text-xs text-gray-400">Choose one of the premium plans below to activate your account and start selling.</p>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Available subscription plans:</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {tiers.map((t: any) => (
+                    <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:border-brand-500 transition-all flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
+                        <div className="text-lg font-black text-brand-600 dark:text-brand-400 mb-1">TZS {Number(t.price).toLocaleString()}</div>
+                        <p className="text-[10px] text-gray-400">Duration: {t.duration} Days</p>
+                      </div>
+                      <button
+                        onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
+                        className="btn-primary py-2 px-4 mt-4 w-full rounded-lg text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-sm"
+                      >
+                        Subscribe Now
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {subscriptions.map((sub: any) => (
+                <div key={sub.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+                      <span className="capitalize">{sub.tier?.name || 'Unknown Tier'}</span> Plan
+                      {sub.is_expired ? (
+                        <span className="px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs rounded-full uppercase tracking-wider font-bold">Expired</span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs rounded-full uppercase tracking-wider font-bold">Active</span>
+                      )}
+                    </h3>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
+                      <p>Started: <span className="font-semibold text-gray-900 dark:text-gray-300">{new Date(sub.start_date).toLocaleDateString()}</span></p>
+                      <p>Expires: <span className="font-semibold text-gray-900 dark:text-gray-300">{new Date(sub.end_date).toLocaleDateString()}</span></p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-3 text-right w-full md:w-auto">
+                    <div>
+                      <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Renewal Due</div>
+                      <div className="text-xl font-black text-gray-900 dark:text-white">TZS {Number(sub.tier?.price || 0).toLocaleString()}</div>
+                    </div>
+                    <button
+                      onClick={() => handleOpenSubscriptionPayModal(sub)}
+                      className={`btn-primary py-2 px-6 rounded-lg text-sm font-bold shadow-md w-full md:w-auto ${
+                        sub.is_expired ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/20' : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/20'
+                      }`}
+                    >
+                      {sub.is_expired ? 'Renew Now' : 'Pay Renewal Early'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="space-y-3 pt-4 border-t dark:border-gray-700">
+                <h3 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Switch or Upgrade Plan:</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {tiers.map((t: any) => (
+                    <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:border-brand-500 transition-all flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
+                        <div className="text-lg font-black text-brand-600 dark:text-brand-400 mb-1">TZS {Number(t.price).toLocaleString()}</div>
+                        <p className="text-[10px] text-gray-400">Duration: {t.duration} Days</p>
+                      </div>
+                      <button
+                        onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
+                        className="btn-primary py-2 px-4 mt-4 w-full rounded-lg text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-sm"
+                      >
+                        Choose Plan
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       ) : activeTab === 'invoices' ? (
