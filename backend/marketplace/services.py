@@ -134,6 +134,17 @@ class OrderStateMachine:
                 except Exception:
                     pass
 
+            if new_state == 'ARRIVED_AT_REGIONAL_WAREHOUSE':
+                from logistics.models import Shipment
+                if locked_order.shipping_method == 'DELIVERY':
+                    # Spawn the local delivery shipment
+                    Shipment.objects.create(
+                        order=locked_order,
+                        shipment_type='local_delivery',
+                        status='pending',
+                        carrier_type='driver'
+                    )
+
             if new_state == 'FAILED_DELIVERY':
                 from marketplace.models import push_notification
                 try:
@@ -163,6 +174,7 @@ class OrderStateMachine:
                     
                     # Create a ledger entry for each seller using their actual tier commission rate
                     from billing.models import get_seller_commission_rate
+                    total_commission_collected = Decimal('0.00')
                     for seller, amount in seller_totals.items():
                         seller_rate_pct = get_seller_commission_rate(seller)
                         rate = seller_rate_pct / Decimal('100')
@@ -175,6 +187,11 @@ class OrderStateMachine:
                             commission_amount=commission_amount,
                             entry_type=CommissionLedgerEntry.EntryType.COMMISSION
                         )
+                        total_commission_collected += commission_amount
+                    
+                    locked_order.platform_fee = total_commission_collected
+                    locked_order.save(update_fields=['platform_fee'])
+                    order.platform_fee = total_commission_collected
 
             # MED-7: Reverse commission when an order is cancelled after commission was charged.
             # The real path is DELIVERED→DISPUTED→CANCELLED (COMPLETED→CANCELLED is blocked

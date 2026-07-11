@@ -35,8 +35,24 @@ def perform_expiration_checks():
 
     # 3. Check Subscriptions
     expired_subs = Subscription.objects.filter(is_active=True, end_date__lt=now)
+    user_ids = list(expired_subs.values_list('user_id', flat=True))
     sub_count = expired_subs.update(is_active=False)
+    
+    downgraded_count = 0
+    if user_ids:
+        from marketplace.models import UserProfile
+        users_with_active = set(Subscription.objects.filter(
+            user_id__in=user_ids, is_active=True
+        ).values_list('user_id', flat=True))
+        
+        users_to_downgrade = [uid for uid in user_ids if uid not in users_with_active]
+        if users_to_downgrade:
+            downgraded_count = UserProfile.objects.filter(user_id__in=users_to_downgrade).update(
+                tier='customer', is_verified=False
+            )
+            
     results['expired_subscriptions'] = sub_count
+    results['downgraded_profiles'] = downgraded_count
 
     # 4. Check Sponsored Listings
     from marketplace.models import SponsoredListing

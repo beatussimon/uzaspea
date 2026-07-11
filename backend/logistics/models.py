@@ -34,7 +34,12 @@ class Shipment(models.Model):
         ('arrived_at_hub', 'Arrived At Hub'),
         ('delivered', 'Delivered'),
     ]
+    SHIPMENT_TYPE_CHOICES = [
+        ('line_haul', 'Line Haul (Warehouse-to-Warehouse)'),
+        ('local_delivery', 'Local Delivery (Warehouse-to-Customer)'),
+    ]
     order = models.ForeignKey('marketplace.Order', on_delete=models.CASCADE, related_name='shipments')
+    shipment_type = models.CharField(max_length=20, choices=SHIPMENT_TYPE_CHOICES, default='line_haul')
     carrier_type = models.CharField(max_length=20, choices=CARRIER_CHOICES, default='driver')
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='shipments')
     third_party_driver_info = models.CharField(max_length=255, blank=True, help_text="Info for third-party drivers (Name, Phone, etc.)")
@@ -125,6 +130,7 @@ def auto_create_shipment_on_paid(sender, instance, created, **kwargs):
     if instance.status in ('PAID', 'RECEIVED_AT_WAREHOUSE'):
         Shipment.objects.get_or_create(
             order=instance,
+            shipment_type='line_haul',
             defaults={'status': 'pending', 'carrier_type': 'driver'}
         )
 

@@ -189,13 +189,14 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
+    variant_name = serializers.CharField(source='variant.name', read_only=True)
     product_image = serializers.SerializerMethodField()
     seller_username = serializers.CharField(source='product.seller.username', read_only=True)
     has_review = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'variant', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'has_review']
+        fields = ['id', 'product', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'has_review']
         read_only_fields = ['price']
 
     def get_has_review(self, obj):
@@ -220,6 +221,8 @@ class OrderSerializer(serializers.ModelSerializer):
     has_vehicles = serializers.SerializerMethodField()
     buyer_contact = serializers.SerializerMethodField()
     seller_contacts = serializers.SerializerMethodField()
+    seller_commission = serializers.SerializerMethodField()
+    seller_net_payout = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
@@ -227,7 +230,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status',
             'shipping_method', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
-            'has_vehicles', 'buyer_contact', 'seller_contacts'
+            'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout'
         ]
         read_only_fields = ['user', 'total_amount']
 
@@ -285,6 +288,27 @@ class OrderSerializer(serializers.ModelSerializer):
         if not request or not hasattr(request, 'user') or request.user.is_anonymous:
             return float(obj.total_amount)
         return float(sum(item.subtotal() for item in obj.orderitem_set.filter(product__seller=request.user)))
+
+    def get_seller_commission(self, obj):
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user') or request.user.is_anonymous:
+            return 0.0
+        from billing.models import get_seller_commission_rate
+        from decimal import Decimal
+        seller_subtotal = sum(item.subtotal() for item in obj.orderitem_set.filter(product__seller=request.user))
+        rate_pct = get_seller_commission_rate(request.user)
+        return float(seller_subtotal * (rate_pct / Decimal('100')))
+
+    def get_seller_net_payout(self, obj):
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user') or request.user.is_anonymous:
+            return 0.0
+        from billing.models import get_seller_commission_rate
+        from decimal import Decimal
+        seller_subtotal = sum(item.subtotal() for item in obj.orderitem_set.filter(product__seller=request.user))
+        rate_pct = get_seller_commission_rate(request.user)
+        commission = seller_subtotal * (rate_pct / Decimal('100'))
+        return float(seller_subtotal - commission)
 
     def get_delivery_code(self, obj):
         request = self.context.get('request')

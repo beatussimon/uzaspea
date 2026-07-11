@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { Package, Plus } from 'lucide-react';
@@ -23,6 +24,7 @@ const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
 
 // ============ Dashboard Products ============
 const DashboardProducts: React.FC = () => {
+  const { user } = useAuth();
   const { showConfirm } = useDialog();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -352,12 +354,30 @@ const DashboardProducts: React.FC = () => {
             setNewVariants([]);
             setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition text-sm"
+          disabled={user?.tier === 'customer'}
+          className={`flex items-center gap-2 px-4 py-2 ${user?.tier === 'customer' ? 'bg-gray-400 cursor-not-allowed' : 'bg-brand-600 hover:bg-brand-700'} text-white rounded-lg transition text-sm`}
         >
           <Plus size={16} />
           {showForm ? 'Cancel' : 'New Product'}
         </button>
       </div>
+
+      {user?.tier === 'customer' && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-lg">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700 dark:text-yellow-200">
+                Your seller plan has expired. Your products are currently hidden from the public. Please <a href="/subscription" className="font-medium underline text-yellow-700 dark:text-yellow-200 hover:text-yellow-600 dark:hover:text-yellow-100">renew your plan</a> to continue selling.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Product Form */}
       {showForm && (
