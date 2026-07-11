@@ -280,11 +280,17 @@ const DashboardOrders: React.FC = () => {
                   </div>
                   
                   <div className="flex items-center gap-6 shrink-0">
-                    <div className="flex flex-col items-end gap-2">
-                        <span className={`inline-block px-3 py-1 text-[9px] font-black rounded-full uppercase tracking-[0.15em] shadow-sm ${cfg.bg} ${cfg.color}`}>
+                    <div className="flex flex-col items-end gap-1">
+                        <span className={`inline-block px-3 py-1 mb-1 text-[9px] font-black rounded-full uppercase tracking-[0.15em] shadow-sm ${cfg.bg} ${cfg.color}`}>
                             {cfg.label}
                         </span>
-                        <p className="font-black text-gray-900 dark:text-white text-lg tracking-tighter">TSh {(order.seller_subtotal || 0).toLocaleString()}</p>
+                        <div className="text-right">
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Subtotal: TSh {(order.seller_subtotal || 0).toLocaleString()}</p>
+                          <p className="text-[10px] text-red-500 font-medium">Fee: -TSh {(order.seller_commission || 0).toLocaleString()}</p>
+                          <p className="font-black text-brand-600 dark:text-brand-400 text-sm mt-0.5 border-t border-gray-100 dark:border-gray-700 pt-0.5 tracking-tighter">
+                            Net: TSh {(order.seller_net_payout || 0).toLocaleString()}
+                          </p>
+                        </div>
                     </div>
                     <div className="flex flex-col items-center gap-3">
                         <Link 
@@ -377,7 +383,10 @@ const DashboardOrders: React.FC = () => {
                                     <img src={item.product_image} alt="" className="w-12 h-12 rounded-lg object-cover border border-gray-100 dark:border-gray-600 shadow-inner" onError={(e: any) => e.target.style.display = 'none'} />
                                     )}
                                     <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-black text-gray-900 dark:text-white truncate">{item.product_name}</p>
+                                    <p className="text-sm font-black text-gray-900 dark:text-white truncate">
+                                        {item.product_name}
+                                        {item.variant_name && <span className="ml-2 text-[10px] uppercase font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded tracking-wider align-middle">{item.variant_name}</span>}
+                                    </p>
                                     <p className="text-xs text-gray-500 font-bold mt-0.5">Qty: {item.quantity} × TSh {(item.price || 0).toLocaleString()}</p>
                                     </div>
                                     <p className="text-sm font-black text-gray-900 dark:text-white">TSh {(item.subtotal || 0).toLocaleString()}</p>

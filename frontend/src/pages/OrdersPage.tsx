@@ -759,7 +759,10 @@ const OrdersPage: React.FC = () => {
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs text-gray-500 font-bold border border-gray-200 dark:border-gray-600">{item.quantity}×</div>
                               <div className="min-w-0">
-                                <span className="text-sm font-bold text-gray-900 dark:text-white block truncate">{item.product_name}</span>
+                                <span className="text-sm font-bold text-gray-900 dark:text-white block truncate">
+                                  {item.product_name}
+                                  {item.variant_name && <span className="ml-2 text-[10px] uppercase font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded tracking-wider align-middle">{item.variant_name}</span>}
+                                </span>
                                 <span className="text-xs text-gray-500 dark:text-gray-400">Unit Price: TSh {parseInt(item.price).toLocaleString()}</span>
                               </div>
                             </div>
