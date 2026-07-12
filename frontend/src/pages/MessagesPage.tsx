@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
-  MessageSquare, Send, ArrowLeft, Search, Paperclip, Smile, 
-  CheckCheck, Check, Phone, Video, Info
+  MessageSquare, Send, ArrowLeft, Search, Smile, 
+  CheckCheck, Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api';

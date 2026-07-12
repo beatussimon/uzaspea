@@ -710,10 +710,14 @@ const ProductDetailPage: React.FC = () => {
                 onClick={async () => {
                   try {
                     const convRes = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
-                    await api.post(`/api/conversations/${convRes.data.id}/messages/`, {
-                      content: `Hi, I'm interested in your listing: "${product.name}" (TZS ${Number(product.price).toLocaleString()}). Could you provide more details?`
-                    });
-                    navigate(`/messages?conv=${convRes.data.id}`);
+                    const convId = convRes.data.id;
+                    // Only send context message if there are no existing messages
+                    if (!convRes.data.last_message) {
+                      await api.post(`/api/conversations/${convId}/messages/`, {
+                        content: `Hi, I'm interested in your listing: "${product.name}" (TZS ${Number(product.price).toLocaleString()}). Could you provide more details?`
+                      });
+                    }
+                    navigate(`/messages/${convId}`);
                   } catch { toast.error('Login to message seller'); }
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold transition-colors"
