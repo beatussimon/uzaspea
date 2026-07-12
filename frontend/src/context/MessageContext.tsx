@@ -49,6 +49,8 @@ interface MessageContextType {
   loading: boolean;
   setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
   setMessages: React.Dispatch<React.SetStateAction<{ [convId: number]: Message[] }>>;
+  typingStatus: { [convId: number]: boolean };
+  sendTypingStatus: (convId: number, isTyping: boolean) => void;
 }
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
@@ -60,6 +62,8 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [toasts, setToasts] = useState<ChatToastData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [typingStatus, setTypingStatus] = useState<{ [convId: number]: boolean }>({});
+
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -140,7 +144,21 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
+        if (data.type === 'typing') {
+          const convId = Number(data.conversation_id);
+          const isTyping = data.is_typing === true || data.is_typing === 'true';
+          const senderId = Number(data.sender_id);
+          if (senderId !== user?.user_id) {
+            setTypingStatus(prev => ({
+              ...prev,
+              [convId]: isTyping,
+            }));
+          }
+          return;
+        }
+
         if (data.type === 'chat_message') {
+
           const convId = Number(data.conversation_id);
           const msg: Message = data.message;
           const currentUserId = user?.user_id;
@@ -370,6 +388,22 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Calculate total unread count across all conversations
   const totalUnread = conversations.reduce((acc, c) => acc + c.unread_count, 0);
 
+  // Send typing status via WebSocket
+  const sendTypingStatus = useCallback((convId: number, isTyping: boolean) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify({
+          type: 'typing',
+          conversation_id: convId,
+          is_typing: isTyping,
+        }));
+      } catch (err) {
+        console.warn('Failed to send typing status via WS', err);
+      }
+    }
+  }, []);
+
+
   return (
     <MessageContext.Provider value={{
       conversations,
@@ -384,8 +418,11 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
       loading,
       setConversations,
       setMessages,
+      typingStatus,
+      sendTypingStatus,
     }}>
       {children}
+
     </MessageContext.Provider>
   );
 };

@@ -22,7 +22,10 @@ const MessagesPage: React.FC = () => {
     sendMessage,
     setActiveConversationId,
     loading: contextLoading,
+    typingStatus,
+    sendTypingStatus,
   } = useMessages();
+
 
   const [searchQuery, setSearchQuery] = useState('');
   const [newMessage, setNewMessage] = useState('');
@@ -31,6 +34,40 @@ const MessagesPage: React.FC = () => {
 
   const messageEndRef = useRef<HTMLDivElement>(null);
   const lastConvIdRef = useRef<string | undefined>(undefined);
+  const typingTimeoutRef = useRef<number | null>(null);
+  const [isLocallyTyping, setIsLocallyTyping] = useState(false);
+
+  const handleInputChange = (val: string) => {
+    setNewMessage(val);
+    if (!id) return;
+    const convId = parseInt(id);
+
+    if (!isLocallyTyping) {
+      setIsLocallyTyping(true);
+      sendTypingStatus(convId, true);
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = window.setTimeout(() => {
+      setIsLocallyTyping(false);
+      sendTypingStatus(convId, false);
+    }, 2000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (isLocallyTyping && id) {
+        sendTypingStatus(parseInt(id), false);
+      }
+    };
+  }, [id, isLocallyTyping, sendTypingStatus]);
+
 
   // Sync route param with context's active conversation
   useEffect(() => {
@@ -100,12 +137,19 @@ const MessagesPage: React.FC = () => {
     if (!newMessage.trim() || !id) return;
     const msgContent = newMessage;
     setNewMessage('');
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    setIsLocallyTyping(false);
+    sendTypingStatus(parseInt(id), false);
+
     try {
       await sendMessage(parseInt(id), msgContent);
     } catch (e) {
       toast.error('Failed to send message');
     }
   };
+
 
   const sendEmoji = (emoji: string) => {
     setNewMessage(prev => prev + emoji);
@@ -346,19 +390,12 @@ const MessagesPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Header Action Buttons (Premium feel mockup) */}
+                {/* Header Actions */}
                 <div className="flex items-center gap-1 text-gray-400">
-                  <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-900 hover:text-gray-600 dark:hover:text-white transition-colors">
-                    <Phone size={18} />
-                  </button>
-                  <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-900 hover:text-gray-600 dark:hover:text-white transition-colors">
-                    <Video size={18} />
-                  </button>
-                  <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-900 hover:text-gray-600 dark:hover:text-white transition-colors">
-                    <Info size={18} />
-                  </button>
+                  {/* Mock buttons removed to prevent non-functional placeholders */}
                 </div>
               </div>
+
 
               {/* Product Reference Banner */}
               {activeConv && activeConv.product_name && (
@@ -449,7 +486,7 @@ const MessagesPage: React.FC = () => {
                 ))}
 
                 {/* Animated Typing Indicator */}
-                {(isTypingSimulated) && (
+                {(isTypingSimulated || typingStatus[parseInt(id || '')]) && (
                   <div className="flex items-end gap-2.5">
                     {activeConv && (
                       <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username)}`}>
@@ -483,18 +520,13 @@ const MessagesPage: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 relative">
-                  {/* File attach button (mock) */}
-                  <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors shrink-0">
-                    <Paperclip size={18} />
-                  </button>
-
+                <div className="flex items-center gap-2 relative w-full">
                   {/* Input form */}
                   <div className="flex-1 relative flex items-center">
                     <input
                       type="text"
                       value={newMessage}
-                      onChange={e => setNewMessage(e.target.value)}
+                      onChange={e => handleInputChange(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleSend()}
                       placeholder="Type a message..."
                       className="w-full pr-10 pl-4 py-2.5 text-sm border border-gray-100 dark:border-neutral-900 rounded-2xl bg-gray-50 dark:bg-neutral-950 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-all outline-none"
