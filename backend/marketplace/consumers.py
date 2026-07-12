@@ -173,15 +173,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message': event['message'],
         }))
 
+    async def chat_typing(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'typing',
+            'conversation_id': event['conversation_id'],
+            'sender_id': event['sender_id'],
+            'is_typing': event['is_typing'],
+        }))
+
     async def receive(self, text_data):
-        """Receive message from WebSocket, save to DB, broadcast to recipient."""
+        """Receive message or typing status from WebSocket, broadcast to recipient."""
         import json
         from asgiref.sync import sync_to_async
         
         try:
             data = json.loads(text_data)
         except json.JSONDecodeError:
-            # Send an error back or ignore
             try:
                 await self.send(text_data=json.dumps({
                     'type': 'error',
@@ -190,10 +197,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
             except Exception:
                 pass
             return
-            
+
+        msg_type = data.get('type')
         conv_id = data.get('conversation_id')
+
+        if msg_type == 'typing':
+            is_typing = data.get('is_typing', False)
+            recipient_id = await self._get_recipient_id(conv_id)
+            if recipient_id:
+                await self.channel_layer.group_send(
+                    f'chat_{recipient_id}',
+                    {
+                        'type': 'chat_typing',
+                        'conversation_id': conv_id,
+                        'sender_id': self.user.id,
+                        'is_typing': is_typing,
+                    }
+                )
+            return
+
         content = data.get('content', '').strip()
-        
         if not conv_id or not content:
             return
         
@@ -219,6 +242,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'conversation_id': conv_id,
             'message': msg_data,
         }))
+
+    @database_sync_to_async
+    def _get_recipient_id(self, conv_id):
+        from marketplace.models import Conversation
+        try:
+            conv = Conversation.objects.get(id=conv_id)
+            if self.user not in (conv.buyer, conv.seller):
+                return None
+            recipient = conv.seller if self.user == conv.buyer else conv.buyer
+            return recipient.id
+        except Exception:
+            return None
 
     @database_sync_to_async
     def _save_message(self, conv_id, content):
