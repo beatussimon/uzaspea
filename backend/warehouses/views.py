@@ -36,13 +36,13 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         warehouse = self.get_object()
         if not user_can_access_warehouse(request.user, warehouse):
             return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
-        from marketplace.serializers import OrderSerializer
+        from marketplace.serializers import WarehouseOrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
             (Q(status='SHIPPED_TO_WAREHOUSE') & (Q(delivery_info__warehouse_code=warehouse.code) | Q(delivery_info__isnull=True) | Q(delivery_info={}))) |
             (Q(status__in=['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'FAILED_DELIVERY']) & Q(delivery_info__destination_warehouse_code=warehouse.code))
         ).order_by('order_date')
-        serializer = OrderSerializer(orders, many=True)
+        serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'], url_path='received-intakes')
@@ -50,7 +50,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         warehouse = self.get_object()
         if not user_can_access_warehouse(request.user, warehouse):
             return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
-        from marketplace.serializers import OrderSerializer
+        from marketplace.serializers import WarehouseOrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
             Q(status='RECEIVED_AT_WAREHOUSE') &
@@ -60,7 +60,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
              Q(delivery_info__isnull=True) |
              Q(delivery_info={}))
         ).order_by('order_date')
-        serializer = OrderSerializer(orders, many=True)
+        serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='set-delivery-fee')
@@ -182,7 +182,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         warehouse = self.get_object()
         if not user_can_access_warehouse(request.user, warehouse):
             return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
-        from marketplace.serializers import OrderSerializer
+        from marketplace.serializers import WarehouseOrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
             Q(status__in=['AWAITING_DELIVERY_PAYMENT', 'PENDING_DELIVERY_VERIFICATION']) &
@@ -192,7 +192,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
              Q(delivery_info__isnull=True) |
              Q(delivery_info={}))
         ).order_by('order_date')
-        serializer = OrderSerializer(orders, many=True)
+        serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'], url_path='outbound-queue')
@@ -200,14 +200,14 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         warehouse = self.get_object()
         if not user_can_access_warehouse(request.user, warehouse):
             return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
-        from marketplace.serializers import OrderSerializer
+        from marketplace.serializers import WarehouseOrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
             Q(status__in=['ASSIGNED_TRANSPORT', 'READY_FOR_TRANSIT']) &
             (Q(delivery_info__current_warehouse_code=warehouse.code) |
              (Q(delivery_info__isnull=True) | Q(delivery_info={})))
         ).order_by('order_date')
-        serializer = OrderSerializer(orders, many=True)
+        serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'], url_path='ready-for-pickup')
@@ -215,7 +215,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         warehouse = self.get_object()
         if not user_can_access_warehouse(request.user, warehouse):
             return Response({'error': 'You are not assigned to this warehouse.'}, status=403)
-        from marketplace.serializers import OrderSerializer
+        from marketplace.serializers import WarehouseOrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
             Q(status__in=['READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER']) &
@@ -225,7 +225,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
              Q(delivery_info__isnull=True) |
              Q(delivery_info={}))
         ).order_by('order_date')
-        serializer = OrderSerializer(orders, many=True)
+        serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='dispatch-order')
@@ -380,11 +380,8 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
             order = Order.objects.get(id=order_id)
             
             # Get primary product name/image
-            first_item = order.orderitem_set.first()
-            product_name = first_item.product.name if first_item else 'Unknown Product'
+            product_name = "SokoniMax Secured Package"
             product_image = None
-            if first_item and first_item.product.images.exists():
-                product_image = first_item.product.images.first().image.url
                 
             buyer_name = order.user.get_full_name() or order.user.username
             seller_name = "Unknown Seller"
