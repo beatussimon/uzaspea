@@ -724,7 +724,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         if order.user != request.user and not (request.user.is_staff or request.user.is_superuser):
             return Response({'error': 'You are not authorized to view this pickup code.'}, status=status.HTTP_403_FORBIDDEN)
+        
         pickup_code = order.pickup_codes.filter(is_used=False).first()
+        if not pickup_code and order.status in ('ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER'):
+            from logistics.models import PickupCode
+            pickup_code, _ = PickupCode.objects.get_or_create(order=order)
+            
         if not pickup_code:
             return Response({'error': 'No active pickup code found for this order.'}, status=status.HTTP_404_NOT_FOUND)
         return Response({'code': pickup_code.code})

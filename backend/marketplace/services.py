@@ -86,18 +86,19 @@ class OrderStateMachine:
                 locked_order.save(update_fields=['platform_fee'])
                 order.platform_fee = 0
 
-            if new_state == 'READY_FOR_PICKUP':
+            if new_state in ('ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER'):
                 from logistics.models import PickupCode
                 from marketplace.models import push_notification
                 PickupCode.objects.get_or_create(order=locked_order)
-                try:
-                    push_notification(
-                        locked_order.user, 'order_status', 'Ready for Pickup',
-                        f'Your order #{locked_order.id} is ready for pickup. Check your orders page for the collection code.',
-                        f'/orders'
-                    )
-                except Exception:
-                    pass
+                if new_state == 'READY_FOR_PICKUP':
+                    try:
+                        push_notification(
+                            locked_order.user, 'order_status', 'Ready for Pickup',
+                            f'Your order #{locked_order.id} is ready for pickup. Check your orders page for the collection code.',
+                            f'/orders'
+                        )
+                    except Exception:
+                        pass
 
             if new_state == 'AWAITING_DELIVERY_PAYMENT':
                 from marketplace.models import push_notification
