@@ -11,6 +11,7 @@ import { useCart } from '../../context/CartContext';
 import NotificationBell from './NotificationBell';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useMessages } from '../../context/MessageContext';
 
 const Navbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -22,6 +23,7 @@ const Navbar = () => {
   const navbarRef = useRef<HTMLElement>(null);
   const lastReactScrollY = useRef(0);
   const { cartCount } = useCart();
+  const { totalUnread: messageUnreadCount } = useMessages();
   const navigate = useNavigate();
   const location = useLocation();
   const [currentScrollY, setCurrentScrollY] = useState(window.pageYOffset || 0);
@@ -191,6 +193,11 @@ const Navbar = () => {
 
                 <Link to="/messages" className={iconButtonClass} aria-label="View messages">
                   <MessageSquare size={18} />
+                  {messageUnreadCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white dark:border-gray-950 animate-pulse">
+                      {messageUnreadCount > 99 ? '99' : messageUnreadCount}
+                    </span>
+                  )}
                 </Link>
 
                 <Link to="/cart" className={iconButtonClass} aria-label="View shopping cart">

@@ -379,10 +379,12 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
         try:
             order = Order.objects.get(id=order_id)
             
-            # Get primary product name/image
+            # Get primary product name/image (name masked for logistics security)
             product_name = "SokoniMax Secured Package"
             product_image = None
-                
+
+            first_item = order.items.select_related('product__seller').first()
+
             buyer_name = order.user.get_full_name() or order.user.username
             seller_name = "Unknown Seller"
             if first_item:

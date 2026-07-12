@@ -157,7 +157,7 @@ const WarehouseStaffLayout: React.FC = () => {
   }, [selectedWarehouseId]);
 
   const currentWh = warehouses.find(w => w.id.toString() === selectedWarehouseId);
-  useOrderTracking(currentWh?.code ? `warehouse_${currentWh.code}` : 'none', () => {
+  useOrderTracking(currentWh?.code ? `warehouse_${currentWh.code}` : null, () => {
     if (selectedWarehouseId) fetchAllQueues(selectedWarehouseId);
   });
 

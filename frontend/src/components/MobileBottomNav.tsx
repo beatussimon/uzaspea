@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   Home, PlusCircle, ShoppingBag, User, X, 
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
-  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun, Globe
+  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun, Globe, MessageSquare
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -11,13 +11,17 @@ import VerifiedBadge from './VerifiedBadge';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useMessages } from '../context/MessageContext';
+
 
 const MobileBottomNav = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { cartCount } = useCart();
+  const { totalUnread: messageUnreadCount } = useMessages();
   const { t, i18n } = useTranslation();
+
   
   const { isAuthenticated, user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -346,6 +350,30 @@ const MobileBottomNav = () => {
               <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
             )}
           </Link>
+
+          {/* Messages */}
+          {isAuthenticated && (
+            <Link 
+              to="/messages" 
+              className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+            >
+              <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+                <div className="relative">
+                  <MessageSquare size={24} className={`transition-colors ${isActive('/messages') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/messages') ? 2.5 : 2} />
+                  {messageUnreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white dark:border-gray-900 px-1 shadow-sm animate-pulse">
+                      {messageUnreadCount > 99 ? '99+' : messageUnreadCount}
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/messages') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Chats</span>
+              </motion.div>
+              {isActive('/messages') && (
+                <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+              )}
+            </Link>
+          )}
+
 
           {/* Hamburger Menu (Toggles Slide-up Menu) */}
           <button 
