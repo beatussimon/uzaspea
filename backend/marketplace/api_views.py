@@ -776,7 +776,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         # Prefetch only for these sellers' items to avoid N+1 and leaking other seller's item data
         seller_items_prefetch = Prefetch(
             'orderitem_set',
-            queryset=OrderItem.objects.filter(product__seller_id__in=sellers).select_related('product').prefetch_related('product__images'),
+            queryset=OrderItem.objects.filter(product__seller_id__in=sellers).select_related('product', 'variant').prefetch_related('product__images'),
             to_attr='relevant_items'
         )
 
@@ -808,6 +808,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     'quantity': item.quantity,
                     'price': float(item.price),
                     'subtotal': float(item.subtotal()),
+                    'variant_name': item.variant.name if item.variant else None,
                 })
 
             timeline = [{'status': e.status, 'notes': e.notes, 'created_at': e.created_at.isoformat()} for e in order.timeline_events.all()]
