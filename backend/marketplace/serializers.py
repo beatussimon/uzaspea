@@ -223,6 +223,7 @@ class OrderSerializer(serializers.ModelSerializer):
     seller_contacts = serializers.SerializerMethodField()
     seller_commission = serializers.SerializerMethodField()
     seller_net_payout = serializers.SerializerMethodField()
+    logistics_info = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
@@ -230,9 +231,62 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status',
             'shipping_method', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
-            'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout'
+            'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout',
+            'logistics_info'
         ]
         read_only_fields = ['user', 'total_amount']
+
+    def get_logistics_info(self, obj):
+        shipment = obj.shipments.order_by('-created_at').first()
+        transfer = obj.warehouse_transfers.order_by('-created_at').first()
+        
+        departure_date = None
+        expected_arrival = None
+        carrier_name = "SokoniMax Driver"
+        tracking_number = ""
+        
+        if shipment:
+            departure_date = shipment.shipped_at or shipment.created_at
+            expected_arrival = shipment.estimated_delivery
+            carrier_name = "SokoniMax Driver" if shipment.carrier_type == 'driver' else "Third-Party Courier"
+            tracking_number = shipment.tracking_number
+        
+        if not departure_date and transfer:
+            departure_date = transfer.shipped_at or transfer.created_at
+            expected_arrival = transfer.received_at
+            
+        return {
+            'departure_date': departure_date.isoformat() if departure_date else None,
+            'expected_arrival': expected_arrival.isoformat() if expected_arrival else None,
+            'carrier_name': carrier_name,
+            'tracking_number': tracking_number,
+        }
+
+class WarehouseOrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.SerializerMethodField()
+    variant_name = serializers.SerializerMethodField()
+    product_image = serializers.SerializerMethodField()
+    seller_username = serializers.CharField(source='product.seller.username', read_only=True)
+    has_review = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'product', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'has_review']
+
+    def get_product_name(self, obj):
+        return "SokoniMax Secured Package"
+
+    def get_variant_name(self, obj):
+        return "Standard"
+
+    def get_product_image(self, obj):
+        return None
+
+    def get_has_review(self, obj):
+        return False
+
+class WarehouseOrderSerializer(OrderSerializer):
+    items = WarehouseOrderItemSerializer(source='orderitem_set', many=True, read_only=True)
 
     def get_buyer_contact(self, obj):
         try:

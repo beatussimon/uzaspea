@@ -3,7 +3,7 @@ import api from '../../../api';
 import toast from 'react-hot-toast';
 import { 
   Package, CheckCircle, Clock, Truck, QrCode, X, Search, Activity, Camera, PenTool, ShieldCheck, Key, MapPin, Zap,
-  RefreshCw, Download, Upload
+  RefreshCw
 } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,6 +25,7 @@ const WarehouseStaffLayout: React.FC = () => {
 
   // Smart Filters
   const [queueFilter, setQueueFilter] = useState<'all' | 'origin' | 'destination'>('all');
+  const [activeTab, setActiveTab] = useState<'line_haul' | 'local_logistics'>('line_haul');
   const [loading, setLoading] = useState(true);
 
   // Smart Scan
@@ -492,231 +493,298 @@ const WarehouseStaffLayout: React.FC = () => {
         </button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {[
-          { title: 'Awaiting Intake', count: applyFilter(pendingIntakes).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-          { title: 'Pricing Queue', count: applyFilter(receivedIntakes).length, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-          { title: 'Hold Shelf', count: applyFilter(awaitingPayments).length, icon: ShieldCheck, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-          { title: 'Ready to Dispatch', count: applyFilter(outboundOrders).length, icon: Truck, color: 'text-green-500', bg: 'bg-green-500/10' },
-          { title: 'Ready for Pickup', count: applyFilter(readyForPickup).length, icon: Key, color: 'text-purple-500', bg: 'bg-purple-500/10' }
-        ].map((kpi, idx) => (
-          <motion.div 
-            key={kpi.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
-          >
-            <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
-              <kpi.icon size={28} />
-            </div>
-            <div>
-              <p className="text-3xl font-black text-gray-900 dark:text-white">{loading ? '-' : kpi.count}</p>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{kpi.title}</p>
-            </div>
-          </motion.div>
-        ))}
+      {/* Tab Switcher */}
+      <div className="flex border-b border-gray-200 dark:border-neutral-800 mb-6 gap-6">
+        <button 
+          onClick={() => setActiveTab('line_haul')}
+          className={`pb-3 font-black uppercase tracking-widest text-sm transition-all border-b-2 ${
+            activeTab === 'line_haul' 
+              ? 'border-brand-500 text-brand-600 dark:text-brand-400' 
+              : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+          }`}
+        >
+          Line-Haul & Origin Logistics
+        </button>
+        <button 
+          onClick={() => setActiveTab('local_logistics')}
+          className={`pb-3 font-black uppercase tracking-widest text-sm transition-all border-b-2 ${
+            activeTab === 'local_logistics' 
+              ? 'border-brand-500 text-brand-600 dark:text-brand-400' 
+              : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+          }`}
+        >
+          Local Warehouse Logistics (Last-Mile)
+        </button>
       </div>
 
-      {/* Swimlanes */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        
-        {/* Lane 1: Awaiting Intake */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            <Package size={16} /> Awaiting Intake
-          </h3>
-          {loading ? <SkeletonCards /> : applyFilter(pendingIntakes).length === 0 ? <EmptyState text="No pending intakes" /> : (
-            <div className="space-y-3">
-              {applyFilter(pendingIntakes).map(order => (
-                <QueueCard key={order.id} order={order} badge="Inbound" onClick={() => handleActionClick(order.id.toString(), 'intake')} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Lane 2: Pricing Confirmation */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            <Clock size={16} /> Delivery Pricing
-          </h3>
-          {loading ? <SkeletonCards /> : applyFilter(receivedIntakes).length === 0 ? <EmptyState text="No pricing tasks" /> : (
-            <div className="space-y-3">
-              {applyFilter(receivedIntakes).map(order => (
-                <QueueCard key={order.id} order={order} badge="Received" onClick={() => handleActionClick(order.id.toString(), 'pricing')} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Lane 3: Hold Shelf */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            <ShieldCheck size={16} /> Hold Shelf
-          </h3>
-          {loading ? <SkeletonCards /> : applyFilter(awaitingPayments).length === 0 ? <EmptyState text="No items held" /> : (
-            <div className="space-y-3">
-              {applyFilter(awaitingPayments).map(order => (
-                <QueueCard 
-                  key={order.id} 
-                  order={order} 
-                  badge={order.status === 'PENDING_DELIVERY_VERIFICATION' ? 'Verifying' : 'Hold'} 
-                  onClick={() => {
-                    if (order.status === 'PENDING_DELIVERY_VERIFICATION') {
-                      handleActionClick(order.id.toString(), 'verify');
-                    }
-                  }} 
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Lane 4: Dispatch Queue */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            <Truck size={16} /> Dispatch Queue
-          </h3>
-          {loading ? <SkeletonCards /> : applyFilter(outboundOrders).length === 0 ? <EmptyState text="No dispatch tasks" /> : (
-            <div className="space-y-3">
-              {applyFilter(outboundOrders).map(order => (
-                <QueueCard key={order.id} order={order} badge="Ready" onClick={() => handleActionClick(order.id.toString(), 'dispatch')} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Lane 5: Ready for Pickup */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            <Key size={16} /> Ready for Pickup
-          </h3>
-          {loading ? <SkeletonCards /> : applyFilter(readyForPickup).length === 0 ? <EmptyState text="No pickups" /> : (
-            <div className="space-y-3">
-              {applyFilter(readyForPickup).map(order => (
-                <QueueCard key={order.id} order={order} badge="Pickup" onClick={() => handleActionClick(order.id.toString(), 'pickup')} />
-              ))}
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      {/* Inter-Warehouse Transfers Section */}
-      <div className="mt-12 space-y-6">
-        <div className="flex items-center justify-between border-b border-gray-100 dark:border-neutral-800 pb-4">
-          <div>
-            <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-              <RefreshCw size={20} className="text-brand-500 animate-spin-slow" />
-              Inter-Warehouse Transfers
-            </h2>
-            <p className="text-xs font-medium text-gray-505 dark:text-neutral-400 mt-1">
-              Manage transfer shipments moving between regional hubs
-            </p>
+      {activeTab === 'line_haul' ? (
+        <>
+          {/* KPI Cards (Line-Haul) */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { title: 'Origin Intake', count: applyFilter(pendingIntakes.filter(o => o.status === 'SHIPPED_TO_WAREHOUSE')).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+              { title: 'Pricing Queue', count: applyFilter(receivedIntakes).length, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+              { title: 'Hold Shelf', count: applyFilter(awaitingPayments).length, icon: ShieldCheck, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+              { title: 'Line-Haul Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code !== currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: 'bg-green-500/10' }
+            ].map((kpi, idx) => (
+              <motion.div 
+                key={kpi.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+              >
+                <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
+                  <kpi.icon size={28} />
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-gray-900 dark:text-white">{loading ? '-' : kpi.count}</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{kpi.title}</p>
+                </div>
+              </motion.div>
+            ))}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-500">
-              Incoming: {incomingTransfers.length}
-            </span>
-            <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-500">
-              Outgoing: {outgoingTransfers.length}
-            </span>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Incoming Transfers */}
-          <div className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 space-y-4">
-            <h3 className="text-sm font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-2">
-              <Download size={16} /> Incoming Transfers (In Transit)
-            </h3>
-            {incomingTransfers.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 dark:text-neutral-600 italic text-sm">
-                No incoming transfers at this time.
-              </div>
-            ) : (
-              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                {incomingTransfers.map((transfer: any) => (
-                  <div key={transfer.id} className="p-5 bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-gray-900 dark:text-white">Order #{transfer.order}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-500">In Transit</span>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
-                        Origin Hub: <span className="font-semibold text-gray-700 dark:text-neutral-300">{transfer.source_warehouse_name}</span>
-                      </p>
-                      <p className="text-[10px] text-gray-400 dark:text-neutral-500 mt-0.5">
-                        Created: {new Date(transfer.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await api.post(`/api/warehouses/transfers/${transfer.id}/receive/`);
-                          toast.success(`Transfer #${transfer.id} received successfully.`);
-                          fetchAllQueues(selectedWarehouseId);
-                        } catch {
-                          toast.error('Failed to confirm receipt of transfer.');
+          {/* Swimlanes (Line-Haul) */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Lane 1: Awaiting Intake */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Package size={16} /> Origin Intake
+              </h3>
+              {loading ? <SkeletonCards /> : applyFilter(pendingIntakes.filter(o => o.status === 'SHIPPED_TO_WAREHOUSE')).length === 0 ? <EmptyState text="No pending intakes" /> : (
+                <div className="space-y-3">
+                  {applyFilter(pendingIntakes.filter(o => o.status === 'SHIPPED_TO_WAREHOUSE')).map(order => (
+                    <QueueCard key={order.id} order={order} badge="Inbound" onClick={() => handleActionClick(order.id.toString(), 'intake')} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Lane 2: Delivery Pricing */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Clock size={16} /> Delivery Pricing
+              </h3>
+              {loading ? <SkeletonCards /> : applyFilter(receivedIntakes).length === 0 ? <EmptyState text="No pricing tasks" /> : (
+                <div className="space-y-3">
+                  {applyFilter(receivedIntakes).map(order => (
+                    <QueueCard key={order.id} order={order} badge="Received" onClick={() => handleActionClick(order.id.toString(), 'pricing')} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Lane 3: Hold Shelf */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <ShieldCheck size={16} /> Hold Shelf
+              </h3>
+              {loading ? <SkeletonCards /> : applyFilter(awaitingPayments).length === 0 ? <EmptyState text="No items held" /> : (
+                <div className="space-y-3">
+                  {applyFilter(awaitingPayments).map(order => (
+                    <QueueCard 
+                      key={order.id} 
+                      order={order} 
+                      badge={order.status === 'PENDING_DELIVERY_VERIFICATION' ? 'Verifying' : 'Hold'} 
+                      onClick={() => {
+                        if (order.status === 'PENDING_DELIVERY_VERIFICATION') {
+                          handleActionClick(order.id.toString(), 'verify');
                         }
-                      }}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-lg uppercase tracking-wider transition-all"
-                    >
-                      Confirm Receipt
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+                      }} 
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Lane 4: Line-Haul Dispatch */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Truck size={16} /> Line-Haul Dispatch
+              </h3>
+              {loading ? <SkeletonCards /> : applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code !== currentWh?.code)).length === 0 ? <EmptyState text="No dispatch tasks" /> : (
+                <div className="space-y-3">
+                  {applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code !== currentWh?.code)).map(order => (
+                    <QueueCard key={order.id} order={order} badge="Ready" onClick={() => handleActionClick(order.id.toString(), 'dispatch')} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Outgoing Transfers */}
-          <div className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 space-y-4">
-            <h3 className="text-sm font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest flex items-center gap-2">
-              <Upload size={16} /> Outgoing Transfers (Pending Ship)
-            </h3>
-            {outgoingTransfers.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 dark:text-neutral-600 italic text-sm">
-                No outgoing transfers pending dispatch.
+          {/* Inter-Warehouse Transfers Section */}
+          <div className="mt-12 space-y-6">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-neutral-800 pb-4">
+              <div>
+                <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                  <RefreshCw size={20} className="text-brand-500 animate-spin-slow" />
+                  Inter-Warehouse Transfers
+                </h2>
+                <p className="text-xs font-medium text-gray-505 dark:text-neutral-400 mt-1">
+                  Manage transfer shipments moving between regional hubs
+                </p>
               </div>
-            ) : (
-              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                {outgoingTransfers.map((transfer: any) => (
-                  <div key={transfer.id} className="p-5 bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-gray-900 dark:text-white">Order #{transfer.order}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-500">Pending</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-500">
+                  Incoming: {incomingTransfers.length}
+                </span>
+                <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-500">
+                  Outgoing: {outgoingTransfers.length}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Incoming Transfers (Road Transit) */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <RefreshCw size={14} className="text-blue-500" /> Incoming Transfers
+                </h3>
+                {incomingTransfers.length === 0 ? <EmptyState text="No incoming transfers" /> : (
+                  <div className="space-y-3">
+                    {incomingTransfers.map(transfer => (
+                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-neutral-800/30 rounded-2xl border border-gray-100 dark:border-neutral-800">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-gray-900 dark:text-white">Order #{transfer.order}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-500">In Transit</span>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+                            Origin: <span className="font-semibold text-gray-700 dark:text-neutral-300">{transfer.source_warehouse_name}</span>
+                          </p>
+                          <p className="text-[10px] text-gray-400 dark:text-neutral-500 mt-0.5">
+                            Shipped: {transfer.shipped_at ? new Date(transfer.shipped_at).toLocaleString() : 'N/A'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleActionClick(transfer.order.toString(), 'intake')}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-lg uppercase tracking-wider transition-all"
+                        >
+                          Receive Package
+                        </button>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
-                        Destination: <span className="font-semibold text-gray-700 dark:text-neutral-300">{transfer.destination_warehouse_name}</span>
-                      </p>
-                      <p className="text-[10px] text-gray-400 dark:text-neutral-500 mt-0.5">
-                        Created: {new Date(transfer.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await api.post(`/api/warehouses/transfers/${transfer.id}/ship/`);
-                          toast.success(`Transfer #${transfer.id} shipped successfully.`);
-                          fetchAllQueues(selectedWarehouseId);
-                        } catch {
-                          toast.error('Failed to dispatch transfer.');
-                        }
-                      }}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-lg uppercase tracking-wider transition-all"
-                    >
-                      Ship Package
-                    </button>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
+
+              {/* Outgoing Transfers (Ready to Ship) */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <RefreshCw size={14} className="text-amber-500" /> Outgoing Transfers
+                </h3>
+                {outgoingTransfers.length === 0 ? <EmptyState text="No outgoing transfers pending" /> : (
+                  <div className="space-y-3">
+                    {outgoingTransfers.map(transfer => (
+                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-neutral-800/30 rounded-2xl border border-gray-100 dark:border-neutral-800">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-gray-900 dark:text-white">Order #{transfer.order}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-500">Pending</span>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+                            Destination: <span className="font-semibold text-gray-700 dark:text-neutral-300">{transfer.destination_warehouse_name}</span>
+                          </p>
+                          <p className="text-[10px] text-gray-400 dark:text-neutral-500 mt-0.5">
+                            Created: {new Date(transfer.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await api.post(`/api/warehouses/transfers/${transfer.id}/ship/`);
+                              toast.success(`Transfer #${transfer.id} shipped successfully.`);
+                              fetchAllQueues(selectedWarehouseId);
+                            } catch {
+                              toast.error('Failed to dispatch transfer.');
+                            }
+                          }}
+                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-lg uppercase tracking-wider transition-all"
+                        >
+                          Ship Package
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      ) : (
+        <>
+          {/* KPI Cards (Local Logistics) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { title: 'Dest Hub Intake', count: applyFilter(pendingIntakes.filter(o => o.status === 'IN_TRANSIT')).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+              { title: 'Local Delivery Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: 'bg-green-500/10' },
+              { title: 'Ready for Pickup / Release', count: applyFilter(readyForPickup).length, icon: Key, color: 'text-purple-500', bg: 'bg-purple-500/10' }
+            ].map((kpi, idx) => (
+              <motion.div 
+                key={kpi.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+              >
+                <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
+                  <kpi.icon size={28} />
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-gray-900 dark:text-white">{loading ? '-' : kpi.count}</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{kpi.title}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Swimlanes (Local Logistics) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Lane 1: Dest Hub Intake */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Package size={16} /> Destination Hub Intake
+              </h3>
+              {loading ? <SkeletonCards /> : applyFilter(pendingIntakes.filter(o => o.status === 'IN_TRANSIT')).length === 0 ? <EmptyState text="No pending intakes" /> : (
+                <div className="space-y-3">
+                  {applyFilter(pendingIntakes.filter(o => o.status === 'IN_TRANSIT')).map(order => (
+                    <QueueCard key={order.id} order={order} badge="Inbound Transfer" onClick={() => handleActionClick(order.id.toString(), 'intake')} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Lane 2: Local Delivery Dispatch */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Truck size={16} /> Local Delivery Dispatch
+              </h3>
+              {loading ? <SkeletonCards /> : applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).length === 0 ? <EmptyState text="No deliveries" /> : (
+                <div className="space-y-3">
+                  {applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).map(order => (
+                    <QueueCard key={order.id} order={order} badge="Last Mile" onClick={() => handleActionClick(order.id.toString(), 'dispatch')} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Lane 3: Customer Release / Pickup */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Key size={16} /> Customer Release / Pickup
+              </h3>
+              {loading ? <SkeletonCards /> : applyFilter(readyForPickup).length === 0 ? <EmptyState text="No pickups" /> : (
+                <div className="space-y-3">
+                  {applyFilter(readyForPickup).map(order => (
+                    <QueueCard key={order.id} order={order} badge="Pickup" onClick={() => handleActionClick(order.id.toString(), 'pickup')} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
 
       {/* MODALS */}
@@ -759,15 +827,35 @@ const WarehouseStaffLayout: React.FC = () => {
                 {/* Context Details */}
                 <div className="bg-gray-50 dark:bg-neutral-800/50 rounded-2xl p-5 mb-8 grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Product</p>
-                    <p className="font-bold text-gray-900 dark:text-white">{orderPreview?.product_name}</p>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Departure Date</p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      {orderPreview?.logistics_info?.departure_date ? new Date(orderPreview.logistics_info.departure_date).toLocaleDateString() : 'Pending'}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Buyer</p>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Expected Arrival</p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      {orderPreview?.logistics_info?.expected_arrival ? new Date(orderPreview.logistics_info.expected_arrival).toLocaleDateString() : 'Pending'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Carrier / Courier</p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      {orderPreview?.logistics_info?.carrier_name || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Tracking Number</p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      {orderPreview?.logistics_info?.tracking_number || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Buyer Username</p>
                     <p className="font-bold text-gray-900 dark:text-white">{orderPreview?.buyer_name}</p>
                   </div>
-                  <div className="col-span-2">
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Seller / Vendor</p>
+                  <div>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Seller Username</p>
                     <p className="font-bold text-gray-900 dark:text-white">{orderPreview?.seller_name}</p>
                   </div>
                 </div>
@@ -1157,14 +1245,19 @@ const EmptyState = ({ text }: { text: string }) => (
   </div>
 );
 
+const formatDate = (dateStr: string | null) => {
+  if (!dateStr) return 'Pending';
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
 const QueueCard = ({ order, badge, onClick }: { order: any, badge: string, onClick: () => void }) => (
   <motion.div 
     whileHover={{ scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className="p-4 bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer flex justify-between items-center group"
+    className="p-4 bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer flex justify-between items-center group w-full"
   >
-    <div className="overflow-hidden">
+    <div className="overflow-hidden w-full">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-[10px] font-black uppercase tracking-widest bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">
           #{order.id}
@@ -1178,13 +1271,27 @@ const QueueCard = ({ order, badge, onClick }: { order: any, badge: string, onCli
         </span>
       </div>
       <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-        {order.items?.[0]?.product_name || 'Multiple Items'}
+        {order.items?.[0]?.product_name || 'SokoniMax Secured Package'}
       </p>
-      <p className="text-xs text-gray-500 font-medium truncate mt-0.5">
+
+      {order.logistics_info && (
+        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-neutral-800/80 space-y-1">
+          <div className="flex items-center justify-between text-[10px] text-gray-400">
+            <span>Departed:</span>
+            <span className="font-semibold text-gray-600 dark:text-neutral-300">{formatDate(order.logistics_info.departure_date)}</span>
+          </div>
+          <div className="flex items-center justify-between text-[10px] text-gray-400">
+            <span>Expected:</span>
+            <span className="font-semibold text-gray-600 dark:text-neutral-300">{formatDate(order.logistics_info.expected_arrival)}</span>
+          </div>
+        </div>
+      )}
+
+      <p className="text-[10px] text-gray-400 font-medium truncate mt-1">
         Buyer: {order.buyer_username || 'Unknown'}
       </p>
     </div>
-    <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-neutral-800 flex items-center justify-center text-gray-400 group-hover:bg-brand-50 group-hover:text-brand-500 transition-colors shrink-0 ml-2">
+    <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-neutral-800 flex items-center justify-center text-gray-400 group-hover:bg-brand-50 group-hover:text-brand-500 transition-colors shrink-0 ml-2 self-start mt-1">
       <Search size={14} />
     </div>
   </motion.div>

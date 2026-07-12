@@ -45,6 +45,7 @@ class Shipment(models.Model):
     third_party_driver_info = models.CharField(max_length=255, blank=True, help_text="Info for third-party drivers (Name, Phone, etc.)")
     tracking_number = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    shipped_at = models.DateTimeField(null=True, blank=True)
     estimated_delivery = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -54,6 +55,10 @@ class Shipment(models.Model):
         if not is_new:
             old_status = Shipment.objects.filter(pk=self.pk).values_list('status', flat=True).first()
         
+        if self.status == 'in_transit' and old_status != 'in_transit':
+            from django.utils import timezone
+            self.shipped_at = timezone.now()
+            
         super().save(*args, **kwargs)
         
         if self.status == 'delivered' and old_status != 'delivered':

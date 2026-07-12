@@ -93,7 +93,7 @@ const OrdersPage: React.FC = () => {
     if (!isCurrentlyExpanded) {
       fetchSellerLipa(order);
       fetchShipment(order);
-      if (order.status === 'READY_FOR_PICKUP') {
+      if (['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER'].includes(order.status)) {
         fetchPickupCode(order.id);
       }
       if (order.status === 'AWAITING_DELIVERY_PAYMENT') {
@@ -110,7 +110,7 @@ const OrdersPage: React.FC = () => {
       if (order) {
         fetchSellerLipa(order);
         fetchShipment(order);
-        if (order.status === 'READY_FOR_PICKUP') {
+        if (['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER'].includes(order.status)) {
           fetchPickupCode(order.id);
         }
         if (order.status === 'AWAITING_DELIVERY_PAYMENT') {
@@ -703,7 +703,7 @@ const OrdersPage: React.FC = () => {
                     )}
 
                     {/* Delivery Code */}
-                    {order.delivery_code && ['PROCESSING', 'SHIPPED', 'DELIVERED', 'OUT_FOR_DELIVERY'].includes(order.status) && (
+                    {order.delivery_code && ['ARRIVED_AT_REGIONAL_WAREHOUSE', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(order.status) && (
                       <div className="px-6 py-5 bg-brand-50/50 dark:bg-brand-900/10 border-b border-brand-100 dark:border-brand-900/20">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div>
@@ -722,7 +722,7 @@ const OrdersPage: React.FC = () => {
                     )}
 
                     {/* Warehouse Pickup Code */}
-                    {order.status === 'READY_FOR_PICKUP' && (
+                    {['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED', 'COMPLETED'].includes(order.status) && order.shipping_method === 'PICKUP' && (
                       <div className="px-6 py-5 bg-amber-50/50 dark:bg-amber-900/10 border-b border-amber-100 dark:border-amber-900/20 animate-pulse-subtle">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div>
