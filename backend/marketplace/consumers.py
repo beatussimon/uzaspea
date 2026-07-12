@@ -2,20 +2,19 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from urllib.parse import parse_qs
+from rest_framework_simplejwt.tokens import AccessToken, UntypedToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.contrib.auth.models import User
 
 
 @database_sync_to_async
 def get_user_from_token(token):
     """Consolidated token authentication helper for WebSockets."""
     try:
-        from rest_framework_simplejwt.tokens import AccessToken
-        from django.contrib.auth.models import User
         validated = AccessToken(token)
         return User.objects.get(id=validated['user_id'])
     except Exception:
         try:
-            from rest_framework_simplejwt.tokens import UntypedToken
-            from rest_framework_simplejwt.authentication import JWTAuthentication
             UntypedToken(token)
             auth = JWTAuthentication()
             validated_token = auth.get_validated_token(token)
