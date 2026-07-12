@@ -42,6 +42,17 @@ const MessagesPage: React.FC = () => {
     if (!id) return;
     const convId = parseInt(id);
 
+    if (val.trim() === '') {
+      if (isLocallyTyping) {
+        setIsLocallyTyping(false);
+        sendTypingStatus(convId, false);
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      return;
+    }
+
     if (!isLocallyTyping) {
       setIsLocallyTyping(true);
       sendTypingStatus(convId, true);
@@ -57,6 +68,7 @@ const MessagesPage: React.FC = () => {
     }, 2000);
   };
 
+
   useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) {
@@ -67,6 +79,15 @@ const MessagesPage: React.FC = () => {
       }
     };
   }, [id, isLocallyTyping, sendTypingStatus]);
+
+  useEffect(() => {
+    // Reset typing states on conversation switch
+    setIsLocallyTyping(false);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+  }, [id]);
+
 
 
   // Sync route param with context's active conversation

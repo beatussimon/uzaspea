@@ -1445,9 +1445,21 @@ class ConversationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        conv, _ = Conversation.objects.get_or_create(
-            buyer=request.user, seller_id=seller_id, product_id=product_id
-        )
+        # Look for any existing conversation between this buyer and seller
+        conv = Conversation.objects.filter(
+            Q(buyer=request.user, seller_id=seller_id) |
+            Q(buyer_id=seller_id, seller=request.user)
+        ).order_by('-updated_at').first()
+
+        if conv:
+            if product_id:
+                conv.product_id = product_id
+                conv.save()
+        else:
+            conv = Conversation.objects.create(
+                buyer=request.user, seller_id=seller_id, product_id=product_id
+            )
+
         return Response(ConversationSerializer(conv, context={'request': request}).data)
 
     @decorators.action(detail=True, methods=['get', 'post'])

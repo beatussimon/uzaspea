@@ -1,6 +1,33 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import api from '../api';
+import api, { API_BASE_URL, decodeJwtPayload } from '../api';
 import { useAuth } from './AuthContext';
+import axios from 'axios';
+
+const getValidToken = async (): Promise<string | null> => {
+  const token = localStorage.getItem('access_token');
+  if (!token) return null;
+
+  try {
+    const payload = decodeJwtPayload(token);
+    if (payload && payload.exp) {
+      // If token expires in less than 30 seconds, refresh it
+      const isExpired = payload.exp * 1000 - Date.now() < 30000;
+      if (isExpired) {
+        const refresh = localStorage.getItem('refresh_token');
+        if (refresh) {
+          const res = await axios.post(`${API_BASE_URL}/api/auth/token/refresh/`, { refresh });
+          const newToken = res.data.access;
+          localStorage.setItem('access_token', newToken);
+          return newToken;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error checking/refreshing token for WebSocket:', err);
+  }
+  return token;
+};
+
 
 export interface Message {
   id: number;
@@ -119,10 +146,11 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   // Connect WebSocket
-  const connectWS = useCallback(() => {
+  const connectWS = useCallback(async () => {
     if (!isAuthenticated) return;
-    const token = localStorage.getItem('access_token');
+    const token = await getValidToken();
     if (!token) return;
+
 
     // Clean up existing
     if (wsRef.current) {
