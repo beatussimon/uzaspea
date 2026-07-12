@@ -204,6 +204,22 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
             // Mark read since we are looking at it
             if (msg.sender !== currentUserId) {
               api.get(`/api/conversations/${convId}/messages/`).catch(() => {});
+
+              // Also trigger native device notification if tab is in the background
+              if (document.hidden && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                try {
+                  const notification = new Notification(`New message from ${msg.sender_username}`, {
+                    body: msg.content,
+                    icon: '/logo_dark.png',
+                    tag: `chat-msg-${convId}`,
+                  });
+                  notification.onclick = () => {
+                    window.focus();
+                  };
+                } catch (e) {
+                  console.warn('Native notification failed:', e);
+                }
+              }
             }
           } else {
             // Active conversation is NOT this one
@@ -232,6 +248,23 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   avatarText: initials,
                 },
               ]);
+
+              // Also trigger native device notification if permitted
+              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                try {
+                  const notification = new Notification(`New message from ${msg.sender_username}`, {
+                    body: msg.content,
+                    icon: '/logo_dark.png',
+                    tag: `chat-msg-${convId}`,
+                  });
+                  notification.onclick = () => {
+                    window.focus();
+                    window.location.href = `/messages/${convId}`;
+                  };
+                } catch (e) {
+                  console.warn('Native notification failed:', e);
+                }
+              }
             }
           }
 

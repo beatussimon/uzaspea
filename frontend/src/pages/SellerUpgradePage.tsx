@@ -23,6 +23,13 @@ const SellerUpgradePage: React.FC = () => {
   const [application, setApplication] = useState<any>(null);
   const [tiers, setTiers] = useState<any[]>([]);
   const [siteSettings, setSiteSettings] = useState<any>({});
+  const [subscription, setSubscription] = useState<any>(null);
+  const [lipaNumbers, setLipaNumbers] = useState<any[]>([]);
+  const [paymentConfirmations, setPaymentConfirmations] = useState<any[]>([]);
+  const [refId, setRefId] = useState('');
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+
 
   const fetchSiteSettings = async () => {
     try {
@@ -78,11 +85,49 @@ const SellerUpgradePage: React.FC = () => {
     }
   };
 
+  const fetchSubscriptionStatus = async () => {
+    if (!isAuthenticated) return;
+    try {
+      const res = await api.get('/api/subscriptions/me/');
+      if (res.data && res.data.status !== 'none') {
+        setSubscription(res.data);
+        if (!res.data.is_active) {
+          fetchLipaNumbers();
+          fetchPaymentConfirmations();
+        }
+      } else {
+        setSubscription(null);
+      }
+    } catch (err) {
+      console.error('Failed to load subscription status', err);
+    }
+  };
+
+  const fetchLipaNumbers = async () => {
+    try {
+      const res = await api.get('/api/lipa-numbers/?system=true&purpose=subscriptions');
+      setLipaNumbers(res.data.results || res.data || []);
+    } catch (err) {
+      console.error('Failed to load Lipa numbers', err);
+    }
+  };
+
+  const fetchPaymentConfirmations = async () => {
+    try {
+      const res = await api.get('/api/subscription-payments/');
+      setPaymentConfirmations(res.data.results || res.data || []);
+    } catch (err) {
+      console.error('Failed to load payment confirmations', err);
+    }
+  };
+
   useEffect(() => {
     fetchApplicationStatus();
     fetchTiers();
     fetchSiteSettings();
+    fetchSubscriptionStatus();
   }, [isAuthenticated]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,10 +178,43 @@ const SellerUpgradePage: React.FC = () => {
     setBusinessName('');
     setIdDocument(null);
     setBusinessDocument(null);
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const activeRenewalTier = tiers.find(t => t.tier_level === selectedTier) || (subscription && subscription.tier);
+    if (!activeRenewalTier) {
+      toast.error('Could not determine plan details');
+      return;
+    }
+    if (!refId.trim()) return toast.error('Please enter transaction reference ID');
+    if (!proofFile) return toast.error('Please upload a screenshot proof of payment');
+
+    setSubmittingPayment(true);
+    const fd = new FormData();
+    fd.append('amount', activeRenewalTier.price);
+    fd.append('reference', refId);
+    fd.append('proof', proofFile);
+    fd.append('tier', activeRenewalTier.id.toString());
+
+    try {
+      await api.post('/api/subscription-payments/', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success('Subscription renewal submitted successfully!');
+      setRefId('');
+      setProofFile(null);
+      fetchSubscriptionStatus();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to submit payment details');
+    } finally {
+      setSubmittingPayment(false);
+    }
   };
 
-  // If user is already a seller
   const isAlreadySeller = user && (user.tier === 'seller_pro' || user.tier === 'business' || user.is_staff || user.is_superuser);
+  const isSubscriptionExpired = subscription && !subscription.is_active;
+  const pendingConfirmation = paymentConfirmations.find(c => c.status === 'pending');
+  const activeRenewalTier = tiers.find(t => t.tier_level === selectedTier) || (subscription && subscription.tier);
+
 
   return (
     <div className="max-w-6xl mx-auto py-12 px-4 space-y-12">
@@ -333,7 +411,119 @@ const SellerUpgradePage: React.FC = () => {
               </div>
             )}
           </div>
+        ) : isSubscriptionExpired ? (
+          <div className="space-y-6">
+            {pendingConfirmation ? (
+              <div className="text-center space-y-6 py-6">
+                <Clock size={48} className="mx-auto text-yellow-500 animate-pulse" />
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Renewal Pending Review</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto font-medium">
+                    We are currently verifying your renewal payment reference <code className="bg-gray-100 dark:bg-neutral-900 px-1.5 py-0.5 rounded font-mono text-brand-600 font-bold">{pendingConfirmation.reference}</code> for the <span className="font-bold capitalize text-brand-600">{pendingConfirmation.tier_name}</span> plan.
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Submitted on: {new Date(pendingConfirmation.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900/30 rounded-2xl text-xs text-yellow-850 dark:text-yellow-400 text-left">
+                  <strong className="block mb-1">What happens next?</strong>
+                  Our administration team will verify the payment confirmation screenshot and transaction reference with the network carrier. Upon approval, your account privileges will be instantly restored.
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handlePaymentSubmit} className="space-y-6">
+                <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-2xl flex items-start gap-3">
+                  <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+                  <div className="space-y-1 flex-1">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-red-800 dark:text-red-400">Subscription Expired</h4>
+                    <p className="text-xs text-red-700 dark:text-red-300">
+                      Your seller subscription has expired. You have been placed on the free plan and your listings are temporarily hidden. Please submit a renewal payment to restore your seller privileges.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-b dark:border-neutral-800 pb-4">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    Renew Subscription
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Selected Tier: <span className="font-bold text-brand-600 capitalize">{(activeRenewalTier?.name || selectedTier).replace('_', ' ')}</span> ({activeRenewalTier ? `TZS ${Number(activeRenewalTier.price).toLocaleString()}` : 'Free'})
+                  </p>
+                </div>
+
+                {/* Lipa numbers instructions */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">Payment Instructions</h4>
+                  <p className="text-xs text-gray-500">Send the correct price amount to any of the verified system accounts below:</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    {lipaNumbers.map((num: any) => (
+                      <div key={num.id} className="p-3 bg-gray-50 dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-xl flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black uppercase tracking-widest text-[9px] bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-400 px-2 py-0.5 rounded-md">
+                            {num.network_name || num.network?.name}
+                          </span>
+                          <span className="font-bold text-gray-800 dark:text-white">{num.number}</span>
+                        </div>
+                        <span className="text-gray-400 text-[10px] italic">A/C Name: <strong className="text-gray-600 dark:text-gray-300">{num.name}</strong></span>
+                      </div>
+                    ))}
+                    {lipaNumbers.length === 0 && (
+                      <p className="text-xs text-gray-400 italic">No system payment numbers listed. Please contact support.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Transaction Ref input */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Transaction Reference ID</label>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="e.g. PP1234567890"
+                    className="input w-full bg-gray-50 dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none"
+                    value={refId}
+                    onChange={(e) => setRefId(e.target.value)}
+                  />
+                </div>
+
+                {/* Proof screenshot input */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Payment Receipt Screenshot</label>
+                  <div className="border-2 border-dashed border-gray-200 dark:border-neutral-700 rounded-xl p-6 text-center hover:border-brand-500 transition-colors relative cursor-pointer">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      required
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setProofFile(e.target.files[0]);
+                        }
+                      }}
+                    />
+                    <div className="space-y-2 pointer-events-none">
+                      <Upload className="mx-auto text-gray-400" size={24} />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold">
+                        {proofFile ? proofFile.name : 'Click to select or drag and drop receipt image'}
+                      </p>
+                      <p className="text-[10px] text-gray-400">JPEG, PNG or WebP up to 5MB</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit button */}
+                <button 
+                  type="submit"
+                  disabled={submittingPayment || !activeRenewalTier}
+                  className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider transition shadow-lg shadow-brand-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingPayment ? 'Submitting Payment Proof...' : 'Submit Renewal Payment'}
+                </button>
+              </form>
+            )}
+          </div>
         ) : (
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white border-b dark:border-neutral-800 pb-3">
               Upgrade to <span className="capitalize text-brand-600">{selectedTier.replace('_', ' ')}</span>
