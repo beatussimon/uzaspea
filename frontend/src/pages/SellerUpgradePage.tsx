@@ -178,6 +178,8 @@ const SellerUpgradePage: React.FC = () => {
     setBusinessName('');
     setIdDocument(null);
     setBusinessDocument(null);
+  };
+
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const activeRenewalTier = tiers.find(t => t.tier_level === selectedTier) || (subscription && subscription.tier);
