@@ -262,32 +262,6 @@ class OrderSerializer(serializers.ModelSerializer):
             'tracking_number': tracking_number,
         }
 
-class WarehouseOrderItemSerializer(serializers.ModelSerializer):
-    product_name = serializers.SerializerMethodField()
-    variant_name = serializers.SerializerMethodField()
-    product_image = serializers.SerializerMethodField()
-    seller_username = serializers.CharField(source='product.seller.username', read_only=True)
-    has_review = serializers.SerializerMethodField()
-
-    class Meta:
-        model = OrderItem
-        fields = ['id', 'product', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'has_review']
-
-    def get_product_name(self, obj):
-        return "SokoniMax Secured Package"
-
-    def get_variant_name(self, obj):
-        return "Standard"
-
-    def get_product_image(self, obj):
-        return None
-
-    def get_has_review(self, obj):
-        return False
-
-class WarehouseOrderSerializer(OrderSerializer):
-    items = WarehouseOrderItemSerializer(source='orderitem_set', many=True, read_only=True)
-
     def get_buyer_contact(self, obj):
         try:
             profile = obj.user.profile
@@ -446,6 +420,32 @@ class WarehouseOrderSerializer(OrderSerializer):
         # The frontend must call POST /api/orders/{id}/advance/ with {"status": "AWAITING_PAYMENT"}
         # after the user completes the checkout form. This restores the intended state machine flow.
         return order
+
+class WarehouseOrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.SerializerMethodField()
+    variant_name = serializers.SerializerMethodField()
+    product_image = serializers.SerializerMethodField()
+    seller_username = serializers.CharField(source='product.seller.username', read_only=True)
+    has_review = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'product', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'has_review']
+
+    def get_product_name(self, obj):
+        return "SokoniMax Secured Package"
+
+    def get_variant_name(self, obj):
+        return "Standard"
+
+    def get_product_image(self, obj):
+        return None
+
+    def get_has_review(self, obj):
+        return False
+
+class WarehouseOrderSerializer(OrderSerializer):
+    items = WarehouseOrderItemSerializer(source='orderitem_set', many=True, read_only=True)
 
 class StoreImageSerializer(serializers.ModelSerializer):
     class Meta:
