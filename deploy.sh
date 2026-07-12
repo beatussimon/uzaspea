@@ -30,6 +30,9 @@ ssh -o StrictHostKeyChecking=no -i $SSH_KEY $HOST << 'EOF'
   sleep 15
   curl -s http://localhost/api/site-settings/ || true
   
+  echo -e "\n=> Running database migrations..."
+  docker compose -f docker-compose.prod.yml exec -T backend python manage.py migrate
+
   echo -e "\n=> Seeding the database with essential data..."
   docker compose -f docker-compose.prod.yml exec -T backend sh -c "SEED_ADMIN_PASSWORD=\${SEED_ADMIN_PASSWORD} python manage.py seed"
   
