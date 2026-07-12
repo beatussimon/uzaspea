@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useOrderTracking } from '../../../hooks/useOrderTracking';
 
 const WarehouseStaffLayout: React.FC = () => {
@@ -217,18 +217,29 @@ const WarehouseStaffLayout: React.FC = () => {
 
   useEffect(() => {
     if (showScanner) {
-      const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
-      scanner.render(
+      const html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
           setShowScanner(false);
-          scanner.clear();
+          html5QrCode.stop().then(() => {
+            html5QrCode.clear();
+          }).catch(() => {});
           setScanQuery(decodedText);
           processScan(decodedText);
         },
-        () => { /* ignore */ }
-      );
+        () => { /* ignore error/frame */ }
+      ).catch((err) => {
+        console.error("Camera access failed", err);
+        toast.error("Could not access camera. Please check camera permission settings.");
+        setShowScanner(false);
+      });
+
       return () => {
-        scanner.clear().catch(() => {});
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+        }).catch(() => {});
       };
     }
   }, [showScanner]);
