@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, MessageSquare, XCircle, MapPin } from 'lucide-react';
+import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, MessageSquare, XCircle, MapPin, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, SELLER_ADVANCE_MAP } from '../../constants/orderStatus';
@@ -52,6 +52,7 @@ const DashboardOrders: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [advancing, setAdvancing] = useState<number | null>(null);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
   
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [shipModalOpen, setShipModalOpen] = useState<number | null>(null);
@@ -332,12 +333,15 @@ const DashboardOrders: React.FC = () => {
                                           </div>
                                           
                                           {p.proof_image && (
-                                              <div className="group relative rounded-xl overflow-hidden cursor-zoom-in">
-                                                  <img src={p.proof_image} alt="Proof" className="w-full h-40 object-cover transition duration-300 group-hover:scale-110" />
+                                              <div 
+                                                  onClick={() => setZoomImage(p.proof_image)}
+                                                  className="group relative rounded-xl overflow-hidden cursor-zoom-in border border-gray-100 dark:border-gray-700"
+                                              >
+                                                  <img src={p.proof_image} alt="Proof" className="w-full h-40 object-cover transition duration-300 group-hover:scale-105" />
                                                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                                                      <Link to={p.proof_image} target="_blank" className="btn-primary py-1 px-3 text-xs flex items-center gap-1">
+                                                      <button type="button" className="btn-primary py-1 px-3 text-xs flex items-center gap-1">
                                                           <Eye size={14} /> Full View
-                                                      </Link>
+                                                      </button>
                                                   </div>
                                               </div>
                                           )}
@@ -598,6 +602,32 @@ const DashboardOrders: React.FC = () => {
                 <Truck size={16} />
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Proof of Payment Zoom Modal */}
+      {zoomImage && (
+        <div 
+          onClick={() => setZoomImage(null)}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 cursor-zoom-out animate-fade-in"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="relative max-w-4xl max-h-[90vh] bg-neutral-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl animate-scale-in cursor-default flex flex-col items-center justify-center"
+          >
+            <button 
+              onClick={() => setZoomImage(null)}
+              className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white rounded-full p-2.5 backdrop-blur-md border border-white/20 transition-all active:scale-95 z-10"
+              title="Close View"
+            >
+              <X size={20} />
+            </button>
+            <img 
+              src={zoomImage} 
+              alt="Zoomed Payment Proof" 
+              className="max-w-full max-h-[85vh] object-contain rounded" 
+            />
           </div>
         </div>
       )}
