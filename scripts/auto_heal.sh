@@ -12,7 +12,7 @@ LOG_DIR="/home/ubuntu/uzaspea/logs"
 mkdir -p "$LOG_DIR"
 
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-COMPOSE_FILE="/home/ubuntu/uzaspea/docker-compose.yml"
+COMPOSE_FILE="/home/ubuntu/uzaspea/docker-compose.prod.yml"
 
 # ─── Check if any containers are down ────────────────────────
 DOWN_CONTAINERS=$(docker compose -f "$COMPOSE_FILE" ps --status exited --format "{{.Name}}" 2>/dev/null)

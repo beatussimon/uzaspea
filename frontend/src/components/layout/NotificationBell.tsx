@@ -33,7 +33,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
           
           if (storedLastId) {
             const lastId = parseInt(storedLastId, 10);
-            const newUnreads = sorted.filter(n => n.id > lastId && !n.is_read);
+            const newUnreads = sorted.filter(n => n.id > lastId && !n.is_read && n.notification_type !== 'new_message');
             
             newUnreads.reverse().forEach(n => {
               if (Notification.permission === 'granted') {

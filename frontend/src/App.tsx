@@ -6,6 +6,9 @@ import { CartProvider } from './context/CartContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { DialogProvider } from './components/ui/Dialogs';
+import { MessageProvider } from './context/MessageContext';
+import { ChatToastContainer } from './components/ChatToast';
+
 
 import LandingPage from './pages/LandingPage';
 import ProductList from './ProductList';
@@ -70,8 +73,10 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
-          <CartProvider>
-            <DialogProvider>
+          <MessageProvider>
+            <CartProvider>
+              <DialogProvider>
+
               <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300">
                 <Navbar />
                 <div className="h-14 md:h-20" /> {/* Spacer matching navbar height */}
@@ -138,12 +143,15 @@ function App() {
                     error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
                   }}
                 />
+                <ChatToastContainer />
               </div>
             </DialogProvider>
           </CartProvider>
-        </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
+        </MessageProvider>
+      </BrowserRouter>
+    </AuthProvider>
+  </ThemeProvider>
+
   );
 }
 
