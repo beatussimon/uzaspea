@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { 
   Settings, MapPin, Camera, 
   Star, ShoppingBag, Globe, Info,
@@ -25,6 +25,8 @@ const ProfilePage: React.FC = () => {
   const [editForm, setEditForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [selectedLightboxImage, setSelectedLightboxImage] = useState<string | null>(null);
+  const [isSubscriptionExpired, setIsSubscriptionExpired] = useState(false);
+
 
   // Authenticated context
   const currentUser = localStorage.getItem('username');
@@ -46,7 +48,20 @@ const ProfilePage: React.FC = () => {
       .catch(() => setProfile(null))
       .finally(() => setLoading(false));
 
+    if (isOwner) {
+      api.get('/api/subscriptions/me/')
+        .then(res => {
+          if (res.data && res.data.status !== 'none' && !res.data.is_active) {
+            setIsSubscriptionExpired(true);
+          } else {
+            setIsSubscriptionExpired(false);
+          }
+        })
+        .catch(() => setIsSubscriptionExpired(false));
+    }
+
     api.get(`/api/products/?seller=${username}`)
+
       .then(res => setProducts(res.data.results || res.data))
       .catch(() => {});
   };
@@ -160,9 +175,30 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 space-y-12">
+      {/* Expired Subscription Banner */}
+      {isOwner && isSubscriptionExpired && (
+        <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <Info className="text-red-500 shrink-0 mt-0.5" size={18} />
+            <div className="space-y-1">
+              <h4 className="text-xs font-black uppercase tracking-wider text-red-800 dark:text-red-400">Subscription Expired</h4>
+              <p className="text-xs text-red-700 dark:text-red-300 font-medium">
+                Your seller privileges have expired. All of your listed products are hidden from the marketplace.
+              </p>
+            </div>
+          </div>
+          <Link 
+            to="/upgrade" 
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition text-center shrink-0 shadow-lg shadow-red-600/20"
+          >
+            Renew Now
+          </Link>
+        </div>
+      )}
       
       {/* Header Info Block — Clean Instagram Style */}
       <header className="flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-16 pb-10 border-b border-gray-150 dark:border-neutral-800">
+
         
         {/* Left: Avatar Column */}
         <div className="relative w-36 h-36 md:w-40 md:h-40 rounded-full border border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 shrink-0 overflow-hidden flex items-center justify-center shadow-sm">
