@@ -502,3 +502,54 @@ class PromoCodeAndSubscriptionTests(TestCase):
         
         self.seller.profile.refresh_from_db()
         self.assertEqual(self.seller.profile.tier, 'customer')
+
+    def test_create_promo_code_percentage_out_of_bounds(self):
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+        
+        # Test > 100%
+        res = self.client.post('/api/promo-codes/', {
+            'code': 'MEGA200',
+            'discount_type': 'percentage',
+            'value': '200.00'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('value', res.json())
+
+        # Test <= 0%
+        res = self.client.post('/api/promo-codes/', {
+            'code': 'ZERO',
+            'discount_type': 'percentage',
+            'value': '0.00'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('value', res.json())
+
+    def test_create_promo_code_fixed_out_of_bounds(self):
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+        
+        res = self.client.post('/api/promo-codes/', {
+            'code': 'NEGFIX',
+            'discount_type': 'fixed',
+            'value': '-100.00'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('value', res.json())
+
+    def test_create_promo_code_invalid_dates(self):
+        from django.utils import timezone
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+        
+        start = timezone.now()
+        end = start - timezone.timedelta(days=1)
+        res = self.client.post('/api/promo-codes/', {
+            'code': 'BACKINTIME',
+            'discount_type': 'percentage',
+            'value': '10.00',
+            'start_date': start.isoformat(),
+            'end_date': end.isoformat()
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('end_date', res.json())

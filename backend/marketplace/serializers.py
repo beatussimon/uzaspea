@@ -230,6 +230,35 @@ class PromoCodeSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Promo code must contain only alphanumeric characters.")
         return value
 
+    def validate(self, attrs):
+        from django.utils import timezone
+        discount_type = attrs.get('discount_type')
+        value = attrs.get('value')
+        
+        if self.instance:
+            discount_type = discount_type or self.instance.discount_type
+            value = value if value is not None else self.instance.value
+            
+        if discount_type == 'percentage':
+            if value <= Decimal('0') or value > Decimal('100'):
+                raise serializers.ValidationError({"value": "Percentage discount must be between 0.01 and 100."})
+        elif discount_type == 'fixed':
+            if value <= Decimal('0'):
+                raise serializers.ValidationError({"value": "Fixed discount value must be greater than 0."})
+                
+        start_date = attrs.get('start_date')
+        end_date = attrs.get('end_date')
+        if self.instance:
+            start_date = start_date or self.instance.start_date
+            end_date = end_date or self.instance.end_date
+        else:
+            start_date = start_date or timezone.now()
+            
+        if end_date and start_date and end_date <= start_date:
+            raise serializers.ValidationError({"end_date": "End date must be after start date."})
+            
+        return attrs
+
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(source='orderitem_set', many=True, required=False)
@@ -432,15 +461,11 @@ class OrderSerializer(serializers.ModelSerializer):
                 
                 # Compute subtotal for items belonging to the seller of this promo code
                 if promo_obj.seller:
-                    matching_subtotal = Decimal('0.00')
-                    for item_data in items_data:
-                        if item_data['product'].seller == promo_obj.seller:
-                            qty = item_data['quantity']
-                            if item_data.get('variant'):
-                                item_price = item_data.get('variant').final_price
-                            else:
-                                item_price = item_data['product'].price
-                            matching_subtotal += (item_price * qty)
+                    matching_subtotal = sum(
+                        item.quantity * item.price
+                        for item in order.orderitem_set.all()
+                        if item.product.seller == promo_obj.seller
+                    )
                     seller_username = promo_obj.seller.username
                 else:
                     matching_subtotal = total
