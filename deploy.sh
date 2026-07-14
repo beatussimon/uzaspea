@@ -16,6 +16,7 @@ ssh -o StrictHostKeyChecking=no -i $SSH_KEY $HOST << 'EOF'
   cd ~/uzaspea
   
   echo "=> Running automated database backup..."
+  chmod +x scripts/backup.sh
   ./scripts/backup.sh
   
   echo "=> Fetching latest code and resetting to origin/master..."
