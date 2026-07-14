@@ -397,6 +397,23 @@ class PromoCode(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.discount_type == 'percentage':
+            if self.value <= Decimal('0') or self.value > Decimal('100'):
+                raise ValidationError("Percentage discount must be between 0.01 and 100.")
+        elif self.discount_type == 'fixed':
+            if self.value <= Decimal('0'):
+                raise ValidationError("Fixed discount value must be greater than 0.")
+        if self.end_date and self.start_date and self.end_date <= self.start_date:
+            raise ValidationError("End date must be after start date.")
+
+    def save(self, *args, **kwargs):
+        if self.code:
+            self.code = self.code.strip().upper()
+        self.clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.code} ({self.get_discount_type_display()}: {self.value})"
 
@@ -416,6 +433,8 @@ class PromoCode(models.Model):
         if self.seller:
             if self.seller.username != seller_username:
                 return False, "This promo code is not valid for this store."
+            if subtotal <= Decimal('0'):
+                return False, "This promo code cannot be applied because there are no matching items in your cart."
         
         # Check minimum purchase amount
         if subtotal < self.min_purchase_amount:

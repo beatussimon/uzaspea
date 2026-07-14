@@ -1798,13 +1798,12 @@ class UserSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
     @decorators.action(detail=False, methods=['post'], url_path='cancel')
     def cancel(self, request):
         from .models import Subscription, UserProfile
-        sub = Subscription.objects.filter(user=request.user, is_active=True).first()
-        if not sub:
+        active_subs = Subscription.objects.filter(user=request.user, is_active=True)
+        if not active_subs.exists():
             return Response({'error': 'No active subscription found to cancel.'}, status=400)
         
-        # Deactivate subscription
-        sub.is_active = False
-        sub.save(update_fields=['is_active'])
+        # Deactivate all active subscriptions
+        active_subs.update(is_active=False)
         
         # Reset UserProfile tier
         try:
