@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import SettingsPage from './SettingsPage';
-import HelpCenterPage from './HelpCenterPage';
+
+const HelpCenterPage = lazy(() => import('./HelpCenterPage'));
 
 import DashboardOverview from './DashboardOverview';
 import DashboardProducts from './DashboardProducts';
@@ -116,17 +117,19 @@ const DashboardLayout: React.FC = () => {
 
       {/* Content */}
       <main className="flex-1 animate-fade-in">
-        <Routes>
-          <Route index element={<DashboardOverview />} />
-          <Route path="products" element={<DashboardProducts />} />
-          <Route path="orders" element={<DashboardOrders />} />
-          <Route path="promotions" element={<DashboardPromotions />} />
-          <Route path="billing" element={<BillingPage />} />
-          <Route path="payment-numbers" element={<PaymentNumbersManager />} />
-          {isBusiness && <Route path="team" element={<TeamManagerPage />} />}
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="help-center" element={<HelpCenterPage />} />
-        </Routes>
+        <Suspense fallback={<div className="p-8 text-center text-sm text-gray-500 animate-pulse">Loading Help Center...</div>}>
+          <Routes>
+            <Route index element={<DashboardOverview />} />
+            <Route path="products" element={<DashboardProducts />} />
+            <Route path="orders" element={<DashboardOrders />} />
+            <Route path="promotions" element={<DashboardPromotions />} />
+            <Route path="billing" element={<BillingPage />} />
+            <Route path="payment-numbers" element={<PaymentNumbersManager />} />
+            {isBusiness && <Route path="team" element={<TeamManagerPage />} />}
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="help-center" element={<HelpCenterPage />} />
+          </Routes>
+        </Suspense>
       </main>
       </div>
     </div>

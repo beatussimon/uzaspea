@@ -22,7 +22,6 @@ import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 
 // Eager imports for small/core public views
-import { PublicVerifyPage } from './pages/inspections/InspectionLayout';
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -38,6 +37,7 @@ const InspectorLayout = lazy(() => import('./pages/inspections/InspectorLayout')
 const SellerUpgradePage = lazy(() => import('./pages/SellerUpgradePage'));
 const ShipmentTrackingPage = lazy(() => import('./pages/ShipmentTrackingPage'));
 const HelpCenterPage = lazy(() => import('./pages/dashboard/HelpCenterPage'));
+const PublicVerifyPage = lazy(() => import('./pages/inspections/PublicVerifyPage'));
 
 // Fallback loader for Lazy views
 const SuspenseLoader = () => (
