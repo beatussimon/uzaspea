@@ -244,17 +244,17 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
 
         {/* Card body */}
         <div className="p-3.5 flex flex-col flex-1">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider">{product.category_name}</span>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 mb-2">
+            <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider whitespace-nowrap shrink-0">{product.category_name}</span>
+            <div className="flex flex-wrap items-center gap-1.5">
               {product.is_verified && (
-                 <div className="flex items-center gap-1 text-[8px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800" title={t('verified_seller', 'Verified Seller')}>
+                 <div className="flex items-center gap-1 text-[8px] text-brand-600 dark:text-brand-400 font-black bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded-full border border-brand-100 dark:border-brand-800 whitespace-nowrap shrink-0" title={t('verified_seller', 'Verified Seller')}>
                    <Shield size={10} className="fill-current" />
                    <span className="uppercase tracking-widest text-[8px]">{t('verified', 'Verified')}</span>
                  </div>
               )}
               {product.has_inspection && (
-                 <div className="flex items-center gap-1 text-[8px] text-emerald-600 dark:emerald-400 font-black bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800" title={t('professionally_inspected', 'Professionally Inspected')}>
+                 <div className="flex items-center gap-1 text-[8px] text-emerald-600 dark:emerald-400 font-black bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800 whitespace-nowrap shrink-0" title={t('professionally_inspected', 'Professionally Inspected')}>
                    <Shield size={10} />
                    <span className="uppercase tracking-widest text-[8px]">{t('inspected_label', 'Inspected ✓')}</span>
                  </div>
