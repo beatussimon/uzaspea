@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.db import transaction  # FIX: C-01
 from django.db.models import F  # FIX: C-01
+from decimal import Decimal
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
     Payment, PaymentConfirmation, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
@@ -210,6 +211,26 @@ class OrderItemSerializer(serializers.ModelSerializer):
             return img.image.url
         return None
 
+class PromoCodeSerializer(serializers.ModelSerializer):
+    seller_username = serializers.CharField(source='seller.username', read_only=True)
+    
+    class Meta:
+        from .models import PromoCode
+        model = PromoCode
+        fields = [
+            'id', 'code', 'seller', 'seller_username', 'discount_type', 'value',
+            'min_purchase_amount', 'max_uses', 'use_count', 'start_date',
+            'end_date', 'is_active', 'created_at'
+        ]
+        read_only_fields = ['seller', 'use_count', 'created_at']
+
+    def validate_code(self, value):
+        value = value.strip().upper()
+        if not value.isalnum():
+            raise serializers.ValidationError("Promo code must contain only alphanumeric characters.")
+        return value
+
+
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(source='orderitem_set', many=True, required=False)
     timeline_events = TrackingEventSerializer(many=True, read_only=True)
@@ -224,6 +245,9 @@ class OrderSerializer(serializers.ModelSerializer):
     seller_commission = serializers.SerializerMethodField()
     seller_net_payout = serializers.SerializerMethodField()
     logistics_info = serializers.SerializerMethodField()
+    promo_code = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
+    promo_code_code = serializers.CharField(source='promo_code.code', read_only=True)
+    discount_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
     class Meta:
         model = Order
@@ -232,7 +256,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'shipping_method', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
             'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout',
-            'logistics_info'
+            'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount'
         ]
         read_only_fields = ['user', 'total_amount']
 
@@ -347,6 +371,7 @@ class OrderSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
+        promo_code_str = validated_data.pop('promo_code', None)
         # Extract items data from the source mapping
         items_data = validated_data.pop('orderitem_set', [])
 
@@ -394,9 +419,51 @@ class OrderSerializer(serializers.ModelSerializer):
                     Product.objects.filter(pk=product.pk).update(stock=F('stock') - qty)
                     Product.objects.filter(pk=product.pk, stock=0).update(is_available=False)
             
+            # Apply promo code if provided
+            promo_obj = None
+            discount_amount = Decimal('0.00')
+            if promo_code_str:
+                from .models import PromoCode
+                try:
+                    # Lock row to prevent concurrent limit bypasses
+                    promo_obj = PromoCode.objects.select_for_update().get(code__iexact=promo_code_str)
+                except PromoCode.DoesNotExist:
+                    raise serializers.ValidationError("Invalid promo code.")
+                
+                # Compute subtotal for items belonging to the seller of this promo code
+                if promo_obj.seller:
+                    matching_subtotal = Decimal('0.00')
+                    for item_data in items_data:
+                        if item_data['product'].seller == promo_obj.seller:
+                            qty = item_data['quantity']
+                            if item_data.get('variant'):
+                                item_price = item_data.get('variant').final_price
+                            else:
+                                item_price = item_data['product'].price
+                            matching_subtotal += (item_price * qty)
+                    seller_username = promo_obj.seller.username
+                else:
+                    matching_subtotal = total
+                    seller_username = None
+                
+                is_valid, err_msg = promo_obj.is_valid_for_checkout(
+                    seller_username=seller_username,
+                    subtotal=matching_subtotal
+                )
+                if not is_valid:
+                    raise serializers.ValidationError(err_msg)
+                
+                discount_amount = promo_obj.calculate_discount(matching_subtotal)
+                
+                order.promo_code = promo_obj
+                order.discount_amount = discount_amount
+                
+                # Increment usage atomically
+                PromoCode.objects.filter(pk=promo_obj.pk).update(use_count=F('use_count') + 1)
+            
             shipping_fee = validated_data.get('shipping_fee', 0)
-            order.total_amount = total + shipping_fee
-            order.save(update_fields=['total_amount'])
+            order.total_amount = max(Decimal('0.00'), total - discount_amount) + shipping_fee
+            order.save(update_fields=['total_amount', 'promo_code', 'discount_amount'])
 
         # FIX MED-06: notify sellers of new order
         try:

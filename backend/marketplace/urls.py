@@ -12,7 +12,7 @@ from .api_views import (
     DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet,
     MobileNetworkViewSet, TrendingAnalyticsView, reverse_geocode,
     SubscriptionTierViewSet, UserPaymentConfirmationViewSet, SellerApplicationViewSet,
-    TeamMemberViewSet, UserSubscriptionViewSet, TeamRolePresetsView
+    TeamMemberViewSet, UserSubscriptionViewSet, TeamRolePresetsView, PromoCodeViewSet
 )
 
 router = DefaultRouter()
@@ -33,6 +33,7 @@ router.register(r'subscription-payments', UserPaymentConfirmationViewSet, basena
 router.register(r'seller-applications', SellerApplicationViewSet, basename='seller-application')
 router.register(r'team-members', TeamMemberViewSet, basename='team-member')
 router.register(r'subscriptions', UserSubscriptionViewSet, basename='subscription')
+router.register(r'promo-codes', PromoCodeViewSet, basename='promo-code')
 # FIX v5: new viewsets
 router.register(r'notifications', NotificationViewSet, basename='notification')
 router.register(r'conversations', ConversationViewSet, basename='conversation')

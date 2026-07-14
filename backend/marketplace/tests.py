@@ -351,3 +351,154 @@ class StoreImageTests(TestCase):
         }, format='json')
         
         self.assertEqual(res.status_code, 403)
+
+
+class PromoCodeAndSubscriptionTests(TestCase):
+    def setUp(self):
+        from .models import SubscriptionTier, Subscription, Category, Product
+        from django.utils import timezone
+        
+        self.client = APIClient()
+        self.customer = User.objects.create_user('cust_test', 'c@test.com', 'CustPass123!')
+        self.seller = User.objects.create_user('seller_test', 's@test.com', 'SellerPass123!')
+        
+        # Setup seller tier subscription
+        self.tier = SubscriptionTier.objects.create(
+            name='Seller Pro',
+            price=Decimal('29000.00'),
+            benefits='Sell products',
+            duration=30,
+            tier_level='seller_pro',
+            commission_rate=Decimal('10.00')
+        )
+        self.sub = Subscription.objects.create(
+            user=self.seller,
+            tier=self.tier,
+            start_date=timezone.now(),
+            end_date=timezone.now() + timezone.timedelta(days=30),
+            is_active=True
+        )
+        # Sync profile tier
+        self.seller.profile.tier = 'seller_pro'
+        self.seller.profile.save()
+        
+        # Product
+        self.cat = Category.objects.create(name='Test Category', slug='test-cat')
+        self.product = Product.objects.create(
+            name='Promo Product', slug='promo-product', price=Decimal('10000'),
+            stock=10, seller=self.seller, category=self.cat, is_available=True
+        )
+
+    def test_create_promo_code_non_seller_fails(self):
+        token = RefreshToken.for_user(self.customer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+        
+        res = self.client.post('/api/promo-codes/', {
+            'code': 'HELLO10',
+            'discount_type': 'percentage',
+            'value': '10.00',
+            'min_purchase_amount': '0.00'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("Only sellers with a premium subscription", res.json()[0])
+
+    def test_create_promo_code_seller_success(self):
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+        
+        res = self.client.post('/api/promo-codes/', {
+            'code': 'HELLO10',
+            'discount_type': 'percentage',
+            'value': '10.00',
+            'min_purchase_amount': '5000.00'
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.json()['code'], 'HELLO10')
+        self.assertEqual(float(res.json()['min_purchase_amount']), 5000.00)
+
+    def test_validate_promo_code_flow(self):
+        from .models import PromoCode
+        # Create a code
+        promo = PromoCode.objects.create(
+            code='SAVE20',
+            seller=self.seller,
+            discount_type='percentage',
+            value=Decimal('20.00'),
+            min_purchase_amount=Decimal('5000.00')
+        )
+        
+        token = RefreshToken.for_user(self.customer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+        
+        # Test valid
+        res = self.client.post('/api/promo-codes/validate/', {
+            'code': 'save20',
+            'merchant': self.seller.username,
+            'subtotal': '10000.00'
+        }, format='json')
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()['valid'])
+        self.assertEqual(float(res.json()['discount_amount']), 2000.00)
+        
+        # Test wrong merchant
+        res = self.client.post('/api/promo-codes/validate/', {
+            'code': 'save20',
+            'merchant': 'some_other_merchant',
+            'subtotal': '10000.00'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(res.json()['valid'])
+        
+        # Test min purchase limit
+        res = self.client.post('/api/promo-codes/validate/', {
+            'code': 'save20',
+            'merchant': self.seller.username,
+            'subtotal': '4000.00'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(res.json()['valid'])
+
+    def test_apply_promo_code_to_order(self):
+        from .models import PromoCode
+        promo = PromoCode.objects.create(
+            code='SAVE3000',
+            seller=self.seller,
+            discount_type='fixed',
+            value=Decimal('3000.00'),
+            min_purchase_amount=Decimal('5000.00')
+        )
+        
+        token = RefreshToken.for_user(self.customer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+        
+        # Create order using promo code
+        res = self.client.post('/api/orders/', {
+            'items': [{'product': self.product.id, 'quantity': 1}],
+            'shipping_method': 'PICKUP',
+            'shipping_fee': 0,
+            'promo_code': 'SAVE3000',
+            'delivery_info': {}
+        }, format='json')
+        
+        self.assertEqual(res.status_code, 201)
+        # Price: 10000 - 3000 discount = 7000 TZS
+        self.assertEqual(float(res.json()['total_amount']), 7000.00)
+        self.assertEqual(float(res.json()['discount_amount']), 3000.00)
+        self.assertEqual(res.json()['promo_code_code'], 'SAVE3000')
+        
+        # Verify usage count incremented
+        promo.refresh_from_db()
+        self.assertEqual(promo.use_count, 1)
+
+    def test_cancel_subscription(self):
+        token = RefreshToken.for_user(self.seller)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+        
+        res = self.client.post('/api/subscriptions/cancel/')
+        self.assertEqual(res.status_code, 200)
+        
+        self.sub.refresh_from_db()
+        self.assertFalse(self.sub.is_active)
+        
+        self.seller.profile.refresh_from_db()
+        self.assertEqual(self.seller.profile.tier, 'customer')

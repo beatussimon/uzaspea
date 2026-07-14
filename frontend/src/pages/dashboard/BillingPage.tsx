@@ -3,6 +3,12 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck, Shield } from 'lucide-react';
 
+const TIER_RANKS: Record<string, number> = {
+  'customer': 1,
+  'seller_pro': 2,
+  'business': 3
+};
+
 const BillingPage: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
@@ -136,6 +142,20 @@ const BillingPage: React.FC = () => {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    if (!window.confirm("Are you sure you want to cancel your subscription? You will lose seller access immediately.")) {
+      return;
+    }
+    try {
+      await api.post('/api/subscriptions/cancel/');
+      toast.success("Subscription cancelled successfully.");
+      localStorage.setItem('tier', 'customer');
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || err.response?.data?.error || "Failed to cancel subscription.");
+    }
+  };
+
   const formatMonth = (year: number, month: number) => {
     const date = new Date(year, month - 1);
     return date.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -230,7 +250,7 @@ const BillingPage: React.FC = () => {
               <div className="space-y-3">
                 <h3 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Available subscription plans:</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {tiers.map((t: any) => (
+                  {tiers.filter((t: any) => t.tier_level !== 'customer').map((t: any) => (
                     <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:border-brand-500 transition-all flex flex-col justify-between">
                       <div>
                         <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
@@ -272,39 +292,68 @@ const BillingPage: React.FC = () => {
                       <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Renewal Due</div>
                       <div className="text-xl font-black text-gray-900 dark:text-white">TZS {Number(sub.tier?.price || 0).toLocaleString()}</div>
                     </div>
-                    <button
-                      onClick={() => handleOpenSubscriptionPayModal(sub)}
-                      className={`btn-primary py-2 px-6 rounded-lg text-sm font-bold shadow-md w-full md:w-auto ${
-                        sub.is_expired ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/20' : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/20'
-                      }`}
-                    >
-                      {sub.is_expired ? 'Renew Now' : 'Pay Renewal Early'}
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto justify-end">
+                      {sub.is_active && (
+                        <button
+                          onClick={handleCancelSubscription}
+                          className="py-2 px-4 rounded-lg text-xs font-bold border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition"
+                        >
+                          Cancel Subscription
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleOpenSubscriptionPayModal(sub)}
+                        className={`btn-primary py-2 px-6 rounded-lg text-xs font-bold shadow-md w-full md:w-auto ${
+                          sub.is_expired ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/20' : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/20'
+                        }`}
+                      >
+                        {sub.is_expired ? 'Renew Now' : 'Pay Renewal Early'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
 
-              <div className="space-y-3 pt-4 border-t dark:border-gray-700">
-                <h3 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Switch or Upgrade Plan:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {tiers.map((t: any) => (
-                    <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:border-brand-500 transition-all flex flex-col justify-between">
-                      <div>
-                        <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
-                        <div className="text-lg font-black text-brand-600 dark:text-brand-400 mb-1">TZS {Number(t.price).toLocaleString()}</div>
-                        <p className="text-[10px] text-gray-400">Duration: {t.duration} Days</p>
-                      </div>
-                      <button
-                        onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
-                        className="btn-primary py-2 px-4 mt-4 w-full rounded-lg text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-sm"
-                      >
-                        Choose Plan
-                      </button>
+              {(() => {
+                const activeSub = subscriptions.find(sub => !sub.is_expired && sub.is_active);
+                const currentTierLevel = activeSub?.tier?.tier_level || 'customer';
+                const currentRank = TIER_RANKS[currentTierLevel] || 1;
+
+                const availableUpgrades = tiers.filter((t: any) => {
+                  const rank = TIER_RANKS[t.tier_level] || 1;
+                  return rank > currentRank && t.tier_level !== 'customer';
+                });
+
+                return availableUpgrades.length > 0 ? (
+                  <div className="space-y-3 pt-4 border-t dark:border-gray-700">
+                    <h3 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Upgrade Plan:</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {availableUpgrades.map((t: any) => (
+                        <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:border-brand-500 transition-all flex flex-col justify-between">
+                          <div>
+                            <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
+                            <div className="text-lg font-black text-brand-600 dark:text-brand-400 mb-1">TZS {Number(t.price).toLocaleString()}</div>
+                            <p className="text-[10px] text-gray-400">Duration: {t.duration} Days</p>
+                          </div>
+                          <button
+                            onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
+                            className="btn-primary py-2 px-4 mt-4 w-full rounded-lg text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-sm"
+                          >
+                            Choose Upgrade
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-brand-50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/30 rounded-xl text-center">
+                    <p className="text-sm font-semibold text-brand-800 dark:text-brand-400">
+                      You are subscribed to our highest tier plan (Business). Thank you for being a premium partner!
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

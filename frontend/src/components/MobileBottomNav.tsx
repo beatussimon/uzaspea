@@ -54,7 +54,8 @@ const MobileBottomNav = () => {
       
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const currentY = window.pageYOffset;
+          const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+          const currentY = Math.max(0, Math.min(maxScrollY, window.pageYOffset));
           const delta = currentY - lastScrollY.current;
           
           // Smart Grace Zone & Normal Scroll

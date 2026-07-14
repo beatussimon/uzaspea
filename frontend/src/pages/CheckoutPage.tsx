@@ -132,8 +132,39 @@ const CheckoutPage: React.FC = () => {
     ? (activeQuote ? Number(activeQuote.price) : 0) 
     : 0;
   
+  // Promo code states
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<any | null>(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+    setValidatingPromo(true);
+    try {
+      const res = await api.post('/api/promo-codes/validate/', {
+        code: promoCode.trim().toUpperCase(),
+        merchant: merchant,
+        subtotal: checkoutTotal
+      });
+      setAppliedPromo(res.data);
+      toast.success(`Promo code ${promoCode} applied!`);
+    } catch (err: any) {
+      setAppliedPromo(null);
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Invalid promo code');
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoCode('');
+  };
+
+  const discountAmount = appliedPromo ? Number(appliedPromo.discount_amount) : 0;
+
   // They pay 0 for delivery at checkout. They only pay product price fully.
-  const finalTotal = checkoutTotal;
+  const finalTotal = Math.max(0, checkoutTotal - discountAmount);
 
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
@@ -199,6 +230,7 @@ const CheckoutPage: React.FC = () => {
         total_amount: finalTotal,
         shipping_method: shippingMethod,
         shipping_fee: 0, // 0 at checkout
+        promo_code: appliedPromo ? appliedPromo.code : undefined,
         delivery_info: {
           full_name: form.fullName,
           phone: form.phone,
@@ -449,6 +481,45 @@ const CheckoutPage: React.FC = () => {
               </div>
             ))}
           </div>
+
+          {/* Promo Code Input */}
+          <div className="border-t border-b dark:border-gray-700 py-3 my-4 space-y-2">
+            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Promo Code</label>
+            {appliedPromo ? (
+              <div className="flex justify-between items-center bg-green-50 dark:bg-green-950/20 border border-green-100/50 dark:border-green-900/30 p-2.5 rounded-lg">
+                <div>
+                  <span className="font-mono font-black text-xs text-green-700 dark:text-green-400">{appliedPromo.code}</span>
+                  <span className="text-[10px] text-green-600 dark:text-green-500 block">Applied successfully!</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemovePromo}
+                  className="text-xs font-bold text-red-500 hover:text-red-700 transition"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. SAVE10"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white text-xs outline-none focus:ring-1 focus:ring-brand-500 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  disabled={validatingPromo || !promoCode.trim()}
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                >
+                  {validatingPromo ? 'Applying...' : 'Apply'}
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="border-t dark:border-gray-700 pt-3 space-y-2">
             <div className="flex justify-between items-center">
               <span className="font-medium text-gray-600 dark:text-gray-400">Product Subtotal</span>
@@ -456,6 +527,12 @@ const CheckoutPage: React.FC = () => {
                 TSh {checkoutTotal.toLocaleString()}
               </span>
             </div>
+            {appliedPromo && (
+              <div className="flex justify-between items-center text-green-600 dark:text-green-500 font-medium">
+                <span>Discount ({appliedPromo.code})</span>
+                <span>- TSh {Number(appliedPromo.discount_amount).toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <span className="font-medium text-gray-600 dark:text-gray-400">Shipping (Billed Later)</span>
               <span className="font-medium text-amber-600 dark:text-amber-400 text-sm" title="Final shipping is confirmed by warehouse staff after your item is dropped off.">

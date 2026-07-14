@@ -52,7 +52,8 @@ const Navbar = () => {
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const currentY = window.pageYOffset;
+          const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+          const currentY = Math.max(0, Math.min(maxScrollY, window.pageYOffset));
           const delta = currentY - lastScrollY.current;
           const nav = navbarRef.current;
           
@@ -128,7 +129,7 @@ const Navbar = () => {
     <nav 
       ref={navbarRef}
       className={`fixed top-0 inset-x-0 z-50 ${navBackgroundClass}`}
-      style={{ willChange: 'transform', transform: 'translateY(0px)' }}
+      style={{ willChange: 'transform' }}
     >
       <div className="container-page relative flex items-center justify-between h-14 md:h-20 w-full">
 
