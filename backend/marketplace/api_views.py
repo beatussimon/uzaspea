@@ -1795,6 +1795,87 @@ class UserSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(sub)
         return Response(serializer.data)
 
+    @decorators.action(detail=False, methods=['post'], url_path='cancel')
+    def cancel(self, request):
+        from .models import Subscription, UserProfile
+        sub = Subscription.objects.filter(user=request.user, is_active=True).first()
+        if not sub:
+            return Response({'error': 'No active subscription found to cancel.'}, status=400)
+        
+        # Deactivate subscription
+        sub.is_active = False
+        sub.save(update_fields=['is_active'])
+        
+        # Reset UserProfile tier
+        try:
+            profile = request.user.profile
+            profile.tier = 'customer'
+            profile.save(update_fields=['tier'])
+        except UserProfile.DoesNotExist:
+            pass
+            
+        return Response({'message': 'Subscription cancelled successfully.'})
+
+
+class PromoCodeViewSet(viewsets.ModelViewSet):
+    from .models import PromoCode
+    from .serializers import PromoCodeSerializer
+    serializer_class = PromoCodeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        from .models import PromoCode
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            return PromoCode.objects.all().order_by('-created_at')
+        return PromoCode.objects.filter(seller=user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        from rest_framework import serializers
+        profile = self.request.user.profile
+        if profile.tier not in ['seller_pro', 'business']:
+            raise serializers.ValidationError("Only sellers with a premium subscription (Seller Pro or Business) can create promo codes.")
+        serializer.save(seller=self.request.user)
+
+    @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='validate')
+    def validate_code(self, request):
+        from decimal import Decimal
+        from .models import PromoCode
+        
+        code = request.data.get('code')
+        merchant_username = request.data.get('merchant')
+        subtotal_str = request.data.get('subtotal')
+
+        if not code:
+            return Response({'valid': False, 'error': 'Code is required.'}, status=400)
+        if not merchant_username:
+            return Response({'valid': False, 'error': 'Merchant username is required.'}, status=400)
+        if not subtotal_str:
+            return Response({'valid': False, 'error': 'Subtotal is required.'}, status=400)
+
+        try:
+            subtotal = Decimal(str(subtotal_str))
+        except Exception:
+            return Response({'valid': False, 'error': 'Invalid subtotal.'}, status=400)
+
+        try:
+            promo = PromoCode.objects.get(code__iexact=code)
+        except PromoCode.DoesNotExist:
+            return Response({'valid': False, 'error': 'Promo code does not exist.'}, status=400)
+
+        is_valid, err_msg = promo.is_valid_for_checkout(merchant_username, subtotal)
+        if not is_valid:
+            return Response({'valid': False, 'error': err_msg}, status=400)
+
+        discount_amount = promo.calculate_discount(subtotal)
+        return Response({
+            'valid': True,
+            'code': promo.code,
+            'discount_type': promo.discount_type,
+            'value': float(promo.value),
+            'discount_amount': float(discount_amount)
+        })
+
 
 class UserPaymentConfirmationViewSet(viewsets.ModelViewSet):
     from .models import PaymentConfirmation

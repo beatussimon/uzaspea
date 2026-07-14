@@ -373,6 +373,64 @@ class ProductComment(models.Model):
         return f"Comment by {self.user.username}"
 
 
+class PromoCode(models.Model):
+    DISCOUNT_TYPE_CHOICES = [
+        ('percentage', 'Percentage'),
+        ('fixed', 'Fixed Amount'),
+    ]
+    code = models.CharField(max_length=50, unique=True, db_index=True)
+    seller = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='promo_codes',
+        null=True,
+        blank=True,
+        help_text="If blank, this is a platform-wide promo code."
+    )
+    discount_type = models.CharField(max_length=20, choices=DISCOUNT_TYPE_CHOICES, default='percentage')
+    value = models.DecimalField(max_digits=10, decimal_places=2, help_text="Percentage (e.g. 15 for 15%) or fixed amount in TZS")
+    min_purchase_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), help_text="Minimum order spend of seller's items to apply")
+    max_uses = models.PositiveIntegerField(null=True, blank=True, help_text="Maximum total times this code can be used")
+    use_count = models.PositiveIntegerField(default=0, help_text="Number of times this code has been used")
+    start_date = models.DateTimeField(default=timezone.now)
+    end_date = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.code} ({self.get_discount_type_display()}: {self.value})"
+
+    def is_valid_for_checkout(self, seller_username, subtotal):
+        from django.utils import timezone
+        now = timezone.now()
+        if not self.is_active:
+            return False, "This promo code is inactive."
+        if self.start_date and now < self.start_date:
+            return False, "This promo code is not active yet."
+        if self.end_date and now > self.end_date:
+            return False, "This promo code has expired."
+        if self.max_uses is not None and self.use_count >= self.max_uses:
+            return False, "This promo code has reached its maximum usage limit."
+        
+        # Check merchant mapping
+        if self.seller:
+            if self.seller.username != seller_username:
+                return False, "This promo code is not valid for this store."
+        
+        # Check minimum purchase amount
+        if subtotal < self.min_purchase_amount:
+            return False, f"Minimum purchase of TSh {int(self.min_purchase_amount):,} is required to use this promo code."
+            
+        return True, ""
+
+    def calculate_discount(self, subtotal):
+        if self.discount_type == 'percentage':
+            return (subtotal * self.value) / Decimal('100.00')
+        elif self.discount_type == 'fixed':
+            return min(self.value, subtotal)
+        return Decimal('0.00')
+
+
 def generate_delivery_code():
     return str(secrets.randbelow(900000) + 100000)
 
@@ -380,6 +438,8 @@ class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     order_date = models.DateTimeField(auto_now_add=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    promo_code = models.ForeignKey(PromoCode, null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     is_completed = models.BooleanField(default=False)
     delivery_code = models.CharField(max_length=6, default=generate_delivery_code, blank=True, null=True)
 
@@ -434,7 +494,8 @@ class Order(models.Model):
     def update_total(self):
         # FIX: C-05 — use item.price (locked at order time), not item.product.price (live)
         total = sum(item.quantity * item.price for item in self.orderitem_set.all())
-        self.total_amount = total + self.shipping_fee
+        discount = getattr(self, 'discount_amount', Decimal('0.00')) or Decimal('0.00')
+        self.total_amount = max(Decimal('0.00'), total - discount) + self.shipping_fee
         self.save(update_fields=['total_amount'])
 
 
