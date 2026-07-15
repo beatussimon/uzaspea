@@ -396,7 +396,7 @@ const ProductList = () => {
                         src={cat.image}
                         alt={cat.name}
                         category={cat.name}
-                        className="w-14 h-14 md:w-16 md:h-16 object-contain"
+                        className="w-14 h-14 md:w-16 md:h-16 object-cover rounded-full"
                         loading="lazy"
                         decoding="async"
                       />
