@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Moon, Sun, Shield, User, Settings, ShoppingBag, 
@@ -24,7 +24,9 @@ const Navbar = () => {
   const location = useLocation();
 
   const [isAtTop, setIsAtTop] = useState(true);
-  const [visible, setVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const currentOffset = useRef(0);
+  const navbarRef = useRef<HTMLElement>(null);
 
   const isVerified = user?.is_verified || false;
   const userTier = user?.tier || 'free';
@@ -37,13 +39,15 @@ const Navbar = () => {
   // Reset scroll and state on route change
   useEffect(() => {
     setIsAtTop(true);
-    setVisible(true);
+    currentOffset.current = 0;
+    if (navbarRef.current) {
+      navbarRef.current.style.transform = 'translateY(0px)';
+    }
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // Smooth scroll listener with state-based visibility and threshold clamping
+  // Smooth scroll listener with direct 1:1 hardware-accelerated movement
   useEffect(() => {
-    let lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
     let ticking = false;
 
     const handleScroll = () => {
@@ -51,21 +55,30 @@ const Navbar = () => {
         window.requestAnimationFrame(() => {
           const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
           const currentY = Math.max(0, Math.min(maxScrollY, window.pageYOffset || document.documentElement.scrollTop));
-          
-          // Background toggle at 20px
+          const delta = currentY - lastScrollY.current;
+          const nav = navbarRef.current;
+
+          // Toggle background class based on scroll position
           setIsAtTop(currentY < 20);
 
-          // Show/Hide threshold calculation
-          const delta = currentY - lastScrollY;
-          if (currentY <= 60) {
-            setVisible(true);
-          } else if (delta > 10) {
-            setVisible(false); // Scrolling down, hide navbar smoothly
-          } else if (delta < -10) {
-            setVisible(true); // Scrolling up, show navbar smoothly
+          if (nav) {
+            const maxHide = nav.offsetHeight || 80;
+            if (delta > 0) {
+              // Scrolling down: hide the navbar instantly as we scroll
+              currentOffset.current = Math.min(maxHide, currentOffset.current + delta);
+            } else if (delta < 0) {
+              // Scrolling up: show the navbar instantly as we scroll
+              if (currentY <= 60) {
+                // Near top: snap to fully visible
+                currentOffset.current = 0;
+              } else {
+                currentOffset.current = Math.max(0, currentOffset.current + delta);
+              }
+            }
+            nav.style.transform = `translateY(-${currentOffset.current}px)`;
           }
 
-          lastScrollY = currentY;
+          lastScrollY.current = currentY;
           ticking = false;
         });
         ticking = true;
@@ -106,9 +119,9 @@ const Navbar = () => {
 
   return (
     <nav 
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ease-in-out ${navBackgroundClass} ${
-        visible ? 'translate-y-0' : '-translate-y-full shadow-none'
-      }`}
+      ref={navbarRef}
+      className={`fixed top-0 inset-x-0 z-50 transition-[background-color,backdrop-filter,box-shadow] duration-300 ${navBackgroundClass}`}
+      style={{ willChange: 'transform' }}
     >
       <div className="container-page relative flex items-center justify-between h-14 md:h-20 w-full">
 
