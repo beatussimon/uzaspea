@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from marketplace.utils import convert_and_save_image
 
 
 # ─────────────────────────────────────────────
@@ -380,6 +381,13 @@ class InspectionCheckIn(models.Model):
     def __str__(self):
         return f'CheckIn for {self.request.inspection_id}'
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.checkin_photo:
+            convert_and_save_image(self, 'checkin_photo', max_width=1000)
+        if self.checkout_photo:
+            convert_and_save_image(self, 'checkout_photo', max_width=1000)
+
 
 class InspectionEvidence(models.Model):
     request = models.ForeignKey(
@@ -406,6 +414,8 @@ class InspectionEvidence(models.Model):
                 h.update(chunk)
             self.file_hash = h.hexdigest()
         super().save(*args, **kwargs)
+        if self.image:
+            convert_and_save_image(self, 'image', max_width=1000)
 
     def __str__(self):
         return f'Evidence for {self.request.inspection_id}'

@@ -574,6 +574,9 @@ const DashboardProducts: React.FC = () => {
             {imageFiles.length > 0 && (
               <p className="text-xs text-gray-400 mt-1">{imageFiles.length} file(s) selected</p>
             )}
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 leading-relaxed">
+              💡 <strong>Recommended:</strong> Square images (1:1 ratio) with a minimum resolution of 800x800px (max 5MB) for perfect matching. Standard formats like JPEG, PNG, and WebP are supported and will be automatically optimized.
+            </p>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={() => {

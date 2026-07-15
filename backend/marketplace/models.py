@@ -33,53 +33,7 @@ def validate_document(file):
     if hasattr(file, 'content_type') and file.content_type not in valid_types:
         raise ValidationError('Only PDF, JPEG, PNG, and WebP files are accepted.')
 
-def convert_and_save_image(instance, field_name='image'):
-    """
-    Shared helper to resize image to 1200px width (preserving ratio)
-    and convert it to WebP format.
-    """
-    image_field = getattr(instance, field_name)
-    if image_field:
-        try:
-            import os
-            from PIL import Image as PILImage
-            from django.core.files.base import ContentFile
-            from io import BytesIO
-            
-            img_path = image_field.path
-            img = PILImage.open(img_path)
-            
-            # Resize if necessary
-            if img.width > 1200:
-                ratio = 1200 / img.width
-                img = img.resize((1200, int(img.height * ratio)), PILImage.LANCZOS)
-            
-            # Convert to WebP
-            if img.format != 'WEBP':
-                if img.mode in ("RGBA", "P"):
-                    img = img.convert("RGBA")
-                else:
-                    img = img.convert("RGB")
-                
-                webp_io = BytesIO()
-                img.save(webp_io, format='WEBP', quality=80)
-                
-                # Delete the old file
-                old_path = image_field.path
-                if os.path.exists(old_path):
-                    os.remove(old_path)
-                
-                # Create new filename
-                base_name = os.path.splitext(os.path.basename(image_field.name))[0]
-                new_filename = f"{base_name}.webp"
-                
-                # Save the new file content into the ImageField
-                image_field.save(new_filename, ContentFile(webp_io.getvalue()), save=False)
-                
-                # Call super save again to update the db path
-                instance.save(update_fields=[field_name])
-        except Exception as e:
-            logger.exception("Failed to convert image to WebP format: %s", str(e))
+from .utils import convert_and_save_image
 
 
 class SubscriptionTier(models.Model):
@@ -192,7 +146,12 @@ class Category(models.Model):
     slug = models.SlugField(unique=True, blank=True)
     description = models.TextField(blank=True)
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children')
-    image = models.ImageField(upload_to='category_images/', blank=True, null=True)
+    image = models.ImageField(
+        upload_to='category_images/', 
+        blank=True, 
+        null=True,
+        help_text="Recommended: Square image (1:1 aspect ratio) with centered subject (e.g., 400x400px). Rectangular images will be cropped to center in circular displays."
+    )
 
     class Meta:
         verbose_name_plural = "Categories"
@@ -220,6 +179,9 @@ class Category(models.Model):
                     break
                 except IntegrityError:
                     n += 1
+
+        if self.image:
+            convert_and_save_image(self, 'image', max_width=400)
 
     def __str__(self):
         if self.parent:
@@ -339,10 +301,9 @@ class ProductImage(models.Model):
         return f"Image for {self.product.name}"
 
     def save(self, *args, **kwargs):
-        is_new = self.pk is None
         super().save(*args, **kwargs)
-        if is_new and self.image:
-            convert_and_save_image(self, 'image')
+        if self.image:
+            convert_and_save_image(self, 'image', max_width=1000)
 
 
 class Review(models.Model):
@@ -598,6 +559,13 @@ class UserProfile(models.Model):
     def __str__(self):
         return self.user.username
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.profile_picture:
+            convert_and_save_image(self, 'profile_picture', max_width=300)
+        if self.banner_image:
+            convert_and_save_image(self, 'banner_image', max_width=1200)
+
     def get_followers_count(self):
         # FIX: S-12 — Follow.following reverse accessor
         return self.followers.count()
@@ -684,6 +652,11 @@ class SidebarOffer(models.Model):
     def __str__(self):
         return self.title
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.image:
+            convert_and_save_image(self, 'image', max_width=600)
+
 
 class SidebarNewsItem(models.Model):
     title = models.CharField(max_length=200)
@@ -699,6 +672,11 @@ class SidebarNewsItem(models.Model):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.image:
+            convert_and_save_image(self, 'image', max_width=600)
 
 
 # --- Newsletter Subscription ---
@@ -960,10 +938,9 @@ class ProductVariant(models.Model):
     image = models.ImageField(upload_to='variant_images/', blank=True, null=True, validators=[validate_image])
 
     def save(self, *args, **kwargs):
-        is_new = self.pk is None
         super().save(*args, **kwargs)
-        if is_new and self.image:
-            convert_and_save_image(self, 'image')
+        if self.image:
+            convert_and_save_image(self, 'image', max_width=1000)
 
     class Meta:
         ordering = ['name']
@@ -1208,6 +1185,11 @@ class StoreImage(models.Model):
 
     def __str__(self):
         return f"Store image for {self.profile.user.username} ({self.id})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.image:
+            convert_and_save_image(self, 'image', max_width=800)
 
 
 
