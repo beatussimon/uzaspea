@@ -445,27 +445,27 @@ const ProductDetailPage: React.FC = () => {
               </AnimatePresence>
 
               {/* Floating Like + Share on image */}
-              <div className="absolute top-4 right-4 flex flex-col gap-3 z-10" onClick={e => e.stopPropagation()}>
+              <div className="absolute top-3.5 right-3.5 flex flex-col gap-2 z-10" onClick={e => e.stopPropagation()}>
                 <button
                   onClick={handleLike}
-                  className={`w-14 h-14 rounded-full backdrop-blur-md flex items-center justify-center shadow-lg transition-all duration-200 active:scale-95 ${
+                  className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center shadow-lg transition-all duration-200 active:scale-95 ${
                     liked
                       ? 'bg-red-50/90 dark:bg-red-950/80 text-red-500'
                       : 'bg-white/90 dark:bg-gray-800/90 text-gray-500 hover:text-red-500 hover:bg-red-50/90 dark:hover:bg-red-950/80'
                   }`}
                   title="Like"
                 >
-                  <Heart size={28} className={liked ? 'fill-current' : ''} />
+                  <Heart size={20} className={liked ? 'fill-current' : ''} />
                 </button>
                 {likeCount > 0 && (
-                  <span className="text-center text-[11px] font-black text-white drop-shadow">{likeCount}</span>
+                  <span className="text-center text-[10px] font-black text-white drop-shadow">{likeCount}</span>
                 )}
                 <button
                   onClick={handleShare}
-                  className="w-14 h-14 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-md flex items-center justify-center shadow-lg text-gray-500 hover:text-brand-500 hover:bg-brand-50/90 dark:hover:bg-brand-950/80 transition-all duration-200 active:scale-95"
+                  className="w-10 h-10 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-md flex items-center justify-center shadow-lg text-gray-500 hover:text-brand-500 hover:bg-brand-50/90 dark:hover:bg-brand-950/80 transition-all duration-200 active:scale-95"
                   title="Share"
                 >
-                  <Share2 size={28} />
+                  <Share2 size={20} />
                 </button>
               </div>
             </div>
