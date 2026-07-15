@@ -58,8 +58,8 @@ const Navbar = () => {
           const delta = currentY - lastScrollY.current;
           const nav = navbarRef.current;
 
-          // Toggle background class based on scroll position
-          setIsAtTop(currentY < 20);
+          // Toggle background class based on scroll position (120px ensures navbar is fully hidden before bg change)
+          setIsAtTop(currentY < 120);
 
           if (nav) {
             const maxHide = nav.offsetHeight || 80;
