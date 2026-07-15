@@ -11,13 +11,18 @@ interface ReviewModalProps {
 }
 
 const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, onSuccess }) => {
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product) return;
+
+    if (rating === 0) {
+      toast.error('Please select a rating (1-5 stars) before submitting.');
+      return;
+    }
     
     setSubmittingReview(true);
     try {
@@ -59,14 +64,14 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
                             <button key={s} type="button" onClick={() => setRating(s)} className="transition-transform hover:scale-110 active:scale-95">
                                 <Star 
                                   size={32} 
-                                  fill={s <= rating ? "#f59e0b" : "none"} 
-                                  className={s <= rating ? "text-yellow-500" : "text-gray-300"} 
+                                  fill={rating > 0 && s <= rating ? "#f59e0b" : "none"} 
+                                  className={rating > 0 && s <= rating ? "text-yellow-500" : "text-gray-300"} 
                                 />
                             </button>
                         ))}
                     </div>
                     <span className="text-sm font-bold text-yellow-600">
-                        {rating === 5 ? 'Excellent!' : rating === 1 ? 'Poor' : 'Good'}
+                        {rating === 0 ? 'Select a rating' : rating === 5 ? 'Excellent!' : rating === 1 ? 'Poor' : 'Good'}
                     </span>
                 </div>
 
