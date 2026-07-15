@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Moon, Sun, Shield, User, Settings, ShoppingBag, 
@@ -18,15 +18,13 @@ const Navbar = () => {
   const { t, i18n } = useTranslation();
   const { isAuthenticated, user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const lastScrollY = useRef(0);
-  const currentOffset = useRef(0);
-  const navbarRef = useRef<HTMLElement>(null);
-  const lastReactScrollY = useRef(0);
   const { cartCount } = useCart();
   const { totalUnread: messageUnreadCount } = useMessages();
   const navigate = useNavigate();
   const location = useLocation();
-  const [currentScrollY, setCurrentScrollY] = useState(window.pageYOffset || 0);
+
+  const [isAtTop, setIsAtTop] = useState(true);
+  const [visible, setVisible] = useState(true);
 
   const isVerified = user?.is_verified || false;
   const userTier = user?.tier || 'free';
@@ -36,64 +34,46 @@ const Navbar = () => {
   const username = user?.username || 'User';
   const isSeller = userTier === 'seller_pro' || userTier === 'business' || isStaff || isSuperuser;
 
-  // Reset scroll and keep navbar visible on route change
+  // Reset scroll and state on route change
   useEffect(() => {
-    currentOffset.current = 0;
-    if (navbarRef.current) {
-      navbarRef.current.style.transform = `translateY(0px)`;
-    }
-    setCurrentScrollY(0);
+    setIsAtTop(true);
+    setVisible(true);
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // Natural 1:1 Navbar auto-hide on scroll using zero-lag absolute positioning
+  // Smooth scroll listener with state-based visibility and threshold clamping
   useEffect(() => {
+    let lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
     let ticking = false;
+
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-          const currentY = Math.max(0, Math.min(maxScrollY, window.pageYOffset));
-          const delta = currentY - lastScrollY.current;
-          const nav = navbarRef.current;
+          const currentY = Math.max(0, Math.min(maxScrollY, window.pageYOffset || document.documentElement.scrollTop));
           
-          // Throttle React state updates to avoid rendering lag during scroll
-          if (
-            Math.abs(currentY - lastReactScrollY.current) > 50 ||
-            (currentY < 20 !== lastReactScrollY.current < 20) ||
-            (currentY < 400 !== lastReactScrollY.current < 400)
-          ) {
-            setCurrentScrollY(currentY);
-            lastReactScrollY.current = currentY;
+          // Background toggle at 20px
+          setIsAtTop(currentY < 20);
+
+          // Show/Hide threshold calculation
+          const delta = currentY - lastScrollY;
+          if (currentY <= 60) {
+            setVisible(true);
+          } else if (delta > 10) {
+            setVisible(false); // Scrolling down, hide navbar smoothly
+          } else if (delta < -10) {
+            setVisible(true); // Scrolling up, show navbar smoothly
           }
 
-          if (nav) {
-            // Mathematical 1:1 scroll tracking
-            if (delta > 0) {
-              // Scrolling down
-              const maxHide = nav.offsetHeight || 80;
-              currentOffset.current = Math.min(maxHide, currentOffset.current + delta);
-            } else if (delta < 0) {
-              // Scrolling up
-              if (currentY <= 60) {
-                // Smart Grace Zone: if we scroll up and reach within 60px of top,
-                // instantly snap to fully visible so there's never a gap near the top.
-                currentOffset.current = 0;
-              } else {
-                currentOffset.current = Math.max(0, currentOffset.current + delta);
-              }
-            }
-            
-            nav.style.transform = `translateY(-${currentOffset.current}px)`;
-          }
-
-          lastScrollY.current = currentY;
+          lastScrollY = currentY;
           ticking = false;
         });
         ticking = true;
       }
     };
+
     window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Initial run
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -106,7 +86,7 @@ const Navbar = () => {
 
 
   const isHomepage = location.pathname === '/';
-  const useLightStyle = isDark || (isHomepage && currentScrollY < 400);
+  const useLightStyle = isDark || (isHomepage && isAtTop);
 
   const bellClass = useLightStyle
     ? 'text-white/85 hover:text-white'
@@ -120,16 +100,15 @@ const Navbar = () => {
     ? 'p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
     : 'p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
 
-  const isAtTop = currentScrollY < 20;
   const navBackgroundClass = isAtTop
     ? 'bg-transparent border-none backdrop-blur-none shadow-none'
     : 'glass border-none shadow-sm';
 
   return (
     <nav 
-      ref={navbarRef}
-      className={`fixed top-0 inset-x-0 z-50 ${navBackgroundClass}`}
-      style={{ willChange: 'transform' }}
+      className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ease-in-out ${navBackgroundClass} ${
+        visible ? 'translate-y-0' : '-translate-y-full shadow-none'
+      }`}
     >
       <div className="container-page relative flex items-center justify-between h-14 md:h-20 w-full">
 
