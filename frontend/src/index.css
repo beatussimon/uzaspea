@@ -99,12 +99,17 @@
 
   /* Primary — high contrast CTA button */
   .btn-primary {
-    @apply btn bg-zinc-900 text-white hover:bg-zinc-700 focus-visible:ring-zinc-500 shadow-sm hover:shadow-md dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100;
+    @apply btn bg-brand-600 text-black hover:bg-brand-700 focus-visible:ring-brand-500 shadow-sm hover:shadow-md dark:bg-brand-500 dark:hover:bg-brand-600;
   }
 
   /* Secondary — outline style */
   .btn-secondary {
-    @apply btn bg-transparent text-gray-800 border-2 border-gray-400 hover:bg-gray-100 focus-visible:ring-gray-400 dark:text-gray-100 dark:border-gray-500 dark:hover:bg-gray-800;
+    @apply btn bg-transparent text-gray-900 border border-surface-border dark:border-surface-dark-border hover:bg-gray-100 dark:hover:bg-white/5 dark:text-white focus-visible:ring-gray-500;
+  }
+
+  /* Spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-brand-500 border-t-transparent;
   }
 
   /* Ghost — minimal, transparent background */

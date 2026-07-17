@@ -3,9 +3,14 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { ShieldCheck, ArrowRight, Upload, AlertCircle, Clock, CheckCircle, RefreshCw, Phone, MessageCircle, Mail } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Upload, AlertCircle, Clock, CheckCircle, Phone, MessageCircle, Mail } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Button } from '../components/ui/Button';
+import { FormField } from '../components/ui/Input';
+import { Spinner } from '../components/ui/Spinner';
 
 const SellerUpgradePage: React.FC = () => {
+  const { t } = useTranslation();
   const { isAuthenticated, user } = useAuth();
   
   const [selectedTier, setSelectedTier] = useState<'seller_pro' | 'business'>('seller_pro');
@@ -353,8 +358,8 @@ const SellerUpgradePage: React.FC = () => {
           </div>
         ) : loading ? (
           <div className="flex flex-col items-center justify-center py-12 space-y-3">
-            <RefreshCw className="animate-spin text-brand-600" size={32} />
-            <p className="text-sm text-gray-500">Checking application status...</p>
+            <Spinner size="md" />
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t('checking_status', 'Checking application status...')}</p>
           </div>
         ) : application ? (
           <div className="space-y-6 py-4">
@@ -525,76 +530,55 @@ const SellerUpgradePage: React.FC = () => {
             )}
           </div>
         ) : (
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white border-b dark:border-neutral-800 pb-3">
-              Upgrade to <span className="capitalize text-brand-600">{selectedTier.replace('_', ' ')}</span>
+              {t('upgrade_to', 'Upgrade to')} <span className="capitalize text-brand-600">{(selectedTier || '').replace('_', ' ')}</span>
             </h3>
 
             {/* Business Name */}
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Business / Store Name</label>
-              <input 
-                type="text" 
-                required 
-                placeholder="e.g. Kariakoo Auto Spares"
-                className="input w-full"
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-              />
-            </div>
+            <FormField
+              label={t('business_store_name', 'Business / Store Name')}
+              required 
+              placeholder="e.g. Kariakoo Auto Spares"
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+            />
 
             {/* Business Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Business Registration No. (Optional)</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. BRELA 123456"
-                  className="input w-full"
-                  value={businessRegNumber}
-                  onChange={(e) => setBusinessRegNumber(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">TIN Number (Optional)</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. 123-456-789"
-                  className="input w-full"
-                  value={tinNumber}
-                  onChange={(e) => setTinNumber(e.target.value)}
-                />
-              </div>
+              <FormField
+                label={t('business_reg_no', 'Business Registration No. (Optional)')}
+                placeholder="e.g. BRELA 123456"
+                value={businessRegNumber}
+                onChange={(e) => setBusinessRegNumber(e.target.value)}
+              />
+              <FormField
+                label={t('tin_number_label', 'TIN Number (Optional)')}
+                placeholder="e.g. 123-456-789"
+                value={tinNumber}
+                onChange={(e) => setTinNumber(e.target.value)}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Business Address (Optional)</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Plot 45, Uhuru Street"
-                  className="input w-full"
-                  value={businessAddress}
-                  onChange={(e) => setBusinessAddress(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Region (Optional)</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Dar es Salaam"
-                  className="input w-full"
-                  value={businessRegion}
-                  onChange={(e) => setBusinessRegion(e.target.value)}
-                />
-              </div>
+              <FormField
+                label={t('business_address_label', 'Business Address (Optional)')}
+                placeholder="e.g. Plot 45, Uhuru Street"
+                value={businessAddress}
+                onChange={(e) => setBusinessAddress(e.target.value)}
+              />
+              <FormField
+                label={t('region_label', 'Region (Optional)')}
+                placeholder="e.g. Dar es Salaam"
+                value={businessRegion}
+                onChange={(e) => setBusinessRegion(e.target.value)}
+              />
             </div>
 
             {/* ID Document upload */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Identity Document (National ID, Passport or License)</label>
-              <div className="border-2 border-dashed border-gray-200 dark:border-neutral-700 rounded-xl p-6 text-center hover:border-brand-500 transition-colors relative cursor-pointer">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">{t('identity_document', 'Identity Document (National ID, Passport or License)')}</label>
+              <div className="border-2 border-dashed border-gray-200 dark:border-neutral-700 rounded-btn p-6 text-center hover:border-brand-500 transition-colors relative cursor-pointer">
                 <input 
                   type="file" 
                   accept="image/*"
@@ -609,7 +593,7 @@ const SellerUpgradePage: React.FC = () => {
                 <div className="space-y-2 pointer-events-none">
                   <Upload className="mx-auto text-gray-400" size={24} />
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {idDocument ? idDocument.name : 'Click to select or drag and drop ID image file'}
+                    {idDocument ? idDocument.name : t('select_id_file_prompt', 'Click to select or drag and drop ID image file')}
                   </p>
                   <p className="text-[10px] text-gray-400">JPEG, PNG or WebP up to 5MB</p>
                 </div>
@@ -618,8 +602,8 @@ const SellerUpgradePage: React.FC = () => {
 
             {/* Business Document (optional) */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Business Registration Certificate (Optional)</label>
-              <div className="border-2 border-dashed border-gray-200 dark:border-neutral-700 rounded-xl p-6 text-center hover:border-brand-500 transition-colors relative cursor-pointer">
+              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">{t('business_registration_cert', 'Business Registration Certificate (Optional)')}</label>
+              <div className="border-2 border-dashed border-gray-200 dark:border-neutral-700 rounded-btn p-6 text-center hover:border-brand-500 transition-colors relative cursor-pointer">
                 <input 
                   type="file" 
                   accept="image/*"
@@ -633,7 +617,7 @@ const SellerUpgradePage: React.FC = () => {
                 <div className="space-y-2 pointer-events-none">
                   <Upload className="mx-auto text-gray-400" size={24} />
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {businessDocument ? businessDocument.name : 'Click to select or drag and drop business certificate image file'}
+                    {businessDocument ? businessDocument.name : t('select_cert_file_prompt', 'Click to select or drag and drop business certificate image file')}
                   </p>
                   <p className="text-[10px] text-gray-400">JPEG, PNG or WebP up to 5MB</p>
                 </div>
@@ -641,13 +625,13 @@ const SellerUpgradePage: React.FC = () => {
             </div>
 
             {/* Submit Button */}
-            <button 
+            <Button 
               type="submit"
-              disabled={submitting}
-              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider transition shadow-lg shadow-brand-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              loading={submitting}
+              className="w-full py-3"
             >
-              {submitting ? 'Submitting Application...' : 'Submit Application'}
-            </button>
+              {t('submit_application', 'Submit Application')}
+            </Button>
           </form>
         )}
       </div>

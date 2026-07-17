@@ -171,6 +171,13 @@ const MobileBottomNav = () => {
                         </div>
                         <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
                       </Link>
+                      <Link to="/teams" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
+                          <Shield size={20} className="text-brand-600" />
+                          <span className="font-medium">Teams</span>
+                        </div>
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                      </Link>
                       {(isSeller || isInspector) && (
                         <Link to="/inspections" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
                           <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">

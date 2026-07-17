@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import { useCart } from '../context/CartContext';
-import { ProductTabs } from '../ProductTabs';
+import { ProductTabs } from '../components/ProductTabs';
 import SafeImage from '../components/SafeImage';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';

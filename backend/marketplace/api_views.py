@@ -1941,7 +1941,17 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
             owner=instance.owner, target_user=instance.user, performed_by=self.request.user,
             action='removed', detail={}
         )
+        user = instance.user
         instance.delete()
+
+        # Revert user profile tier to customer if they have no other accepted memberships
+        from marketplace.models import TeamMember
+        has_other = TeamMember.objects.filter(user=user, invitation_status='accepted', is_active=True).exists()
+        if not has_other:
+            profile = user.profile
+            if profile.tier == 'worker':
+                profile.tier = 'customer'
+                profile.save(update_fields=['tier'])
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -1968,6 +1978,11 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         member.responded_at = timezone.now()
         member.save(update_fields=['invitation_status', 'responded_at'])
         
+        # Transition user profile tier to worker
+        profile = member.user.profile
+        profile.tier = 'worker'
+        profile.save(update_fields=['tier'])
+        
         from .models import TeamMemberAuditLog
         TeamMemberAuditLog.objects.create(
             owner=member.owner, target_user=member.user, performed_by=request.user,
@@ -1985,6 +2000,15 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
         member.responded_at = timezone.now()
         member.save(update_fields=['invitation_status', 'responded_at'])
+        
+        # Revert user profile tier to customer if they have no other accepted memberships
+        from marketplace.models import TeamMember
+        has_other = TeamMember.objects.filter(user=member.user, invitation_status='accepted', is_active=True).exists()
+        if not has_other:
+            profile = member.user.profile
+            if profile.tier == 'worker':
+                profile.tier = 'customer'
+                profile.save(update_fields=['tier'])
         
         from .models import TeamMemberAuditLog
         TeamMemberAuditLog.objects.create(

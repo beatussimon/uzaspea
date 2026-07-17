@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { BarChart3, ShieldAlert } from 'lucide-react';
+import { BarChart3, ShieldAlert, Package, ShoppingCart, DollarSign, Star, AlertTriangle } from 'lucide-react';
+import { Spinner } from '../../components/ui/Spinner';
+import { KpiCard } from '../../components/ui/KpiCard';
+import { useTranslation } from 'react-i18next';
 import {
   XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, Area, AreaChart
@@ -11,6 +14,7 @@ import { SHORT_STATUS_LABELS as STATUS_LABELS } from '../../constants/orderStatu
 
 // ============ Dashboard Overview ============
 const DashboardOverview: React.FC = () => {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -24,22 +28,51 @@ const DashboardOverview: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div>
+        <Spinner size="md" />
       </div>
     );
   }
 
   const trendUp = (stats?.revenue_trend_pct || 0) >= 0;
-  const trendIcon = trendUp ? '↑' : '↓';
-  const trendColor = trendUp ? 'text-green-500' : 'text-red-500';
 
   const kpis = [
-    { label: 'Products', value: stats?.total_products || 0, sub: '', color: '#3b82f6' },
-    { label: 'Orders', value: stats?.total_orders || 0, sub: '', color: '#10b981' },
-    { label: 'Revenue (7D)', value: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`, sub: `${trendIcon} ${Math.abs(stats?.revenue_trend_pct || 0)}%`, color: '#8b5cf6', subColor: trendColor },
-    { label: 'Avg Order', value: `TSh ${(stats?.avg_order_value || 0).toLocaleString()}`, sub: '', color: '#f59e0b' },
-    { label: 'Avg Rating', value: stats?.avg_rating || '—', sub: `${stats?.total_reviews || 0} reviews`, color: '#ef4444' },
-    { label: 'Low Stock', value: stats?.stock_alerts?.length || 0, sub: 'items ≤ 3', color: '#ec4899' },
+    {
+      label: t('products', 'Products'),
+      value: stats?.total_products || 0,
+      icon: Package,
+    },
+    {
+      label: t('orders', 'Orders'),
+      value: stats?.total_orders || 0,
+      icon: ShoppingCart,
+    },
+    {
+      label: t('revenue_7d', 'Revenue (7D)'),
+      value: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`,
+      icon: DollarSign,
+      trend: {
+        value: `${Math.abs(stats?.revenue_trend_pct || 0)}%`,
+        direction: trendUp ? 'up' as const : 'down' as const,
+      },
+    },
+    {
+      label: t('avg_order', 'Avg Order'),
+      value: `TSh ${(stats?.avg_order_value || 0).toLocaleString()}`,
+      icon: DollarSign,
+    },
+    {
+      label: t('avg_rating', 'Avg Rating'),
+      value: stats?.avg_rating || '—',
+      sub: `${stats?.total_reviews || 0} reviews`,
+      icon: Star,
+    },
+    {
+      label: t('low_stock', 'Low Stock'),
+      value: stats?.stock_alerts?.length || 0,
+      sub: 'items ≤ 3',
+      icon: AlertTriangle,
+      className: stats?.stock_alerts?.length > 0 ? 'border-red-500/30' : undefined,
+    },
   ];
 
   // Prepare pie data
@@ -47,16 +80,20 @@ const DashboardOverview: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Store Analytics</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t('store_analytics', 'Store Analytics')}</h2>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {kpis.map((kpi, i) => (
-          <div key={i} className="card p-4 flex flex-col items-center text-center animate-fade-in" style={{ animationDelay: `${i*100}ms` }}>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">{kpi.label}</span>
-            <span className="text-lg font-black text-gray-900 dark:text-white" style={{ color: kpi.color }}>{kpi.value}</span>
-            {kpi.sub && <span className={`text-[10px] font-bold mt-1 ${kpi.subColor}`}>{kpi.sub}</span>}
-          </div>
+          <KpiCard
+            key={i}
+            label={kpi.label}
+            value={kpi.value}
+            icon={kpi.icon}
+            trend={kpi.trend}
+            sub={kpi.sub}
+            className={kpi.className}
+          />
         ))}
       </div>
 

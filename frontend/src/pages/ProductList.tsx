@@ -4,11 +4,11 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, X, LayoutGrid, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import api from './api';
-import ProductCard from './components/ProductCard';
-import SponsorCard from './components/SponsorCard';
-import { ProductCardSkeleton } from './components/Skeleton';
-import SafeImage from './components/SafeImage';
+import api from '../api';
+import ProductCard from '../components/ProductCard';
+import SponsorCard from '../components/SponsorCard';
+import { ProductCardSkeleton } from '../components/Skeleton';
+import SafeImage from '../components/SafeImage';
 
 const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } } as any;
 const cardVariants = {

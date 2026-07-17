@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck, Shield } from 'lucide-react';
@@ -9,10 +9,19 @@ import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 
 import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS } from '../constants/orderStatus';
 import ReviewModal from '../components/orders/ReviewModal';
-import DisputeModal from '../components/orders/DisputeModal';const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+import DisputeModal from '../components/orders/DisputeModal';
 import { useDialog } from '../components/ui/Dialogs';
+import { Spinner } from '../components/ui/Spinner';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { EmptyState } from '../components/ui/EmptyState';
+import { PageHeader } from '../components/ui/PageHeader';
+import { useTranslation } from 'react-i18next';
+
+const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 const OrdersPage: React.FC = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const { showConfirm, showPrompt } = useDialog();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -292,42 +301,52 @@ const OrdersPage: React.FC = () => {
   const activeStatuses = [...new Set(orders.map(o => o.status))];
 
   if (loading) {
-    return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>;
+    return (
+      <div className="flex justify-center py-20">
+        <Spinner size="md" />
+      </div>
+    );
   }
 
   return (
-    <div className="container-page py-8 max-w-4xl">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Outgoing Orders</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Track and manage your purchases</p>
-        </div>
-        {activeStatuses.length > 1 && (
-          <div className="flex gap-1 flex-wrap">
-            <button onClick={() => setFilterStatus('')}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${!filterStatus ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-              All ({orders.length})
+    <div className="container-page max-w-4xl">
+      <PageHeader
+        title={t('outgoing_orders')}
+        subtitle={t('track_manage_purchases', 'Track and manage your purchases')}
+      />
+
+      {activeStatuses.length > 1 && (
+        <div className="flex overflow-x-auto no-scrollbar gap-2 mb-6 select-none">
+          <button
+            onClick={() => setFilterStatus('')}
+            className={`pill text-xs ${!filterStatus ? 'pill-active' : 'pill-inactive'}`}
+          >
+            {t('all', 'All')} ({orders.length})
+          </button>
+          {activeStatuses.map(s => (
+            <button
+              key={s}
+              onClick={() => setFilterStatus(s)}
+              className={`pill text-xs ${filterStatus === s ? 'pill-active' : 'pill-inactive'}`}
+            >
+              {t(`status.${s}`, STATUS_CONFIG[s]?.label || s) as string}
             </button>
-            {activeStatuses.map(s => (
-              <button key={s} onClick={() => setFilterStatus(s)}
-                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${filterStatus === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-                {STATUS_CONFIG[s]?.label || s}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {filtered.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-12 text-center shadow-sm">
-          <Package size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-          <p className="text-gray-500 font-medium">{orders.length === 0 ? "You haven't placed any orders yet." : 'No orders with this status.'}</p>
-          <Link to="/" className="btn-primary mt-4 inline-block">Start Shopping</Link>
-        </div>
+        <EmptyState
+          icon={Package}
+          title={orders.length === 0 ? t('no_orders_placed_title', "You haven't placed any orders yet.") : t('no_orders_status_title', "No orders with this status.")}
+          action={{
+            label: t('start_shopping', 'Start Shopping'),
+            onClick: () => navigate('/'),
+          }}
+        />
       ) : (
         <div className="space-y-4">
           {filtered.map((order: any) => {
-            const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.CART;
             const isExpanded = expandedId === order.id;
             const isActuallyWarehouse = ['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP'].includes(order.status) || order.timeline_events?.some((ev: any) => ['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE'].includes(ev.status));
 
@@ -399,9 +418,13 @@ const OrdersPage: React.FC = () => {
                   <div className="flex items-center gap-6">
                     <div className="text-right hidden sm:block">
                       <p className="font-black text-gray-900 dark:text-white text-lg tracking-tight">TSh {parseInt(order.total_amount || 0).toLocaleString()}</p>
-                      <span className={`inline-block px-2 py-0.5 text-[9px] font-black rounded-full uppercase tracking-widest ${order.items?.length === 0 ? 'bg-red-100 text-red-600' : cfg.bg + ' ' + cfg.color} mt-1`}>
-                        {order.items?.length === 0 ? 'Invalid Order' : cfg.label}
-                      </span>
+                      {order.items?.length === 0 ? (
+                        <span className="inline-block px-2 py-0.5 text-[9px] font-black rounded-full bg-red-100 text-red-600 mt-1">
+                          Invalid Order
+                        </span>
+                      ) : (
+                        <StatusBadge status={order.status} size="sm" className="mt-1" />
+                      )}
                     </div>
                     <div className="flex flex-col items-center gap-3">
                         <Link 
@@ -883,7 +906,7 @@ const OrdersPage: React.FC = () => {
           
           {loadingMore && (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
+              <Spinner size="sm" />
             </div>
           )}
 

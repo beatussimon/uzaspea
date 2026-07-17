@@ -1,24 +1,32 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import SafeImage from '../components/SafeImage';
+import { useTranslation } from 'react-i18next';
+import { useDialog } from '../components/ui/Dialogs';
+import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
+import { PageHeader } from '../components/ui/PageHeader';
 
 const CartPage: React.FC = () => {
+  const { t } = useTranslation();
+  const { showConfirm } = useDialog();
   const { items, updateQuantity, removeFromCart, clearCart } = useCart();
+  const navigate = useNavigate();
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <ShoppingBag size={64} className="text-gray-300 dark:text-gray-600" />
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300">Your cart is empty</h2>
-        <p className="text-gray-500 dark:text-gray-400">Add some products to get started!</p>
-        <Link
-          to="/"
-          className="mt-4 px-6 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition shadow-md"
-        >
-          Browse Products
-        </Link>
+      <div className="container-page max-w-4xl py-12">
+        <EmptyState
+          icon={ShoppingBag}
+          title={t('empty_cart')}
+          description={t('empty_cart_subtitle', 'Add some products to get started!')}
+          action={{
+            label: t('browse_products'),
+            onClick: () => navigate('/'),
+          }}
+        />
       </div>
     );
   }
@@ -30,29 +38,42 @@ const CartPage: React.FC = () => {
     return acc;
   }, {} as Record<string, typeof items>);
 
+  const handleClearCart = async () => {
+    const confirmed = await showConfirm(
+      t('clear_cart_confirm', 'Remove all items from your cart?'),
+      t('clear_cart_title', 'Clear Cart')
+    );
+    if (confirmed) {
+      clearCart();
+    }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Shopping Cart</h1>
-        <button
-          onClick={() => { if (window.confirm('Remove all items from your cart?')) clearCart(); }}
-          className="text-sm text-red-500 hover:text-red-700 transition font-bold"
-        >
-          Clear All
-        </button>
-      </div>
+    <div className="container-page max-w-4xl">
+      <PageHeader
+        title={t('shopping_cart')}
+        actions={
+          <Button
+            variant="ghost"
+            onClick={handleClearCart}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 font-bold"
+          >
+            {t('clear_all')}
+          </Button>
+        }
+      />
 
       <div className="space-y-8">
         {Object.entries(groupedItems).map(([merchant, storeItems]) => {
           const storeSubtotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
           
           return (
-            <div key={merchant} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-              <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+            <div key={merchant} className="card overflow-hidden">
+              <div className="p-4 bg-surface-muted dark:bg-[#111]/45 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <ShoppingBag size={18} className="text-brand-600 dark:text-brand-400" />
-                  <h3 className="font-bold text-gray-900 dark:text-white">
-                    Store: <span className="text-brand-600 dark:text-brand-400">@{merchant}</span>
+                  <ShoppingBag size={16} className="text-brand-600 dark:text-brand-400" />
+                  <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">
+                    {t('seller')}: <span className="text-brand-600 dark:text-brand-400 font-extrabold">@{merchant}</span>
                   </h3>
                 </div>
               </div>
@@ -61,75 +82,80 @@ const CartPage: React.FC = () => {
                 {storeItems.map((item) => (
                   <div
                     key={item.productId}
-                    className="flex items-center gap-4 border-b border-gray-100 dark:border-gray-700 pb-4 last:border-0 last:pb-0"
+                    className="flex items-center gap-4 border-b border-surface-border dark:border-surface-dark-border pb-4 last:border-0 last:pb-0"
                   >
                     <Link to={`/product/${item.slug}`} className="shrink-0">
                       <SafeImage
                         src={item.image}
                         alt={item.name}
                         category={item.category}
-                        className="w-20 h-20 object-cover rounded-lg border dark:border-gray-700"
+                        className="w-16 h-16 object-cover rounded-btn border border-surface-border dark:border-surface-dark-border"
                       />
                     </Link>
-
+ 
                     <div className="flex-1 min-w-0">
                       <Link
                         to={`/product/${item.slug}`}
-                        className="font-semibold text-gray-900 dark:text-white truncate block hover:text-brand-600 transition"
+                        className="font-bold text-gray-900 dark:text-white truncate block hover:text-brand-600 dark:hover:text-brand-400 transition"
                       >
                         {item.name}
                       </Link>
-                      <p className="text-brand-600 dark:text-brand-400 font-bold mt-1">
+                      <p className="text-brand-600 dark:text-brand-400 font-extrabold mt-1 text-sm">
                         TSh {item.price.toLocaleString()}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">{item.stock} in stock</p>
+                      <p className="text-2xs font-bold text-gray-400 uppercase tracking-wide mt-0.5">
+                        {item.stock} {t('in_stock')}
+                      </p>
                     </div>
-
-                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 rounded-lg p-1 border dark:border-gray-700">
+ 
+                    <div className="flex items-center gap-2 bg-surface-muted dark:bg-[#111] rounded-btn p-1 border border-surface-border dark:border-surface-dark-border">
                       <button
                         onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                        className="p-1.5 rounded-md hover:bg-white dark:hover:bg-gray-800 transition shadow-sm text-gray-600 dark:text-gray-300"
+                        className="p-1 rounded-btn hover:bg-white dark:hover:bg-[#0A0A0A] transition shadow-sm text-gray-600 dark:text-gray-300"
                       >
-                        <Minus size={14} />
+                        <Minus size={12} />
                       </button>
-                      <span className="w-8 text-center font-bold text-gray-900 dark:text-white text-sm">
+                      <span className="w-6 text-center font-bold text-gray-900 dark:text-white text-xs">
                         {item.quantity}
                       </span>
                       <button
                         onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                        className="p-1.5 rounded-md hover:bg-white dark:hover:bg-gray-800 transition shadow-sm text-gray-600 dark:text-gray-300"
+                        className="p-1 rounded-btn hover:bg-white dark:hover:bg-[#0A0A0A] transition shadow-sm text-gray-600 dark:text-gray-300"
                       >
-                        <Plus size={14} />
+                        <Plus size={12} />
                       </button>
                     </div>
-
-                    <p className="font-bold text-gray-900 dark:text-white w-28 text-right hidden sm:block">
+ 
+                    <p className="font-extrabold text-gray-900 dark:text-white w-28 text-right hidden sm:block text-sm">
                       TSh {(item.price * item.quantity).toLocaleString()}
                     </p>
-
+ 
                     <button
                       onClick={() => removeFromCart(item.productId)}
-                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition shrink-0 ml-2"
+                      className="p-2 text-red-400 hover:text-red-650 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-btn transition shrink-0 ml-2"
                       title="Remove item"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 ))}
               </div>
               
-              <div className="bg-gray-50 dark:bg-gray-900/50 p-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 font-medium">
-                  <span>{storeItems.reduce((s, i) => s + i.quantity, 0)} item(s) from this store</span>
-                  <span className="hidden sm:inline px-2 text-gray-300 dark:text-gray-600">•</span>
-                  <span className="text-gray-900 dark:text-white font-bold">Subtotal: TSh {storeSubtotal.toLocaleString()}</span>
+              <div className="bg-surface-muted dark:bg-[#111]/45 p-4 border-t border-surface-border dark:border-surface-dark-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-2xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  <span>{storeItems.reduce((s, i) => s + i.quantity, 0)} {t('quantity')}</span>
+                  <span className="hidden sm:inline px-1">•</span>
+                  <span className="text-gray-900 dark:text-white font-extrabold text-xs">
+                    {t('subtotal')}: TSh {storeSubtotal.toLocaleString()}
+                  </span>
                 </div>
-                <Link
-                  to={`/checkout?merchant=${encodeURIComponent(merchant)}`}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg transition shadow-sm hover:shadow-md active:scale-95"
+                <Button
+                  onClick={() => navigate(`/checkout?merchant=${encodeURIComponent(merchant)}`)}
+                  size="sm"
+                  className="flex items-center gap-2"
                 >
-                  Checkout {merchant} <ArrowRight size={16} />
-                </Link>
+                  {t('checkout')} {merchant} <ArrowRight size={14} />
+                </Button>
               </div>
             </div>
           );

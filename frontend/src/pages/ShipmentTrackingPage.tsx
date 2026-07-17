@@ -5,6 +5,11 @@ import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
 import { Shield, Clock, MapPin, Truck, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
+import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Spinner } from '../components/ui/Spinner';
+import { StatusBadge } from '../components/ui/StatusBadge';
 
 const getWsBase = () => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -107,6 +112,7 @@ const LeafletMap: React.FC<{ lat: number; lng: number; stale: boolean }> = ({ la
 };
 
 export const ShipmentTrackingPage: React.FC = () => {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [shipment, setShipment] = useState<Shipment | null>(null);
@@ -236,18 +242,23 @@ export const ShipmentTrackingPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] bg-black text-white">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
+        <Spinner size="md" />
       </div>
     );
   }
 
   if (!shipment) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-black text-white">
-        <MapPin className="h-16 w-16 text-red-500 mb-4" />
-        <h2 className="text-xl font-bold mb-2">Tracking Not Found</h2>
-        <p className="text-gray-400 mb-6">We couldn't find a shipment with this tracking ID.</p>
-        <Link to="/orders" className="btn-primary px-6 py-2">Back to Orders</Link>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-black text-white px-4">
+        <EmptyState
+          icon={MapPin}
+          title={t('tracking_not_found', 'Tracking Not Found')}
+          description={t('tracking_not_found_desc', "We couldn't find a shipment with this tracking ID.")}
+          action={{
+            label: t('back_to_orders', 'Back to Orders'),
+            onClick: () => window.location.href = '/orders',
+          }}
+        />
       </div>
     );
   }
@@ -257,21 +268,25 @@ export const ShipmentTrackingPage: React.FC = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Rebranded Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-800 pb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-surface-dark-border pb-6">
           <div>
-            <div className="flex items-center space-x-2 text-amber-500 text-sm font-bold uppercase tracking-widest mb-1">
+            <div className="flex items-center space-x-2 text-brand-500 text-sm font-bold uppercase tracking-widest mb-1">
               <Truck className="h-4 w-4" />
-              <span>SokoniMax Managed Delivery</span>
+              <span>{t('sokonimax_managed_delivery', 'SokoniMax Managed Delivery')}</span>
             </div>
             <h1 className="text-3xl font-black tracking-tight text-white uppercase">
-              Live Vehicle Tracking
+              {t('live_vehicle_tracking', 'Live Vehicle Tracking')}
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Shipment for Order <span className="text-gray-300 font-mono font-bold">#{shipment.order}</span> &bull; Status: <span className="text-amber-500 font-bold uppercase">{shipment.status}</span>
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-500">
+              <span>{t('shipment_for_order', 'Shipment for Order')}</span>
+              <span className="text-gray-300 font-mono font-bold">#{shipment.order}</span>
+              <span>&bull;</span>
+              <span>{t('status_label', 'Status')}:</span>
+              <StatusBadge status={shipment.status} size="sm" />
+            </div>
           </div>
-          <Link to="/orders" className="mt-4 md:mt-0 text-sm text-gray-400 hover:text-white border border-gray-800 hover:border-gray-600 px-4 py-2 rounded-lg transition">
-            Back to Orders
+          <Link to="/orders" className="mt-4 md:mt-0 text-sm text-gray-400 hover:text-white border border-gray-800 hover:border-gray-600 px-4 py-2 rounded-btn transition">
+            {t('back_to_orders', 'Back to Orders')}
           </Link>
         </div>
 
@@ -292,27 +307,27 @@ export const ShipmentTrackingPage: React.FC = () => {
             {latestPing ? (
               <LeafletMap lat={latestPing.lat} lng={latestPing.lng} stale={stale} />
             ) : (
-              <div className="flex flex-col items-center justify-center min-h-[400px] bg-[#0a0a0a] border border-gray-800 rounded-2xl p-8 text-center text-gray-400">
-                <MapPin className="h-12 w-12 text-amber-500 mb-4 animate-bounce" />
-                <p className="font-bold text-white text-lg">Waiting for First Location Signal</p>
-                <p className="text-sm mt-1 max-w-md">The shipment has been registered, but the driver hasn't sent a location update yet. Live tracking will begin automatically once a signal is received.</p>
+              <div className="flex flex-col items-center justify-center min-h-[400px] bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-card p-8 text-center text-gray-455">
+                <MapPin className="h-12 w-12 text-brand-500 mb-4" />
+                <p className="font-bold text-gray-900 dark:text-white text-lg">{t('waiting_for_signal', 'Waiting for First Location Signal')}</p>
+                <p className="text-sm mt-1 max-w-md">{t('waiting_for_signal_desc', "The shipment has been registered, but the driver hasn't sent a location update yet. Live tracking will begin automatically once a signal is received.")}</p>
               </div>
             )}
           </div>
 
           {/* Details Sidebar */}
-          <div className="card p-6 bg-[#0a0a0a] border border-gray-800 space-y-6">
-            <h3 className="text-lg font-bold border-b border-gray-900 pb-3 uppercase tracking-wider text-gray-400">
-              Delivery Details
+          <div className="card p-6 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border space-y-6">
+            <h3 className="text-sm font-black border-b border-surface-border dark:border-surface-dark-border pb-3 uppercase tracking-wider text-gray-900 dark:text-white">
+              {t('delivery_details', 'Delivery Details')}
             </h3>
 
             {/* Carrier info */}
             <div className="space-y-4 text-sm">
               <div className="flex items-start space-x-3">
-                <Truck className="h-5 w-5 text-amber-500 mt-0.5" />
+                <Truck className="h-5 w-5 text-brand-500 mt-0.5" />
                 <div>
-                  <p className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Assigned Carrier</p>
-                  <p className="font-semibold text-gray-200">{shipment.carrier_type === 'driver' ? 'SokoniMax Fleet Driver' : 'Third-Party Courier'}</p>
+                  <p className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">{t('assigned_carrier', 'Assigned Carrier')}</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-200">{shipment.carrier_type === 'driver' ? t('sokonimax_fleet_driver', 'SokoniMax Fleet Driver') : t('third_party_courier', 'Third-Party Courier')}</p>
                   {shipment.driver_username && (
                     <p className="text-xs text-gray-400 font-mono">Driver: @{shipment.driver_username}</p>
                   )}
@@ -320,66 +335,67 @@ export const ShipmentTrackingPage: React.FC = () => {
               </div>
 
               <div className="flex items-start space-x-3">
-                <Shield className="h-5 w-5 text-amber-500 mt-0.5" />
+                <Shield className="h-5 w-5 text-brand-500 mt-0.5" />
                 <div>
-                  <p className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Tracking Number</p>
+                  <p className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">{t('tracking_number', 'Tracking Number')}</p>
                   <p className="font-mono font-bold text-gray-300">{shipment.tracking_number || `SMX-TRK-${shipment.id}`}</p>
                 </div>
               </div>
 
               <div className="flex items-start space-x-3">
-                <Clock className="h-5 w-5 text-amber-500 mt-0.5" />
+                <Clock className="h-5 w-5 text-brand-500 mt-0.5" />
                 <div>
-                  <p className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">Estimated Delivery</p>
-                  <p className="font-semibold text-gray-200">
+                  <p className="text-gray-500 font-bold uppercase text-[10px] tracking-wider">{t('estimated_delivery', 'Estimated Delivery')}</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-200">
                     {shipment.estimated_delivery 
                       ? new Date(shipment.estimated_delivery).toLocaleString()
-                      : 'Calculating...'}
+                      : t('calculating', 'Calculating...')}
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Live Indicator */}
-            <div className="border-t border-gray-900 pt-6">
+            <div className="border-t border-surface-border dark:border-surface-dark-border pt-6">
               <div className="flex items-center space-x-2.5">
-                <span className={`h-2.5 w-2.5 rounded-full ${stale ? 'bg-amber-500' : 'bg-green-500 animate-ping'}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${stale ? 'bg-amber-500' : 'bg-green-500'}`} />
                 <span className="text-xs font-bold uppercase tracking-wider text-gray-300">
-                  {stale ? 'Signal Stale' : 'Live Connection Active'}
+                  {stale ? t('signal_stale', 'Signal Stale') : t('live_connection_active', 'Live Connection Active')}
                 </span>
               </div>
               {latestPing && (
                 <p className="text-[10px] text-gray-500 mt-2 font-mono">
-                  Last Ping: {new Date(latestPing.recorded_at).toLocaleTimeString()} ({latestPing.lat.toFixed(4)}, {latestPing.lng.toFixed(4)})
+                  {t('last_ping', 'Last Ping')}: {new Date(latestPing.recorded_at).toLocaleTimeString()} ({latestPing.lat.toFixed(4)}, {latestPing.lng.toFixed(4)})
                 </p>
               )}
             </div>
 
             {/* Driver Console */}
             {user && (user.username === shipment.driver_username || user.is_staff) && shipment.status !== 'delivered' && (
-              <div className="border-t border-gray-900 pt-6 mt-6">
-                <h3 className="text-sm font-black uppercase tracking-wider text-amber-500 mb-4 flex items-center gap-2">
-                  <Shield size={16} /> Driver Console
+              <div className="border-t border-surface-border dark:border-surface-dark-border pt-6 mt-6">
+                <h3 className="text-sm font-black uppercase tracking-wider text-brand-500 mb-4 flex items-center gap-2">
+                  <Shield size={16} /> {t('driver_console', 'Driver Console')}
                 </h3>
                 <div className="space-y-3">
                   <p className="text-xs text-gray-400">
-                    Ask the customer for their 6-digit delivery code to finalize this delivery.
+                    {t('driver_console_instructions', 'Ask the customer for their 6-digit delivery code to finalize this delivery.')}
                   </p>
                   <input
                     type="text"
                     value={deliveryCode}
                     onChange={(e) => setDeliveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Enter 6-digit Code"
-                    className="w-full bg-[#111] border-2 border-gray-800 focus:border-amber-500 rounded-xl px-4 py-3 text-center font-mono font-bold text-xl tracking-[0.2em] text-white outline-none"
+                    placeholder="e.g. 123456"
+                    className="w-full bg-[#111] border border-surface-dark-border focus:border-brand-500 rounded-btn px-4 py-3 text-center font-mono font-bold text-xl tracking-[0.2em] text-white outline-none"
                   />
-                  <button
+                  <Button
                     onClick={handleConfirmDelivery}
                     disabled={confirming || deliveryCode.length !== 6}
-                    className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-xl uppercase tracking-widest text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    loading={confirming}
+                    className="w-full py-3"
                   >
-                    {confirming ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <CheckCircle size={16} />}
-                    {confirming ? 'Confirming...' : 'Confirm Delivery'}
-                  </button>
+                    {!confirming && <CheckCircle size={16} className="mr-2" />}
+                    {t('confirm_delivery', 'Confirm Delivery')}
+                  </Button>
                 </div>
               </div>
             )}

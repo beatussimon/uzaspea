@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck, Shield } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useDialog } from '../../components/ui/Dialogs';
 
 const TIER_RANKS: Record<string, number> = {
   'customer': 1,
@@ -10,6 +12,8 @@ const TIER_RANKS: Record<string, number> = {
 };
 
 const BillingPage: React.FC = () => {
+  const { t } = useTranslation();
+  const { showConfirm } = useDialog();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
   const [driverPayments, setDriverPayments] = useState<any[]>([]);
@@ -143,7 +147,11 @@ const BillingPage: React.FC = () => {
   };
 
   const handleCancelSubscription = async () => {
-    if (!window.confirm("Are you sure you want to cancel your subscription? You will lose seller access immediately.")) {
+    const confirmed = await showConfirm(
+      t('cancel_sub_confirm', 'Are you sure you want to cancel your subscription? You will lose seller access immediately.'),
+      t('cancel_sub_title', 'Cancel Subscription')
+    );
+    if (!confirmed) {
       return;
     }
     try {

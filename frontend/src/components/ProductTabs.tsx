@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import api from './api';
+import api from '../api';
 import toast from 'react-hot-toast';
 
 interface Review {

@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { CreditCard, MapPin, Phone, User, Truck, Shield } from 'lucide-react';
+import { CreditCard, MapPin, Truck, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import api from '../api';
 import toast from 'react-hot-toast';
 import SafeImage from '../components/SafeImage';
+import { useTranslation } from 'react-i18next';
+import { Button } from '../components/ui/Button';
+import { FormField } from '../components/ui/Input';
 
 const CITIES_COORDS: Record<string, { lat: number; lng: number }> = {
   'Dar es Salaam': { lat: -6.776012, lng: 39.178326 },
@@ -16,6 +19,7 @@ const CITIES_COORDS: Record<string, { lat: number; lng: number }> = {
 };
 
 const CheckoutPage: React.FC = () => {
+  const { t } = useTranslation();
   const { items, clearCartByMerchant } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,6 +36,8 @@ const CheckoutPage: React.FC = () => {
   const [selectedQuoteCode, setSelectedQuoteCode] = useState('standard');
 
   const [sellerCoords, setSellerCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [citiesCoords, setCitiesCoords] = useState<Record<string, { lat: number; lng: number; code: string }>>({});
 
   const [form, setForm] = useState({
     fullName: '',
@@ -75,7 +81,7 @@ const CheckoutPage: React.FC = () => {
             phone: prev.phone || data.phone_number || '',
             deliveryAddress: prev.deliveryAddress || data.location || '',
           }));
-          if (data.location && Object.keys(CITIES_COORDS).includes(data.location)) {
+          if (data.location) {
             setSelectedCity(data.location);
           }
         }
@@ -86,8 +92,49 @@ const CheckoutPage: React.FC = () => {
     fetchUserProfile();
   }, []);
 
+  useEffect(() => {
+    const fetchWarehouses = async () => {
+      try {
+        const res = await api.get('/api/warehouses/warehouses/');
+        const list = res.data.results || res.data || [];
+        setWarehouses(list);
+        
+        const dynamicCoords: Record<string, { lat: number; lng: number; code: string }> = {};
+        list.forEach((w: any) => {
+          if (w.region && w.latitude !== null && w.longitude !== null) {
+            dynamicCoords[w.region] = {
+              lat: Number(w.latitude),
+              lng: Number(w.longitude),
+              code: w.code
+            };
+          }
+        });
+        
+        if (Object.keys(dynamicCoords).length > 0) {
+          setCitiesCoords(dynamicCoords);
+          const cities = Object.keys(dynamicCoords);
+          setSelectedCity(prev => cities.includes(prev) ? prev : cities[0]);
+        } else {
+          const fallback: any = {};
+          Object.entries(CITIES_COORDS).forEach(([k, v]) => {
+            fallback[k] = { ...v, code: k === 'Mwanza' ? 'MWZ-01' : 'DAR-01' };
+          });
+          setCitiesCoords(fallback);
+        }
+      } catch (err) {
+        console.error('Failed to load warehouses list', err);
+        const fallback: any = {};
+        Object.entries(CITIES_COORDS).forEach(([k, v]) => {
+          fallback[k] = { ...v, code: k === 'Mwanza' ? 'MWZ-01' : 'DAR-01' };
+        });
+        setCitiesCoords(fallback);
+      }
+    };
+    fetchWarehouses();
+  }, []);
+
   const fetchQuotes = async (city: string) => {
-    const coords = CITIES_COORDS[city];
+    const coords = citiesCoords[city] || CITIES_COORDS[city];
     if (!coords) return;
     
     const totalWeight = checkoutItems.reduce((acc, item) => acc + (item.quantity * (item.weight_kg ?? 1.0)), 0);
@@ -110,7 +157,6 @@ const CheckoutPage: React.FC = () => {
         size: maxSize
       });
       setQuotes(res.data.quotes || []);
-      // If selected quote is not in new list, pick standard or first
       const hasSelected = (res.data.quotes || []).some((q: any) => q.code === selectedQuoteCode);
       if (!hasSelected && res.data.quotes?.length > 0) {
         const hasStd = res.data.quotes.find((q: any) => q.code === 'standard');
@@ -122,17 +168,16 @@ const CheckoutPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (shippingMethod === 'DELIVERY' && checkoutItems.length > 0) {
+    if (shippingMethod === 'DELIVERY' && checkoutItems.length > 0 && Object.keys(citiesCoords).length > 0) {
       fetchQuotes(selectedCity);
     }
-  }, [shippingMethod, selectedCity, checkoutItems, sellerCoords]);
+  }, [shippingMethod, selectedCity, checkoutItems, sellerCoords, citiesCoords]);
 
   const activeQuote = quotes.find(q => q.code === selectedQuoteCode);
   const estimatedShippingFee = shippingMethod === 'DELIVERY' 
     ? (activeQuote ? Number(activeQuote.price) : 0) 
     : 0;
   
-  // Promo code states
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any | null>(null);
   const [validatingPromo, setValidatingPromo] = useState(false);
@@ -147,10 +192,10 @@ const CheckoutPage: React.FC = () => {
         subtotal: checkoutTotal
       });
       setAppliedPromo(res.data);
-      toast.success(`Promo code ${promoCode} applied!`);
+      toast.success(t('promo_applied', 'Promo code applied successfully!'));
     } catch (err: any) {
       setAppliedPromo(null);
-      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Invalid promo code');
+      toast.error(err.response?.data?.error || err.response?.data?.detail || t('promo_invalid', 'Invalid promo code'));
     } finally {
       setValidatingPromo(false);
     }
@@ -162,10 +207,7 @@ const CheckoutPage: React.FC = () => {
   };
 
   const discountAmount = appliedPromo ? Number(appliedPromo.discount_amount) : 0;
-
-  // They pay 0 for delivery at checkout. They only pay product price fully.
   const finalTotal = Math.max(0, checkoutTotal - discountAmount);
-
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
   useEffect(() => {
@@ -185,21 +227,23 @@ const CheckoutPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (shippingMethod === 'DELIVERY' && (!form.fullName || !form.phone || !form.deliveryAddress)) {
-      toast.error('Please fill in all required fields for delivery');
+      toast.error(t('fill_required_fields_error', 'Please fill in all required fields for delivery'));
       return;
     }
 
     setSubmitting(true);
     try {
       const getNearestWarehouseCode = (lat: number, lng: number): string => {
-        const warehouses = [
-          { code: 'DAR-01', lat: -6.8161, lng: 39.2803 },
-          { code: 'MWZ-01', lat: -2.5167, lng: 32.9000 }
-        ];
         let nearestCode = 'DAR-01';
         let minDistance = Infinity;
-        for (const w of warehouses) {
-          const d = Math.sqrt(Math.pow(w.lat - lat, 2) + Math.pow(w.lng - lng, 2));
+        const listToUse = warehouses.length > 0 ? warehouses : [
+          { code: 'DAR-01', latitude: -6.8161, longitude: 39.2803 },
+          { code: 'MWZ-01', latitude: -2.5167, longitude: 32.9000 }
+        ];
+        for (const w of listToUse) {
+          const wLat = Number(w.latitude);
+          const wLng = Number(w.longitude);
+          const d = Math.sqrt(Math.pow(wLat - lat, 2) + Math.pow(wLng - lng, 2));
           if (d < minDistance) {
             minDistance = d;
             nearestCode = w.code;
@@ -229,7 +273,7 @@ const CheckoutPage: React.FC = () => {
         }),
         total_amount: finalTotal,
         shipping_method: shippingMethod,
-        shipping_fee: 0, // 0 at checkout
+        shipping_fee: 0, 
         promo_code: appliedPromo ? appliedPromo.code : undefined,
         delivery_info: {
           full_name: form.fullName,
@@ -238,6 +282,7 @@ const CheckoutPage: React.FC = () => {
           notes: form.notes,
           shipping_speed: shippingMethod === 'DELIVERY' ? selectedQuoteCode : undefined,
           warehouse_code: nearestWarehouseCode,
+          destination_warehouse_code: citiesCoords[selectedCity]?.code,
           estimated_shipping_fee: estimatedShippingFee
         },
       };
@@ -245,7 +290,6 @@ const CheckoutPage: React.FC = () => {
       const res = await api.post('/api/orders/', orderData);
       const orderId = res.data.id;
 
-      // Advance status to AWAITING_PAYMENT after creation
       await api.post(`/api/orders/${orderId}/advance/`, { 
         status: 'AWAITING_PAYMENT',
         notes: 'Order placed, awaiting offline payment proof.' 
@@ -253,59 +297,61 @@ const CheckoutPage: React.FC = () => {
 
       setCheckoutSuccess(true);
       clearCartByMerchant(merchant);
-      toast.success('Order placed successfully!');
+      toast.success(t('order_placed_success', 'Order placed successfully!'));
       setTimeout(() => {
         navigate(`/orders?highlight=${orderId}`);
       }, 100);
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to place order');
+      toast.error(error.response?.data?.detail || t('order_placed_failed', 'Failed to place order'));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4">
+    <div className="container-page max-w-5xl">
       <div className="mb-6 flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Checkout</h1>
-        <p className="text-sm font-medium text-brand-600 dark:text-brand-400">Store: @{merchant}</p>
+        <h1 className="text-heading-md font-black text-gray-900 dark:text-white uppercase">{t('checkout')}</h1>
+        <p className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wide">
+          {t('seller')}: @{merchant}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Delivery Form */}
         <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Shipping Method</h2>
+          <div className="card p-6">
+            <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white uppercase mb-4">{t('shipping_method')}</h2>
             <div className="grid grid-cols-2 gap-4 mb-6">
               <button
                 type="button"
                 onClick={() => setShippingMethod('DELIVERY')}
-                className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition ${
+                className={`p-4 rounded-btn border-2 flex flex-col items-center gap-2 transition-all duration-200 ${
                   shippingMethod === 'DELIVERY'
-                    ? 'border-brand-600 bg-brand-50 dark:bg-brand-900/20 text-brand-600'
-                    : 'border-gray-100 dark:border-gray-700 text-gray-500'
+                    ? 'border-brand-600 bg-brand-50/10 text-brand-600'
+                    : 'border-surface-border dark:border-surface-dark-border text-gray-500'
                 }`}
               >
-                <Truck size={24} />
-                <span className="font-bold text-sm">Home Delivery</span>
-                <span className="text-xs">
+                <Truck size={20} />
+                <span className="font-bold text-xs uppercase tracking-wider">{t('home_delivery')}</span>
+                <span className="text-[10px] font-bold">
                   {shippingMethod === 'DELIVERY' && activeQuote
                     ? `~TSh ${activeQuote.price.toLocaleString()}`
-                    : 'Estimated'}
+                    : t('estimated', 'Estimated')}
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => setShippingMethod('PICKUP')}
-                className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition ${
+                className={`p-4 rounded-btn border-2 flex flex-col items-center gap-2 transition-all duration-200 ${
                   shippingMethod === 'PICKUP'
-                    ? 'border-brand-600 bg-brand-50 dark:bg-brand-900/20 text-brand-600'
-                    : 'border-gray-100 dark:border-gray-700 text-gray-500'
+                    ? 'border-brand-600 bg-brand-50/10 text-brand-600'
+                    : 'border-surface-border dark:border-surface-dark-border text-gray-500'
                 }`}
               >
-                <MapPin size={24} />
-                <span className="font-bold text-sm">Physical Pickup</span>
-                <span className="text-xs">Free</span>
+                <MapPin size={20} />
+                <span className="font-bold text-xs uppercase tracking-wider">{t('pickup')}</span>
+                <span className="text-[10px] font-bold">{t('free', 'Free')}</span>
               </button>
             </div>
 
@@ -318,29 +364,28 @@ const CheckoutPage: React.FC = () => {
                   transition={{ duration: 0.3 }}
                   className="overflow-hidden"
                 >
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-6 mb-4">Delivery Information</h2>
+                  <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white mt-6 mb-4 uppercase">{t('delivery_options')}</h2>
                   <div className="space-y-4">
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        <MapPin size={14} /> City / Region *
+                    <div className="flex flex-col gap-1.5 w-full">
+                      <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
+                        {t('city_region_label', 'City / Region *')}
                       </label>
                       <select
                         value={selectedCity}
                         onChange={(e) => setSelectedCity(e.target.value)}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition"
+                        className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white"
                         required
                       >
-                        {Object.keys(CITIES_COORDS).map((city) => (
+                        {Object.keys(citiesCoords).map((city) => (
                           <option key={city} value={city}>{city}</option>
                         ))}
                       </select>
                     </div>
 
-                    {/* Delivery Speeds quote selection */}
                     {quotes.length > 0 && (
                       <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Delivery Speed & Pricing
+                        <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
+                          {t('delivery_speed_pricing', 'Delivery Speed & Pricing')}
                         </label>
                         <div className="grid grid-cols-2 gap-3">
                           {quotes.map((q) => {
@@ -350,10 +395,10 @@ const CheckoutPage: React.FC = () => {
                                 key={q.code}
                                 type="button"
                                 onClick={() => setSelectedQuoteCode(q.code)}
-                                className={`p-3 border rounded-xl flex flex-col justify-center items-center transition ${
+                                className={`p-3 border rounded-btn flex flex-col justify-center items-center transition-all duration-200 ${
                                   isSel
                                     ? 'border-brand-600 bg-brand-50/10 text-brand-600'
-                                    : 'border-gray-200 dark:border-neutral-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-800'
+                                    : 'border-surface-border dark:border-surface-dark-border text-gray-500 dark:text-gray-400 hover:bg-surface-muted dark:hover:bg-white/5'
                                 }`}
                               >
                                 <span className="text-xs font-bold capitalize">{q.name}</span>
@@ -362,68 +407,56 @@ const CheckoutPage: React.FC = () => {
                             );
                           })}
                         </div>
-                        <span className="text-xs text-gray-400 italic block mt-1" title="Final shipping is confirmed by SokoniMax logistics after your item reaches our warehouse. We'll notify you before charging.">
-                          Estimated — confirmed after warehouse receipt
+                        <span className="text-[10px] text-gray-450 dark:text-gray-500 font-bold uppercase tracking-wide block mt-1">
+                          {t('estimated_shipping_notice', 'Estimated — confirmed after warehouse receipt')}
                         </span>
                       </div>
                     )}
 
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        <User size={14} /> Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        name="fullName"
-                        value={form.fullName}
-                        onChange={handleChange}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition"
-                        placeholder="Enter your full name"
-                        required
-                      />
-                    </div>
+                    <FormField
+                      id="fullName"
+                      name="fullName"
+                      label={t('first_name') + " & " + t('last_name') + " *"}
+                      type="text"
+                      required
+                      value={form.fullName}
+                      onChange={handleChange}
+                      placeholder={t('first_name')}
+                    />
 
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        <Phone size={14} /> Phone Number *
-                      </label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={form.phone}
-                        onChange={handleChange}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition"
-                        placeholder="+255 7XX XXX XXX"
-                        required
-                      />
-                    </div>
+                    <FormField
+                      id="phone"
+                      name="phone"
+                      label={t('phone_number') + " *"}
+                      type="tel"
+                      required
+                      value={form.phone}
+                      onChange={handleChange}
+                      placeholder="+255 7XX XXX XXX"
+                    />
 
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        <MapPin size={14} /> Delivery Address *
-                      </label>
-                      <input
-                        type="text"
-                        name="deliveryAddress"
-                        value={form.deliveryAddress}
-                        onChange={handleChange}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition"
-                        placeholder="Street, Area"
-                        required
-                      />
-                    </div>
+                    <FormField
+                      id="deliveryAddress"
+                      name="deliveryAddress"
+                      label={t('delivery_address') + " *"}
+                      type="text"
+                      required
+                      value={form.deliveryAddress}
+                      onChange={handleChange}
+                      placeholder="Street, Area"
+                    />
 
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                        Notes (optional)
+                    <div className="flex flex-col gap-1.5 w-full">
+                      <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
+                        {t('notes_optional', 'Notes (optional)')}
                       </label>
                       <textarea
                         name="notes"
                         value={form.notes}
                         onChange={handleChange}
                         rows={3}
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition resize-none"
-                        placeholder="Special delivery instructions..."
+                        className="flex w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white resize-none"
+                        placeholder={t('notes_placeholder', 'Special delivery instructions...')}
                       />
                     </div>
                   </div>
@@ -438,10 +471,10 @@ const CheckoutPage: React.FC = () => {
                   transition={{ duration: 0.3 }}
                   className="overflow-hidden"
                 >
-                  <div className="bg-brand-50 dark:bg-brand-900/20 p-4 rounded-xl border border-brand-100 dark:border-brand-800 mt-6">
-                    <p className="text-sm text-brand-700 dark:text-brand-300 flex items-center gap-2">
-                      <Shield size={16} />
-                      Your order will be held at our main warehouse. A secure pickup code will be generated upon arrival.
+                  <div className="bg-brand-50/10 dark:bg-brand-900/10 p-4 rounded-btn border border-brand-100/30 dark:border-brand-900/20 mt-6">
+                    <p className="text-xs font-bold text-brand-700 dark:text-brand-300 flex items-center gap-2">
+                      <Shield size={14} />
+                      {t('pickup_notice', 'Your order will be held at our main warehouse. A secure pickup code will be generated upon arrival.')}
                     </p>
                   </div>
                 </motion.div>
@@ -449,19 +482,21 @@ const CheckoutPage: React.FC = () => {
             </AnimatePresence>
           </div>
 
-          <button
+          <Button
             type="submit"
-            disabled={submitting}
-            className="w-full flex items-center justify-center gap-2 py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-bold rounded-xl transition shadow-xl shadow-brand-600/20"
+            loading={submitting}
+            className="w-full flex items-center justify-center gap-2 mt-4"
           >
-            <CreditCard size={20} />
-            {submitting ? 'Placing Order...' : `Pay Product Price — TSh ${finalTotal.toLocaleString()}`}
-          </button>
+            <CreditCard size={16} />
+            {t('pay_product_price', 'Pay Product Price — TSh {{price}}', { price: finalTotal.toLocaleString() })}
+          </Button>
         </form>
 
         {/* Order Summary */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-6 h-fit sticky top-24">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Order Summary (@{merchant})</h2>
+        <div className="card p-6 h-fit sticky top-24">
+          <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white uppercase mb-4">
+            {t('order_summary')} (@{merchant})
+          </h2>
           <div className="space-y-3 mb-4">
             {checkoutItems.map((item) => (
               <div key={item.productId} className="flex items-center gap-3">
@@ -469,13 +504,13 @@ const CheckoutPage: React.FC = () => {
                   src={item.image}
                   alt={item.name}
                   category={item.category}
-                  className="w-12 h-12 object-cover rounded"
+                  className="w-10 h-10 object-cover rounded-btn border border-surface-border dark:border-surface-dark-border"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.name}</p>
-                  <p className="text-xs text-gray-400">x{item.quantity}</p>
+                  <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{item.name}</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">x{item.quantity}</p>
                 </div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                <p className="text-xs font-black text-gray-900 dark:text-white">
                   TSh {(item.price * item.quantity).toLocaleString()}
                 </p>
               </div>
@@ -483,20 +518,22 @@ const CheckoutPage: React.FC = () => {
           </div>
 
           {/* Promo Code Input */}
-          <div className="border-t border-b dark:border-gray-700 py-3 my-4 space-y-2">
-            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Promo Code</label>
+          <div className="border-t border-b border-surface-border dark:border-surface-dark-border py-3 my-4 space-y-2">
+            <label className="block text-2xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              {t('promo_code', 'Promo Code')}
+            </label>
             {appliedPromo ? (
-              <div className="flex justify-between items-center bg-green-50 dark:bg-green-950/20 border border-green-100/50 dark:border-green-900/30 p-2.5 rounded-lg">
+              <div className="flex justify-between items-center bg-green-50 dark:bg-green-950/20 border border-green-100/50 dark:border-green-900/30 p-2 rounded-btn">
                 <div>
                   <span className="font-mono font-black text-xs text-green-700 dark:text-green-400">{appliedPromo.code}</span>
-                  <span className="text-[10px] text-green-600 dark:text-green-500 block">Applied successfully!</span>
+                  <span className="text-[10px] text-green-600 dark:text-green-500 block font-bold uppercase tracking-wider mt-0.5">Applied!</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleRemovePromo}
-                  className="text-xs font-bold text-red-500 hover:text-red-700 transition"
+                  className="text-2xs font-bold text-red-500 hover:text-red-700 transition uppercase tracking-wide"
                 >
-                  Remove
+                  {t('remove')}
                 </button>
               </div>
             ) : (
@@ -506,42 +543,42 @@ const CheckoutPage: React.FC = () => {
                   placeholder="e.g. SAVE10"
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                  className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white text-xs outline-none focus:ring-1 focus:ring-brand-500 font-mono"
+                  className="flex-1 p-2 border border-surface-border dark:border-surface-dark-border rounded-btn bg-white dark:bg-[#111] dark:text-white text-xs outline-none focus-visible:ring-1 focus-visible:ring-brand-500 font-mono"
                 />
-                <button
+                <Button
                   type="button"
                   onClick={handleApplyPromo}
                   disabled={validatingPromo || !promoCode.trim()}
-                  className="px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white rounded-lg text-xs font-bold transition shadow-sm"
+                  size="sm"
                 >
-                  {validatingPromo ? 'Applying...' : 'Apply'}
-                </button>
+                  {validatingPromo ? '...' : t('apply_btn', 'Apply')}
+                </Button>
               </div>
             )}
           </div>
 
-          <div className="border-t dark:border-gray-700 pt-3 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="font-medium text-gray-600 dark:text-gray-400">Product Subtotal</span>
-              <span className="font-medium text-gray-900 dark:text-white">
+          <div className="border-t border-surface-border dark:border-surface-dark-border pt-3 space-y-2 text-xs">
+            <div className="flex justify-between items-center font-bold">
+              <span className="text-gray-500 dark:text-gray-400">{t('subtotal')}</span>
+              <span className="text-gray-900 dark:text-white">
                 TSh {checkoutTotal.toLocaleString()}
               </span>
             </div>
             {appliedPromo && (
-              <div className="flex justify-between items-center text-green-600 dark:text-green-500 font-medium">
+              <div className="flex justify-between items-center text-green-600 dark:text-green-500 font-bold">
                 <span>Discount ({appliedPromo.code})</span>
                 <span>- TSh {Number(appliedPromo.discount_amount).toLocaleString()}</span>
               </div>
             )}
-            <div className="flex justify-between items-center">
-              <span className="font-medium text-gray-600 dark:text-gray-400">Shipping (Billed Later)</span>
-              <span className="font-medium text-amber-600 dark:text-amber-400 text-sm" title="Final shipping is confirmed by warehouse staff after your item is dropped off.">
-                {shippingMethod === 'PICKUP' ? 'Free' : (estimatedShippingFee > 0 ? `Est. TSh ${estimatedShippingFee.toLocaleString()}` : 'TBD')}
+            <div className="flex justify-between items-center font-bold">
+              <span className="text-gray-500 dark:text-gray-400">{t('shipping_billed_later', 'Shipping (Billed Later)')}</span>
+              <span className="text-brand-600 dark:text-brand-400 uppercase text-[10px] tracking-wide" title="Final shipping is confirmed by warehouse staff after your item is dropped off.">
+                {shippingMethod === 'PICKUP' ? t('free', 'Free') : (estimatedShippingFee > 0 ? `Est. TSh ${estimatedShippingFee.toLocaleString()}` : 'TBD')}
               </span>
             </div>
-            <div className="border-t dark:border-gray-700 pt-2 flex justify-between items-center">
-              <span className="font-bold text-gray-900 dark:text-white">Due Today</span>
-              <span className="text-xl font-black text-brand-600 dark:text-brand-400">
+            <div className="border-t border-surface-border dark:border-surface-dark-border pt-2 flex justify-between items-center">
+              <span className="font-extrabold text-sm text-gray-950 dark:text-white uppercase">{t('due_today', 'Due Today')}</span>
+              <span className="text-lg font-black text-brand-600 dark:text-brand-400">
                 TSh {finalTotal.toLocaleString()}
               </span>
             </div>

@@ -7,6 +7,10 @@ import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
 import { useDialog } from '../../components/ui/Dialogs';
 import ProductVariantsModal from './ProductVariantsModal';
+import { useTranslation } from 'react-i18next';
+import { Button } from '../../components/ui/Button';
+import { Spinner } from '../../components/ui/Spinner';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
   'electronics': ['Color', 'Storage Capacity'],
@@ -24,6 +28,7 @@ const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
 
 // ============ Dashboard Products ============
 const DashboardProducts: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { showConfirm } = useDialog();
   const [products, setProducts] = useState<any[]>([]);
@@ -345,8 +350,8 @@ const DashboardProducts: React.FC = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">My Products</h2>
-        <button
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t('my_products', 'My Products')}</h2>
+        <Button
           onClick={() => {
             setShowForm(!showForm);
             setEditingId(null);
@@ -355,11 +360,12 @@ const DashboardProducts: React.FC = () => {
             setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
           }}
           disabled={user?.tier === 'customer'}
-          className={`flex items-center gap-2 px-4 py-2 ${user?.tier === 'customer' ? 'bg-gray-400 cursor-not-allowed' : 'bg-brand-600 hover:bg-brand-700'} text-white rounded-lg transition text-sm`}
+          variant={showForm ? 'outline' : 'default'}
+          className="flex items-center gap-2"
         >
           <Plus size={16} />
-          {showForm ? 'Cancel' : 'New Product'}
-        </button>
+          {showForm ? t('cancel', 'Cancel') : t('new_product', 'New Product')}
+        </Button>
       </div>
 
       {user?.tier === 'customer' && (
@@ -602,13 +608,13 @@ const DashboardProducts: React.FC = () => {
       {/* Products Table */}
       {loading ? (
         <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+          <Spinner size="md" />
         </div>
       ) : products.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700">
-          <Package size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-gray-500">No products yet. Create your first listing!</p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title={t('no_products_yet', 'No products yet. Create your first listing!')}
+        />
       ) : (
         <>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
