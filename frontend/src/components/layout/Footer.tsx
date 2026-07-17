@@ -40,9 +40,9 @@ const Footer = () => {
 
       {/* Expanded content */}
       {expanded && (
-        <div className="container-page pb-12 pt-8 border-t border-surface-border/50 dark:border-surface-dark-border/50 grid grid-cols-1 md:grid-cols-4 gap-8 animate-slide-up">
+        <div className="container-page pb-12 pt-8 border-t border-surface-border/50 dark:border-surface-dark-border/50 grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-8 animate-slide-up">
           {/* Column 1: Brand & Bio */}
-          <div className="flex flex-col gap-3">
+          <div className="col-span-2 md:col-span-1 flex flex-col gap-3">
             <h5 className="font-bold text-gray-900 dark:text-white text-base tracking-tight">SokoniMax</h5>
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-xs">
               Your premier verified online marketplace for buying and selling in Tanzania. Quality products, secure logistics, and trusted local inspection.
@@ -50,7 +50,7 @@ const Footer = () => {
           </div>
           
           {/* Column 2: Shop & Explore */}
-          <div>
+          <div className="col-span-1">
             <h5 className="font-bold text-gray-900 dark:text-white text-sm mb-3">Shop & Explore</h5>
             <ul className="space-y-2">
               <li><Link to="/" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition">Home Marketplace</Link></li>
@@ -60,7 +60,7 @@ const Footer = () => {
           </div>
           
           {/* Column 3: Customer Support */}
-          <div>
+          <div className="col-span-1">
             <h5 className="font-bold text-gray-900 dark:text-white text-sm mb-3">Customer Support</h5>
             <ul className="space-y-2">
               <li><Link to="/help" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition">Help Center & FAQ</Link></li>
@@ -70,7 +70,7 @@ const Footer = () => {
           </div>
           
           {/* Column 4: Stay Connected */}
-          <div className="flex flex-col gap-3">
+          <div className="col-span-2 md:col-span-1 flex flex-col gap-3">
             <h5 className="font-bold text-gray-900 dark:text-white text-sm">Stay Connected</h5>
             <div className="flex gap-2">
               {settings.facebook_url && (
