@@ -12,6 +12,8 @@ interface User {
   inspector_level: string;
   subscription_active?: boolean;
   subscription_end_date?: string | null;
+  is_team_member?: boolean;
+  team_permissions?: Record<string, boolean>;
 }
 
 interface AuthContextType {
@@ -54,6 +56,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           inspector_level: payload.inspector_level || '',
           subscription_active: payload.subscription_active,
           subscription_end_date: payload.subscription_end_date,
+          is_team_member: payload.is_team_member === true || payload.is_team_member === 'true',
+          team_permissions: typeof payload.team_permissions === 'string' ? JSON.parse(payload.team_permissions) : (payload.team_permissions || {}),
         });
       } else {
         logout();
@@ -77,6 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('is_superuser', String(payload.is_superuser || false));
       localStorage.setItem('is_inspector', String(payload.is_inspector || false));
       localStorage.setItem('inspector_level', payload.inspector_level || '');
+      localStorage.setItem('is_team_member', String(payload.is_team_member || false));
+      localStorage.setItem('team_permissions', JSON.stringify(payload.team_permissions || {}));
     } else {
       localStorage.setItem('user_id', String(userData.user_id));
       localStorage.setItem('username', userData.username);
@@ -86,6 +92,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('is_superuser', String(userData.is_superuser || false));
       localStorage.setItem('is_inspector', String(userData.is_inspector || false));
       localStorage.setItem('inspector_level', userData.inspector_level || '');
+      localStorage.setItem('is_team_member', String(userData.is_team_member || false));
+      localStorage.setItem('team_permissions', JSON.stringify(userData.team_permissions || {}));
     }
     
     setIsAuthenticated(true);

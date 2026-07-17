@@ -10,6 +10,11 @@ import toast from 'react-hot-toast';
 import ProductCard from '../components/ProductCard';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { useTranslation } from 'react-i18next';
+import { Button } from '../components/ui/Button';
+import { FormField } from '../components/ui/Input';
+import { Modal } from '../components/ui/Modal';
+import { Spinner } from '../components/ui/Spinner';
+import { EmptyState } from '../components/ui/EmptyState';
 
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
@@ -155,17 +160,19 @@ const ProfilePage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-brand-600 border-t-transparent"></div>
+        <Spinner size="md" />
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="container-page py-16 text-center">
-        <Info size={40} className="mx-auto text-gray-400 mb-4 animate-bounce" />
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Profile Not Found</h2>
-        <p className="text-sm text-gray-500 mt-2">The user @{username} does not exist or has been disabled.</p>
+      <div className="container-page py-16">
+        <EmptyState
+          icon={Info}
+          title={t('profile_not_found_title', 'Profile Not Found')}
+          description={t('profile_not_found_desc', 'The user @{{username}} does not exist or has been disabled.', { username })}
+        />
       </div>
     );
   }
@@ -378,10 +385,10 @@ const ProfilePage: React.FC = () => {
         {activeTab === 'listings' ? (
           <div className="pt-2">
             {products.length === 0 ? (
-              <div className="p-16 text-center text-gray-400 dark:text-neutral-500 bg-gray-50/50 dark:bg-neutral-900/30 border border-dashed border-gray-200 dark:border-neutral-800 rounded-2xl max-w-md mx-auto">
-                <ShoppingBag size={32} className="mx-auto mb-3 opacity-40 text-brand-500" />
-                <p className="text-sm font-semibold">{t('no_active_products')}</p>
-              </div>
+              <EmptyState
+                icon={ShoppingBag}
+                title={t('no_active_products')}
+              />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 items-stretch p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
                 {products.map((p) => (
@@ -489,92 +496,76 @@ const ProfilePage: React.FC = () => {
           </div>
         )}
 
-      </div>
-
-      {/* Edit Profile Modal Dialog */}
-      {isEditing && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 w-full max-w-lg p-6 sm:p-8 animate-scale-in relative shadow-2xl">
-            <h2 className="text-xl font-black text-gray-900 dark:text-white mb-6">Edit Profile details</h2>
-            
-            <form onSubmit={handleUpdate} className="space-y-4">
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Bio</label>
-                <textarea 
-                  rows={3} 
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white focus:border-gray-900 dark:focus:border-white dark:focus:ring-gray-900 dark:focus:ring-white outline-none resize-none transition" 
-                  value={editForm.bio} 
-                  onChange={(e) => setEditForm({...editForm, bio: e.target.value})} 
-                  placeholder="Tell buyers about yourself..." 
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Location</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white focus:border-gray-900 dark:focus:border-white outline-none transition" 
-                    value={editForm.location} 
-                    onChange={(e) => setEditForm({...editForm, location: e.target.value})} 
-                    placeholder="e.g. Dar es Salaam" 
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Phone Number</label>
-                  <input 
-                    type="tel" 
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white focus:border-gray-900 dark:focus:border-white outline-none transition" 
-                    value={editForm.phone_number} 
-                    onChange={(e) => setEditForm({...editForm, phone_number: e.target.value})} 
-                    placeholder="+255..." 
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Website URL</label>
-                  <input 
-                    type="url" 
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white focus:border-gray-900 dark:focus:border-white outline-none transition" 
-                    value={editForm.website} 
-                    onChange={(e) => setEditForm({...editForm, website: e.target.value})} 
-                    placeholder="https://..." 
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Instagram Username</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850 text-sm focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white focus:border-gray-900 dark:focus:border-white outline-none transition" 
-                    value={editForm.instagram_username} 
-                    onChange={(e) => setEditForm({...editForm, instagram_username: e.target.value})} 
-                    placeholder="@username" 
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-4 pt-6 border-t border-gray-100 dark:border-gray-800 mt-6">
-                <button 
-                  type="submit" 
-                  disabled={saving} 
-                  className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-brand-500/20 active:scale-95 disabled:opacity-50 transition"
-                >
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setIsEditing(false)} 
-                  className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-bold text-gray-600 dark:text-gray-400 transition active:scale-95"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+      </div>      {/* Edit Profile Modal Dialog */}
+      <Modal
+        isOpen={isEditing}
+        onClose={() => setIsEditing(false)}
+        title={t('edit_profile')}
+        size="md"
+      >
+        <form onSubmit={handleUpdate} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">Bio</label>
+            <textarea 
+              rows={3} 
+              className="w-full px-3 py-2 rounded-btn border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#111] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition resize-none shadow-sm" 
+              value={editForm.bio} 
+              onChange={(e) => setEditForm({...editForm, bio: e.target.value})} 
+              placeholder={t('bio_placeholder', 'Tell buyers about yourself...')} 
+            />
           </div>
-        </div>
-      )}
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              label={t('location', 'Location')}
+              value={editForm.location}
+              onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+              placeholder="e.g. Dar es Salaam"
+            />
+            <FormField
+              label={t('phone_number', 'Phone Number')}
+              type="tel"
+              value={editForm.phone_number}
+              onChange={(e) => setEditForm({...editForm, phone_number: e.target.value})}
+              placeholder="+255..."
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              label={t('website_url', 'Website URL')}
+              type="url"
+              value={editForm.website}
+              onChange={(e) => setEditForm({...editForm, website: e.target.value})}
+              placeholder="https://..."
+            />
+            <FormField
+              label={t('instagram_username', 'Instagram Username')}
+              value={editForm.instagram_username}
+              onChange={(e) => setEditForm({...editForm, instagram_username: e.target.value})}
+              placeholder="@username"
+            />
+          </div>
+
+          <div className="flex gap-4 pt-6 border-t border-surface-border dark:border-surface-dark-border mt-6">
+            <Button
+              type="submit"
+              loading={saving}
+              className="flex-1"
+            >
+              {t('save_changes', 'Save Changes')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEditing(false)}
+              className="flex-1"
+            >
+              {t('cancel', 'Cancel')}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Lightbox Modal */}
       {selectedLightboxImage && (

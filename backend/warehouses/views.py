@@ -278,9 +278,18 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class WarehouseIntakeViewSet(viewsets.ModelViewSet):
-    queryset = WarehouseIntake.objects.select_related('warehouse', 'order', 'intake_by').all()
     serializer_class = WarehouseIntakeSerializer
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return WarehouseIntake.objects.none()
+        from uzachuo.permissions import has_staff_permission
+        if user.is_superuser or has_staff_permission(user, 'can_manage_logistics'):
+            return WarehouseIntake.objects.select_related('warehouse', 'order', 'intake_by').all()
+        assigned_warehouse_ids = WarehouseStaffAssignment.objects.filter(user=user).values_list('warehouse_id', flat=True)
+        return WarehouseIntake.objects.filter(warehouse_id__in=assigned_warehouse_ids).select_related('warehouse', 'order', 'intake_by')
 
     def perform_create(self, serializer):
         warehouse = serializer.validated_data['warehouse']
@@ -359,15 +368,31 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
         serializer.save(intake_by=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
-        if not request.user.is_superuser:
+        instance = self.get_object()
+        user = request.user
+        is_allowed = user.is_superuser
+        if not is_allowed:
+            is_allowed = WarehouseStaffAssignment.objects.filter(
+                user=user, warehouse=instance.warehouse, is_manager=True
+            ).exists()
+            
+        if not is_allowed:
             from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied("Only superusers can delete these records.")
+            raise PermissionDenied("Only warehouse managers or superusers can delete these records.")
         return super().destroy(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        if not request.user.is_superuser:
+        instance = self.get_object()
+        user = request.user
+        is_allowed = user.is_superuser
+        if not is_allowed:
+            is_allowed = WarehouseStaffAssignment.objects.filter(
+                user=user, warehouse=instance.warehouse, is_manager=True
+            ).exists()
+            
+        if not is_allowed:
             from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied("Only superusers can update these records.")
+            raise PermissionDenied("Only warehouse managers or superusers can update these records.")
         return super().update(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'], url_path='preview-order')

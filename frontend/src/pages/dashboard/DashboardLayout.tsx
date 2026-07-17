@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 import SettingsPage from './SettingsPage';
 
 const HelpCenterPage = lazy(() => import('./HelpCenterPage'));
@@ -13,28 +14,32 @@ import DashboardOrders from './DashboardOrders';
 import PaymentNumbersManager from './PaymentNumbersManager';
 import BillingPage from './BillingPage';
 import TeamManagerPage from './TeamManagerPage';
+import MyTeamPage from './MyTeamPage';
 
 // ============ Dashboard Layout ============
 const DashboardLayout: React.FC = () => {
+  const { t } = useTranslation();
   const location = useLocation();
-
-  const isBusiness = localStorage.getItem('tier') === 'business';
-  const isSuperuser = localStorage.getItem('is_superuser') === 'true';
-
-  const navItems = [
-    { path: '/dashboard', label: 'Overview', icon: LayoutDashboard },
-    { path: '/dashboard/products', label: 'Products', icon: Package },
-    { path: '/dashboard/orders', label: 'Incoming Orders', icon: ShoppingCart },
-    { path: '/dashboard/promotions', label: 'Promotions', icon: Megaphone },
-    { path: '/dashboard/billing', label: 'Billing & Commission', icon: Wallet },
-    { path: '/dashboard/payment-numbers', label: 'Payment Numbers', icon: CreditCard },
-  ];
-
   const { user } = useAuth();
 
-  if (isBusiness) {
-    navItems.push({ path: '/dashboard/team', label: 'Team Members', icon: Shield });
-  }
+  const isBusiness = user?.tier === 'business' || localStorage.getItem('tier') === 'business';
+  const isWorker = user?.tier === 'worker' || localStorage.getItem('tier') === 'worker';
+  const isSuperuser = user?.is_superuser || localStorage.getItem('is_superuser') === 'true';
+
+  const perms = user?.team_permissions || {};
+
+  const allNavItems = [
+    { path: '/dashboard', label: t('overview', 'Overview'), icon: LayoutDashboard, show: !isWorker || perms.view_analytics },
+    { path: '/dashboard/products', label: t('products', 'Products'), icon: Package, show: !isWorker || perms.manage_products },
+    { path: '/dashboard/orders', label: t('incoming_orders', 'Incoming Orders'), icon: ShoppingCart, show: !isWorker || perms.manage_orders },
+    { path: '/dashboard/promotions', label: t('promotions', 'Promotions'), icon: Megaphone, show: !isWorker || perms.manage_products },
+    { path: '/dashboard/billing', label: t('billing_commission', 'Billing & Commission'), icon: Wallet, show: !isWorker || perms.view_analytics },
+    { path: '/dashboard/payment-numbers', label: t('payment_numbers', 'Payment Numbers'), icon: CreditCard, show: !isWorker || perms.view_analytics },
+    { path: '/dashboard/team', label: t('team_members', 'Team Members'), icon: Shield, show: isBusiness },
+    { path: '/dashboard/my-team', label: t('teams', 'Teams'), icon: Shield, show: isWorker },
+  ];
+
+  const navItems = allNavItems.filter(item => item.show);
 
   return (
     <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6">
@@ -57,17 +62,17 @@ const DashboardLayout: React.FC = () => {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sidebar */}
         <aside className={`w-full lg:w-56 shrink-0 ${location.pathname !== '/dashboard' ? 'hidden lg:block' : ''}`}>
-        <nav className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-2 space-y-1">
+        <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                   isActive
                     ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
                 }`}
               >
                 <item.icon size={18} />
@@ -78,39 +83,39 @@ const DashboardLayout: React.FC = () => {
 
           {isSuperuser && (
             <>
-              <hr className="my-2 border-gray-100 dark:border-gray-700" />
+              <hr className="my-2 border-surface-border dark:border-surface-dark-border" />
               <Link
                 to="/staff-admin"
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-brand-600 dark:text-brand-400 font-bold hover:bg-brand-50 dark:hover:bg-brand-900/10 transition"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm text-brand-600 dark:text-brand-400 font-bold hover:bg-brand-50 dark:hover:bg-brand-900/10 transition"
               >
                 <Shield size={18} />
-                Staff Admin
+                {t('staff_admin', 'Staff Admin')}
               </Link>
             </>
           )}
 
-          <hr className="my-2 border-gray-100 dark:border-gray-700" />
+          <hr className="my-2 border-surface-border dark:border-surface-dark-border" />
           <Link
             to="/dashboard/settings"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
               location.pathname.startsWith('/dashboard/settings')
                 ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
             }`}
           >
             <Settings size={18} />
-            Account Settings
+            {t('account_settings', 'Account Settings')}
           </Link>
           <Link
             to="/dashboard/help-center"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
               location.pathname.startsWith('/dashboard/help-center')
                 ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
             }`}
           >
             <HelpCircle size={18} />
-            Help Center
+            {t('help_center', 'Help Center')}
           </Link>
         </nav>
       </aside>
@@ -126,6 +131,7 @@ const DashboardLayout: React.FC = () => {
             <Route path="billing" element={<BillingPage />} />
             <Route path="payment-numbers" element={<PaymentNumbersManager />} />
             {isBusiness && <Route path="team" element={<TeamManagerPage />} />}
+            {isWorker && <Route path="my-team" element={<MyTeamPage />} />}
             <Route path="settings" element={<SettingsPage />} />
             <Route path="help-center" element={<HelpCenterPage />} />
           </Routes>

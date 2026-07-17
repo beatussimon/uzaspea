@@ -6,6 +6,11 @@ import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, Shield
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, SELLER_ADVANCE_MAP } from '../../constants/orderStatus';
+import { useTranslation } from 'react-i18next';
+import { useDialog } from '../../components/ui/Dialogs';
+import { Spinner } from '../../components/ui/Spinner';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 // ============ Incoming Orders (Seller) ============
 const fmtOrderDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -42,6 +47,8 @@ const getStatusExplanation = (status: string) => {
 };
 
 const DashboardOrders: React.FC = () => {
+  const { t } = useTranslation();
+  const { showPrompt } = useDialog();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -151,7 +158,10 @@ const DashboardOrders: React.FC = () => {
   const handleAdvance = async (orderId: number, nextStatus: string, notes: string = "", warehouseCode?: string) => {
     let delivery_code;
     if (nextStatus === 'DELIVERED') {
-      delivery_code = prompt('Enter the 6-digit delivery code provided by the buyer:');
+      delivery_code = await showPrompt(
+        t('enter_delivery_code_title', 'Delivery Code Verification'),
+        t('enter_delivery_code_placeholder', 'Enter the 6-digit code provided by the buyer...')
+      );
       if (!delivery_code) return; // Cancel if no code provided
     }
     setAdvancing(orderId);
@@ -169,7 +179,10 @@ const DashboardOrders: React.FC = () => {
   };
 
   const handleCancel = async (orderId: number) => {
-    const reason = prompt('Enter cancellation reason (sent to customer):');
+    const reason = await showPrompt(
+      t('cancel_order_reason_title', 'Cancel Order'),
+      t('cancel_order_reason_placeholder', 'Enter cancellation reason (sent to customer):')
+    );
     if (reason === null) return;
     setAdvancing(orderId);
     try {
@@ -222,17 +235,21 @@ const DashboardOrders: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
-      ) : orders.length === 0 ? (
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-          <ShoppingCart size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-          <p className="text-gray-500 font-medium">No incoming orders found</p>
-          {filterStatus && <button onClick={() => setFilterStatus('')} className="text-brand-600 text-sm font-bold mt-2 hover:underline">Clear Filter</button>}
+        <div className="flex justify-center py-12">
+          <Spinner size="md" />
         </div>
+      ) : orders.length === 0 ? (
+        <EmptyState
+          icon={ShoppingCart}
+          title={t('no_incoming_orders', 'No incoming orders found')}
+          action={filterStatus ? {
+            label: t('clear_filter', 'Clear Filter'),
+            onClick: () => setFilterStatus(''),
+          } : undefined}
+        />
       ) : (
         <div className="space-y-4">
           {orders.map((order: any) => {
-            const cfg = ORDER_STATUS_CFG[order.status] || ORDER_STATUS_CFG.CART;
             const isExpanded = expandedId === order.id;
             const getNextVehicleStatus = (st: string) => {
                if (st === 'PAID') return 'PROCESSING';
@@ -282,11 +299,14 @@ const DashboardOrders: React.FC = () => {
                   
                   <div className="flex items-center gap-6 shrink-0">
                     <div className="flex flex-col items-end gap-1">
-                        <span className={`inline-block px-3 py-1 mb-1 text-[9px] font-black rounded-full uppercase tracking-[0.15em] shadow-sm ${cfg.bg} ${cfg.color}`}>
-                            {cfg.label}
-                        </span>
+                        <StatusBadge status={order.status} size="sm" className="mb-1" />
                         <div className="text-right">
                           <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Subtotal: TSh {(order.seller_subtotal || 0).toLocaleString()}</p>
+                          {order.promo_code_code && (
+                            <p className="text-[10px] text-green-500 font-medium">
+                              Promo: {order.promo_code_code} ({order.promo_code_details?.discount_type === 'percentage' ? `${parseInt(order.promo_code_details.value)}%` : `TSh ${parseInt(order.promo_code_details.value).toLocaleString()}`} off) -TSh {parseInt(order.discount_amount || 0).toLocaleString()}
+                            </p>
+                          )}
                           <p className="text-[10px] text-red-500 font-medium">Fee: -TSh {(order.seller_commission || 0).toLocaleString()}</p>
                           <p className="font-black text-brand-600 dark:text-brand-400 text-sm mt-0.5 border-t border-gray-100 dark:border-gray-700 pt-0.5 tracking-tighter">
                             Net: TSh {(order.seller_net_payout || 0).toLocaleString()}
@@ -397,6 +417,17 @@ const DashboardOrders: React.FC = () => {
                                 </div>
                                 ))}
                             </div>
+                            {order.promo_code_code && (
+                              <div className="mt-4 p-3.5 bg-green-50/50 dark:bg-green-950/10 border border-green-100/50 dark:border-green-900/30 rounded-xl flex items-center justify-between text-xs">
+                                <div className="space-y-0.5">
+                                  <p className="font-bold text-green-700 dark:text-green-400">Promo Applied: {order.promo_code_code}</p>
+                                  <p className="text-[10px] text-gray-500">Discount type: {order.promo_code_details?.discount_type === 'percentage' ? 'Percentage' : 'Fixed Amount'}</p>
+                                </div>
+                                <span className="font-bold text-gray-700 dark:text-gray-300">
+                                  {order.promo_code_details?.discount_type === 'percentage' ? `${parseInt(order.promo_code_details.value)}%` : `TSh ${parseInt(order.promo_code_details.value).toLocaleString()}`} off (-TSh {parseInt(order.discount_amount || 0).toLocaleString()})
+                                </span>
+                              </div>
+                            )}
                         </div>
 
                         {/* Right: Timeline & Actions (Cols 2) */}
@@ -526,7 +557,7 @@ const DashboardOrders: React.FC = () => {
 
             {loadingMore && (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
+                <Spinner size="sm" />
               </div>
             )}
 

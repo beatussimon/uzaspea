@@ -11,12 +11,13 @@ import { ChatToastContainer } from './components/ChatToast';
 
 
 import LandingPage from './pages/LandingPage';
-import ProductList from './ProductList';
+import ProductList from './pages/ProductList';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
+import TeamsPage from './pages/TeamsPage';
 import MobileBottomNav from './components/MobileBottomNav';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -60,7 +61,7 @@ const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = fal
     if (requireInspector && !user.is_inspector) return <Navigate to="/dashboard" replace />;
     if (requireSeller) {
       const tier = user?.tier;
-      const isSeller = tier === 'seller_pro' || tier === 'business' || user.is_staff || user.is_superuser;
+      const isSeller = tier === 'seller_pro' || tier === 'business' || tier === 'worker' || user.is_staff || user.is_superuser;
       if (!isSeller) return <Navigate to="/upgrade" replace />;
     }
   }
@@ -122,6 +123,7 @@ function App() {
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/register" element={<RegisterPage />} />
                       <Route path="/profile/:username" element={<ProfilePage />} />
+                      <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
                       <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
                       <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
                       <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
@@ -138,7 +140,7 @@ function App() {
                   position="top-right"
                   toastOptions={{
                     duration: 3000,
-                    style: { background: '#1f2937', color: '#f9fafb', borderRadius: '10px', fontSize: '13px', padding: '10px 16px' },
+                    style: { background: '#111111', color: '#f9fafb', border: '1px solid #262626', borderRadius: '12px', fontSize: '13px', padding: '10px 16px' },
                     success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
                     error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
                   }}

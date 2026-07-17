@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { Plus, Megaphone, Upload, Smartphone, Trash2, Ticket, Percent, Calendar, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useDialog } from '../../components/ui/Dialogs';
 
 // ============ Dashboard Promotions ============
 const DashboardPromotions: React.FC = () => {
+  const { t } = useTranslation();
+  const { showConfirm } = useDialog();
   const [activeTab, setActiveTab] = useState<'sponsored' | 'coupons'>('sponsored');
 
   // Sponsored Listing State
@@ -182,7 +186,11 @@ const DashboardPromotions: React.FC = () => {
   };
 
   const handleDeletePromo = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this promo code? This action cannot be undone.")) return;
+    const confirmed = await showConfirm(
+      t('delete_promo_confirm', 'Are you sure you want to delete this promo code? This action cannot be undone.'),
+      t('delete_promo_title', 'Delete Promo Code')
+    );
+    if (!confirmed) return;
     try {
       await api.delete(`/api/promo-codes/${id}/`);
       toast.success('Promo code deleted successfully.');

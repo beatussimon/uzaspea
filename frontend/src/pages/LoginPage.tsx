@@ -3,9 +3,13 @@ import { Link, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Button } from '../components/ui/Button';
+import { FormField } from '../components/ui/Input';
 
 const LoginPage: React.FC = () => {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -42,8 +46,7 @@ const LoginPage: React.FC = () => {
       
       setIsBanned(false);
       
-      toast.success('Login successful!');
-      // Redirect back to where user was if sent here by an expired session
+      toast.success(t('login_success', 'Login successful!'));
       const redirectTo = sessionStorage.getItem('loginRedirect') || '/';
       sessionStorage.removeItem('loginRedirect');
       window.location.href = redirectTo;
@@ -52,7 +55,7 @@ const LoginPage: React.FC = () => {
           setIsBanned(true);
           localStorage.setItem('account_banned', 'true');
       } else {
-          toast.error(err.response?.data?.detail || 'Invalid username or password');
+          toast.error(err.response?.data?.detail || t('login_error', 'Invalid username or password'));
       }
     } finally {
       setLoading(false);
@@ -63,41 +66,47 @@ const LoginPage: React.FC = () => {
     <div className="flex justify-center items-center py-20 px-4">
       <div className="card w-full max-w-md p-6 sm:p-8 animate-fade-in">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Sign in to your SokoniMax account</p>
+          <h1 className="text-heading-md font-black text-gray-900 dark:text-white uppercase mb-2">
+            {t('welcome_back')}
+          </h1>
+          <p className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            {t('login_or_create')}
+          </p>
         </div>
 
         {isBanned && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl">
-            <h3 className="text-red-800 dark:text-red-400 font-black text-sm mb-1 uppercase tracking-wider flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-              Account Banned
+          <div className="mb-6 p-4 bg-red-100/10 border border-red-500/20 rounded-card flex flex-col gap-1.5">
+            <h3 className="text-red-500 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+              <AlertTriangle size={14} />
+              {t('account_banned_title', 'Account Banned')}
             </h3>
-            <p className="text-xs text-red-700 dark:text-red-300">
-              Your account has been permanently restricted by SokoniMax administrators due to policy violations. You can no longer access this system.
+            <p className="text-xs text-red-650 dark:text-red-300">
+              {t('account_banned_desc', 'Your account has been permanently restricted by SokoniMax administrators due to policy violations.')}
             </p>
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
-            <input
-              type="text"
-              required
-              className="input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
-            <div className="relative">
+          <FormField
+            id="username"
+            label={t('username')}
+            type="text"
+            required
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder={t('username')}
+          />
+
+          <div className="flex flex-col gap-1.5 w-full">
+            <label htmlFor="password" className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
+              {t('password')}
+            </label>
+            <div className="relative w-full">
               <input
-                type={showPassword ? "text" : "password"}
+                id="password"
+                type={showPassword ? 'text' : 'password'}
                 required
-                className="input pr-10"
+                className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-surface-dark-border dark:bg-[#111] dark:text-white pr-10"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -105,26 +114,26 @@ const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
-          
-          <button
+
+          <Button
             type="submit"
-            disabled={loading}
-            className="w-full btn-primary py-2.5 mt-2"
+            loading={loading}
+            className="w-full mt-2"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
+            {t('sign_in')}
+          </Button>
         </form>
 
-        <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
-          Don't have an account?{' '}
-          <Link to="/register" className="relative z-10 font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 hover:underline">
-            Register here
+        <p className="text-center text-sm text-gray-500 mt-6">
+          {t('dont_have_account')}{' '}
+          <Link to="/register" className="font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 hover:underline">
+            {t('create_account_link')}
           </Link>
         </p>
       </div>

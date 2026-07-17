@@ -539,7 +539,7 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True, null=True)
     tier = models.CharField(
         max_length=20,
-        choices=[('customer', 'Customer'), ('seller_pro', 'Seller Pro'), ('business', 'Business')],
+        choices=[('customer', 'Customer'), ('worker', 'Worker'), ('seller_pro', 'Seller Pro'), ('business', 'Business')],
         default='customer'
     )
     location = models.CharField(max_length=100, blank=True)
@@ -1116,20 +1116,84 @@ def invalidate_category_cache(sender, instance, **kwargs):
 
 TEAM_ROLE_PRESETS = {
     'store_manager': {
-        'label': 'Store manager',
+        'label': 'Store Manager',
         'permissions': {'manage_orders': True, 'manage_products': True, 'manage_messages': True, 'view_analytics': True},
+        'description': 'Full administrative control over store products, orders, communications, and business performance tracking.',
+        'tasks': [
+            'Monitor and process customer orders',
+            'Update product catalog and inventory',
+            'Communicate with customers via messages',
+            'Analyze sales and customer metrics'
+        ]
     },
     'inventory': {
-        'label': 'Inventory staff',
+        'label': 'Inventory Staff',
         'permissions': {'manage_orders': False, 'manage_products': True, 'manage_messages': False, 'view_analytics': False},
+        'description': 'Responsible for managing catalog items, stock levels, and product descriptions.',
+        'tasks': [
+            'Create and edit product listings',
+            'Update inventory counts and pricing',
+            'Manage product categories'
+        ]
     },
     'support_staff': {
-        'label': 'Support staff',
+        'label': 'Support Staff',
         'permissions': {'manage_orders': True, 'manage_products': False, 'manage_messages': True, 'view_analytics': False},
+        'description': 'Handles client questions, support requests, and processes incoming orders.',
+        'tasks': [
+            'Respond to client messages and queries',
+            'Manage and fulfill customer orders',
+            'Track customer shipment requests'
+        ]
     },
     'bookkeeper': {
         'label': 'Bookkeeper',
         'permissions': {'manage_orders': False, 'manage_products': False, 'manage_messages': False, 'view_analytics': True},
+        'description': 'Monitors revenue, processes, billing information, and checks overall store sales statistics.',
+        'tasks': [
+            'Generate revenue and billing reports',
+            'Verify store subscription status',
+            'Review dashboard transaction logs'
+        ]
+    },
+    'cashier': {
+        'label': 'Cashier',
+        'permissions': {'manage_orders': True, 'manage_products': False, 'manage_messages': False, 'view_analytics': False},
+        'description': 'Focuses on confirming order statuses and verifying payments.',
+        'tasks': [
+            'Review pending order transactions',
+            'Update order status to paid / processing'
+        ]
+    },
+    'sales_representative': {
+        'label': 'Sales Representative',
+        'permissions': {'manage_orders': True, 'manage_products': True, 'manage_messages': True, 'view_analytics': False},
+        'description': 'Responsible for client engagement, catalog optimization, and sales processing.',
+        'tasks': [
+            'Consult clients on product specifications',
+            'Assist customers through checkout processes',
+            'Maintain product details'
+        ]
+    },
+    'marketing_specialist': {
+        'label': 'Marketing Specialist',
+        'permissions': {'manage_orders': False, 'manage_products': True, 'manage_messages': True, 'view_analytics': True},
+        'description': 'Develops campaigns, launches promos, and tracks engagement metrics.',
+        'tasks': [
+            'Create discount vouchers and promo codes',
+            'Manage product showcase listings',
+            'Analyze marketing campaign effectiveness'
+        ]
+    },
+    'logistics_coordinator': {
+        'label': 'Logistics Coordinator',
+        'permissions': {'manage_orders': True, 'manage_products': True, 'manage_messages': False, 'view_analytics': True},
+        'description': 'Handles warehouse allocations, inventory movement, and dispatch coordination.',
+        'tasks': [
+            'Coordinate shipment fulfillment times',
+            'Liaise with local warehousing team members',
+            'Inspect product quality checks'
+        ]
     },
 }
 

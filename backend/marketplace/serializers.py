@@ -276,6 +276,7 @@ class OrderSerializer(serializers.ModelSerializer):
     logistics_info = serializers.SerializerMethodField()
     promo_code = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
     promo_code_code = serializers.CharField(source='promo_code.code', read_only=True)
+    promo_code_details = serializers.SerializerMethodField(read_only=True)
     discount_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
     class Meta:
@@ -285,7 +286,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'shipping_method', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
             'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout',
-            'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount'
+            'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount', 'promo_code_details'
         ]
         read_only_fields = ['user', 'total_amount']
 
@@ -397,6 +398,15 @@ class OrderSerializer(serializers.ModelSerializer):
             # Only the buyer and staff can see the delivery code
             if request.user == obj.user or request.user.is_staff:
                 return obj.delivery_code
+        return None
+
+    def get_promo_code_details(self, obj):
+        if obj.promo_code:
+            return {
+                'code': obj.promo_code.code,
+                'discount_type': obj.promo_code.discount_type,
+                'value': float(obj.promo_code.value),
+            }
         return None
 
     def create(self, validated_data):
@@ -780,6 +790,8 @@ class TeamMemberSerializer(serializers.ModelSerializer):
         User = get_user_model()
         try:
             user = User.objects.get(username=value)
+            if user.profile.tier != 'customer':
+                raise serializers.ValidationError("Invited team members must have a regular customer account (not a seller or business account).")
             return user
         except User.DoesNotExist:
             raise serializers.ValidationError("User with this username does not exist.")

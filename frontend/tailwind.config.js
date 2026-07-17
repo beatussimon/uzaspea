@@ -15,7 +15,9 @@ export default {
       },
       colors: {
         gray: colors.neutral,
-        brand: colors.yellow,
+        brand: colors.amber,
+        warning: colors.orange,
+        info: colors.blue,
         surface: {
           DEFAULT: '#ffffff',
           muted: '#f9fafb',
