@@ -51,11 +51,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       {/* Main Title and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-0.5">
-          <h1 className="text-heading-md font-black tracking-tight text-gray-900 dark:text-white uppercase">
+          <h1 className="text-heading-md font-black tracking-tight text-gray-900 dark:text-white">
             {title}
           </h1>
           {subtitle && (
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
               {subtitle}
             </p>
           )}

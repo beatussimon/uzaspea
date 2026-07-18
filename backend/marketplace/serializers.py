@@ -670,19 +670,29 @@ class MessageSerializer(serializers.ModelSerializer):  # FIX B-12
 class ConversationSerializer(serializers.ModelSerializer):  # FIX B-12
     buyer_username = serializers.CharField(source='buyer.username', read_only=True)
     seller_username = serializers.CharField(source='seller.username', read_only=True)
+    buyer_verified = serializers.BooleanField(source='buyer.profile.is_verified', read_only=True)
+    buyer_tier = serializers.CharField(source='buyer.profile.tier', read_only=True)
     seller_verified = serializers.BooleanField(source='seller.profile.is_verified', read_only=True)
     seller_tier = serializers.CharField(source='seller.profile.tier', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True, default=None)
+    product_image = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Conversation
         fields = ['id', 'buyer', 'buyer_username', 'seller', 'seller_username',
-                  'seller_verified', 'seller_tier',
-                  'product', 'product_name', 'last_message', 'unread_count',
+                  'buyer_verified', 'buyer_tier', 'seller_verified', 'seller_tier',
+                  'product', 'product_name', 'product_image', 'last_message', 'unread_count',
                   'created_at', 'updated_at']
         read_only_fields = ['buyer', 'created_at', 'updated_at']
+
+    def get_product_image(self, obj):
+        if obj.product:
+            first_img = obj.product.images.first()
+            if first_img:
+                return first_img.image.url
+        return None
 
     def get_last_message(self, obj):
         msg = obj.messages.order_by('-created_at').first()
