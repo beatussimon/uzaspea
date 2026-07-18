@@ -47,8 +47,11 @@ export interface Conversation {
   seller_username: string;
   seller_verified?: boolean;
   seller_tier?: string;
+  buyer_verified?: boolean;
+  buyer_tier?: string;
   product?: number;
   product_name?: string;
+  product_image?: string;
   last_message?: Message | null;
   unread_count: number;
   created_at: string;

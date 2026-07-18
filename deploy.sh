@@ -37,6 +37,9 @@ ssh -o StrictHostKeyChecking=no -i $SSH_KEY $HOST << 'EOF'
   echo -e "\n=> Seeding the database with essential data..."
   docker compose -f docker-compose.prod.yml exec -T backend sh -c "SEED_ADMIN_PASSWORD=\${SEED_ADMIN_PASSWORD} python manage.py seed"
   
+  echo -e "\n=> Cleaning up duplicate conversation threads..."
+  docker compose -f docker-compose.prod.yml exec -T backend python manage.py merge_conversations
+  
   echo "=> Setting up automated daily backup cron job..."
   sudo touch /var/log/uzaspea-backup.log
   sudo chown ubuntu:ubuntu /var/log/uzaspea-backup.log

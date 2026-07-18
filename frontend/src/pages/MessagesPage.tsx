@@ -270,7 +270,7 @@ const MessagesPage: React.FC = () => {
         <div className={`w-full md:w-80 lg:w-96 flex flex-col border-r border-gray-100 dark:border-neutral-900 ${isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h1 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2 uppercase tracking-tight">
+              <h1 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
                 <MessageSquare className="text-brand-500" size={20} /> {t('chats')}
               </h1>
             </div>
@@ -297,8 +297,8 @@ const MessagesPage: React.FC = () => {
             ) : (
               filteredConversations.map(conv => {
                 const otherUsername = conv.buyer === userId ? conv.seller_username : conv.buyer_username;
-                const isVerified = conv.buyer === userId ? conv.seller_verified : false;
-                const userTier = conv.buyer === userId ? conv.seller_tier : 'free';
+                const isVerified = conv.buyer === userId ? conv.seller_verified : conv.buyer_verified;
+                const userTier = conv.buyer === userId ? conv.seller_tier : conv.buyer_tier;
                 const isActive = id && parseInt(id) === conv.id;
                 const initials = otherUsername.substring(0, 2).toUpperCase();
 
@@ -326,7 +326,7 @@ const MessagesPage: React.FC = () => {
                       <div className="flex justify-between items-baseline gap-1.5">
                         <span className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 truncate">
                           {otherUsername}
-                          {conv.buyer === userId && (
+                          {isVerified && (
                             <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
                           )}
                         </span>
@@ -338,9 +338,18 @@ const MessagesPage: React.FC = () => {
                       </div>
 
                       {conv.product_name && (
-                        <p className="text-[10px] font-bold text-brand-500 truncate mt-0.5">
-                          Re: {conv.product_name}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {conv.product_image && (
+                            <img
+                              src={conv.product_image}
+                              alt={conv.product_name}
+                              className="w-4 h-4 rounded object-cover border border-gray-150 dark:border-neutral-800 shrink-0"
+                            />
+                          )}
+                          <p className="text-[10px] font-bold text-brand-500 truncate">
+                            Re: {conv.product_name}
+                          </p>
+                        </div>
                       )}
 
                       <div className="flex justify-between items-center gap-1.5 mt-0.5">
