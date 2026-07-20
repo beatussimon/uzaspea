@@ -34,7 +34,7 @@ export default {
         '18': '4.5rem',    /* 72px — navbar height */
       },
       borderRadius: {
-        'card': '1rem',       /* 16px */
+        'card': '1.5rem',       /* 24px */
         'pill': '9999px',
         'btn': '0.75rem',     /* 12px */
       },

@@ -44,6 +44,7 @@ const DashboardProducts: React.FC = () => {
   const [locStatus, setLocStatus] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<Array<{ url: string; file: File; aspectStatus: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [variationColumns, setVariationColumns] = useState<string[]>(['Option 1']);
   const [showCustomColumnInput, setShowCustomColumnInput] = useState(false);
@@ -182,8 +183,45 @@ const DashboardProducts: React.FC = () => {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setImageFiles(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      setImageFiles(files);
+      
+      // Revoke previous URLs to avoid memory leaks
+      imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
+
+      const newPreviews = files.map(file => {
+        const url = URL.createObjectURL(file);
+        const previewItem = { url, file, aspectStatus: 'Checking...' };
+
+        const img = new Image();
+        img.onload = () => {
+          const ratio = img.naturalWidth / img.naturalHeight;
+          let status = 'Good (Landscape)';
+          if (ratio >= 0.85 && ratio <= 1.15) {
+            status = 'Perfect (1:1)';
+          } else if (ratio < 0.85) {
+            status = '⚠️ Tall (Vertical)';
+          }
+          setImagePreviews(prevList => 
+            prevList.map(item => item.url === url ? { ...item, aspectStatus: status } : item)
+          );
+        };
+        img.src = url;
+        return previewItem;
+      });
+
+      setImagePreviews(newPreviews);
     }
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    const previewToRemove = imagePreviews[indexToRemove];
+    if (previewToRemove) {
+      URL.revokeObjectURL(previewToRemove.url);
+    }
+    const updatedPreviews = imagePreviews.filter((_, idx) => idx !== indexToRemove);
+    setImagePreviews(updatedPreviews);
+    setImageFiles(updatedPreviews.map(p => p.file));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -268,6 +306,8 @@ const DashboardProducts: React.FC = () => {
       setEditingId(null);
       setEditingProductId(null);
       setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
+      imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
+      setImagePreviews([]);
       setImageFiles([]);
       setExistingImages([]);
       setNewVariants([]);
@@ -577,6 +617,55 @@ const DashboardProducts: React.FC = () => {
             </label>
             <input type="file" multiple accept="image/*" onChange={handleImageChange}
               className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100" />
+            
+            {imagePreviews.length > 0 && (
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                  {imagePreviews.map((p, idx) => (
+                    <div key={p.url} className="relative aspect-square rounded-lg border border-surface-border dark:border-surface-dark-border bg-gray-50 dark:bg-gray-900 overflow-hidden group">
+                      <img src={p.url} alt="Preview" className="w-full h-full object-cover" />
+                      
+                      {/* Delete button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(idx)}
+                        className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-black/90 text-white rounded-full transition z-20"
+                        title="Remove image"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+
+                      {/* Aspect Ratio Badge */}
+                      <div className="absolute bottom-0 inset-x-0 p-1 bg-black/75 text-white text-[8px] font-bold text-center z-10 leading-none">
+                        <span className={
+                          p.aspectStatus === 'Perfect (1:1)' 
+                            ? 'text-emerald-400' 
+                            : p.aspectStatus === 'Good (Landscape)' 
+                              ? 'text-sky-400' 
+                              : p.aspectStatus.includes('Tall') 
+                                ? 'text-amber-400 font-extrabold'
+                                : 'text-gray-300'
+                        }>
+                          {p.aspectStatus}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {imagePreviews.some(p => p.aspectStatus.includes('Tall')) && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-xl flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-medium">
+                    <span className="text-sm leading-none">⚠️</span>
+                    <div>
+                      <strong className="font-extrabold">Vertical (Tall) Images:</strong> Some of your images are vertical phone photos. These will be displayed with blurred side borders to fit the listing cards. For the cleanest presentation, we recommend cropping them to a square (1:1) or landscape format.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {imageFiles.length > 0 && (
               <p className="text-xs text-gray-400 mt-1">{imageFiles.length} file(s) selected</p>
             )}
@@ -590,6 +679,8 @@ const DashboardProducts: React.FC = () => {
               setEditingId(null);
               setEditingProductId(null);
               setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
+              imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
+              setImagePreviews([]);
               setImageFiles([]);
               setExistingImages([]);
               setNewVariants([]);

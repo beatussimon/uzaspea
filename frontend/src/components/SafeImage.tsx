@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Car, Home, Wrench, Laptop, Smartphone, Shirt, Sofa, Briefcase, Book, ShoppingBag, Cog } from 'lucide-react';
 
 interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallback?: string;
   category?: string;
+  containMode?: 'cover' | 'contain' | 'blur-fill';
 }
 
 /**
  * Image wrapper with global onerror fallback and lazy loading.
  * Replaces errored images with an elegant SVG icon placeholder supporting dark mode.
+ * Supports different containment modes including blurred-edge fill for arbitrary aspect ratios.
  */
 const SafeImage: React.FC<SafeImageProps> = ({
   fallback, // no longer needed, we use the icon
@@ -18,9 +20,31 @@ const SafeImage: React.FC<SafeImageProps> = ({
   className = '',
   alt,
   category = '',
+  containMode = 'cover',
+  onLoad,
   ...props
 }) => {
   const [errored, setErrored] = useState(false);
+  const [containerRatio, setContainerRatio] = useState<number | null>(null);
+  const [imageRatio, setImageRatio] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const measureContainer = useCallback(() => {
+    if (containerRef.current) {
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+      if (width && height) {
+        setContainerRatio(width / height);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (containMode !== 'blur-fill') return;
+    measureContainer();
+    window.addEventListener('resize', measureContainer);
+    return () => window.removeEventListener('resize', measureContainer);
+  }, [containMode, measureContainer]);
 
   let safeSrc = src;
   if (typeof safeSrc === 'string' && safeSrc.startsWith('http://') && window.location.protocol === 'https:') {
@@ -32,6 +56,15 @@ const SafeImage: React.FC<SafeImageProps> = ({
       setErrored(true);
     }
     onError?.(e);
+  };
+
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (img.naturalWidth && img.naturalHeight) {
+      setImageRatio(img.naturalWidth / img.naturalHeight);
+    }
+    measureContainer();
+    onLoad?.(e);
   };
 
   const isInvalid = !safeSrc || errored;
@@ -201,14 +234,63 @@ const SafeImage: React.FC<SafeImageProps> = ({
     );
   }
 
+  if (containMode === 'blur-fill') {
+    // Strip object-cover or object-contain from the wrapper className since the wrapper container handles containment
+    const cleanClassName = className.replace(/\bobject-(cover|contain|top|center|bottom|left|right)\b/g, '').trim();
+
+    // Determine if we should use blur based on aspect ratio difference
+    let shouldBlur = true;
+    if (imageRatio && containerRatio) {
+      const ratioDiff = Math.abs(Math.log(imageRatio / containerRatio));
+      // If the aspect ratio difference is less than 0.38 (~30% cropping margin),
+      // we can crop with object-cover and skip the blurred background.
+      if (ratioDiff < 0.38) {
+        shouldBlur = false;
+      }
+    } else {
+      // Default to no blur until dimensions are resolved
+      shouldBlur = false;
+    }
+
+    return (
+      <div 
+        ref={containerRef}
+        className={`relative overflow-hidden flex items-center justify-center ${cleanClassName}`}
+      >
+        {shouldBlur && (
+          <img
+            src={safeSrc}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 opacity-30 dark:opacity-40 select-none pointer-events-none"
+            loading="lazy"
+          />
+        )}
+        {/* Crisp original copy of the image */}
+        <img
+          {...props}
+          src={safeSrc}
+          alt={alt}
+          loading={loading}
+          onError={handleError}
+          onLoad={handleLoad}
+          className={`relative z-10 w-full h-full transition-all duration-300 ${
+            shouldBlur ? 'object-contain max-w-full max-h-full' : 'object-cover'
+          }`}
+        />
+      </div>
+    );
+  }
+
   return (
     <img
       {...props}
-      className={className}
+      className={`${className} ${containMode === 'contain' ? 'object-contain' : 'object-cover'}`}
       alt={alt}
       src={safeSrc}
       loading={loading}
       onError={handleError}
+      onLoad={onLoad}
     />
   );
 };

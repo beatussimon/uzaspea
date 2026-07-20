@@ -423,7 +423,7 @@ const ProductList = () => {
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-2xl p-4 shadow-md my-2 flex justify-center">
+              <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-card p-4 shadow-md my-2 flex justify-center">
                 <form onSubmit={onSearchSubmit} className="relative flex items-center w-full max-w-2xl group">
                   <Search className="absolute left-4 text-gray-400 dark:text-neutral-500 transition-colors group-focus-within:text-brand-500 pointer-events-none" size={20} />
                   <input
@@ -460,7 +460,7 @@ const ProductList = () => {
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-2xl p-5 shadow-md my-2">
+              <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-card p-5 shadow-md my-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Min Price (TSh)</label>

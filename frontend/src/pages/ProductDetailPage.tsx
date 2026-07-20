@@ -183,7 +183,7 @@ const ImageLightbox = ({
             <button
               key={i}
               onClick={() => scrollToIndex(i)}
-              className={`relative h-full aspect-[4/3] shrink-0 overflow-hidden rounded bg-gray-900 transition-all ${
+              className={`relative h-full aspect-[4/3] shrink-0 overflow-hidden rounded-card bg-gray-900 transition-all ${
                 currentIndex === i 
                   ? 'ring-2 ring-brand-500 opacity-100 scale-105' 
                   : 'opacity-50 hover:opacity-80'
@@ -438,7 +438,8 @@ const ProductDetailPage: React.FC = () => {
                     src={currentImageSrc}
                     alt={product.name}
                     category={product.category_name}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500 ease-out"
+                    className="w-full h-full hover:scale-105 transition-transform duration-500 ease-out"
+                    containMode="blur-fill"
                     loading="eager"
                   />
                 </motion.div>
@@ -475,7 +476,7 @@ const ProductDetailPage: React.FC = () => {
                   <button
                     key={img.id}
                     onClick={() => setSelectedImage(idx)}
-                    className={`shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 ${
+                    className={`shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-card overflow-hidden border-2 transition-all duration-300 ${
                       idx === selectedImage
                         ? 'border-brand-500 shadow-md scale-100 ring-2 ring-brand-500/20 ring-offset-2 dark:ring-offset-gray-900'
                         : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 scale-95 opacity-70 hover:opacity-100'
@@ -508,7 +509,7 @@ const ProductDetailPage: React.FC = () => {
                 {product.category_name}
               </Link>
               <span className="text-gray-300 dark:text-gray-600 font-bold">•</span>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+              <span className={`px-2 py-0.5 rounded-card text-[10px] font-black uppercase tracking-wider ${
                 product.condition === 'New' 
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
                   : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
@@ -576,7 +577,7 @@ const ProductDetailPage: React.FC = () => {
                     setSelectedVariant(null);
                     setSelectedImage(0); // Go back to default image
                   }}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border-2 ${
+                  className={`px-4 py-2 rounded-card text-sm font-bold transition-all border-2 ${
                     !selectedVariant 
                       ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400 dark:border-brand-500' 
                       : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
@@ -594,7 +595,7 @@ const ProductDetailPage: React.FC = () => {
                         if (idx !== -1) setSelectedImage(idx);
                       }
                     }}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border-2 flex items-center gap-2 ${
+                    className={`px-4 py-2 rounded-card text-sm font-bold transition-all border-2 flex items-center gap-2 ${
                       selectedVariant?.id === v.id
                         ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400 dark:border-brand-500'
                         : v.stock <= 0
@@ -625,27 +626,27 @@ const ProductDetailPage: React.FC = () => {
           <div className="flex flex-col gap-4">
             {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
               isOwnProduct ? (
-                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-center border border-gray-100 dark:border-gray-700 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-card text-center border border-gray-100 dark:border-gray-700 text-xs font-bold text-gray-400 uppercase tracking-wider">
                   {t('this_is_your_listing')}
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0">
+                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-card bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0">
                     <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-sm">−</button>
                     <span className="px-3 py-2.5 font-extrabold text-gray-900 dark:text-white border-x border-gray-200 dark:border-gray-700 min-w-[40px] text-center text-sm">{quantity}</span>
                     <button onClick={() => setQuantity(Math.min((selectedVariant ? selectedVariant.stock : product.stock), quantity + 1))} className="px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-sm">+</button>
                   </div>
-                  <button onClick={handleAddToCart} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold rounded-xl transition shadow-sm active:scale-98 text-sm">
+                  <button onClick={handleAddToCart} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold rounded-card transition shadow-sm active:scale-98 text-sm">
                     <ShoppingCart size={16} /> {t('add_to_cart')}
                   </button>
-                  <span className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold whitespace-nowrap">
+                  <span className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded-card text-xs font-bold whitespace-nowrap">
                     {selectedVariant ? selectedVariant.stock : product.stock} {t('in_stock')}
                   </span>
                 </div>
               )
             ) : (
               <div className="flex items-center gap-3">
-                <button disabled className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold rounded-xl cursor-not-allowed text-sm">
+                <button disabled className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold rounded-card cursor-not-allowed text-sm">
                   {t('out_of_stock')}
                 </button>
               </div>
@@ -738,7 +739,7 @@ const ProductDetailPage: React.FC = () => {
                     {product.inspections?.length > 0 ? t('inspection_history') : t('professional_inspection')}
                   </h4>
                   {product.is_verified && (
-                    <span className="px-1.5 py-0.5 bg-brand-600 text-white text-[8px] font-black rounded uppercase tracking-widest">Verified</span>
+                    <span className="px-1.5 py-0.5 bg-brand-600 text-white text-[8px] font-black rounded-card uppercase tracking-widest">Verified</span>
                   )}
                 </div>
                 
