@@ -364,17 +364,17 @@ const ProductList = () => {
           <div className="flex items-start justify-start md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-4 w-full px-4 scroll-smooth">
             {/* All Products pill */}
             <div className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group" onClick={() => { updateFilters({ category: '', subcategory: '' }); }}>
-              <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 border-2 ${!selectedCategory ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
-                <LayoutGrid className={`w-8 h-8 md:w-10 md:h-10 stroke-[1.5] ${!selectedCategory ? 'text-brand-600 dark:text-brand-400' : 'text-neutral-800 dark:text-neutral-100'}`} />
+              <div className={`relative w-20 h-20 md:w-36 md:h-36 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 border-2 ${!selectedCategory ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
+                <LayoutGrid className={`w-8 h-8 md:w-16 md:h-16 stroke-[1.5] ${!selectedCategory ? 'text-brand-600 dark:text-brand-400' : 'text-neutral-800 dark:text-neutral-100'}`} />
               </div>
-              <span className={`text-xs font-bold text-center max-w-[5.5rem] md:max-w-[6.5rem] leading-tight line-clamp-2 ${!selectedCategory ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>{t('all_products', 'All Products')}</span>
+              <span className={`text-xs md:text-sm font-bold text-center max-w-[5.5rem] md:max-w-[8.5rem] leading-tight line-clamp-2 ${!selectedCategory ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>{t('all_products', 'All Products')}</span>
             </div>
 
             {categoriesLoading
               ? Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="flex flex-col items-center gap-2 shrink-0 animate-pulse">
-                    <div className="w-20 h-20 rounded-full bg-neutral-200 dark:bg-neutral-700" />
-                    <div className="w-14 h-3 rounded-full bg-neutral-200 dark:bg-neutral-700" />
+                    <div className="w-20 h-20 md:w-36 md:h-36 rounded-full bg-neutral-200 dark:bg-neutral-700" />
+                    <div className="w-14 h-3 md:w-20 h-3.5 rounded-full bg-neutral-200 dark:bg-neutral-700" />
                   </div>
                 ))
               : topCategories.filter((cat: any) => cat.product_count > 0).map((cat: any) => {
@@ -385,9 +385,9 @@ const ProductList = () => {
                   className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group"
                   onClick={() => { updateFilters({ category: isActive ? '' : cat.slug, subcategory: '' }); }}
                 >
-                  <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 overflow-visible border-2 ${isActive ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
+                  <div className={`relative w-20 h-20 md:w-36 md:h-36 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 overflow-visible border-2 ${isActive ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
                     {cat.product_count > 0 && (
-                      <span className="absolute -top-1.5 -right-1 bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-neutral-200 dark:border-neutral-700 shadow-sm z-10">
+                      <span className="absolute -top-1.5 -right-1 md:top-0.5 md:right-0.5 bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-[9px] md:text-base font-bold md:font-extrabold px-1.5 py-0.5 md:px-2 rounded-full border md:border-2 border-neutral-200 dark:border-neutral-700 shadow-sm md:shadow-md md:min-w-[40px] md:h-[40px] flex items-center justify-center z-10">
                         {cat.product_count.toLocaleString()}
                       </span>
                     )}
@@ -396,15 +396,15 @@ const ProductList = () => {
                         src={cat.image}
                         alt={cat.name}
                         category={cat.name}
-                        className="w-14 h-14 md:w-16 md:h-16 object-cover rounded-full"
+                        className="w-14 h-14 md:w-28 md:h-28 object-cover rounded-full"
                         loading="lazy"
                         decoding="async"
                       />
                     ) : (
-                      <span className="text-2xl font-black text-black/30 dark:text-white/30 uppercase tracking-widest">{cat.name.charAt(0)}</span>
+                      <span className="text-2xl md:text-4xl font-black text-black/30 dark:text-white/30 uppercase tracking-widest">{cat.name.charAt(0)}</span>
                     )}
                   </div>
-                  <span className={`text-xs font-bold text-center max-w-[5.5rem] md:max-w-[6.5rem] leading-tight line-clamp-2 ${isActive ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>
+                  <span className={`text-xs md:text-sm font-bold text-center max-w-[5.5rem] md:max-w-[8.5rem] leading-tight line-clamp-2 ${isActive ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>
                     {cat.name}
                   </span>
                 </div>
