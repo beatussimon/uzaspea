@@ -19,6 +19,15 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
     e.preventDefault();
     if (!product) return;
 
+    const productId = typeof product.product === 'object'
+      ? product.product?.id
+      : (product.product || product.id);
+
+    if (!productId) {
+      toast.error('Invalid product selected.');
+      return;
+    }
+
     if (rating === 0) {
       toast.error('Please select a rating (1-5 stars) before submitting.');
       return;
@@ -27,7 +36,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
     setSubmittingReview(true);
     try {
       await api.post('/api/reviews/', {
-        product: product.product,
+        product: productId,
         order: orderId,
         rating,
         comment
@@ -36,12 +45,14 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
       if (onSuccess) onSuccess();
       onClose();
     } catch (err: any) {
-      const msg = err.response?.data?.non_field_errors?.[0] || err.response?.data?.detail || err.response?.data?.[0] || 'Failed to submit review';
+      const msg = err.response?.data?.non_field_errors?.[0] || err.response?.data?.detail || err.response?.data?.[0] || err.response?.data?.product?.[0] || 'Failed to submit review';
       toast.error(msg);
     } finally {
       setSubmittingReview(false);
     }
   };
+
+  const productName = product?.product_name || product?.name || 'Product';
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
@@ -53,7 +64,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
             
             <div className="text-center mb-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">Leave a Review</h3>
-                <p className="text-sm text-gray-500 mt-1">Reviewing: <span className="font-bold text-gray-700 dark:text-gray-300">{product?.product_name}</span></p>
+                <p className="text-sm text-gray-500 mt-1">Reviewing: <span className="font-bold text-gray-700 dark:text-gray-300">{productName}</span></p>
             </div>
             
             <form onSubmit={handleReviewSubmit} className="space-y-6">

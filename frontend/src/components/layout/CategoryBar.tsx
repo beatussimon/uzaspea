@@ -47,14 +47,6 @@ const CategoryBar: React.FC = () => {
 
   const selectedCategory = searchParams.get('category') || '';
 
-  // Only show on product catalog and detail pages
-  const allowedPaths = ['/products', '/product'];
-  const showBar = allowedPaths.some(p => location.pathname.startsWith(p));
-
-  if (!showBar) return null;
-
-  const topCategories = categories.filter((c: any) => !c.parent);
-
   // Find product's category and subcategory from the nested categories list
   const { productParentCat, productSubCat } = useMemo(() => {
     if (!isProductDetailPage || !product || categories.length === 0) {
@@ -78,6 +70,14 @@ const CategoryBar: React.FC = () => {
     }
     return { productParentCat: parentCat, productSubCat: subCat };
   }, [isProductDetailPage, product, categories]);
+
+  // Only show on product catalog and detail pages
+  const allowedPaths = ['/products', '/product'];
+  const showBar = allowedPaths.some(p => location.pathname.startsWith(p));
+
+  if (!showBar) return null;
+
+  const topCategories = categories.filter((c: any) => !c.parent);
 
   const handleCategoryClick = (slug: string) => {
     if (isProductsPage) {

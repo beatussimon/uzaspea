@@ -730,7 +730,7 @@ const WarehouseStaffLayout: React.FC = () => {
           {/* KPI Cards (Local Logistics) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { title: 'Dest Hub Intake', count: applyFilter(pendingIntakes.filter(o => o.status === 'IN_TRANSIT')).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+              { title: 'Dest Hub Intake', count: applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
               { title: 'Local Delivery Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: 'bg-green-500/10' },
               { title: 'Ready for Pickup / Release', count: applyFilter(readyForPickup).length, icon: Key, color: 'text-purple-500', bg: 'bg-purple-500/10' }
             ].map((kpi, idx) => (
@@ -759,10 +759,10 @@ const WarehouseStaffLayout: React.FC = () => {
               <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                 <Package size={16} /> Destination Hub Intake
               </h3>
-              {loading ? <SkeletonCards /> : applyFilter(pendingIntakes.filter(o => o.status === 'IN_TRANSIT')).length === 0 ? <EmptyState text="No pending intakes" /> : (
+              {loading ? <SkeletonCards /> : applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).length === 0 ? <EmptyState text="No pending intakes" /> : (
                 <div className="space-y-3">
-                  {applyFilter(pendingIntakes.filter(o => o.status === 'IN_TRANSIT')).map(order => (
-                    <QueueCard key={order.id} order={order} badge="Inbound Transfer" onClick={() => handleActionClick(order.id.toString(), 'intake')} />
+                  {applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).map(order => (
+                    <QueueCard key={order.id} order={order} badge={order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE' ? 'Hub Arrived' : 'Inbound Transfer'} onClick={() => handleActionClick(order.id.toString(), 'intake')} />
                   ))}
                 </div>
               )}

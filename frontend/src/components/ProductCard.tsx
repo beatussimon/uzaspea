@@ -127,10 +127,9 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
 
 const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean }) => {
   const { t } = useTranslation();
+  const [liked, setLiked] = React.useState(product?.is_liked || false);
 
   if (!product) return null;
-
-  const [liked, setLiked] = React.useState(product.is_liked || false);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();

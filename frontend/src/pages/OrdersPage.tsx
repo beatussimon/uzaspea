@@ -791,7 +791,7 @@ const OrdersPage: React.FC = () => {
                             </div>
                             <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-50 dark:border-gray-700">
                                 <span className="font-bold text-gray-900 dark:text-white">TSh {parseInt(item.subtotal).toLocaleString()}</span>
-                                {order.status === 'COMPLETED' && !item.has_review && (
+                                 {['COMPLETED', 'DELIVERED'].includes(order.status) && !item.has_review && (
                                   <button 
                                     onClick={() => { setReviewOrderId(order.id); setReviewProduct(item); }}
                                     className="p-2 text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
@@ -890,7 +890,7 @@ const OrdersPage: React.FC = () => {
                                             Confirm Receipt
                                         </button>
                                     )}
-                                    {order.status === 'COMPLETED' && order.items?.some((i: any) => !i.has_review) && (
+                                    {['COMPLETED', 'DELIVERED'].includes(order.status) && order.items?.some((i: any) => !i.has_review) && (
                                         <button 
                                           onClick={(e) => { 
                                             e.stopPropagation(); 
