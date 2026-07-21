@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { useMessages, Message } from '../context/MessageContext';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +19,8 @@ const MessagesPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const userId = parseInt(localStorage.getItem('user_id') || '0');
+  const { user } = useAuth();
+  const userId = user?.user_id || (user as any)?.id || parseInt(localStorage.getItem('user_id') || '0');
 
   const {
     conversations,
@@ -116,8 +118,13 @@ const MessagesPage: React.FC = () => {
     if (!id && !contextLoading) {
       const targetUser = searchParams.get('user');
       if (targetUser) {
+        if (user && targetUser.toLowerCase() === user.username.toLowerCase()) {
+          toast.error("You cannot message yourself");
+          navigate('/messages', { replace: true });
+          return;
+        }
         const existing = conversations.find(c => 
-          c.buyer_username === targetUser || c.seller_username === targetUser
+          c.buyer_username.toLowerCase() === targetUser.toLowerCase() || c.seller_username.toLowerCase() === targetUser.toLowerCase()
         );
         if (existing) {
           navigate(`/messages/${existing.id}`, { replace: true });
@@ -127,18 +134,25 @@ const MessagesPage: React.FC = () => {
             .then(res => {
               const targetUserId = res.data.user_id;
               if (targetUserId) {
+                if (Number(targetUserId) === Number(userId)) {
+                  toast.error("You cannot message yourself");
+                  navigate('/messages', { replace: true });
+                  return;
+                }
                 return api.post('/api/conversations/', { seller: targetUserId });
               }
               throw new Error('User ID not found');
             })
             .then(res => {
-              navigate(`/messages/${res.data.id}`, { replace: true });
+              if (res && res.data) {
+                navigate(`/messages/${res.data.id}`, { replace: true });
+              }
             })
             .catch(() => toast.error(`Could not start conversation with ${targetUser}`));
         }
       }
     }
-  }, [id, conversations, searchParams, navigate, contextLoading]);
+  }, [id, conversations, searchParams, navigate, contextLoading, user, userId]);
 
   const activeConv = conversations.find(c => c.id === parseInt(id || ''));
 
@@ -220,7 +234,8 @@ const MessagesPage: React.FC = () => {
   };
 
   const filteredConversations = conversations.filter(c => {
-    const otherUser = c.buyer === userId ? c.seller_username : c.buyer_username;
+    const isBuyer = Number(c.buyer) === Number(userId);
+    const otherUser = isBuyer ? c.seller_username : c.buyer_username;
     const product = c.product_name || '';
     return otherUser.toLowerCase().includes(searchQuery.toLowerCase()) || 
            product.toLowerCase().includes(searchQuery.toLowerCase());
@@ -296,9 +311,10 @@ const MessagesPage: React.FC = () => {
               </div>
             ) : (
               filteredConversations.map(conv => {
-                const otherUsername = conv.buyer === userId ? conv.seller_username : conv.buyer_username;
-                const isVerified = conv.buyer === userId ? conv.seller_verified : conv.buyer_verified;
-                const userTier = conv.buyer === userId ? conv.seller_tier : conv.buyer_tier;
+                const isBuyer = Number(conv.buyer) === Number(userId);
+                const otherUsername = isBuyer ? conv.seller_username : conv.buyer_username;
+                const isVerified = isBuyer ? conv.seller_verified : conv.buyer_verified;
+                const userTier = isBuyer ? conv.seller_tier : conv.buyer_tier;
                 const isActive = id && parseInt(id) === conv.id;
                 const initials = otherUsername.substring(0, 2).toUpperCase();
 
@@ -402,8 +418,8 @@ const MessagesPage: React.FC = () => {
                   {/* Contact Avatar */}
                   {activeConv && (
                     <div className="relative shrink-0">
-                      <div className={`w-10.5 h-10.5 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username)}`}>
-                        {(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
+                      <div className={`w-10.5 h-10.5 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username)}`}>
+                        {(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
                       </div>
                       <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-[#0d0d0d]" />
                     </div>
@@ -412,8 +428,8 @@ const MessagesPage: React.FC = () => {
                   {/* Header Titles */}
                   <div className="min-w-0">
                     <span className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1">
-                      {activeConv ? (activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username) : 'Chat'}
-                      {activeConv && activeConv.buyer === userId && (
+                      {activeConv ? (Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username) : 'Chat'}
+                      {activeConv && Number(activeConv.buyer) === Number(userId) && (
                         <VerifiedBadge tier={activeConv.seller_tier} isVerified={activeConv.seller_verified} className="w-3.5 h-3.5" />
                       )}
                     </span>
@@ -457,10 +473,20 @@ const MessagesPage: React.FC = () => {
                         {formatDayHeader(dateStr)}
                       </span>
                     </div>
+                  </div>
+                ))}
 
+                {Object.keys(groupedMessages).length === 0 && (
+                  <div className="py-12 text-center text-xs text-gray-400">
+                    No messages in this conversation yet. Send a message to start!
+                  </div>
+                )}
+
+                {Object.keys(groupedMessages).map(dateStr => (
+                  <div key={dateStr} className="space-y-4">
                     {/* Messages in day */}
                     {groupedMessages[dateStr].map((msg, index) => {
-                      const isMe = msg.sender === userId;
+                      const isMe = Number(msg.sender) === Number(userId);
                       const showAvatar = !isMe;
                       
                       // Display precise date on hover
@@ -482,7 +508,7 @@ const MessagesPage: React.FC = () => {
                           <div className={`max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                             {/* Message Bubble wrapper with tooltip-like time reveal */}
                             <div className="group relative">
-                              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all shadow-sm ${
+                              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all shadow-sm whitespace-pre-wrap break-words ${
                                 isMe
                                   ? 'bg-brand-500 text-white rounded-br-sm'
                                   : 'bg-white dark:bg-[#121212] border border-gray-100 dark:border-neutral-900 text-gray-900 dark:text-white rounded-bl-sm'

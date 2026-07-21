@@ -471,6 +471,24 @@ class Order(models.Model):
     def get_absolute_url(self):
         return reverse('order_detail', args=[str(self.id)])
 
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old_order = Order.objects.filter(pk=self.pk).values('status', 'is_completed').first()
+            if old_order:
+                old_status = old_order['status']
+                old_completed = old_order['is_completed']
+                paid_or_completed_states = {
+                    'PAID', 'PAID_PRODUCT', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING',
+                    'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT',
+                    'IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP',
+                    'READY_FOR_VEHICLE_HANDOVER', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY',
+                    'DELIVERED', 'COMPLETED'
+                }
+                if (old_status in paid_or_completed_states or old_completed) and self.status in ('AWAITING_PAYMENT', 'CART', 'CHECKOUT'):
+                    from django.core.exceptions import ValidationError
+                    raise ValidationError(f"Cannot revert order #{self.pk} from '{old_status}' to '{self.status}'.")
+        super().save(*args, **kwargs)
+
     def update_total(self):
         # FIX: C-05 — use item.price (locked at order time), not item.product.price (live)
         total = sum(item.quantity * item.price for item in self.orderitem_set.all())

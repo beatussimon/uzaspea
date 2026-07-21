@@ -891,11 +891,19 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if order and order.user != self.request.user:
             raise drf_serializers.ValidationError("Order does not belong to you.")
 
-        # Check unique constraint to avoid 500 IntegrityError
-        if Review.objects.filter(user=self.request.user, product=product).exists():
-            raise drf_serializers.ValidationError("You have already reviewed this product.")
-            
-        review = serializer.save(user=self.request.user, approved=True)
+        # If review already exists for this user and product, update it instead of throwing error
+        existing_review = Review.objects.filter(user=self.request.user, product=product).first()
+        if existing_review:
+            existing_review.rating = serializer.validated_data['rating']
+            existing_review.comment = serializer.validated_data.get('comment', '')
+            if order:
+                existing_review.order = order
+            existing_review.approved = True
+            existing_review.save()
+            serializer.instance = existing_review
+            review = existing_review
+        else:
+            review = serializer.save(user=self.request.user, approved=True)
 
         # Notify moderators (staff)
         from django.contrib.auth import get_user_model

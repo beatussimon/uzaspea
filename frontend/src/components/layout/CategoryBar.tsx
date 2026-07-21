@@ -4,6 +4,7 @@ import { LayoutGrid } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import SafeImage from '../SafeImage';
+import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
 
 const CategoryBar: React.FC = () => {
   const { t } = useTranslation();
@@ -152,18 +153,14 @@ const CategoryBar: React.FC = () => {
                         {cat.product_count.toLocaleString()}
                       </span>
                     )}
-                    {cat.image ? (
-                      <SafeImage
-                        src={cat.image}
-                        alt={cat.name}
-                        category={cat.name}
-                        className="w-14 h-14 md:w-28 md:h-28 object-cover rounded-full"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <span className="text-2xl md:text-4xl font-black text-black/30 dark:text-white/30 uppercase tracking-widest">{cat.name.charAt(0)}</span>
-                    )}
+                    <SafeImage
+                      src={cat.image || getCategoryFallbackImage(cat.name)}
+                      alt={cat.name}
+                      category={cat.name}
+                      className="w-14 h-14 md:w-28 md:h-28 object-cover rounded-full"
+                      loading="lazy"
+                      decoding="async"
+                    />
                   </div>
                   <span className={`text-xs md:text-sm font-bold text-center max-w-[5.5rem] md:max-w-[8.5rem] leading-tight line-clamp-2 ${isActive ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>
                     {cat.name}

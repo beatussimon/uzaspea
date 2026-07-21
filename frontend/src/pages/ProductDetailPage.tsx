@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,6 @@ import { ProductTabs } from '../components/ProductTabs';
 import SafeImage from '../components/SafeImage';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';
-import Breadcrumbs from '../components/Breadcrumbs';
 import { Skeleton } from '../components/Skeleton';
 import { timeAgo } from '../utils/timeAgo';
 
@@ -183,10 +182,10 @@ const ImageLightbox = ({
             <button
               key={i}
               onClick={() => scrollToIndex(i)}
-              className={`relative h-full aspect-[4/3] shrink-0 overflow-hidden rounded-card bg-gray-900 transition-all ${
+              className={`relative h-full aspect-[4/3] shrink-0 overflow-hidden rounded-none border-0 ring-0 transition-all ${
                 currentIndex === i 
-                  ? 'ring-2 ring-brand-500 opacity-100 scale-105' 
-                  : 'opacity-50 hover:opacity-80'
+                  ? 'opacity-100 scale-105' 
+                  : 'opacity-50 hover:opacity-90 scale-100'
               }`}
             >
               <img 
@@ -254,17 +253,39 @@ const ProductDetailPage: React.FC = () => {
   const { t } = useTranslation();
   const { addToCart } = useCart();
   const navigate = useNavigate();
-  const [product, setProduct] = useState<ProductData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const initialProduct = (location.state as any)?.initialProduct || null;
+
+  const [product, setProduct] = useState<ProductData | null>(initialProduct);
+  const [loading, setLoading] = useState(!initialProduct);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
+  const [liked, setLiked] = useState(initialProduct?.is_liked || false);
+  const [likeCount, setLikeCount] = useState(initialProduct?.like_count || 0);
   const [quantity, setQuantity] = useState(1);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  const images = React.useMemo(() => {
+    if (!product) return [{ id: 0, image: '' }];
+    const baseImages = (product.images && product.images.length > 0)
+      ? product.images
+      : [{ id: 0, image: '' }];
+    
+    const vImages = variants
+      .filter(v => v.image)
+      .map(v => ({ id: `v-${v.id}`, image: v.image as string, variantId: v.id }));
+      
+    const combined: Array<{ id: string | number; image: string; variantId?: number }> = [...baseImages];
+    for (const vImg of vImages) {
+      if (!combined.find(img => img.image === vImg.image)) {
+        combined.push(vImg);
+      }
+    }
+    return combined;
+  }, [product, variants]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -273,11 +294,10 @@ const ProductDetailPage: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  
 
   useEffect(() => {
     if (!slug) return;
-    setLoading(true);
+    if (!product) setLoading(true);
     api.get(`/api/products/${slug}/`)
       .then((res) => {
         setProduct(res.data);
@@ -315,7 +335,6 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
-  // Working share — uses Web Share API or falls back to clipboard
   const handleShare = async () => {
     const shareUrl = window.location.href;
     const shareData = {
@@ -327,9 +346,7 @@ const ProductDetailPage: React.FC = () => {
     if (navigator.share) {
       try {
         await navigator.share(shareData);
-      } catch {
-        // User cancelled share
-      }
+      } catch {}
     } else {
       try {
         await navigator.clipboard.writeText(shareUrl);
@@ -347,31 +364,24 @@ const ProductDetailPage: React.FC = () => {
         price: selectedVariant.final_price,
         name: `${product.name} (${selectedVariant.name})`,
         stock: selectedVariant.stock,
-        id: `${product.id}-${selectedVariant.id}` as any // Handle variant separated in cart
+        id: `${product.id}-${selectedVariant.id}` as any
       } : product;
       addToCart(p, quantity);
     }
   };
 
-  const images = React.useMemo(() => {
-    if (!product) return [{ id: 0, image: '' }];
-    const baseImages = (product.images && product.images.length > 0)
-      ? product.images
-      : [{ id: 0, image: '' }];
-    
-    const vImages = variants
-      .filter(v => v.image)
-      .map(v => ({ id: `v-${v.id}`, image: v.image as string, variantId: v.id }));
-      
-    // Deduplicate exact same URLs if needed, but simple append works for gallery
-    const combined: Array<{ id: string | number; image: string; variantId?: number }> = [...baseImages];
-    for (const vImg of vImages) {
-      if (!combined.find(img => img.image === vImg.image)) {
-        combined.push(vImg);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!images || images.length <= 1 || lightboxOpen) return;
+      if (e.key === 'ArrowLeft') {
+        setSelectedImage(prev => (prev > 0 ? prev - 1 : images.length - 1));
+      } else if (e.key === 'ArrowRight') {
+        setSelectedImage(prev => (prev < images.length - 1 ? prev + 1 : 0));
       }
-    }
-    return combined;
-  }, [product, variants]);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [images, lightboxOpen]);
 
   if (loading) {
     return (
@@ -404,7 +414,7 @@ const ProductDetailPage: React.FC = () => {
   const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
       {/* Lightbox */}
       {lightboxOpen && (
         <ImageLightbox
@@ -414,113 +424,187 @@ const ProductDetailPage: React.FC = () => {
         />
       )}
 
-      {/* Breadcrumb */}
-      <Breadcrumbs />
+      {/* LEFT SIDE: Media Stage (Full width on mobile, 100vh on desktop) */}
+      <div className="relative w-full lg:w-[58%] xl:w-[62%] h-[52vh] min-h-[340px] sm:h-[56vh] lg:h-full bg-neutral-950 overflow-hidden flex flex-col items-center justify-between select-none group/stage shrink-0">
+        
+        {/* 1. TOP-LEFT OVERLAY: Close (X) + OKO Logo */}
+        <div className="absolute top-3.5 left-3.5 z-40 flex items-center gap-3">
+          {/* Bare X close button */}
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault(); // Prevent default touch behavior
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/products');
+              }
+            }}
+            className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-white/90 hover:text-white hover:bg-black/50 rounded-full transition-all active:scale-95 cursor-pointer drop-shadow-lg"
+            title="Close"
+            aria-label="Close product view"
+          >
+            <X size={22} />
+          </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-        {/* Left Column: Image Gallery + Comments (Desktop) */}
-        <div className="flex flex-col gap-6 w-full lg:col-span-6">
-          <div className="flex flex-col md:flex-row-reverse gap-4">
-            <div
-              className="flex-1 aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm cursor-zoom-in relative"
-              onClick={() => setLightboxOpen(true)}
-            >
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={selectedImage}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.05 }}
-                  transition={{ duration: 0.3 }}
-                  className="w-full h-full"
-                >
-                  <SafeImage
-                    src={currentImageSrc}
-                    alt={product.name}
-                    category={product.category_name}
-                    className="w-full h-full hover:scale-105 transition-transform duration-500 ease-out"
-                    containMode="blur-fill"
-                    loading="eager"
-                  />
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Floating Like + Share on image */}
-              <div className="absolute top-3.5 right-3.5 flex flex-col gap-2 z-10" onClick={e => e.stopPropagation()}>
-                <button
-                  onClick={handleLike}
-                  className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center shadow-lg transition-all duration-200 active:scale-95 ${
-                    liked
-                      ? 'bg-red-50/90 dark:bg-red-950/80 text-red-500'
-                      : 'bg-white/90 dark:bg-gray-800/90 text-gray-500 hover:text-red-500 hover:bg-red-50/90 dark:hover:bg-red-950/80'
-                  }`}
-                  title="Like"
-                >
-                  <Heart size={20} className={liked ? 'fill-current' : ''} />
-                </button>
-                {likeCount > 0 && (
-                  <span className="text-center text-[10px] font-black text-white drop-shadow">{likeCount}</span>
-                )}
-                <button
-                  onClick={handleShare}
-                  className="w-10 h-10 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-md flex items-center justify-center shadow-lg text-gray-500 hover:text-brand-500 hover:bg-brand-50/90 dark:hover:bg-brand-950/80 transition-all duration-200 active:scale-95"
-                  title="Share"
-                >
-                  <Share2 size={20} />
-                </button>
-              </div>
-            </div>
-            {images.length > 1 && (
-              <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto pb-2 md:pb-0 md:w-20 shrink-0 no-scrollbar">
-                {images.map((img, idx) => (
-                  <button
-                    key={img.id}
-                    onClick={() => setSelectedImage(idx)}
-                    className={`shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-card overflow-hidden border-2 transition-all duration-300 ${
-                      idx === selectedImage
-                        ? 'border-brand-500 shadow-md scale-100 ring-2 ring-brand-500/20 ring-offset-2 dark:ring-offset-gray-900'
-                        : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 scale-95 opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <SafeImage src={img.image} alt="" category={product.category_name} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          {/* Comments on Desktop */}
-          {isDesktop && (
-            <div className="mt-4">
-              <ProductTabs productId={product.id} sellerUsername={product.seller_username} />
-            </div>
-          )}
+          {/* Bare OKO Logo */}
+          <button
+            onClick={() => navigate('/')}
+            className="h-8 sm:h-9 flex items-center justify-center transition-all active:scale-95 cursor-pointer drop-shadow-lg"
+            title="Go to Homepage"
+          >
+            <img src="/favicon.png" alt="OKO" className="h-full w-auto object-contain" />
+          </button>
         </div>
 
-        {/* Product Info */}
-        <div className="flex flex-col gap-6 w-full lg:col-span-6">
+        {/* 2. AMBIENT BLURRED BACKGROUND FILL */}
+        {currentImageSrc && (
+          <img
+            src={currentImageSrc}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover filter blur-3xl opacity-40 scale-125 select-none pointer-events-none"
+          />
+        )}
+
+        {/* 3. MAIN CRISP IMAGE (Constrained above thumbnail strip to prevent overlap) */}
+        <div 
+          className="relative z-10 w-full flex-1 flex items-center justify-center p-3 sm:p-6 pb-16 sm:pb-20 lg:pb-20 cursor-zoom-in overflow-hidden"
+          onClick={() => setLightboxOpen(true)}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selectedImage}
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.03 }}
+              transition={{ duration: 0.2 }}
+              className="w-full h-full flex items-center justify-center"
+            >
+              {currentImageSrc ? (
+                <SafeImage
+                  src={currentImageSrc}
+                  alt={product.name}
+                  category={product.category_name}
+                  className="max-w-full max-h-[34vh] sm:max-h-[40vh] lg:max-h-[72vh] object-contain drop-shadow-2xl transition-transform duration-300"
+                  containMode="contain"
+                  loading="eager"
+                />
+              ) : (
+                <SafeImage
+                  src=""
+                  alt={product.name}
+                  category={product.category_name}
+                  className="w-full h-full"
+                  transparent
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* 4. OVERLAID PREVIOUS ARROW (<) - Hidden on mobile */}
+        {images.length > 1 && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedImage(prev => (prev > 0 ? prev - 1 : images.length - 1));
+            }}
+            className="hidden sm:flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full items-center justify-center shadow-2xl backdrop-blur-md transition-all hover:scale-110 active:scale-95 z-30 cursor-pointer"
+            aria-label="Previous image"
+          >
+            <ChevronLeft size={24} strokeWidth={2.5} />
+          </button>
+        )}
+
+        {/* 5. OVERLAID NEXT ARROW (>) - Hidden on mobile */}
+        {images.length > 1 && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedImage(prev => (prev < images.length - 1 ? prev + 1 : 0));
+            }}
+            className="hidden sm:flex absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full items-center justify-center shadow-2xl backdrop-blur-md transition-all hover:scale-110 active:scale-95 z-30 cursor-pointer"
+            aria-label="Next image"
+          >
+            <ChevronRight size={24} strokeWidth={2.5} />
+          </button>
+        )}
+
+        {/* 7. BARE FLOATING THUMBNAILS AT BOTTOM (Positioned cleanly below image area, never overlapping) */}
+        {images.length > 1 && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 max-w-[95%] overflow-x-auto no-scrollbar px-1 py-0.5">
+            {images.map((img, idx) => (
+              <button
+                key={img.id}
+                onMouseEnter={() => setSelectedImage(idx)}
+                onClick={() => setSelectedImage(idx)}
+                className={`relative shrink-0 w-12 h-9 sm:w-14 sm:h-10 md:w-16 md:h-12 overflow-hidden border-0 ring-0 rounded-none transition-all cursor-pointer ${
+                  idx === selectedImage
+                    ? 'opacity-100 scale-105 shadow-2xl'
+                    : 'opacity-50 hover:opacity-90 scale-100'
+                }`}
+              >
+                <SafeImage src={img.image} alt="" category={product.category_name} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* RIGHT SIDE: Product Info & Buy Sidebar */}
+      <div className="w-full lg:w-[42%] xl:w-[38%] h-auto lg:h-full bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 overflow-y-visible lg:overflow-y-auto p-5 sm:p-6 lg:p-7 flex flex-col gap-5 shrink-0">
           {/* Header Area */}
           <div>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <Link 
-                to={`/?category=${product.category_name}`} 
-                className="text-xs font-black uppercase tracking-widest text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
-              >
-                {product.category_name}
-              </Link>
-              <span className="text-gray-300 dark:text-gray-600 font-bold">•</span>
-              <span className={`px-2 py-0.5 rounded-card text-[10px] font-black uppercase tracking-wider ${
-                product.condition === 'New' 
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
-                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-              }`}>
-                {product.condition}
-              </span>
-            </div>
+            <div className="flex flex-wrap justify-between items-start gap-4 mb-2">
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link 
+                    to={`/?category=${product.category_name}`} 
+                    className="text-xs font-black uppercase tracking-widest text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
+                  >
+                    {product.category_name}
+                  </Link>
+                  <span className="text-gray-300 dark:text-gray-600 font-bold">•</span>
+                  <span className={`px-2 py-0.5 rounded-card text-[10px] font-black uppercase tracking-wider ${
+                    product.condition === 'New' 
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                  }`}>
+                    {product.condition}
+                  </span>
+                </div>
+                <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight">
+                  {product.name}
+                </h1>
+              </div>
 
-            <h1 className="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight mb-2 tracking-tight">
-              {product.name}
-            </h1>
+              {/* Action Buttons (Like, Share) */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 bg-surface-muted dark:bg-[#242526] rounded-full p-1 pr-2 border border-gray-200 dark:border-gray-800">
+                  <button
+                    onClick={handleLike}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 ${
+                      liked
+                        ? 'bg-red-500 text-white shadow-md'
+                        : 'bg-white dark:bg-[#3a3b3c] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#4e4f50] shadow-sm'
+                    }`}
+                    title="Like"
+                  >
+                    <Heart size={16} className={liked ? 'fill-current' : ''} />
+                  </button>
+                  {likeCount > 0 && (
+                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300 px-1">{likeCount}</span>
+                  )}
+                </div>
+                <button
+                  onClick={handleShare}
+                  className="w-10 h-10 bg-surface-muted dark:bg-[#242526] hover:bg-gray-200 dark:hover:bg-[#3a3b3c] text-gray-700 dark:text-gray-200 rounded-full flex items-center justify-center transition-all active:scale-95 border border-gray-200 dark:border-gray-800"
+                  title="Share"
+                >
+                  <Share2 size={18} />
+                </button>
+              </div>
+            </div>
 
             <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
               {product.location_name && (
@@ -538,7 +622,7 @@ const ProductDetailPage: React.FC = () => {
             </div>
           </div>
 
-          <hr className="border-gray-100 dark:border-gray-800" />
+          <hr className="border-gray-200 dark:border-neutral-800 my-1" />
 
           {/* Price & Badge */}
           <div className="flex flex-col gap-2">
@@ -560,100 +644,104 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {variants.length > 0 && (
-            <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-800 mt-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">Select Variation</span>
-                {selectedVariant && (
-                  <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
-                    TSh {(parseInt(product.price) + parseInt(selectedVariant.price_adjustment)).toLocaleString()}
-                  </span>
-                )}
-              </div>
-              
-              {/* Visual variant selector instead of select dropdown */}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedVariant(null);
-                    setSelectedImage(0); // Go back to default image
-                  }}
-                  className={`px-4 py-2 rounded-card text-sm font-bold transition-all border-2 ${
-                    !selectedVariant 
-                      ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400 dark:border-brand-500' 
-                      : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  Standard
-                </button>
-                {variants.map(v => (
+            <>
+              <hr className="border-gray-200 dark:border-neutral-800 my-1" />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">Select Variation</span>
+                  {selectedVariant && (
+                    <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
+                      TSh {(parseInt(product.price) + parseInt(selectedVariant.price_adjustment)).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                
+                {/* Visual variant selector */}
+                <div className="flex flex-wrap gap-2">
                   <button
-                    key={v.id}
                     onClick={() => {
-                      setSelectedVariant(v);
-                      if (v.image) {
-                        const idx = images.findIndex((img: any) => img.variantId === v.id || img.image === v.image);
-                        if (idx !== -1) setSelectedImage(idx);
-                      }
+                      setSelectedVariant(null);
+                      setSelectedImage(0);
                     }}
-                    className={`px-4 py-2 rounded-card text-sm font-bold transition-all border-2 flex items-center gap-2 ${
-                      selectedVariant?.id === v.id
-                        ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400 dark:border-brand-500'
-                        : v.stock <= 0
-                          ? 'border-transparent bg-gray-50 text-gray-400 cursor-not-allowed dark:bg-gray-800/50 dark:text-gray-600'
-                          : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all border-2 ${
+                      !selectedVariant 
+                        ? 'border-amber-400 bg-amber-400/10 text-amber-500 dark:text-amber-400 dark:border-amber-400' 
+                        : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                     }`}
                   >
-                    {v.image && (
-                      <SafeImage src={v.image} alt={v.name} category="product" className={`w-5 h-5 rounded-full object-cover shrink-0 ${v.stock <= 0 ? 'opacity-50 grayscale' : ''}`} />
-                    )}
-                    <span className={v.stock <= 0 ? 'line-through opacity-70' : ''}>{v.name}</span>
-                    {v.stock <= 0 ? (
-                      <span className="text-[10px] uppercase text-red-500/80 dark:text-red-400/80 font-black ml-1">(Out of stock)</span>
-                    ) : v.price_adjustment !== '0.00' && (
-                      <span className="opacity-75 text-xs ml-1">
-                        (+TSh {parseInt(v.price_adjustment).toLocaleString()})
-                      </span>
-                    )}
+                    Standard
                   </button>
-                ))}
+                  {variants.map(v => (
+                    <button
+                      key={v.id}
+                      onClick={() => {
+                        setSelectedVariant(v);
+                        if (v.image) {
+                          const idx = images.findIndex((img: any) => img.variantId === v.id || img.image === v.image);
+                          if (idx !== -1) setSelectedImage(idx);
+                        }
+                      }}
+                      className={`px-4 py-2 rounded-full text-xs font-bold transition-all border-2 flex items-center gap-2 ${
+                        selectedVariant?.id === v.id
+                          ? 'border-amber-400 bg-amber-400/10 text-amber-500 dark:text-amber-400 dark:border-amber-400'
+                          : v.stock <= 0
+                            ? 'border-transparent bg-gray-50 text-gray-400 cursor-not-allowed dark:bg-gray-800/50 dark:text-gray-600'
+                            : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {v.image && (
+                        <SafeImage src={v.image} alt={v.name} category="product" className={`w-5 h-5 rounded-full object-cover shrink-0 ${v.stock <= 0 ? 'opacity-50 grayscale' : ''}`} />
+                      )}
+                      <span className={v.stock <= 0 ? 'line-through opacity-70' : ''}>{v.name}</span>
+                      {v.stock <= 0 ? (
+                        <span className="text-[10px] uppercase text-red-500/80 dark:text-red-400/80 font-black ml-1">(Out of stock)</span>
+                      ) : v.price_adjustment !== '0.00' && (
+                        <span className="opacity-75 text-xs ml-1">
+                          (+TSh {parseInt(v.price_adjustment).toLocaleString()})
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            </>
           )}
 
-          <hr className="border-gray-100 dark:border-gray-800" />
+          <hr className="border-gray-200 dark:border-neutral-800 my-1" />
 
-          {/* Cart & Variants */}
-          <div className="flex flex-col gap-4">
+          {/* Cart & Action Buttons */}
+          <div className="flex flex-col gap-3">
             {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
               isOwnProduct ? (
-                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-card text-center border border-gray-100 dark:border-gray-700 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <div className="p-3.5 bg-gray-100 dark:bg-[#242526] rounded-full text-center border border-gray-200 dark:border-neutral-800 text-xs font-bold text-gray-400 uppercase tracking-widest">
                   {t('this_is_your_listing')}
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-card bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0">
-                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-sm">−</button>
-                    <span className="px-3 py-2.5 font-extrabold text-gray-900 dark:text-white border-x border-gray-200 dark:border-gray-700 min-w-[40px] text-center text-sm">{quantity}</span>
-                    <button onClick={() => setQuantity(Math.min((selectedVariant ? selectedVariant.stock : product.stock), quantity + 1))} className="px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-sm">+</button>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-full bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0">
+                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-2.5 py-1.5 sm:px-3 sm:py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-xs">−</button>
+                    <span className="px-2 py-1.5 sm:px-3 sm:py-2 font-extrabold text-gray-900 dark:text-white border-x border-gray-200 dark:border-gray-700 min-w-[32px] sm:min-w-[36px] text-center text-xs">{quantity}</span>
+                    <button onClick={() => setQuantity(Math.min((selectedVariant ? selectedVariant.stock : product.stock), quantity + 1))} className="px-2.5 py-1.5 sm:px-3 sm:py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-xs">+</button>
                   </div>
-                  <button onClick={handleAddToCart} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold rounded-card transition shadow-sm active:scale-98 text-sm">
-                    <ShoppingCart size={16} /> {t('add_to_cart')}
+                  <button onClick={handleAddToCart} className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-4 bg-amber-400 hover:bg-amber-500 text-black font-extrabold rounded-full transition shadow-md active:scale-98 text-xs sm:text-sm tracking-wide">
+                    <ShoppingCart size={15} strokeWidth={2.5} className="shrink-0" />
+                    <span className="truncate">{t('add_to_cart')}</span>
                   </button>
-                  <span className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded-card text-xs font-bold whitespace-nowrap">
+                  <span className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-full text-[11px] font-bold shrink-0">
                     {selectedVariant ? selectedVariant.stock : product.stock} {t('in_stock')}
                   </span>
                 </div>
               )
             ) : (
               <div className="flex items-center gap-3">
-                <button disabled className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold rounded-card cursor-not-allowed text-sm">
+                <button disabled className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold rounded-full cursor-not-allowed text-xs">
                   {t('out_of_stock')}
                 </button>
               </div>
             )}
           </div>
 
-          <hr className="border-gray-100 dark:border-gray-800" />
+          <hr className="border-gray-200 dark:border-neutral-800 my-1" />
 
           {/* Description */}
           <div>
@@ -668,7 +756,7 @@ const ProductDetailPage: React.FC = () => {
              )}
           </div>
 
-          <hr className="border-gray-100 dark:border-gray-800" />
+          <hr className="border-gray-200 dark:border-neutral-800 my-1" />
 
           {/* Merchant Trust */}
           <div className="flex items-center justify-between gap-4">
@@ -731,7 +819,7 @@ const ProductDetailPage: React.FC = () => {
           {/* Verification & Inspection Services */}
           {(isOwnProduct || (product.inspections && product.inspections.length > 0)) && (
             <>
-              <hr className="border-gray-100 dark:border-gray-800" />
+              <hr className="border-gray-200 dark:border-neutral-800 my-1" />
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <Shield size={16} className="text-brand-500" />
@@ -762,7 +850,7 @@ const ProductDetailPage: React.FC = () => {
 
                   {isOwnProduct && (
                     <Link to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name)}&marketplace_product_id=${product.id}`}
-                      className="block w-full py-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest text-center transition"
+                      className="block w-full py-2.5 rounded-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest text-center transition"
                     >
                       {product.inspections?.length > 0 ? t('request_reinspection') : t('request_inspection')}
                     </Link>
@@ -772,19 +860,16 @@ const ProductDetailPage: React.FC = () => {
             </>
           )}
 
-          {/* Map Location (Right Column) */}
+          {/* Map Location */}
           {product.latitude && product.longitude && (
             <ProductMap lat={product.latitude} lng={product.longitude} locationName={product.location_name} isDesktop={isDesktop} />
           )}
-        </div>
 
+          {/* Product Reviews & Comments */}
+          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+            <ProductTabs productId={product.id} sellerUsername={product.seller_username} />
+          </div>
         </div>
-      {/* Tabs: Reviews & Comments (Mobile/Tablet) */}
-      {!isDesktop && (
-        <div className="mt-8">
-          <ProductTabs productId={product.id} sellerUsername={product.seller_username} />
-        </div>
-      )}
     </div>
   );
 };

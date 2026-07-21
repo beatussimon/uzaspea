@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { Star, Heart, Share2, Shield, MapPin, Clock } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Star, Heart, Share2, Shield, MapPin, Clock, Flame, TrendingUp, ShoppingBag } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import SafeImage from './SafeImage';
@@ -8,8 +8,40 @@ import toast from 'react-hot-toast';
 import VerifiedBadge from './VerifiedBadge';
 import { timeAgo } from '../utils/timeAgo';
 
-const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
+const TrendingMetricBadge = ({ product }: { product: any }) => {
+  const { t } = useTranslation();
+  const sales = product.weekly_sales || 0;
+  const likes = product.like_count || 0;
+  const rating = product.avg_rating || 0;
+
+  let icon = <TrendingUp size={10} className="shrink-0 text-orange-400" />;
+  let label = t('trending', 'Trending');
+
+  if (sales > 0) {
+    icon = <ShoppingBag size={10} className="shrink-0 text-amber-300" />;
+    label = `${sales} ${t('sold_this_week', 'sold this week')}`;
+  } else if (likes > 0) {
+    icon = <Heart size={10} className="shrink-0 text-rose-300 fill-current" />;
+    label = `${likes} ${t('saves', 'saves')}`;
+  } else if (rating >= 4.0) {
+    icon = <Star size={10} className="shrink-0 text-yellow-300 fill-current" />;
+    label = `${rating} ${t('top_rated', 'Top Rated')}`;
+  } else {
+    icon = <Flame size={10} className="shrink-0 text-orange-400" />;
+    label = t('high_interest', 'High Interest');
+  }
+
+  return (
+    <div className="flex items-center gap-1 text-[8.5px] font-black bg-neutral-900/90 text-white backdrop-blur-md px-2 py-0.5 rounded-card border border-orange-500/40 shadow-md uppercase tracking-wider w-fit">
+      {icon}
+      <span>{label}</span>
+    </div>
+  );
+};
+
+const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = false, showTrendingMetrics = false }: any) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [isInteractive, setIsInteractive] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const images = product.images || [];
   const { t } = useTranslation();
@@ -32,30 +64,42 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
 
   const handleNext = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
+    if (!isInteractive) setIsInteractive(true);
     if (currentIndex < images.length - 1) scrollToIndex(currentIndex + 1);
   };
 
   const handlePrev = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
+    if (!isInteractive) setIsInteractive(true);
     if (currentIndex > 0) scrollToIndex(currentIndex - 1);
   };
 
+  // Only render secondary images if user hovered or interacted, or if current index > 0
+  const shouldRenderAll = isInteractive || currentIndex > 0;
+  const visibleImages = shouldRenderAll ? images : (images.length > 0 ? [images[0]] : []);
+
   return (
-    <div className={`${viewMode === 'list' ? 'relative w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg' : 'absolute inset-0 w-full h-full'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel`}>
+    <div 
+      onMouseEnter={() => setIsInteractive(true)}
+      className={`${viewMode === 'list' ? 'relative w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg' : 'absolute inset-0 w-full h-full'} bg-gray-100 dark:bg-gray-800/50 overflow-hidden group/carousel`}
+    >
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
         className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full w-full"
       >
-        {images.length > 0 ? (
-          images.map((img: any, i: number) => (
+        {visibleImages.length > 0 ? (
+          visibleImages.map((img: any, i: number) => (
             <div key={i} className="flex-none w-full h-full snap-center">
               <SafeImage
                 src={img.image || ''}
                 alt={`${product.name} - ${i + 1}`}
                 category={product.category_name}
                 className="w-full h-full"
-                containMode="blur-fill"
+                containMode="cover"
+                loading={isTopFold && i === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+                {...(isTopFold && i === 0 ? { fetchpriority: 'high' } : {})}
               />
             </div>
           ))
@@ -66,7 +110,8 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
               alt={product.name} 
               category={product.category_name} 
               className="w-full h-full"
-              containMode="blur-fill"
+              containMode="cover"
+              loading="lazy"
             />
           </div>
         )}
@@ -78,6 +123,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
         </span>
       ) : (
         <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
+          {showTrendingMetrics && <TrendingMetricBadge product={product} />}
           {isSponsored && (
             <span className="bg-brand-600 text-white text-[9px] px-2 py-0.5 rounded-card font-black shadow-md uppercase tracking-wider">
               {t('sponsored', 'Sponsored')}
@@ -125,8 +171,10 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored }: any) => {
   );
 };
 
-const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean }) => {
+const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isTopFold = false, showTrendingMetrics = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean; isTopFold?: boolean; showTrendingMetrics?: boolean }) => {
   const { t } = useTranslation();
+  const location = useLocation();
+  const bgState = { state: { backgroundLocation: location, initialProduct: product } };
   const [liked, setLiked] = React.useState(product?.is_liked || false);
 
   if (!product) return null;
@@ -138,7 +186,6 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
       const res = await api.post(`/api/products/${product.slug}/like/`);
       setLiked(res.data.liked);
       toast.success(res.data.liked ? 'Liked!' : 'Unliked!', { 
-        icon: res.data.liked ? '❤️' : '🤍',
         style: { borderRadius: '10px', background: '#333', color: '#fff' }
       });
     } catch { toast.error('Login to like'); }
@@ -158,10 +205,10 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
 
   if (viewMode === 'list') {
     return (
-      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-300 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-400/60 dark:ring-yellow-500/40' : ''}`}>
-        <Link to={`/product/${product.slug}`} className="flex flex-row items-center gap-4 flex-1 min-w-0">
+      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-75 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-400/60 dark:ring-yellow-500/40' : ''}`}>
+        <Link to={`/product/${product.slug}`} {...bgState} className="flex flex-row items-center gap-4 flex-1 min-w-0">
           {/* Horizontal Image Carousel */}
-          <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} />
+          <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} />
 
           {/* Content */}
           <div className="flex-1 min-w-0 pr-8">
@@ -229,10 +276,10 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false }: {
   }
 
   return (
-    <div className={`group relative card overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-300`}>
-      <Link to={`/product/${product.slug}`} className="relative flex flex-col h-full">
+    <div className={`group relative card overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-75`}>
+      <Link to={`/product/${product.slug}`} {...bgState} className="relative flex flex-col h-full">
         {/* Image Carousel — fixed height */}
-        <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} />
+        <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} />
 
         {/* Card body */}
         <div className="absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent">
