@@ -21,6 +21,7 @@ import TeamsPage from './pages/TeamsPage';
 import MobileBottomNav from './components/MobileBottomNav';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
+import CategoryBar from './components/layout/CategoryBar';
 
 // Eager imports for small/core public views
 import NotFound from './pages/NotFound';
@@ -81,6 +82,7 @@ function App() {
               <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300">
                 <Navbar />
                 <div className="h-14 md:h-20" /> {/* Spacer matching navbar height */}
+                <CategoryBar />
 
                 <main className="flex-1 pt-4 md:pt-6">
                   <ErrorBoundary>

@@ -99,6 +99,11 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const reconnectTimeoutRef = useRef<number | null>(null);
   const activeConvIdRef = useRef<number | null>(null);
 
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   // Sync ref with state so ws handler always knows the active conversation ID
   useEffect(() => {
     activeConvIdRef.current = activeConversationId;
@@ -154,9 +159,18 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const token = await getValidToken();
     if (!token) return;
 
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
 
-    // Clean up existing
+    // Do not tear down if already OPEN or CONNECTING
     if (wsRef.current) {
+      if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
+        return;
+      }
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
       try {
         wsRef.current.close();
       } catch (e) {}
@@ -167,6 +181,7 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Connect to ws/chat/
     const wsUrl = `${protocol}://${host}/ws/chat/?token=${token}`;
     const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
 
     ws.onopen = () => {
       // Websocket connected
@@ -175,11 +190,13 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
+        const currentUserId = userRef.current?.user_id;
+
         if (data.type === 'typing') {
           const convId = Number(data.conversation_id);
           const isTyping = data.is_typing === true || data.is_typing === 'true';
           const senderId = Number(data.sender_id);
-          if (senderId !== user?.user_id) {
+          if (senderId !== currentUserId) {
             setTypingStatus(prev => ({
               ...prev,
               [convId]: isTyping,
@@ -192,7 +209,6 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
           const convId = Number(data.conversation_id);
           const msg: Message = data.message;
-          const currentUserId = user?.user_id;
 
           // 1. Update messages cache if it exists or if it's the active conversation
           if (activeConvIdRef.current === convId) {
@@ -300,21 +316,19 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     };
 
-    ws.onclose = () => {
-      // Avoid reconnect loop if logged out
-      if (isAuthenticated) {
+    ws.onclose = (e) => {
+      // Avoid reconnect loop if logged out or normal closure
+      if (isAuthenticated && e.code !== 1000) {
         reconnectTimeoutRef.current = window.setTimeout(() => {
           connectWS();
-        }, 4000);
+        }, 5000);
       }
     };
 
     ws.onerror = () => {
-      ws.close();
+      // Let onclose handle reconnect
     };
-
-    wsRef.current = ws;
-  }, [isAuthenticated, user, loadConversations]);
+  }, [isAuthenticated, loadConversations]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -322,7 +336,11 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     return () => {
       if (wsRef.current) {
-        wsRef.current.close();
+        wsRef.current.onclose = null;
+        wsRef.current.onerror = null;
+        try {
+          wsRef.current.close(1000);
+        } catch (e) {}
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);

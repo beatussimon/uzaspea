@@ -401,36 +401,68 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
         if not order_id:
             return Response({'error': 'order_id is required'}, status=status.HTTP_400_BAD_REQUEST)
             
-        try:
-            order = Order.objects.get(id=order_id)
-            
-            # Get primary product name/image (name masked for logistics security)
-            product_name = "SokoniMax Secured Package"
-            product_image = None
+        order_param = str(order_id).strip()
+        order = None
 
-            first_item = order.items.select_related('product__seller').first()
+        # 1. Try exact numeric ID lookup
+        if order_param.isdigit():
+            order = Order.objects.filter(id=int(order_param)).first()
 
+        # 2. Try lookup by PickupCode
+        if not order:
+            from logistics.models import PickupCode
+            pcode = PickupCode.objects.filter(code=order_param).first()
+            if pcode:
+                order = pcode.order
+
+        # 3. Try lookup by Shipment tracking_number
+        if not order:
+            from logistics.models import Shipment
+            shipment = Shipment.objects.filter(tracking_number=order_param).first()
+            if shipment:
+                order = shipment.order
+
+        # 4. Strip non-digits (e.g. "#12", "SOK-12", "ORDER-12")
+        if not order:
+            import re
+            digits = re.sub(r'\D', '', order_param)
+            if digits:
+                order = Order.objects.filter(id=int(digits)).first()
+
+        if not order:
+            return Response({'error': f'Order matching "{order_param}" not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get primary product name/image (name masked for logistics security)
+        product_name = "SokoniMax Secured Package"
+        product_image = None
+
+        first_item = order.orderitem_set.select_related('product__seller').first()
+
+        buyer_name = "Unknown Buyer"
+        if order.user:
             buyer_name = order.user.get_full_name() or order.user.username
-            seller_name = "Unknown Seller"
-            if first_item:
-                seller = first_item.product.seller
-                seller_name = seller.get_full_name() or seller.username
-                
-            from marketplace.serializers import PaymentSerializer
-            payments = PaymentSerializer(order.payments.all(), many=True).data
 
-            return Response({
-                'id': order.id,
-                'status': order.status,
-                'product_name': product_name,
-                'product_image': product_image,
-                'buyer_name': buyer_name,
-                'seller_name': seller_name,
-                'payments': payments,
-                'delivery_info': order.delivery_info,
-            })
-        except Order.DoesNotExist:
-            return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+        seller_name = "Unknown Seller"
+        if first_item and first_item.product and first_item.product.seller:
+            seller = first_item.product.seller
+            seller_name = seller.get_full_name() or seller.username
+            
+        from marketplace.serializers import PaymentSerializer
+        payments = PaymentSerializer(order.payments.all(), many=True).data
+
+        return Response({
+            'id': order.id,
+            'status': order.status,
+            'shipping_method': order.shipping_method,
+            'shipping_fee': float(order.shipping_fee or 0),
+            'total_amount': float(order.total_amount or 0),
+            'product_name': product_name,
+            'product_image': product_image,
+            'buyer_name': buyer_name,
+            'seller_name': seller_name,
+            'payments': payments,
+            'delivery_info': order.delivery_info,
+        })
 
 
 class WarehouseTransferViewSet(viewsets.ModelViewSet):

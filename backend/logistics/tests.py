@@ -59,6 +59,30 @@ class DeliveryEngineTests(TestCase):
         # Rounded to nearest 100 -> 58500.
         self.assertTrue(50000 <= price <= 65000)
 
+    def test_historical_route_pricing_quote(self):
+        from warehouses.models import Warehouse, HistoricalRoutePricing
+        from rest_framework.test import APIClient
+        w1 = Warehouse.objects.create(name='Dar Hub', code='DAR-99', region='Dar es Salaam')
+        w2 = Warehouse.objects.create(name='Mwanza Hub', code='MWZ-99', region='Mwanza')
+        HistoricalRoutePricing.objects.create(
+            origin_warehouse=w1,
+            destination_warehouse=w2,
+            average_cost=Decimal('15000.00'),
+            data_points=5
+        )
+        client = APIClient()
+        response = client.post('/api/logistics/pricing/quote/', {
+            'origin_code': 'DAR-99',
+            'destination_code': 'MWZ-99'
+        }, format='json')
+        self.assertEqual(response.status_code, 200)
+        quotes = response.json().get('quotes', [])
+        self.assertTrue(len(quotes) > 0)
+        std_quote = next((q for q in quotes if q['code'] == 'standard'), None)
+        self.assertIsNotNone(std_quote)
+        self.assertEqual(std_quote['price'], 15000.0)
+        self.assertTrue(std_quote['is_historical_estimate'])
+
 
 class PickupCodeTests(TestCase):
     def setUp(self):

@@ -154,6 +154,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if token:
                 user = await get_user_from_token(token)
         if not user or not user.is_authenticated:
+            await self.accept()
             await self.close(code=4001)
             return
         self.user = user

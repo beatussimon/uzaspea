@@ -355,6 +355,27 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
+        if ret.get('delivery_info') and isinstance(ret['delivery_info'], dict):
+            d_info = dict(ret['delivery_info'])
+            if not d_info.get('estimated_shipping_fee'):
+                origin_code = d_info.get('warehouse_code')
+                dest_code = d_info.get('destination_warehouse_code')
+                if origin_code and dest_code:
+                    from warehouses.models import Warehouse, HistoricalRoutePricing
+                    try:
+                        orig_wh = Warehouse.objects.filter(code=origin_code).first()
+                        dest_wh = Warehouse.objects.filter(code=dest_code).first()
+                        if orig_wh and dest_wh:
+                            hrp = HistoricalRoutePricing.objects.filter(
+                                origin_warehouse=orig_wh, destination_warehouse=dest_wh
+                            ).first()
+                            if hrp and hrp.data_points > 0:
+                                d_info['estimated_shipping_fee'] = float(hrp.average_cost)
+                                d_info['is_historical_estimate'] = True
+                    except Exception:
+                        pass
+            ret['delivery_info'] = d_info
+
         request = self.context.get('request')
         if request and hasattr(request, 'user') and not request.user.is_anonymous:
             user = request.user
