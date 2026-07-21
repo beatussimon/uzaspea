@@ -877,11 +877,11 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         product = serializer.validated_data['product']
-        # Strict anti-fraud check: User must have a COMPLETED order containing this product.
+        # Strict anti-fraud check: User must have a COMPLETED or DELIVERED order containing this product.
+        from django.db.models import Q
         has_completed_order = OrderItem.objects.filter(
-            order__user=self.request.user,
-            order__status='COMPLETED',
-            product=product
+            Q(order__user=self.request.user, product=product) &
+            (Q(order__status__in=['COMPLETED', 'DELIVERED']) | Q(order__is_completed=True))
         ).exists()
         
         if not has_completed_order:
