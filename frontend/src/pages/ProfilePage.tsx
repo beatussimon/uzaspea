@@ -177,7 +177,7 @@ const ProfilePage: React.FC = () => {
     );
   }
 
-  const ratingAvg = profile.seller_rating?.avg ? Number(profile.seller_rating.avg) : 0;
+  const ratingAvg = profile.seller_rating?.average ? Number(profile.seller_rating.average) : 0;
   const ratingCount = profile.seller_rating?.count ? Number(profile.seller_rating.count) : 0;
 
   return (

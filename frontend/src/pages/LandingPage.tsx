@@ -2,41 +2,14 @@ import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ArrowRight, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useVelocity, useSpring, useTransform } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import api from '../api';
 import ProductCard from '../components/ProductCard';
 import PromotedProductsRow from '../components/PromotedProductsRow';
 import PlatformInsights from '../components/PlatformInsights';
 import { ProductCardSkeleton } from '../components/Skeleton';
+import VerifiedBadge from '../components/VerifiedBadge';
 import { useTheme } from '../context/ThemeContext';
-
-const WavyChar = ({ char, index, velocity }: { char: string, index: number, velocity: any }) => {
-  const y = useTransform(velocity, [-1000, 0, 1000], [
-    -12 * Math.sin(index * 0.4), 
-    0, 
-    12 * Math.sin(index * 0.4)
-  ]);
-  const rotate = useTransform(velocity, [-1000, 0, 1000], [
-    -5 * Math.cos(index * 0.4), 
-    0, 
-    5 * Math.cos(index * 0.4)
-  ]);
-  return (
-    <motion.span style={{ y, rotate, display: 'inline-block', whiteSpace: 'pre' }}>
-      {char}
-    </motion.span>
-  );
-};
-
-const WavyText = ({ text, velocity, startIndex = 0 }: { text: string, velocity: any, startIndex?: number }) => {
-  return (
-    <span style={{ display: 'inline-block' }}>
-      {text.split('').map((char, i) => (
-        <WavyChar key={i} char={char} index={startIndex + i} velocity={velocity} />
-      ))}
-    </span>
-  );
-};
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -56,14 +29,12 @@ const LandingPage = () => {
   const smoothVelocity = useSpring(dragVelocity, { damping: 50, stiffness: 400 });
   
   // Group transforms for the paragraph and form
-  const rotateP = useTransform(smoothVelocity, [-1000, 0, 1000], [2, 0, -2]);
-  const xP = useTransform(smoothVelocity, [-1000, 0, 1000], [4, 0, -4]);
 
   const rotateForm = useTransform(smoothVelocity, [-1000, 0, 1000], [-1, 0, 1]);
   const skewForm = useTransform(smoothVelocity, [-1000, 0, 1000], [2, 0, -2]);
 
-  const lightHero = '/kariakoo_daytime.png?v=2';
-  const darkHero = '/kariakoo_nightscape.png?v=2';
+  const lightHero = '/kariakoo_daytime.webp?v=3';
+  const darkHero = '/kariakoo_nightscape.webp?v=3';
 
   useEffect(() => {
     // Preload hero images for seamless transitions
@@ -135,28 +106,20 @@ const LandingPage = () => {
           <div className="absolute inset-0 bg-black/10 dark:bg-transparent pointer-events-none sticky left-0"></div>
         </div>
 
-        <div className="relative z-10 w-full max-w-4xl px-10 sm:px-14 md:px-16 text-center -translate-y-12 md:-translate-y-16 pointer-events-none">
-          <h1 className="text-4xl md:text-6.5xl font-black text-white mb-4 drop-shadow-xl tracking-tight leading-tight origin-center flex flex-col items-center justify-center">
-            <div className="inline-block">
-              <WavyText text={t('buy_and_sell')} velocity={smoothVelocity} />
-              <span className="text-yellow-400 inline-block">
-                <WavyText text={t('anything')} velocity={smoothVelocity} startIndex={13} />
-              </span>
-              <WavyText text="," velocity={smoothVelocity} startIndex={21} /> 
-            </div>
-            <div className="hidden md:inline-block">
-              <WavyText text={t('instantly')} velocity={smoothVelocity} startIndex={22} />
-            </div>
-            <div className="inline-block md:hidden">
-              <WavyText text={t('instantly')} velocity={smoothVelocity} startIndex={22} />
-            </div>
+        <div className="relative z-10 w-full max-w-4xl px-10 sm:px-14 md:px-16 text-center pointer-events-none">
+          <h1 className="text-4xl md:text-5xl font-black text-white mb-4 drop-shadow-xl tracking-tight leading-tight origin-center flex flex-col items-center justify-center">
+            <span className="inline-block text-white">
+              <Trans i18nKey="hero_title_main">
+                Buy <span className="text-yellow-400">confidently</span> new and used items in <span className="text-yellow-400">Tanzania</span>
+              </Trans>
+            </span>
           </h1>
-          <motion.p 
-            style={{ rotate: rotateP, x: xP }}
-            className="text-base md:text-lg text-gray-200 mb-8 drop-shadow-md font-medium max-w-xl mx-auto origin-center"
-          >
-            {t('marketplace_desc')}
-          </motion.p>
+          <div className="flex items-center justify-center gap-2 mb-8 text-white/90 text-base md:text-lg font-medium drop-shadow-md">
+            <span>{t('all_sellers_verified', 'All sellers on this platform are verified')}</span>
+            <VerifiedBadge tier="seller_pro" isVerified={true} className="w-7 h-7 md:w-9 md:h-9" />
+            <VerifiedBadge tier="business" isVerified={true} className="w-7 h-7 md:w-9 md:h-9" />
+          </div>
+
 
           <motion.div 
             style={{ rotate: rotateForm, skewX: skewForm }}
@@ -236,8 +199,8 @@ const LandingPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5 p-4 md:p-5 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50">
-            {latestProducts.map((product) => (
-              <ProductCard key={product.id} product={product} viewMode="grid" />
+            {latestProducts.map((product, idx) => (
+              <ProductCard key={product.id} product={product} viewMode="grid" isTopFold={idx < 4} />
             ))}
           </div>
         )}

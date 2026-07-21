@@ -139,6 +139,9 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     if (isAuthenticated) {
       loadConversations();
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
     } else {
       setConversations([]);
       setMessages({});

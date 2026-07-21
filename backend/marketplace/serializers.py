@@ -82,6 +82,7 @@ class ProductSerializer(serializers.ModelSerializer):
     seller_profile_picture = serializers.SerializerMethodField()
     avg_rating = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
+    weekly_sales = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
     category_name = serializers.CharField(source='category.name', read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
@@ -99,7 +100,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'description', 'price', 'sale_price', 'stock', 'is_available',
                   'category', 'category_name', 'seller', 'seller_username', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition',
-                  'avg_rating', 'like_count', 'is_liked', 'images', 'inspections', 'is_verified',
+                  'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified',
                   'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude',
                   'weight_kg', 'size']
         read_only_fields = ['seller', 'slug']
@@ -126,6 +127,11 @@ class ProductSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'annotated_like_count'):
             return obj.annotated_like_count
         return obj.likes.count()
+
+    def get_weekly_sales(self, obj):
+        if hasattr(obj, 'weekly_sales'):
+            return obj.weekly_sales
+        return getattr(obj, 'sales_count', 0)
 
     def get_seller_tier(self, obj):
         try:
@@ -202,8 +208,11 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     def get_has_review(self, obj):
         from .models import Review
-        # Check if a review exists for this product and order
-        return Review.objects.filter(order=obj.order, product=obj.product).exists()
+        from django.db.models import Q
+        # Check if a review exists for this product and order or by the buyer
+        return Review.objects.filter(
+            Q(product=obj.product) & (Q(order=obj.order) | Q(user=obj.order.user))
+        ).exists()
 
     def get_product_image(self, obj):
         img = obj.product.images.first()

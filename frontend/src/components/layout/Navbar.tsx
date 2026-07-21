@@ -36,8 +36,18 @@ const Navbar = () => {
   const username = user?.username || 'User';
   const isSeller = userTier === 'seller_pro' || userTier === 'business' || isStaff || isSuperuser;
 
-  // Reset scroll and state on route change
+  // Reset scroll and state on route change (skip for modal product overlays)
+  const prevPathRef = useRef(location.pathname);
   useEffect(() => {
+    const isModalOpen = !!(location.state as any)?.backgroundLocation;
+    const isReturningFromProduct = prevPathRef.current.startsWith('/product/');
+    prevPathRef.current = location.pathname;
+
+    // Completely skip navbar reset if we are just opening or closing a modal overlay
+    if (isModalOpen || isReturningFromProduct) {
+      return;
+    }
+
     setIsAtTop(true);
     currentOffset.current = 0;
     if (navbarRef.current) {
@@ -154,7 +164,7 @@ const Navbar = () => {
           <Link to="/" className="flex items-center group">
             <img 
               src="/logo_dark.png"
-              alt="SokoniMax Logo" 
+              alt="OKO Logo" 
               className="h-14 md:h-16 w-auto object-contain transition-transform duration-200 hover:scale-105 select-none"
             />
           </Link>

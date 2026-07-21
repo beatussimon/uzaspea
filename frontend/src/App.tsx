@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 import { CartProvider } from './context/CartContext';
@@ -70,6 +70,52 @@ const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = fal
   return children;
 };
 
+// Inner component that has access to location (must be inside BrowserRouter)
+function AppRoutes() {
+  const location = useLocation();
+  // If navigated with { state: { backgroundLocation } }, render the overlay product detail
+  // on top of the background page (keeps background page mounted at exact scroll position)
+  const backgroundLocation = (location.state as any)?.backgroundLocation;
+
+  return (
+    <>
+      {/* Background page — rendered at backgroundLocation when a modal route is active */}
+      <Routes location={backgroundLocation || location}>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/products" element={<ProductList />} />
+        {/* Also keep product route here for direct URL access (no modal state) */}
+        <Route path="/product/:slug" element={<ProductDetailPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+        <Route path="/dashboard/*" element={<ProtectedRoute requireSeller><DashboardLayout /></ProtectedRoute>} />
+        <Route path="/upgrade" element={<SellerUpgradePage />} />
+        <Route path="/shipments/:id/track" element={<ProtectedRoute><ShipmentTrackingPage /></ProtectedRoute>} />
+        <Route path="/staff-admin/*" element={<ProtectedRoute requireSuperuser><StaffAdminLayout /></ProtectedRoute>} />
+        <Route path="/staff/*" element={<ProtectedRoute requireStaff><StaffDashboardLayout /></ProtectedRoute>} />
+        <Route path="/inspections/*" element={<ProtectedRoute><InspectionLayout /></ProtectedRoute>} />
+        <Route path="/inspector/*" element={<ProtectedRoute requireInspector><InspectorLayout /></ProtectedRoute>} />
+        <Route path="/verify/:inspection_id" element={<PublicVerifyPage />} />
+        <Route path="/help" element={<HelpCenterPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/profile/:username" element={<ProfilePage />} />
+        <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
+        <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+        <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+
+      {/* Modal overlay — rendered on top of background when backgroundLocation is set */}
+      {backgroundLocation && (
+        <Routes>
+          <Route path="/product/:slug" element={<ProductDetailPage />} />
+        </Routes>
+      )}
+    </>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider>
@@ -87,53 +133,10 @@ function App() {
                 <main className="flex-1 pt-4 md:pt-6">
                   <ErrorBoundary>
                     <Suspense fallback={<SuspenseLoader />}>
-                    <Routes>
-                      <Route path="/" element={<LandingPage />} />
-                      <Route path="/products" element={<ProductList />} />
-                      <Route path="/product/:slug" element={<ProductDetailPage />} />
-                      <Route path="/cart" element={<CartPage />} />
-                      <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
-                      <Route path="/dashboard/*" element={<ProtectedRoute requireSeller><DashboardLayout /></ProtectedRoute>} />
-                      <Route path="/upgrade" element={<SellerUpgradePage />} />
-                      <Route path="/shipments/:id/track" element={<ProtectedRoute><ShipmentTrackingPage /></ProtectedRoute>} />
-                      
-                      {/* Strict Staff Isolation */}
-                      <Route path="/staff-admin/*" element={
-                        <ProtectedRoute requireSuperuser>
-                          <StaffAdminLayout />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/staff/*" element={
-                        <ProtectedRoute requireStaff>
-                          <StaffDashboardLayout />
-                        </ProtectedRoute>
-                      } />
-
-                      <Route path="/inspections/*" element={
-                        <ProtectedRoute>
-                          <InspectionLayout />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/inspector/*" element={
-                        <ProtectedRoute requireInspector>
-                          <InspectorLayout />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/verify/:inspection_id" element={<PublicVerifyPage />} />
-                      <Route path="/help" element={<HelpCenterPage />} />
-
-                      <Route path="/login" element={<LoginPage />} />
-                      <Route path="/register" element={<RegisterPage />} />
-                      <Route path="/profile/:username" element={<ProfilePage />} />
-                      <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
-                      <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
-                      <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-                      <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
-                </ErrorBoundary>
-              </main>
+                      <AppRoutes />
+                    </Suspense>
+                  </ErrorBoundary>
+                </main>
 
                 <Footer />
                 <MobileBottomNav />

@@ -234,7 +234,23 @@ const resources = {
       "status.FAILED_DELIVERY": "Failed Delivery",
       "status.CANCELLED": "Cancelled",
       "status.EXPIRED": "Expired",
-      "status.DISPUTED": "Disputed"
+      "status.DISPUTED": "Disputed",
+      "sold_this_week": "sold this week",
+      "saves": "saves",
+      "high_interest": "High Interest",
+      "contact_support_feedback": "Contact Support & Give Feedback",
+      "contact_support_desc": "Need assistance or have feedback? Send us a direct message and our team will get back to you promptly.",
+      "what_are_you_contacting_us_about": "What are you contacting us about?",
+      "order_and_delivery": "Order & Delivery",
+      "suggestion": "Suggestion",
+      "report_issue": "Report Issue",
+      "general_inquiry": "General Inquiry",
+      "send_message_and_feedback": "Send Message & Feedback",
+      "your_support_and_feedback_history": "Your Support & Feedback History",
+      "status_received": "Received",
+      "status_in_review": "In Review",
+      "status_resolved": "Resolved",
+      "support_team_response": "Support Team Response:"
     }
   },
   sw: {
@@ -346,7 +362,9 @@ const resources = {
       "buy_and_sell": "Nunua na Uza ",
       "anything": "Chochote",
       "instantly": "Kwa Haraka.",
-      "marketplace_desc": "Soko la kijamii kwa bidhaa mpya, zilizotumika, na zilizothibitishwa nchini Tanzania.",
+      "hero_title_main": "Nunua Kwa <1>Uaminifu</1> Bidhaa Mpya Na Zilizotumika <3>Tanzania</3>",
+      "all_sellers_verified": "Wauzaji wote katika jukwaa hili wamethibitishwa",
+      "marketplace_desc": "Soko la bidhaa mpya, zilizotumika na zilizokaguliwa kutoka kwa wauzaji waaminifu nchini Tanzania.",
       "active_users": "Watumiaji Hai",
       "products_sold": "Bidhaa Zilizouzwa",
       "weekly_visits": "Watembeleaji wa Wiki",
@@ -467,7 +485,23 @@ const resources = {
       "status.FAILED_DELIVERY": "Uwasilishaji Umeshindikana",
       "status.CANCELLED": "Imeghairiwa",
       "status.EXPIRED": "Imeisha Muda",
-      "status.DISPUTED": "Inabishaniwa"
+      "status.DISPUTED": "Inabishaniwa",
+      "sold_this_week": "zilizouzwa wiki hii",
+      "saves": "zilizohifadhiwa",
+      "high_interest": "Inazungumziwa Sana",
+      "contact_support_feedback": "Wasiliana na Msaada & Toa Maoni",
+      "contact_support_desc": "Je, unahitaji msaada au una maoni? Tutumie ujumbe moja kwa moja na timu yetu itakujibu haraka.",
+      "what_are_you_contacting_us_about": "Je, unawasiliana nasi kuhusu nini?",
+      "order_and_delivery": "Agizo & Uwasilishaji",
+      "suggestion": "Ushauri / Pendekezo",
+      "report_issue": "Ripoti Tatizo",
+      "general_inquiry": "Swali la Jumla",
+      "send_message_and_feedback": "Tuma Ujumbe & Maoni",
+      "your_support_and_feedback_history": "Historia ya Maombi na Maoni Yako",
+      "status_received": "Imepokelewa",
+      "status_in_review": "Inaangaliwa",
+      "status_resolved": "Imetatuliwa",
+      "support_team_response": "Jibu la Timu ya Msaada:"
     }
   }
 };

@@ -16,7 +16,7 @@ const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({ tier, isVerified, classNa
   }
   
   if (normalizedTier === 'seller_pro') {
-    return <img src="/greeen_ckeckmark.png" alt="Verified Seller" className={className} title="Verified Seller" />;
+    return <img src="/greeen_ckeckmark.png" alt="Verified Seller" className={`${className} scale-[0.85]`} title="Verified Seller" />;
   }
   
   return null;

@@ -5,6 +5,8 @@ interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallback?: string;
   category?: string;
   containMode?: 'cover' | 'contain' | 'blur-fill';
+  /** When true, renders the fallback icon on a transparent background (no card/border) */
+  transparent?: boolean;
 }
 
 /**
@@ -21,6 +23,7 @@ const SafeImage: React.FC<SafeImageProps> = ({
   alt,
   category = '',
   containMode = 'cover',
+  transparent = false,
   onLoad,
   ...props
 }) => {
@@ -224,9 +227,36 @@ const SafeImage: React.FC<SafeImageProps> = ({
   };
 
   if (isInvalid) {
+    if (transparent) {
+      // Render icon directly on parent background — no card, no border
+      return (
+        <div
+          className={`flex items-center justify-center text-neutral-500 dark:text-neutral-400 ${className}`}
+          {...(props as any)}
+        >
+          {/* Re-render icon at larger size for transparent/stage context */}
+          {(() => {
+            const cat = category.toLowerCase();
+            const iconClass = 'w-16 h-16 sm:w-20 sm:h-20 opacity-60';
+            const sw = 1.2;
+            if (cat.includes('car') || cat.includes('vehicle') || cat.includes('auto') || cat.includes('motor') || cat.includes('bike') || cat.includes('transport') || cat.includes('gari')) return <Car className={iconClass} strokeWidth={sw} />;
+            if (cat.includes('real estate') || cat.includes('property') || cat.includes('house') || cat.includes('apartment') || cat.includes('land') || cat.includes('home') || cat.includes('nyumba') || cat.includes('plot')) return <Home className={iconClass} strokeWidth={sw} />;
+            if (cat.includes('electronic') || cat.includes('computer') || cat.includes('laptop') || cat.includes('tech') || cat.includes('gadget')) return <Laptop className={iconClass} strokeWidth={sw} />;
+            if (cat.includes('phone') || cat.includes('mobile') || cat.includes('smartphone') || cat.includes('simu')) return <Smartphone className={iconClass} strokeWidth={sw} />;
+            if (cat.includes('cloth') || cat.includes('fashion') || cat.includes('wear') || cat.includes('apparel') || cat.includes('shirt') || cat.includes('dress') || cat.includes('shoe') || cat.includes('nguo') || cat.includes('men') || cat.includes('women')) return <Shirt className={iconClass} strokeWidth={sw} />;
+            if (cat.includes('furniture') || cat.includes('sofa') || cat.includes('home') || cat.includes('interior') || cat.includes('nyumba')) return <Sofa className={iconClass} strokeWidth={sw} />;
+            if (cat.includes('service') || cat.includes('repair') || cat.includes('plumb') || cat.includes('electric') || cat.includes('mechanic') || cat.includes('fundi')) return <Wrench className={iconClass} strokeWidth={sw} />;
+            if (cat.includes('job') || cat.includes('employ') || cat.includes('career') || cat.includes('work') || cat.includes('kazi')) return <Briefcase className={iconClass} strokeWidth={sw} />;
+            if (cat.includes('industrial') || cat.includes('machine') || cat.includes('equipment') || cat.includes('tool') || cat.includes('zana')) return <Cog className={iconClass} strokeWidth={sw} />;
+            if (cat.includes('education') || cat.includes('school') || cat.includes('course') || cat.includes('stationery')) return <Book className={iconClass} strokeWidth={sw} />;
+            return <ShoppingBag className={iconClass} strokeWidth={sw} />;
+          })()}
+        </div>
+      );
+    }
     return (
       <div 
-        className={`flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-900/35 border border-neutral-100/50 dark:border-neutral-800/30 text-neutral-300 dark:text-neutral-700 ${className}`}
+        className={`flex flex-col items-center justify-center bg-neutral-100 dark:bg-neutral-800/80 border border-neutral-200/50 dark:border-neutral-700/30 text-neutral-400 dark:text-neutral-500 ${className}`}
         {...(props as any)}
       >
         {getFallbackIcon()}
