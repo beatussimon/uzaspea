@@ -313,32 +313,103 @@ class DeliveryQuoteView(views.APIView):
         end_lng = request.data.get('end_lng')
         weight = request.data.get('weight', 1.0)
         size = request.data.get('size', 'small')
+        origin_code = request.data.get('origin_code')
+        destination_code = request.data.get('destination_code')
 
-        if not all([start_lat, start_lng, end_lat, end_lng]):
-            return Response({'error': 'Coordinates start_lat, start_lng, end_lat, and end_lng are required'}, status=status.HTTP_400_BAD_REQUEST)
+        from warehouses.models import Warehouse, HistoricalRoutePricing
+        from decimal import Decimal
 
-        # Get all active options
+        origin_wh = None
+        dest_wh = None
+        if origin_code:
+            origin_wh = Warehouse.objects.filter(code=origin_code, is_active=True).first()
+        if destination_code:
+            dest_wh = Warehouse.objects.filter(code=destination_code, is_active=True).first()
+
+        if not origin_wh and start_lat is not None and start_lng is not None:
+            warehouses = Warehouse.objects.filter(is_active=True, latitude__isnull=False, longitude__isnull=False)
+            best_dist = float('inf')
+            for w in warehouses:
+                d = (float(w.latitude) - float(start_lat))**2 + (float(w.longitude) - float(start_lng))**2
+                if d < best_dist:
+                    best_dist = d
+                    origin_wh = w
+
+        if not dest_wh and end_lat is not None and end_lng is not None:
+            warehouses = Warehouse.objects.filter(is_active=True, latitude__isnull=False, longitude__isnull=False)
+            best_dist = float('inf')
+            for w in warehouses:
+                d = (float(w.latitude) - float(end_lat))**2 + (float(w.longitude) - float(end_lng))**2
+                if d < best_dist:
+                    best_dist = d
+                    dest_wh = w
+
+        hrp = None
+        if origin_wh and dest_wh:
+            hrp = HistoricalRoutePricing.objects.filter(
+                origin_warehouse=origin_wh,
+                destination_warehouse=dest_wh
+            ).first()
+
         options = DeliveryOption.objects.filter(is_active=True)
         quotes = []
-        for opt in options:
-            cost = calculate_delivery_price(start_lat, start_lng, end_lat, end_lng, weight, size, opt.code)
-            quotes.append({
-                'id': opt.id,
-                'name': opt.name,
-                'code': opt.code,
-                'price': cost
-            })
-            
-        # If no delivery options are configured in database, calculate defaults
-        if not quotes:
-            for code in ['economy', 'standard', 'express', 'urgent']:
-                cost = calculate_delivery_price(start_lat, start_lng, end_lat, end_lng, weight, size, code)
+
+        if hrp and hrp.data_points > 0:
+            avg_cost = hrp.average_cost
+            speed_multipliers = {
+                'economy': Decimal('0.85'),
+                'standard': Decimal('1.00'),
+                'express': Decimal('1.25'),
+                'urgent': Decimal('1.60'),
+            }
+            if options.exists():
+                for opt in options:
+                    mult = speed_multipliers.get(opt.code.lower(), Decimal('1.00'))
+                    cost = max(Decimal('2000.00'), Decimal(str(round(float(avg_cost * mult) / 100) * 100)))
+                    quotes.append({
+                        'id': opt.id,
+                        'name': opt.name,
+                        'code': opt.code,
+                        'price': float(cost),
+                        'is_historical_estimate': True,
+                        'data_points': hrp.data_points
+                    })
+            else:
+                for code in ['economy', 'standard', 'express', 'urgent']:
+                    mult = speed_multipliers.get(code, Decimal('1.00'))
+                    cost = max(Decimal('2000.00'), Decimal(str(round(float(avg_cost * mult) / 100) * 100)))
+                    quotes.append({
+                        'id': None,
+                        'name': code.capitalize(),
+                        'code': code,
+                        'price': float(cost),
+                        'is_historical_estimate': True,
+                        'data_points': hrp.data_points
+                    })
+        else:
+            if not all([start_lat, start_lng, end_lat, end_lng]):
+                return Response({'error': 'Coordinates start_lat, start_lng, end_lat, and end_lng are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+            for opt in options:
+                cost = calculate_delivery_price(start_lat, start_lng, end_lat, end_lng, weight, size, opt.code)
                 quotes.append({
-                    'id': None,
-                    'name': code.capitalize(),
-                    'code': code,
-                    'price': cost
+                    'id': opt.id,
+                    'name': opt.name,
+                    'code': opt.code,
+                    'price': float(cost),
+                    'is_historical_estimate': False
                 })
+
+            if not quotes:
+                for code in ['economy', 'standard', 'express', 'urgent']:
+                    cost = calculate_delivery_price(start_lat, start_lng, end_lat, end_lng, weight, size, code)
+                    quotes.append({
+                        'id': None,
+                        'name': code.capitalize(),
+                        'code': code,
+                        'price': float(cost),
+                        'is_historical_estimate': False
+                    })
 
         return Response({'quotes': quotes})
 

@@ -61,3 +61,19 @@ class WarehouseIntakeTests(TestCase):
         self.client.force_authenticate(user=self.superuser)
         response = self.client.delete(f'/api/warehouses/intakes/{intake.id}/')
         self.assertEqual(response.status_code, 204)
+
+    def test_preview_order_barcode_variations(self):
+        self.client.force_authenticate(user=self.superuser)
+        # Test numeric ID
+        res = self.client.get(f'/api/warehouses/intakes/preview-order/?order_id={self.order.id}')
+        self.assertEqual(res.status_code, 200)
+
+        # Test prefixed ID (e.g. #12 or SOK-12)
+        res_prefixed = self.client.get(f'/api/warehouses/intakes/preview-order/?order_id=%23{self.order.id}')
+        self.assertEqual(res_prefixed.status_code, 200)
+
+        # Test PickupCode
+        from logistics.models import PickupCode
+        pcode = PickupCode.objects.create(order=self.order, code='987654')
+        res_pcode = self.client.get(f'/api/warehouses/intakes/preview-order/?order_id=987654')
+        self.assertEqual(res_pcode.status_code, 200)

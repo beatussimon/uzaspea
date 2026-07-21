@@ -835,11 +835,30 @@ const OrdersPage: React.FC = () => {
                                         {/* FIX L-14: subtotal = total minus shipping */}
                                         <span className="text-gray-900 dark:text-white font-medium">TSh {(parseInt(order.total_amount || 0) - parseInt(order.shipping_fee || 0)).toLocaleString()}</span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
+                                    <div className="flex justify-between text-sm items-center">
                                         <span className="text-gray-500">Delivery Fee</span>
-                                        <span className={order.shipping_fee > 0 ? "text-gray-900 dark:text-white font-medium" : "text-green-600 font-medium"}>
-                                            {order.shipping_fee > 0 ? `TSh ${parseInt(order.shipping_fee).toLocaleString()}` : "FREE"}
-                                        </span>
+                                        {order.shipping_method === 'PICKUP' ? (
+                                            <span className="text-green-600 font-medium">FREE</span>
+                                        ) : Number(order.shipping_fee) > 0 ? (
+                                            <span className="text-gray-900 dark:text-white font-medium">
+                                                TSh {parseInt(order.shipping_fee).toLocaleString()}
+                                            </span>
+                                        ) : (
+                                            <div className="text-right">
+                                                <span className="text-amber-600 dark:text-amber-400 font-medium">
+                                                    {order.delivery_info?.estimated_shipping_fee > 0
+                                                        ? `Est. TSh ${parseInt(order.delivery_info.estimated_shipping_fee).toLocaleString()}`
+                                                        : 'TBD (Confirming)'}
+                                                </span>
+                                                {order.delivery_info?.estimated_shipping_fee > 0 && (
+                                                    <span className="text-[10px] text-gray-400 block font-normal">
+                                                        {order.delivery_info?.is_historical_estimate
+                                                            ? '(Based on warehouse route history)'
+                                                            : '(Initial Estimate)'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                     <hr className="border-gray-200 dark:border-gray-700" />
                                     <div className="flex justify-between text-base">

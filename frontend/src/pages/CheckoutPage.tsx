@@ -146,13 +146,36 @@ const CheckoutPage: React.FC = () => {
         maxSize = itemSize;
       }
     }
+
+    const sellerLat = sellerCoords?.lat ?? -6.8161;
+    const sellerLng = sellerCoords?.lng ?? 39.2803;
+    const originWarehouseCode = ((): string => {
+      let nearestCode = 'DAR-01';
+      let minDistance = Infinity;
+      const listToUse = warehouses.length > 0 ? warehouses : [
+        { code: 'DAR-01', latitude: -6.8161, longitude: 39.2803 },
+        { code: 'MWZ-01', latitude: -2.5167, longitude: 32.9000 }
+      ];
+      for (const w of listToUse) {
+        const wLat = Number(w.latitude);
+        const wLng = Number(w.longitude);
+        const d = Math.sqrt(Math.pow(wLat - sellerLat, 2) + Math.pow(wLng - sellerLng, 2));
+        if (d < minDistance) {
+          minDistance = d;
+          nearestCode = w.code;
+        }
+      }
+      return nearestCode;
+    })();
     
     try {
       const res = await api.post('/api/logistics/pricing/quote/', {
-        start_lat: sellerCoords?.lat ?? -6.8161,
-        start_lng: sellerCoords?.lng ?? 39.2803,
+        start_lat: sellerLat,
+        start_lng: sellerLng,
         end_lat: coords.lat,
         end_lng: coords.lng,
+        origin_code: originWarehouseCode,
+        destination_code: coords.code,
         weight: totalWeight,
         size: maxSize
       });
@@ -283,7 +306,8 @@ const CheckoutPage: React.FC = () => {
           shipping_speed: shippingMethod === 'DELIVERY' ? selectedQuoteCode : undefined,
           warehouse_code: nearestWarehouseCode,
           destination_warehouse_code: citiesCoords[selectedCity]?.code,
-          estimated_shipping_fee: estimatedShippingFee
+          estimated_shipping_fee: estimatedShippingFee,
+          is_historical_estimate: activeQuote?.is_historical_estimate ?? false
         },
       };
 

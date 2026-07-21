@@ -175,7 +175,8 @@ const WarehouseStaffLayout: React.FC = () => {
     if (!queryText.trim()) return;
     setScanning(true);
     try {
-      const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${queryText.trim()}`);
+      const cleanQuery = queryText.trim();
+      const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${encodeURIComponent(cleanQuery)}`);
       const order = res.data;
       setOrderPreview(order);
       setScanQuery('');
@@ -183,7 +184,23 @@ const WarehouseStaffLayout: React.FC = () => {
 
       switch (order.status) {
         case 'SHIPPED_TO_WAREHOUSE':
+        case 'PAID':
+        case 'SELLER_CONFIRMED':
+        case 'PREPARING':
+        case 'PACKAGING':
+        case 'PROCESSING':
           setActiveModal('origin_intake');
+          break;
+        case 'RECEIVED_AT_WAREHOUSE':
+          setActiveModal('pricing');
+          break;
+        case 'AWAITING_DELIVERY_PAYMENT':
+        case 'PENDING_DELIVERY_VERIFICATION':
+          setActiveModal('verify');
+          break;
+        case 'ASSIGNED_TRANSPORT':
+        case 'READY_FOR_TRANSIT':
+          setActiveModal('dispatch');
           break;
         case 'IN_TRANSIT':
           setActiveModal('destination_intake');
@@ -191,18 +208,16 @@ const WarehouseStaffLayout: React.FC = () => {
         case 'ARRIVED_AT_REGIONAL_WAREHOUSE':
           setActiveModal('last_mile_sorting');
           break;
-        case 'RECEIVED_AT_WAREHOUSE':
-          setActiveModal('pricing');
-          break;
-        case 'ASSIGNED_TRANSPORT':
-          setActiveModal('dispatch');
-          break;
         case 'READY_FOR_PICKUP':
+        case 'READY_FOR_VEHICLE_HANDOVER':
           setActiveModal('pickup');
           break;
+        case 'FAILED_DELIVERY':
+        case 'RETURNED_TO_HUB':
+          setActiveModal('destination_intake');
+          break;
         default:
-          toast.error(`Order #${order.id} is in status ${order.status}, no action needed at this station.`);
-          setOrderPreview(null);
+          toast.success(`Order #${order.id} loaded (${order.status.replace(/_/g, ' ')})`);
       }
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Order not found or invalid barcode.');
@@ -238,9 +253,7 @@ const WarehouseStaffLayout: React.FC = () => {
       });
 
       return () => {
-        html5QrCode.stop().then(() => {
-          html5QrCode.clear();
-        }).catch(() => {});
+        html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
       };
     }
   }, [showScanner]);
@@ -248,7 +261,7 @@ const WarehouseStaffLayout: React.FC = () => {
   const handleActionClick = async (orderId: string, actionType: string) => {
     setScanning(true);
     try {
-      const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${orderId}`);
+      const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${encodeURIComponent(orderId)}`);
       const order = res.data;
       setOrderPreview(order);
       if (actionType === 'intake') {
