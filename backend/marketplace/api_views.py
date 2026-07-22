@@ -1316,7 +1316,11 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
         query = self.request.query_params.get('q', None)
 
         if is_public:
-            qs = SponsoredListing.objects.filter(
+            qs = SponsoredListing.objects.select_related(
+                'product', 'product__category', 'product__seller'
+            ).prefetch_related(
+                'product__images', 'product__likes'
+            ).filter(
                 status='approved'
             ).filter(
                 django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now())
@@ -1714,6 +1718,12 @@ class TrendingAnalyticsView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        from django.core.cache import cache
+        cache_key = 'trending_analytics_v2'
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
         now = timezone.now()
         thirty_days_ago = now - timedelta(days=30)
         seven_days_ago = now - timedelta(days=7)
@@ -1742,7 +1752,6 @@ class TrendingAnalyticsView(APIView):
         ]
 
         # 5. Trending Products
-        # Top 8 products ordered by weekly sales, then fallback to likes/newest
         from django.db.models.functions import Coalesce
 
         # Get IDs of orders that qualify as "this week's" completed orders
@@ -1751,7 +1760,7 @@ class TrendingAnalyticsView(APIView):
             status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED']
         ).values_list('id', flat=True)
 
-        trending_products_qs = Product.objects.prefetch_related('images', 'likes').filter(
+        base_qs = Product.objects.select_related('category', 'seller').prefetch_related('images', 'likes').filter(
             is_available=True
         ).annotate(
             weekly_sales=Coalesce(Sum(
@@ -1759,13 +1768,29 @@ class TrendingAnalyticsView(APIView):
                 filter=Q(orderitem__order_id__in=weekly_order_ids)
             ), 0),
             like_count=Count('likes', distinct=True)
-        ).order_by('-weekly_sales', '-like_count', '-created_at')[:8]
+        )
+
+        top_sellers_qs = base_qs.order_by('-weekly_sales', '-like_count', '-created_at')[:8]
+        most_saved_qs = base_qs.order_by('-like_count', '-weekly_sales', '-created_at')[:8]
+        newest_trending_qs = base_qs.order_by('-created_at', '-like_count')[:8]
         
-        trending_serialized = ProductSerializer(
-            trending_products_qs, many=True, context={'request': request}
+        top_sellers_serialized = ProductSerializer(
+            top_sellers_qs, many=True, context={'request': request}
+        ).data
+        most_saved_serialized = ProductSerializer(
+            most_saved_qs, many=True, context={'request': request}
+        ).data
+        newest_trending_serialized = ProductSerializer(
+            newest_trending_qs, many=True, context={'request': request}
         ).data
 
-        return Response({
+        trending_dict = {
+            "top_sellers": top_sellers_serialized,
+            "most_saved": most_saved_serialized,
+            "newest_trending": newest_trending_serialized
+        }
+
+        result = {
             "stats": {
                 "weekly_visits": weekly_visits,
                 "active_users": active_users_count,
@@ -1773,8 +1798,13 @@ class TrendingAnalyticsView(APIView):
                 "hot_categories": Category.objects.annotate(pc=Count('products')).filter(pc__gt=0).count()
             },
             "top_categories": cat_data,
-            "trending_products": trending_serialized
-        })
+            "trending_products": trending_dict
+        }
+
+        # Cache for 60 seconds to avoid hammering the DB
+        cache.set(cache_key, result, 60)
+
+        return Response(result)
 
 
 # --- Subscription ViewSets ---

@@ -452,7 +452,7 @@ const ProductDetailPage: React.FC = () => {
             className="h-8 sm:h-9 flex items-center justify-center transition-all active:scale-95 cursor-pointer drop-shadow-lg"
             title="Go to Homepage"
           >
-            <img src="/favicon.png" alt="OKO" className="h-full w-auto object-contain" />
+            <img src="/logo.png" alt="OKO" className="h-full w-auto object-contain" />
           </button>
         </div>
 
