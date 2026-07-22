@@ -34,6 +34,7 @@ const ProductList = () => {
   const maxPrice = searchParams.get('max_price') || '';
   const condition = searchParams.get('condition') || '';
   const sortBy = searchParams.get('sort_by') || '';
+  const saved = searchParams.get('saved') === 'true';
 
   const updateFilters = (updates: Record<string, string>) => {
     setSearchParams(prev => {
@@ -113,9 +114,10 @@ const ProductList = () => {
       if (condition) params.condition = condition;
       if (sortBy) params.sort_by = sortBy;
       if (urlQuery) params.q = urlQuery;
+      if (saved) params.saved = 'true';
       return params;
     },
-    [selectedCategory, selectedSubcategory, minPrice, maxPrice, condition, sortBy, urlQuery]
+    [selectedCategory, selectedSubcategory, minPrice, maxPrice, condition, sortBy, urlQuery, saved]
   );
 
   const fetchProducts = useCallback(
@@ -132,34 +134,42 @@ const ProductList = () => {
       isFetchingRef.current = true;
       
       if (reset) {
-        api.get('/api/sponsored/', { params: { ...buildParams(1), public: 'true' } })
-          .then((r: any) => setSponsoredAds(r.data.results || r.data))
-          .catch(() => {});
-      }
-      
-      api.get('/api/products/', { params: buildParams(p) })
-        .then((res) => {
-          const data = res.data.results || res.data;
-          const incoming = Array.isArray(data) ? data : [];
+        Promise.all([
+          api.get('/api/products/', { params: buildParams(p) }).catch(() => ({ data: { results: [] } })),
+          saved ? Promise.resolve({ data: { results: [] } }) : api.get('/api/sponsored/', { params: { ...buildParams(1), public: 'true' } }).catch(() => ({ data: { results: [] } }))
+        ]).then(([prodRes, sponsRes]) => {
+          const prodData = prodRes.data.results || prodRes.data || [];
+          const sponsData = sponsRes.data.results || sponsRes.data || [];
           
-          if (reset) {
-            setProducts(incoming);
-          } else {
+          setSponsoredAds(Array.isArray(sponsData) ? sponsData : []);
+          setProducts(Array.isArray(prodData) ? prodData : []);
+          setHasMore(!!(prodRes.data && prodRes.data.next));
+        }).finally(() => {
+          setLoading(false);
+          setLoadingMore(false);
+          isFetchingRef.current = false;
+        });
+      } else {
+        api.get('/api/products/', { params: buildParams(p) })
+          .then((res) => {
+            const data = res.data.results || res.data;
+            const incoming = Array.isArray(data) ? data : [];
+            
             setProducts((prev) => {
               // Deduplicate based on product ID to prevent React key warnings
               const existingIds = new Set(prev.map(p => p.id));
               const uniqueIncoming = incoming.filter(p => !existingIds.has(p.id));
               return [...prev, ...uniqueIncoming];
             });
-          }
-          setHasMore(!!res.data.next);
-        })
-        .catch(() => setHasMore(false))
-        .finally(() => { 
-          setLoading(false); 
-          setLoadingMore(false); 
-          isFetchingRef.current = false;
-        });
+            setHasMore(!!res.data.next);
+          })
+          .catch(() => setHasMore(false))
+          .finally(() => { 
+            setLoading(false); 
+            setLoadingMore(false); 
+            isFetchingRef.current = false;
+          });
+      }
     },
     [buildParams]
   );
@@ -167,7 +177,7 @@ const ProductList = () => {
   useEffect(() => { 
     setPage(1); 
     fetchProducts(1, true); 
-  }, [selectedCategory, selectedSubcategory, condition, sortBy, urlQuery, minPrice, maxPrice]);
+  }, [selectedCategory, selectedSubcategory, condition, sortBy, urlQuery, minPrice, maxPrice, saved]);
 
   useEffect(() => {
     localStorage.setItem('viewMode', viewMode);
@@ -283,7 +293,7 @@ const ProductList = () => {
       label: 'Category',
       value: catName,
       onRemove: () => {
-        updateFilters({ category: '', subcategory: '' });
+        updateFilters({ category: '', subcategory: '', saved: '' });
       },
     });
   }
@@ -299,6 +309,11 @@ const ProductList = () => {
 
   // Interleave sponsored items natively inside CSS grid
   const buildGridEntries = (regular: any[], promoted: any[]): GridEntry[] => {
+    // If viewing saved items, don't show promos or placeholders at all
+    if (saved) {
+      return regular.map(product => ({ type: 'regular', product }));
+    }
+
     // Filter out regular items that are already shown as promoted
     const uniqueRegular = regular.filter((regItem) => {
       return !promoted.some((promoItem) => {
@@ -347,9 +362,9 @@ const ProductList = () => {
   const gridEntries = buildGridEntries(products, sponsoredAds);
 
   return (
-    <div id="browse" className="container-page py-4 pb-24 md:pb-8">
+    <div id="browse" className="container-page pb-24 md:pb-8">
       {/* ===== Unified Search & Filter Section ===== */}
-      <div className="mb-6 space-y-4">
+      <div className={(searchOpen || filtersOpen) ? "mb-6 space-y-4" : ""}>
 
 
 
@@ -596,7 +611,7 @@ const ProductList = () => {
             {activePills.length > 1 && (
               <button
                 onClick={() => {
-                  updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '' });
+                  updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved: '' });
                   setTempMinPrice('');
                   setTempMaxPrice('');
                   setTempCondition('');
@@ -613,12 +628,12 @@ const ProductList = () => {
         {/* Subcategory slider */}
         {subcategories.length > 0 && (
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 px-4 md:px-0">
-            <button onClick={() => updateFilters({ subcategory: '' })}
+            <button onClick={() => updateFilters({ subcategory: '', saved: '' })}
               className={`pill text-xs py-1 shrink-0 ${!selectedSubcategory ? 'pill-active' : 'pill-inactive'}`}>
               All {activeParent?.name} <span className="opacity-60 ml-1">{activeParent?.product_count}</span>
             </button>
             {subcategories.map((s: any) => (
-              <button key={s.id} onClick={() => updateFilters({ subcategory: s.slug })}
+              <button key={s.id} onClick={() => updateFilters({ subcategory: s.slug, saved: '' })}
                 className={`pill text-xs py-1 shrink-0 ${selectedSubcategory === s.slug ? 'pill-active' : 'pill-inactive'}`}>
                 {s.name} <span className="opacity-60 ml-1">{s.product_count}</span>
               </button>

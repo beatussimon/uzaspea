@@ -85,6 +85,7 @@ class ProductSerializer(serializers.ModelSerializer):
     weekly_sales = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
     category_name = serializers.CharField(source='category.name', read_only=True)
+    category_slug = serializers.CharField(source='category.slug', read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
 
     has_inspection = serializers.SerializerMethodField()  # FIX B-19
@@ -98,7 +99,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'name', 'slug', 'description', 'price', 'sale_price', 'stock', 'is_available',
-                  'category', 'category_name', 'seller', 'seller_username', 'seller_verified',
+                  'category', 'category_name', 'category_slug', 'seller', 'seller_username', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition',
                   'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified',
                   'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude',

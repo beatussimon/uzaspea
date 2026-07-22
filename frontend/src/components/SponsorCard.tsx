@@ -13,7 +13,7 @@ export default function SponsorCard() {
                  dark:from-neutral-900/10 dark:to-neutral-800/5
                  rounded-card p-6 border-2 border-dashed border-neutral-300
                  dark:border-neutral-800 hover:border-brand-500
-                 dark:hover:border-brand-400 hover:shadow-card-hover hover:-translate-y-0.5
+                 dark:hover:border-brand-400 hover:shadow-card-hover active:scale-95
                  transition-all duration-300 min-h-[320px] h-full"
     >
       <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800/60 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">

@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Moon, Sun, Shield, User, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, HelpCircle, 
-  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Globe
+  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Globe, Heart
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import VerifiedBadge from '../VerifiedBadge';
@@ -138,6 +138,16 @@ const Navbar = () => {
         {/* ---- Left Navigation Links ---- */}
         <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center justify-start pl-8 md:pl-12 gap-6">
           <Link 
+            to="/" 
+            className={`hidden md:inline-flex items-center text-sm font-semibold transition-colors ${
+              useLightStyle
+                ? 'text-white/80 hover:text-white'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
+            }`}
+          >
+            {t('home', 'Home')}
+          </Link>
+          <Link 
             to="/products" 
             className={`hidden md:inline-flex items-center text-sm font-semibold transition-colors ${
               useLightStyle
@@ -190,6 +200,10 @@ const Navbar = () => {
                     <span>{t('sell')}</span>
                   </Link>
                 )}
+
+                <Link to="/products?saved=true" className={iconButtonClass} aria-label="View saved items">
+                  <Heart size={18} />
+                </Link>
 
                 {/* Core Utility Icons */}
                 <NotificationBell className={bellClass} />

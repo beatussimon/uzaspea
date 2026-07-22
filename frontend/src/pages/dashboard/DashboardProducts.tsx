@@ -35,6 +35,8 @@ const DashboardProducts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingStockId, setEditingStockId] = useState<number | null>(null);
+  const [quickStockValue, setQuickStockValue] = useState<string>('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
@@ -387,6 +389,30 @@ const DashboardProducts: React.FC = () => {
     }
   };
 
+  const handleQuickStockUpdate = async (productId: number) => {
+    if (!quickStockValue || isNaN(Number(quickStockValue))) return;
+    try {
+      const formData = new FormData();
+      formData.append('stock', quickStockValue);
+      // Ensure product stays available if stock > 0
+      if (Number(quickStockValue) > 0) {
+        formData.append('is_available', 'true');
+      }
+      
+      const targetSlug = products.find(p => p.id === productId)?.slug;
+      if (!targetSlug) return;
+      
+      await api.patch(`/api/products/${targetSlug}/`, formData);
+      toast.success('Stock updated');
+      setEditingStockId(null);
+      
+      // Update local state to avoid full refetch if preferred, but fetch is safer
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: Number(quickStockValue) } : p));
+    } catch (e: any) {
+      toast.error('Failed to update stock');
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -715,12 +741,44 @@ const DashboardProducts: React.FC = () => {
               <SafeImage src={product.images?.[0]?.image || ''} alt={product.name} category={product.category_name}
                 className="w-16 h-16 rounded-lg object-cover shrink-0" />
               <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-gray-900 dark:text-white truncate">{product.name}</h4>
-                <p className="text-sm text-brand-600 dark:text-brand-400 font-bold">
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="font-medium text-gray-900 dark:text-white truncate">{product.name}</h4>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    product.stock === 0 ? 'bg-red-100 text-red-700' : 
+                    product.stock <= 3 ? 'bg-yellow-100 text-yellow-700' : 
+                    'bg-green-100 text-green-700'
+                  }`}>
+                    {product.stock === 0 ? 'Out of Stock' : product.stock <= 3 ? 'Low Stock' : 'In Stock'}
+                  </span>
+                </div>
+                <p className="text-sm text-brand-600 dark:text-brand-400 font-bold mb-1">
                   TSh {parseInt(product.price).toLocaleString()}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <span>Stock: {product.stock}</span>
+                  {editingStockId === product.id ? (
+                    <div className="flex items-center gap-1">
+                      <input 
+                        type="number" 
+                        value={quickStockValue} 
+                        onChange={(e) => setQuickStockValue(e.target.value)}
+                        className="w-16 px-1.5 py-0.5 border rounded text-gray-900 dark:text-white dark:bg-gray-700" 
+                        autoFocus
+                      />
+                      <button onClick={() => handleQuickStockUpdate(product.id)} className="text-green-600 hover:text-green-700 px-1 font-bold">✓</button>
+                      <button onClick={() => setEditingStockId(null)} className="text-red-500 hover:text-red-600 px-1 font-bold">✕</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 group">
+                      <span>Stock: {product.stock}</span>
+                      <button 
+                        onClick={() => { setEditingStockId(product.id); setQuickStockValue(String(product.stock)); }}
+                        className="opacity-0 group-hover:opacity-100 text-brand-500 hover:text-brand-700 ml-1 transition"
+                        title="Quick Edit Stock"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                      </button>
+                    </div>
+                  )}
                   {product.created_at && (
                     <>
                       <span>•</span>

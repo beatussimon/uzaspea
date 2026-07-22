@@ -91,7 +91,7 @@ const LandingPage = () => {
   const currentHero = isDark ? darkHero : lightHero;
 
   return (
-    <div className="space-y-16 pb-24">
+    <div className="space-y-6 md:space-y-8 pb-12">
       {/* Hero Search Section */}
       <section className="relative h-[100vh] min-h-[540px] w-full flex items-center justify-center overflow-hidden -mt-[96px] md:-mt-[104px] pt-16 md:pt-20">
         <div className="absolute inset-0 z-0 overflow-hidden flex cursor-grab active:cursor-grabbing" ref={constraintsRef}>
@@ -189,7 +189,7 @@ const LandingPage = () => {
       </div>
 
       {/* Latest Products Listings Section */}
-      <section className="container-page space-y-10">
+      <section className="container-page space-y-4 md:space-y-6">
         <div className="flex justify-between items-end mb-2">
           <div>
             <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
@@ -210,7 +210,7 @@ const LandingPage = () => {
             ))}
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {(() => {
               const groups: Record<string, any[]> = {};
               latestProducts.forEach(product => {
@@ -228,10 +228,15 @@ const LandingPage = () => {
               if (topCategories.length === 0) return null;
 
               return topCategories.map(([catName, products]) => (
-                  <div key={catName} className="space-y-4">
-                      <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200 uppercase tracking-wide">
-                          {t('latest_in', 'Latest in')} {catName}
-                      </h3>
+                  <div key={catName} className="space-y-2">
+                      <div className="flex justify-between items-end mb-2">
+                          <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200 uppercase tracking-wide">
+                              {t('latest_in', 'Latest in')} {catName}
+                          </h3>
+                          <Link to={`/products?category=${products[0].category_slug}`} className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline mb-1">
+                              {t('view_all', 'View all')} <ArrowRight className="h-4 w-4" />
+                          </Link>
+                      </div>
                       <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide md:grid md:grid-cols-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
                           {products.slice(0, 4).map((product) => (
                               <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto relative h-full">

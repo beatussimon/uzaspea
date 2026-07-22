@@ -1,7 +1,8 @@
 import React, { memo } from 'react';
 import { Star, Heart, Share2, Shield, MapPin, Clock, Flame, TrendingUp, ShoppingBag } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import SafeImage from './SafeImage';
 import toast from 'react-hot-toast';
@@ -177,21 +178,42 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
 const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isTopFold = false, showTrendingMetrics = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean; isTopFold?: boolean; showTrendingMetrics?: boolean | string }) => {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const bgState = { state: { backgroundLocation: location, initialProduct: product } };
   const [liked, setLiked] = React.useState(product?.is_liked || false);
+  const [likeCount, setLikeCount] = React.useState(product?.like_count || 0);
 
   if (!product) return null;
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!isAuthenticated) {
+      navigate('/login?next=' + encodeURIComponent(location.pathname + location.search));
+      return;
+    }
+
+    // Optimistic update
+    const previousLiked = liked;
+    const previousCount = likeCount;
+    setLiked(!previousLiked);
+    setLikeCount(previousLiked ? Math.max(0, previousCount - 1) : previousCount + 1);
+
     try {
       const res = await api.post(`/api/products/${product.slug}/like/`);
+      // Sync with server truth
       setLiked(res.data.liked);
-      toast.success(res.data.liked ? 'Liked!' : 'Unliked!', { 
-        style: { borderRadius: '10px', background: '#333', color: '#fff' }
-      });
-    } catch { toast.error('Login to like'); }
+      if (res.data.like_count !== undefined) {
+        setLikeCount(res.data.like_count);
+      }
+    } catch {
+      // Revert on failure
+      setLiked(previousLiked);
+      setLikeCount(previousCount);
+      toast.error('Failed to update like status');
+    }
   };
 
   const handleShare = async (e: React.MouseEvent) => {
@@ -267,8 +289,9 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
 
         {/* Floating Actions for List */}
         <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
-            <button onClick={handleLike} className="p-1.5 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-red-500 transition-colors">
+            <button onClick={handleLike} className="flex items-center gap-1 p-1.5 px-2.5 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-red-500 transition-colors">
               <Heart size={14} className={liked ? 'fill-red-500 text-red-500' : ''} />
+              <span className={`text-[10px] font-bold ${liked ? 'text-red-500' : ''}`}>{likeCount}</span>
             </button>
             <button onClick={handleShare} className="p-1.5 rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400 hover:text-brand-500 transition-colors">
               <Share2 size={14} />
@@ -354,9 +377,10 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
       </Link>
 
       {/* Top overlay: Like */}
-      <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 translate-x-0 lg:translate-x-2 lg:group-hover:translate-x-0 transition-all duration-300 ease-out z-10">
-        <button onClick={handleLike} className={`w-10 h-10 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center shadow-lg transition-colors ${liked ? 'bg-red-50 dark:bg-red-900/30 text-red-500' : 'hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-500'}`} title="Like">
-          <Heart size={18} className={liked ? 'fill-current' : ''} />
+      <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
+        <button onClick={handleLike} className={`h-8 px-2.5 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center gap-1.5 shadow-md transition-colors ${liked ? 'bg-red-50 dark:bg-red-900/40 text-red-500 border border-red-200 dark:border-red-800/50' : 'hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-500 border border-transparent'}`} title="Like">
+          <Heart size={14} className={liked ? 'fill-current' : ''} />
+          <span className="text-[10px] font-bold">{likeCount}</span>
         </button>
       </div>
     </div>

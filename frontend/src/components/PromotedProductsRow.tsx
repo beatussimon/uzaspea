@@ -35,7 +35,7 @@ const PromotedProductsRow: React.FC<PromotedProductsRowProps> = ({ promotions, l
     if (!loading && (!promotions || promotions.length === 0)) return null;
 
     return (
-        <section className="w-full space-y-10">
+        <section className="w-full space-y-4 md:space-y-6">
             <div className="flex justify-between items-end mb-2">
                 <div>
                     <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
@@ -57,10 +57,10 @@ const PromotedProductsRow: React.FC<PromotedProductsRowProps> = ({ promotions, l
                     ))}
                 </div>
             ) : (
-                <div className="space-y-8">
+                <div className="space-y-6">
                     {categoryGroups.length > 0 ? (
                         categoryGroups.map(([catName, promos]) => (
-                            <div key={catName} className="space-y-4">
+                            <div key={catName} className="space-y-2">
                                 <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200 uppercase tracking-wide">
                                     {t('featured', 'Featured')} {catName}
                                 </h3>
