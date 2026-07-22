@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   Home, PlusCircle, ShoppingBag, User, X, 
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
-  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun, Globe, MessageSquare
+  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun, Globe, MessageSquare, Heart
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -330,13 +330,29 @@ const MobileBottomNav = () => {
             className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
           >
             <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
-              <ShoppingBag size={24} className={`transition-colors ${isActive('/products') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('products_nav')}</span>
+              <ShoppingBag size={24} className={`transition-colors ${isActive('/products') && !location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && !location.search.includes('saved=true') ? 2.5 : 2} />
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && !location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('products_nav')}</span>
             </motion.div>
-            {isActive('/products') && (
+            {isActive('/products') && !location.search.includes('saved=true') && (
               <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
             )}
           </Link>
+
+          {/* Saved */}
+          {isAuthenticated && (
+            <Link 
+              to="/products?saved=true" 
+              className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+            >
+              <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+                <Heart size={24} className={`transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && location.search.includes('saved=true') ? 2.5 : 2} />
+                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('saved', 'Saved')}</span>
+              </motion.div>
+              {isActive('/products') && location.search.includes('saved=true') && (
+                <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+              )}
+            </Link>
+          )}
 
           {/* Cart */}
           <Link 

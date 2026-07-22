@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { ProductTabs } from '../components/ProductTabs';
 import SafeImage from '../components/SafeImage';
 import toast from 'react-hot-toast';
@@ -254,6 +255,7 @@ const ProductDetailPage: React.FC = () => {
   const { addToCart } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const initialProduct = (location.state as any)?.initialProduct || null;
 
   const [product, setProduct] = useState<ProductData | null>(initialProduct);
@@ -326,12 +328,25 @@ const ProductDetailPage: React.FC = () => {
 
   const handleLike = async () => {
     if (!product) return;
+    if (!isAuthenticated) {
+      navigate('/login?next=' + encodeURIComponent(location.pathname + location.search));
+      return;
+    }
+    // Optimistic update
+    const previousLiked = liked;
+    const previousCount = likeCount;
+    setLiked(!previousLiked);
+    setLikeCount(previousLiked ? Math.max(0, previousCount - 1) : previousCount + 1);
+
     try {
       const res = await api.post(`/api/products/${product.slug}/like/`);
       setLiked(res.data.liked);
       setLikeCount(res.data.like_count);
     } catch {
-      toast.error('Login to like products');
+      // Revert on failure
+      setLiked(previousLiked);
+      setLikeCount(previousCount);
+      toast.error('Failed to update like status');
     }
   };
 
@@ -592,9 +607,7 @@ const ProductDetailPage: React.FC = () => {
                   >
                     <Heart size={16} className={liked ? 'fill-current' : ''} />
                   </button>
-                  {likeCount > 0 && (
-                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300 px-1">{likeCount}</span>
-                  )}
+                  <span className="text-xs font-bold text-gray-600 dark:text-gray-300 px-1">{likeCount}</span>
                 </div>
                 <button
                   onClick={handleShare}

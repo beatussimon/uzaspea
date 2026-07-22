@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Star, Zap, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Flame, Star, Zap, Clock, ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import ProductCard from './ProductCard';
@@ -71,12 +72,17 @@ const PlatformInsights: React.FC<PlatformInsightsProps> = ({ stats: propStats, t
         if (!products || products.length === 0) return null;
         
         return (
-            <div className="space-y-4 mb-10">
-                <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-950/40 flex items-center justify-center">
-                        {icon}
+            <div className="space-y-2 mb-6">
+                <div className="flex justify-between items-end mb-2">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-950/40 flex items-center justify-center">
+                            {icon}
+                        </div>
+                        <h3 className="font-black text-lg md:text-xl text-gray-900 dark:text-white uppercase tracking-tight">{title}</h3>
                     </div>
-                    <h3 className="font-black text-lg md:text-xl text-gray-900 dark:text-white uppercase tracking-tight">{title}</h3>
+                    <Link to={`/products?sort_by=${metricType === 'sales' ? 'popular' : metricType === 'saves' ? 'most_saved' : 'newest'}`} className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline mb-1">
+                        {t('view_all', 'View all')} <ArrowRight className="h-4 w-4" />
+                    </Link>
                 </div>
 
                 {/* Mobile scrollable row, Desktop grid */}
@@ -92,11 +98,11 @@ const PlatformInsights: React.FC<PlatformInsightsProps> = ({ stats: propStats, t
     };
 
     return (
-        <div className="w-full space-y-8">
+        <div className="w-full space-y-4">
             {/* Trending Products Sections */}
             {hasAnyTrending && (
-                <div className="p-4 md:p-6 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50">
-                    <div className="flex items-center gap-3 mb-8">
+                <div className="p-3 md:p-4 bg-gray-50 dark:bg-neutral-900/35 rounded-2xl md:rounded-3xl border border-gray-100 dark:border-neutral-900/50">
+                    <div className="flex items-center gap-3 mb-4 md:mb-5">
                         <Flame size={24} className="text-orange-500" />
                         <h2 className="font-black text-2xl text-gray-900 dark:text-white uppercase tracking-tight">{t('trending_right_now', 'Trending Right Now')}</h2>
                     </div>

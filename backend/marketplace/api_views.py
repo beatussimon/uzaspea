@@ -181,6 +181,12 @@ class ProductViewSet(viewsets.ModelViewSet):
         else:
             # Public list only shows available and in-stock products for general browsing
             queryset = base.filter(is_available=True, stock__gt=0)
+            
+        if self.request.query_params.get('saved') == 'true':
+            if user.is_authenticated:
+                queryset = queryset.filter(likes__user=user)
+            else:
+                return queryset.none()
 
         if category_slug:
             from .models import Category
@@ -265,6 +271,10 @@ class ProductViewSet(viewsets.ModelViewSet):
             return queryset.order_by('-price')
         elif sort_by == 'rating':
             return queryset.annotate(avg=Avg('reviews__rating')).order_by('-avg')
+        elif sort_by == 'popular':
+            return queryset.annotate(sales=Count('orderitem')).order_by('-sales', '-created_at')
+        elif sort_by == 'most_saved':
+            return queryset.annotate(saves=Count('likes')).order_by('-saves', '-created_at')
         return queryset.order_by('-created_at')
 
     def perform_create(self, serializer):
@@ -770,6 +780,127 @@ class OrderViewSet(viewsets.ModelViewSet):
         except ValueError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'status': order.status})
+
+    @decorators.action(detail=False, methods=['post'], url_path='pos-checkout')
+    @transaction.atomic
+    def pos_checkout(self, request):
+        """Create a POS (Point of Sale) order for walk-in customers."""
+        user = request.user
+        items_data = request.data.get('items', [])
+        customer_name = request.data.get('customer_name', 'Walk-in Customer')
+        amount_paid = request.data.get('amount_paid', 0)
+        
+        if not items_data:
+            return Response({'error': 'No items provided.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(user, required_permission='manage_orders')
+        
+        total_amount = 0
+        order_items = []
+        
+        for item_data in items_data:
+            product_id = item_data.get('product_id')
+            variant_id = item_data.get('variant_id')
+            quantity = int(item_data.get('quantity', 1))
+            
+            if quantity <= 0:
+                return Response({'error': 'Quantity must be positive.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            try:
+                product = Product.objects.get(id=product_id)
+            except Product.DoesNotExist:
+                return Response({'error': f'Product ID {product_id} not found.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            if product.seller_id not in sellers:
+                return Response({'error': f'You are not authorized to sell {product.name}.'}, status=status.HTTP_403_FORBIDDEN)
+                
+            variant = None
+            if variant_id:
+                try:
+                    variant = ProductVariant.objects.get(id=variant_id, product=product)
+                except ProductVariant.DoesNotExist:
+                    return Response({'error': f'Variant ID {variant_id} not found.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            stock_available = variant.stock if variant else product.stock
+            if stock_available < quantity:
+                return Response({'error': f'Insufficient stock for {product.name}. Available: {stock_available}.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            price = variant.final_price if variant else product.price
+            
+            order_items.append({
+                'product': product,
+                'variant': variant,
+                'quantity': quantity,
+                'price': price
+            })
+            
+        delivery_info = {
+            'is_pos': True,
+            'customer_name': customer_name,
+            'amount_paid': amount_paid
+        }
+        
+        order = Order.objects.create(
+            user=user,
+            status='COMPLETED',
+            shipping_method='PICKUP',
+            shipping_fee=0,
+            delivery_info=delivery_info
+        )
+        
+        for item in order_items:
+            OrderItem.objects.create(
+                order=order,
+                product=item['product'],
+                variant=item['variant'],
+                quantity=item['quantity'],
+                price=item['price']
+            )
+            if item['variant']:
+                item['variant'].stock -= item['quantity']
+                if item['variant'].stock <= 0:
+                    item['variant'].is_available = False
+                item['variant'].save(update_fields=['stock', 'is_available'])
+            item['product'].stock -= item['quantity']
+            if item['product'].stock <= 0:
+                item['product'].is_available = False
+            item['product'].save(update_fields=['stock', 'is_available'])
+            
+        order.update_total()
+        TrackingEvent.objects.create(order=order, status='COMPLETED', notes=f'In-store POS sale to {customer_name}')
+        
+        # Phase 2: Platform Economics - Log 5% commission for POS
+        from billing.models import CommissionLedgerEntry
+        from decimal import Decimal
+        
+        seller_totals = {}
+        for item in order.orderitem_set.select_related('product__seller').all():
+            seller = item.product.seller
+            item_total = item.quantity * item.price
+            if seller not in seller_totals:
+                seller_totals[seller] = Decimal('0.00')
+            seller_totals[seller] += Decimal(str(item_total))
+            
+        total_commission_collected = Decimal('0.00')
+        for seller, amount in seller_totals.items():
+            pos_commission_rate = Decimal('5.00')
+            commission_amount = amount * (pos_commission_rate / Decimal('100'))
+            CommissionLedgerEntry.objects.create(
+                order=order,
+                seller=seller,
+                order_amount=amount,
+                commission_rate=pos_commission_rate,
+                commission_amount=commission_amount,
+                entry_type=CommissionLedgerEntry.EntryType.COMMISSION
+            )
+            total_commission_collected += commission_amount
+            
+        order.platform_fee = total_commission_collected
+        order.save(update_fields=['platform_fee'])
+        
+        serializer = self.get_serializer(order)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @decorators.action(detail=False, methods=['get'])
     def incoming(self, request):

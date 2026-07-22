@@ -1,3 +1,17 @@
+// PWA Install & Fetch handlers (Network-first or pass-through to satisfy PWA criteria)
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim());
+});
+
+self.addEventListener('fetch', (event) => {
+  // Pass-through for now, can be expanded to cache static assets later if needed
+  event.respondWith(fetch(event.request).catch(() => new Response('Network error occurred', { status: 408 })));
+});
+
 self.addEventListener('push', function(event) {
   const data = event.data ? event.data.json() : {};
   const title = data.title || 'SokoniMax Notification';

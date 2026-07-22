@@ -8,6 +8,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { DialogProvider } from './components/ui/Dialogs';
 import { MessageProvider } from './context/MessageContext';
 import { ChatToastContainer } from './components/ChatToast';
+import { PwaInstallPrompt } from './components/PwaInstallPrompt';
 
 
 import LandingPage from './pages/LandingPage';
@@ -151,6 +152,7 @@ function App() {
                   }}
                 />
                 <ChatToastContainer />
+                <PwaInstallPrompt />
               </div>
             </DialogProvider>
           </CartProvider>

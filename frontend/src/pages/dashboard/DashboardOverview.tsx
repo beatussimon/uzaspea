@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import { BarChart3, ShieldAlert, Package, ShoppingCart, DollarSign, Star, AlertTriangle } from 'lucide-react';
 import { Spinner } from '../../components/ui/Spinner';
 import { KpiCard } from '../../components/ui/KpiCard';
+import { QRCodeSVG } from 'qrcode.react';
+import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import {
   XAxis, YAxis, CartesianGrid,
@@ -15,6 +17,7 @@ import { SHORT_STATUS_LABELS as STATUS_LABELS } from '../../constants/orderStatu
 // ============ Dashboard Overview ============
 const DashboardOverview: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -174,6 +177,40 @@ const DashboardOverview: React.FC = () => {
               TZS {(stats?.commission_paid || 0).toLocaleString()}
             </p>
             <p className="text-xs text-gray-400">Calculated at {stats?.commission_rate || 10}% on completed orders</p>
+          </div>
+
+          {/* Store QR Code */}
+          <div className="card p-5 space-y-4">
+            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 pb-2">Your Store QR Code</h3>
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="bg-white p-3 rounded-xl border-4 border-brand-50 shadow-sm shrink-0">
+                {user?.username ? (
+                  <QRCodeSVG 
+                    value={`${window.location.origin}/profile/${user.username}`} 
+                    size={120} 
+                    level="H" 
+                    includeMargin={true}
+                    fgColor="#000000"
+                  />
+                ) : (
+                  <div className="w-[120px] h-[120px] bg-gray-100 rounded-lg animate-pulse" />
+                )}
+              </div>
+              <div className="space-y-2 text-center sm:text-left">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">Scan to visit store</p>
+                <p className="text-xs text-gray-500">
+                  Customers can scan this code to browse your products and place orders.
+                </p>
+                <a 
+                  href={`/profile/${user?.username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block px-4 py-2 bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/20 dark:hover:bg-brand-900/40 text-brand-600 dark:text-brand-400 font-bold text-xs rounded-lg transition"
+                >
+                  View Storefront
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 

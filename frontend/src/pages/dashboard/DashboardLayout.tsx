@@ -15,6 +15,7 @@ import PaymentNumbersManager from './PaymentNumbersManager';
 import BillingPage from './BillingPage';
 import TeamManagerPage from './TeamManagerPage';
 import MyTeamPage from './MyTeamPage';
+import DashboardPOS from './DashboardPOS';
 
 // ============ Dashboard Layout ============
 const DashboardLayout: React.FC = () => {
@@ -33,6 +34,7 @@ const DashboardLayout: React.FC = () => {
     { path: '/dashboard/products', label: t('products', 'Products'), icon: Package, show: !isWorker || perms.manage_products },
     { path: '/dashboard/orders', label: t('incoming_orders', 'Incoming Orders'), icon: ShoppingCart, show: !isWorker || perms.manage_orders },
     { path: '/dashboard/promotions', label: t('promotions', 'Promotions'), icon: Megaphone, show: !isWorker || perms.manage_products },
+    { path: '/dashboard/pos', label: t('point_of_sale', 'Point of Sale'), icon: ShoppingCart, show: !isWorker || perms.manage_orders },
     { path: '/dashboard/billing', label: t('billing_commission', 'Billing & Commission'), icon: Wallet, show: !isWorker || perms.view_analytics },
     { path: '/dashboard/payment-numbers', label: t('payment_numbers', 'Payment Numbers'), icon: CreditCard, show: !isWorker || perms.view_analytics },
     { path: '/dashboard/team', label: t('team_members', 'Team Members'), icon: Shield, show: isBusiness },
@@ -126,6 +128,7 @@ const DashboardLayout: React.FC = () => {
           <Routes>
             <Route index element={<DashboardOverview />} />
             <Route path="products" element={<DashboardProducts />} />
+            <Route path="pos" element={<DashboardPOS />} />
             <Route path="orders" element={<DashboardOrders />} />
             <Route path="promotions" element={<DashboardPromotions />} />
             <Route path="billing" element={<BillingPage />} />

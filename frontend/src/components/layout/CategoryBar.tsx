@@ -94,6 +94,7 @@ const CategoryBar: React.FC = () => {
           newParams.delete('category');
         }
         newParams.delete('subcategory');
+        newParams.delete('saved');
         return newParams;
       });
     } else {
@@ -116,21 +117,8 @@ const CategoryBar: React.FC = () => {
   if (isProductsPage) {
     // CIRCLES Layout (original category circles slider, updated with desktop-large/mobile-small sizes)
     return (
-      <div className="w-full pt-1 pb-2 bg-white dark:bg-[#000000] border-b border-gray-150 dark:border-neutral-900 transition-colors duration-300">
-        <div className="flex items-start justify-start md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-4 w-full px-4 scroll-smooth">
-          {/* All Products circle */}
-          <div 
-            className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group" 
-            onClick={() => handleCategoryClick('')}
-          >
-            <div className={`relative w-20 h-20 md:w-36 md:h-36 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 border-2 ${!selectedCategory ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
-              <LayoutGrid className={`w-8 h-8 md:w-16 md:h-16 stroke-[1.5] ${!selectedCategory ? 'text-brand-600 dark:text-brand-400' : 'text-neutral-800 dark:text-neutral-100'}`} />
-            </div>
-            <span className={`text-xs md:text-sm font-bold text-center max-w-[5.5rem] md:max-w-[8.5rem] leading-tight line-clamp-2 ${!selectedCategory ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>
-              {t('all_products', 'All Products')}
-            </span>
-          </div>
-
+      <div className="w-full pt-1 pb-1 bg-white dark:bg-[#000000] border-b border-gray-150 dark:border-neutral-900 transition-colors duration-300">
+        <div className="flex items-start justify-start md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-2 w-full px-4 scroll-smooth">
           {loading ? (
             Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex flex-col items-center gap-2 shrink-0 animate-pulse">
