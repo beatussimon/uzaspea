@@ -45,14 +45,14 @@ const LandingPage = () => {
     });
 
     // Fetch all data in parallel for faster load
-    const fetchStats = api.get('/api/analytics/trending/')
+    api.get('/api/analytics/trending/')
       .then(res => {
         setStats(res.data.stats);
         setTrendingGroups(res.data.trending_products || { top_sellers: [], most_saved: [], newest_trending: [] });
       })
       .catch(() => {});
 
-    const fetchPromotions = api.get('/api/sponsored/?public=true&page_size=16')
+    api.get('/api/sponsored/?public=true&page_size=16')
       .then(promoRes => {
         const promoData = Array.isArray(promoRes.data.results || promoRes.data) 
           ? (promoRes.data.results || promoRes.data) : [];
