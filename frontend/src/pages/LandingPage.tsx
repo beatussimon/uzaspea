@@ -19,6 +19,7 @@ const LandingPage = () => {
   const [latestProducts, setLatestProducts] = useState<any[]>([]);
   const [promotions, setPromotions] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [trendingGroups, setTrendingGroups] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadingPromotions, setLoadingPromotions] = useState(true);
 
@@ -43,32 +44,39 @@ const LandingPage = () => {
       img.src = src;
     });
 
-    // Fetch stats
-    api.get('/api/analytics/trending/')
-      .then(res => setStats(res.data.stats))
+    // Fetch all data in parallel for faster load
+    const fetchStats = api.get('/api/analytics/trending/')
+      .then(res => {
+        setStats(res.data.stats);
+        setTrendingGroups(res.data.trending_products || { top_sellers: [], most_saved: [], newest_trending: [] });
+      })
       .catch(() => {});
 
-    // Fetch promotions and products, filtering out duplicates
-    api.get('/api/sponsored/?public=true&page_size=16')
-      .then((promoRes) => {
+    const fetchPromotions = api.get('/api/sponsored/?public=true&page_size=16')
+      .then(promoRes => {
         const promoData = Array.isArray(promoRes.data.results || promoRes.data) 
           ? (promoRes.data.results || promoRes.data) : [];
         setPromotions(promoData);
         setLoadingPromotions(false);
-        
-        return api.get('/api/products/?page_size=16').then((prodRes) => {
-          const prodData = Array.isArray(prodRes.data.results || prodRes.data) 
-            ? (prodRes.data.results || prodRes.data) : [];
-          // Filter out products that are already in promotions
-          const filtered = prodData.filter((p: any) => !promoData.some((promo: any) => promo.product_details?.id === p.id));
-          setLatestProducts(filtered.slice(0, 8));
-          setLoading(false);
-        });
+        return promoData;
       })
-      .catch(() => {
-        setLoading(false);
-        setLoadingPromotions(false);
-      });
+      .catch(() => { setLoadingPromotions(false); return []; });
+
+    const fetchProducts = api.get('/api/products/?page_size=16')
+      .then(prodRes => {
+        const prodData = Array.isArray(prodRes.data.results || prodRes.data) 
+          ? (prodRes.data.results || prodRes.data) : [];
+        return prodData;
+      })
+      .catch(() => []);
+
+    // Wait for both promotions and products to filter duplicates
+    Promise.all([fetchPromotions, fetchProducts]).then(([promoData, prodData]) => {
+      const promoIds = new Set((promoData as any[]).map((p: any) => p.product_details?.id));
+      const filtered = (prodData as any[]).filter((p: any) => !promoIds.has(p.id));
+      setLatestProducts(filtered.slice(0, 16));
+      setLoading(false);
+    });
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -172,7 +180,7 @@ const LandingPage = () => {
 
       {/* Platform Insights */}
       <div className="container-page">
-        <PlatformInsights />
+        <PlatformInsights stats={stats} trendingGroups={trendingGroups} />
       </div>
 
       {/* Featured Selections Section */}
@@ -181,27 +189,59 @@ const LandingPage = () => {
       </div>
 
       {/* Latest Products Listings Section */}
-      <section className="container-page">
-        <div className="flex justify-between items-end mb-6">
+      <section className="container-page space-y-10">
+        <div className="flex justify-between items-end mb-2">
           <div>
-            <h2 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">{t('latest_listings', 'Latest Listings')}</h2>
+            <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
+              {t('latest_listings', 'Latest Listings')}
+            </h2>
           </div>
-          <Link to="/products" className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline">
+          <Link to="/products" className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline mb-1">
             {t('view_all', 'View all')} <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[...Array(8)].map((_, i) => (
-              <ProductCardSkeleton key={i} viewMode="grid" />
+          <div className="flex overflow-x-auto gap-4 pb-4 md:pb-0 md:grid md:grid-cols-4 md:gap-5 scrollbar-hide">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="shrink-0 w-[260px] sm:w-[280px] md:w-auto">
+                <ProductCardSkeleton viewMode="grid" />
+              </div>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5 p-4 md:p-5 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50">
-            {latestProducts.map((product, idx) => (
-              <ProductCard key={product.id} product={product} viewMode="grid" isTopFold={idx < 4} />
-            ))}
+          <div className="space-y-8">
+            {(() => {
+              const groups: Record<string, any[]> = {};
+              latestProducts.forEach(product => {
+                  if (product.category_name) {
+                      const catName = product.category_name;
+                      if (!groups[catName]) groups[catName] = [];
+                      groups[catName].push(product);
+                  }
+              });
+              
+              const topCategories = Object.entries(groups)
+                  .sort((a, b) => b[1].length - a[1].length)
+                  .slice(0, 4);
+
+              if (topCategories.length === 0) return null;
+
+              return topCategories.map(([catName, products]) => (
+                  <div key={catName} className="space-y-4">
+                      <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200 uppercase tracking-wide">
+                          {t('latest_in', 'Latest in')} {catName}
+                      </h3>
+                      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide md:grid md:grid-cols-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
+                          {products.slice(0, 4).map((product) => (
+                              <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto relative h-full">
+                                  <ProductCard product={product} viewMode="grid" />
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              ));
+            })()}
           </div>
         )}
       </section>

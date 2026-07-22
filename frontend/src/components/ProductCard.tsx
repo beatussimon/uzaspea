@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import VerifiedBadge from './VerifiedBadge';
 import { timeAgo } from '../utils/timeAgo';
 
-const TrendingMetricBadge = ({ product }: { product: any }) => {
+const TrendingMetricBadge = ({ product, metricType = 'auto' }: { product: any; metricType?: boolean | string }) => {
   const { t } = useTranslation();
   const sales = product.weekly_sales || 0;
   const likes = product.like_count || 0;
@@ -17,12 +17,15 @@ const TrendingMetricBadge = ({ product }: { product: any }) => {
   let icon = <TrendingUp size={10} className="shrink-0 text-orange-400" />;
   let label = t('trending', 'Trending');
 
-  if (sales > 0) {
+  if (metricType === 'sales' || (metricType === true && sales > 0)) {
     icon = <ShoppingBag size={10} className="shrink-0 text-amber-300" />;
-    label = `${sales} ${t('sold_this_week', 'sold this week')}`;
-  } else if (likes > 0) {
+    label = `${sales} ${t('sold', 'sold')}`;
+  } else if (metricType === 'saves' || (metricType === true && likes > 0)) {
     icon = <Heart size={10} className="shrink-0 text-rose-300 fill-current" />;
     label = `${likes} ${t('saves', 'saves')}`;
+  } else if (metricType === 'newest') {
+    icon = <Flame size={10} className="shrink-0 text-orange-400" />;
+    label = t('new_trending', 'New & Trending');
   } else if (rating >= 4.0) {
     icon = <Star size={10} className="shrink-0 text-yellow-300 fill-current" />;
     label = `${rating} ${t('top_rated', 'Top Rated')}`;
@@ -97,7 +100,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
                 category={product.category_name}
                 className="w-full h-full"
                 containMode="cover"
-                loading={isTopFold && i === 0 ? 'eager' : 'lazy'}
+                loading={isTopFold ? 'eager' : 'lazy'}
                 decoding="async"
                 {...(isTopFold && i === 0 ? { fetchpriority: 'high' } : {})}
               />
@@ -111,7 +114,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
               category={product.category_name} 
               className="w-full h-full"
               containMode="cover"
-              loading="lazy"
+              loading={isTopFold ? 'eager' : 'lazy'}
             />
           </div>
         )}
@@ -123,7 +126,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
         </span>
       ) : (
         <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
-          {showTrendingMetrics && <TrendingMetricBadge product={product} />}
+          {showTrendingMetrics && <TrendingMetricBadge product={product} metricType={showTrendingMetrics} />}
           {isSponsored && (
             <span className="bg-brand-600 text-white text-[9px] px-2 py-0.5 rounded-card font-black shadow-md uppercase tracking-wider">
               {t('sponsored', 'Sponsored')}
@@ -171,7 +174,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
   );
 };
 
-const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isTopFold = false, showTrendingMetrics = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean; isTopFold?: boolean; showTrendingMetrics?: boolean }) => {
+const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isTopFold = false, showTrendingMetrics = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean; isTopFold?: boolean; showTrendingMetrics?: boolean | string }) => {
   const { t } = useTranslation();
   const location = useLocation();
   const bgState = { state: { backgroundLocation: location, initialProduct: product } };
@@ -277,7 +280,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
 
   return (
     <div className={`group relative card overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-75`}>
-      <Link to={`/product/${product.slug}`} {...bgState} className="relative flex flex-col h-full">
+      <Link to={`/product/${product.slug}`} {...bgState} className="relative flex-1 flex flex-col h-full w-full">
         {/* Image Carousel — fixed height */}
         <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} />
 
