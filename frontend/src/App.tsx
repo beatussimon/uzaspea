@@ -99,11 +99,11 @@ function AppRoutes() {
         <Route path="/help" element={<HelpCenterPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/profile/:username" element={<ProfilePage />} />
         <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
         <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+        <Route path="/:username" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
 

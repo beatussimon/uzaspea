@@ -785,7 +785,7 @@ const ProductDetailPage: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <Link to={`/profile/${product.seller_username}`} className="text-base md:text-lg font-bold text-gray-900 dark:text-white hover:underline transition">
+                  <Link to={`/${product.seller_username}`} className="text-base md:text-lg font-bold text-gray-900 dark:text-white hover:underline transition">
                     {product.seller_username}
                   </Link>
                   <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-4 h-4" />
