@@ -315,7 +315,7 @@ const DashboardOrders: React.FC = () => {
                     </div>
                     <div className="flex flex-col items-center gap-3">
                         <Link 
-                            to={`/profile/${order.buyer}`}
+                            to={`/${order.buyer}`}
                             onClick={(e) => e.stopPropagation()}
                             className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
                             title="Contact Customer"
@@ -541,7 +541,7 @@ const DashboardOrders: React.FC = () => {
                                             Last Activity: {fmtOrderDate(order.order_date)}
                                         </p>
                                     </div>
-                                    <Link to={`/profile/${order.buyer}`} className="text-[10px] font-black text-brand-600 uppercase tracking-widest hover:underline flex items-center gap-1">
+                                    <Link to={`/${order.buyer}`} className="text-[10px] font-black text-brand-600 uppercase tracking-widest hover:underline flex items-center gap-1">
                                         <MessageSquare size={12} />
                                         Contact Buyer
                                     </Link>

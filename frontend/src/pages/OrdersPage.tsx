@@ -428,7 +428,7 @@ const OrdersPage: React.FC = () => {
                     </div>
                     <div className="flex flex-col items-center gap-3">
                         <Link 
-                            to={`/profile/${order.items?.[0]?.seller_username}`}
+                            to={`/${order.items?.[0]?.seller_username}`}
                             onClick={(e) => e.stopPropagation()}
                             className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
                             title="Contact Store"

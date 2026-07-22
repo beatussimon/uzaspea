@@ -186,7 +186,7 @@ const DashboardOverview: React.FC = () => {
               <div className="bg-white p-3 rounded-xl border-4 border-brand-50 shadow-sm shrink-0">
                 {user?.username ? (
                   <QRCodeSVG 
-                    value={`${window.location.origin}/profile/${user.username}`} 
+                    value={`${window.location.origin}/${user.username}`} 
                     size={120} 
                     level="H" 
                     includeMargin={true}
@@ -202,7 +202,7 @@ const DashboardOverview: React.FC = () => {
                   Customers can scan this code to browse your products and place orders.
                 </p>
                 <a 
-                  href={`/profile/${user?.username}`}
+                  href={`/${user?.username}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block px-4 py-2 bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/20 dark:hover:bg-brand-900/40 text-brand-600 dark:text-brand-400 font-bold text-xs rounded-lg transition"

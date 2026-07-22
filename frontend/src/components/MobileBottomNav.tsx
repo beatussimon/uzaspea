@@ -157,7 +157,7 @@ const MobileBottomNav = () => {
                   <div>
                     <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t('personal_portal')}</p>
                     <div className="grid grid-cols-1 gap-2">
-                      <Link to={`/profile/${username}`} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                      <Link to={`/${username}`} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
                         <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
                           <User size={20} className="text-brand-600" />
                           <span className="font-medium">{t('my_profile')}</span>
@@ -338,21 +338,7 @@ const MobileBottomNav = () => {
             )}
           </Link>
 
-          {/* Saved */}
-          {isAuthenticated && (
-            <Link 
-              to="/products?saved=true" 
-              className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
-            >
-              <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
-                <Heart size={24} className={`transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && location.search.includes('saved=true') ? 2.5 : 2} />
-                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('saved', 'Saved')}</span>
-              </motion.div>
-              {isActive('/products') && location.search.includes('saved=true') && (
-                <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
-              )}
-            </Link>
-          )}
+
 
           {/* Cart */}
           <Link 
@@ -397,6 +383,22 @@ const MobileBottomNav = () => {
               )}
             </Link>
           )}
+          {/* Saved */}
+          {isAuthenticated && (
+            <Link 
+              to="/products?saved=true" 
+              className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
+            >
+              <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
+                <Heart size={24} className={`transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && location.search.includes('saved=true') ? 2.5 : 2} />
+                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('saved', 'Saved')}</span>
+              </motion.div>
+              {isActive('/products') && location.search.includes('saved=true') && (
+                <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+              )}
+            </Link>
+          )}
+
 
 
           {/* Hamburger Menu (Toggles Slide-up Menu) */}
