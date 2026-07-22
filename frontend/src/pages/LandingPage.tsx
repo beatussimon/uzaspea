@@ -52,7 +52,7 @@ const LandingPage = () => {
       })
       .catch(() => {});
 
-    api.get('/api/sponsored/?public=true&page_size=16')
+    const fetchPromotions = api.get('/api/sponsored/?public=true&page_size=16')
       .then(promoRes => {
         const promoData = Array.isArray(promoRes.data.results || promoRes.data) 
           ? (promoRes.data.results || promoRes.data) : [];
