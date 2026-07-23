@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, MessageSquare, XCircle, MapPin, X } from 'lucide-react';
+import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, MessageSquare, XCircle, MapPin, X, Receipt } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, SELLER_ADVANCE_MAP } from '../../constants/orderStatus';
@@ -287,30 +287,37 @@ const DashboardOrders: React.FC = () => {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        {order.delivery_info?.is_pos && (
+                          <span className="text-[10px] font-black text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/40 border border-purple-200 dark:border-purple-800 px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1 shadow-xs">
+                            <Receipt size={11} /> POS
+                          </span>
+                        )}
                         <span className="text-[10px] font-black text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded uppercase tracking-widest">Order #{order.id}</span>
                         <span className="text-[10px] font-bold text-gray-400 capitalize">{fmtOrderDate(order.order_date)}</span>
                     </div>
                     <h4 className="text-base font-black text-gray-900 dark:text-white truncate">
                         {order.items?.length > 0 ? order.items[0].product_name : 'Multiple Items'}
                     </h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Customer: <span className="font-bold text-gray-700 dark:text-gray-300">@{order.buyer}</span></p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                      {order.delivery_info?.is_pos ? (
+                        <>Customer: <span className="font-bold text-purple-700 dark:text-purple-300">{order.delivery_info?.customer_name || 'Walk-in Customer'}</span></>
+                      ) : (
+                        <>Customer: <span className="font-bold text-gray-700 dark:text-gray-300">@{order.buyer}</span></>
+                      )}
+                    </p>
                   </div>
                   
                   <div className="flex items-center gap-6 shrink-0">
                     <div className="flex flex-col items-end gap-1">
                         <StatusBadge status={order.status} size="sm" className="mb-1" />
                         <div className="text-right">
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Subtotal: TSh {(order.seller_subtotal || 0).toLocaleString()}</p>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Total: TSh {(order.seller_subtotal || parseFloat(order.total_amount) || 0).toLocaleString()}</p>
                           {order.promo_code_code && (
                             <p className="text-[10px] text-green-500 font-medium">
                               Promo: {order.promo_code_code} ({order.promo_code_details?.discount_type === 'percentage' ? `${parseInt(order.promo_code_details.value)}%` : `TSh ${parseInt(order.promo_code_details.value).toLocaleString()}`} off) -TSh {parseInt(order.discount_amount || 0).toLocaleString()}
                             </p>
                           )}
-                          <p className="text-[10px] text-red-500 font-medium">Fee: -TSh {(order.seller_commission || 0).toLocaleString()}</p>
-                          <p className="font-black text-brand-600 dark:text-brand-400 text-sm mt-0.5 border-t border-gray-100 dark:border-gray-700 pt-0.5 tracking-tighter">
-                            Net: TSh {(order.seller_net_payout || 0).toLocaleString()}
-                          </p>
                         </div>
                     </div>
                     <div className="flex flex-col items-center gap-3">
@@ -331,6 +338,8 @@ const DashboardOrders: React.FC = () => {
                 {isExpanded && (
                   <div className="border-t border-gray-50 dark:border-gray-700 bg-gray-50/20 dark:bg-gray-900/5 pulse-in">
                     
+                    
+
                     {/* Payment Verification Block */}
                     {hasPendingPayment && order.payments?.length > 0 && (
                       <div className="px-6 py-6 bg-brand-50/50 dark:bg-brand-900/10 border-b border-brand-100 dark:border-brand-900/20">
@@ -397,8 +406,8 @@ const DashboardOrders: React.FC = () => {
 
                     {/* Order Content */}
                     <div className="grid grid-cols-1 lg:grid-cols-5 divide-y lg:divide-y-0 lg:divide-x divide-gray-100 dark:divide-gray-700">
-                        {/* Left: Items (Cols 3) */}
-                        <div className="lg:col-span-3 p-6">
+                        {/* Left: Items (Cols 3 or 5 for POS) */}
+                        <div className={`p-6 ${order.delivery_info?.is_pos ? 'lg:col-span-5' : 'lg:col-span-3'}`}>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5">Package Contents</p>
                             <div className="space-y-3">
                                 {order.items?.map((item: any) => (
@@ -431,7 +440,8 @@ const DashboardOrders: React.FC = () => {
                         </div>
 
                         {/* Right: Timeline & Actions (Cols 2) */}
-                        <div className="lg:col-span-2 p-6 bg-gray-50/50 dark:bg-gray-800/10 flex flex-col justify-between">
+                        {!order.delivery_info?.is_pos && (
+                          <div className="lg:col-span-2 p-6 bg-gray-50/50 dark:bg-gray-800/10 flex flex-col justify-between">
                             <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5">Order History</p>
                                 <div className="space-y-4 pt-1 relative pl-4 border-l-2 border-brand-100 dark:border-brand-900/30">
@@ -547,7 +557,8 @@ const DashboardOrders: React.FC = () => {
                                     </Link>
                                 </div>
                             </div>
-                        </div>
+                          </div>
+                        )}
                     </div>
                   </div>
                 )}

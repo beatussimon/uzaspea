@@ -14,6 +14,66 @@ import {
 const CHART_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
 import { SHORT_STATUS_LABELS as STATUS_LABELS } from '../../constants/orderStatus';
 
+const formatCompactCurrency = (num: number, currency = 'TSh') => {
+  if (!num || isNaN(num)) return `${currency} 0`;
+  if (num >= 1_000_000) {
+    return `${currency} ${(num / 1_000_000).toFixed(2).replace(/\.00$/, '')}M`;
+  }
+  if (num >= 10_000) {
+    return `${currency} ${(num / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  }
+  return `${currency} ${num.toLocaleString()}`;
+};
+
+const CommissionPaidCard = ({ amount, rate }: { amount: number; rate: number }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClose = (e?: Event) => {
+      if (e && e.type === 'click' && cardRef.current && cardRef.current.contains(e.target as Node)) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    if (isOpen) {
+      document.addEventListener('click', handleClose);
+      window.addEventListener('scroll', handleClose, { capture: true });
+    }
+    return () => {
+      document.removeEventListener('click', handleClose);
+      window.removeEventListener('scroll', handleClose, { capture: true });
+    };
+  }, [isOpen]);
+
+  return (
+    <div 
+      ref={cardRef}
+      onClick={(e) => {
+        e.stopPropagation();
+        setIsOpen(prev => !prev);
+      }}
+      className="card p-5 space-y-2 relative overflow-hidden group cursor-pointer select-none active:scale-[0.98] transition-all"
+    >
+      {isOpen && (
+        <div className="absolute inset-x-2 top-2 z-30 bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-2.5 rounded-xl shadow-2xl text-center text-xs font-black border border-white/10 dark:border-black/10 animate-fade-in">
+          <p className="text-[9px] uppercase tracking-wider opacity-70 mb-0.5 font-bold">Commission Paid</p>
+          <p className="text-xs sm:text-sm font-black tracking-tight">TZS {amount.toLocaleString()}</p>
+        </div>
+      )}
+      <div className="absolute -right-4 -bottom-4 text-brand-500 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity pointer-events-none">
+        <DollarSign size={120} />
+      </div>
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Commission Paid (This Month)</p>
+      <p className="text-2xl font-black text-gray-900 dark:text-white">
+        {formatCompactCurrency(amount, 'TZS')}
+      </p>
+      <p className="text-xs text-gray-400">Calculated at {rate}% on completed orders</p>
+    </div>
+  );
+};
+
 // ============ Dashboard Overview ============
 const DashboardOverview: React.FC = () => {
   const { t } = useTranslation();
@@ -51,7 +111,8 @@ const DashboardOverview: React.FC = () => {
     },
     {
       label: t('revenue_7d', 'Revenue (7D)'),
-      value: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`,
+      value: formatCompactCurrency(stats?.total_revenue || 0),
+      fullValue: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`,
       icon: DollarSign,
       trend: {
         value: `${Math.abs(stats?.revenue_trend_pct || 0)}%`,
@@ -60,7 +121,8 @@ const DashboardOverview: React.FC = () => {
     },
     {
       label: t('avg_order', 'Avg Order'),
-      value: `TSh ${(stats?.avg_order_value || 0).toLocaleString()}`,
+      value: formatCompactCurrency(stats?.avg_order_value || 0),
+      fullValue: `TSh ${(stats?.avg_order_value || 0).toLocaleString()}`,
       icon: DollarSign,
     },
     {
@@ -92,6 +154,7 @@ const DashboardOverview: React.FC = () => {
             key={i}
             label={kpi.label}
             value={kpi.value}
+            fullValue={kpi.fullValue}
             icon={kpi.icon}
             trend={kpi.trend}
             sub={kpi.sub}
@@ -156,28 +219,25 @@ const DashboardOverview: React.FC = () => {
             <div className="divide-y divide-gray-50 dark:divide-gray-700">
               {(stats?.top_products || []).map((p: any, i: number) => (
                 <div key={i} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center font-bold text-gray-400 text-xs">#{i+1}</div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{p.name}</p>
-                      <p className="text-[10px] text-gray-500">{p.sold} sold</p>
+                  <div className="flex items-center gap-3 overflow-hidden pr-2">
+                    <div className="w-8 h-8 shrink-0 rounded bg-gray-100 flex items-center justify-center font-bold text-gray-400 text-xs">#{i+1}</div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{p.name}</p>
+                      <p className="text-[10px] text-gray-500 truncate">{p.sold} sold</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black text-brand-600">TSh {p.revenue.toLocaleString()}</p>
+                  <div className="text-right shrink-0 max-w-[100px] sm:max-w-[140px]">
+                    <p className="text-sm font-black text-brand-600 truncate" title={`TSh ${p.revenue.toLocaleString()}`}>TSh {p.revenue.toLocaleString()}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="card p-5 space-y-2">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Commission Paid (This Month)</p>
-            <p className="text-2xl font-black text-gray-900 dark:text-white">
-              TZS {(stats?.commission_paid || 0).toLocaleString()}
-            </p>
-            <p className="text-xs text-gray-400">Calculated at {stats?.commission_rate || 10}% on completed orders</p>
-          </div>
+          <CommissionPaidCard 
+            amount={stats?.commission_paid || 0} 
+            rate={stats?.commission_rate || 10} 
+          />
 
           {/* Store QR Code */}
           <div className="card p-5 space-y-4">

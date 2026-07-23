@@ -86,8 +86,8 @@ const SystemPaymentMethodsManager: React.FC = () => {
         <p className="text-gray-500 text-sm mt-1">Manage global Lipa Numbers used by sellers to pay the platform.</p>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-gray-200 shadow-sm dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
           <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
             {isEditing ? <Edit2 size={16} /> : <Plus size={16} />}
             {isEditing ? 'Edit Payment Method' : 'Add New Payment Method'}
@@ -168,10 +168,10 @@ const SystemPaymentMethodsManager: React.FC = () => {
         </form>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
+            <thead className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-200 shadow-sm dark:border-gray-700">
               <tr>
                 <th className="px-6 py-4 font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">Network</th>
                 <th className="px-6 py-4 font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">Details</th>
@@ -185,7 +185,7 @@ const SystemPaymentMethodsManager: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {method.network_logo ? (
-                        <img src={method.network_logo} alt={method.network_name} className="h-8 w-8 rounded object-cover border border-gray-100 dark:border-gray-700" />
+                        <img src={method.network_logo} alt={method.network_name} className="h-8 w-8 rounded object-cover border border-gray-200 shadow-sm dark:border-gray-700" />
                       ) : (
                         <div className="h-8 w-8 rounded bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                           <CreditCard size={16} className="text-gray-400" />

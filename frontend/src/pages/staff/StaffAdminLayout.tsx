@@ -133,7 +133,7 @@ const RevenueChart: React.FC = () => {
   }).join(' ');
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
       <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Platform Revenue Trend (TZS)</h4>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-48 overflow-visible">
         {/* Grids */}
@@ -177,7 +177,7 @@ const WorkloadChart: React.FC<{ staffers: Staffer[] }> = ({ staffers }) => {
   const maxTasks = Math.max(...activeStaffers.map(s => s.tasks_count || 1), 5);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
       <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Staff Task Distribution</h4>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-48 overflow-visible">
         {/* Axis and Grids */}
@@ -251,7 +251,7 @@ const AdminOverview: React.FC = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {kpis.map((kpi, i) => (
-          <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 transition-transform hover:scale-105 shadow-sm">
+          <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-4 transition-transform hover:scale-105 shadow-sm">
             <div className="flex items-center justify-between mb-2">
                <kpi.icon size={16} className={`text-${kpi.color}-500`} />
             </div>
@@ -268,8 +268,8 @@ const AdminOverview: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 overflow-hidden shadow-sm">
+            <div className="px-5 py-4 border-b border-gray-200 shadow-sm dark:border-gray-700 flex items-center justify-between">
               <h3 className="text-sm font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest">Global Activity Log</h3>
               <ScrollText size={16} className="text-brand-500" />
             </div>
@@ -287,7 +287,7 @@ const AdminOverview: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 shadow-sm">
               <h3 className="text-sm font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest mb-6 border-b pb-4 dark:border-gray-700">Teams & Capacity</h3>
               <div className="space-y-6">
                   {data.departments.map((dept, i) => (
@@ -411,7 +411,7 @@ const PlatformUserExplorer: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-x-auto shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 overflow-x-auto shadow-sm">
         <table className="w-full text-left">
           <thead className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700">
             <tr>
@@ -582,7 +582,7 @@ const EmployeeManager: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {staff.map(member => (
-                    <div key={member.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 group hover:border-brand-500/30 transition shadow-sm">
+                    <div key={member.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 group hover:border-brand-500/30 transition shadow-sm">
                         <div className="flex items-start justify-between">
                             <div className="flex gap-3">
                                 <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-black text-gray-400 uppercase">
@@ -766,7 +766,7 @@ const TaskBoard: React.FC = () => {
             {columns.map(col => {
                 const colTasks = tasks.filter(t => t.status === col.key);
                 return (
-                    <div key={col.key} className="flex flex-col h-[70vh] bg-gray-50 dark:bg-gray-800/20 rounded-2xl p-2 border border-gray-100 dark:border-gray-700/30">
+                    <div key={col.key} className="flex flex-col h-[70vh] bg-gray-50 dark:bg-gray-800/20 rounded-2xl p-2 border border-gray-200 shadow-sm dark:border-gray-700/30">
                         <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700/50 mb-3">
                              <div className="flex items-center gap-2">
                                 <col.icon size={16} className="text-gray-400" />
@@ -777,7 +777,7 @@ const TaskBoard: React.FC = () => {
                         
                         <div className="flex-1 overflow-y-auto px-1 space-y-3 pb-4 scroll-slim">
                             {colTasks.map(t => (
-                                <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl p-4 hover:shadow-lg transition-all duration-300 group relative shadow-sm border border-gray-100 dark:border-gray-700">
+                                <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl p-4 hover:shadow-lg transition-all duration-300 group relative shadow-sm border border-gray-200 shadow-sm dark:border-gray-700">
                                     <div className="flex justify-between items-start mb-2">
                                         <Badge text={t.priority} className={priorityColors[t.priority]} />
                                         {t.is_overdue && <AlertTriangle size={14} className="text-red-500 animate-pulse" />}
@@ -922,7 +922,7 @@ const PermissionMatrix: React.FC = () => {
         <span className="text-xs text-gray-400">Directly toggle capabilities of each active staff member</span>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-x-auto shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 overflow-x-auto shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700">
@@ -995,7 +995,7 @@ const AuditLogViewer: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 overflow-hidden shadow-sm">
                     <div className="divide-y divide-gray-50 dark:divide-gray-700">
                         {logs.map(log => (
                             <div key={log.id} onClick={() => setSelectedLog(log)} className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition cursor-pointer ${selectedLog?.id === log.id ? 'bg-brand-50/30 dark:bg-brand-950/10 border-l-4 border-brand-600' : ''}`}>

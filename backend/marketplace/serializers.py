@@ -8,7 +8,7 @@ from .models import (
     ProductImage, Like, LipaNumber, FAQ, SupportTicket,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork, SellerApplication,
-    TeamMember, StoreImage
+    TeamMember, StoreImage, ProductPriceTier
 )
 
 class LipaNumberSerializer(serializers.ModelSerializer):
@@ -75,8 +75,15 @@ class MobileNetworkSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'image']
 
 
+class ProductPriceTierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductPriceTier
+        fields = ['id', 'min_quantity', 'max_quantity', 'unit_price']
+
+
 class ProductSerializer(serializers.ModelSerializer):
     seller_username = serializers.CharField(source='seller.username', read_only=True)
+    price_tiers = ProductPriceTierSerializer(many=True, read_only=True)
     seller_tier = serializers.SerializerMethodField()
     seller_verified = serializers.SerializerMethodField()
     seller_profile_picture = serializers.SerializerMethodField()
@@ -99,6 +106,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'name', 'slug', 'description', 'price', 'sale_price', 'stock', 'is_available',
+                  'unit_of_measure', 'minimum_order_quantity', 'price_tiers',
                   'category', 'category_name', 'category_slug', 'seller', 'seller_username', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition',
                   'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified',
@@ -110,6 +118,35 @@ class ProductSerializer(serializers.ModelSerializer):
         # View uses prefetch_related for obj.inspections, avoiding N+1
         from inspections.serializers import InspectionSummarySerializer
         return InspectionSummarySerializer(obj.inspections.all(), many=True).data
+
+    def create(self, validated_data):
+        import json
+        request = self.context.get('request')
+        price_tiers_data = request.data.get('price_tiers')
+        product = super().create(validated_data)
+        if price_tiers_data:
+            try:
+                tiers = json.loads(price_tiers_data)
+                for tier in tiers:
+                    ProductPriceTier.objects.create(product=product, **tier)
+            except Exception as e:
+                pass
+        return product
+
+    def update(self, instance, validated_data):
+        import json
+        request = self.context.get('request')
+        price_tiers_data = request.data.get('price_tiers')
+        instance = super().update(instance, validated_data)
+        if price_tiers_data is not None:
+            try:
+                tiers = json.loads(price_tiers_data)
+                instance.price_tiers.all().delete()
+                for tier in tiers:
+                    ProductPriceTier.objects.create(product=instance, **tier)
+            except Exception as e:
+                pass
+        return instance
 
     def get_is_liked(self, obj):
         if hasattr(obj, 'annotated_is_liked'):
@@ -365,8 +402,21 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        if ret.get('delivery_info') and isinstance(ret['delivery_info'], dict):
-            d_info = dict(ret['delivery_info'])
+        
+        d_info = ret.get('delivery_info', {})
+        if isinstance(d_info, str):
+            import json
+            import ast
+            try:
+                d_info = json.loads(d_info)
+            except:
+                try:
+                    d_info = ast.literal_eval(d_info)
+                except:
+                    d_info = {}
+
+        if d_info and isinstance(d_info, dict):
+            ret['delivery_info'] = d_info
             if not d_info.get('estimated_shipping_fee'):
                 origin_code = d_info.get('warehouse_code')
                 dest_code = d_info.get('destination_warehouse_code')
@@ -396,30 +446,67 @@ class OrderSerializer(serializers.ModelSerializer):
                 ret['items'] = OrderItemSerializer(filtered_items, many=True, context=self.context).data
         return ret
 
-    def get_seller_subtotal(self, obj):
-        request = self.context.get('request')  # FIX: L-03 — guard against missing context
+    def _get_seller_items(self, request, obj):
         if not request or not hasattr(request, 'user') or request.user.is_anonymous:
-            return float(obj.total_amount)
-        return float(sum(item.subtotal() for item in obj.orderitem_set.filter(product__seller=request.user)))
+            return obj.orderitem_set.all()
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(request.user)
+        items = obj.orderitem_set.filter(product__seller_id__in=sellers)
+        if not items.exists():
+            items = obj.orderitem_set.filter(product__seller=request.user)
+        if not items.exists():
+            items = obj.orderitem_set.all()
+        return items
+
+    def get_seller_subtotal(self, obj):
+        request = self.context.get('request')
+        items = self._get_seller_items(request, obj)
+        return float(sum(item.subtotal() for item in items))
 
     def get_seller_commission(self, obj):
         request = self.context.get('request')
-        if not request or not hasattr(request, 'user') or request.user.is_anonymous:
-            return 0.0
-        from billing.models import get_seller_commission_rate
-        from decimal import Decimal
-        seller_subtotal = sum(item.subtotal() for item in obj.orderitem_set.filter(product__seller=request.user))
-        rate_pct = get_seller_commission_rate(request.user)
+        items = self._get_seller_items(request, obj)
+        seller_subtotal = sum(item.subtotal() for item in items)
+        
+        d_info = obj.delivery_info or {}
+        if isinstance(d_info, str):
+            import json
+            import ast
+            try: d_info = json.loads(d_info)
+            except: 
+                try: d_info = ast.literal_eval(d_info)
+                except: d_info = {}
+            
+        is_pos = isinstance(d_info, dict) and d_info.get('is_pos')
+        if is_pos:
+            rate_pct = Decimal('5.00')
+        else:
+            from billing.models import get_seller_commission_rate
+            rate_pct = get_seller_commission_rate(request.user) if (request and hasattr(request, 'user') and not request.user.is_anonymous) else Decimal('10.00')
+            
         return float(seller_subtotal * (rate_pct / Decimal('100')))
 
     def get_seller_net_payout(self, obj):
         request = self.context.get('request')
-        if not request or not hasattr(request, 'user') or request.user.is_anonymous:
-            return 0.0
-        from billing.models import get_seller_commission_rate
-        from decimal import Decimal
-        seller_subtotal = sum(item.subtotal() for item in obj.orderitem_set.filter(product__seller=request.user))
-        rate_pct = get_seller_commission_rate(request.user)
+        items = self._get_seller_items(request, obj)
+        seller_subtotal = sum(item.subtotal() for item in items)
+        
+        d_info = obj.delivery_info or {}
+        if isinstance(d_info, str):
+            import json
+            import ast
+            try: d_info = json.loads(d_info)
+            except:
+                try: d_info = ast.literal_eval(d_info)
+                except: d_info = {}
+            
+        is_pos = isinstance(d_info, dict) and d_info.get('is_pos')
+        if is_pos:
+            rate_pct = Decimal('5.00')
+        else:
+            from billing.models import get_seller_commission_rate
+            rate_pct = get_seller_commission_rate(request.user) if (request and hasattr(request, 'user') and not request.user.is_anonymous) else Decimal('10.00')
+            
         commission = seller_subtotal * (rate_pct / Decimal('100'))
         return float(seller_subtotal - commission)
 
@@ -440,6 +527,8 @@ class OrderSerializer(serializers.ModelSerializer):
             }
         return None
 
+    from django.db import transaction
+
     def create(self, validated_data):
         promo_code_str = validated_data.pop('promo_code', None)
         # Extract items data from the source mapping
@@ -457,6 +546,12 @@ class OrderSerializer(serializers.ModelSerializer):
 
                 if product.seller == self.context['request'].user:
                     raise serializers.ValidationError(f'You cannot order your own product: "{product.name}".')
+                    
+                if qty < product.minimum_order_quantity:
+                    unit_disp = getattr(product, 'get_unit_of_measure_display', lambda: product.unit_of_measure)()
+                    raise serializers.ValidationError(
+                        f'The minimum order quantity for "{product.name}" is {product.minimum_order_quantity} {unit_disp}.'
+                    )
 
                 if variant:
                     variant = ProductVariant.objects.select_for_update().get(pk=variant.pk)
@@ -471,7 +566,12 @@ class OrderSerializer(serializers.ModelSerializer):
                         raise serializers.ValidationError(
                             f'"{product.name}" only has {product.stock} unit(s) in stock.'
                         )
+                    
+                    # Apply tiered pricing if applicable
                     item_price = product.price
+                    tier = product.price_tiers.filter(min_quantity__lte=qty).order_by('-min_quantity').first()
+                    if tier:
+                        item_price = tier.unit_price
 
                 OrderItem.objects.create(
                     order=order,
@@ -590,16 +690,26 @@ class UserProfileSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source='user.id', read_only=True)
     seller_rating = serializers.SerializerMethodField()  # FIX B-14
     store_images = StoreImageSerializer(many=True, read_only=True)
+    is_following = serializers.SerializerMethodField()
 
     class Meta:
         model = UserProfile
         fields = ['id', 'user', 'user_id', 'username', 'is_verified', 'phone_number', 'instagram_username',
                   'website', 'bio', 'tier', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
-                  'preferred_currency', 'seller_rating', 'store_images', 'is_location_verified']
+                  'preferred_currency', 'seller_rating', 'store_images', 'is_location_verified', 'is_following']
         read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified']  # FIX: S-07 — only staff should set these
 
     def get_seller_rating(self, obj):
         return obj.seller_rating  # FIX B-14
+
+    def get_is_following(self, obj):
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            from .models import Follow
+            # This could be optimized using Prefetch or annotations in the queryset, 
+            # but for simplicity and typical payload sizes, this will suffice.
+            return Follow.objects.filter(follower=request.user, following=obj).exists()
+        return False
 
     def update(self, instance, validated_data):
         # Check if location coordinates changed

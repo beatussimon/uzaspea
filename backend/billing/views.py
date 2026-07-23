@@ -5,6 +5,8 @@ from uzachuo.permissions import IsSellerOrAbove
 from .models import CommissionLedgerEntry, MonthlyInvoice, CommissionPayment
 from .serializers import CommissionLedgerEntrySerializer, MonthlyInvoiceSerializer, CommissionPaymentSerializer
 
+from django.db.models import Sum
+
 class BillingViewSet(viewsets.GenericViewSet):
     permission_classes = [permissions.IsAuthenticated, IsSellerOrAbove]
 
@@ -14,16 +16,42 @@ class BillingViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['get'])
     def ledger(self, request):
         entries = CommissionLedgerEntry.objects.filter(seller=request.user)
+        
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if start_date:
+            entries = entries.filter(created_at__gte=start_date)
+        if end_date:
+            entries = entries.filter(created_at__lte=end_date)
+            
+        totals = entries.aggregate(
+            total_order_amount=Sum('order_amount'),
+            total_commission=Sum('commission_amount')
+        )
+        
         page = self.paginate_queryset(entries)
         if page is not None:
             serializer = CommissionLedgerEntrySerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            response = self.get_paginated_response(serializer.data)
+            response.data['totals'] = totals
+            return response
+            
         serializer = CommissionLedgerEntrySerializer(entries, many=True)
-        return Response(serializer.data)
+        return Response({'results': serializer.data, 'totals': totals})
 
     @action(detail=False, methods=['get'])
     def invoices(self, request):
         invoices = MonthlyInvoice.objects.filter(seller=request.user)
+        
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if start_date:
+            invoices = invoices.filter(created_at__gte=start_date)
+        if end_date:
+            invoices = invoices.filter(created_at__lte=end_date)
+            
         page = self.paginate_queryset(invoices)
         if page is not None:
             serializer = MonthlyInvoiceSerializer(page, many=True)

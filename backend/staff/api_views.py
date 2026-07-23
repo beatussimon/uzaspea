@@ -99,9 +99,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         queryset = Task.objects.select_related('assigned_to', 'category', 'created_by').all()
         user = self.request.user
 
-        # Non-admins only see their own tasks
+        # Non-admins only see their own tasks AND unassigned tasks (open pool)
         if not user.is_superuser:
-            queryset = queryset.filter(assigned_to=user)
+            queryset = queryset.filter(models.Q(assigned_to=user) | models.Q(assigned_to__isnull=True))
 
         # Filters
         task_status = self.request.query_params.get('status', None)
@@ -129,6 +129,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         
         task = serializer.save(created_by=user)
         log_audit(user, 'task_created', f"Created task: {task.title}", task=task, request=self.request)
+
+    @decorators.action(detail=False, methods=['get'])
+    def assignable_users(self, request):
+        """Returns a list of users that can be assigned tasks."""
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_tasks')):
+            return Response({'error': 'No permission to view assignable users'}, status=403)
+        
+        users = User.objects.filter(is_staff=True, is_active=True).values('id', 'username', 'first_name', 'last_name')
+        return Response(list(users))
 
     @decorators.action(detail=True, methods=['post'])
     def start(self, request, pk=None):
@@ -414,6 +423,56 @@ class StaffDashboardView(APIView):
             'unassigned': Task.objects.filter(assigned_to=None).exclude(status='completed').count(),
         }
 
+        admin_overview = None
+        admin_task_metrics = None
+        if user.is_superuser:
+            from marketplace.models import PaymentConfirmation, SellerApplication, Product, Review, Order
+            from billing.models import CommissionPayment
+            from inspections.models import InspectionRequest
+            from django.db.models import Count
+            
+            admin_overview = {
+                'subscriptions_pending': PaymentConfirmation.objects.filter(status='pending').count(),
+                'seller_upgrades_pending': SellerApplication.objects.filter(status='pending').count(),
+                'commissions_pending': CommissionPayment.objects.filter(status='PENDING').count(),
+                'products_pending': Product.objects.filter(is_available=False).count(),
+                'reviews_pending': Review.objects.filter(approved=False).count(),
+                'warehouse_intake_pending': Order.objects.filter(status='SHIPPED_TO_WAREHOUSE').count(),
+                'logistics_in_transit': Order.objects.filter(status__in=['IN_TRANSIT', 'SHIPPED', 'OUT_FOR_DELIVERY']).count(),
+                'inspections_pending': InspectionRequest.objects.filter(status__in=['pending', 'assigned']).count(),
+            }
+
+            # Global Task Counts for Admin Analytics
+            global_counts = {
+                'pending': Task.objects.filter(status='pending').count(),
+                'in_progress': Task.objects.filter(status='in_progress').count(),
+                'on_hold': Task.objects.filter(status='on_hold').count(),
+                'completed': Task.objects.filter(status='completed').count(),
+                'unassigned': Task.objects.filter(assigned_to=None).exclude(status='completed').count(),
+            }
+
+            # Worker Performance Aggregation
+            worker_stats = Task.objects.exclude(assigned_to=None).values(
+                'assigned_to__username', 'status'
+            ).annotate(count=Count('id'))
+
+            perf_dict = {}
+            for stat in worker_stats:
+                username = stat['assigned_to__username']
+                status = stat['status']
+                count = stat['count']
+                
+                if username not in perf_dict:
+                    perf_dict[username] = {'worker': username, 'completed': 0, 'pending': 0, 'in_progress': 0, 'on_hold': 0}
+                
+                if status in ['pending', 'in_progress', 'completed', 'on_hold']:
+                    perf_dict[username][status] = count
+
+            admin_task_metrics = {
+                'global_counts': global_counts,
+                'worker_performance': list(perf_dict.values())
+            }
+
         return Response({
             'user': {
                 'username': user.username,
@@ -426,6 +485,8 @@ class StaffDashboardView(APIView):
             'task_counts': task_counts,
             'pending_promotions': promos_data,
             'recent_actions': actions_data,
+            'admin_overview': admin_overview,
+            'admin_task_metrics': admin_task_metrics,
         })
 
 

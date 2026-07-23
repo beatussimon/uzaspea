@@ -929,7 +929,7 @@ const StaffInspectionLayout: React.FC<{ user?: any }> = ({ user }) => {
       
       <div className="flex flex-col lg:flex-row gap-6 mt-4">
       <aside className="w-full lg:w-56 shrink-0">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-2 space-y-1">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 shadow-sm dark:border-gray-700 p-2 space-y-1">
           <div className="px-3 py-2 mb-1">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Inspections</h3>
           </div>

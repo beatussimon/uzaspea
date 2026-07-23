@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 const SkeletonCards = () => (
   <div className="space-y-3">
     {[1, 2, 3].map(i => (
-      <div key={i} className="animate-pulse bg-white dark:bg-[#111] h-32 rounded-3xl border border-gray-100 dark:border-neutral-800"></div>
+      <div key={i} className="animate-pulse bg-white dark:bg-[#111] h-32 rounded-3xl border border-gray-200 shadow-sm dark:border-neutral-800"></div>
     ))}
   </div>
 );
@@ -153,7 +153,7 @@ const LogisticsManager: React.FC = () => {
     <div className="w-full max-w-7xl mx-auto space-y-8 min-h-screen pb-12">
       
       {/* Header & Mode Switcher */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1 h-full bg-brand-500 shadow-[0_0_20px_rgba(249,115,22,0.8)]"></div>
         <div className="pl-2">
           <h1 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3">
@@ -197,7 +197,7 @@ const LogisticsManager: React.FC = () => {
               <motion.div 
                 key={kpi.title}
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
-                className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+                className="glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
               >
                 <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
                   <kpi.icon size={28} />
@@ -282,7 +282,7 @@ const LogisticsManager: React.FC = () => {
               <motion.div 
                 key={kpi.title}
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
-                className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+                className="glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
               >
                 <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
                   <kpi.icon size={28} />
@@ -485,7 +485,7 @@ const ShipmentCard = ({ ship, onClick, badge, badgeColor }: { ship: any, onClick
   return (
     <div 
       onClick={onClick}
-      className="bg-white dark:bg-[#111] border border-gray-100 dark:border-neutral-800 rounded-3xl p-4 cursor-pointer hover:border-brand-500 hover:shadow-xl transition-all group relative overflow-hidden"
+      className="bg-white dark:bg-[#111] border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-4 cursor-pointer hover:border-brand-500 hover:shadow-xl transition-all group relative overflow-hidden"
     >
       <div className={`absolute top-0 left-0 w-1 h-full bg-${badgeColor}-500 opacity-0 group-hover:opacity-100 transition-opacity`}></div>
       <div className="flex justify-between items-start mb-3">
@@ -516,7 +516,7 @@ const ShipmentCard = ({ ship, onClick, badge, badgeColor }: { ship: any, onClick
 
 const PaymentCard = ({ pay, onAction, loading, status }: { pay: any, onAction: () => void, loading: boolean, status: 'paid' | 'unpaid' }) => {
   return (
-    <div className="bg-white dark:bg-[#111] border border-gray-100 dark:border-neutral-800 rounded-3xl p-4 hover:border-brand-500 transition-colors relative overflow-hidden group">
+    <div className="bg-white dark:bg-[#111] border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-4 hover:border-brand-500 transition-colors relative overflow-hidden group">
       <div className={`absolute top-0 left-0 w-1 h-full ${status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500'} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
       <div className="flex justify-between items-start mb-3">
         <div>

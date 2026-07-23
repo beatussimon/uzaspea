@@ -39,7 +39,8 @@ const DashboardProducts: React.FC = () => {
   const [quickStockValue, setQuickStockValue] = useState<string>('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
+  const [form, setForm] = useState({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+  const [priceTiers, setPriceTiers] = useState<any[]>([]);
   const [newVariants, setNewVariants] = useState<any[]>([]);
   const [existingImages, setExistingImages] = useState<any[]>([]);
   const [locData, setLocData] = useState({ latitude: '', longitude: '', location_name: '' });
@@ -240,6 +241,11 @@ const DashboardProducts: React.FC = () => {
       formData.append('category', form.category);
       formData.append('condition', form.condition);
       formData.append('is_available', String(form.is_available));
+      formData.append('unit_of_measure', form.unit_of_measure);
+      formData.append('minimum_order_quantity', form.minimum_order_quantity);
+      if (priceTiers.length > 0) {
+        formData.append('price_tiers', JSON.stringify(priceTiers));
+      }
       if (locData.latitude) formData.append('latitude', locData.latitude);
       if (locData.longitude) formData.append('longitude', locData.longitude);
       if (locData.location_name) formData.append('location_name', locData.location_name);
@@ -307,7 +313,7 @@ const DashboardProducts: React.FC = () => {
       setShowForm(false);
       setEditingId(null);
       setEditingProductId(null);
-      setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
+      setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
       imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
       setImagePreviews([]);
       setImageFiles([]);
@@ -332,7 +338,10 @@ const DashboardProducts: React.FC = () => {
       category: String(product.category),
       condition: product.condition,
       is_available: product.is_available,
+      unit_of_measure: product.unit_of_measure || 'piece',
+      minimum_order_quantity: product.minimum_order_quantity || '1',
     });
+    setPriceTiers(product.price_tiers || []);
     setEditingId(product.slug);
     setEditingProductId(product.id);
     setExistingImages(product.images || []);
@@ -423,7 +432,7 @@ const DashboardProducts: React.FC = () => {
             setEditingId(null);
             setExistingImages([]);
             setNewVariants([]);
-            setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
+            setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
           }}
           disabled={user?.tier === 'customer'}
           variant={showForm ? 'outline' : 'default'}
@@ -485,6 +494,46 @@ const DashboardProducts: React.FC = () => {
               <option value="New">New</option>
               <option value="Used">Used</option>
             </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <select name="unit_of_measure" value={form.unit_of_measure} onChange={handleChange} required title="Unit of Measure"
+              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white">
+              <option value="piece">Piece(s)</option>
+              <option value="kg">Kilogram(s)</option>
+              <option value="ton">Ton(s)</option>
+              <option value="liter">Liter(s)</option>
+              <option value="box">Box(es)</option>
+              <option value="dozen">Dozen(s)</option>
+              <option value="pair">Pair(s)</option>
+              <option value="meter">Meter(s)</option>
+            </select>
+            <input name="minimum_order_quantity" value={form.minimum_order_quantity} onChange={handleChange} placeholder="Minimum Order Quantity" type="number" step="0.01" required
+              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+          </div>
+          <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-4">
+            <h4 className="font-bold text-gray-900 dark:text-white mb-2">Volume / Tiered Pricing (Optional)</h4>
+            <p className="text-xs text-gray-500 mb-3">Set lower prices for customers buying in bulk. Leave Max Qty empty for "and above".</p>
+            {priceTiers.map((tier, idx) => (
+              <div key={idx} className="flex gap-2 mb-2 items-center">
+                <input type="number" step="0.01" placeholder="Min Qty" required value={tier.min_quantity} onChange={e => {
+                  const newTiers = [...priceTiers];
+                  newTiers[idx].min_quantity = e.target.value;
+                  setPriceTiers(newTiers);
+                }} className="w-1/3 p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white text-sm" />
+                <input type="number" step="0.01" placeholder="Max Qty" value={tier.max_quantity || ''} onChange={e => {
+                  const newTiers = [...priceTiers];
+                  newTiers[idx].max_quantity = e.target.value;
+                  setPriceTiers(newTiers);
+                }} className="w-1/3 p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white text-sm" />
+                <input type="number" step="0.01" placeholder="Unit Price" required value={tier.unit_price} onChange={e => {
+                  const newTiers = [...priceTiers];
+                  newTiers[idx].unit_price = e.target.value;
+                  setPriceTiers(newTiers);
+                }} className="w-1/3 p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white text-sm" />
+                <button type="button" onClick={() => setPriceTiers(priceTiers.filter((_, i) => i !== idx))} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">X</button>
+              </div>
+            ))}
+            <button type="button" onClick={() => setPriceTiers([...priceTiers, { min_quantity: '', max_quantity: '', unit_price: '' }])} className="text-sm text-brand-600 font-semibold">+ Add Pricing Tier</button>
           </div>
           <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
             <input 
@@ -704,7 +753,7 @@ const DashboardProducts: React.FC = () => {
               setShowForm(false);
               setEditingId(null);
               setEditingProductId(null);
-              setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true });
+              setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
               imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
               setImagePreviews([]);
               setImageFiles([]);

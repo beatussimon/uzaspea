@@ -211,7 +211,22 @@ class Product(models.Model):
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    stock = models.PositiveIntegerField(default=0)
+    stock = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    unit_of_measure = models.CharField(
+        max_length=20,
+        choices=[
+            ('piece', 'Piece(s)'),
+            ('kg', 'Kilogram(s)'),
+            ('ton', 'Ton(s)'),
+            ('liter', 'Liter(s)'),
+            ('box', 'Box(es)'),
+            ('dozen', 'Dozen(s)'),
+            ('pair', 'Pair(s)'),
+            ('meter', 'Meter(s)'),
+        ],
+        default='piece'
+    )
+    minimum_order_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))
     is_available = models.BooleanField(default=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products')
@@ -291,6 +306,20 @@ class Product(models.Model):
         if hasattr(self, 'annotated_is_verified'):
             return self.annotated_is_verified
         return self.inspections.filter(status='published', report__verdict='pass').exists()
+
+
+class ProductPriceTier(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_tiers')
+    min_quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    max_quantity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        ordering = ['min_quantity']
+
+    def __str__(self):
+        max_q = f" - {self.max_quantity}" if self.max_quantity else "+"
+        return f"{self.product.name}: {self.min_quantity}{max_q} {self.product.unit_of_measure} @ {self.unit_price}"
 
 
 class ProductImage(models.Model):
@@ -504,7 +533,7 @@ class OrderItem(models.Model):
         'ProductVariant', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='order_items'
     )
-    quantity = models.PositiveIntegerField()
+    quantity = models.DecimalField(max_digits=10, decimal_places=2)
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
