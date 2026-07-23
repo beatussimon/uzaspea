@@ -330,7 +330,7 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             'id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status',
-            'shipping_method', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
+            'shipping_method', 'fulfillment_type', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
             'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout',
             'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount', 'promo_code_details'
