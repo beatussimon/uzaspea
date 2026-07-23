@@ -3,13 +3,16 @@ import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
   CheckCircle2, XCircle, Clock, AlertTriangle, Shield, Star,
-  CreditCard, FileText, Layers, MessageSquare, Send, Package, Truck
+  CreditCard, FileText, Layers, MessageSquare, Send, Package, Truck,
+  BarChart2
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import StaffInspectionLayout from './inspections/StaffInspectionLayout';
 import WarehouseStaffLayout from './warehouse/WarehouseStaffLayout';
 import LogisticsManager from './logistics/LogisticsManager';
+import StaffTasks from './StaffTasks';
 
 // ============ Types ============
 interface StaffTask {
@@ -36,6 +39,26 @@ interface DashboardData {
   task_counts: Record<string, number>;
   pending_promotions: PendingPromo[];
   recent_actions: RecentAction[];
+  admin_overview?: {
+    subscriptions_pending: number;
+    seller_upgrades_pending: number;
+    commissions_pending: number;
+    products_pending: number;
+    reviews_pending: number;
+    warehouse_intake_pending: number;
+    logistics_in_transit: number;
+    inspections_pending: number;
+  };
+  admin_task_metrics?: {
+    global_counts: Record<string, number>;
+    worker_performance: {
+      worker: string;
+      completed: number;
+      pending: number;
+      in_progress: number;
+      on_hold: number;
+    }[];
+  };
 }
 
 // ============ Helpers ============
@@ -64,6 +87,41 @@ interface StaffHomeProps {
   loading: boolean;
 }
 
+const AdminOverviewPanel: React.FC<{ data: DashboardData['admin_overview'] }> = ({ data }) => {
+  if (!data) return null;
+  const metrics = [
+    { label: 'Subscriptions', val: data.subscriptions_pending, icon: CreditCard, colorClass: 'text-brand-500', path: '/staff/subscriptions' },
+    { label: 'Seller Upgrades', val: data.seller_upgrades_pending, icon: Shield, colorClass: 'text-blue-500', path: '/staff/seller-applications' },
+    { label: 'Warehouse Intake', val: data.warehouse_intake_pending, icon: Package, colorClass: 'text-orange-500', path: '/staff/warehouse' },
+    { label: 'Logistics', val: data.logistics_in_transit, icon: Truck, colorClass: 'text-green-500', path: '/staff/logistics' },
+    { label: 'Commissions', val: data.commissions_pending, icon: FileText, colorClass: 'text-purple-500', path: '/staff/invoices' },
+    { label: 'Products Mod.', val: data.products_pending, icon: Layers, colorClass: 'text-yellow-500', path: '/staff/products' },
+    { label: 'Reviews', val: data.reviews_pending, icon: Star, colorClass: 'text-pink-500', path: '/staff/reviews' },
+    { label: 'Inspections', val: data.inspections_pending, icon: LayoutDashboard, colorClass: 'text-indigo-500', path: '/staff/inspections' },
+  ];
+
+  return (
+    <div className="mb-8">
+      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Global Admin Metrics (Pending Actions)</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {metrics.map((m) => (
+          <Link key={m.label} to={m.path} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-4 hover:shadow-md transition group">
+            <div className={`text-xs font-bold ${m.colorClass} flex items-center gap-1 mb-2`}>
+               <m.icon size={14} /> {m.label}
+            </div>
+            <div className="flex items-end justify-between">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{m.val}</p>
+              <div className="opacity-0 group-hover:opacity-100 transition">
+                <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded uppercase tracking-widest">Manage</span>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
   const [claiming, setClaiming] = useState<number | null>(null);
 
@@ -80,7 +138,9 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
     setClaiming(null);
   };
 
-  const tc = data.task_counts;
+  const tc = data.admin_task_metrics ? data.admin_task_metrics.global_counts : data.task_counts;
+  const isGlobal = !!data.admin_task_metrics;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -90,29 +150,81 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {[
-          { label: 'Unassigned', val: tc.unassigned, icon: AlertTriangle, color: 'orange' },
-          { label: 'Pending', val: tc.pending, icon: Clock, color: 'yellow' },
-          { label: 'Progress', val: tc.in_progress, icon: ClipboardList, color: 'blue' },
-          { label: 'On Hold', val: tc.on_hold, icon: Clock, color: 'gray' },
-          { label: 'Completed', val: tc.completed, icon: CheckCircle2, color: 'green' },
-        ].map((c) => (
-          <div key={c.label} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4">
-            <div className={`text-xs font-bold text-${c.color}-500 flex items-center gap-1 mb-1`}>
-               <c.icon size={12} /> {c.label}
-            </div>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">{c.val}</p>
+      {data.user.is_superuser && data.admin_overview && (
+        <AdminOverviewPanel data={data.admin_overview} />
+      )}
+
+      {/* Task Progress Overview */}
+      <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-8 mb-4">
+        {isGlobal ? "System-Wide Task Overview" : "My Task Progress"}
+      </h3>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-6 mb-6">
+        <div className="flex justify-between items-end mb-2">
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Overall Completion</p>
+            <h4 className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+              {tc.completed} <span className="text-lg text-gray-400 font-normal">/ {tc.pending + tc.in_progress + tc.on_hold + tc.completed} tasks</span>
+            </h4>
           </div>
-        ))}
+          <div className="text-right">
+            <span className="text-brand-600 font-bold text-2xl">
+              {tc.pending + tc.in_progress + tc.on_hold + tc.completed > 0 ? Math.round((tc.completed / (tc.pending + tc.in_progress + tc.on_hold + tc.completed)) * 100) : 0}%
+            </span>
+          </div>
+        </div>
+        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-3 mb-6 overflow-hidden flex">
+          <div className="bg-brand-500 h-3 transition-all duration-1000 ease-out" style={{ width: `${tc.pending + tc.in_progress + tc.on_hold + tc.completed > 0 ? Math.round((tc.completed / (tc.pending + tc.in_progress + tc.on_hold + tc.completed)) * 100) : 0}%` }}></div>
+        </div>
+        
+        <div className="grid grid-cols-4 gap-4 pt-4 border-t border-gray-200 shadow-sm dark:border-gray-700">
+          <div>
+            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><AlertTriangle size={12}/> Unassigned</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{tc.unassigned}</p>
+          </div>
+          <div>
+            <p className="text-xs text-yellow-500 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><Clock size={12}/> Pending</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{tc.pending}</p>
+          </div>
+          <div>
+            <p className="text-xs text-blue-500 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><ClipboardList size={12}/> In Progress</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{tc.in_progress}</p>
+          </div>
+          <div>
+            <p className="text-xs text-orange-500 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><Clock size={12}/> On Hold</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{tc.on_hold}</p>
+          </div>
+        </div>
       </div>
+
+      {isGlobal && data.admin_task_metrics && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-6 mb-6">
+          <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <BarChart2 className="text-brand-500" size={20} />
+            Worker Performance Analytics
+          </h3>
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.admin_task_metrics.worker_performance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" className="dark:opacity-10" />
+                <XAxis dataKey="worker" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
+                <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: '#1f2937', color: '#fff' }} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                <Bar dataKey="completed" name="Completed" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
+                <Bar dataKey="in_progress" name="In Progress" stackId="a" fill="#3b82f6" />
+                <Bar dataKey="pending" name="Pending" stackId="a" fill="#eab308" />
+                <Bar dataKey="on_hold" name="On Hold" stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column: Task Pools */}
         <div className="space-y-6">
            {/* Unassigned Pool */}
-           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
                 <AlertTriangle size={16} className="text-orange-500" /> Open Task Pool
               </h3>
@@ -140,7 +252,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
            </div>
 
            {/* My Current Tasks */}
-           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <ClipboardList size={16} className="text-brand-500" /> Assigned to Me
@@ -172,7 +284,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
         <div className="space-y-6">
            {/* Promo Queue */}
            { (data.user.permissions.includes('can_review_promotions') || data.user.permissions.includes('can_approve_content')) && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <Megaphone size={16} className="text-purple-500" /> Promotion Approvals
@@ -217,7 +329,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
            )}
 
            {/* Activity Log */}
-           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5">
+           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
             <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
               <Activity size={16} className="text-green-500" /> My Activity
             </h3>
@@ -242,164 +354,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
 };
 
 // ============ Staff Tasks (Expanded Kanban) ============
-const StaffTasks: React.FC = () => {
-  const [tasks, setTasks] = useState<StaffTask[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const sentinelRef = React.useRef<HTMLDivElement>(null);
 
-  const fetch = useCallback((p: number, reset = false) => {
-    if (reset) {
-      setLoading(true);
-      setPage(1);
-    } else {
-      setLoadingMore(true);
-    }
-
-    api.get(`/api/staff/tasks/?page=${p}`)
-      .then((res) => {
-        const data = res.data.results || res.data;
-        const incoming = Array.isArray(data) ? data : [];
-        if (reset) {
-          setTasks(incoming);
-        } else {
-          setTasks((prev) => {
-            const ids = new Set(prev.map((t) => t.id));
-            return [...prev, ...incoming.filter((t) => !ids.has(t.id))];
-          });
-        }
-        setHasMore(!!res.data.next);
-      })
-      .catch(() => {
-        toast.error('Failed to load tasks');
-        setHasMore(false);
-      })
-      .finally(() => {
-        setLoading(false);
-        setLoadingMore(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    fetch(1, true);
-  }, [fetch]);
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore || loadingMore || loading) return;
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          setPage((prev) => {
-            const nextPage = prev + 1;
-            fetch(nextPage);
-            return nextPage;
-          });
-        }
-      },
-      { rootMargin: '400px' }
-    );
-    obs.observe(sentinel);
-    return () => obs.disconnect();
-  }, [hasMore, loadingMore, loading, fetch]);
-
-  const handleAction = async (id: number, action: string) => {
-    let payload = {};
-    if (['hold', 'cancel'].includes(action)) {
-       const msg = prompt(`Enter reason for ${action}:`);
-       if (msg === null) return;
-       payload = { reason: msg };
-    }
-    try {
-      await api.post(`/api/staff/tasks/${id}/${action}/`, payload);
-      toast.success(`Task ${action} successfully`);
-      fetch(1, true);
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || `Failed to ${action}`);
-    }
-  };
-
-  const cols = [
-    { key: 'pending', label: 'Pending', icon: Clock, color: 'border-yellow-400' },
-    { key: 'in_progress', label: 'In Progress', icon: ClipboardList, color: 'border-brand-400' },
-    { key: 'on_hold', label: 'On Hold', icon: AlertTriangle, color: 'border-orange-400' },
-    { key: 'completed', label: 'Completed', icon: CheckCircle2, color: 'border-green-400' },
-  ];
-
-  if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>;
-
-  return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Active Assignments</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 overflow-x-auto pb-4">
-        {cols.map((col) => {
-          const ct = tasks.filter((t) => t.status === col.key);
-          return (
-            <div key={col.key} className={`bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 border-t-4 ${col.color} min-w-[280px]`}>
-              <div className="flex items-center gap-2 mb-4 px-1">
-                <col.icon size={15} className="text-gray-500" />
-                <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{col.label}</h3>
-                <span className="ml-auto text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-400">{ct.length}</span>
-              </div>
-              <div className="space-y-3 min-h-[400px]">
-                {ct.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-8 italic">No tasks here</p>
-                ) : ct.map((task) => (
-                  <div key={task.id} className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:border-brand-400 transition group">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-brand-600">{task.title}</h4>
-                      {task.is_overdue && <AlertTriangle size={14} className="text-red-500 shrink-0" />}
-                    </div>
-                    
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className={`text-[10px] font-bold uppercase ${priorityColors[task.priority]}`}>{task.priority}</span>
-                      <span className="text-[10px] text-gray-400">•</span>
-                      <span className="text-[10px] text-gray-500">{task.category}</span>
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="flex flex-wrap gap-1 mt-auto pt-2 border-t dark:border-gray-700">
-                       {task.status === 'pending' && (
-                         <button onClick={() => handleAction(task.id, 'start')} className="px-2 py-1 bg-brand-600 text-white text-[10px] font-bold rounded hover:bg-brand-700 transition">Start</button>
-                       )}
-                       {task.status === 'in_progress' && (
-                         <>
-                           <button onClick={() => handleAction(task.id, 'complete')} className="px-2 py-1 bg-green-600 text-white text-[10px] font-bold rounded hover:bg-green-700 transition">Complete</button>
-                           <button onClick={() => handleAction(task.id, 'hold')} className="px-2 py-1 bg-orange-100 text-orange-700 text-[10px] font-bold rounded hover:bg-orange-200 transition">Hold</button>
-                         </>
-                       )}
-                       {task.status === 'on_hold' && (
-                         <button onClick={() => handleAction(task.id, 'start')} className="px-2 py-1 bg-brand-600 text-white text-[10px] font-bold rounded hover:bg-brand-700 transition">Resume</button>
-                       )}
-                       {['pending', 'in_progress', 'on_hold'].includes(task.status) && (
-                         <button onClick={() => handleAction(task.id, 'cancel')} className="px-2 py-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 text-[10px] font-bold rounded transition ml-auto">Cancel</button>
-                       )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      
-      {loadingMore && (
-        <div className="flex justify-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
-        </div>
-      )}
-
-      {!hasMore && tasks.length > 0 && (
-        <p className="text-center py-4 text-xs text-gray-400">All tasks loaded</p>
-      )}
-
-      <div ref={sentinelRef} className="h-4" />
-    </div>
-  );
-};
 
 // ============ Subscription Upgrades ============
 export const SubscriptionConfirmation: React.FC = () => {
@@ -466,7 +421,7 @@ export const SubscriptionConfirmation: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {items.map((item) => (
-            <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition flex flex-col justify-between">
+            <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 hover:shadow-sm transition flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-start mb-3">
                   <div>
@@ -722,7 +677,7 @@ export const CommissionPaymentsManager: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {items.map((item) => (
-            <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition flex flex-col justify-between">
+            <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 hover:shadow-sm transition flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-start mb-3">
                   <div>
@@ -856,7 +811,7 @@ export const ProductModeration: React.FC = () => {
       ) : (
         <div className="space-y-3">
           {filteredProducts.map((p) => (
-            <div key={p.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 hover:shadow-sm transition flex gap-4">
+            <div key={p.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-4 hover:shadow-sm transition flex gap-4">
               <div className="w-24 h-24 rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden shrink-0 border dark:border-gray-600">
                 {p.images && p.images.length > 0 ? (
                   <img src={p.images[0].image} alt={p.name} className="w-full h-full object-cover" />
@@ -1005,7 +960,7 @@ export const PromotionQueue: React.FC = () => {
       ) : (
         <div className="space-y-3">
           {promos.map((p: any) => (
-            <div key={p.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition">
+            <div key={p.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 hover:shadow-sm transition">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900 dark:text-white">{p.title || `${p.product_name || 'Product'} Promotion`}</h3>
@@ -1108,7 +1063,7 @@ export const ReviewsManager: React.FC = () => {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">Review Moderation</h3>
             <div className="space-y-3">
                 {reviews.map(review => (
-                    <div key={review.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition flex gap-4">
+                    <div key={review.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 hover:shadow-sm transition flex gap-4">
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="font-bold text-gray-900 dark:text-white">{review.rating}/5 Stars</span>
@@ -1161,7 +1116,7 @@ export const DisputesManager: React.FC = () => {
             ))}
             <div className="mt-4 space-y-3">
                 {disputes.map(d => (
-                    <div key={d.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-sm transition">
+                    <div key={d.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 hover:shadow-sm transition">
                         <p className="font-bold text-gray-900 dark:text-white">Order #{d.order} — {d.opened_by_username}</p>
                         <p className="text-sm text-gray-600 mt-1">{d.reason}</p>
                         {d.status === 'open' && (
@@ -1433,7 +1388,7 @@ const StaffDashboardLayout: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
       <aside className="w-full lg:w-56 shrink-0">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-2 space-y-1">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 shadow-sm dark:border-gray-700 p-2 space-y-1">
           <div className="px-3 py-2 mb-1 border-b dark:border-gray-700">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
               {data?.user?.is_inspector && !canManageInspections ? 'Inspector Panel' : 'Staff Panel'}

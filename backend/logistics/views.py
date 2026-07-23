@@ -440,6 +440,40 @@ class DriverPaymentViewSet(viewsets.ModelViewSet):
             is_cancelled=False
         ).distinct().select_related('shipment__order', 'driver')
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        if start_date:
+            queryset = queryset.filter(created_at__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created_at__lte=end_date)
+            
+        queryset = queryset.order_by('-created_at')
+
+        from django.db.models import Sum
+        totals = queryset.aggregate(
+            total_amount=Sum('amount')
+        )
+        # Calculate paid and unpaid specifically
+        from django.db.models import Q
+        paid_amount = queryset.filter(is_paid=True).aggregate(amount=Sum('amount'))['amount'] or 0
+        unpaid_amount = queryset.filter(is_paid=False).aggregate(amount=Sum('amount'))['amount'] or 0
+        totals['total_paid'] = paid_amount
+        totals['total_unpaid'] = unpaid_amount
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            response.data['totals'] = totals
+            return response
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({'results': serializer.data, 'totals': totals})
+
     @action(detail=True, methods=['post'])
     def pay(self, request, pk=None):
         if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_logistics')):

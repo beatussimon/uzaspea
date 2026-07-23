@@ -432,7 +432,7 @@ const WarehouseStaffLayout: React.FC = () => {
     <div className="w-full max-w-7xl mx-auto space-y-8 min-h-screen">
       
       {/* Header & Smart Scan */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1 h-full bg-brand-500 shadow-[0_0_20px_rgba(249,115,22,0.8)]"></div>
         <div className="pl-2">
           <h1 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3">
@@ -545,7 +545,7 @@ const WarehouseStaffLayout: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+                className="glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
               >
                 <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
                   <kpi.icon size={28} />
@@ -628,7 +628,7 @@ const WarehouseStaffLayout: React.FC = () => {
 
           {/* Inter-Warehouse Transfers Section */}
           <div className="mt-12 space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-neutral-800 pb-4">
+            <div className="flex items-center justify-between border-b border-gray-200 shadow-sm dark:border-neutral-800 pb-4">
               <div>
                 <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
                   <RefreshCw size={20} className="text-brand-500 animate-spin-slow" />
@@ -657,7 +657,7 @@ const WarehouseStaffLayout: React.FC = () => {
                 {incomingTransfers.length === 0 ? <EmptyState text="No incoming transfers" /> : (
                   <div className="space-y-3">
                     {incomingTransfers.map(transfer => (
-                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-neutral-800/30 rounded-2xl border border-gray-100 dark:border-neutral-800">
+                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-neutral-800/30 rounded-2xl border border-gray-200 shadow-sm dark:border-neutral-800">
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-black text-gray-900 dark:text-white">Order #{transfer.order}</span>
@@ -690,7 +690,7 @@ const WarehouseStaffLayout: React.FC = () => {
                 {outgoingTransfers.length === 0 ? <EmptyState text="No outgoing transfers pending" /> : (
                   <div className="space-y-3">
                     {outgoingTransfers.map(transfer => (
-                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-neutral-800/30 rounded-2xl border border-gray-100 dark:border-neutral-800">
+                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-neutral-800/30 rounded-2xl border border-gray-200 shadow-sm dark:border-neutral-800">
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-black text-gray-900 dark:text-white">Order #{transfer.order}</span>
@@ -739,7 +739,7 @@ const WarehouseStaffLayout: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className="glass-dark border border-gray-100 dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+                className="glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
               >
                 <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
                   <kpi.icon size={28} />
@@ -914,14 +914,14 @@ const WarehouseStaffLayout: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Courier/Seller Signature</label>
-                          <div className="border-2 border-gray-100 dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
+                          <div className="border-2 border-gray-200 shadow-sm dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
                             <SignatureCanvas ref={sellerSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
                           </div>
                           <button type="button" onClick={() => sellerSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
                         </div>
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Staff Signature</label>
-                          <div className="border-2 border-gray-100 dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
+                          <div className="border-2 border-gray-200 shadow-sm dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
                             <SignatureCanvas ref={staffSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
                           </div>
                           <button type="button" onClick={() => staffSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
@@ -973,14 +973,14 @@ const WarehouseStaffLayout: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Transport Driver Signature</label>
-                        <div className="border-2 border-gray-100 dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
+                        <div className="border-2 border-gray-200 shadow-sm dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
                           <SignatureCanvas ref={sellerSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
                         </div>
                         <button type="button" onClick={() => sellerSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
                       </div>
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Staff Signature</label>
-                        <div className="border-2 border-gray-100 dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
+                        <div className="border-2 border-gray-200 shadow-sm dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
                           <SignatureCanvas ref={staffSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
                         </div>
                         <button type="button" onClick={() => staffSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
@@ -1082,7 +1082,7 @@ const WarehouseStaffLayout: React.FC = () => {
                 {/* Dispatch Specific */}
                 {activeModal === 'dispatch' && (
                   <div className="space-y-6">
-                    <div className="border-b border-gray-100 dark:border-neutral-800 pb-4 mb-4">
+                    <div className="border-b border-gray-200 shadow-sm dark:border-neutral-800 pb-4 mb-4">
                       <h3 className="text-sm font-black text-gray-505 dark:text-neutral-400 uppercase tracking-wider mb-2">Carrier Assignment</h3>
                       <div className="grid grid-cols-2 gap-4">
                         <button
@@ -1268,7 +1268,7 @@ const QueueCard = ({ order, badge, onClick }: { order: any, badge: string, onCli
     whileHover={{ scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className="p-4 bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer flex justify-between items-center group w-full"
+    className="p-4 bg-white dark:bg-neutral-900 border border-gray-200 shadow-sm dark:border-neutral-800 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer flex justify-between items-center group w-full"
   >
     <div className="overflow-hidden w-full">
       <div className="flex items-center gap-2 mb-1">
@@ -1288,7 +1288,7 @@ const QueueCard = ({ order, badge, onClick }: { order: any, badge: string, onCli
       </p>
 
       {order.logistics_info && (
-        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-neutral-800/80 space-y-1">
+        <div className="mt-2 pt-2 border-t border-gray-200 shadow-sm dark:border-neutral-800/80 space-y-1">
           <div className="flex items-center justify-between text-[10px] text-gray-400">
             <span>Departed:</span>
             <span className="font-semibold text-gray-600 dark:text-neutral-300">{formatDate(order.logistics_info.departure_date)}</span>

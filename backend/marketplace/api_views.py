@@ -1,3 +1,5 @@
+import json
+from decimal import Decimal
 from rest_framework import viewsets, permissions, status, decorators, serializers as drf_serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -785,122 +787,133 @@ class OrderViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def pos_checkout(self, request):
         """Create a POS (Point of Sale) order for walk-in customers."""
-        user = request.user
-        items_data = request.data.get('items', [])
-        customer_name = request.data.get('customer_name', 'Walk-in Customer')
-        amount_paid = request.data.get('amount_paid', 0)
-        
-        if not items_data:
-            return Response({'error': 'No items provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = request.user
+            items_data = request.data.get('items', [])
+            customer_name = request.data.get('customer_name', 'Walk-in Customer')
+            amount_paid = request.data.get('amount_paid', 0)
             
-        from uzachuo.permissions import get_effective_sellers
-        sellers = get_effective_sellers(user, required_permission='manage_orders')
-        
-        total_amount = 0
-        order_items = []
-        
-        for item_data in items_data:
-            product_id = item_data.get('product_id')
-            variant_id = item_data.get('variant_id')
-            quantity = int(item_data.get('quantity', 1))
+            if not items_data:
+                return Response({'error': 'No items provided.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(user)
             
-            if quantity <= 0:
-                return Response({'error': 'Quantity must be positive.'}, status=status.HTTP_400_BAD_REQUEST)
+            total_amount = 0
+            order_items = []
+            
+            for item_data in items_data:
+                product_id = item_data.get('product_id')
+                variant_id = item_data.get('variant_id')
+                quantity = int(item_data.get('quantity', 1))
                 
-            try:
-                product = Product.objects.get(id=product_id)
-            except Product.DoesNotExist:
-                return Response({'error': f'Product ID {product_id} not found.'}, status=status.HTTP_400_BAD_REQUEST)
-                
-            if product.seller_id not in sellers:
-                return Response({'error': f'You are not authorized to sell {product.name}.'}, status=status.HTTP_403_FORBIDDEN)
-                
-            variant = None
-            if variant_id:
+                if quantity <= 0:
+                    return Response({'error': 'Quantity must be positive.'}, status=status.HTTP_400_BAD_REQUEST)
+                    
                 try:
-                    variant = ProductVariant.objects.get(id=variant_id, product=product)
-                except ProductVariant.DoesNotExist:
-                    return Response({'error': f'Variant ID {variant_id} not found.'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            stock_available = variant.stock if variant else product.stock
-            if stock_available < quantity:
-                return Response({'error': f'Insufficient stock for {product.name}. Available: {stock_available}.'}, status=status.HTTP_400_BAD_REQUEST)
+                    product = Product.objects.get(id=product_id)
+                except Product.DoesNotExist:
+                    return Response({'error': f'Product ID {product_id} not found.'}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                if not (user.is_staff or user.is_superuser or product.seller_id in sellers or product.seller_id == user.id):
+                    return Response({'error': f'You are not authorized to sell {product.name}.'}, status=status.HTTP_403_FORBIDDEN)
+                    
+                variant = None
+                if variant_id:
+                    try:
+                        variant = ProductVariant.objects.get(id=variant_id, product=product)
+                    except ProductVariant.DoesNotExist:
+                        return Response({'error': f'Variant ID {variant_id} not found.'}, status=status.HTTP_400_BAD_REQUEST)
                 
-            price = variant.final_price if variant else product.price
+                stock_available = variant.stock if variant else (
+                    sum(v.stock for v in product.variants.filter(is_available=True)) if product.variants.exists() else product.stock
+                )
+                
+                if stock_available < quantity:
+                    return Response({'error': f'Insufficient stock for {product.name}. Available: {stock_available}.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                price = variant.final_price if variant else product.price
+                
+                order_items.append({
+                    'product': product,
+                    'variant': variant,
+                    'quantity': quantity,
+                    'price': price
+                })
+                
+            delivery_info = {
+                'is_pos': True,
+                'customer_name': customer_name,
+                'amount_paid': amount_paid
+            }
             
-            order_items.append({
-                'product': product,
-                'variant': variant,
-                'quantity': quantity,
-                'price': price
-            })
-            
-        delivery_info = {
-            'is_pos': True,
-            'customer_name': customer_name,
-            'amount_paid': amount_paid
-        }
-        
-        order = Order.objects.create(
-            user=user,
-            status='COMPLETED',
-            shipping_method='PICKUP',
-            shipping_fee=0,
-            delivery_info=delivery_info
-        )
-        
-        for item in order_items:
-            OrderItem.objects.create(
-                order=order,
-                product=item['product'],
-                variant=item['variant'],
-                quantity=item['quantity'],
-                price=item['price']
+            order = Order.objects.create(
+                user=user,
+                status='COMPLETED',
+                shipping_method='PICKUP',
+                shipping_fee=0,
+                delivery_info=delivery_info
             )
-            if item['variant']:
-                item['variant'].stock -= item['quantity']
-                if item['variant'].stock <= 0:
-                    item['variant'].is_available = False
-                item['variant'].save(update_fields=['stock', 'is_available'])
-            item['product'].stock -= item['quantity']
-            if item['product'].stock <= 0:
-                item['product'].is_available = False
-            item['product'].save(update_fields=['stock', 'is_available'])
             
-        order.update_total()
-        TrackingEvent.objects.create(order=order, status='COMPLETED', notes=f'In-store POS sale to {customer_name}')
-        
-        # Phase 2: Platform Economics - Log 5% commission for POS
-        from billing.models import CommissionLedgerEntry
-        from decimal import Decimal
-        
-        seller_totals = {}
-        for item in order.orderitem_set.select_related('product__seller').all():
-            seller = item.product.seller
-            item_total = item.quantity * item.price
-            if seller not in seller_totals:
-                seller_totals[seller] = Decimal('0.00')
-            seller_totals[seller] += Decimal(str(item_total))
+            for item in order_items:
+                OrderItem.objects.create(
+                    order=order,
+                    product=item['product'],
+                    variant=item['variant'],
+                    quantity=item['quantity'],
+                    price=item['price']
+                )
+                if item['variant']:
+                    item['variant'].stock = max(0, item['variant'].stock - item['quantity'])
+                    if item['variant'].stock <= 0:
+                        item['variant'].is_available = False
+                    item['variant'].save(update_fields=['stock', 'is_available'])
+                item['product'].stock = max(0, item['product'].stock - item['quantity'])
+                if item['product'].stock <= 0:
+                    item['product'].is_available = False
+                item['product'].save(update_fields=['stock', 'is_available'])
+                
+            order.update_total()
+            TrackingEvent.objects.create(order=order, status='COMPLETED', notes=f'In-store POS sale to {customer_name}')
             
-        total_commission_collected = Decimal('0.00')
-        for seller, amount in seller_totals.items():
-            pos_commission_rate = Decimal('5.00')
-            commission_amount = amount * (pos_commission_rate / Decimal('100'))
-            CommissionLedgerEntry.objects.create(
-                order=order,
-                seller=seller,
-                order_amount=amount,
-                commission_rate=pos_commission_rate,
-                commission_amount=commission_amount,
-                entry_type=CommissionLedgerEntry.EntryType.COMMISSION
-            )
-            total_commission_collected += commission_amount
+            # Phase 2: Platform Economics - Log 5% commission for POS
+            from billing.models import CommissionLedgerEntry
             
-        order.platform_fee = total_commission_collected
-        order.save(update_fields=['platform_fee'])
-        
-        serializer = self.get_serializer(order)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            seller_totals = {}
+            for item in order.orderitem_set.select_related('product__seller').all():
+                seller = item.product.seller
+                item_total = item.quantity * item.price
+                if seller not in seller_totals:
+                    seller_totals[seller] = Decimal('0.00')
+                seller_totals[seller] += Decimal(str(item_total))
+                
+            total_commission_collected = Decimal('0.00')
+            for seller, amount in seller_totals.items():
+                actual_seller = seller or user
+                pos_commission_rate = Decimal('5.00')
+                commission_amount = amount * (pos_commission_rate / Decimal('100'))
+                try:
+                    CommissionLedgerEntry.objects.create(
+                        order=order,
+                        seller=actual_seller,
+                        order_amount=amount,
+                        commission_rate=pos_commission_rate,
+                        commission_amount=commission_amount,
+                        entry_type=CommissionLedgerEntry.EntryType.COMMISSION
+                    )
+                except Exception as e:
+                    print(f"Error creating CommissionLedgerEntry: {e}")
+                total_commission_collected += commission_amount
+                
+            order.platform_fee = total_commission_collected
+            order.save(update_fields=['platform_fee'])
+            
+            serializer = self.get_serializer(order, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': f'POS checkout error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
     @decorators.action(detail=False, methods=['get'])
     def incoming(self, request):
@@ -917,7 +930,18 @@ class OrderViewSet(viewsets.ModelViewSet):
         )
 
         order_ids = OrderItem.objects.filter(product__seller_id__in=sellers).values_list('order_id', flat=True).distinct()
-        orders = Order.objects.filter(id__in=order_ids).prefetch_related(
+        
+        orders_qs = Order.objects.filter(id__in=order_ids)
+        
+        is_pos_param = request.query_params.get('is_pos')
+        if is_pos_param is not None:
+            is_pos = is_pos_param.lower() == 'true'
+            if is_pos:
+                orders_qs = orders_qs.filter(delivery_info__is_pos=True)
+            else:
+                orders_qs = orders_qs.exclude(delivery_info__is_pos=True)
+                
+        orders = orders_qs.prefetch_related(
             seller_items_prefetch, 'timeline_events', 'payments'
         ).select_related('user').order_by('-order_date')
 
@@ -974,6 +998,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'items': items_data,
                 'timeline': timeline,
                 'payments': payments,
+                'delivery_info': order.delivery_info if isinstance(order.delivery_info, dict) else (json.loads(order.delivery_info) if isinstance(order.delivery_info, str) else {}),
             }
 
         if page is not None:
@@ -1390,6 +1415,36 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             'followers_count': profile.get_followers_count(),
             'following_count': profile.get_following_count(),
         })
+
+    @decorators.action(detail=True, methods=['get'])
+    def followers(self, request, **kwargs):
+        from .models import Follow, UserProfile
+        profile = self.get_object()
+        followers_users = Follow.objects.filter(following=profile).values_list('follower', flat=True)
+        followers_profiles = UserProfile.objects.filter(user__in=followers_users)
+        
+        page = self.paginate_queryset(followers_profiles)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(followers_profiles, many=True)
+        return Response(serializer.data)
+
+    @decorators.action(detail=True, methods=['get'])
+    def following(self, request, **kwargs):
+        from .models import Follow, UserProfile
+        profile = self.get_object()
+        following_profiles_ids = Follow.objects.filter(follower=profile.user).values_list('following', flat=True)
+        following_profiles = UserProfile.objects.filter(id__in=following_profiles_ids)
+        
+        page = self.paginate_queryset(following_profiles)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(following_profiles, many=True)
+        return Response(serializer.data)
 
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def upload_store_image(self, request, **kwargs):

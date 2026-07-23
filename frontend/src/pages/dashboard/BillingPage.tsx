@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck, Shield } from 'lucide-react';
+import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck, Shield, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDialog } from '../../components/ui/Dialogs';
 
@@ -22,6 +22,22 @@ const BillingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'invoices' | 'ledger' | 'driver_payments'>('subscriptions');
 
+  // Filters and Pagination
+  const [dateFilter, setDateFilter] = useState<'all' | 'this_month' | 'last_month' | 'this_year' | 'custom'>('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  
+  const [pageLedger, setPageLedger] = useState(1);
+  const [pageInvoices, setPageInvoices] = useState(1);
+  const [pageDriverPayments, setPageDriverPayments] = useState(1);
+  
+  const [hasMoreLedger, setHasMoreLedger] = useState(false);
+  const [hasMoreInvoices, setHasMoreInvoices] = useState(false);
+  const [hasMoreDriverPayments, setHasMoreDriverPayments] = useState(false);
+  
+  const [ledgerTotals, setLedgerTotals] = useState<any>(null);
+  const [driverPaymentsTotals, setDriverPaymentsTotals] = useState<any>(null);
+
   // Pay Modal State
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -32,35 +48,96 @@ const BillingPage: React.FC = () => {
   const [refId, setRefId] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
 
+  const getDatesForPreset = (preset: string) => {
+    const now = new Date();
+    if (preset === 'this_month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      return { start, end };
+    }
+    if (preset === 'last_month') {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { start, end };
+    }
+    if (preset === 'this_year') {
+      const start = new Date(now.getFullYear(), 0, 1);
+      const end = new Date(now.getFullYear(), 11, 31);
+      return { start, end };
+    }
+    return { start: null, end: null };
+  };
+
+  const buildQueryParams = (page: number) => {
+    let params = `?page=${page}`;
+    let start: Date | null = null;
+    let end: Date | null = null;
+    
+    if (dateFilter === 'custom') {
+      if (customStartDate) start = new Date(customStartDate);
+      if (customEndDate) end = new Date(customEndDate);
+    } else if (dateFilter !== 'all') {
+      const dates = getDatesForPreset(dateFilter);
+      start = dates.start;
+      end = dates.end;
+    }
+
+    if (start) {
+      params += `&start_date=${start.toISOString().split('T')[0]}`;
+    }
+    if (end) {
+      params += `&end_date=${end.toISOString().split('T')[0]}T23:59:59Z`;
+    }
+    return params;
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const invParams = buildQueryParams(pageInvoices);
+      const ledParams = buildQueryParams(pageLedger);
+      const dpParams = buildQueryParams(pageDriverPayments) + '&seller_view=true';
+
       const [invRes, ledRes, dpRes, subRes, tierRes] = await Promise.all([
-        api.get('/api/billing/invoices/'),
-        api.get('/api/billing/ledger/'),
-        api.get('/api/logistics/driver-payments/?seller_view=true'),
+        api.get(`/api/billing/invoices/${invParams}`),
+        api.get(`/api/billing/ledger/${ledParams}`),
+        api.get(`/api/logistics/driver-payments/${dpParams}`),
         api.get('/api/subscriptions/me/'),
         api.get('/api/subscription-tiers/').catch(() => ({ data: [] }))
       ]);
+      
       setInvoices(invRes.data.results || invRes.data || []);
+      setHasMoreInvoices(!!invRes.data.next);
+
       setLedger(ledRes.data.results || ledRes.data || []);
+      setLedgerTotals(ledRes.data.totals || null);
+      setHasMoreLedger(!!ledRes.data.next);
+
       if (subRes.data && subRes.data.status !== 'none') {
         setSubscriptions([subRes.data]);
       } else {
         setSubscriptions([]);
       }
       setTiers(tierRes.data.results || tierRes.data || []);
+
       const paymentsList = dpRes.data.results || dpRes.data || [];
       setDriverPayments(paymentsList);
-      if (paymentsList.length === 0 && activeTab === 'driver_payments') {
-        setActiveTab('subscriptions');
-      }
+      setDriverPaymentsTotals(dpRes.data.totals || null);
+      setHasMoreDriverPayments(!!dpRes.data.next);
+
     } catch {
       toast.error('Failed to load billing information');
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [pageInvoices, pageLedger, pageDriverPayments, dateFilter, customStartDate, customEndDate]);
+
+  // When filters change, reset all pages to 1
+  useEffect(() => {
+    setPageInvoices(1);
+    setPageLedger(1);
+    setPageDriverPayments(1);
+  }, [dateFilter, customStartDate, customEndDate]);
 
   useEffect(() => {
     fetchData();
@@ -241,6 +318,26 @@ const BillingPage: React.FC = () => {
         </nav>
       </div>
 
+      {activeTab !== 'subscriptions' && (
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 no-scrollbar">
+            <Filter size={16} className="text-gray-400 shrink-0" />
+            <button onClick={() => setDateFilter('all')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'all' ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>All Time</button>
+            <button onClick={() => setDateFilter('this_month')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'this_month' ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>This Month</button>
+            <button onClick={() => setDateFilter('last_month')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'last_month' ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>Last Month</button>
+            <button onClick={() => setDateFilter('this_year')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'this_year' ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>This Year</button>
+            <button onClick={() => setDateFilter('custom')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'custom' ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>Custom</button>
+          </div>
+          {dateFilter === 'custom' && (
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="input text-xs py-1.5 h-auto w-full sm:w-auto" />
+              <span className="text-gray-400 text-xs">to</span>
+              <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="input text-xs py-1.5 h-auto w-full sm:w-auto" />
+            </div>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
@@ -419,11 +516,54 @@ const BillingPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <button
+                  disabled={pageInvoices === 1}
+                  onClick={() => setPageInvoices(p => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-bold">Page {pageInvoices}</span>
+                <button
+                  disabled={!hasMoreInvoices}
+                  onClick={() => setPageInvoices(p => p + 1)}
+                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
             </div>
           )}
         </div>
       ) : activeTab === 'ledger' ? (
         <div className="space-y-4">
+          {ledger.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-lg">
+                  <Receipt size={24} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Order Amount</p>
+                  <p className="text-xl font-black text-gray-900 dark:text-white mt-1">
+                    TSh {Number(ledgerTotals?.total_order_amount || ledger.reduce((sum, entry) => sum + Number(entry.order_amount || 0), 0)).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
+                <div className="p-3 bg-brand-50 dark:bg-brand-900/20 text-brand-600 rounded-lg">
+                  <Wallet size={24} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Commission</p>
+                  <p className="text-xl font-black text-brand-600 mt-1">
+                    TSh {Number(ledgerTotals?.total_commission || ledger.reduce((sum, entry) => sum + Number(entry.commission_amount || 0), 0)).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           {ledger.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
               <ArrowDownRight size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -469,6 +609,23 @@ const BillingPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <button
+                  disabled={pageLedger === 1}
+                  onClick={() => setPageLedger(p => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-bold">Page {pageLedger}</span>
+                <button
+                  disabled={!hasMoreLedger}
+                  onClick={() => setPageLedger(p => p + 1)}
+                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -489,7 +646,7 @@ const BillingPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Delivery Costs</p>
-                <p className="text-xl font-black text-gray-900 dark:text-white mt-1">TSh {driverPayments.reduce((sum, dp) => sum + Number(dp.amount), 0).toLocaleString()}</p>
+                <p className="text-xl font-black text-gray-900 dark:text-white mt-1">TSh {Number(driverPaymentsTotals?.total_amount || driverPayments.reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
               </div>
             </div>
             <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
@@ -498,7 +655,7 @@ const BillingPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Paid to Drivers</p>
-                <p className="text-xl font-black text-green-600 mt-1">TSh {driverPayments.filter(dp => dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0).toLocaleString()}</p>
+                <p className="text-xl font-black text-green-600 mt-1">TSh {Number(driverPaymentsTotals?.total_paid || driverPayments.filter(dp => dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
               </div>
             </div>
             <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
@@ -507,7 +664,7 @@ const BillingPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pending Delivery Costs</p>
-                <p className="text-xl font-black text-amber-600 mt-1">TSh {driverPayments.filter(dp => !dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0).toLocaleString()}</p>
+                <p className="text-xl font-black text-amber-600 mt-1">TSh {Number(driverPaymentsTotals?.total_unpaid || driverPayments.filter(dp => !dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -560,6 +717,23 @@ const BillingPage: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <button
+                  disabled={pageDriverPayments === 1}
+                  onClick={() => setPageDriverPayments(p => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-bold">Page {pageDriverPayments}</span>
+                <button
+                  disabled={!hasMoreDriverPayments}
+                  onClick={() => setPageDriverPayments(p => p + 1)}
+                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
               </div>
             </div>
           )}

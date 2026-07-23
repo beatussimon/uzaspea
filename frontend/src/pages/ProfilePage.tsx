@@ -32,6 +32,12 @@ const ProfilePage: React.FC = () => {
   const [selectedLightboxImage, setSelectedLightboxImage] = useState<string | null>(null);
   const [isSubscriptionExpired, setIsSubscriptionExpired] = useState(false);
 
+  // Modal states for followers/following
+  const [isFollowModalOpen, setIsFollowModalOpen] = useState(false);
+  const [followModalType, setFollowModalType] = useState<'followers' | 'following'>('followers');
+  const [followList, setFollowList] = useState<any[]>([]);
+  const [followListLoading, setFollowListLoading] = useState(false);
+
 
   // Authenticated context
   const currentUser = localStorage.getItem('username');
@@ -106,6 +112,21 @@ const ProfilePage: React.FC = () => {
       toast.error('Failed to update profile');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openFollowModal = async (type: 'followers' | 'following') => {
+    setFollowModalType(type);
+    setIsFollowModalOpen(true);
+    setFollowListLoading(true);
+    try {
+      const res = await api.get(`/api/profiles/${username}/${type}/`);
+      setFollowList(res.data.results || res.data);
+    } catch (err) {
+      toast.error('Failed to load list');
+      setIsFollowModalOpen(false);
+    } finally {
+      setFollowListLoading(false);
     }
   };
 
@@ -284,11 +305,17 @@ const ProfilePage: React.FC = () => {
               <span className="font-bold text-gray-900 dark:text-neutral-100">{products.length}</span>
               <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('listings')}</span>
             </div>
-            <div>
+            <div 
+              className="cursor-pointer hover:opacity-80 transition"
+              onClick={() => openFollowModal('followers')}
+            >
               <span className="font-bold text-gray-900 dark:text-neutral-100">{followStatus.followers_count}</span>
               <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('followers')}</span>
             </div>
-            <div>
+            <div 
+              className="cursor-pointer hover:opacity-80 transition"
+              onClick={() => openFollowModal('following')}
+            >
               <span className="font-bold text-gray-900 dark:text-neutral-100">{followStatus.following_count}</span>
               <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('following_count')}</span>
             </div>
@@ -591,6 +618,79 @@ const ProfilePage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Follow List Modal */}
+      <Modal
+        isOpen={isFollowModalOpen}
+        onClose={() => setIsFollowModalOpen(false)}
+        title={followModalType === 'followers' ? t('followers') : t('following_count')}
+        size="sm"
+      >
+        {followListLoading ? (
+          <div className="flex justify-center py-8">
+            <Spinner size="sm" />
+          </div>
+        ) : followList.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
+            No {followModalType === 'followers' ? 'followers' : 'following'} yet.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {followList.map((user) => (
+              <div key={user.id} className="flex items-center justify-between">
+                <Link to={`/user/${user.username}`} onClick={() => setIsFollowModalOpen(false)} className="flex items-center gap-3 hover:opacity-80 transition">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-neutral-800 overflow-hidden flex items-center justify-center shrink-0">
+                    {user.profile_picture ? (
+                      <img src={user.profile_picture.startsWith('http') ? user.profile_picture : `${API_BASE_URL}${user.profile_picture}`} alt={user.username} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-lg font-light text-gray-400 uppercase">{user.username.charAt(0)}</span>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1">
+                      {user.username}
+                      <VerifiedBadge tier={user.tier} isVerified={user.is_verified} className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                </Link>
+                <div className="flex items-center gap-2">
+                  <Link 
+                    to={`/messages?user=${user.username}`}
+                    className="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-neutral-800 transition"
+                    title="Message"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                  </Link>
+                  {currentUser !== user.username && currentUser && (
+                    <button
+                      onClick={async () => {
+                        const action = user.is_following ? 'unfollow' : 'follow';
+                        try {
+                          const res = await api.post(`/api/profiles/${user.username}/${action}/`);
+                          setFollowList(prev => prev.map(u => u.id === user.id ? { ...u, is_following: res.data.following } : u));
+                          toast.success(res.data.following ? `Followed @${user.username}` : `Unfollowed @${user.username}`);
+                          if (user.username === username) {
+                            setFollowStatus(prev => ({ ...prev, following: res.data.following, followers_count: res.data.followers_count }));
+                          }
+                        } catch (err) {
+                          toast.error('Action failed');
+                        }
+                      }}
+                      className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg border transition ${
+                        user.is_following
+                          ? 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                          : 'bg-brand-500 border-brand-500 text-white hover:bg-brand-600 hover:border-brand-600'
+                      }`}
+                    >
+                      {user.is_following ? 'Unfollow' : 'Follow'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
 
     </div>
   );

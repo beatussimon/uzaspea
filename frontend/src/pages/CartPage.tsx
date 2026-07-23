@@ -110,14 +110,18 @@ const CartPage: React.FC = () => {
  
                     <div className="flex items-center gap-2 bg-surface-muted dark:bg-[#111] rounded-btn p-1 border border-surface-border dark:border-surface-dark-border">
                       <button
-                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                        onClick={() => updateQuantity(item.productId, Math.max(0.01, item.quantity - 1))}
                         className="p-1 rounded-btn hover:bg-white dark:hover:bg-[#0A0A0A] transition shadow-sm text-gray-600 dark:text-gray-300"
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="w-6 text-center font-bold text-gray-900 dark:text-white text-xs">
-                        {item.quantity}
-                      </span>
+                      <input
+                        type="number"
+                        step="any"
+                        value={item.quantity}
+                        onChange={(e) => updateQuantity(item.productId, parseFloat(e.target.value) || 1)}
+                        className="w-12 text-center font-bold text-gray-900 dark:text-white text-xs bg-transparent border-none focus:outline-none focus:ring-0 p-0"
+                      />
                       <button
                         onClick={() => updateQuantity(item.productId, item.quantity + 1)}
                         className="p-1 rounded-btn hover:bg-white dark:hover:bg-[#0A0A0A] transition shadow-sm text-gray-600 dark:text-gray-300"
