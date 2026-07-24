@@ -846,7 +846,7 @@ const ProductDetailPage: React.FC = () => {
                     const convRes = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
                     const convId = convRes.data.id;
                     // Only send context message if it's the first message or a new product inquiry
-                    if (!convRes.data.last_message || convRes.data.product !== product.id) {
+                    if (!convRes.data.last_message) {
                       await api.post(`/api/conversations/${convId}/messages/`, {
                         content: `Hi, I'm interested in your listing: "${product.name}" (TZS ${Number(product.price).toLocaleString()}). Could you provide more details?`
                       });
