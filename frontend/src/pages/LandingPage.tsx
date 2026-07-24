@@ -54,7 +54,9 @@ const LandingPage = () => {
         setStats(res.data.stats);
         setTrendingGroups(res.data.trending_products || { top_sellers: [], most_saved: [], newest_trending: [] });
       })
-      .catch(() => {});
+      .catch(() => {
+        setTrendingGroups({ top_sellers: [], most_saved: [], newest_trending: [] });
+      });
 
     // Fetch promotions
     api.get('/api/sponsored/?public=true&page_size=16')
@@ -94,32 +96,48 @@ const LandingPage = () => {
     { id: 'categories', label: 'Categories' },
     { id: 'insights', label: 'Insights' }
   ];
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const progress = target.scrollTop / (window.innerHeight || 800);
+    setScrollProgress(Math.min(progress, 1));
+  };
 
   return (
-    <SnapScrollContainer sections={sections}>
-      {/* 1. HERO SECTION */}
-      <div className="relative w-full h-full flex flex-col justify-center bg-black overflow-hidden group">
-        <div className="absolute inset-0 z-0 overflow-hidden flex cursor-grab active:cursor-grabbing" ref={constraintsRef}>
+    <>
+      {/* Global Fixed Background */}
+      <div className="fixed inset-0 z-0 overflow-hidden flex pointer-events-none bg-black">
+        <div 
+          className="absolute inset-[-5%] w-[110%] h-[110%]"
+          style={{ filter: `blur(${scrollProgress * 10}px)` }}
+        >
           <AnimatePresence mode="wait">
             <motion.img
               key={currentHero}
               src={currentHero}
-              drag="x"
-              dragConstraints={constraintsRef}
-              dragElastic={0.1}
-              style={{ x: dragX }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5, ease: 'easeInOut' }}
-              className="h-full w-auto min-w-[160vw] md:w-full md:min-w-full object-cover brightness-[0.6] dark:brightness-[0.35] max-w-none"
-              alt="Hero background"
+              className="h-full w-full object-cover brightness-[0.6] dark:brightness-[0.35] max-w-none"
+              alt="Global background"
             />
           </AnimatePresence>
-          <div className="absolute inset-0 bg-black/10 dark:bg-transparent pointer-events-none sticky left-0"></div>
         </div>
+        
+        {/* Dark Mode Overlay */}
+        <div className="absolute inset-0 bg-black/10 dark:bg-transparent pointer-events-none"></div>
+      </div>
 
-        <div className="relative z-10 w-full max-w-4xl px-10 sm:px-14 md:px-16 mx-auto text-center pointer-events-none pt-20">
+      <SnapScrollContainer sections={sections} onScroll={handleScroll}>
+        {/* 1. HERO SECTION */}
+        <div className="relative w-full h-full flex flex-col justify-center overflow-hidden group">
+          <div className="absolute inset-0 z-0 overflow-hidden flex cursor-grab active:cursor-grabbing" ref={constraintsRef}>
+            {/* Draggable surface for wobble effect, background is now global */}
+          </div>
+
+          <div className="relative z-10 w-full max-w-4xl px-10 sm:px-14 md:px-16 mx-auto text-center pointer-events-none pt-20">
           <h1 className="text-4xl md:text-5xl font-black text-white mb-4 drop-shadow-xl tracking-tight leading-tight origin-center flex flex-col items-center justify-center">
             <span className="inline-block text-white">
               <Trans i18nKey="hero_title_main">
@@ -209,6 +227,7 @@ const LandingPage = () => {
       />
 
     </SnapScrollContainer>
+    </>
   );
 };
 

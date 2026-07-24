@@ -56,6 +56,8 @@ const Navbar = () => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Smooth scroll listener with direct 1:1 hardware-accelerated movement
   useEffect(() => {
     let ticking = false;
@@ -79,13 +81,34 @@ const Navbar = () => {
             if (delta > 0) {
               // Scrolling down: hide the navbar instantly as we scroll
               currentOffset.current = Math.min(maxHide, currentOffset.current + delta);
+              if (hideTimeout.current) clearTimeout(hideTimeout.current);
             } else if (delta < 0) {
               // Scrolling up: show the navbar instantly as we scroll
               if (currentY <= 60) {
                 // Near top: snap to fully visible
                 currentOffset.current = 0;
+                if (hideTimeout.current) clearTimeout(hideTimeout.current);
               } else {
                 currentOffset.current = Math.max(0, currentOffset.current + delta);
+                
+                // Auto-hide the navbar after a short delay when scrolling upwards
+                if (hideTimeout.current) clearTimeout(hideTimeout.current);
+                hideTimeout.current = setTimeout(() => {
+                  if (navbarRef.current) {
+                    const snapCheck = document.querySelector('.snap-container') as HTMLElement;
+                    const yCheck = snapCheck ? snapCheck.scrollTop : window.pageYOffset;
+                    if (yCheck > 120) {
+                      currentOffset.current = maxHide;
+                      navbarRef.current.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                      navbarRef.current.style.transform = `translateY(-${maxHide}px)`;
+                      
+                      // Remove transition after it completes so manual scrolling feels instant again
+                      setTimeout(() => {
+                        if (navbarRef.current) navbarRef.current.style.transition = '';
+                      }, 400);
+                    }
+                  }
+                }, 1500); // 1.5 seconds delay before auto-hiding
               }
             }
             nav.style.transform = `translateY(-${currentOffset.current}px)`;
@@ -100,7 +123,10 @@ const Navbar = () => {
 
     document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
     handleScroll(); // Initial run
-    return () => document.removeEventListener('scroll', handleScroll, { capture: true } as any);
+    return () => {
+      document.removeEventListener('scroll', handleScroll, { capture: true } as any);
+      if (hideTimeout.current) clearTimeout(hideTimeout.current);
+    };
   }, []);
 
 
@@ -113,7 +139,7 @@ const Navbar = () => {
 
 
   const isHomepage = location.pathname === '/';
-  const useLightStyle = isDark || (isHomepage && isAtTop);
+  const useLightStyle = isDark || isHomepage;
 
   const bellClass = useLightStyle
     ? 'text-white/85 hover:text-white'
@@ -127,7 +153,7 @@ const Navbar = () => {
     ? 'p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
     : 'p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
 
-  const navBackgroundClass = isAtTop
+  const navBackgroundClass = (isHomepage || isAtTop)
     ? 'bg-transparent border-none backdrop-blur-none shadow-none'
     : 'glass border-none shadow-sm';
 

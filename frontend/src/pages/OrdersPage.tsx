@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck, Shield } from 'lucide-react';
+import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck, Shield, Receipt } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
@@ -10,6 +10,7 @@ import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS, DIRECT_TRACKING_STEPS } from '../constants/orderStatus';
 import ReviewModal from '../components/orders/ReviewModal';
 import DisputeModal from '../components/orders/DisputeModal';
+import ReceiptModal from '../components/orders/ReceiptModal';
 import { useDialog } from '../components/ui/Dialogs';
 import { Spinner } from '../components/ui/Spinner';
 import { StatusBadge } from '../components/ui/StatusBadge';
@@ -44,6 +45,9 @@ const OrdersPage: React.FC = () => {
 
   // Dispute State
   const [openDisputeId, setOpenDisputeId] = useState<number | null>(null);
+
+  // Receipt State
+  const [receiptOrder, setReceiptOrder] = useState<any>(null);
 
   // Seller & System Lipa Numbers State
   const [sellerLipa, setSellerLipa] = useState<Record<number, any[]>>({});
@@ -453,6 +457,7 @@ const OrdersPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
 
                 {/* Expanded Content */}
                 {isExpanded && (
@@ -888,6 +893,12 @@ const OrdersPage: React.FC = () => {
                                 </p>
                                 
                                 <div className="flex gap-2 mt-3 w-full">
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); setReceiptOrder(order); }}
+                                      className="btn-secondary flex-1 py-1 text-[10px] bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-1 border-gray-200 dark:border-gray-700 shadow-sm transition"
+                                    >
+                                        <Receipt size={14} /> View Receipt
+                                    </button>
                                     {['AWAITING_PAYMENT', 'PENDING_VERIFICATION'].includes(order.status) && (
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
@@ -970,6 +981,11 @@ const OrdersPage: React.FC = () => {
             onClose={() => setOpenDisputeId(null)} 
             onSuccess={() => fetchOrders(1, true)} 
         />
+      )}
+
+      {/* Receipt Modal */}
+      {receiptOrder && (
+        <ReceiptModal order={receiptOrder} onClose={() => setReceiptOrder(null)} />
       )}
     </div>
   );

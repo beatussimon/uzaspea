@@ -23,21 +23,23 @@ const NewArrivalsSection: React.FC<NewArrivalsSectionProps> = ({
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.15 }
+      transition: { staggerChildren: 0.05, delayChildren: 0.05 }
     }
   };
 
+
+
   const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 15 },
     visible: { 
       opacity: 1, 
       y: 0,
-      transition: { type: 'spring', stiffness: 200, damping: 20 }
+      transition: { type: 'spring', stiffness: 600, damping: 35 }
     }
   };
 
   return (
-    <div className="relative w-full h-full bg-surface-muted dark:bg-surface-dark transition-colors duration-300 overflow-hidden flex flex-col justify-center">
+    <div className="relative w-full h-full bg-transparent transition-colors duration-300 overflow-hidden flex flex-col justify-center">
       {/* Subtle Dynamic Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[20%] left-[20%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 dark:bg-emerald-500/10 blur-[120px]" />
@@ -65,30 +67,51 @@ const NewArrivalsSection: React.FC<NewArrivalsSectionProps> = ({
             </motion.div>
 
             {/* Content Area - Grid on Desktop / Scroll on Mobile */}
-            <div className="flex-1 overflow-y-auto no-scrollbar pb-16 px-4 md:px-8 max-w-7xl mx-auto w-full flex flex-col justify-center">
-              <motion.div 
-                variants={itemVariants}
-                className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide md:grid md:grid-cols-4 md:gap-5"
-              >
-                {loading ? (
-                  [...Array(4)].map((_, i) => (
-                    <div key={i} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto">
-                      <ProductCardSkeleton viewMode="grid" />
-                    </div>
-                  ))
-                ) : newArrivals.length > 0 ? (
-                  newArrivals.slice(0, 4).map((product) => (
-                    <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto relative h-full">
-                      <ProductCard product={product} viewMode="grid" showTrendingMetrics="new" />
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-4 w-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 py-12">
-                    <Clock className="w-10 h-10 mb-2 opacity-50 text-emerald-500" />
-                    <p className="text-sm font-semibold">No new arrivals right now</p>
-                  </div>
-                )}
-              </motion.div>
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-16 px-4 md:px-8 max-w-7xl mx-auto w-full flex flex-col">
+              <div className="my-auto w-full flex flex-col">
+              {(() => {
+                const itemsPerRow = 8;
+                const row1 = newArrivals.slice(0, itemsPerRow);
+                const row2 = newArrivals.slice(itemsPerRow, itemsPerRow * 2);
+                
+                return (
+                  <motion.div variants={itemVariants} className="flex flex-col gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 w-full">
+                    {loading ? (
+                      <div className="flex gap-4 w-max">
+                        {[...Array(8)].map((_, i) => (
+                          <div key={i} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full">
+                            <ProductCardSkeleton viewMode="grid" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : newArrivals.length > 0 ? (
+                      <>
+                        <div className="flex gap-4 w-max">
+                          {row1.map((product) => (
+                            <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
+                              <ProductCard product={product} viewMode="grid" showTrendingMetrics="new" />
+                            </div>
+                          ))}
+                        </div>
+                        {row2.length > 0 && (
+                          <div className="flex gap-4 w-max">
+                            {row2.map((product) => (
+                              <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
+                                <ProductCard product={product} viewMode="grid" showTrendingMetrics="new" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="col-span-full w-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 py-12">
+                        <Clock className="w-10 h-10 mb-2 opacity-50 text-emerald-500" />
+                        <p className="text-sm font-semibold">No new arrivals right now</p>
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })()}
 
               {/* Bottom CTA */}
               <motion.div variants={itemVariants} className="mt-8 flex justify-center">
@@ -99,6 +122,7 @@ const NewArrivalsSection: React.FC<NewArrivalsSectionProps> = ({
                   Explore All New Arrivals <ArrowRight className="w-4 h-4" />
                 </Link>
               </motion.div>
+              </div>
             </div>
           </motion.div>
         )}

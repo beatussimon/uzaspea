@@ -4,9 +4,10 @@ import SectionDots from './SectionDots';
 interface SnapScrollContainerProps {
   children: ReactNode;
   sections: { id: string; label: string }[];
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
-const SnapScrollContainer: React.FC<SnapScrollContainerProps> = ({ children, sections }) => {
+const SnapScrollContainer: React.FC<SnapScrollContainerProps> = ({ children, sections, onScroll }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState<string>(sections[0]?.id || '');
   const observer = useRef<IntersectionObserver | null>(null);
@@ -58,7 +59,7 @@ const SnapScrollContainer: React.FC<SnapScrollContainerProps> = ({ children, sec
   };
 
   return (
-    <div className="relative w-full h-[100dvh] overflow-hidden bg-surface-muted dark:bg-surface-dark transition-colors duration-300">
+    <div className="relative z-10 w-full h-[100dvh] overflow-hidden bg-transparent transition-colors duration-300">
       <SectionDots 
         sections={sections} 
         activeSection={activeSection} 
@@ -68,6 +69,7 @@ const SnapScrollContainer: React.FC<SnapScrollContainerProps> = ({ children, sec
       <div 
         ref={containerRef}
         className="snap-container w-full h-full no-scrollbar"
+        onScroll={onScroll}
       >
         {Children.map(children, (child, index) => {
           if (isValidElement(child)) {
