@@ -1651,17 +1651,17 @@ class ConversationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Look for any existing conversation between this buyer and seller
-        conv = Conversation.objects.filter(
-            Q(buyer=request.user, seller_id=seller_id) |
-            Q(buyer_id=seller_id, seller=request.user)
-        ).order_by('-updated_at').first()
+        # Build lookup query for this specific buyer-seller pair
+        base_q = Q(buyer=request.user, seller_id=seller_id) | Q(buyer_id=seller_id, seller=request.user)
 
-        if conv:
-            if product_id:
-                conv.product_id = product_id
-                conv.save()
+        if product_id:
+            # Product-initiated: find existing conversation for THIS specific product
+            conv = Conversation.objects.filter(base_q, product_id=product_id).first()
         else:
+            # Profile-initiated (no product): find existing general conversation (no product)
+            conv = Conversation.objects.filter(base_q, product__isnull=True).first()
+
+        if not conv:
             conv = Conversation.objects.create(
                 buyer=request.user, seller_id=seller_id, product_id=product_id
             )

@@ -24,7 +24,7 @@ const CartPage: React.FC = () => {
           description={t('empty_cart_subtitle', 'Add some products to get started!')}
           action={{
             label: t('browse_products'),
-            onClick: () => navigate('/'),
+            onClick: () => navigate('/products'),
           }}
         />
       </div>

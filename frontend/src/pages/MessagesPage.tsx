@@ -37,7 +37,6 @@ const MessagesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isTypingSimulated, setIsTypingSimulated] = useState(false);
 
   const messageEndRef = useRef<HTMLDivElement>(null);
   const lastConvIdRef = useRef<string | undefined>(undefined);
@@ -105,9 +104,6 @@ const MessagesPage: React.FC = () => {
       fetchMessages(convIdNum);
       
       // Simulate a small typing effect when entering a chat for visual premium flair
-      setIsTypingSimulated(true);
-      const timer = setTimeout(() => setIsTypingSimulated(false), 1500);
-      return () => clearTimeout(timer);
     } else {
       setActiveConversationId(null);
     }
@@ -545,7 +541,7 @@ const MessagesPage: React.FC = () => {
                 ))}
 
                 {/* Animated Typing Indicator */}
-                {(isTypingSimulated || typingStatus[parseInt(id || '')]) && (
+                {(typingStatus[parseInt(id || '')]) && (
                   <div className="flex items-end gap-2.5">
                     {activeConv && (
                       <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username)}`}>
