@@ -1954,13 +1954,16 @@ class TrendingAnalyticsView(APIView):
             status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED']
         ).values_list('id', flat=True)
 
+        from decimal import Decimal
+        from django.db.models import DecimalField
+        
         base_qs = Product.objects.select_related('category', 'seller').prefetch_related('images', 'likes').filter(
             is_available=True
         ).annotate(
             weekly_sales=Coalesce(Sum(
                 'orderitem__quantity',
                 filter=Q(orderitem__order_id__in=weekly_order_ids)
-            ), 0),
+            ), Decimal('0'), output_field=DecimalField()),
             like_count=Count('likes', distinct=True)
         )
 
@@ -1995,7 +1998,7 @@ class TrendingAnalyticsView(APIView):
             "trending_products": trending_dict
         }
 
-        # Cache for 60 seconds to avoid hammering the DB
+        # Cache for 1 minute (60 seconds) to avoid hammering the DB
         cache.set(cache_key, result, 60)
 
         return Response(result)
