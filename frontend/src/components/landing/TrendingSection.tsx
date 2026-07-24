@@ -26,21 +26,22 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.15 }
+      transition: { staggerChildren: 0.05, delayChildren: 0.05 }
     }
   };
 
   const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, scale: 0.98, y: 15 },
     visible: { 
       opacity: 1, 
+      scale: 1, 
       y: 0,
-      transition: { type: 'spring', stiffness: 300, damping: 24 }
+      transition: { type: 'spring', stiffness: 600, damping: 35 }
     }
   };
 
-  const renderProductRow = (products: any[], title: string, icon: React.ReactNode, link: string, metricType: string) => {
-    if (!products || products.length === 0) return null;
+  const renderProductRow = (products: any[], title: string, icon: React.ReactNode, link: string, metricType: 'sales' | 'saves' | 'new') => {
+    if (!loading && products.length === 0) return null;
 
     return (
       <div className="mb-6 w-full">
@@ -58,30 +59,53 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
           </motion.div>
         </div>
 
-        <motion.div 
-          variants={itemVariants}
-          className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-4 md:px-8 scrollbar-hide md:grid md:grid-cols-4 md:gap-5 max-w-7xl mx-auto"
-        >
-          {loading ? (
-            [...Array(4)].map((_, i) => (
-              <div key={i} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto">
-                <ProductCardSkeleton viewMode="grid" />
-              </div>
-            ))
-          ) : (
-            products.slice(0, 4).map((product) => (
-              <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto h-full relative group">
-                <ProductCard product={product} viewMode="grid" showTrendingMetrics={metricType} />
-              </div>
-            ))
-          )}
-        </motion.div>
+        {(() => {
+          const itemsPerRow = 8;
+          const row1 = products.slice(0, itemsPerRow);
+          const row2 = products.slice(itemsPerRow, itemsPerRow * 2);
+
+          return (
+            <motion.div 
+              variants={itemVariants}
+              className="flex flex-col gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 px-4 md:px-8 max-w-7xl mx-auto w-full"
+            >
+              {loading ? (
+                <div className="flex gap-4 w-max">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full">
+                      <ProductCardSkeleton viewMode="grid" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-4 w-max">
+                    {row1.map((product) => (
+                      <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative group">
+                        <ProductCard product={product} viewMode="grid" showTrendingMetrics={metricType} />
+                      </div>
+                    ))}
+                  </div>
+                  {row2.length > 0 && (
+                    <div className="flex gap-4 w-max">
+                      {row2.map((product) => (
+                        <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative group">
+                          <ProductCard product={product} viewMode="grid" showTrendingMetrics={metricType} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </motion.div>
+          );
+        })()}
       </div>
     );
   };
 
   return (
-    <div className="relative w-full h-full bg-surface-muted dark:bg-surface-dark transition-colors duration-300 overflow-hidden flex flex-col justify-center">
+    <div className="relative w-full h-full bg-transparent transition-colors duration-300 overflow-hidden flex flex-col justify-center">
       {/* Subtle Dynamic Background Accent */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-orange-500/5 dark:bg-orange-500/10 blur-[120px]" />
@@ -109,7 +133,8 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
             </motion.div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto no-scrollbar pb-16 flex flex-col justify-center">
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-16 flex flex-col">
+              <div className="my-auto w-full flex flex-col gap-6">
               {renderProductRow(
                 trendingGroups?.top_sellers || [], 
                 t('top_sellers', 'Top Sellers'), 
@@ -125,6 +150,7 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
                 '/products?sort_by=most_saved',
                 'saves'
               )}
+              </div>
             </div>
           </motion.div>
         )}

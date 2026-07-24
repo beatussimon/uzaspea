@@ -47,6 +47,17 @@ const MobileBottomNav = () => {
   const currentOffset = useRef(0);
   const lastScrollY = useRef(0);
 
+  const isHomepage = location.pathname === '/';
+  const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // Reset initial state when route changes
+    if (navRef.current) {
+      currentOffset.current = isHomepage ? 100 : 0;
+      navRef.current.style.transform = `translateY(${currentOffset.current}px)`;
+    }
+  }, [isHomepage]);
+
   useEffect(() => {
     let ticking = false;
     const handleScroll = () => {
@@ -54,22 +65,43 @@ const MobileBottomNav = () => {
       
       if (!ticking) {
         window.requestAnimationFrame(() => {
+          const snapContainer = document.querySelector('.snap-container') as HTMLElement;
           const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-          const currentY = Math.max(0, Math.min(maxScrollY, window.pageYOffset));
+          const currentY = snapContainer 
+            ? snapContainer.scrollTop 
+            : Math.max(0, Math.min(maxScrollY, window.pageYOffset || document.documentElement.scrollTop));
+            
           const delta = currentY - lastScrollY.current;
+          const maxHide = 100;
           
-          // Smart Grace Zone & Normal Scroll
           if (delta > 0) {
             // Scrolling down
-            const maxHide = 80;
             currentOffset.current = Math.min(maxHide, currentOffset.current + delta);
+            if (hideTimeout.current) clearTimeout(hideTimeout.current);
           } else if (delta < 0) {
             // Scrolling up
-            if (currentY <= 60) {
-              // Smart Grace Zone: Snap to fully visible if near top and scrolling up
+            if (currentY <= 60 && !isHomepage) {
+              // Smart Grace Zone: Snap to fully visible if near top and scrolling up (not on homepage)
               currentOffset.current = 0;
+              if (hideTimeout.current) clearTimeout(hideTimeout.current);
             } else {
               currentOffset.current = Math.max(0, currentOffset.current + delta);
+              
+              // Auto-hide behavior for homepage
+              if (isHomepage) {
+                if (hideTimeout.current) clearTimeout(hideTimeout.current);
+                hideTimeout.current = setTimeout(() => {
+                  if (navRef.current) {
+                    currentOffset.current = maxHide;
+                    navRef.current.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                    navRef.current.style.transform = `translateY(${maxHide}px)`;
+                    
+                    setTimeout(() => {
+                      if (navRef.current) navRef.current.style.transition = '';
+                    }, 400);
+                  }
+                }, 1500);
+              }
             }
           }
 
@@ -84,9 +116,14 @@ const MobileBottomNav = () => {
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMenuOpen]);
+    // Listen on both window and capture phase to catch snap-container scrolling
+    document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    
+    return () => {
+      document.removeEventListener('scroll', handleScroll, { capture: true } as any);
+      if (hideTimeout.current) clearTimeout(hideTimeout.current);
+    };
+  }, [isMenuOpen, isHomepage]);
 
   // Prevent background scroll when menu is open
   useEffect(() => {
@@ -306,7 +343,11 @@ const MobileBottomNav = () => {
       {/* --- Footer Base Navigation --- */}
       <div 
         ref={navRef}
-        className="lg:hidden fixed bottom-0 inset-x-0 z-[60] bg-white/70 dark:bg-gray-950/70 backdrop-blur-2xl border-t border-surface-border/50 dark:border-white/5 px-2 pb-safe pt-2 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] will-change-transform"
+        className={`lg:hidden fixed bottom-0 inset-x-0 z-[60] px-2 pb-safe pt-2 will-change-transform transition-colors duration-300 ${
+          isHomepage 
+            ? 'bg-transparent border-transparent shadow-none' 
+            : 'bg-white/70 dark:bg-gray-950/70 backdrop-blur-2xl border-t border-surface-border/50 dark:border-white/5 shadow-[0_-10px_40px_rgba(0,0,0,0.03)]'
+        }`}
       >
         <div className="flex items-center justify-around max-w-md mx-auto h-16 relative">
           

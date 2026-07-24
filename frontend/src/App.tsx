@@ -137,7 +137,7 @@ function AppLayout() {
       </main>
 
       {!isLandingPage && <Footer />}
-      {!isLandingPage && <MobileBottomNav />}
+      <MobileBottomNav />
 
       <Toaster
         position="top-right"

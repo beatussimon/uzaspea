@@ -19,31 +19,33 @@ const FeaturedSection: React.FC<FeaturedSectionProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  // Pick up to 8 promoted products
+  // Pick up to 16 promoted products
   const featuredProducts = useMemo(() => {
-    return promotions.map(p => p.product_details).slice(0, 8);
+    return promotions.map(p => p.product_details).slice(0, 16);
   }, [promotions]);
+
+
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.15 }
+      transition: { staggerChildren: 0.05, delayChildren: 0.05 }
     }
   };
 
   const itemVariants: Variants = {
-    hidden: { opacity: 0, scale: 0.95, y: 20 },
+    hidden: { opacity: 0, scale: 0.98, y: 15 },
     visible: { 
       opacity: 1, 
       scale: 1, 
       y: 0,
-      transition: { type: 'spring', stiffness: 200, damping: 20 }
+      transition: { type: 'spring', stiffness: 600, damping: 35 }
     }
   };
 
   return (
-    <div className="relative w-full h-full bg-surface-muted dark:bg-surface-dark transition-colors duration-300 overflow-hidden flex flex-col justify-center">
+    <div className="relative w-full h-full bg-transparent transition-colors duration-300 overflow-hidden flex flex-col justify-center">
       {/* Subtle Dynamic Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-amber-500/5 dark:bg-amber-500/10 blur-[120px]" />
@@ -71,29 +73,51 @@ const FeaturedSection: React.FC<FeaturedSectionProps> = ({
             </motion.div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto no-scrollbar pb-16 px-4 md:px-8 max-w-7xl mx-auto w-full flex flex-col justify-center">
-              {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
-                  {[...Array(4)].map((_, i) => (
-                    <motion.div key={i} variants={itemVariants} className="w-full">
-                      <ProductCardSkeleton viewMode="grid" />
-                    </motion.div>
-                  ))}
-                </div>
-              ) : featuredProducts.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 auto-rows-max">
-                  {featuredProducts.slice(0, 4).map((product) => (
-                    <motion.div key={product.id} variants={itemVariants} className="w-full h-full">
-                      <ProductCard product={product} viewMode="grid" isSponsored={true} />
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-gray-500">
-                  <Star className="w-10 h-10 mb-2 opacity-50 text-amber-500" />
-                  <p className="text-sm font-semibold">No featured items right now</p>
-                </div>
-              )}
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-16 px-4 md:px-8 max-w-7xl mx-auto w-full flex flex-col">
+              <div className="my-auto w-full flex flex-col">
+              {(() => {
+                const itemsPerRow = 8;
+                const row1 = featuredProducts.slice(0, itemsPerRow);
+                const row2 = featuredProducts.slice(itemsPerRow, itemsPerRow * 2);
+                
+                return (
+                  <motion.div variants={itemVariants} className="flex flex-col gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 w-full">
+                    {loading ? (
+                      <div className="flex gap-4 w-max">
+                        {[...Array(8)].map((_, i) => (
+                          <div key={i} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
+                            <ProductCardSkeleton viewMode="grid" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : featuredProducts.length > 0 ? (
+                      <>
+                        <div className="flex gap-4 w-max">
+                          {row1.map((product) => (
+                            <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
+                              <ProductCard product={product} viewMode="grid" isSponsored={true} />
+                            </div>
+                          ))}
+                        </div>
+                        {row2.length > 0 && (
+                          <div className="flex gap-4 w-max">
+                            {row2.map((product) => (
+                              <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
+                                <ProductCard product={product} viewMode="grid" isSponsored={true} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-gray-500 w-full h-full">
+                        <Star className="w-10 h-10 mb-2 opacity-50 text-amber-500" />
+                        <p className="text-sm font-semibold">No featured items right now</p>
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })()}
 
               {/* Bottom CTA */}
               <motion.div variants={itemVariants} className="mt-8 flex justify-center">
@@ -104,6 +128,7 @@ const FeaturedSection: React.FC<FeaturedSectionProps> = ({
                   Explore All Products <ArrowRight className="w-4 h-4" />
                 </Link>
               </motion.div>
+              </div>
             </div>
           </motion.div>
         )}

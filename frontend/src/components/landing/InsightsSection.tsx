@@ -47,16 +47,17 @@ const InsightsSection: React.FC<InsightsSectionProps> = ({
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.15 }
+      transition: { staggerChildren: 0.05, delayChildren: 0.05 }
     }
   };
 
   const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, scale: 0.98, y: 15 },
     visible: { 
       opacity: 1, 
+      scale: 1, 
       y: 0,
-      transition: { type: 'spring', stiffness: 200, damping: 20 }
+      transition: { type: 'spring', stiffness: 600, damping: 35 }
     }
   };
 
@@ -69,7 +70,7 @@ const InsightsSection: React.FC<InsightsSectionProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full bg-surface-muted dark:bg-surface-dark transition-colors duration-300 overflow-hidden flex flex-col justify-center">
+    <div className="relative w-full h-full bg-transparent transition-colors duration-300 overflow-hidden flex flex-col justify-center">
       {/* Subtle Dynamic Background Accent */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[30%] left-[30%] w-[40%] h-[40%] rounded-full bg-blue-500/5 dark:bg-blue-500/10 blur-[150px]" />
@@ -105,9 +106,8 @@ const InsightsSection: React.FC<InsightsSectionProps> = ({
                 { label: 'Weekly Visits', value: displayStats.weekly_visits, icon: <TrendingUp className="w-5 h-5" />, color: 'bg-violet-100 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400' },
                 { label: 'Hot Categories', value: displayStats.hot_categories, icon: <Activity className="w-5 h-5" />, color: 'bg-fuchsia-100 dark:bg-fuchsia-950/50 text-fuchsia-600 dark:text-fuchsia-400' },
               ].map((stat, i) => (
-                <motion.div 
+                <div 
                   key={i} 
-                  variants={itemVariants}
                   className="card p-4 md:p-6 flex flex-col items-center text-center relative overflow-hidden group"
                 >
                   <div className={`w-10 h-10 rounded-full ${stat.color} flex items-center justify-center mb-3 shadow-sm transform group-hover:scale-110 transition-transform duration-200`}>
@@ -119,7 +119,7 @@ const InsightsSection: React.FC<InsightsSectionProps> = ({
                   <div className="text-2xs sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     {stat.label}
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
 
