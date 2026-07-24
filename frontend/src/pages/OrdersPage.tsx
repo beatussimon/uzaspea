@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 
-import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS } from '../constants/orderStatus';
+import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS, DIRECT_TRACKING_STEPS } from '../constants/orderStatus';
 import ReviewModal from '../components/orders/ReviewModal';
 import DisputeModal from '../components/orders/DisputeModal';
 import { useDialog } from '../components/ui/Dialogs';
@@ -348,27 +348,41 @@ const OrdersPage: React.FC = () => {
         <div className="space-y-4">
           {filtered.map((order: any) => {
             const isExpanded = expandedId === order.id;
-            const isActuallyWarehouse = ['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP'].includes(order.status) || order.timeline_events?.some((ev: any) => ['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE'].includes(ev.status));
+            const isDirectDelivery = order.fulfillment_type === 'DIRECT_DELIVERY';
+            const isActuallyWarehouse = !isDirectDelivery && (['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP'].includes(order.status) || order.timeline_events?.some((ev: any) => ['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE'].includes(ev.status)));
 
-            const trackingSteps = (order.has_vehicles && !isActuallyWarehouse)
-              ? ['PAID', 'PROCESSING', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED']
-              : TRACKING_STEPS;
+            let trackingSteps = TRACKING_STEPS;
+            if (isDirectDelivery) {
+                trackingSteps = DIRECT_TRACKING_STEPS;
+            } else if (order.has_vehicles && !isActuallyWarehouse) {
+                trackingSteps = ['PAID', 'PROCESSING', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'];
+            }
             
             const getEffectiveTrackingStatus = (st: string) => {
               if (trackingSteps.includes(st)) return st;
-              
-              if (order.has_vehicles && !isActuallyWarehouse) {
-                 if (st === 'AWAITING_PAYMENT' || st === 'PENDING_VERIFICATION' || st === 'CART' || st === 'CHECKOUT') return trackingSteps[0]; // fallback
-                 if (['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT'].includes(st)) return 'PROCESSING';
-                 if (st === 'ARRIVED_AT_REGIONAL_WAREHOUSE' || st === 'READY_FOR_VEHICLE_HANDOVER' || st === 'READY_FOR_PICKUP') return 'SHIPPED';
-                 return trackingSteps[0];
+
+              // Pre-payment statuses: don't map to PAID (not paid yet!)
+              const prePaymentStates = ['CART', 'CHECKOUT', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION'];
+
+              if (isDirectDelivery) {
+                  // Direct tracking starts at PAID; pre-payment shows step before first
+                  if (prePaymentStates.includes(st)) return 'PAID'; // will be shown as "not yet reached"
+                  return 'PAID';
               }
 
-              if (st === 'AWAITING_PAYMENT' || st === 'PENDING_VERIFICATION') return 'CHECKOUT';
+              if (order.has_vehicles && !isActuallyWarehouse) {
+                 if (prePaymentStates.includes(st)) return 'PAID';
+                 if (['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT'].includes(st)) return 'PROCESSING';
+                 if (st === 'ARRIVED_AT_REGIONAL_WAREHOUSE' || st === 'READY_FOR_VEHICLE_HANDOVER' || st === 'READY_FOR_PICKUP') return 'SHIPPED';
+                 return 'PAID';
+              }
+
+              // Standard platform route
+              if (prePaymentStates.includes(st)) return 'PAID'; // before payment
               if (st === 'ASSIGNED_TRANSPORT') return 'RECEIVED_AT_WAREHOUSE';
               if (st === 'AWAITING_DELIVERY_PAYMENT' || st === 'PENDING_DELIVERY_VERIFICATION') return 'RECEIVED_AT_WAREHOUSE';
               if (st === 'READY_FOR_VEHICLE_HANDOVER') return 'ARRIVED_AT_REGIONAL_WAREHOUSE';
-              return trackingSteps[0];
+              return 'PAID';
             };
             const currentStepIdx = trackingSteps.indexOf(getEffectiveTrackingStatus(order.status));
 
