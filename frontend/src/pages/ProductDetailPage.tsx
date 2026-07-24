@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { Skeleton } from '../components/Skeleton';
 import { timeAgo } from '../utils/timeAgo';
+import { fetchProductCached } from '../components/layout/CategoryBar';
 
 interface ProductData {
   id: number;
@@ -303,26 +304,26 @@ const ProductDetailPage: React.FC = () => {
   useEffect(() => {
     if (!slug) return;
     if (!product) setLoading(true);
-    api.get(`/api/products/${slug}/`)
-      .then((res) => {
+    
+    Promise.all([
+      fetchProductCached(slug),
+      api.get(`/api/variants/?product_slug=${slug}`).catch(() => ({ data: [] }))
+    ])
+      .then(([res, vRes]) => {
         setProduct(res.data);
         setLikeCount(res.data.like_count);
         setLiked(res.data.is_liked || false);
         setQuantity(parseFloat(res.data.minimum_order_quantity) || 1);
+        
+        const list = vRes.data.results || vRes.data;
+        setVariants(list);
+        if (res.data.stock <= 0 && list.length > 0) {
+          const firstAvailable = list.find((v: any) => v.stock > 0);
+          if (firstAvailable) {
+            setSelectedVariant(firstAvailable);
+          }
+        }
         setLoading(false);
-        // Fetch variants
-        api.get(`/api/variants/?product=${res.data.id}`)
-          .then((vRes) => {
-            const list = vRes.data.results || vRes.data;
-            setVariants(list);
-            if (res.data.stock <= 0 && list.length > 0) {
-              const firstAvailable = list.find((v: any) => v.stock > 0);
-              if (firstAvailable) {
-                setSelectedVariant(firstAvailable);
-              }
-            }
-          })
-          .catch(() => {});
       })
       .catch(() => {
         toast.error('Product not found');

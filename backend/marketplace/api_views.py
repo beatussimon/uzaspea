@@ -1874,7 +1874,17 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         product_id = self.request.query_params.get('product')
+        product_slug = self.request.query_params.get('product_slug')
         user = self.request.user
+
+        if product_slug:
+            qs = ProductVariant.objects.filter(
+                product__slug=product_slug
+            ).select_related('product')
+            if not (user.is_authenticated and (user.is_staff or
+                    ProductVariant.objects.filter(product__slug=product_slug, product__seller=user).exists())):
+                qs = qs.filter(is_available=True)
+            return qs
 
         if product_id:
             # Public: any visitor can see variants for a product

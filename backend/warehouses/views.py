@@ -41,7 +41,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         orders = Order.objects.filter(
             (Q(status='SHIPPED_TO_WAREHOUSE') & (Q(delivery_info__warehouse_code=warehouse.code) | Q(delivery_info__isnull=True) | Q(delivery_info={}))) |
             (Q(status__in=['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'FAILED_DELIVERY']) & Q(delivery_info__destination_warehouse_code=warehouse.code))
-        ).order_by('order_date')
+        ).prefetch_related('orderitem_set__product', 'timeline_events', 'payments', 'shipments', 'warehouse_transfers').order_by('order_date')
         serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -59,7 +59,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
              Q(delivery_info__destination_warehouse_code=warehouse.code) |
              Q(delivery_info__isnull=True) |
              Q(delivery_info={}))
-        ).order_by('order_date')
+        ).prefetch_related('orderitem_set__product', 'timeline_events', 'payments', 'shipments', 'warehouse_transfers').order_by('order_date')
         serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -191,7 +191,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
              Q(delivery_info__destination_warehouse_code=warehouse.code) |
              Q(delivery_info__isnull=True) |
              Q(delivery_info={}))
-        ).order_by('order_date')
+        ).prefetch_related('orderitem_set__product', 'timeline_events', 'payments', 'shipments', 'warehouse_transfers').order_by('order_date')
         serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -206,7 +206,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
             Q(status__in=['ASSIGNED_TRANSPORT', 'READY_FOR_TRANSIT']) &
             (Q(delivery_info__current_warehouse_code=warehouse.code) |
              (Q(delivery_info__isnull=True) | Q(delivery_info={})))
-        ).order_by('order_date')
+        ).prefetch_related('orderitem_set__product', 'timeline_events', 'payments', 'shipments', 'warehouse_transfers').order_by('order_date')
         serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -224,7 +224,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
              Q(delivery_info__destination_warehouse_code=warehouse.code) |
              Q(delivery_info__isnull=True) |
              Q(delivery_info={}))
-        ).order_by('order_date')
+        ).prefetch_related('orderitem_set__product', 'timeline_events', 'payments', 'shipments', 'warehouse_transfers').order_by('order_date')
         serializer = WarehouseOrderSerializer(orders, many=True)
         return Response(serializer.data)
 

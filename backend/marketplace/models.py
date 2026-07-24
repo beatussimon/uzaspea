@@ -252,6 +252,10 @@ class Product(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['is_available', '-created_at']),
+            models.Index(fields=['category', '-created_at']),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -920,6 +924,10 @@ class Message(models.Model):
 
     class Meta:
         ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['conversation', 'created_at']),
+            models.Index(fields=['sender']),
+        ]
 
     def __str__(self):
         return f'{self.sender.username}: {self.content[:50]}'

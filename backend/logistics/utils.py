@@ -17,7 +17,7 @@ def order_has_vehicles(order):
     """
     Checks if any item in the order is a whole vehicle category.
     """
-    for item in order.orderitem_set.select_related('product__category').all():
+    for item in order.orderitem_set.all():
         if is_vehicle_category(item.product.category):
             return True
     return False

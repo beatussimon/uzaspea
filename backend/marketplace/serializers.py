@@ -401,9 +401,8 @@ class OrderSerializer(serializers.ModelSerializer):
             return None
 
     def get_seller_contacts(self, obj):
-        from .models import OrderItem
         sellers = set()
-        for item in obj.orderitem_set.select_related('product__seller__profile').all():
+        for item in obj.orderitem_set.all():
             sellers.add(item.product.seller)
         
         contacts = []
@@ -469,21 +468,23 @@ class OrderSerializer(serializers.ModelSerializer):
             if not (user.is_staff or user.is_superuser or instance.user == user):
                 from uzachuo.permissions import get_effective_sellers
                 sellers = get_effective_sellers(user, required_permission='manage_products')
-                filtered_items = instance.orderitem_set.filter(product__seller_id__in=sellers)
+                all_items = list(instance.orderitem_set.all())
+                filtered_items = [item for item in all_items if item.product.seller_id in sellers]
                 ret['items'] = OrderItemSerializer(filtered_items, many=True, context=self.context).data
         return ret
 
     def _get_seller_items(self, request, obj):
+        items = list(obj.orderitem_set.all())
         if not request or not hasattr(request, 'user') or request.user.is_anonymous:
-            return obj.orderitem_set.all()
+            return items
         from uzachuo.permissions import get_effective_sellers
         sellers = get_effective_sellers(request.user)
-        items = obj.orderitem_set.filter(product__seller_id__in=sellers)
-        if not items.exists():
-            items = obj.orderitem_set.filter(product__seller=request.user)
-        if not items.exists():
-            items = obj.orderitem_set.all()
-        return items
+        filtered_items = [item for item in items if item.product.seller_id in sellers]
+        if not filtered_items:
+            filtered_items = [item for item in items if item.product.seller_id == request.user.id]
+        if not filtered_items:
+            filtered_items = items
+        return filtered_items
 
     def get_seller_subtotal(self, obj):
         request = self.context.get('request')

@@ -9,16 +9,12 @@ import { DialogProvider } from './components/ui/Dialogs';
 import { MessageProvider } from './context/MessageContext';
 import { ChatToastContainer } from './components/ChatToast';
 import { PwaInstallPrompt } from './components/PwaInstallPrompt';
+import { useStatusBar } from './hooks/useStatusBar';
 
 
 import LandingPage from './pages/LandingPage';
-import ProductList from './pages/ProductList';
-import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import ProfilePage from './pages/ProfilePage';
-import TeamsPage from './pages/TeamsPage';
 import MobileBottomNav from './components/MobileBottomNav';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -29,6 +25,11 @@ import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Lazy load large layout bundles for bundle size optimization
+const ProductList = lazy(() => import('./pages/ProductList'));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const TeamsPage = lazy(() => import('./pages/TeamsPage'));
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 const OrdersPage = lazy(() => import('./pages/OrdersPage'));
 const MessagesPage = lazy(() => import('./pages/MessagesPage'));
@@ -120,11 +121,13 @@ function AppRoutes() {
 function AppLayout() {
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
+  
+  useStatusBar();
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isLandingPage ? 'bg-black' : 'bg-surface-muted dark:bg-surface-dark'} flex flex-col`}>
       <Navbar />
-      {!isLandingPage && <div className="h-14 md:h-20" />} {/* Spacer matching navbar height, hidden on landing */}
+      {!isLandingPage && <div className="h-14 md:h-20 pt-safe" />} {/* Spacer matching navbar height, hidden on landing */}
       
       <CategoryBar />
 
