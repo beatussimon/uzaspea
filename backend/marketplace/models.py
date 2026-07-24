@@ -486,8 +486,15 @@ class Order(models.Model):
         ('PICKUP', 'Physical Pickup'),
         ('DELIVERY', 'Home Delivery'),
     )
+    FULFILLMENT_CHOICES = (
+        ('PLATFORM_DELIVERY', 'Platform Delivery'),
+        ('DIRECT_DELIVERY', 'Direct Delivery'),
+        ('WAREHOUSE_PICKUP', 'Warehouse Pickup'),
+        ('SELLER_PICKUP', 'Seller Pickup'),
+    )
     status = models.CharField(max_length=40, choices=STATUS_CHOICES, default='CART')
     shipping_method = models.CharField(max_length=15, choices=SHIPPING_CHOICES, default='DELIVERY')
+    fulfillment_type = models.CharField(max_length=30, choices=FULFILLMENT_CHOICES, default='PLATFORM_DELIVERY')
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     platform_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     delivery_info = models.JSONField(null=True, blank=True, default=dict)  # FIX: L-02 — store buyer's name/phone/address

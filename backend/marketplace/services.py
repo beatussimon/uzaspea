@@ -8,13 +8,13 @@ class OrderStateMachine:
         'CART': ['CHECKOUT', 'AWAITING_PAYMENT', 'PAID_PRODUCT', 'CANCELLED'],
         'Pending': ['AWAITING_PAYMENT', 'CANCELLED'],  # FIX CRIT-04: bridge for legacy orders
         'CHECKOUT': ['PAID_PRODUCT', 'AWAITING_PAYMENT', 'CANCELLED'],
-        'PAID_PRODUCT': ['SHIPPED_TO_WAREHOUSE', 'CANCELLED'],
+        'PAID_PRODUCT': ['SHIPPED_TO_WAREHOUSE', 'PREPARING', 'CANCELLED'],
         'AWAITING_PAYMENT': ['PENDING_VERIFICATION', 'EXPIRED', 'CANCELLED'],  # FIX L-15: removed self-loop
         'PENDING_VERIFICATION': ['PAID', 'AWAITING_PAYMENT', 'CANCELLED'],
         'PAID': ['SELLER_CONFIRMED', 'PROCESSING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'SELLER_CONFIRMED': ['PREPARING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'PREPARING': ['PACKAGING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
-        'PACKAGING': ['SHIPPED_TO_WAREHOUSE', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
+        'PACKAGING': ['SHIPPED_TO_WAREHOUSE', 'SHIPPED', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'SHIPPED_TO_WAREHOUSE': ['RECEIVED_AT_WAREHOUSE'],
         'RECEIVED_AT_WAREHOUSE': ['AWAITING_DELIVERY_PAYMENT', 'ASSIGNED_TRANSPORT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'],
         'AWAITING_DELIVERY_PAYMENT': ['PENDING_DELIVERY_VERIFICATION', 'CANCELLED'],
@@ -58,6 +58,34 @@ class OrderStateMachine:
                     pass
                 else:
                     raise ValueError(f"Invalid transition from {locked_order.status} to {new_state}")
+            
+            # Fulfillment-type state guards — enforce correct pipeline per order type
+            if locked_order.fulfillment_type == 'DIRECT_DELIVERY':
+                # Direct: seller ships to buyer; no warehouse involvement
+                warehouse_states = {
+                    'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ARRIVED_AT_REGIONAL_WAREHOUSE',
+                    'AWAITING_DELIVERY_PAYMENT', 'PENDING_DELIVERY_VERIFICATION', 'READY_FOR_PICKUP',
+                    'RETURNED_TO_HUB'
+                }
+                if new_state in warehouse_states:
+                    raise ValueError(f"State '{new_state}' is not allowed for DIRECT_DELIVERY orders.")
+
+            elif locked_order.fulfillment_type == 'WAREHOUSE_PICKUP':
+                # Warehouse pickup: buyer collects from warehouse; no outbound delivery
+                outbound_delivery_states = {'OUT_FOR_DELIVERY', 'IN_TRANSIT', 'ASSIGNED_TRANSPORT'}
+                if new_state in outbound_delivery_states:
+                    raise ValueError(f"State '{new_state}' is not allowed for WAREHOUSE_PICKUP orders.")
+
+            elif locked_order.fulfillment_type == 'SELLER_PICKUP':
+                # Seller pickup (POS/walk-in): no logistics involved at all
+                logistics_states = {
+                    'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ARRIVED_AT_REGIONAL_WAREHOUSE',
+                    'AWAITING_DELIVERY_PAYMENT', 'PENDING_DELIVERY_VERIFICATION', 'READY_FOR_PICKUP',
+                    'RETURNED_TO_HUB', 'OUT_FOR_DELIVERY', 'IN_TRANSIT', 'ASSIGNED_TRANSPORT',
+                    'READY_FOR_VEHICLE_HANDOVER'
+                }
+                if new_state in logistics_states:
+                    raise ValueError(f"State '{new_state}' is not allowed for SELLER_PICKUP orders.")
 
             locked_order.status = new_state
             locked_order.save(update_fields=['status'])
@@ -89,7 +117,9 @@ class OrderStateMachine:
             if new_state in ('ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER'):
                 from logistics.models import PickupCode
                 from marketplace.models import push_notification
-                PickupCode.objects.get_or_create(order=locked_order)
+                # Only generate pickup codes for warehouse-routed orders
+                if locked_order.fulfillment_type in ('PLATFORM_DELIVERY', 'WAREHOUSE_PICKUP'):
+                    PickupCode.objects.get_or_create(order=locked_order)
                 if new_state == 'READY_FOR_PICKUP':
                     try:
                         push_notification(
@@ -137,8 +167,8 @@ class OrderStateMachine:
 
             if new_state == 'ARRIVED_AT_REGIONAL_WAREHOUSE':
                 from logistics.models import Shipment
-                if locked_order.shipping_method == 'DELIVERY':
-                    # Spawn the local delivery shipment
+                # MED-2: Only spawn local delivery shipment for platform-managed deliveries
+                if locked_order.fulfillment_type == 'PLATFORM_DELIVERY':
                     Shipment.objects.create(
                         order=locked_order,
                         shipment_type='local_delivery',

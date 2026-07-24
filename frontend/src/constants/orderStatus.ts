@@ -50,16 +50,60 @@ export const TRACKING_STEPS = [
   'COMPLETED'
 ];
 
+export const DIRECT_TRACKING_STEPS = [
+  'PAID',
+  'SELLER_CONFIRMED',
+  'PREPARING',
+  'PACKAGING',
+  'SHIPPED',
+  'IN_TRANSIT',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED',
+  'COMPLETED'
+];
 export const SELLER_ADVANCE_MAP: Record<string, string> = {
   PAID: 'SELLER_CONFIRMED',
   SELLER_CONFIRMED: 'PREPARING',
   PREPARING: 'PACKAGING',
-  PACKAGING: 'SHIPPED_TO_WAREHOUSE',
+  PACKAGING: 'SHIPPED_TO_WAREHOUSE',  // default: platform route
   PROCESSING: 'SHIPPED',
   SHIPPED: 'DELIVERED',
   OUT_FOR_DELIVERY: 'DELIVERED',
   DELIVERED: 'COMPLETED'
 };
+
+/**
+ * CRIT-1: Fulfillment-type-aware next status for sellers.
+ * Returns the correct next status string, or undefined if no action available.
+ */
+export function getSellerNextStatus(
+  currentStatus: string,
+  fulfillmentType: string,
+  hasVehicles = false
+): string | undefined {
+  if (hasVehicles) {
+    if (currentStatus === 'PAID') return 'PROCESSING';
+    if (['PROCESSING', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING',
+         'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT'].includes(currentStatus)) return 'SHIPPED';
+    return undefined;
+  }
+
+  switch (currentStatus) {
+    case 'PAID':         return 'SELLER_CONFIRMED';
+    case 'SELLER_CONFIRMED': return 'PREPARING';
+    case 'PREPARING':    return 'PACKAGING';
+    case 'PACKAGING':
+      // CRIT-1: Direct delivery skips warehouse; seller ships directly
+      return (fulfillmentType === 'DIRECT_DELIVERY') ? 'SHIPPED' : 'SHIPPED_TO_WAREHOUSE';
+    case 'PROCESSING':   return 'SHIPPED';
+    case 'SHIPPED':
+      // For DIRECT_DELIVERY, seller can mark DELIVERED themselves
+      return (fulfillmentType === 'DIRECT_DELIVERY') ? 'DELIVERED' : 'DELIVERED';
+    case 'OUT_FOR_DELIVERY': return 'DELIVERED';
+    case 'DELIVERED':    return 'COMPLETED';
+    default:             return undefined;
+  }
+}
 
 export const SHORT_STATUS_LABELS: Record<string, string> = {
   CART: 'Cart', 

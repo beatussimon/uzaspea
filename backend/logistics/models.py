@@ -131,7 +131,11 @@ from marketplace.models import Order
 
 @receiver(post_save, sender=Order)
 def auto_create_shipment_on_paid(sender, instance, created, **kwargs):
-    # Auto-create pending shipment when order is PAID or RECEIVED_AT_WAREHOUSE
+    # CRIT-2: Only auto-create line-haul shipment for platform-managed deliveries.
+    # DIRECT_DELIVERY, WAREHOUSE_PICKUP, and SELLER_PICKUP orders should NOT get
+    # a platform-managed line-haul shipment automatically created.
+    if instance.fulfillment_type != 'PLATFORM_DELIVERY':
+        return
     if instance.status in ('PAID', 'RECEIVED_AT_WAREHOUSE'):
         Shipment.objects.get_or_create(
             order=instance,

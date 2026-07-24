@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ShipmentViewSet, DeliveryOptionViewSet, DeliveryQuoteView, DriverPaymentViewSet, DriverViewSet
+from .views import ShipmentViewSet, DeliveryOptionViewSet, DeliveryQuoteView, DriverPaymentViewSet, DriverViewSet, CheckoutOptionsView
 
 router = DefaultRouter()
 router.register(r'shipments', ShipmentViewSet, basename='shipment')
@@ -10,6 +10,7 @@ router.register(r'drivers', DriverViewSet, basename='driver')
 
 urlpatterns = [
     path('pricing/quote/', DeliveryQuoteView.as_view(), name='delivery-quote'),
+    path('checkout-options/', CheckoutOptionsView.as_view(), name='checkout-options'),
     path('', include(router.urls)),
 ]
 

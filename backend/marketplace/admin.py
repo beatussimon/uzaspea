@@ -130,8 +130,8 @@ class ReviewAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'order_date', 'total_amount', 'status', 'is_completed')
-    list_filter = ('user', 'order_date', 'status', 'is_completed')
+    list_display = ('id', 'user', 'order_date', 'total_amount', 'status', 'shipping_method', 'fulfillment_type', 'is_completed')
+    list_filter = ('status', 'shipping_method', 'fulfillment_type', 'is_completed', 'order_date')
     search_fields = ('user__username', 'id')
     readonly_fields = ('order_date', 'total_amount')
     raw_id_fields = ('user',)
@@ -140,6 +140,9 @@ class OrderAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
             'fields': ('user', 'order_date', 'status', 'is_completed', 'total_amount')
+        }),
+        ('Shipping & Fulfillment', {
+            'fields': ('shipping_method', 'fulfillment_type', 'shipping_fee', 'delivery_info'),
         }),
     )
 

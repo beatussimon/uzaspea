@@ -670,10 +670,17 @@ class OrderViewSet(viewsets.ModelViewSet):
         )
         
         if new_state in STAFF_ONLY_STATES and not is_warehouse_staff:
-            return Response(
-                {'detail': f'ERR_STAFF_ONLY: Only staff or warehouse operators can set order status to {new_state}.'},
-                status=403
+            # HIGH-1: DIRECT_DELIVERY orders — seller manages last-mile, so allow them to mark as DELIVERED
+            is_direct_seller_delivery = (
+                new_state == 'DELIVERED'
+                and order.fulfillment_type == 'DIRECT_DELIVERY'
+                and is_seller
             )
+            if not is_direct_seller_delivery:
+                return Response(
+                    {'detail': f'ERR_STAFF_ONLY: Only staff or warehouse operators can set order status to {new_state}.'},
+                    status=403
+                )
         if new_state in SELLER_ALLOWED_STATES and not (is_warehouse_staff or is_seller):
             return Response(
                 {'detail': f'ERR_SELLER_ONLY: Only the seller or staff can advance order to {new_state}.'},
@@ -851,6 +858,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 user=user,
                 status='COMPLETED',
                 shipping_method='PICKUP',
+                fulfillment_type='SELLER_PICKUP',  # CRIT-5: POS orders are always seller-side pickups
                 shipping_fee=0,
                 delivery_info=delivery_info
             )

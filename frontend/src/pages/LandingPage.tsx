@@ -1,50 +1,54 @@
-import { useEffect, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Search, ArrowRight, ChevronDown } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useVelocity, useSpring, useTransform } from 'framer-motion';
 import { useTranslation, Trans } from 'react-i18next';
 import api from '../api';
-import ProductCard from '../components/ProductCard';
-import PromotedProductsRow from '../components/PromotedProductsRow';
-import PlatformInsights from '../components/PlatformInsights';
-import { ProductCardSkeleton } from '../components/Skeleton';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { useTheme } from '../context/ThemeContext';
+
+// Snap Sections
+import SnapScrollContainer from '../components/landing/SnapScrollContainer';
+import TrendingSection from '../components/landing/TrendingSection';
+import FeaturedSection from '../components/landing/FeaturedSection';
+import NewArrivalsSection from '../components/landing/NewArrivalsSection';
+import CategoryShowcaseSection from '../components/landing/CategoryShowcaseSection';
+import InsightsSection from '../components/landing/InsightsSection';
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { t } = useTranslation();
+  
   const [searchQuery, setSearchQuery] = useState('');
-  const [latestProducts, setLatestProducts] = useState<any[]>([]);
   const [promotions, setPromotions] = useState<any[]>([]);
+  const [newArrivals, setNewArrivals] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [trendingGroups, setTrendingGroups] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  
   const [loadingPromotions, setLoadingPromotions] = useState(true);
+  const [loadingNew, setLoadingNew] = useState(true);
 
   // Framer motion values for the drag-to-wiggle effect
   const constraintsRef = useRef<HTMLDivElement>(null);
   const dragX = useMotionValue(0);
   const dragVelocity = useVelocity(dragX);
   const smoothVelocity = useSpring(dragVelocity, { damping: 50, stiffness: 400 });
-  
-  // Group transforms for the paragraph and form
-
   const rotateForm = useTransform(smoothVelocity, [-1000, 0, 1000], [-1, 0, 1]);
   const skewForm = useTransform(smoothVelocity, [-1000, 0, 1000], [2, 0, -2]);
 
   const lightHero = '/kariakoo_daytime.webp?v=3';
   const darkHero = '/kariakoo_nightscape.webp?v=3';
+  const currentHero = isDark ? darkHero : lightHero;
 
   useEffect(() => {
-    // Preload hero images for seamless transitions
+    // Preload hero images
     [lightHero, darkHero].forEach(src => {
       const img = new Image();
       img.src = src;
     });
 
-    // Fetch all data in parallel for faster load
+    // Fetch stats & trending
     api.get('/api/analytics/trending/')
       .then(res => {
         setStats(res.data.stats);
@@ -52,31 +56,25 @@ const LandingPage = () => {
       })
       .catch(() => {});
 
-    const fetchPromotions = api.get('/api/sponsored/?public=true&page_size=16')
+    // Fetch promotions
+    api.get('/api/sponsored/?public=true&page_size=16')
       .then(promoRes => {
         const promoData = Array.isArray(promoRes.data.results || promoRes.data) 
           ? (promoRes.data.results || promoRes.data) : [];
         setPromotions(promoData);
         setLoadingPromotions(false);
-        return promoData;
       })
-      .catch(() => { setLoadingPromotions(false); return []; });
+      .catch(() => setLoadingPromotions(false));
 
-    const fetchProducts = api.get('/api/products/?page_size=16')
+    // Fetch new arrivals (latest products)
+    api.get('/api/products/?page_size=16&sort_by=newest')
       .then(prodRes => {
         const prodData = Array.isArray(prodRes.data.results || prodRes.data) 
           ? (prodRes.data.results || prodRes.data) : [];
-        return prodData;
+        setNewArrivals(prodData);
+        setLoadingNew(false);
       })
-      .catch(() => []);
-
-    // Wait for both promotions and products to filter duplicates
-    Promise.all([fetchPromotions, fetchProducts]).then(([promoData, prodData]) => {
-      const promoIds = new Set((promoData as any[]).map((p: any) => p.product_details?.id));
-      const filtered = (prodData as any[]).filter((p: any) => !promoIds.has(p.id));
-      setLatestProducts(filtered.slice(0, 16));
-      setLoading(false);
-    });
+      .catch(() => setLoadingNew(false));
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -88,12 +86,19 @@ const LandingPage = () => {
     }
   };
 
-  const currentHero = isDark ? darkHero : lightHero;
+  const sections = [
+    { id: 'hero', label: 'Home' },
+    { id: 'trending', label: 'Trending' },
+    { id: 'featured', label: 'Featured' },
+    { id: 'new-arrivals', label: 'New Arrivals' },
+    { id: 'categories', label: 'Categories' },
+    { id: 'insights', label: 'Insights' }
+  ];
 
   return (
-    <div className="space-y-6 md:space-y-8 pb-12">
-      {/* Hero Search Section */}
-      <section className="relative h-[100vh] min-h-[540px] w-full flex items-center justify-center overflow-hidden -mt-[96px] md:-mt-[104px] pt-16 md:pt-20">
+    <SnapScrollContainer sections={sections}>
+      {/* 1. HERO SECTION */}
+      <div className="relative w-full h-full flex flex-col justify-center bg-black overflow-hidden group">
         <div className="absolute inset-0 z-0 overflow-hidden flex cursor-grab active:cursor-grabbing" ref={constraintsRef}>
           <AnimatePresence mode="wait">
             <motion.img
@@ -114,7 +119,7 @@ const LandingPage = () => {
           <div className="absolute inset-0 bg-black/10 dark:bg-transparent pointer-events-none sticky left-0"></div>
         </div>
 
-        <div className="relative z-10 w-full max-w-4xl px-10 sm:px-14 md:px-16 text-center pointer-events-none">
+        <div className="relative z-10 w-full max-w-4xl px-10 sm:px-14 md:px-16 mx-auto text-center pointer-events-none pt-20">
           <h1 className="text-4xl md:text-5xl font-black text-white mb-4 drop-shadow-xl tracking-tight leading-tight origin-center flex flex-col items-center justify-center">
             <span className="inline-block text-white">
               <Trans i18nKey="hero_title_main">
@@ -127,7 +132,6 @@ const LandingPage = () => {
             <VerifiedBadge tier="seller_pro" isVerified={true} className="w-7 h-7 md:w-9 md:h-9" />
             <VerifiedBadge tier="business" isVerified={true} className="w-7 h-7 md:w-9 md:h-9" />
           </div>
-
 
           <motion.div 
             style={{ rotate: rotateForm, skewX: skewForm }}
@@ -169,88 +173,42 @@ const LandingPage = () => {
 
         {/* Scroll Indicator */}
         <div 
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 cursor-pointer"
-          onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
+          className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 cursor-pointer animate-float"
+          onClick={() => {
+            document.getElementById('trending')?.scrollIntoView({ behavior: 'smooth' });
+          }}
         >
-          <div className="animate-bounce">
-            <ChevronDown className="h-10 w-10 text-white/80 hover:text-white transition-colors drop-shadow-lg" />
-          </div>
+          <ChevronDown className="h-10 w-10 text-white/80 hover:text-white transition-colors drop-shadow-lg" />
         </div>
-      </section>
-
-      {/* Platform Insights */}
-      <div className="container-page">
-        <PlatformInsights stats={stats} trendingGroups={trendingGroups} />
       </div>
 
-      {/* Featured Selections Section */}
-      <div className="container-page">
-        <PromotedProductsRow promotions={promotions} loading={loadingPromotions} />
-      </div>
+      {/* 2. TRENDING NOW */}
+      <TrendingSection 
+        trendingGroups={trendingGroups} 
+        loading={!trendingGroups} 
+      />
 
-      {/* Latest Products Listings Section */}
-      <section className="container-page space-y-4 md:space-y-6">
-        <div className="flex justify-between items-end mb-2">
-          <div>
-            <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
-              {t('latest_listings', 'Latest Listings')}
-            </h2>
-          </div>
-          <Link to="/products" className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline mb-1">
-            {t('view_all', 'View all')} <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
+      {/* 3. FEATURED LISTINGS */}
+      <FeaturedSection 
+        promotions={promotions} 
+        loading={loadingPromotions} 
+      />
 
-        {loading ? (
-          <div className="flex overflow-x-auto gap-4 pb-4 md:pb-0 md:grid md:grid-cols-4 md:gap-5 scrollbar-hide">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="shrink-0 w-[260px] sm:w-[280px] md:w-auto">
-                <ProductCardSkeleton viewMode="grid" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {(() => {
-              const groups: Record<string, any[]> = {};
-              latestProducts.forEach(product => {
-                  if (product.category_name) {
-                      const catName = product.category_name;
-                      if (!groups[catName]) groups[catName] = [];
-                      groups[catName].push(product);
-                  }
-              });
-              
-              const topCategories = Object.entries(groups)
-                  .sort((a, b) => b[1].length - a[1].length)
-                  .slice(0, 4);
+      {/* 4. NEW ARRIVALS */}
+      <NewArrivalsSection 
+        newArrivals={newArrivals} 
+        loading={loadingNew} 
+      />
 
-              if (topCategories.length === 0) return null;
+      {/* 5. SHOP BY CATEGORY */}
+      <CategoryShowcaseSection />
 
-              return topCategories.map(([catName, products]) => (
-                  <div key={catName} className="space-y-2">
-                      <div className="flex justify-between items-end mb-2">
-                          <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200 uppercase tracking-wide">
-                              {t('latest_in', 'Latest in')} {catName}
-                          </h3>
-                          <Link to={`/products?category=${products[0].category_slug}`} className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline mb-1">
-                              {t('view_all', 'View all')} <ArrowRight className="h-4 w-4" />
-                          </Link>
-                      </div>
-                      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide md:grid md:grid-cols-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
-                          {products.slice(0, 4).map((product) => (
-                              <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto relative h-full">
-                                  <ProductCard product={product} viewMode="grid" />
-                              </div>
-                          ))}
-                      </div>
-                  </div>
-              ));
-            })()}
-          </div>
-        )}
-      </section>
-    </div>
+      {/* 6. PLATFORM INSIGHTS */}
+      <InsightsSection 
+        stats={stats} 
+      />
+
+    </SnapScrollContainer>
   );
 };
 

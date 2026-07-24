@@ -117,6 +117,43 @@ function AppRoutes() {
   );
 }
 
+function AppLayout() {
+  const location = useLocation();
+  const isLandingPage = location.pathname === '/';
+
+  return (
+    <div className={`min-h-screen transition-colors duration-300 ${isLandingPage ? 'bg-black' : 'bg-surface-muted dark:bg-surface-dark'} flex flex-col`}>
+      <Navbar />
+      {!isLandingPage && <div className="h-14 md:h-20" />} {/* Spacer matching navbar height, hidden on landing */}
+      
+      <CategoryBar />
+
+      <main className={`flex-1 ${isLandingPage ? 'h-full p-0 overflow-hidden' : 'pt-4 md:pt-6'}`}>
+        <ErrorBoundary>
+          <Suspense fallback={<SuspenseLoader />}>
+            <AppRoutes />
+          </Suspense>
+        </ErrorBoundary>
+      </main>
+
+      {!isLandingPage && <Footer />}
+      {!isLandingPage && <MobileBottomNav />}
+
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: { background: '#111111', color: '#f9fafb', border: '1px solid #262626', borderRadius: '12px', fontSize: '13px', padding: '10px 16px' },
+          success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
+          error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+        }}
+      />
+      <ChatToastContainer />
+      <PwaInstallPrompt />
+    </div>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider>
@@ -125,43 +162,15 @@ function App() {
           <MessageProvider>
             <CartProvider>
               <DialogProvider>
-
-              <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300">
-                <Navbar />
-                <div className="h-14 md:h-20" /> {/* Spacer matching navbar height */}
-                <CategoryBar />
-
-                <main className="flex-1 pt-4 md:pt-6">
-                  <ErrorBoundary>
-                    <Suspense fallback={<SuspenseLoader />}>
-                      <AppRoutes />
-                    </Suspense>
-                  </ErrorBoundary>
-                </main>
-
-                <Footer />
-                <MobileBottomNav />
-
-                <Toaster
-                  position="top-right"
-                  toastOptions={{
-                    duration: 3000,
-                    style: { background: '#111111', color: '#f9fafb', border: '1px solid #262626', borderRadius: '12px', fontSize: '13px', padding: '10px 16px' },
-                    success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
-                    error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
-                  }}
-                />
-                <ChatToastContainer />
-                <PwaInstallPrompt />
-              </div>
-            </DialogProvider>
-          </CartProvider>
-        </MessageProvider>
-      </BrowserRouter>
-    </AuthProvider>
-  </ThemeProvider>
-
+                <AppLayout />
+              </DialogProvider>
+            </CartProvider>
+          </MessageProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 export default App;
+
