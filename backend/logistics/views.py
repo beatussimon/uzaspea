@@ -31,9 +31,9 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         user = self.request.user
         is_staff = user.is_superuser or (hasattr(user, 'staff_profile') and user.staff_profile.is_active)
         queryset = Shipment.objects.select_related(
-            'order', 'driver'
+            'order', 'driver', 'order__user'
         ).prefetch_related(
-            'order__orderitem_set__product__category'
+            'order__orderitem_set__product__category__parent'
         ).all()
         
         status_param = self.request.query_params.get('status')

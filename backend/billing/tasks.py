@@ -16,10 +16,16 @@ def generate_monthly_invoices():
     year = last_day_prev_month.year
     month = last_day_prev_month.month
 
+    start_date = datetime.date(year, month, 1)
+    if month == 12:
+        end_date = datetime.date(year + 1, 1, 1)
+    else:
+        end_date = datetime.date(year, month + 1, 1)
+
     # Group ledger entries by seller
     entries = CommissionLedgerEntry.objects.filter(
-        created_at__year=year,
-        created_at__month=month
+        created_at__gte=start_date,
+        created_at__lt=end_date
     )
     
     # We want to aggregate by seller

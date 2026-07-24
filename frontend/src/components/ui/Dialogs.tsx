@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface DialogOptions {
@@ -82,8 +82,10 @@ export const DialogProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [activeDialog]);
 
+  const contextValue = useMemo(() => ({ showAlert, showConfirm, showPrompt }), []);
+
   return (
-    <DialogContext.Provider value={{ showAlert, showConfirm, showPrompt }}>
+    <DialogContext.Provider value={contextValue}>
       {children}
       <AnimatePresence>
         {activeDialog && (

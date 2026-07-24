@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 
 interface CartItem {
@@ -139,10 +139,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const contextValue = useMemo(() => ({
+    items, cartCount, totalPrice, addToCart, removeFromCart, updateQuantity, clearCart, clearCartByMerchant
+  }), [items, cartCount, totalPrice, addToCart, removeFromCart, updateQuantity, clearCart, clearCartByMerchant]);
+
   return (
-    <CartContext.Provider
-      value={{ items, cartCount, totalPrice, addToCart, removeFromCart, updateQuantity, clearCart, clearCartByMerchant }}
-    >
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   );

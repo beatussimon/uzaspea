@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import api, { API_BASE_URL, decodeJwtPayload } from '../api';
 import { useAuth } from './AuthContext';
 import axios from 'axios';
@@ -489,23 +489,29 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
 
+  const contextValue = useMemo(() => ({
+    conversations,
+    totalUnread,
+    activeConversationId,
+    setActiveConversationId,
+    messages,
+    fetchMessages,
+    sendMessage,
+    toasts,
+    dismissToast,
+    loading,
+    setConversations,
+    setMessages,
+    typingStatus,
+    sendTypingStatus,
+  }), [
+    conversations, totalUnread, activeConversationId, setActiveConversationId,
+    messages, fetchMessages, sendMessage, toasts, dismissToast, loading,
+    setConversations, setMessages, typingStatus, sendTypingStatus
+  ]);
+
   return (
-    <MessageContext.Provider value={{
-      conversations,
-      totalUnread,
-      activeConversationId,
-      setActiveConversationId,
-      messages,
-      fetchMessages,
-      sendMessage,
-      toasts,
-      dismissToast,
-      loading,
-      setConversations,
-      setMessages,
-      typingStatus,
-      sendTypingStatus,
-    }}>
+    <MessageContext.Provider value={contextValue}>
       {children}
 
     </MessageContext.Provider>

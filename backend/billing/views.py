@@ -15,7 +15,7 @@ class BillingViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=['get'])
     def ledger(self, request):
-        entries = CommissionLedgerEntry.objects.filter(seller=request.user)
+        entries = CommissionLedgerEntry.objects.select_related('order', 'seller').filter(seller=request.user)
         
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
@@ -42,7 +42,7 @@ class BillingViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=['get'])
     def invoices(self, request):
-        invoices = MonthlyInvoice.objects.filter(seller=request.user)
+        invoices = MonthlyInvoice.objects.select_related('seller').filter(seller=request.user)
         
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')

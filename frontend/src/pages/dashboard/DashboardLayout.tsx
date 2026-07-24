@@ -3,19 +3,19 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-import SettingsPage from './SettingsPage';
+const SettingsPage = lazy(() => import('./SettingsPage'));
 
 const HelpCenterPage = lazy(() => import('./HelpCenterPage'));
 
-import DashboardOverview from './DashboardOverview';
-import DashboardProducts from './DashboardProducts';
-import DashboardPromotions from './DashboardPromotions';
-import DashboardOrders from './DashboardOrders';
-import PaymentNumbersManager from './PaymentNumbersManager';
-import BillingPage from './BillingPage';
-import TeamManagerPage from './TeamManagerPage';
-import MyTeamPage from './MyTeamPage';
-import DashboardPOS from './DashboardPOS';
+const DashboardOverview = lazy(() => import('./DashboardOverview'));
+const DashboardProducts = lazy(() => import('./DashboardProducts'));
+const DashboardPromotions = lazy(() => import('./DashboardPromotions'));
+const DashboardOrders = lazy(() => import('./DashboardOrders'));
+const PaymentNumbersManager = lazy(() => import('./PaymentNumbersManager'));
+const BillingPage = lazy(() => import('./BillingPage'));
+const TeamManagerPage = lazy(() => import('./TeamManagerPage'));
+const MyTeamPage = lazy(() => import('./MyTeamPage'));
+const DashboardPOS = lazy(() => import('./DashboardPOS'));
 
 // ============ Dashboard Layout ============
 const DashboardLayout: React.FC = () => {

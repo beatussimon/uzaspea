@@ -6,6 +6,22 @@ import api from '../../api';
 import SafeImage from '../SafeImage';
 import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
 
+let categoriesCache: any[] | null = null;
+let categoriesPromise: Promise<any> | null = null;
+
+export const productCache: Record<string, any> = {};
+export const productPromises: Record<string, Promise<any>> = {};
+
+export const fetchProductCached = (slug: string) => {
+  if (productCache[slug]) return Promise.resolve({ data: productCache[slug] });
+  if (productPromises[slug] !== undefined) return productPromises[slug];
+  productPromises[slug] = api.get(`/api/products/${slug}/`).then(res => {
+    productCache[slug] = res.data;
+    return res;
+  });
+  return productPromises[slug];
+};
+
 const CategoryBar: React.FC = () => {
   const { t } = useTranslation();
   const location = useLocation();
@@ -17,12 +33,24 @@ const CategoryBar: React.FC = () => {
   const [product, setProduct] = useState<any>(null);
 
   useEffect(() => {
-    api.get('/api/categories/')
-      .then((res) => {
-        setCategories(res.data.results || res.data);
+    if (categoriesCache) {
+      setCategories(categoriesCache);
+      setLoading(false);
+    } else if (categoriesPromise) {
+      categoriesPromise.then(cats => {
+        setCategories(cats);
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      });
+    } else {
+      categoriesPromise = api.get('/api/categories/').then(res => {
+        categoriesCache = res.data.results || res.data;
+        return categoriesCache;
+      });
+      categoriesPromise.then(cats => {
+        setCategories(cats);
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    }
   }, []);
 
   const isProductsPage = location.pathname === '/products';
@@ -38,7 +66,7 @@ const CategoryBar: React.FC = () => {
   // Load product if in details page
   useEffect(() => {
     if (productSlug) {
-      api.get(`/api/products/${productSlug}/`)
+      fetchProductCached(productSlug)
         .then(res => setProduct(res.data))
         .catch(() => {});
     } else {

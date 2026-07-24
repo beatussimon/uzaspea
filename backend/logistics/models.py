@@ -99,6 +99,12 @@ class LocationPing(models.Model):
     lng = models.FloatField()
     recorded_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['-recorded_at']
+        indexes = [
+            models.Index(fields=['shipment', '-recorded_at']),
+        ]
+
     @property
     def latitude(self):
         return self.lat

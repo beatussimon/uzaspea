@@ -45,8 +45,20 @@ const SafeImage: React.FC<SafeImageProps> = ({
   useEffect(() => {
     if (containMode !== 'blur-fill') return;
     measureContainer();
-    window.addEventListener('resize', measureContainer);
-    return () => window.removeEventListener('resize', measureContainer);
+    
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const handleResize = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        measureContainer();
+      }, 150);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [containMode, measureContainer]);
 
   let safeSrc = src;

@@ -160,7 +160,7 @@ const Navbar = () => {
   return (
     <nav 
       ref={navbarRef}
-      className={`fixed top-0 inset-x-0 z-50 transition-[background-color,backdrop-filter,box-shadow] duration-300 ${navBackgroundClass}`}
+      className={`fixed top-0 inset-x-0 z-50 pt-safe transition-[background-color,backdrop-filter,box-shadow] duration-300 ${navBackgroundClass}`}
       style={{ willChange: 'transform' }}
     >
       <div className="container-page relative flex items-center justify-between h-14 md:h-20 w-full">
