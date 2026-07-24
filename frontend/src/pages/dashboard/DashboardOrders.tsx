@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, MessageSquare, XCircle, MapPin, X, Receipt } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
-import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, SELLER_ADVANCE_MAP } from '../../constants/orderStatus';
+import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, getSellerNextStatus } from '../../constants/orderStatus';
 import { useTranslation } from 'react-i18next';
 import { useDialog } from '../../components/ui/Dialogs';
 import { Spinner } from '../../components/ui/Spinner';
@@ -15,7 +15,8 @@ import { EmptyState } from '../../components/ui/EmptyState';
 // ============ Incoming Orders (Seller) ============
 const fmtOrderDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-const getStatusExplanation = (status: string) => {
+const getStatusExplanation = (status: string, fulfillmentType?: string) => {
+  const isDirect = fulfillmentType === 'DIRECT_DELIVERY';
   switch (status) {
     case 'PENDING_VERIFICATION':
       return "Payment verification in progress. SokoniMax administration is reviewing the buyer's payment reference/receipt.";
@@ -26,7 +27,13 @@ const getStatusExplanation = (status: string) => {
     case 'ASSIGNED_TRANSPORT':
       return "Logistics staff has assigned a driver for delivery. Awaiting dispatch to put the shipment in transit.";
     case 'IN_TRANSIT':
-      return "The line-haul truck is currently en route to the destination warehouse.";
+      return isDirect
+        ? "You have shipped the item directly. Awaiting buyer confirmation of receipt."
+        : "The line-haul truck is currently en route to the destination warehouse.";
+    case 'SHIPPED':
+      return isDirect
+        ? "You have shipped this order directly to the buyer. Mark as Delivered once the buyer has received it."
+        : "The order has been shipped and is in transit.";
     case 'OUT_FOR_DELIVERY':
       return "The local courier is currently delivering the order. You can monitor the progress on the tracking map.";
     case 'ARRIVED_AT_REGIONAL_WAREHOUSE':
@@ -251,15 +258,13 @@ const DashboardOrders: React.FC = () => {
         <div className="space-y-4">
           {orders.map((order: any) => {
             const isExpanded = expandedId === order.id;
-            const getNextVehicleStatus = (st: string) => {
-               if (st === 'PAID') return 'PROCESSING';
-               if (st === 'PROCESSING' || ['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT'].includes(st)) return 'SHIPPED';
-               return undefined;
-            };
 
-            const nextStatus = order.has_vehicles
-              ? getNextVehicleStatus(order.status)
-              : SELLER_ADVANCE_MAP[order.status];
+
+            const nextStatus = getSellerNextStatus(
+              order.status,
+              order.fulfillment_type || 'PLATFORM_DELIVERY',
+              order.has_vehicles
+            );
             const isMainPayment = order.status === 'PENDING_VERIFICATION';
             const isDeliveryPayment = order.status === 'PENDING_DELIVERY_VERIFICATION';
             const hasPendingPayment = isMainPayment || isDeliveryPayment;
@@ -468,6 +473,7 @@ const DashboardOrders: React.FC = () => {
                                                 if (nextStatus === 'SHIPPED') {
                                                   promptNotes = prompt('Enter tracking number or courier info:') || "";
                                                 } else if (nextStatus === 'SHIPPED_TO_WAREHOUSE') {
+                                                  // HIGH-7: Only show warehouse modal for platform-routed orders
                                                   setShipModalOpen(order.id);
                                                   return;
                                                 }
@@ -507,7 +513,7 @@ const DashboardOrders: React.FC = () => {
                                     ) : (
                                         <div className="flex-[3] bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 p-4 rounded-xl text-center flex items-center justify-center">
                                             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 leading-relaxed">
-                                                {getStatusExplanation(order.status) || "No actions required at this stage."}
+                                                {getStatusExplanation(order.status, order.fulfillment_type) || "No actions required at this stage."}
                                             </p>
                                         </div>
                                     )}
@@ -538,7 +544,7 @@ const DashboardOrders: React.FC = () => {
                                   </div>
                                 )}
 
-                                {['RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'].includes(order.status) && (
+                                {order.fulfillment_type !== 'DIRECT_DELIVERY' && ['RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'].includes(order.status) && (
                                     <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 p-3 bg-brand-50/50 dark:bg-brand-950/20 border border-brand-100/50 dark:border-brand-900/30 rounded-xl">
                                         <Truck size={14} className="text-brand-500 shrink-0" />
                                         <span>SokoniMax logistics is handling this delivery — no action required from you.</span>
