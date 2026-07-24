@@ -30,6 +30,9 @@ const CheckoutPage: React.FC = () => {
 
   const [submitting, setSubmitting] = useState(false);
   const [shippingMethod, setShippingMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
+  const [fulfillmentType, setFulfillmentType] = useState<string>('PLATFORM_DELIVERY');
+  const [fulfillmentOptions, setFulfillmentOptions] = useState<any[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);  // HIGH-3
   
   const [selectedCity, setSelectedCity] = useState('Dar es Salaam');
   const [quotes, setQuotes] = useState<any[]>([]);
@@ -190,11 +193,62 @@ const CheckoutPage: React.FC = () => {
     }
   };
 
+  const fetchCheckoutOptions = async (city: string, abortSignal?: AbortSignal) => {
+    const coords = citiesCoords[city] || CITIES_COORDS[city];
+    if (!coords) return;
+    const sellerLat = sellerCoords?.lat ?? -6.8161;
+    const sellerLng = sellerCoords?.lng ?? 39.2803;
+    const originWarehouseCode = ((): string => {
+      let nearestCode = 'DAR-01';
+      let minDistance = Infinity;
+      const listToUse = warehouses.length > 0 ? warehouses : [
+        { code: 'DAR-01', latitude: -6.8161, longitude: 39.2803 },
+        { code: 'MWZ-01', latitude: -2.5167, longitude: 32.9000 }
+      ];
+      for (const w of listToUse) {
+        const wLat = Number(w.latitude);
+        const wLng = Number(w.longitude);
+        const d = Math.sqrt(Math.pow(wLat - sellerLat, 2) + Math.pow(wLng - sellerLng, 2));
+        if (d < minDistance) { minDistance = d; nearestCode = w.code; }
+      }
+      return nearestCode;
+    })();
+    setLoadingOptions(true);  // HIGH-3
+    try {
+      const res = await api.post('/api/logistics/checkout-options/', {
+        origin_code: originWarehouseCode,
+        destination_code: coords.code,
+      });
+      if (abortSignal?.aborted) return;  // MED-1: discard stale response
+      const opts = res.data.options || [];
+      setFulfillmentOptions(opts);
+      if (opts.length > 0) {
+        const currentIsValid = opts.some((o: any) => o.fulfillment_type === fulfillmentType);
+        if (!currentIsValid) {
+          // MED-1: avoid side effect inside state updater
+          setFulfillmentType(opts[0].fulfillment_type);
+          setShippingMethod(opts[0].shipping_method);
+        }
+      }
+    } catch (err) {
+      if (abortSignal?.aborted) return;
+      console.error('Failed to load fulfillment options', err);
+      toast.error('Could not load delivery options. Please try again.');
+    } finally {
+      if (!abortSignal?.aborted) setLoadingOptions(false);
+    }
+  };
+
   useEffect(() => {
-    if (shippingMethod === 'DELIVERY' && checkoutItems.length > 0 && Object.keys(citiesCoords).length > 0) {
+    if (checkoutItems.length === 0 || Object.keys(citiesCoords).length === 0) return;
+    // MED-1: AbortController cancels in-flight requests when city changes rapidly
+    const controller = new AbortController();
+    fetchCheckoutOptions(selectedCity, controller.signal);
+    if (shippingMethod === 'DELIVERY' && fulfillmentType !== 'DIRECT_DELIVERY') {
       fetchQuotes(selectedCity);
     }
-  }, [shippingMethod, selectedCity, checkoutItems, sellerCoords, citiesCoords]);
+    return () => controller.abort();
+  }, [selectedCity, checkoutItems, sellerCoords, citiesCoords, warehouses]);
 
   const activeQuote = quotes.find(q => q.code === selectedQuoteCode);
   const estimatedShippingFee = shippingMethod === 'DELIVERY' 
@@ -296,6 +350,7 @@ const CheckoutPage: React.FC = () => {
         }),
         total_amount: finalTotal,
         shipping_method: shippingMethod,
+        fulfillment_type: fulfillmentType,
         shipping_fee: 0, 
         promo_code: appliedPromo ? appliedPromo.code : undefined,
         delivery_info: {
@@ -345,38 +400,62 @@ const CheckoutPage: React.FC = () => {
         {/* Delivery Form */}
         <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-4">
           <div className="card p-6">
+            <div className="flex flex-col gap-1.5 w-full mb-6">
+              <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
+                {t('city_region_label', 'City / Region *')}
+              </label>
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white"
+                required
+              >
+                {Object.keys(citiesCoords).map((city) => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+            </div>
+
             <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white uppercase mb-4">{t('shipping_method')}</h2>
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <button
-                type="button"
-                onClick={() => setShippingMethod('DELIVERY')}
-                className={`p-4 rounded-btn border-2 flex flex-col items-center gap-2 transition-all duration-200 ${
-                  shippingMethod === 'DELIVERY'
-                    ? 'border-brand-600 bg-brand-50/10 text-brand-600'
-                    : 'border-surface-border dark:border-surface-dark-border text-gray-500'
-                }`}
-              >
-                <Truck size={20} />
-                <span className="font-bold text-xs uppercase tracking-wider">{t('home_delivery')}</span>
-                <span className="text-[10px] font-bold">
-                  {shippingMethod === 'DELIVERY' && activeQuote
-                    ? `~TSh ${activeQuote.price.toLocaleString()}`
-                    : t('estimated', 'Estimated')}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShippingMethod('PICKUP')}
-                className={`p-4 rounded-btn border-2 flex flex-col items-center gap-2 transition-all duration-200 ${
-                  shippingMethod === 'PICKUP'
-                    ? 'border-brand-600 bg-brand-50/10 text-brand-600'
-                    : 'border-surface-border dark:border-surface-dark-border text-gray-500'
-                }`}
-              >
-                <MapPin size={20} />
-                <span className="font-bold text-xs uppercase tracking-wider">{t('pickup')}</span>
-                <span className="text-[10px] font-bold">{t('free', 'Free')}</span>
-              </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {loadingOptions ? (
+                // HIGH-3: Skeleton while options load
+                [1, 2].map(i => (
+                  <div key={i} className="p-4 rounded-btn border-2 border-surface-border dark:border-surface-dark-border animate-pulse h-24 bg-gray-100 dark:bg-gray-800" />
+                ))
+              ) : fulfillmentOptions.length === 0 ? (
+                <p className="text-xs text-gray-400 col-span-2 py-4 text-center">No delivery options available for this location.</p>
+              ) : (
+              fulfillmentOptions.map((opt) => {
+                const isSelected = fulfillmentType === opt.fulfillment_type;
+                return (
+                  <button
+                    key={opt.fulfillment_type}
+                    type="button"
+                    onClick={() => {
+                      setFulfillmentType(opt.fulfillment_type);
+                      setShippingMethod(opt.shipping_method);
+                    }}
+                    className={`p-4 rounded-btn border-2 flex flex-col items-start gap-2 transition-all duration-200 text-left ${
+                      isSelected
+                        ? 'border-brand-600 bg-brand-50/10'
+                        : 'border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {opt.shipping_method === 'DELIVERY' ? <Truck size={18} className={isSelected ? 'text-brand-600' : 'text-gray-500'} /> : <MapPin size={18} className={isSelected ? 'text-brand-600' : 'text-gray-500'} />}
+                      <span className={`font-bold text-xs uppercase tracking-wider ${isSelected ? 'text-brand-600' : 'text-gray-700 dark:text-gray-300'}`}>{opt.name}</span>
+                    </div>
+                    <span className="text-xs text-gray-500">{opt.description}</span>
+                    <span className="text-[10px] font-bold text-gray-400 mt-auto pt-2">
+                      {opt.shipping_method === 'DELIVERY' && fulfillmentType === 'PLATFORM_DELIVERY' && activeQuote && isSelected
+                        ? `~TSh ${activeQuote.price.toLocaleString()} estimated`
+                        : opt.shipping_method === 'PICKUP' ? 'Free' : ''}
+                    </span>
+                  </button>
+                );
+              })
+              )}
             </div>
 
             <AnimatePresence mode="popLayout">
@@ -390,23 +469,9 @@ const CheckoutPage: React.FC = () => {
                 >
                   <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white mt-6 mb-4 uppercase">{t('delivery_options')}</h2>
                   <div className="space-y-4">
-                    <div className="flex flex-col gap-1.5 w-full">
-                      <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
-                        {t('city_region_label', 'City / Region *')}
-                      </label>
-                      <select
-                        value={selectedCity}
-                        onChange={(e) => setSelectedCity(e.target.value)}
-                        className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white"
-                        required
-                      >
-                        {Object.keys(citiesCoords).map((city) => (
-                          <option key={city} value={city}>{city}</option>
-                        ))}
-                      </select>
-                    </div>
 
-                    {quotes.length > 0 && (
+                    {/* HIGH-2: Only show warehouse quotes for platform-managed delivery */}
+                    {fulfillmentType === 'PLATFORM_DELIVERY' && quotes.length > 0 && (
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
                           {t('delivery_speed_pricing', 'Delivery Speed & Pricing')}
@@ -437,51 +502,23 @@ const CheckoutPage: React.FC = () => {
                       </div>
                     )}
 
-                    <FormField
-                      id="fullName"
-                      name="fullName"
-                      label={t('first_name') + " & " + t('last_name') + " *"}
-                      type="text"
-                      required
-                      value={form.fullName}
-                      onChange={handleChange}
-                      placeholder={t('first_name')}
-                    />
+                    {/* DIRECT_DELIVERY notice */}
+                    {fulfillmentType === 'DIRECT_DELIVERY' && (
+                      <div className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 p-3 rounded-btn">
+                        <p className="text-xs text-amber-700 dark:text-amber-400 font-bold flex items-center gap-2">
+                          <Truck size={14} />
+                          The seller will ship directly to your address. Shipping fee is agreed with seller.
+                        </p>
+                      </div>
+                    )}
 
-                    <FormField
-                      id="phone"
-                      name="phone"
-                      label={t('phone_number') + " *"}
-                      type="tel"
-                      required
-                      value={form.phone}
-                      onChange={handleChange}
-                      placeholder="+255 7XX XXX XXX"
-                    />
-
-                    <FormField
-                      id="deliveryAddress"
-                      name="deliveryAddress"
-                      label={t('delivery_address') + " *"}
-                      type="text"
-                      required
-                      value={form.deliveryAddress}
-                      onChange={handleChange}
-                      placeholder="Street, Area"
-                    />
-
+                    {/* CRIT-3: Contact fields always shown for DELIVERY — seller needs to reach buyer */}
+                    <FormField id="fullName" name="fullName" label={t('first_name') + " & " + t('last_name') + " *"} type="text" required value={form.fullName} onChange={handleChange} placeholder={t('first_name')} />
+                    <FormField id="phone" name="phone" label={t('phone_number') + " *"} type="tel" required value={form.phone} onChange={handleChange} placeholder="+255 7XX XXX XXX" />
+                    <FormField id="deliveryAddress" name="deliveryAddress" label={t('delivery_address') + " *"} type="text" required value={form.deliveryAddress} onChange={handleChange} placeholder="Street, Area" />
                     <div className="flex flex-col gap-1.5 w-full">
-                      <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
-                        {t('notes_optional', 'Notes (optional)')}
-                      </label>
-                      <textarea
-                        name="notes"
-                        value={form.notes}
-                        onChange={handleChange}
-                        rows={3}
-                        className="flex w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white resize-none"
-                        placeholder={t('notes_placeholder', 'Special delivery instructions...')}
-                      />
+                      <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">{t('notes_optional', 'Notes (optional)')}</label>
+                      <textarea name="notes" value={form.notes} onChange={handleChange} rows={3} className="flex w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white resize-none" placeholder={t('notes_placeholder', 'Special delivery instructions...')} />
                     </div>
                   </div>
                 </motion.div>
@@ -495,7 +532,13 @@ const CheckoutPage: React.FC = () => {
                   transition={{ duration: 0.3 }}
                   className="overflow-hidden"
                 >
-                  <div className="bg-brand-50/10 dark:bg-brand-900/10 p-4 rounded-btn border border-brand-100/30 dark:border-brand-900/20 mt-6">
+                  {/* CRIT-3: Always collect contact info, even for pickups */}
+                  <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white mt-6 mb-4 uppercase">Your Details</h2>
+                  <div className="space-y-4 mb-4">
+                    <FormField id="fullName" name="fullName" label={t('first_name') + " & " + t('last_name') + " *"} type="text" required value={form.fullName} onChange={handleChange} placeholder={t('first_name')} />
+                    <FormField id="phone" name="phone" label={t('phone_number') + " *"} type="tel" required value={form.phone} onChange={handleChange} placeholder="+255 7XX XXX XXX" />
+                  </div>
+                  <div className="bg-brand-50/10 dark:bg-brand-900/10 p-4 rounded-btn border border-brand-100/30 dark:border-brand-900/20">
                     <p className="text-xs font-bold text-brand-700 dark:text-brand-300 flex items-center gap-2">
                       <Shield size={14} />
                       {t('pickup_notice', 'Your order will be held at our main warehouse. A secure pickup code will be generated upon arrival.')}
@@ -595,9 +638,22 @@ const CheckoutPage: React.FC = () => {
               </div>
             )}
             <div className="flex justify-between items-center font-bold">
-              <span className="text-gray-500 dark:text-gray-400">{t('shipping_billed_later', 'Shipping (Billed Later)')}</span>
-              <span className="text-brand-600 dark:text-brand-400 uppercase text-[10px] tracking-wide" title="Final shipping is confirmed by warehouse staff after your item is dropped off.">
-                {shippingMethod === 'PICKUP' ? t('free', 'Free') : (estimatedShippingFee > 0 ? `Est. TSh ${estimatedShippingFee.toLocaleString()}` : 'TBD')}
+              <span className="text-gray-500 dark:text-gray-400">
+                {fulfillmentType === 'DIRECT_DELIVERY'
+                  ? t('shipping', 'Shipping')
+                  : fulfillmentType === 'WAREHOUSE_PICKUP'
+                  ? t('pickup_fee', 'Pickup Fee')
+                  : t('shipping_billed_later', 'Shipping (Billed Later)')}
+              </span>
+              <span className="text-brand-600 dark:text-brand-400 uppercase text-[10px] tracking-wide"
+                title={fulfillmentType === 'DIRECT_DELIVERY'
+                  ? 'Shipping fee to be agreed with seller.'
+                  : 'Final shipping is confirmed by warehouse staff after your item is dropped off.'}>
+                {shippingMethod === 'PICKUP'
+                  ? t('free', 'Free')
+                  : fulfillmentType === 'DIRECT_DELIVERY'
+                  ? t('agreed_with_seller', 'Agreed with seller')
+                  : (estimatedShippingFee > 0 ? `Est. TSh ${estimatedShippingFee.toLocaleString()}` : 'TBD')}
               </span>
             </div>
             <div className="border-t border-surface-border dark:border-surface-dark-border pt-2 flex justify-between items-center">

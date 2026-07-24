@@ -63,8 +63,11 @@ const Navbar = () => {
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
+          const snapContainer = document.querySelector('.snap-container') as HTMLElement;
           const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-          const currentY = Math.max(0, Math.min(maxScrollY, window.pageYOffset || document.documentElement.scrollTop));
+          const currentY = snapContainer 
+            ? snapContainer.scrollTop 
+            : Math.max(0, Math.min(maxScrollY, window.pageYOffset || document.documentElement.scrollTop));
           const delta = currentY - lastScrollY.current;
           const nav = navbarRef.current;
 
@@ -95,10 +98,11 @@ const Navbar = () => {
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
     handleScroll(); // Initial run
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => document.removeEventListener('scroll', handleScroll, { capture: true } as any);
   }, []);
+
 
   // Close dropdowns on outside click
   useEffect(() => {

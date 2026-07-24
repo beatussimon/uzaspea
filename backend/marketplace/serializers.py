@@ -337,6 +337,33 @@ class OrderSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['user', 'total_amount']
 
+    def validate(self, data):
+        """HIGH-4: Cross-validate fulfillment_type and shipping_method."""
+        shipping_method = data.get('shipping_method', 'DELIVERY')
+        fulfillment_type = data.get('fulfillment_type')
+
+        # Auto-infer sensible defaults when client omits fulfillment_type
+        if not fulfillment_type:
+            if shipping_method == 'PICKUP':
+                data['fulfillment_type'] = 'WAREHOUSE_PICKUP'
+            else:
+                data['fulfillment_type'] = 'PLATFORM_DELIVERY'
+            fulfillment_type = data['fulfillment_type']
+
+        # Validate consistent combinations
+        DELIVERY_TYPES = {'PLATFORM_DELIVERY', 'DIRECT_DELIVERY'}
+        PICKUP_TYPES = {'WAREHOUSE_PICKUP', 'SELLER_PICKUP'}
+
+        if shipping_method == 'DELIVERY' and fulfillment_type in PICKUP_TYPES:
+            raise serializers.ValidationError(
+                f"fulfillment_type '{fulfillment_type}' is incompatible with shipping_method 'DELIVERY'."
+            )
+        if shipping_method == 'PICKUP' and fulfillment_type in DELIVERY_TYPES:
+            raise serializers.ValidationError(
+                f"fulfillment_type '{fulfillment_type}' is incompatible with shipping_method 'PICKUP'."
+            )
+        return data
+
     def get_logistics_info(self, obj):
         shipment = obj.shipments.order_by('-created_at').first()
         transfer = obj.warehouse_transfers.order_by('-created_at').first()

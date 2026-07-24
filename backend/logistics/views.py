@@ -505,3 +505,52 @@ class DriverViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('You do not have permission to manage drivers.')
         serializer.save()
+
+class CheckoutOptionsView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        origin_code = request.data.get('origin_code')
+        destination_code = request.data.get('destination_code')
+
+        options = []
+        is_same_city = bool(
+            origin_code and destination_code and origin_code == destination_code
+        )
+
+        if is_same_city:
+            # Same city: platform handles QC then delivers locally
+            options.append({
+                'fulfillment_type': 'PLATFORM_DELIVERY',
+                'name': 'Fulfilled by Uzaspea (Recommended)',
+                'description': 'Item routes through our local warehouse for quality check before delivery to your door.',
+                'shipping_method': 'DELIVERY'
+            })
+            options.append({
+                'fulfillment_type': 'WAREHOUSE_PICKUP',
+                'name': 'Warehouse Pickup',
+                'description': 'Pick up your item securely from our local warehouse. A unique pickup code is generated.',
+                'shipping_method': 'PICKUP'
+            })
+        else:
+            # Different cities: seller ships directly (inter-city bus/courier)
+            options.append({
+                'fulfillment_type': 'DIRECT_DELIVERY',
+                'name': 'Direct Delivery (Inter-city)',
+                'description': 'Seller ships directly to you via inter-city transport. Seller provides tracking.',
+                'shipping_method': 'DELIVERY'
+            })
+            # Also offer platform inter-warehouse transfer if both warehouses exist
+            if origin_code and destination_code:
+                from warehouses.models import Warehouse
+                origin_wh = Warehouse.objects.filter(code=origin_code, is_active=True).first()
+                dest_wh = Warehouse.objects.filter(code=destination_code, is_active=True).first()
+                if origin_wh and dest_wh:
+                    options.append({
+                        'fulfillment_type': 'PLATFORM_DELIVERY',
+                        'name': 'Fulfilled by Uzaspea (Inter-city)',
+                        'description': f'Platform-managed delivery via our warehouse network from {origin_wh.region} to {dest_wh.region}.',
+                        'shipping_method': 'DELIVERY'
+                    })
+
+        return Response({'options': options, 'is_same_city': is_same_city})
