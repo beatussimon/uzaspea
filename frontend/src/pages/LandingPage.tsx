@@ -90,10 +90,10 @@ const LandingPage = () => {
 
   const sections = [
     { id: 'hero', label: 'Home' },
+    { id: 'categories', label: 'Categories' },
     { id: 'trending', label: 'Trending' },
     { id: 'featured', label: 'Featured' },
     { id: 'new-arrivals', label: 'New Arrivals' },
-    { id: 'categories', label: 'Categories' },
     { id: 'insights', label: 'Insights' }
   ];
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -193,33 +193,33 @@ const LandingPage = () => {
         <div 
           className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 cursor-pointer animate-float"
           onClick={() => {
-            document.getElementById('trending')?.scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('categories')?.scrollIntoView({ behavior: 'smooth' });
           }}
         >
           <ChevronDown className="h-10 w-10 text-white/80 hover:text-white transition-colors drop-shadow-lg" />
         </div>
       </div>
 
-      {/* 2. TRENDING NOW */}
+      {/* 2. SHOP BY CATEGORY */}
+      <CategoryShowcaseSection />
+
+      {/* 3. TRENDING NOW */}
       <TrendingSection 
         trendingGroups={trendingGroups} 
         loading={!trendingGroups} 
       />
 
-      {/* 3. FEATURED LISTINGS */}
+      {/* 4. FEATURED LISTINGS */}
       <FeaturedSection 
         promotions={promotions} 
         loading={loadingPromotions} 
       />
 
-      {/* 4. NEW ARRIVALS */}
+      {/* 5. NEW ARRIVALS */}
       <NewArrivalsSection 
         newArrivals={newArrivals} 
         loading={loadingNew} 
       />
-
-      {/* 5. SHOP BY CATEGORY */}
-      <CategoryShowcaseSection />
 
       {/* 6. PLATFORM INSIGHTS */}
       <InsightsSection 
