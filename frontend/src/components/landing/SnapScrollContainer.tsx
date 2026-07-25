@@ -74,15 +74,19 @@ const SnapScrollContainer: React.FC<SnapScrollContainerProps> = ({ children, sec
         {Children.map(children, (child, index) => {
           if (isValidElement(child)) {
             const sectionId = sections[index]?.id || `section-${index}`;
+            const isDOMElement = typeof child.type === 'string';
             return (
               <div 
                 id={sectionId} 
                 className="snap-section snap-section-child"
               >
                 {/* Clone element to pass active state if needed, though most children will handle their own entrance animations via framer-motion */}
-                {React.cloneElement(child as React.ReactElement<any>, { 
-                  isActive: activeSection === sectionId 
-                })}
+                {isDOMElement 
+                  ? child 
+                  : React.cloneElement(child as React.ReactElement<any>, { 
+                      isActive: activeSection === sectionId 
+                    })
+                }
               </div>
             );
           }

@@ -17,8 +17,9 @@ if not os.path.exists('/.dockerenv'):
                         key = key.strip()
                         val = val.strip()
                         # If we are outside Docker, replace 'redis' container host with localhost/127.0.0.1
+                        # and strip password since local development redis typically runs without one
                         if key == 'REDIS_URL':
-                            val = val.replace('@redis:', '@127.0.0.1:').replace('://redis:', '://127.0.0.1:')
+                            val = 'redis://127.0.0.1:6379/0'
                         os.environ.setdefault(key, val)
                     except ValueError:
                         pass
@@ -106,6 +107,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'uzachuo.middleware.ActiveUserMiddleware',
 ]
 
 ROOT_URLCONF = 'uzachuo.urls' # Replace with your project.
@@ -143,6 +145,11 @@ REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 import sys
 _in_docker = os.path.exists('/.dockerenv')
 _in_test   = 'test' in sys.argv
+
+if not _in_docker:
+    # Force local redis URL without password for local development
+    # (in case REDIS_URL is inherited from the shell environment with a password)
+    REDIS_URL = 'redis://127.0.0.1:6379/0'
 
 if _in_test:
     # Tests: no-op cache so throttling doesn't block unit tests

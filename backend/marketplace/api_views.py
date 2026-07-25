@@ -550,14 +550,34 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
     def get_queryset(self):
-        from django.db.models import Count, Prefetch
-        # Pre-annotate children with their product counts to avoid N+1 queries
+        from django.db.models import Count, Prefetch, Sum, Q, DecimalField, IntegerField, Subquery, OuterRef
+        from django.db.models.functions import Coalesce
+        from decimal import Decimal
+        from marketplace.models import OrderItem, Like
+
+        # Subquery for total sales in a category
+        sales_sq = OrderItem.objects.filter(
+            product__category=OuterRef('pk'),
+            order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED']
+        ).values('product__category').annotate(
+            total=Sum('quantity')
+        ).values('total')
+
+        # Subquery for total saves in a category
+        saves_sq = Like.objects.filter(
+            product__category=OuterRef('pk')
+        ).values('product__category').annotate(
+            total=Count('id')
+        ).values('total')
+
         children_qs = Category.objects.annotate(
             annotated_product_count=Count('products', distinct=True)
         )
-        # Return only root categories, with children prefetched and parent counts annotated
+        
         return Category.objects.filter(parent__isnull=True).annotate(
-            annotated_product_count=Count('products', distinct=True)
+            annotated_product_count=Count('products', distinct=True),
+            total_sales=Coalesce(Subquery(sales_sq, output_field=DecimalField()), Decimal('0.0')),
+            total_saves=Coalesce(Subquery(saves_sq, output_field=IntegerField()), 0)
         ).prefetch_related(
             Prefetch('children', queryset=children_qs)
         ).order_by('name')
@@ -565,7 +585,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     def list(self, request, *args, **kwargs):
         from django.core.cache import cache
         from rest_framework.response import Response
-        cache_key = 'categories_list_v2'
+        cache_key = 'categories_list_v6'
         data = cache.get(cache_key)
         if not data:
             response = super().list(request, *args, **kwargs)
@@ -1704,7 +1724,26 @@ class ConversationViewSet(viewsets.ModelViewSet):
                 pass  # WS delivery is best-effort; REST response still returns
 
             return Response(MessageSerializer(msg).data, status=201)
-        Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user).update(is_read=True)
+        unread_msgs = Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user)
+        unread_ids = list(unread_msgs.values_list('id', flat=True))
+        if unread_ids:
+            unread_msgs.update(is_read=True, is_delivered=True)
+            try:
+                from channels.layers import get_channel_layer
+                from asgiref.sync import async_to_sync
+                other = conv.seller if request.user == conv.buyer else conv.buyer
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    f'chat_{other.id}',
+                    {
+                        'type': 'chat_read_update',
+                        'conversation_id': conv.id,
+                        'message_ids': unread_ids,
+                    }
+                )
+            except Exception:
+                pass
+
         # Fetch only last 50 messages, and order them chronologically
         msgs = conv.messages.order_by('-created_at')[:50]
         msgs = sorted(list(msgs), key=lambda x: x.created_at)
