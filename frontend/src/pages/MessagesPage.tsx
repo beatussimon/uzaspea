@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { 
   MessageSquare, Send, ArrowLeft, Search, Smile, 
   CheckCheck, Check
@@ -18,6 +18,7 @@ const MessagesPage: React.FC = () => {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const userId = user?.user_id || (user as any)?.id || parseInt(localStorage.getItem('user_id') || '0');
@@ -107,6 +108,12 @@ const MessagesPage: React.FC = () => {
       setActiveConversationId(convIdNum);
       fetchMessages(convIdNum);
       
+      // Handle prefill message from navigation state
+      if (location.state && location.state.prefillMessage) {
+        setNewMessage(location.state.prefillMessage);
+        // Clear state so a page refresh doesn't trigger it again
+        window.history.replaceState({}, document.title);
+      }
       // Simulate a small typing effect when entering a chat for visual premium flair
     } else {
       setActiveConversationId(null);
