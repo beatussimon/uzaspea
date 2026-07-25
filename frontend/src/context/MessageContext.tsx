@@ -35,6 +35,7 @@ export interface Message {
   sender: number;
   sender_username: string;
   content: string;
+  is_delivered?: boolean;
   is_read: boolean;
   created_at: string;
 }
@@ -54,6 +55,8 @@ export interface Conversation {
   product_image?: string;
   last_message?: Message | null;
   unread_count: number;
+  is_online?: boolean;
+  last_seen?: string;
   created_at: string;
   updated_at: string;
 }
@@ -208,6 +211,46 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return;
         }
 
+        if (data.type === 'chat_delivery_update') {
+          const msgIds = data.message_ids || [];
+          setMessages(prev => {
+            const next = { ...prev };
+            Object.keys(next).forEach(key => {
+              const convId = Number(key);
+              next[convId] = next[convId].map(m => msgIds.includes(m.id) ? { ...m, is_delivered: true } : m);
+            });
+            return next;
+          });
+          return;
+        }
+
+        if (data.type === 'chat_read_update') {
+          const msgIds = data.message_ids || [];
+          const convId = Number(data.conversation_id);
+          setMessages(prev => {
+            if (!prev[convId]) return prev;
+            return {
+              ...prev,
+              [convId]: prev[convId].map(m => msgIds.includes(m.id) ? { ...m, is_read: true, is_delivered: true } : m)
+            };
+          });
+          return;
+        }
+
+        if (data.type === 'presence_update') {
+          const userId = Number(data.user_id);
+          const isOnline = data.is_online;
+          const lastSeen = data.last_seen;
+          
+          setConversations(prev => prev.map(c => {
+            if (c.buyer === userId || c.seller === userId) {
+              return { ...c, is_online: isOnline, last_seen: lastSeen };
+            }
+            return c;
+          }));
+          return;
+        }
+
         if (data.type === 'chat_message') {
 
           const convId = Number(data.conversation_id);
@@ -225,6 +268,16 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
             });
             // Mark read since we are looking at it
             if (msg.sender !== currentUserId) {
+              // Send read receipt over WS
+              try {
+                ws.send(JSON.stringify({
+                  type: 'read_receipt',
+                  conversation_id: convId,
+                  message_ids: [msg.id]
+                }));
+              } catch (e) {
+                console.warn('Failed to send WS read receipt', e);
+              }
               api.get(`/api/conversations/${convId}/messages/`).catch(() => {});
 
               // Also trigger native device notification if tab is in the background
@@ -288,6 +341,19 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 }
               }
             }
+
+            // Always send delivery receipt if we received it and we are not the sender
+            if (msg.sender !== currentUserId) {
+              try {
+                ws.send(JSON.stringify({
+                  type: 'delivery_receipt',
+                  conversation_id: convId,
+                  message_ids: [msg.id]
+                }));
+              } catch (e) {
+                console.warn('Failed to send WS delivery receipt', e);
+              }
+            }
           }
 
           // 2. Update conversations list
@@ -334,10 +400,19 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [isAuthenticated, loadConversations]);
 
   useEffect(() => {
+    let pingInterval: number;
     if (isAuthenticated) {
       connectWS();
+      pingInterval = window.setInterval(() => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          try {
+            wsRef.current.send(JSON.stringify({ type: 'presence_ping' }));
+          } catch (e) {}
+        }
+      }, 60000); // Send ping every 60 seconds
     }
     return () => {
+      if (pingInterval) clearInterval(pingInterval);
       if (wsRef.current) {
         wsRef.current.onclose = null;
         wsRef.current.onerror = null;

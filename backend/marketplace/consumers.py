@@ -181,6 +181,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'is_typing': event['is_typing'],
         }))
 
+    async def chat_delivery_update(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'chat_delivery_update',
+            'message_ids': event['message_ids'],
+        }))
+
+    async def chat_read_update(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'chat_read_update',
+            'conversation_id': event['conversation_id'],
+            'message_ids': event['message_ids'],
+        }))
+
+    async def presence_update(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'presence_update',
+            'user_id': event['user_id'],
+            'is_online': event['is_online'],
+            'last_seen': event['last_seen'],
+        }))
+
     async def receive(self, text_data):
         """Receive message or typing status from WebSocket, broadcast to recipient."""
         import json
@@ -212,6 +233,60 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'conversation_id': conv_id,
                         'sender_id': self.user.id,
                         'is_typing': is_typing,
+                    }
+                )
+            return
+
+        if msg_type == 'presence_ping':
+            from django.utils import timezone
+            from django.core.cache import cache
+            # Update user presence in Redis
+            cache_key = f'user:seen:{self.user.id}'
+            now_iso = timezone.now().isoformat()
+            cache.set(cache_key, now_iso, timeout=180)
+            
+            # Broadcast presence update to specific conversation partner if conv_id provided
+            if conv_id:
+                recipient_id = await self._get_recipient_id(conv_id)
+                if recipient_id:
+                    await self.channel_layer.group_send(
+                        f'chat_{recipient_id}',
+                        {
+                            'type': 'presence_update',
+                            'user_id': self.user.id,
+                            'is_online': True,
+                            'last_seen': now_iso,
+                        }
+                    )
+            return
+
+        if msg_type == 'delivery_receipt':
+            message_ids = data.get('message_ids', [])
+            if not message_ids:
+                return
+            sender_id = await self._mark_messages_delivered(message_ids)
+            if sender_id:
+                await self.channel_layer.group_send(
+                    f'chat_{sender_id}',
+                    {
+                        'type': 'chat_delivery_update',
+                        'message_ids': message_ids,
+                    }
+                )
+            return
+
+        if msg_type == 'read_receipt':
+            message_ids = data.get('message_ids', [])
+            if not message_ids or not conv_id:
+                return
+            sender_id = await self._mark_messages_read(message_ids)
+            if sender_id:
+                await self.channel_layer.group_send(
+                    f'chat_{sender_id}',
+                    {
+                        'type': 'chat_read_update',
+                        'conversation_id': conv_id,
+                        'message_ids': message_ids,
                     }
                 )
             return
@@ -268,6 +343,32 @@ class ChatConsumer(AsyncWebsocketConsumer):
             recipient = conv.seller if self.user == conv.buyer else conv.buyer
             return MessageSerializer(msg).data, recipient.id
         except Conversation.DoesNotExist:
+            return None
+
+    @database_sync_to_async
+    def _mark_messages_delivered(self, message_ids):
+        from marketplace.models import Message
+        try:
+            msgs = Message.objects.filter(id__in=message_ids, is_delivered=False).exclude(sender=self.user)
+            if not msgs.exists():
+                return None
+            sender_id = msgs.first().sender.id
+            msgs.update(is_delivered=True)
+            return sender_id
+        except Exception:
+            return None
+
+    @database_sync_to_async
+    def _mark_messages_read(self, message_ids):
+        from marketplace.models import Message
+        try:
+            msgs = Message.objects.filter(id__in=message_ids, is_read=False).exclude(sender=self.user)
+            if not msgs.exists():
+                return None
+            sender_id = msgs.first().sender.id
+            msgs.update(is_read=True, is_delivered=True)
+            return sender_id
+        except Exception:
             return None
 
 

@@ -35,10 +35,12 @@ class SupportTicketSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()
     product_count = serializers.SerializerMethodField()
+    total_sales = serializers.SerializerMethodField()
+    total_saves = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'parent', 'children', 'image', 'product_count']
+        fields = ['id', 'name', 'slug', 'description', 'parent', 'children', 'image', 'product_count', 'total_sales', 'total_saves']
 
     def get_children(self, obj):
         depth = self.context.get('_cat_depth', 0)  # FIX C-17: depth guard
@@ -61,6 +63,12 @@ class CategorySerializer(serializers.ModelSerializer):
         if hasattr(obj, 'annotated_product_count'):
             return obj.annotated_product_count
         return obj.products.count()
+
+    def get_total_sales(self, obj):
+        return getattr(obj, 'total_sales', 0)
+        
+    def get_total_saves(self, obj):
+        return getattr(obj, 'total_saves', 0)
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -826,7 +834,7 @@ class MessageSerializer(serializers.ModelSerializer):  # FIX B-12
 
     class Meta:
         model = Message
-        fields = ['id', 'conversation', 'sender', 'sender_username', 'content', 'is_read', 'created_at']
+        fields = ['id', 'conversation', 'sender', 'sender_username', 'content', 'is_delivered', 'is_read', 'created_at']
         read_only_fields = ['sender', 'created_at']
 
     def validate_content(self, value):
@@ -848,13 +856,41 @@ class ConversationSerializer(serializers.ModelSerializer):  # FIX B-12
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
 
+    is_online = serializers.SerializerMethodField()
+    last_seen = serializers.SerializerMethodField()
+
     class Meta:
         model = Conversation
         fields = ['id', 'buyer', 'buyer_username', 'seller', 'seller_username',
                   'buyer_verified', 'buyer_tier', 'seller_verified', 'seller_tier',
                   'product', 'product_name', 'product_image', 'last_message', 'unread_count',
-                  'created_at', 'updated_at']
+                  'is_online', 'last_seen', 'created_at', 'updated_at']
         read_only_fields = ['buyer', 'created_at', 'updated_at']
+
+    def _get_other_user(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+        return obj.seller if request.user == obj.buyer else obj.buyer
+
+    def get_is_online(self, obj):
+        from django.core.cache import cache
+        other = self._get_other_user(obj)
+        if other:
+            return cache.get(f'user:seen:{other.id}') is not None
+        return False
+
+    def get_last_seen(self, obj):
+        from django.core.cache import cache
+        other = self._get_other_user(obj)
+        if other:
+            val = cache.get(f'user:seen:{other.id}')
+            if val:
+                return val
+            # Fallback to last_login if available
+            if other.last_login:
+                return other.last_login.isoformat()
+        return None
 
     def get_product_image(self, obj):
         if obj.product:

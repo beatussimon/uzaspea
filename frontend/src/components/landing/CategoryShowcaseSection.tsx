@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { LayoutGrid, ArrowRight } from 'lucide-react';
+import { LayoutGrid, Flame, ShoppingBag, Heart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import SafeImage from '../SafeImage';
 import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
@@ -84,38 +84,86 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
                   const row1 = categories.slice(0, itemsPerRow);
                   const row2 = categories.slice(itemsPerRow, itemsPerRow * 2);
 
-                  const renderCard = (cat: any) => (
-                    <div 
-                      key={cat.id} 
-                      className="snap-start shrink-0 w-[240px] md:w-[280px] h-[250px] md:h-[300px] relative group rounded-2xl overflow-hidden block shadow-sm border border-surface-border dark:border-surface-dark-border"
-                    >
-                      <Link to={`/products?category=${cat.slug}`} className="absolute inset-0 w-full h-full">
-                        <SafeImage 
-                          src={cat.image || getCategoryFallbackImage(cat.name)} 
-                          alt={cat.name}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-85 group-hover:opacity-95 transition-opacity duration-300" />
-                        
-                        <div className="absolute inset-0 p-4 md:p-6 flex flex-col justify-end">
-                          <h3 className="text-lg md:text-2xl font-black text-white capitalize group-hover:text-purple-200 transition-colors">
-                            {cat.name}
-                          </h3>
-                          <div className="flex items-center gap-1.5 text-purple-300 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-200 mt-2">
-                            <span className="text-sm font-bold uppercase tracking-wider">Explore</span>
-                            <ArrowRight className="w-4 h-4" />
-                          </div>
+                  const renderCard = (cat: any) => {
+                    const sales = cat.total_sales || 0;
+                    const saves = cat.total_saves || 0;
+                    
+                    return (
+                      <div 
+                        key={cat.id} 
+                        className="snap-start shrink-0 w-[260px] sm:w-[280px] h-[320px] relative"
+                      >
+                        <div className="group relative card overflow-hidden flex flex-col h-full w-full bg-white dark:bg-[#0A0A0A] border-2 border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-75">
+                          <Link to={`/products?category=${cat.slug}`} className="relative flex-1 flex flex-col h-full w-full">
+                            
+                            <div className="absolute inset-0 w-full h-full bg-gray-100 dark:bg-gray-800/50 overflow-hidden">
+                              <SafeImage 
+                                src={cat.image || getCategoryFallbackImage(cat.name)} 
+                                alt={cat.name}
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              />
+                              {/* Gradient to make text readable */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
+                            </div>
+
+                            {/* Top-left Badges */}
+                            <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
+                              {cat.product_count > 5 && (
+                                <div className="flex items-center gap-1 text-[8.5px] font-black bg-neutral-900/90 text-white backdrop-blur-md px-2 py-0.5 rounded-card border border-orange-500/40 shadow-md uppercase tracking-wider w-fit">
+                                  <Flame size={10} className="shrink-0 text-orange-400" />
+                                  <span>{t('hot_category', 'HOT CATEGORY')}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent">
+                              {/* Badges row */}
+                              <div className="flex flex-wrap items-center gap-1">
+                                <span className="text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-900/30 backdrop-blur-md px-1.5 py-0.5 rounded-card text-[8.5px] uppercase font-bold tracking-wider whitespace-nowrap shrink-0 border border-brand-200/20 dark:border-brand-500/10 shadow-sm">
+                                  {t('explore_category', 'Explore Category')}
+                                </span>
+                              </div>
+
+                              {/* Category Name Bubble */}
+                              <div className="w-fit max-w-full px-3 py-1.5 rounded-card bg-white/70 dark:bg-[#0A0A0A]/70 backdrop-blur-md border border-white/20 dark:border-white/5 shadow-sm">
+                                <h3 className="font-black text-xl md:text-2xl text-gray-900 dark:text-white line-clamp-1 transition-colors capitalize">
+                                  {cat.name}
+                                </h3>
+                              </div>
+                              
+                              {/* Stats Bubbles */}
+                              <div className="flex items-center gap-1 w-full overflow-x-auto no-scrollbar pb-1">
+                                {/* Items Bubble */}
+                                <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/90 dark:bg-black/95 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
+                                  <LayoutGrid size={8} strokeWidth={2.5} className="shrink-0 text-brand-500 dark:text-brand-400" />
+                                  <span className="truncate">{cat.product_count || 0} {t('items', 'Items')}</span>
+                                </div>
+
+                                {/* Sales Bubble */}
+                                <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/90 dark:bg-black/95 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
+                                  <ShoppingBag size={8} strokeWidth={2.5} className="shrink-0 text-emerald-500 dark:text-emerald-400" />
+                                  <span className="truncate">{sales.toLocaleString()} {t('sold', 'Sold')}</span>
+                                </div>
+
+                                {/* Saves Bubble */}
+                                <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/90 dark:bg-black/95 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
+                                  <Heart size={8} strokeWidth={2.5} className="shrink-0 text-red-500 dark:text-red-400" />
+                                  <span className="truncate">{saves.toLocaleString()} {t('saved', 'Saved')}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
                         </div>
-                      </Link>
-                    </div>
-                  );
+                      </div>
+                    );
+                  };
 
                   return (
                     <motion.div variants={itemVariants} className="flex flex-col gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 w-full">
                       {loading ? (
                         <div className="flex gap-4 w-max">
                           {[...Array(6)].map((_, i) => (
-                            <div key={i} className="snap-start shrink-0 w-[240px] md:w-[280px] h-[250px] md:h-[300px] rounded-2xl bg-gray-200 dark:bg-white/5 animate-pulse border border-surface-border dark:border-white/10" />
+                            <div key={i} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-[320px] rounded-2xl bg-gray-200 dark:bg-white/5 animate-pulse border border-surface-border dark:border-white/10" />
                           ))}
                         </div>
                       ) : categories.length > 0 ? (

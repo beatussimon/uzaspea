@@ -190,13 +190,15 @@ const LandingPage = () => {
         </div>
 
         {/* Scroll Indicator */}
-        <div 
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 cursor-pointer animate-float"
-          onClick={() => {
-            document.getElementById('categories')?.scrollIntoView({ behavior: 'smooth' });
-          }}
-        >
-          <ChevronDown className="h-10 w-10 text-white/80 hover:text-white transition-colors drop-shadow-lg" />
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 cursor-pointer flex justify-center items-center">
+          <div 
+            className="animate-float"
+            onClick={() => {
+              document.getElementById('categories')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          >
+            <ChevronDown className="h-10 w-10 text-white/80 hover:text-white transition-colors drop-shadow-lg" />
+          </div>
         </div>
       </div>
 

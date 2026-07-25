@@ -42,6 +42,10 @@ const MessagesPage: React.FC = () => {
   const lastConvIdRef = useRef<string | undefined>(undefined);
   const typingTimeoutRef = useRef<number | null>(null);
   const [isLocallyTyping, setIsLocallyTyping] = useState(false);
+  
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
 
   const handleInputChange = (val: string) => {
     setNewMessage(val);
@@ -157,17 +161,40 @@ const MessagesPage: React.FC = () => {
   };
 
   const currentMessages = id ? (messages[parseInt(id)] || []) : [];
+  const currentTypingStatus = id ? typingStatus[parseInt(id)] : false;
 
+  const prevMessagesLengthRef = useRef(currentMessages.length);
   useEffect(() => {
-    if (currentMessages.length > 0) {
-      if (id !== lastConvIdRef.current) {
-        scrollToBottom('auto');
-        lastConvIdRef.current = id;
-      } else {
-        scrollToBottom('smooth');
+    if (currentMessages.length > prevMessagesLengthRef.current) {
+      const addedCount = currentMessages.length - prevMessagesLengthRef.current;
+      if (isScrolledUp && addedCount > 0) {
+        // Assume last message sender
+        const lastMsg = currentMessages[currentMessages.length - 1];
+        if (lastMsg.sender !== parseInt(userId.toString())) {
+          setNewMessagesCount(prev => prev + addedCount);
+        }
+      } else if (!isScrolledUp) {
+        if (id !== lastConvIdRef.current) {
+          scrollToBottom('auto');
+          lastConvIdRef.current = id;
+        } else {
+          scrollToBottom('smooth');
+        }
       }
+    } else if (currentTypingStatus && !isScrolledUp) {
+       scrollToBottom('smooth');
     }
-  }, [currentMessages, id]);
+    prevMessagesLengthRef.current = currentMessages.length;
+  }, [currentMessages, id, currentTypingStatus, isScrolledUp, userId]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const isUp = scrollHeight - scrollTop > clientHeight + 50;
+    setIsScrolledUp(isUp);
+    if (!isUp) {
+      setNewMessagesCount(0);
+    }
+  };
 
   const handleSend = async () => {
     if (!newMessage.trim() || !id) return;
@@ -325,8 +352,11 @@ const MessagesPage: React.FC = () => {
                     }`}
                   >
                     {/* Avatar */}
-                    <div className="relative shrink-0">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(otherUsername)} shadow-sm`}>
+                    <div className="relative shrink-0" onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/${otherUsername}`);
+                    }}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(otherUsername)} shadow-sm hover:opacity-80 transition-opacity`}>
                         {initials}
                       </div>
                       {/* Premium visual: small active green indicator dot */}
@@ -336,7 +366,13 @@ const MessagesPage: React.FC = () => {
                     {/* Chat details */}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline gap-1.5">
-                        <span className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 truncate">
+                        <span 
+                          className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 truncate hover:underline hover:text-brand-500 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/${otherUsername}`);
+                          }}
+                        >
                           {otherUsername}
                           {isVerified && (
                             <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
@@ -413,8 +449,11 @@ const MessagesPage: React.FC = () => {
 
                   {/* Contact Avatar */}
                   {activeConv && (
-                    <div className="relative shrink-0">
-                      <div className={`w-10.5 h-10.5 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username)}`}>
+                    <div 
+                      className="relative shrink-0 cursor-pointer"
+                      onClick={() => navigate(`/${Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username}`)}
+                    >
+                      <div className={`w-10.5 h-10.5 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username)} hover:opacity-80 transition-opacity`}>
                         {(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
                       </div>
                       <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-[#0d0d0d]" />
@@ -423,15 +462,24 @@ const MessagesPage: React.FC = () => {
 
                   {/* Header Titles */}
                   <div className="min-w-0">
-                    <span className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1">
+                    <span 
+                      className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 cursor-pointer hover:underline hover:text-brand-500 transition-colors"
+                      onClick={() => activeConv && navigate(`/${Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username}`)}
+                    >
                       {activeConv ? (Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username) : 'Chat'}
                       {activeConv && Number(activeConv.buyer) === Number(userId) && (
                         <VerifiedBadge tier={activeConv.seller_tier} isVerified={activeConv.seller_verified} className="w-3.5 h-3.5" />
                       )}
                     </span>
-                    <p className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1 leading-none mt-0.5">
-                      Active now
-                    </p>
+                    {activeConv && activeConv.is_online ? (
+                      <p className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1 leading-none mt-0.5">
+                        Active now
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-gray-400 font-semibold flex items-center gap-1 leading-none mt-0.5">
+                        {activeConv?.last_seen ? `Last seen ${formatRelativeTime(activeConv.last_seen)}` : 'Offline'}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -460,7 +508,11 @@ const MessagesPage: React.FC = () => {
               )}
 
               {/* Chat Messages Log Scroll */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              <div 
+                className="flex-1 overflow-y-auto p-4 space-y-6 relative" 
+                ref={scrollRef}
+                onScroll={handleScroll}
+              >
                 {Object.keys(groupedMessages).map(dateStr => (
                   <div key={dateStr} className="space-y-4">
                     {/* Day divider */}
@@ -495,7 +547,13 @@ const MessagesPage: React.FC = () => {
                         <div key={msg.id} className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
                           {/* Sender Avatar */}
                           {showAvatar && (
-                            <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(msg.sender_username)}`}>
+                            <div 
+                              className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(msg.sender_username)} cursor-pointer hover:opacity-80 transition-opacity`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/${msg.sender_username}`);
+                              }}
+                            >
                               {msg.sender_username.substring(0, 2).toUpperCase()}
                             </div>
                           )}
@@ -528,7 +586,13 @@ const MessagesPage: React.FC = () => {
                                 ) : (
                                   <>
                                     <span>Sent</span>
-                                    {msg.is_read ? <CheckCheck size={11} className="text-brand-500" /> : <Check size={11} />}
+                                    {msg.is_read ? (
+                                      <CheckCheck size={12} className="text-brand-500" />
+                                    ) : msg.is_delivered ? (
+                                      <CheckCheck size={12} className="text-gray-400" />
+                                    ) : (
+                                      <Check size={12} className="text-gray-400" />
+                                    )}
                                   </>
                                 )}
                               </div>
@@ -544,7 +608,13 @@ const MessagesPage: React.FC = () => {
                 {(typingStatus[parseInt(id || '')]) && (
                   <div className="flex items-end gap-2.5">
                     {activeConv && (
-                      <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username)}`}>
+                      <div 
+                        className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username)} cursor-pointer hover:opacity-80 transition-opacity`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/${activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username}`);
+                        }}
+                      >
                         {(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
                       </div>
                     )}
@@ -557,6 +627,22 @@ const MessagesPage: React.FC = () => {
                 )}
                 <div ref={messageEndRef} />
               </div>
+              
+              {/* New message indicator pill */}
+              {isScrolledUp && newMessagesCount > 0 && (
+                <div className="absolute bottom-[4.5rem] left-1/2 -translate-x-1/2 z-20">
+                  <button 
+                    onClick={() => {
+                      scrollToBottom('smooth');
+                      setNewMessagesCount(0);
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-500 text-white rounded-full shadow-lg text-[11px] font-bold hover:bg-brand-600 transition-colors animate-bounce"
+                  >
+                    {newMessagesCount} new message{newMessagesCount > 1 ? 's' : ''} 
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                  </button>
+                </div>
+              )}
 
               {/* Chat Input Console */}
               <div className="p-3 bg-white dark:bg-[#111] border-t border-surface-border dark:border-surface-dark-border flex flex-col gap-2 shrink-0 z-10">
