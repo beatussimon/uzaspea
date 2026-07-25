@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 
 // Define the interface for the BeforeInstallPromptEvent
 interface BeforeInstallPromptEvent extends Event {
@@ -16,18 +17,23 @@ export const PwaInstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const { t } = useTranslation();
+  const { isAuthenticated } = useAuth(); // Useful if we want to tie it to auth, but for now just use it to trigger re-renders
 
   useEffect(() => {
-    // Check if the user has previously dismissed the prompt
-    const hasDismissed = localStorage.getItem('pwaPromptDismissed');
+    // Check if the user has dismissed the prompt in this session
+    const hasDismissed = sessionStorage.getItem('pwaPromptDismissed');
+    
+    // Also check if app is already installed natively (standalone mode)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                         (window.navigator as any).standalone === true;
 
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault();
       // Stash the event so it can be triggered later
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Show the prompt if not previously dismissed
-      if (!hasDismissed) {
+      // Show the prompt if not previously dismissed in this session and not already installed
+      if (!hasDismissed && !isStandalone) {
         setIsVisible(true);
       }
     };
@@ -38,12 +44,14 @@ export const PwaInstallPrompt = () => {
     window.addEventListener('appinstalled', () => {
       setDeferredPrompt(null);
       setIsVisible(false);
+      // Optional: permanently mark as installed
+      localStorage.setItem('pwaInstalled', 'true');
     });
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [isAuthenticated]); // Re-run effect if auth state changes, to potentially show it again
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -64,8 +72,8 @@ export const PwaInstallPrompt = () => {
 
   const handleDismiss = () => {
     setIsVisible(false);
-    // Remember the user's choice so we don't annoy them
-    localStorage.setItem('pwaPromptDismissed', 'true');
+    // Remember the user's choice for this session only
+    sessionStorage.setItem('pwaPromptDismissed', 'true');
   };
 
   if (!isVisible || !deferredPrompt) return null;
@@ -84,7 +92,7 @@ export const PwaInstallPrompt = () => {
             {t('install_app_title', 'Install SokoniMax App')}
           </h4>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed pr-4">
-            {t('install_app_desc', 'Get the app on your home screen for a faster, better experience.')}
+            {t('install_app_desc', 'Install SokoniMax to receive instant message notifications even when your phone is locked.')}
           </p>
           
           <div className="flex items-center gap-2">
@@ -109,3 +117,4 @@ export const PwaInstallPrompt = () => {
     </div>
   );
 };
+

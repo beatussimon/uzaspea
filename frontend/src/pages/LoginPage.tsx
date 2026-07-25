@@ -66,10 +66,10 @@ const LoginPage: React.FC = () => {
     <div className="flex justify-center items-center py-20 px-4">
       <div className="card w-full max-w-md p-6 sm:p-8 animate-fade-in">
         <div className="text-center mb-8">
-          <h1 className="text-heading-md font-black text-gray-900 dark:text-white uppercase mb-2">
+          <h1 className="text-heading-md font-black text-gray-900 dark:text-white mb-2">
             {t('welcome_back')}
           </h1>
-          <p className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             {t('login_or_create')}
           </p>
         </div>

@@ -52,12 +52,22 @@ const MobileBottomNav = () => {
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Reset initial state when route changes
+    // Reset initial state when route changes (show briefly, then hide)
     if (navRef.current) {
-      currentOffset.current = isHomepage ? 100 : 0;
-      navRef.current.style.transform = `translateY(${currentOffset.current}px)`;
+      currentOffset.current = 0;
+      navRef.current.style.transition = 'transform 0.3s ease-out';
+      navRef.current.style.transform = `translateY(0px)`;
+      
+      if (hideTimeout.current) clearTimeout(hideTimeout.current);
+      hideTimeout.current = setTimeout(() => {
+        if (navRef.current && !isMenuOpen) {
+          currentOffset.current = 100;
+          navRef.current.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+          navRef.current.style.transform = `translateY(100px)`;
+        }
+      }, 2500);
     }
-  }, [isHomepage]);
+  }, [location.pathname, isMenuOpen]);
 
   useEffect(() => {
     let ticking = false;
@@ -67,47 +77,42 @@ const MobileBottomNav = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const snapContainer = document.querySelector('.snap-container') as HTMLElement;
-          const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-          const currentY = snapContainer 
-            ? snapContainer.scrollTop 
-            : Math.max(0, Math.min(maxScrollY, window.pageYOffset || document.documentElement.scrollTop));
+          const currentY = snapContainer ? snapContainer.scrollTop : window.scrollY;
             
           const delta = currentY - lastScrollY.current;
           const maxHide = 100;
           
-          if (delta > 0) {
-            // Scrolling down
-            currentOffset.current = Math.min(maxHide, currentOffset.current + delta);
-            if (hideTimeout.current) clearTimeout(hideTimeout.current);
-          } else if (delta < 0) {
-            // Scrolling up
-            if (currentY <= 60 && !isHomepage) {
-              // Smart Grace Zone: Snap to fully visible if near top and scrolling up (not on homepage)
-              currentOffset.current = 0;
+          if (Math.abs(delta) > 0) {
+            if (delta > 0 && currentY > 50) {
+              // Scrolling down -> hide immediately
+              if (currentOffset.current !== maxHide) {
+                currentOffset.current = maxHide;
+                if (navRef.current) {
+                  navRef.current.style.transition = 'transform 0.3s ease-out';
+                  navRef.current.style.transform = `translateY(${maxHide}px)`;
+                }
+              }
               if (hideTimeout.current) clearTimeout(hideTimeout.current);
             } else {
-              currentOffset.current = Math.max(0, currentOffset.current + delta);
-              
-              // Auto-hide behavior for homepage
-              if (isHomepage) {
-                if (hideTimeout.current) clearTimeout(hideTimeout.current);
-                hideTimeout.current = setTimeout(() => {
-                  if (navRef.current) {
-                    currentOffset.current = maxHide;
-                    navRef.current.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-                    navRef.current.style.transform = `translateY(${maxHide}px)`;
-                    
-                    setTimeout(() => {
-                      if (navRef.current) navRef.current.style.transition = '';
-                    }, 400);
-                  }
-                }, 1500);
+              // Scrolling up -> show
+              if (currentOffset.current !== 0) {
+                currentOffset.current = 0;
+                if (navRef.current) {
+                  navRef.current.style.transition = 'transform 0.3s ease-out';
+                  navRef.current.style.transform = `translateY(0px)`;
+                }
               }
+              
+              // Reset hide timer so it auto-hides after inactivity
+              if (hideTimeout.current) clearTimeout(hideTimeout.current);
+              hideTimeout.current = setTimeout(() => {
+                if (navRef.current && !isMenuOpen) {
+                  currentOffset.current = maxHide;
+                  navRef.current.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                  navRef.current.style.transform = `translateY(${maxHide}px)`;
+                }
+              }, 2000);
             }
-          }
-
-          if (navRef.current) {
-            navRef.current.style.transform = `translateY(${currentOffset.current}px)`;
           }
 
           lastScrollY.current = currentY;

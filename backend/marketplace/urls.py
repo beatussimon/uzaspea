@@ -53,4 +53,7 @@ urlpatterns = [
     path('api/analytics/trending/', TrendingAnalyticsView.as_view(), name='analytics-trending'),
     path('api/health/reverse_geocode/', reverse_geocode, name='reverse-geocode'),
     path('api/team-role-presets/', TeamRolePresetsView.as_view(), name='team-role-presets'),
+    path('api/push/subscribe/', __import__('marketplace.api_views').api_views.PushSubscriptionView.as_view(), name='push-subscribe'),
+    path('api/push/unsubscribe/', __import__('marketplace.api_views').api_views.PushSubscriptionView.as_view(), name='push-unsubscribe'),
+    path('api/push/vapid-key/', __import__('marketplace.api_views').api_views.PushVapidKeyView.as_view(), name='push-vapid-key'),
 ]

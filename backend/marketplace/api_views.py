@@ -2311,3 +2311,47 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         } for e in entries]
         return Response(data)
 
+# --- Web Push Subscription Views ---
+class PushSubscriptionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from .models import PushSubscription
+        data = request.data
+        endpoint = data.get('endpoint')
+        keys = data.get('keys', {})
+        p256dh = keys.get('p256dh')
+        auth = keys.get('auth')
+
+        if not endpoint or not p256dh or not auth:
+            return Response({'error': 'Invalid subscription data'}, status=400)
+
+        sub, created = PushSubscription.objects.update_or_create(
+            endpoint=endpoint,
+            defaults={
+                'user': request.user,
+                'p256dh': p256dh,
+                'auth': auth
+            }
+        )
+        return Response({'status': 'subscribed', 'id': sub.id})
+
+    def delete(self, request):
+        from .models import PushSubscription
+        endpoint = request.data.get('endpoint')
+        if not endpoint:
+            return Response({'error': 'Endpoint is required'}, status=400)
+        
+        PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
+        return Response({'status': 'unsubscribed'})
+
+class PushVapidKeyView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from django.conf import settings
+        public_key = getattr(settings, 'WEBPUSH_VAPID_PUBLIC_KEY', None)
+        if not public_key:
+            return Response({'error': 'VAPID public key not configured'}, status=500)
+        return Response({'public_key': public_key})
+

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { 
   Moon, Sun, Shield, User, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, HelpCircle, 
@@ -167,36 +168,33 @@ const Navbar = () => {
 
         {/* ---- Left Navigation Links ---- */}
         <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center justify-start pl-8 md:pl-12 gap-6">
-          <Link 
-            to="/" 
-            className={`hidden md:inline-flex items-center text-sm font-semibold transition-colors ${
-              useLightStyle
-                ? 'text-white/80 hover:text-white'
-                : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
-            }`}
-          >
-            {t('home', 'Home')}
-          </Link>
-          <Link 
-            to="/products" 
-            className={`hidden md:inline-flex items-center text-sm font-semibold transition-colors ${
-              useLightStyle
-                ? 'text-white/80 hover:text-white'
-                : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
-            }`}
-          >
-            {t('products_nav')}
-          </Link>
-          <Link 
-            to="/help" 
-            className={`hidden md:inline-flex items-center text-sm font-semibold transition-colors ${
-              useLightStyle
-                ? 'text-white/80 hover:text-white'
-                : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
-            }`}
-          >
-            {t('help')}
-          </Link>
+          {[
+            { path: '/', label: t('home', 'Home') },
+            { path: '/products', label: t('products_nav') },
+            { path: '/help', label: t('help') }
+          ].map((link) => {
+            const isActive = location.pathname === link.path || (link.path !== '/' && location.pathname.startsWith(link.path));
+            return (
+              <Link 
+                key={link.path}
+                to={link.path} 
+                className={`relative hidden md:inline-flex items-center py-1 text-sm font-semibold transition-colors ${
+                  isActive
+                    ? (useLightStyle ? 'text-white' : 'text-gray-900 dark:text-white')
+                    : (useLightStyle ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white')
+                }`}
+              >
+                {link.label}
+                {isActive && (
+                  <motion.div
+                    layoutId="navbar-active-indicator"
+                    className={`absolute -bottom-1 left-0 right-0 h-0.5 rounded-full ${useLightStyle ? 'bg-white' : 'bg-brand-500 dark:bg-brand-400'}`}
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+              </Link>
+            );
+          })}
         </div>
 
         {/* ---- Center: Centered Clickable Brand Logo ---- */}
