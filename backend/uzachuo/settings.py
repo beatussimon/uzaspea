@@ -195,6 +195,8 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
+if 'sqlite3' in DATABASES['default']['ENGINE']:
+    DATABASES['default']['OPTIONS'] = {'timeout': 20}
 
 # FIX: S-03 — Enforce password strength
 AUTH_PASSWORD_VALIDATORS = [
@@ -347,3 +349,8 @@ LOGGING = {
         },
     },
 }
+
+# Web Push VAPID Configuration
+WEBPUSH_VAPID_PRIVATE_KEY = os.environ.get('WEBPUSH_VAPID_PRIVATE_KEY', 'MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgQr1lUsqkVW9s5RJZ/+mHaM9tSt6j0QTxv9vLJqPpeoahRANCAATPX7DUQzMhQqvJFkR/h63r/dCO95rKYMbZDBSn15BUnyCNlzoXnNQYU+v/h/Gi675fyaK7Lr7LiYqv0gnHsuLU')
+WEBPUSH_VAPID_PUBLIC_KEY = os.environ.get('WEBPUSH_VAPID_PUBLIC_KEY', 'BM9fsNRDMyFCq8kWRH-Hrev90I73mspgxtkMFKfXkFSfII2XOhec1BhT6_-H8aLrvl_JorsuvsuJiq_SCcey4tQ')
+WEBPUSH_VAPID_CLAIMS = {"sub": "mailto:admin@sokonimax.com"}

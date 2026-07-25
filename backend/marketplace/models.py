@@ -878,24 +878,67 @@ class Notification(models.Model):
 
 
 def push_notification(user, notification_type, title, message, link=''):
-    """FIX B-11: Helper to create a notification and broadcast via WebSocket."""
+    """FIX B-11: Helper to create a notification and broadcast via WebSocket and Web Push."""
     n = Notification.objects.create(
         user=user, notification_type=notification_type,
         title=title, message=message, link=link
     )
     from channels.layers import get_channel_layer
     from asgiref.sync import async_to_sync
+    import json
+    from django.conf import settings
     channel_layer = get_channel_layer()
+    
+    payload = {
+        'type': 'notification.push', 'notification': {
+            'id': n.id, 'type': notification_type,
+            'title': title, 'message': message, 'link': link,
+        }
+    }
+    
     try:
         async_to_sync(channel_layer.group_send)(
             f'notifications_{user.id}',
-            {'type': 'notification.push', 'notification': {
-                'id': n.id, 'type': notification_type,
-                'title': title, 'message': message, 'link': link,
-            }}
+            payload
         )
     except Exception as e:
         logger.warning(f'WS notification broadcast failed for user {user.id}: {e}')  # FIX MED-05
+        
+    # Also trigger Web Push for offline delivery
+    try:
+        from pywebpush import webpush, WebPushException
+        subscriptions = user.push_subscriptions.all()
+        if subscriptions.exists() and hasattr(settings, 'WEBPUSH_VAPID_PRIVATE_KEY'):
+            webpush_payload = json.dumps({
+                'title': title,
+                'message': message,
+                'url': link
+            })
+            for sub in subscriptions:
+                try:
+                    webpush(
+                        subscription_info={
+                            "endpoint": sub.endpoint,
+                            "keys": {
+                                "p256dh": sub.p256dh,
+                                "auth": sub.auth
+                            }
+                        },
+                        data=webpush_payload,
+                        vapid_private_key=settings.WEBPUSH_VAPID_PRIVATE_KEY,
+                        vapid_claims={"sub": getattr(settings, 'WEBPUSH_VAPID_CLAIMS', {}).get("sub", "mailto:admin@sokonimax.com")}
+                    )
+                except WebPushException as e:
+                    # If subscription is expired/invalid, remove it
+                    if e.response and e.response.status_code in [404, 410]:
+                        sub.delete()
+                    else:
+                        logger.error(f'Web Push failed: {e}')
+    except ImportError:
+        logger.warning('pywebpush is not installed. Skipping web push notification.')
+    except Exception as e:
+        logger.error(f'Error sending web push: {e}')
+
     return n
 
 
@@ -1335,4 +1378,15 @@ def invalidate_category_cache(*args, **kwargs):
 @receiver(post_delete, sender=Product)
 def handle_category_invalidation(sender, **kwargs):
     invalidate_category_cache()
+
+# --- Push Notifications ---
+class PushSubscription(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_subscriptions')
+    endpoint = models.TextField(unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"PushSubscription for {self.user.username}"
 

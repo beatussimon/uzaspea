@@ -85,10 +85,10 @@ const RegisterPage: React.FC = () => {
     <div className="min-h-[80vh] flex justify-center items-center py-12 px-4">
       <div className="w-full max-w-lg">
         <div className="text-center mb-10">
-          <h1 className="text-heading-lg font-black text-gray-900 dark:text-white uppercase mb-2">
+          <h1 className="text-heading-lg font-black text-gray-900 dark:text-white mb-2">
             {t('create_account')}
           </h1>
-          <p className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             {t('login_or_create')}
           </p>
         </div>

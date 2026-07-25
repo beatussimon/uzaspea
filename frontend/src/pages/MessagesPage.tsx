@@ -308,12 +308,12 @@ const MessagesPage: React.FC = () => {
   const isMobileThreadActive = !!id;
 
   return (
-    <div className="container-page py-4 md:py-6 h-[calc(100vh-4.5rem)] md:h-[calc(100vh-6.5rem)] flex flex-col">
-      <div className="flex-1 flex bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-900 rounded-card overflow-hidden shadow-xl min-h-0 relative">
+    <div className="h-[calc(100vh-4.5rem)] md:h-[calc(100vh-6.5rem)] flex flex-col">
+      <div className="flex-1 flex overflow-hidden min-h-0 relative">
         
         {/* --- 1. Conversations Sidebar --- */}
-        <div className={`w-full md:w-80 lg:w-96 flex flex-col border-r border-gray-100 dark:border-neutral-900 ${isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-4 flex flex-col gap-3">
+        <div className={`w-full md:w-80 lg:w-96 flex flex-col md:border-r md:border-gray-200/60 dark:md:border-neutral-800/60 ${isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
+          <div className="px-4 md:px-5 pt-4 pb-3 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h1 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
                 <MessageSquare className="text-brand-500" size={20} /> {t('chats')}
@@ -328,13 +328,13 @@ const MessagesPage: React.FC = () => {
                 placeholder={t('search_messenger', 'Search Messenger...')}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs border-none rounded-btn bg-gray-100 dark:bg-neutral-900 text-gray-900 dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-brand-500/25 transition-all outline-none"
+                className="w-full pl-9 pr-4 py-2 text-xs border border-gray-200/60 dark:border-neutral-800/50 rounded-full bg-gray-100/70 dark:bg-neutral-900/50 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/30 transition-all outline-none"
               />
             </div>
           </div>
 
           {/* Conversations Scroll List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-50 dark:divide-neutral-950 px-2 space-y-1">
+          <div className="flex-1 overflow-y-auto px-2 md:px-3 space-y-0.5">
             {filteredConversations.length === 0 ? (
               <div className="py-12 text-center">
                 <p className="text-sm font-semibold text-gray-400 dark:text-gray-600">No chats found</p>
@@ -367,7 +367,7 @@ const MessagesPage: React.FC = () => {
                         {initials}
                       </div>
                       {/* Premium visual: small active green indicator dot */}
-                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-[#0d0d0d]" />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-surface-muted dark:border-surface-dark" />
                     </div>
 
                     {/* Chat details */}
@@ -430,7 +430,7 @@ const MessagesPage: React.FC = () => {
         </div>
 
         {/* --- 2. Chat Thread Area --- */}
-        <div className={`flex-1 flex flex-col bg-gray-50/50 dark:bg-neutral-950/20 ${!isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`flex-1 flex flex-col ${!isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
           {!id ? (
             /* Empty State */
             <div className="flex-1 flex flex-col items-center justify-center p-8">
@@ -444,7 +444,7 @@ const MessagesPage: React.FC = () => {
             /* Active Thread */
             <>
               {/* Thread Header */}
-              <div className="p-4 bg-white dark:bg-[#111] border-b border-surface-border dark:border-surface-dark-border flex items-center justify-between shrink-0 shadow-sm z-10">
+              <div className="px-4 md:px-5 py-3 border-b border-gray-200/60 dark:border-neutral-800/50 flex items-center justify-between shrink-0 z-10 backdrop-blur-xl bg-white/60 dark:bg-black/30">
                 <div className="flex items-center gap-3.5 min-w-0">
                   {/* Mobile Back Button */}
                   <button 
@@ -460,10 +460,10 @@ const MessagesPage: React.FC = () => {
                       className="relative shrink-0 cursor-pointer"
                       onClick={() => navigate(`/${Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username}`)}
                     >
-                      <div className={`w-10.5 h-10.5 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username)} hover:opacity-80 transition-opacity`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username)} hover:opacity-80 transition-opacity`}>
                         {(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
                       </div>
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-[#0d0d0d]" />
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white/80 dark:border-neutral-900/80" />
                     </div>
                   )}
 
@@ -499,7 +499,7 @@ const MessagesPage: React.FC = () => {
 
               {/* Product Reference Banner */}
               {activeConv && activeConv.product_name && (
-                <div className="bg-brand-50/50 dark:bg-brand-950/10 px-4 py-2 border-b border-brand-500/10 flex items-center justify-between gap-3 text-xs shrink-0 font-medium">
+                <div className="px-4 md:px-5 py-2 border-b border-gray-200/60 dark:border-neutral-800/50 flex items-center justify-between gap-3 text-xs shrink-0 font-medium bg-brand-50/30 dark:bg-brand-950/5">
                   <span className="text-gray-600 dark:text-gray-300">
                     Regarding: <strong className="text-brand-600 dark:text-brand-400">{activeConv.product_name}</strong>
                   </span>
@@ -516,7 +516,7 @@ const MessagesPage: React.FC = () => {
 
               {/* Chat Messages Log Scroll */}
               <div 
-                className="flex-1 overflow-y-auto p-4 space-y-6 relative" 
+                className="flex-1 overflow-y-auto px-4 md:px-5 py-4 space-y-6 relative" 
                 ref={scrollRef}
                 onScroll={handleScroll}
               >
@@ -569,10 +569,10 @@ const MessagesPage: React.FC = () => {
                           <div className={`max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                             {/* Message Bubble wrapper with tooltip-like time reveal */}
                             <div className="group relative">
-                              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all shadow-sm whitespace-pre-wrap break-words ${
+                              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all whitespace-pre-wrap break-words ${
                                 isMe
-                                  ? 'bg-brand-500 text-white rounded-br-sm'
-                                  : 'bg-white dark:bg-[#121212] border border-gray-100 dark:border-neutral-900 text-gray-900 dark:text-white rounded-bl-sm'
+                                  ? 'bg-brand-500 text-white rounded-br-sm shadow-sm'
+                                  : 'bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] text-gray-900 dark:text-white rounded-bl-sm'
                               }`}>
                                 {msg.content}
                               </div>
@@ -625,7 +625,7 @@ const MessagesPage: React.FC = () => {
                         {(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
                       </div>
                     )}
-                    <div className="bg-white dark:bg-[#121212] border border-gray-100 dark:border-neutral-900 px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-1.5 shrink-0">
+                    <div className="bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-1.5 shrink-0">
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -652,10 +652,10 @@ const MessagesPage: React.FC = () => {
               )}
 
               {/* Chat Input Console */}
-              <div className="p-3 bg-white dark:bg-[#111] border-t border-surface-border dark:border-surface-dark-border flex flex-col gap-2 shrink-0 z-10">
+              <div className="px-3 md:px-4 py-3 border-t border-gray-200/60 dark:border-neutral-800/50 flex flex-col gap-2 shrink-0 z-10 backdrop-blur-xl bg-white/60 dark:bg-black/30">
                 {/* Emoji Quickbar */}
                 {showEmojiPicker && (
-                  <div className="flex items-center gap-2 p-1.5 bg-surface-muted dark:bg-[#0A0A0A] rounded-btn border border-surface-border dark:border-surface-dark-border overflow-x-auto shadow-inner">
+                  <div className="flex items-center gap-2 p-1.5 bg-gray-100/60 dark:bg-neutral-900/40 rounded-full border border-gray-200/50 dark:border-neutral-800/40 overflow-x-auto">
                     {quickEmojis.map(emoji => (
                       <button
                         key={emoji}
@@ -677,7 +677,7 @@ const MessagesPage: React.FC = () => {
                       onChange={e => handleInputChange(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleSend()}
                       placeholder={t('type_a_message')}
-                      className="w-full pr-10 pl-4 py-2.5 text-sm border border-surface-border dark:border-surface-dark-border rounded-btn bg-surface-muted dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-all outline-none"
+                      className="w-full pr-10 pl-4 py-2.5 text-sm border border-gray-200/60 dark:border-neutral-800/50 rounded-full bg-gray-100/50 dark:bg-neutral-900/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/30 transition-all outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
                     />
                     <button 
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}

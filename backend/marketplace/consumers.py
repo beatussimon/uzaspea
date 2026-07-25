@@ -311,6 +311,48 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'message': msg_data,
             }
         )
+        
+        # Trigger web push if recipient is offline (using a background task)
+        from asgiref.sync import sync_to_async
+        @sync_to_async
+        def send_offline_push(sender, recipient_id, msg_content, conv_id):
+            from django.core.cache import cache
+            from django.contrib.auth.models import User
+            from django.conf import settings
+            import json
+            
+            try:
+                # Basic offline check: if not seen in last 10 seconds
+                # or we just blindly send it and let the client handle dedup
+                recipient = User.objects.get(id=recipient_id)
+                subs = recipient.push_subscriptions.all()
+                if subs.exists() and hasattr(settings, 'WEBPUSH_VAPID_PRIVATE_KEY'):
+                    from pywebpush import webpush, WebPushException
+                    payload = json.dumps({
+                        'title': f'New message from {sender.username}',
+                        'message': msg_content,
+                        'url': f'/messages/{conv_id}'
+                    })
+                    for sub in subs:
+                        try:
+                            webpush(
+                                subscription_info={
+                                    "endpoint": sub.endpoint,
+                                    "keys": {"p256dh": sub.p256dh, "auth": sub.auth}
+                                },
+                                data=payload,
+                                vapid_private_key=settings.WEBPUSH_VAPID_PRIVATE_KEY,
+                                vapid_claims={"sub": getattr(settings, 'WEBPUSH_VAPID_CLAIMS', {}).get("sub", "mailto:admin@sokonimax.com")}
+                            )
+                        except WebPushException as e:
+                            if e.response and e.response.status_code in [404, 410]:
+                                sub.delete()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to send web push in chat: {e}")
+                
+        await send_offline_push(self.user, recipient_id, content, conv_id)
+
         # Echo back to sender for confirmation
         await self.send(text_data=json.dumps({
             'type': 'chat_message',

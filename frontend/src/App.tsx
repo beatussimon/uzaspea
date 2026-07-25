@@ -10,6 +10,7 @@ import { MessageProvider } from './context/MessageContext';
 import { ChatToastContainer } from './components/ChatToast';
 import { PwaInstallPrompt } from './components/PwaInstallPrompt';
 import { useStatusBar } from './hooks/useStatusBar';
+import { ScrollToTopFab } from './components/ui/ScrollToTopFab';
 
 
 import LandingPage from './pages/LandingPage';
@@ -121,6 +122,7 @@ function AppRoutes() {
 function AppLayout() {
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
+  const isMessagesPage = location.pathname.startsWith('/messages');
   
   useStatusBar();
 
@@ -131,7 +133,7 @@ function AppLayout() {
       
       <CategoryBar />
 
-      <main className={`flex-1 ${isLandingPage ? 'h-full p-0 overflow-hidden' : 'pt-4 md:pt-6'}`}>
+      <main className={`flex-1 ${isLandingPage ? 'h-full p-0 overflow-hidden' : isMessagesPage ? '' : 'pt-4 md:pt-6'}`}>
         <ErrorBoundary>
           <Suspense fallback={<SuspenseLoader />}>
             <AppRoutes />
@@ -139,8 +141,9 @@ function AppLayout() {
         </ErrorBoundary>
       </main>
 
-      {!isLandingPage && <Footer />}
+      {!isLandingPage && !isMessagesPage && <Footer />}
       <MobileBottomNav />
+      <ScrollToTopFab />
 
       <Toaster
         position="top-right"

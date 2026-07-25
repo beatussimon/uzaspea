@@ -18,14 +18,18 @@ self.addEventListener('push', function(event) {
   const options = {
     body: data.message || '',
     icon: '/logo.png',
-    badge: '/logo.png'
+    badge: '/logo.png',
+    data: {
+      url: data.url || '/'
+    }
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  // Optional: open app or redirect to specific page
+  const urlToOpen = event.notification.data ? event.notification.data.url : '/';
+  
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
       if (clientList.length > 0) {
@@ -36,9 +40,12 @@ self.addEventListener('notificationclick', function(event) {
             break;
           }
         }
+        if ('navigate' in client) {
+          return client.navigate(urlToOpen).then(c => c.focus());
+        }
         return client.focus();
       }
-      return clients.openWindow('/');
+      return clients.openWindow(urlToOpen);
     })
   );
 });
