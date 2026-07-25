@@ -208,6 +208,8 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
       if (res.data.like_count !== undefined) {
         setLikeCount(res.data.like_count);
       }
+      // Notify MobileBottomNav to update the saved items badge count
+      window.dispatchEvent(new Event('savedItemsChanged'));
     } catch {
       // Revert on failure
       setLiked(previousLiked);

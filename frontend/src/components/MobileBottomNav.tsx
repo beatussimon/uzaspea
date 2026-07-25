@@ -12,10 +12,11 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useMessages } from '../context/MessageContext';
-
+import api from '../api';
 
 const MobileBottomNav = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { cartCount } = useCart();
@@ -133,6 +134,28 @@ const MobileBottomNav = () => {
       document.body.style.overflow = '';
     }
   }, [isMenuOpen]);
+
+  // Fetch saved count
+  const fetchSavedCount = () => {
+    if (isAuthenticated) {
+      api.get('/api/products/?saved=true&limit=1')
+        .then(res => setSavedCount(res.data.count || 0))
+        .catch(() => {});
+    } else {
+      setSavedCount(0);
+    }
+  };
+
+  useEffect(() => {
+    fetchSavedCount();
+  }, [isAuthenticated, location.pathname]);
+
+  // Listen for custom event from ProductCard to update saved count instantly
+  useEffect(() => {
+    const handleSavedChange = () => fetchSavedCount();
+    window.addEventListener('savedItemsChanged', handleSavedChange);
+    return () => window.removeEventListener('savedItemsChanged', handleSavedChange);
+  }, [isAuthenticated]);
 
   return (
     <>
@@ -431,7 +454,14 @@ const MobileBottomNav = () => {
               className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
             >
               <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
-                <Heart size={24} className={`transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && location.search.includes('saved=true') ? 2.5 : 2} />
+                <div className="relative">
+                  <Heart size={24} className={`transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && location.search.includes('saved=true') ? 2.5 : 2} />
+                  {savedCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 bg-gray-500/80 backdrop-blur-sm text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white dark:border-gray-900 px-1 shadow-sm">
+                      {savedCount > 99 ? '99+' : savedCount}
+                    </span>
+                  )}
+                </div>
                 <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('saved', 'Saved')}</span>
               </motion.div>
               {isActive('/products') && location.search.includes('saved=true') && (
