@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .api_views import (
     ProductViewSet, CategoryViewSet, ReviewViewSet,
     CommentViewSet, OrderViewSet, PaymentViewSet,
-    CustomTokenObtainPairView, CustomTokenRefreshView, RegisterView,
+    CustomTokenObtainPairView, CustomTokenRefreshView, RegisterView, AcceptTermsView,
     SponsoredListingViewSet, UserProfileViewSet,
     LipaNumberViewSet, FAQViewSet, SupportTicketViewSet, ChangePasswordView,
     VerifySuperuserView, NotificationViewSet, ConversationViewSet,
@@ -47,6 +47,7 @@ urlpatterns = [
     path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/register/', RegisterView.as_view(), name='auth_register'),
+    path('api/auth/accept-terms/', AcceptTermsView.as_view(), name='accept_terms'),
     path('api/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('api/auth/verify-superuser/', VerifySuperuserView.as_view(), name='verify_superuser'),  # FIX D-02/D-03
     path('api/site-settings/', SiteSettingsView.as_view(), name='site-settings'),  # FIX B-18

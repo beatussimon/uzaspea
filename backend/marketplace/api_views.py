@@ -1219,9 +1219,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         try:
             data['is_verified'] = self.user.profile.is_verified
             data['tier'] = self.user.profile.tier
+            data['terms_accepted'] = self.user.profile.terms_accepted
         except (UserProfile.DoesNotExist, AttributeError):
             data['is_verified'] = False
             data['tier'] = 'customer'
+            data['terms_accepted'] = False
         
         data['is_inspector'] = hasattr(self.user, 'inspector_profile')
         data['inspector_level'] = (
@@ -1252,9 +1254,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         try:
             token['is_verified'] = user.profile.is_verified
             token['tier'] = user.profile.tier
+            token['terms_accepted'] = user.profile.terms_accepted
         except Exception:
             token['is_verified'] = False
             token['tier'] = 'customer'
+            token['terms_accepted'] = False
             
         token['is_inspector'] = hasattr(user, 'inspector_profile')
         token['inspector_level'] = (
@@ -1313,6 +1317,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     throttle_classes = [LoginRateThrottle]  # FIX D-07
 
+class AcceptTermsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request):
+        profile = request.user.profile
+        profile.terms_accepted = True
+        profile.save()
+        return Response({'status': 'terms accepted'})
+
 class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1368,9 +1380,10 @@ class RegisterView(APIView):
         )
         # Profile is created via post_save signal in models.py
         profile = user.profile
+        profile.terms_accepted = True
         if dob:
             profile.date_of_birth = dob
-            profile.save()
+        profile.save()
 
         from datetime import timedelta
         from django.utils import timezone
@@ -1395,6 +1408,7 @@ class RegisterView(APIView):
             'is_superuser': user.is_superuser,
             'is_verified': False,
             'tier': profile.tier,
+            'terms_accepted': True,
             'is_inspector': False,
             'inspector_level': None
         }

@@ -612,6 +612,7 @@ class UserProfile(models.Model):
         choices=[('TZS', 'Tanzanian Shilling'), ('USD', 'US Dollar')],
         default='TZS'
     )
+    terms_accepted = models.BooleanField(default=False)
     # FIX: S-12 — removed conflicting M2M field; Use Follow model for following relationships
 
     def __str__(self):

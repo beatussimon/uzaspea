@@ -43,6 +43,11 @@ const SellerUpgradePage = lazy(() => import('./pages/SellerUpgradePage'));
 const ShipmentTrackingPage = lazy(() => import('./pages/ShipmentTrackingPage'));
 const HelpCenterPage = lazy(() => import('./pages/dashboard/HelpCenterPage'));
 const PublicVerifyPage = lazy(() => import('./pages/inspections/PublicVerifyPage'));
+const TermsAndConditionsPage = lazy(() => import('./pages/legal/TermsAndConditionsPage'));
+const PrivacyPolicyPage = lazy(() => import('./pages/legal/PrivacyPolicyPage'));
+const SellerContractPage = lazy(() => import('./pages/legal/SellerContractPage'));
+
+import GlobalTermsModal from './components/GlobalTermsModal';
 
 // Fallback loader for Lazy views
 const SuspenseLoader = () => (
@@ -101,6 +106,9 @@ function AppRoutes() {
         <Route path="/help" element={<HelpCenterPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/terms" element={<TermsAndConditionsPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/seller-contract" element={<SellerContractPage />} />
         <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
@@ -144,6 +152,7 @@ function AppLayout() {
       {!isLandingPage && !isMessagesPage && <Footer />}
       <MobileBottomNav />
       <ScrollToTopFab />
+      <GlobalTermsModal />
 
       <Toaster
         position="top-right"

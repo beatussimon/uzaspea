@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const MessagesPage: React.FC = () => {
   const { t } = useTranslation();
@@ -76,7 +77,7 @@ const MessagesPage: React.FC = () => {
     typingTimeoutRef.current = window.setTimeout(() => {
       setIsLocallyTyping(false);
       sendTypingStatus(convId, false);
-    }, 2000);
+    }, 4000);
   };
 
 
@@ -408,13 +409,19 @@ const MessagesPage: React.FC = () => {
                       )}
 
                       <div className="flex justify-between items-center gap-1.5 mt-0.5">
-                        <p className={`text-xs truncate flex-1 ${
-                          conv.unread_count > 0 
-                            ? 'text-gray-900 dark:text-white font-extrabold' 
-                            : 'text-gray-500 dark:text-gray-400'
-                        }`}>
-                          {conv.last_message ? conv.last_message.content : 'No messages yet'}
-                        </p>
+                        {typingStatus[conv.id] ? (
+                          <p className="text-xs text-brand-500 font-bold truncate flex-1 animate-pulse">
+                            typing...
+                          </p>
+                        ) : (
+                          <p className={`text-xs truncate flex-1 ${
+                            conv.unread_count > 0 
+                              ? 'text-gray-900 dark:text-white font-extrabold' 
+                              : 'text-gray-500 dark:text-gray-400'
+                          }`}>
+                            {conv.last_message ? conv.last_message.content : 'No messages yet'}
+                          </p>
+                        )}
                         {conv.unread_count > 0 && (
                           <span className="shrink-0 px-2 py-0.5 bg-brand-500 text-white text-[10px] font-bold rounded-full shadow-sm animate-pulse">
                             {conv.unread_count}
@@ -478,7 +485,11 @@ const MessagesPage: React.FC = () => {
                         <VerifiedBadge tier={activeConv.seller_tier} isVerified={activeConv.seller_verified} className="w-3.5 h-3.5" />
                       )}
                     </span>
-                    {activeConv && activeConv.is_online ? (
+                    {activeConv && typingStatus[parseInt(id || '')] ? (
+                      <p className="text-[10px] text-brand-500 font-semibold flex items-center gap-1 leading-none mt-0.5 animate-pulse">
+                        typing...
+                      </p>
+                    ) : activeConv && activeConv.is_online ? (
                       <p className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1 leading-none mt-0.5">
                         Active now
                       </p>
@@ -520,100 +531,106 @@ const MessagesPage: React.FC = () => {
                 ref={scrollRef}
                 onScroll={handleScroll}
               >
-                {Object.keys(groupedMessages).map(dateStr => (
-                  <div key={dateStr} className="space-y-4">
-                    {/* Day divider */}
-                    <div className="flex justify-center my-4">
-                      <span className="px-3 py-1 bg-gray-200/55 dark:bg-neutral-900 text-gray-500 dark:text-gray-400 text-[10px] font-bold rounded-full tracking-wide">
-                        {formatDayHeader(dateStr)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                <AnimatePresence initial={false}>
+                  {Object.keys(groupedMessages).length === 0 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 text-center text-xs text-gray-400">
+                      No messages in this conversation yet. Send a message to start!
+                    </motion.div>
+                  )}
 
-                {Object.keys(groupedMessages).length === 0 && (
-                  <div className="py-12 text-center text-xs text-gray-400">
-                    No messages in this conversation yet. Send a message to start!
-                  </div>
-                )}
+                  {Object.keys(groupedMessages).map(dateStr => (
+                    <div key={dateStr} className="space-y-4">
+                      {/* Day divider */}
+                      <motion.div className="flex justify-center my-4">
+                        <span className="px-3 py-1 bg-gray-200/55 dark:bg-neutral-900 text-gray-500 dark:text-gray-400 text-[10px] font-bold rounded-full tracking-wide">
+                          {formatDayHeader(dateStr)}
+                        </span>
+                      </motion.div>
 
-                {Object.keys(groupedMessages).map(dateStr => (
-                  <div key={dateStr} className="space-y-4">
-                    {/* Messages in day */}
-                    {groupedMessages[dateStr].map((msg, index) => {
-                      const isMe = Number(msg.sender) === Number(userId);
-                      const showAvatar = !isMe;
-                      
-                      // Display precise date on hover
-                      const messageTime = new Date(msg.created_at).toLocaleTimeString(undefined, {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      });
+                      {/* Messages in day */}
+                      {groupedMessages[dateStr].map((msg, index) => {
+                        const isMe = Number(msg.sender) === Number(userId);
+                        const showAvatar = !isMe;
+                        
+                        // Display precise date on hover
+                        const messageTime = new Date(msg.created_at).toLocaleTimeString(undefined, {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        });
 
-                      return (
-                        <div key={msg.id} className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                          {/* Sender Avatar */}
-                          {showAvatar && (
-                            <div 
-                              className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(msg.sender_username)} cursor-pointer hover:opacity-80 transition-opacity`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/${msg.sender_username}`);
-                              }}
-                            >
-                              {msg.sender_username.substring(0, 2).toUpperCase()}
-                            </div>
-                          )}
-
-                          {/* Bubble Container */}
-                          <div className={`max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                            {/* Message Bubble wrapper with tooltip-like time reveal */}
-                            <div className="group relative">
-                              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all whitespace-pre-wrap break-words ${
-                                isMe
-                                  ? 'bg-brand-500 text-white rounded-br-sm shadow-sm'
-                                  : 'bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] text-gray-900 dark:text-white rounded-bl-sm'
-                              }`}>
-                                {msg.content}
-                              </div>
-
-                              {/* Hover timestamp */}
-                              <span className={`absolute top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap ${
-                                isMe ? '-left-14' : '-right-14'
-                              }`}>
-                                {messageTime}
-                              </span>
-                            </div>
-
-                            {/* Unread / status indicators below own messages */}
-                            {isMe && index === groupedMessages[dateStr].length - 1 && (
-                              <div className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
-                                {msg.id < 0 ? (
-                                  <span className="animate-pulse">Sending...</span>
-                                ) : (
-                                  <>
-                                    <span>Sent</span>
-                                    {msg.is_read ? (
-                                      <CheckCheck size={12} className="text-brand-500" />
-                                    ) : msg.is_delivered ? (
-                                      <CheckCheck size={12} className="text-gray-400" />
-                                    ) : (
-                                      <Check size={12} className="text-gray-400" />
-                                    )}
-                                  </>
-                                )}
+                        return (
+                          <div key={msg.id} className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            {/* Sender Avatar */}
+                            {showAvatar && (
+                              <div 
+                                className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(msg.sender_username)} cursor-pointer hover:opacity-80 transition-opacity`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/${msg.sender_username}`);
+                                }}
+                              >
+                                {msg.sender_username.substring(0, 2).toUpperCase()}
                               </div>
                             )}
+
+                            {/* Bubble Container */}
+                            <motion.div 
+                              initial={{ opacity: 0, y: 15, scale: 0.5 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              transition={{ 
+                                opacity: { duration: 0.2 },
+                                default: { type: "spring", bounce: 0.4, duration: 0.5 }
+                              }}
+                              style={{ transformOrigin: isMe ? "bottom right" : "bottom left" }}
+                              className={`max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                            >
+                              {/* Message Bubble wrapper with tooltip-like time reveal */}
+                              <div className="group relative">
+                                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all whitespace-pre-wrap break-words ${
+                                  isMe
+                                    ? 'bg-brand-500 text-white rounded-br-sm shadow-sm'
+                                    : 'bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] text-gray-900 dark:text-white rounded-bl-sm'
+                                }`}>
+                                  {msg.content}
+                                </div>
+
+                                {/* Hover timestamp */}
+                                <span className={`absolute top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap ${
+                                  isMe ? '-left-14' : '-right-14'
+                                }`}>
+                                  {messageTime}
+                                </span>
+                              </div>
+
+                              {/* Unread / status indicators below own messages */}
+                              {isMe && index === groupedMessages[dateStr].length - 1 && (
+                                <div className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
+                                  {msg.id < 0 ? (
+                                    <span className="animate-pulse">Sending...</span>
+                                  ) : (
+                                    <>
+                                      <span>Sent</span>
+                                      {msg.is_read ? (
+                                        <CheckCheck size={12} className="text-brand-500" />
+                                      ) : msg.is_delivered ? (
+                                        <CheckCheck size={12} className="text-gray-400" />
+                                      ) : (
+                                        <Check size={12} className="text-gray-400" />
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </motion.div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                        );
+                      })}
+                    </div>
+                  ))}
 
                 {/* Animated Typing Indicator */}
-                {(typingStatus[parseInt(id || '')]) && (
-                  <div className="flex items-end gap-2.5">
+                  {(typingStatus[parseInt(id || '')]) && (
+                    <div className="flex items-end gap-2.5">
                     {activeConv && (
                       <div 
                         className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username)} cursor-pointer hover:opacity-80 transition-opacity`}
@@ -625,13 +642,23 @@ const MessagesPage: React.FC = () => {
                         {(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
                       </div>
                     )}
-                    <div className="bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-1.5 shrink-0">
+                    <motion.div 
+                      initial={{ opacity: 0, y: 15, scale: 0.5 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ 
+                        opacity: { duration: 0.2 },
+                        default: { type: "spring", bounce: 0.4, duration: 0.5 }
+                      }}
+                      style={{ transformOrigin: "bottom left" }}
+                      className="bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-1.5 shrink-0"
+                    >
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </motion.div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </AnimatePresence>
                 <div ref={messageEndRef} />
               </div>
               

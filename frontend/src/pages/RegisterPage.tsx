@@ -19,7 +19,8 @@ const RegisterPage: React.FC = () => {
     last_name: '',
     date_of_birth: '',
     password: '',
-    confirm_password: ''
+    confirm_password: '',
+    terms_accepted: false
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -29,7 +30,8 @@ const RegisterPage: React.FC = () => {
   if (isAuthenticated) return <Navigate to="/" />;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const nextStep = () => {
@@ -47,6 +49,9 @@ const RegisterPage: React.FC = () => {
     e.preventDefault();
     if (formData.password !== formData.confirm_password) {
       return toast.error(t('passwords_dont_match', 'Passwords do not match'));
+    }
+    if (!formData.terms_accepted) {
+      return toast.error('You must agree to the Terms and Conditions and Privacy Policy');
     }
     setLoading(true);
     try {
@@ -259,6 +264,25 @@ const RegisterPage: React.FC = () => {
                             {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 pt-2">
+                      <div className="flex h-5 items-center">
+                        <input
+                          id="terms_accepted"
+                          name="terms_accepted"
+                          type="checkbox"
+                          required
+                          className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-600 dark:border-neutral-700 dark:bg-neutral-900"
+                          checked={formData.terms_accepted}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="text-sm">
+                        <label htmlFor="terms_accepted" className="font-medium text-gray-700 dark:text-gray-300">
+                          I agree to the <Link to="/terms" target="_blank" className="text-brand-600 hover:underline">Terms and Conditions</Link> and <Link to="/privacy" target="_blank" className="text-brand-600 hover:underline">Privacy Policy</Link>.
+                        </label>
                       </div>
                     </div>
 

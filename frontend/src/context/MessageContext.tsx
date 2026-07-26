@@ -307,6 +307,9 @@ const subscribeToWebPush = async () => {
           const convId = Number(data.conversation_id);
           const msg: Message = data.message;
 
+          // Clear typing status instantly when message arrives
+          setTypingStatus(prev => ({ ...prev, [convId]: false }));
+
           // 1. Update messages cache if it exists or if it's the active conversation
           if (activeConvIdRef.current === convId) {
             setMessages(prev => {
