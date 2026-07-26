@@ -368,7 +368,9 @@ const MessagesPage: React.FC = () => {
                         {initials}
                       </div>
                       {/* Premium visual: small active green indicator dot */}
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-surface-muted dark:border-surface-dark" />
+                      {conv.is_online && (
+                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-surface-muted dark:border-surface-dark" />
+                      )}
                     </div>
 
                     {/* Chat details */}
@@ -470,7 +472,9 @@ const MessagesPage: React.FC = () => {
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username)} hover:opacity-80 transition-opacity`}>
                         {(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
                       </div>
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white/80 dark:border-neutral-900/80" />
+                      {activeConv.is_online && (
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white/80 dark:border-neutral-900/80" />
+                      )}
                     </div>
                   )}
 
