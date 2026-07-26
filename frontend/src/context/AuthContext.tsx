@@ -14,6 +14,7 @@ interface User {
   subscription_end_date?: string | null;
   is_team_member?: boolean;
   team_permissions?: Record<string, boolean>;
+  terms_accepted?: boolean;
 }
 
 interface AuthContextType {
@@ -21,6 +22,7 @@ interface AuthContextType {
   user: User | null;
   login: (tokens: { access: string; refresh: string }, userData: any) => void;
   logout: () => void;
+  acceptTerms: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           subscription_end_date: payload.subscription_end_date,
           is_team_member: payload.is_team_member === true || payload.is_team_member === 'true',
           team_permissions: typeof payload.team_permissions === 'string' ? JSON.parse(payload.team_permissions) : (payload.team_permissions || {}),
+          terms_accepted: payload.terms_accepted === true || payload.terms_accepted === 'true' || localStorage.getItem('terms_accepted') === 'true',
         });
       } else {
         logout();
@@ -83,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('inspector_level', payload.inspector_level || '');
       localStorage.setItem('is_team_member', String(payload.is_team_member || false));
       localStorage.setItem('team_permissions', JSON.stringify(payload.team_permissions || {}));
+      localStorage.setItem('terms_accepted', String(payload.terms_accepted || false));
     } else {
       localStorage.setItem('user_id', String(userData.user_id));
       localStorage.setItem('username', userData.username);
@@ -94,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('inspector_level', userData.inspector_level || '');
       localStorage.setItem('is_team_member', String(userData.is_team_member || false));
       localStorage.setItem('team_permissions', JSON.stringify(userData.team_permissions || {}));
+      localStorage.setItem('terms_accepted', String(userData.terms_accepted || false));
     }
     
     setIsAuthenticated(true);
@@ -108,7 +113,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(false);
   };
 
-  const contextValue = useMemo(() => ({ isAuthenticated, user, login, logout }), [isAuthenticated, user]);
+  const acceptTerms = () => {
+    if (user) {
+      setUser({ ...user, terms_accepted: true });
+      localStorage.setItem('terms_accepted', 'true');
+    }
+  };
+
+  const contextValue = useMemo(() => ({ isAuthenticated, user, login, logout, acceptTerms }), [isAuthenticated, user]);
 
   return (
     <AuthContext.Provider value={contextValue}>

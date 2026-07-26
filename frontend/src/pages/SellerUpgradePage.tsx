@@ -24,6 +24,7 @@ const SellerUpgradePage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isLoadingTiers, setIsLoadingTiers] = useState(true);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   
   const [application, setApplication] = useState<any>(null);
   const [tiers, setTiers] = useState<any[]>([]);
@@ -144,6 +145,10 @@ const SellerUpgradePage: React.FC = () => {
       toast.error('ID Document image is required.');
       return;
     }
+    if (!termsAccepted) {
+      toast.error('You must agree to the Seller Upgrade Agreement.');
+      return;
+    }
 
     const targetTier = tiers.find(t => t.tier_level === selectedTier);
     if (!targetTier) {
@@ -194,6 +199,7 @@ const SellerUpgradePage: React.FC = () => {
     }
     if (!refId.trim()) return toast.error('Please enter transaction reference ID');
     if (!proofFile) return toast.error('Please upload a screenshot proof of payment');
+    if (!termsAccepted) return toast.error('You must agree to the Seller Upgrade Agreement.');
 
     setSubmittingPayment(true);
     const fd = new FormData();
@@ -518,6 +524,26 @@ const SellerUpgradePage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Seller Contract Checkbox */}
+                <div className="flex items-start gap-3 mt-6">
+                  <div className="flex h-5 items-center">
+                    <input
+                      id="terms_accepted_renewal"
+                      name="terms_accepted"
+                      type="checkbox"
+                      required
+                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-600 dark:border-neutral-700 dark:bg-neutral-900"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                    />
+                  </div>
+                  <div className="text-sm">
+                    <label htmlFor="terms_accepted_renewal" className="font-medium text-gray-700 dark:text-gray-300">
+                      I agree to the <Link to="/seller-contract" target="_blank" className="text-brand-600 hover:underline">Seller Pro / Business Account Upgrade Agreement</Link>.
+                    </label>
+                  </div>
+                </div>
+
                 {/* Submit button */}
                 <button 
                   type="submit"
@@ -621,6 +647,26 @@ const SellerUpgradePage: React.FC = () => {
                   </p>
                   <p className="text-[10px] text-gray-400">JPEG, PNG or WebP up to 5MB</p>
                 </div>
+              </div>
+            </div>
+
+            {/* Seller Contract Checkbox */}
+            <div className="flex items-start gap-3">
+              <div className="flex h-5 items-center">
+                <input
+                  id="terms_accepted_app"
+                  name="terms_accepted"
+                  type="checkbox"
+                  required
+                  className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-600 dark:border-neutral-700 dark:bg-neutral-900"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                />
+              </div>
+              <div className="text-sm">
+                <label htmlFor="terms_accepted_app" className="font-medium text-gray-700 dark:text-gray-300">
+                  I agree to the <Link to="/seller-contract" target="_blank" className="text-brand-600 hover:underline">Seller Pro / Business Account Upgrade Agreement</Link>.
+                </label>
               </div>
             </div>
 
