@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Clock, FileText, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, CheckCircle2 } from 'lucide-react';
+import { Lightbulb, TrendingUp, Clock, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import api from '../../api/axios';
+import api from '../api';
 import { X, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 

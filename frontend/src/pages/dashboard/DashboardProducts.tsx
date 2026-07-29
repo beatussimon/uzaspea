@@ -40,7 +40,7 @@ const DashboardProducts: React.FC = () => {
   const [quickStockValue, setQuickStockValue] = useState<string>('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+  const [form, setForm] = useState({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
   const [priceTiers, setPriceTiers] = useState<any[]>([]);
   
   // Search and Filters
