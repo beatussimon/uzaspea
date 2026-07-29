@@ -38,11 +38,14 @@ interface ProductData {
   inspections: InspectionSummary[];
   is_verified: boolean;
   can_review?: boolean;
+  requires_quote?: boolean;
   location_name?: string;
   latitude?: string;
   longitude?: string;
   created_at?: string;
   sale_price?: string | null;
+  weight_kg?: string;
+  size?: string;
   unit_of_measure?: string;
   minimum_order_quantity?: string;
   price_tiers?: { id: number; min_quantity: string; max_quantity: string | null; unit_price: string }[];

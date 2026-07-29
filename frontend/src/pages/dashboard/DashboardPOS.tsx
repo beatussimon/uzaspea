@@ -15,6 +15,7 @@ interface Product {
   stock: number;
   images: any[];
   variants?: any[];
+  requires_quote?: boolean;
 }
 
 interface CartItem {
