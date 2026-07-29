@@ -9,8 +9,9 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../context/AuthContext';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid, LabelList } from 'recharts';
 import { useNavigate } from 'react-router-dom';
+const CHART_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316'];
 
 const ProductRequestsBoard: React.FC = () => {
   const { t } = useTranslation();
@@ -285,8 +286,9 @@ const ProductRequestsBoard: React.FC = () => {
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} />
                     <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(107, 114, 128, 0.05)' }} />
                     <Bar dataKey="votes" radius={[6, 6, 0, 0]} barSize={40}>
+                      <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={12} fontWeight={600} />
                       {chartData.map((_entry, index) => (
-                        <Cell key={`cell-${index}`} fill={index === 0 ? '#10B981' : '#34D399'} className="transition-all duration-300 hover:opacity-80" />
+                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} className="transition-all duration-300 hover:opacity-80" />
                       ))}
                     </Bar>
                   </BarChart>
