@@ -234,6 +234,7 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     condition = models.CharField(max_length=4, choices=CONDITION_CHOICES, default='New')
+    requires_quote = models.BooleanField(default=False)
     
     # Location data
     location_name = models.CharField(max_length=255, null=True, blank=True)
@@ -460,6 +461,8 @@ class Order(models.Model):
     STATUS_CHOICES = (
         ('CART', 'Cart'),
         ('CHECKOUT', 'Checkout'),
+        ('REQUESTED_INVOICE', 'Requested Invoice'),
+        ('INVOICE_GENERATED', 'Invoice Generated'),
         ('AWAITING_PAYMENT', 'Awaiting Payment'),
         ('PENDING_VERIFICATION', 'Pending Verification'),
         ('PAID', 'Paid'),
@@ -1392,3 +1395,27 @@ class PushSubscription(models.Model):
     def __str__(self):
         return f"PushSubscription for {self.user.username}"
 
+
+# --- Product Request Model ---
+class ProductRequest(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_product_requests')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='submitted_product_requests')
+    request_count = models.PositiveIntegerField(default=1)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='product_requests')
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    condition = models.CharField(max_length=4, choices=Product.CONDITION_CHOICES, default='New')
+    requires_quote = models.BooleanField(default=False)
+    image = models.ImageField(upload_to='product-requests/', null=True, blank=True)
+    is_fulfilled = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_requested = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-request_count', '-last_requested']
+        unique_together = ('name', 'seller')
+
+    def __str__(self):
+        return f"{self.name} requested {self.request_count} times for {self.seller.username}"

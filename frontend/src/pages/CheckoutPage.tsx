@@ -39,6 +39,7 @@ const CheckoutPage: React.FC = () => {
   
   const checkoutItems = useMemo(() => items.filter(i => (i.seller_username || 'Unknown Store') === merchant), [items, merchant]);
   const checkoutTotal = useMemo(() => checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0), [checkoutItems]);
+  const hasQuoteItem = useMemo(() => checkoutItems.some(i => i.requires_quote), [checkoutItems]);
 
   const [submitting, setSubmitting] = useState(false);
   const [shippingMethod, setShippingMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
@@ -367,6 +368,31 @@ const CheckoutPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+      if (hasQuoteItem) {
+        setSubmitting(true);
+        try {
+          const rfqData = {
+            items: checkoutItems.map(i => {
+              let pId = i.productId;
+              if (typeof pId === 'string' && pId.includes('-')) pId = parseInt(pId.split('-')[0], 10);
+              return { product_id: pId, quantity: i.quantity };
+            }),
+            shipping_method: shippingMethod,
+            fulfillment_type: fulfillmentType
+          };
+          const res = await api.post('/api/orders/request-invoice/', rfqData);
+          setCheckoutSuccess(true);
+          clearCartByMerchant(merchant);
+          toast.success(t('quote_requested_success', 'Quote requested successfully!'));
+          setTimeout(() => navigate(`/orders?highlight=${res.data.order_id}`), 100);
+        } catch (error: any) {
+          toast.error(error.response?.data?.error || t('request_failed', 'Failed to request quote.'));
+        } finally {
+          setSubmitting(false);
+        }
+        return;
+      }
     if (shippingMethod === 'DELIVERY' && (!form.fullName || !form.phone || !form.deliveryAddress)) {
       toast.error(t('fill_required_fields_error', 'Please fill in all required fields for delivery'));
       return;
@@ -776,8 +802,8 @@ const CheckoutPage: React.FC = () => {
             loading={submitting}
             className="w-full flex items-center justify-center gap-2 mt-4"
           >
-            <CreditCard size={16} />
-            {t('pay_product_price', 'Pay Product Price — TSh {{price}}', { price: finalTotal.toLocaleString() })}
+            {hasQuoteItem ? <Shield size={16} /> : <CreditCard size={16} />}
+            {hasQuoteItem ? t('request_invoice', 'Request Invoice') : t('pay_product_price', 'Pay Product Price — TSh {{price}}', { price: finalTotal.toLocaleString() })}
           </Button>
         </form>
 

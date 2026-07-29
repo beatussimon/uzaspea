@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { 
   Settings, MapPin, Camera, 
   Star, ShoppingBag, Globe, Info,
-  CheckCircle, Plus
+  CheckCircle, Plus, Package
 } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
@@ -15,12 +15,15 @@ import { FormField } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
+import ProductRequestModal from '../components/ProductRequestModal';
 
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
   const { username } = useParams<{ username: string }>();
   const [profile, setProfile] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
+  const [productRequests, setProductRequests] = useState<any[]>([]);
+  const [upvoting, setUpvoting] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
   const [followStatus, setFollowStatus] = useState({ following: false, followers_count: 0, following_count: 0 });
@@ -38,6 +41,7 @@ const ProfilePage: React.FC = () => {
   const [followList, setFollowList] = useState<any[]>([]);
   const [followListLoading, setFollowListLoading] = useState(false);
 
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
 
   // Authenticated context
   const currentUser = localStorage.getItem('username');
@@ -72,8 +76,11 @@ const ProfilePage: React.FC = () => {
     }
 
     api.get(`/api/products/?seller=${username}`)
-
       .then(res => setProducts(res.data.results || res.data))
+      .catch(() => {});
+      
+    api.get(`/api/product-requests/?seller_username=${username}`)
+      .then(res => setProductRequests(res.data.results || res.data))
       .catch(() => {});
   };
 
@@ -96,8 +103,24 @@ const ProfilePage: React.FC = () => {
           }));
           toast.success(res.data.following ? `Followed @${username}` : `Unfollowed @${username}`);
       } catch {
-          toast.error('Failed to perform action');
+          toast.error("Failed to follow/unfollow");
       }
+  };
+
+  const handleUpvoteRequest = async (name: string) => {
+    try {
+      setUpvoting(name);
+      const res = await api.post('/api/product-requests/', {
+        name,
+        seller_username: username
+      });
+      setProductRequests(prev => prev.map(pr => pr.name === name ? res.data : pr));
+      toast.success(t('upvote_success', 'Vote recorded!'));
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || t('error_upvoting', 'Failed to upvote'));
+    } finally {
+      setUpvoting(null);
+    }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -294,6 +317,13 @@ const ProfilePage: React.FC = () => {
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
                     {t('message')}
                   </a>
+                  <button
+                    onClick={() => setIsRequestModalOpen(true)}
+                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-200 dark:border-brand-900 text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/10 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition active:scale-95 flex items-center gap-1.5"
+                  >
+                    <Plus size={14} />
+                    {t('request_product', 'Request Product')}
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -411,6 +441,69 @@ const ProfilePage: React.FC = () => {
         {/* Tab content renders */}
         {activeTab === 'listings' ? (
           <div className="pt-2">
+            
+            {/* Requested Products Section */}
+            {productRequests.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-4 px-4 sm:px-0">
+                  <Star size={18} className="text-amber-500 fill-amber-500" />
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {t('coming_soon_requested', 'Coming Soon / Requested')}
+                  </h2>
+                </div>
+                <div className="flex overflow-x-auto gap-4 pb-4 px-4 sm:px-0 hide-scrollbar snap-x snap-mandatory">
+                  {productRequests.map(req => (
+                    <div key={req.id} className="snap-start shrink-0 w-[240px] bg-white dark:bg-neutral-900 border border-brand-100 dark:border-neutral-800 rounded-2xl shadow-sm flex flex-col justify-between group transition-all duration-300 hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-brand-500/10 to-transparent rounded-bl-full pointer-events-none z-10" />
+                      
+                      <div className="relative h-[120px] bg-gray-100 dark:bg-neutral-800 flex items-center justify-center overflow-hidden">
+                        {req.image ? (
+                          <img src={req.image} alt={req.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        ) : (
+                          <Package size={40} className="text-gray-300 dark:text-neutral-700" />
+                        )}
+                        <div className="absolute top-2 left-2 px-2 py-1 bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold rounded-lg uppercase tracking-wider text-brand-600 dark:text-brand-400">
+                          Coming Soon
+                        </div>
+                      </div>
+
+                      <div className="p-4 flex-1 flex flex-col">
+                        <div className="flex justify-between items-start mb-1">
+                          <h3 className="font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors" title={req.name}>
+                            {req.name}
+                          </h3>
+                        </div>
+                        {req.price && (
+                          <p className="text-sm font-black text-gray-900 dark:text-white mb-1">
+                            Est. ${req.price}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 mb-2">
+                          {req.description || 'No description provided.'}
+                        </p>
+                        
+                        <div className="mt-auto flex items-center justify-between border-t border-gray-100 dark:border-neutral-800 pt-3">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Demand</span>
+                            <span className="font-black text-gray-800 dark:text-gray-200">{req.request_count} votes</span>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            loading={upvoting === req.name}
+                            onClick={() => handleUpvoteRequest(req.name)}
+                            className="h-8 text-[11px] px-3 active:scale-95 shadow-sm"
+                          >
+                            I want this!
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {products.length === 0 ? (
               <EmptyState
                 icon={ShoppingBag}
@@ -692,6 +785,14 @@ const ProfilePage: React.FC = () => {
         )}
       </Modal>
 
+      {profile && (
+        <ProductRequestModal
+          isOpen={isRequestModalOpen}
+          onClose={() => setIsRequestModalOpen(false)}
+          sellerId={profile.user_id}
+          sellerUsername={profile.username}
+        />
+      )}
     </div>
   );
 };

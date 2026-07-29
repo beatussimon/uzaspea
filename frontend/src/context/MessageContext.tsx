@@ -15,15 +15,23 @@ const getValidToken = async (): Promise<string | null> => {
       if (isExpired) {
         const refresh = localStorage.getItem('refresh_token');
         if (refresh) {
-          const res = await axios.post(`${API_BASE_URL}/api/auth/token/refresh/`, { refresh });
-          const newToken = res.data.access;
-          localStorage.setItem('access_token', newToken);
-          return newToken;
+          try {
+            const res = await axios.post(`${API_BASE_URL}/api/auth/token/refresh/`, { refresh });
+            const newToken = res.data.access;
+            localStorage.setItem('access_token', newToken);
+            if (res.data.refresh) {
+              localStorage.setItem('refresh_token', res.data.refresh);
+            }
+            return newToken;
+          } catch (err) {
+            console.error('WebSocket token refresh failed:', err);
+            return null; // Stop WS from trying to connect with an expired token
+          }
         }
       }
     }
   } catch (err) {
-    console.error('Error checking/refreshing token for WebSocket:', err);
+    console.error('Error checking token for WebSocket:', err);
   }
   return token;
 };

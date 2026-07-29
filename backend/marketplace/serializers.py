@@ -8,8 +8,21 @@ from .models import (
     ProductImage, Like, LipaNumber, FAQ, SupportTicket,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork, SellerApplication,
-    TeamMember, StoreImage, ProductPriceTier
+    TeamMember, StoreImage, ProductPriceTier, ProductRequest
 )
+
+class ProductRequestSerializer(serializers.ModelSerializer):
+    seller_username = serializers.CharField(source='seller.username', read_only=True)
+    user_username = serializers.CharField(source='user.username', read_only=True, allow_null=True)
+
+    class Meta:
+        model = ProductRequest
+        fields = [
+            'id', 'name', 'description', 'seller', 'seller_username', 
+            'user', 'user_username', 'request_count', 'created_at', 'last_requested',
+            'category', 'price', 'condition', 'requires_quote', 'image', 'is_fulfilled'
+        ]
+        read_only_fields = ['request_count', 'last_requested']
 
 class LipaNumberSerializer(serializers.ModelSerializer):
     network_name = serializers.CharField(source='network.name', read_only=True)
@@ -118,7 +131,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'sku', 'description', 'price', 'sale_price', 'stock', 'is_available',
                   'unit_of_measure', 'minimum_order_quantity', 'price_tiers',
                   'category', 'category_name', 'category_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
-                  'seller_tier', 'seller_profile_picture', 'condition',
+                  'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',
                   'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified',
                   'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude',
                   'weight_kg', 'size', 'can_review']

@@ -32,6 +32,7 @@ const OrdersPage: React.FC = () => {
   const sentinelRef = React.useRef<HTMLDivElement>(null);
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [advancing, setAdvancing] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState('');
   
   // Payment Proof State
@@ -332,25 +333,35 @@ const OrdersPage: React.FC = () => {
         subtitle={t('track_manage_purchases', 'Track and manage your purchases')}
       />
 
-      {activeStatuses.length > 1 && (
-        <div className="flex overflow-x-auto no-scrollbar gap-2 mb-6 select-none">
+      <div className="flex overflow-x-auto no-scrollbar gap-2 mb-6 select-none">
+        <button
+          onClick={() => setFilterStatus('')}
+          className={`pill text-xs ${!filterStatus ? 'pill-active' : 'pill-inactive'}`}
+        >
+          {t('all', 'All')}
+        </button>
+        <button
+          onClick={() => setFilterStatus('REQUESTED_INVOICE')}
+          className={`pill text-xs ${filterStatus === 'REQUESTED_INVOICE' ? 'pill-active border-blue-500 text-blue-700 bg-blue-50' : 'pill-inactive'}`}
+        >
+          <Receipt size={14} className="inline mr-1" /> Requested Quotes
+        </button>
+        <button
+          onClick={() => setFilterStatus('INVOICE_GENERATED')}
+          className={`pill text-xs ${filterStatus === 'INVOICE_GENERATED' ? 'pill-active border-green-500 text-green-700 bg-green-50' : 'pill-inactive'}`}
+        >
+          <CheckCircle2 size={14} className="inline mr-1" /> Invoices Ready
+        </button>
+        {activeStatuses.filter(s => s !== 'REQUESTED_INVOICE' && s !== 'INVOICE_GENERATED').map(s => (
           <button
-            onClick={() => setFilterStatus('')}
-            className={`pill text-xs ${!filterStatus ? 'pill-active' : 'pill-inactive'}`}
+            key={s}
+            onClick={() => setFilterStatus(s)}
+            className={`pill text-xs ${filterStatus === s ? 'pill-active' : 'pill-inactive'}`}
           >
-            {t('all', 'All')} ({orders.length})
+            {t(`status.${s}`, STATUS_CONFIG[s]?.label || s) as string}
           </button>
-          {activeStatuses.map(s => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              className={`pill text-xs ${filterStatus === s ? 'pill-active' : 'pill-inactive'}`}
-            >
-              {t(`status.${s}`, STATUS_CONFIG[s]?.label || s) as string}
-            </button>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -476,6 +487,41 @@ const OrdersPage: React.FC = () => {
                 {isExpanded && (
                   <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-900/10">
                     
+                    
+                    {/* Invoice Confirmation */}
+                    {order.status === 'INVOICE_GENERATED' && (
+                      <div className="px-6 py-6 bg-blue-50/50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-900/20">
+                        <div className="flex items-start gap-4">
+                          <Receipt className="text-blue-600 shrink-0 mt-1" size={24} />
+                          <div className="flex-1">
+                            <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-2">Invoice Ready for Review</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                              The seller has reviewed your quote request and generated an invoice with final prices. 
+                              Please review the total amount (TSh {parseInt(order.total_amount || 0).toLocaleString()}) and accept to proceed to payment.
+                            </p>
+                            <button 
+                              disabled={advancing === order.id}
+                              onClick={async () => {
+                                setAdvancing(order.id);
+                                try {
+                                  await api.post(`/api/orders/${order.id}/confirm-invoice/`);
+                                  toast.success('Invoice accepted! Proceeding to payment.');
+                                  fetchOrders(1, true);
+                                } catch (e) {
+                                  toast.error('Failed to accept invoice.');
+                                } finally {
+                                  setAdvancing(null);
+                                }
+                              }}
+                              className="btn-primary py-2 px-6"
+                            >
+                              {advancing === order.id ? 'Accepting...' : 'Accept Invoice & Pay'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Offline Payment Instructions & Form */}
                     {order.status === 'AWAITING_PAYMENT' && (
                       <div className="px-6 py-6 bg-yellow-50/50 dark:bg-yellow-900/10 border-b border-yellow-100 dark:border-yellow-900/20">

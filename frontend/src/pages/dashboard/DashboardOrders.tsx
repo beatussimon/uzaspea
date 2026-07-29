@@ -87,7 +87,7 @@ const DashboardOrders: React.FC = () => {
     } else {
       setLoadingMore(true);
     }
-    const params = filterStatus ? `&status=${filterStatus}` : '';
+    const params = filterStatus ? `&status=${filterStatus}` : '&exclude_statuses=REQUESTED_INVOICE,INVOICE_GENERATED';
     api.get(`/api/orders/incoming/?page=${p}${params}`)
       .then(res => {
         const data = res.data.results || res.data;

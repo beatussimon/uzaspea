@@ -101,7 +101,7 @@ const CartPage: React.FC = () => {
                         {item.name}
                       </Link>
                       <p className="text-brand-600 dark:text-brand-400 font-extrabold mt-1 text-sm">
-                        TSh {item.price.toLocaleString()}
+                        {item.requires_quote ? t('price_on_request', 'Price on Request') : `TSh ${item.price.toLocaleString()}`}
                       </p>
                       <p className="text-2xs font-bold text-gray-400 uppercase tracking-wide mt-0.5">
                         {item.stock} {t('in_stock')}
@@ -131,7 +131,7 @@ const CartPage: React.FC = () => {
                     </div>
  
                     <p className="font-extrabold text-gray-900 dark:text-white w-28 text-right hidden sm:block text-sm">
-                      TSh {(item.price * item.quantity).toLocaleString()}
+                      {item.requires_quote ? '--' : `TSh ${(item.price * item.quantity).toLocaleString()}`}
                     </p>
  
                     <button
