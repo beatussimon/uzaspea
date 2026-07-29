@@ -9,7 +9,7 @@ User = get_user_model()
 class ProductRequestTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.seller = User.objects.create_user(username='seller1', password='password123', email='seller@example.com')
+        self.seller = User.objects.create_user(username='seller1', password='password123', email='seller@example.com', tier='business')
         self.buyer = User.objects.create_user(username='buyer1', password='password123', email='buyer@example.com')
 
     def test_seller_create_demand_card(self):
@@ -50,26 +50,28 @@ class ProductRequestTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['results']), 1)
 
-    def test_convert_to_product(self):
+    def test_fulfill_request_on_product_create(self):
         from marketplace.models import Category, Product
         cat = Category.objects.create(name='Phones')
         pr = ProductRequest.objects.create(
-            name='Convert Me',
+            name='Fulfill Me',
             seller=self.seller,
             category=cat,
             price=999.99
         )
         self.client.force_authenticate(user=self.seller)
-        url = reverse('product-request-convert-to-product', args=[pr.id])
-        response = self.client.post(url, format='json')
+        url = reverse('product-list')
+        data = {
+            'name': 'Fulfilled Product',
+            'description': 'It was a request',
+            'price': '1000.00',
+            'category': cat.id,
+            'condition': 'New',
+            'is_available': True,
+            'fulfill_request_id': pr.id
+        }
+        response = self.client.post(url, data, format='multipart')
         
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
         pr.refresh_from_db()
         self.assertTrue(pr.is_fulfilled)
-        
-        product_id = response.data['product_id']
-        product = Product.objects.get(id=product_id)
-        self.assertEqual(product.name, 'Convert Me')
-        from decimal import Decimal
-        self.assertEqual(product.price, Decimal('999.99'))
-        self.assertEqual(product.category, cat)

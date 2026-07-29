@@ -318,6 +318,16 @@ class ProductViewSet(viewsets.ModelViewSet):
         images = self.request.FILES.getlist('uploaded_images')
         for img in images:
             ProductImage.objects.create(product=product, image=img)
+            
+        fulfill_request_id = self.request.data.get('fulfill_request_id')
+        if fulfill_request_id:
+            from marketplace.models import ProductRequest
+            try:
+                pr = ProductRequest.objects.get(id=fulfill_request_id, seller=seller)
+                pr.is_fulfilled = True
+                pr.save()
+            except ProductRequest.DoesNotExist:
+                pass
 
     def perform_update(self, serializer):
         product = serializer.save()
@@ -2694,9 +2704,8 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
         is_seller_creating = request.user.is_authenticated and request.user.id == seller.id
         
         if pr:
-            if not is_seller_creating:
-                pr.request_count += 1
-                pr.save()
+            pr.request_count += 1
+            pr.save()
             serializer = self.get_serializer(pr)
             return Response(serializer.data, status=200)
         else:
@@ -2720,43 +2729,3 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
                 
             serializer = self.get_serializer(pr)
             return Response(serializer.data, status=201)
-
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
-    def convert_to_product(self, request, pk=None):
-        pr = self.get_object()
-        if request.user.id != pr.seller.id:
-            return Response({'error': 'Only the seller can convert this request'}, status=403)
-            
-        if pr.is_fulfilled:
-            return Response({'error': 'Request already fulfilled'}, status=400)
-            
-        # Optional overrides during conversion
-        price = request.data.get('price', pr.price)
-        category_id = request.data.get('category', pr.category_id)
-        stock = request.data.get('stock', 1)
-        
-        if not price or not category_id:
-            return Response({'error': 'Price and Category are required to convert to a product'}, status=400)
-            
-        from marketplace.models import Product
-        import uuid
-        
-        # Create product
-        product = Product.objects.create(
-            name=pr.name,
-            description=pr.description,
-            price=price,
-            stock=stock,
-            condition=request.data.get('condition', pr.condition),
-            requires_quote=request.data.get('requires_quote', pr.requires_quote),
-            category_id=category_id,
-            seller=pr.seller,
-            is_available=True,
-            sku=f"PRQ-{uuid.uuid4().hex[:6].upper()}"
-        )
-        
-        # Mark as fulfilled
-        pr.is_fulfilled = True
-        pr.save()
-        
-        return Response({'message': 'Converted successfully', 'product_id': product.id})

@@ -12,6 +12,7 @@ import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
+import { useLocation } from 'react-router-dom';
 
 const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
   'electronics': ['Color', 'Storage Capacity'],
@@ -64,6 +65,27 @@ const DashboardProducts: React.FC = () => {
   const [showCustomColumnInput, setShowCustomColumnInput] = useState(false);
   const [customColumnName, setCustomColumnName] = useState('');
   const [deletedVariantIds, setDeletedVariantIds] = useState<number[]>([]);
+  const location = useLocation();
+  const [fulfillRequestId, setFulfillRequestId] = useState<number | null>(null);
+
+  // Prefill from demand card conversion
+  useEffect(() => {
+    if (location.state && (location.state as any).convert_request) {
+      const req = (location.state as any).convert_request;
+      setForm(prev => ({
+        ...prev,
+        name: req.name || '',
+        description: req.description || '',
+        price: req.price ? String(req.price) : '',
+        category: req.category?.id ? String(req.category.id) : (req.category ? String(req.category) : ''),
+        condition: req.condition || 'New',
+        requires_quote: req.requires_quote || false,
+      }));
+      setFulfillRequestId(req.id);
+      setShowForm(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   // Flatten the nested category tree from the API into a flat list for the <select> dropdown
   const flatCategories = useMemo(() => {
@@ -289,6 +311,9 @@ const DashboardProducts: React.FC = () => {
       formData.append('requires_quote', String(form.requires_quote));
       formData.append('unit_of_measure', form.unit_of_measure);
       formData.append('minimum_order_quantity', form.minimum_order_quantity);
+      if (fulfillRequestId) {
+        formData.append('fulfill_request_id', String(fulfillRequestId));
+      }
       if (priceTiers.length > 0) {
         formData.append('price_tiers', JSON.stringify(priceTiers));
       }
@@ -313,6 +338,7 @@ const DashboardProducts: React.FC = () => {
         });
         toast.success('Product created!');
         baseProductId = res.data.id;
+        setFulfillRequestId(null);
       }
 
       if (newVariants.length > 0 && baseProductId) {

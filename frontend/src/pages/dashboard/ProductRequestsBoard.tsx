@@ -10,10 +10,12 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../context/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 
 const ProductRequestsBoard: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,8 @@ const ProductRequestsBoard: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Convert State
-  const [convertingId, setConvertingId] = useState<number | null>(null);
+  const [convertingId] = useState<number | null>(null);
+  const [votingId, setVotingId] = useState<number | null>(null);
 
   // Sorting
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'request_count', direction: 'desc' });
@@ -97,20 +100,23 @@ const ProductRequestsBoard: React.FC = () => {
     }
   };
 
-  const handleConvert = async (req: any) => {
-    if (!req.price || !req.category) {
-      toast.error("Price and Category must be set to convert to a product.");
-      return;
-    }
+  const handleConvert = (req: any) => {
+    navigate('/dashboard/products', { state: { convert_request: req } });
+  };
+
+  const handleVote = async (req: any) => {
     try {
-      setConvertingId(req.id);
-      await api.post(`/api/product-requests/${req.id}/convert_to_product/`, {});
-      toast.success(`${req.name} has been added to your inventory!`);
+      setVotingId(req.id);
+      await api.post('/api/product-requests/', {
+        name: req.name,
+        seller_username: req.seller.username || (user as any)?.username
+      });
+      toast.success(`Vote added to ${req.name}!`);
       fetchRequests();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to convert");
+      toast.error(err.response?.data?.error || "Failed to vote");
     } finally {
-      setConvertingId(null);
+      setVotingId(null);
     }
   };
 
@@ -364,18 +370,29 @@ const ProductRequestsBoard: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <td className="px-6 py-4 whitespace-nowrap text-right flex justify-end gap-2">
                         {!req.is_fulfilled ? (
-                           <Button 
-                             size="sm" 
-                             variant="outline"
-                             className="text-xs h-8"
-                             loading={convertingId === req.id}
-                             onClick={() => handleConvert(req)}
-                           >
-                             <ArrowRightCircle size={14} className="mr-1" />
-                             Convert to Product
-                           </Button>
+                           <>
+                             <Button 
+                               size="sm" 
+                               variant="outline"
+                               className="text-xs h-8"
+                               loading={votingId === req.id}
+                               onClick={() => handleVote(req)}
+                             >
+                               +1 Demand
+                             </Button>
+                             <Button 
+                               size="sm" 
+                               variant="default"
+                               className="text-xs h-8"
+                               loading={convertingId === req.id}
+                               onClick={() => handleConvert(req)}
+                             >
+                               <ArrowRightCircle size={14} className="mr-1" />
+                               Convert to Product
+                             </Button>
+                           </>
                         ) : (
                           <span className="text-gray-400 text-sm">Fulfilled</span>
                         )}
