@@ -47,9 +47,9 @@ const ProductRequestsBoard: React.FC = () => {
     fetchCategories();
   }, []);
 
-  const fetchRequests = async () => {
+  const fetchRequests = async (showLoader = true) => {
     try {
-      setLoading(true);
+      if (showLoader && requests.length === 0) setLoading(true);
       const res = await api.get('/api/product-requests/');
       setRequests(res.data.results || res.data);
     } catch (err) {
@@ -92,7 +92,7 @@ const ProductRequestsBoard: React.FC = () => {
       toast.success(t('request_created', 'Demand card created successfully!'));
       setIsModalOpen(false);
       resetForm();
-      fetchRequests();
+      fetchRequests(false);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to create request');
     } finally {
@@ -109,10 +109,10 @@ const ProductRequestsBoard: React.FC = () => {
       setVotingId(req.id);
       await api.post('/api/product-requests/', {
         name: req.name,
-        seller_username: req.seller.username || (user as any)?.username
+        seller_username: req.seller_username || (user as any)?.username
       });
       toast.success(`Vote added to ${req.name}!`);
-      fetchRequests();
+      fetchRequests(false);
     } catch (err: any) {
       toast.error(err.response?.data?.error || "Failed to vote");
     } finally {
@@ -374,6 +374,7 @@ const ProductRequestsBoard: React.FC = () => {
                         {!req.is_fulfilled ? (
                            <>
                              <Button 
+                               type="button"
                                size="sm" 
                                variant="outline"
                                className="text-xs h-8"
@@ -383,6 +384,7 @@ const ProductRequestsBoard: React.FC = () => {
                                +1 Demand
                              </Button>
                              <Button 
+                               type="button"
                                size="sm" 
                                variant="default"
                                className="text-xs h-8"
