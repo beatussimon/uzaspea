@@ -250,10 +250,10 @@ class Command(BaseCommand):
             from decimal import Decimal
             self.stdout.write('\n── Warehouses ──')
             warehouses = [
-                {'name': 'SokoniMax Dar es Salaam Hub', 'code': 'DAR-01',
+                {'name': 'SokoniMax Dar es Salaam Warehouse', 'code': 'DAR-01',
                  'region': 'Dar es Salaam', 'address': 'Kariakoo, Dar es Salaam',
                  'latitude': Decimal('-6.8161'), 'longitude': Decimal('39.2803')},
-                {'name': 'SokoniMax Mwanza Hub', 'code': 'MWZ-01',
+                {'name': 'SokoniMax Mwanza Warehouse', 'code': 'MWZ-01',
                  'region': 'Mwanza', 'address': 'Mwanza City Centre, Mwanza',
                  'latitude': Decimal('-2.5167'), 'longitude': Decimal('32.9000')},
             ]

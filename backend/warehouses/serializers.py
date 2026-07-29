@@ -2,9 +2,11 @@ from rest_framework import serializers
 from .models import Warehouse, WarehouseIntake, WarehouseTransfer
 
 class WarehouseSerializer(serializers.ModelSerializer):
+    region_name = serializers.CharField(source='region.name', read_only=True)
+    
     class Meta:
         model = Warehouse
-        fields = ['id', 'name', 'code', 'region', 'address', 'latitude', 'longitude', 'is_active']
+        fields = ['id', 'name', 'code', 'region', 'region_name', 'address', 'latitude', 'longitude', 'is_active']
 
 
 class WarehouseIntakeSerializer(serializers.ModelSerializer):

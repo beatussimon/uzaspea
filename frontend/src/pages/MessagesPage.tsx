@@ -37,6 +37,7 @@ const MessagesPage: React.FC = () => {
 
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'main' | 'sokoni'>('main');
   const [newMessage, setNewMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
@@ -264,13 +265,23 @@ const MessagesPage: React.FC = () => {
     return colors[idx];
   };
 
-  const filteredConversations = conversations.filter(c => {
+  const sokoniConversations = conversations.filter(c => !!c.product || !!c.product_name);
+  const regularConversations = conversations.filter(c => !c.product && !c.product_name);
+
+  const displayedConversations = (viewMode === 'sokoni' ? sokoniConversations : regularConversations).filter(c => {
     const isBuyer = Number(c.buyer) === Number(userId);
     const otherUser = isBuyer ? c.seller_username : c.buyer_username;
     const product = c.product_name || '';
     return otherUser.toLowerCase().includes(searchQuery.toLowerCase()) || 
            product.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  const sokoniUnreadCount = sokoniConversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+  const latestSokoniTimestamp = sokoniConversations.reduce((latest, c) => {
+    if (!c.last_message) return latest;
+    const msgTime = new Date(c.last_message.created_at).getTime();
+    return msgTime > latest ? msgTime : latest;
+  }, 0);
 
   // Group messages by day
   const groupedMessages = currentMessages.reduce((groups: { [key: string]: Message[] }, msg) => {
@@ -315,11 +326,25 @@ const MessagesPage: React.FC = () => {
         {/* --- 1. Conversations Sidebar --- */}
         <div className={`w-full md:w-80 lg:w-96 flex flex-col md:border-r md:border-gray-200/60 dark:md:border-neutral-800/60 ${isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
           <div className="px-4 md:px-5 pt-4 pb-3 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
-                <MessageSquare className="text-brand-500" size={20} /> {t('chats')}
-              </h1>
-            </div>
+            {viewMode === 'main' ? (
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
+                  <MessageSquare className="text-brand-500" size={20} /> {t('chats')}
+                </h1>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setViewMode('main')}
+                  className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-300 transition-colors"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <h1 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
+                  Sokoni Leo
+                </h1>
+              </div>
+            )}
 
             {/* Search Input */}
             <div className="relative">
@@ -336,12 +361,52 @@ const MessagesPage: React.FC = () => {
 
           {/* Conversations Scroll List */}
           <div className="flex-1 overflow-y-auto px-2 md:px-3 space-y-0.5">
-            {filteredConversations.length === 0 ? (
+            {displayedConversations.length === 0 && viewMode === 'sokoni' ? (
+              <div className="py-12 text-center">
+                <p className="text-sm font-semibold text-gray-400 dark:text-gray-600">No Sokoni Leo chats found</p>
+              </div>
+            ) : displayedConversations.length === 0 && viewMode === 'main' && searchQuery ? (
               <div className="py-12 text-center">
                 <p className="text-sm font-semibold text-gray-400 dark:text-gray-600">No chats found</p>
               </div>
-            ) : (
-              filteredConversations.map(conv => {
+            ) : null}
+
+            {viewMode === 'main' && !searchQuery && (
+              <div
+                onClick={() => setViewMode('sokoni')}
+                className="flex items-center gap-3.5 p-3 rounded-2xl cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-neutral-900/50"
+              >
+                <div className="relative shrink-0">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gray-900 dark:bg-black border border-gray-800 dark:border-neutral-800 overflow-hidden shadow-sm">
+                    <img src="/logo.png" alt="Sokoni Leo Logo" className="w-8 h-8 object-contain" />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-baseline gap-1.5">
+                    <span className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 truncate">
+                      Sokoni Leo
+                    </span>
+                    {latestSokoniTimestamp > 0 && (
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                        {formatRelativeTime(new Date(latestSokoniTimestamp).toISOString())}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center gap-1.5 mt-0.5">
+                    <p className={`text-xs truncate flex-1 ${sokoniUnreadCount > 0 ? 'text-gray-900 dark:text-white font-extrabold' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {sokoniUnreadCount > 0 ? `${sokoniUnreadCount} new messages` : 'No new messages'}
+                    </p>
+                    {sokoniUnreadCount > 0 && (
+                      <span className="shrink-0 px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full shadow-sm animate-pulse">
+                        {sokoniUnreadCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {displayedConversations.map(conv => {
                 const isBuyer = Number(conv.buyer) === Number(userId);
                 const otherUsername = isBuyer ? conv.seller_username : conv.buyer_username;
                 const isVerified = isBuyer ? conv.seller_verified : conv.buyer_verified;
@@ -364,9 +429,17 @@ const MessagesPage: React.FC = () => {
                       e.stopPropagation();
                       navigate(`/${otherUsername}`);
                     }}>
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(otherUsername)} shadow-sm hover:opacity-80 transition-opacity`}>
-                        {initials}
-                      </div>
+                      {viewMode === 'sokoni' && conv.product_image ? (
+                        <img 
+                          src={conv.product_image} 
+                          alt="Product"
+                          className="w-12 h-12 rounded-full object-cover shadow-sm border border-gray-200 dark:border-neutral-700"
+                        />
+                      ) : (
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(otherUsername)} shadow-sm hover:opacity-80 transition-opacity`}>
+                          {initials}
+                        </div>
+                      )}
                       {/* Premium visual: small active green indicator dot */}
                       {conv.is_online && (
                         <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-surface-muted dark:border-surface-dark" />
@@ -383,8 +456,8 @@ const MessagesPage: React.FC = () => {
                             navigate(`/${otherUsername}`);
                           }}
                         >
-                          {otherUsername}
-                          {isVerified && (
+                          {viewMode === 'sokoni' ? `${otherUsername} · ${conv.product_name || 'Product'}` : otherUsername}
+                          {isVerified && viewMode !== 'sokoni' && (
                             <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
                           )}
                         </span>
@@ -395,7 +468,7 @@ const MessagesPage: React.FC = () => {
                         )}
                       </div>
 
-                      {conv.product_name && (
+                      {conv.product_name && viewMode !== 'sokoni' && (
                         <div className="flex items-center gap-1.5 mt-0.5">
                           {conv.product_image && (
                             <img
@@ -425,7 +498,7 @@ const MessagesPage: React.FC = () => {
                           </p>
                         )}
                         {conv.unread_count > 0 && (
-                          <span className="shrink-0 px-2 py-0.5 bg-brand-500 text-white text-[10px] font-bold rounded-full shadow-sm animate-pulse">
+                          <span className="shrink-0 px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full shadow-sm animate-pulse">
                             {conv.unread_count}
                           </span>
                         )}
@@ -434,7 +507,7 @@ const MessagesPage: React.FC = () => {
                   </div>
                 );
               })
-            )}
+              }
           </div>
         </div>
 

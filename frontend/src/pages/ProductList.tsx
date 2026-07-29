@@ -35,6 +35,7 @@ const ProductList = () => {
   const condition = searchParams.get('condition') || '';
   const sortBy = searchParams.get('sort_by') || '';
   const saved = searchParams.get('saved') === 'true';
+  const savedTime = searchParams.get('saved_time') || '';
 
   const updateFilters = (updates: Record<string, string>) => {
     setSearchParams(prev => {
@@ -94,6 +95,7 @@ const ProductList = () => {
   const [tempMaxPrice, setTempMaxPrice] = useState('');
   const [tempCondition, setTempCondition] = useState('');
   const [tempSortBy, setTempSortBy] = useState('');
+  const [tempSavedTime, setTempSavedTime] = useState('');
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (localStorage.getItem('viewMode') as any) || 'grid');
 
@@ -115,9 +117,10 @@ const ProductList = () => {
       if (sortBy) params.sort_by = sortBy;
       if (urlQuery) params.q = urlQuery;
       if (saved) params.saved = 'true';
+      if (savedTime) params.saved_time = savedTime;
       return params;
     },
-    [selectedCategory, selectedSubcategory, minPrice, maxPrice, condition, sortBy, urlQuery, saved]
+    [selectedCategory, selectedSubcategory, minPrice, maxPrice, condition, sortBy, urlQuery, saved, savedTime]
   );
 
   const fetchProducts = useCallback(
@@ -177,7 +180,7 @@ const ProductList = () => {
   useEffect(() => { 
     setPage(1); 
     fetchProducts(1, true); 
-  }, [selectedCategory, selectedSubcategory, condition, sortBy, urlQuery, minPrice, maxPrice, saved]);
+  }, [selectedCategory, selectedSubcategory, condition, sortBy, urlQuery, minPrice, maxPrice, saved, savedTime]);
 
   useEffect(() => {
     localStorage.setItem('viewMode', viewMode);
@@ -233,7 +236,7 @@ const ProductList = () => {
     else navigate('/products');
   };
 
-  const hasActiveFilters = !!(minPrice || maxPrice || condition || sortBy || selectedCategory || selectedSubcategory);
+  const hasActiveFilters = !!(minPrice || maxPrice || condition || sortBy || selectedCategory || selectedSubcategory || savedTime);
 
   // Sync temp inputs with active state when panel opens
   useEffect(() => {
@@ -242,8 +245,9 @@ const ProductList = () => {
       setTempMaxPrice(maxPrice);
       setTempCondition(condition);
       setTempSortBy(sortBy);
+      setTempSavedTime(savedTime);
     }
-  }, [filtersOpen, minPrice, maxPrice, condition, sortBy]);
+  }, [filtersOpen, minPrice, maxPrice, condition, sortBy, savedTime]);
 
   const activePills: any[] = [];
   if (minPrice) {
@@ -304,6 +308,15 @@ const ProductList = () => {
       label: 'Subcategory',
       value: subName,
       onRemove: () => updateFilters({ subcategory: '' }),
+    });
+  }
+  if (savedTime) {
+    const label = savedTime === '24h' ? 'Last 24 Hours' : savedTime === '7d' ? 'Last 7 Days' : 'Last 30 Days';
+    activePills.push({
+      id: 'savedTime',
+      label: 'Saved',
+      value: label,
+      onRemove: () => { updateFilters({ saved_time: '' }); setTempSavedTime(''); },
     });
   }
 
@@ -464,6 +477,21 @@ const ProductList = () => {
                       <option value="rating">{t('top_rated', 'Top Rated')}</option>
                     </select>
                   </div>
+                  {saved && (
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Time Saved</label>
+                      <select 
+                        value={tempSavedTime} 
+                        onChange={(e) => setTempSavedTime(e.target.value)} 
+                        className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
+                      >
+                        <option value="">All Time</option>
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2 justify-end mt-4 pt-4 border-t border-gray-100 dark:border-neutral-900">
                   <button 
@@ -472,11 +500,13 @@ const ProductList = () => {
                       setTempMaxPrice('');
                       setTempCondition('');
                       setTempSortBy('');
+                      setTempSavedTime('');
                       updateFilters({
                         min_price: '',
                         max_price: '',
                         condition: '',
-                        sort_by: ''
+                        sort_by: '',
+                        saved_time: ''
                       });
                       setPage(1);
                       setFiltersOpen(false);
@@ -491,7 +521,8 @@ const ProductList = () => {
                         min_price: tempMinPrice,
                         max_price: tempMaxPrice,
                         condition: tempCondition,
-                        sort_by: tempSortBy
+                        sort_by: tempSortBy,
+                        saved_time: tempSavedTime
                       });
                       setPage(1);
                       setFiltersOpen(false);
@@ -611,11 +642,12 @@ const ProductList = () => {
             {activePills.length > 1 && (
               <button
                 onClick={() => {
-                  updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved: '' });
+                  updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved: '', saved_time: '' });
                   setTempMinPrice('');
                   setTempMaxPrice('');
                   setTempCondition('');
                   setTempSortBy('');
+                  setTempSavedTime('');
                 }}
                 className="text-xs font-bold text-gray-400 hover:text-brand-600 transition-colors ml-1 uppercase tracking-tighter"
               >
@@ -667,7 +699,7 @@ const ProductList = () => {
               <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
                 <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
-                <button onClick={() => { updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '' }); setTempMinPrice(''); setTempMaxPrice(''); setTempCondition(''); setTempSortBy(''); }} className="text-brand-600 dark:text-brand-400 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
+                <button onClick={() => { updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved_time: '' }); setTempMinPrice(''); setTempMaxPrice(''); setTempCondition(''); setTempSortBy(''); setTempSavedTime(''); }} className="text-brand-600 dark:text-brand-400 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
               </div>
             ) : (
               gridEntries.map((entry, idx) => {

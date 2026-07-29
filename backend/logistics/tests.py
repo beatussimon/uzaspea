@@ -62,8 +62,11 @@ class DeliveryEngineTests(TestCase):
     def test_historical_route_pricing_quote(self):
         from warehouses.models import Warehouse, HistoricalRoutePricing
         from rest_framework.test import APIClient
-        w1 = Warehouse.objects.create(name='Dar Hub', code='DAR-99', region='Dar es Salaam')
-        w2 = Warehouse.objects.create(name='Mwanza Hub', code='MWZ-99', region='Mwanza')
+        from locations.models import Region
+        r1 = Region.objects.create(name='Dar es Salaam')
+        r2 = Region.objects.create(name='Mwanza')
+        w1 = Warehouse.objects.create(name='Dar Warehouse', code='DAR-99', region=r1)
+        w2 = Warehouse.objects.create(name='Mwanza Warehouse', code='MWZ-99', region=r2)
         HistoricalRoutePricing.objects.create(
             origin_warehouse=w1,
             destination_warehouse=w2,

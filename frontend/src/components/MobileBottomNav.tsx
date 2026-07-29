@@ -167,13 +167,13 @@ const MobileBottomNav = () => {
       {/* --- Overlay Backdrop --- */}
       {isMenuOpen && (
         <div 
-          className="lg:hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[70] animate-fade-in"
+          className="lg:hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[70] animate-fade-in print-hide"
           onClick={() => setIsMenuOpen(false)}
         />
       )}
 
       {/* --- Slide-up Account Menu --- */}
-      <div className={`lg:hidden fixed inset-x-0 bottom-0 z-[80] transition-transform duration-300 transform ${isMenuOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div className={`lg:hidden fixed inset-x-0 bottom-0 z-[80] transition-transform duration-300 transform ${isMenuOpen ? 'translate-y-0' : 'translate-y-full'} print-hide`}>
         <div className="bg-white dark:bg-gray-900 rounded-t-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col pb-safe">
           {/* Header Handle */}
           <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mt-3 mb-1" />
@@ -375,7 +375,7 @@ const MobileBottomNav = () => {
           isHomepage 
             ? 'bg-transparent border-transparent shadow-none' 
             : 'bg-white/70 dark:bg-gray-950/70 backdrop-blur-2xl border-t border-surface-border/50 dark:border-white/5 shadow-[0_-10px_40px_rgba(0,0,0,0.03)]'
-        }`}
+        } print-hide`}
       >
         <div className="flex items-center justify-around max-w-md mx-auto h-16 relative">
           

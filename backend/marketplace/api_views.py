@@ -187,6 +187,16 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.request.query_params.get('saved') == 'true':
             if user.is_authenticated:
                 queryset = queryset.filter(likes__user=user)
+                saved_time = self.request.query_params.get('saved_time')
+                if saved_time:
+                    from datetime import timedelta
+                    from django.utils import timezone
+                    if saved_time == '24h':
+                        queryset = queryset.filter(likes__created_at__gte=timezone.now() - timedelta(days=1))
+                    elif saved_time == '7d':
+                        queryset = queryset.filter(likes__created_at__gte=timezone.now() - timedelta(days=7))
+                    elif saved_time == '30d':
+                        queryset = queryset.filter(likes__created_at__gte=timezone.now() - timedelta(days=30))
             else:
                 return queryset.none()
 
@@ -209,13 +219,14 @@ class ProductViewSet(viewsets.ModelViewSet):
                     search_rank=SearchRank(search_vector, search_query)
                 ).filter(
                     Q(search_rank__gte=0.01) |
-                    Q(name__icontains=query) | Q(description__icontains=query)
+                    Q(name__icontains=query) | Q(description__icontains=query) | Q(sku__icontains=query)
                 ).order_by('-search_rank')
             else:
                 queryset = queryset.filter(
                     Q(name__icontains=query) | 
                     Q(description__icontains=query) |
-                    Q(category__name__icontains=query)
+                    Q(category__name__icontains=query) |
+                    Q(sku__icontains=query)
                 )
         if min_price:
             try:
@@ -316,6 +327,58 @@ class ProductViewSet(viewsets.ModelViewSet):
             for img in images:
                 ProductImage.objects.create(product=product, image=img)
 
+    @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def batch_upload(self, request):
+        import csv
+        import io
+        from decimal import Decimal
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'No file uploaded'}, status=400)
+            
+        try:
+            # Check if it's a team operation
+            seller = request.user
+            from marketplace.models import TeamMember, Category
+            team_memberships = TeamMember.objects.filter(user=request.user)
+            if team_memberships.exists():
+                for membership in team_memberships:
+                    if membership.permissions.get('manage_products', False):
+                        seller = membership.owner
+                        break
+
+            decoded_file = file_obj.read().decode('utf-8')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+            
+            created_count = 0
+            for row in reader:
+                # Expected columns: Name, Description, Price, Stock, Category ID, SKU, Condition
+                category_id = row.get('Category ID') or row.get('category_id')
+                if not category_id:
+                    continue
+                try:
+                    category = Category.objects.get(id=category_id)
+                except Category.DoesNotExist:
+                    continue
+                
+                Product.objects.create(
+                    name=row.get('Name') or row.get('name', 'Untitled'),
+                    description=row.get('Description') or row.get('description', ''),
+                    price=Decimal(row.get('Price') or row.get('price', '0.00')),
+                    stock=Decimal(row.get('Stock') or row.get('stock', '0.00')),
+                    sku=row.get('SKU') or row.get('sku', ''),
+                    condition=row.get('Condition') or row.get('condition', 'New'),
+                    category=category,
+                    seller=seller,
+                    is_available=True
+                )
+                created_count += 1
+                
+            return Response({'message': f'Successfully imported {created_count} products.'})
+        except Exception as e:
+            return Response({'error': f'Failed to process file: {str(e)}'}, status=400)
+
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def like(self, request, slug=None):
         product = self.get_object()
@@ -351,6 +414,26 @@ class ProductViewSet(viewsets.ModelViewSet):
         orders = Order.objects.filter(orderitem_set__product__seller=stats_user).distinct()
         today = timezone.now().date()
 
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+        
+        filter_start_date = None
+        filter_end_date = None
+        
+        if start_date_str:
+            try:
+                filter_start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                orders = orders.filter(order_date__date__gte=filter_start_date)
+            except ValueError:
+                pass
+                
+        if end_date_str:
+            try:
+                filter_end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                orders = orders.filter(order_date__date__lte=filter_end_date)
+            except ValueError:
+                pass
+
         # Basic aggregate metrics (always visible to sellers)
         PAID_STATUSES = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED']
         paid_orders = orders.filter(status__in=PAID_STATUSES)
@@ -374,44 +457,67 @@ class ProductViewSet(viewsets.ModelViewSet):
             status='PAID'
         ).aggregate(total=Sum('total_commission'))['total'] or 0)
 
+        items_sold_list = []
+
         if is_business:
-            # --- Revenue pipeline (last 7 days) ---
-            start_date = today - datetime.timedelta(days=6)
+            # Determine pipeline date range
+            pipe_start = filter_start_date if filter_start_date else (today - datetime.timedelta(days=6))
+            pipe_end = filter_end_date if filter_end_date else today
+            
+            # --- Revenue pipeline ---
             from django.db.models.functions import TruncDate
-            pipeline_items = OrderItem.objects.filter(
-                product__seller=stats_user, order__order_date__date__gte=start_date,
-                order__status__in=PAID_STATUSES,
-            ).annotate(
+            
+            # Filter OrderItem by the already filtered orders to ensure consistency
+            base_order_items = OrderItem.objects.filter(
+                product__seller=stats_user, 
+                order__in=paid_orders
+            )
+            
+            pipeline_items = base_order_items.annotate(
                 order_date_day=TruncDate('order__order_date')
             ).values('order_date_day').annotate(
                 rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('order', distinct=True)
             ).order_by('order_date_day')
             
             pipeline_map = {item['order_date_day']: item for item in pipeline_items}
-            total_7d = 0
-            for i in range(6, -1, -1):
-                date = today - datetime.timedelta(days=i)
+            
+            # Generate days between pipe_start and pipe_end
+            delta = (pipe_end - pipe_start).days
+            # Cap at 90 days for safety if user selects massive range
+            if delta > 90:
+                pipe_start = pipe_end - datetime.timedelta(days=90)
+                delta = 90
+            elif delta < 0:
+                delta = 0
+                
+            total_current_period = 0
+            for i in range(delta + 1):
+                date = pipe_start + datetime.timedelta(days=i)
                 entry = pipeline_map.get(date, {'rev': 0, 'count': 0})
                 day_rev = float(entry['rev'] or 0)
-                total_7d += day_rev
+                total_current_period += day_rev
                 revenue_pipeline.append({
-                    'date': date.strftime('%a'), 
+                    'date': date.strftime('%b %d') if delta > 7 else date.strftime('%a'), 
                     'revenue': day_rev, 
                     'orders': entry['count']
                 })
 
-            # --- Previous 7 days for trend ---
-            prev_start = today - datetime.timedelta(days=13)
-            prev_7d = float(OrderItem.objects.filter(
+            # --- Trend (compare to previous period of same length) ---
+            prev_end = pipe_start - datetime.timedelta(days=1)
+            prev_start = prev_end - datetime.timedelta(days=delta)
+            
+            prev_period_rev = float(OrderItem.objects.filter(
                 product__seller=stats_user,
+                order__status__in=PAID_STATUSES,
                 order__order_date__date__gte=prev_start,
-                order__order_date__date__lt=start_date,
+                order__order_date__date__lte=prev_end,
             ).aggregate(t=Sum(django_models.F('price') * django_models.F('quantity')))['t'] or 0)
-            trend_pct = round(((total_7d - prev_7d) / prev_7d * 100) if prev_7d else 0, 1)
+            
+            trend_pct = round(((total_current_period - prev_period_rev) / prev_period_rev * 100) if prev_period_rev else 0, 1)
 
             # --- Top 5 products by order count ---
             top_prods = (
-                OrderItem.objects.filter(product__seller=stats_user)
+                base_order_items
                 .values('product__name', 'product__slug')
                 .annotate(sold=Count('id'), rev=Sum(django_models.F('price') * django_models.F('quantity')))
                 .order_by('-sold')[:5]
@@ -420,12 +526,25 @@ class ProductViewSet(viewsets.ModelViewSet):
 
             # --- Category breakdown ---
             cat_data = (
-                OrderItem.objects.filter(product__seller=stats_user)
+                base_order_items
                 .values('product__category__name')
                 .annotate(rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('id'))
                 .order_by('-rev')[:8]
             )
             category_breakdown = [{'category': c['product__category__name'] or 'Other', 'revenue': float(c['rev'] or 0), 'items': c['count']} for c in cat_data]
+
+            # --- Items Sold List ---
+            items_sold_qs = base_order_items.select_related('product', 'order').order_by('-order__order_date')[:100]
+            for item in items_sold_qs:
+                items_sold_list.append({
+                    'id': item.id,
+                    'date': item.order.order_date.isoformat(),
+                    'product_name': item.product.name,
+                    'quantity': item.quantity,
+                    'price': float(item.price),
+                    'total': float(item.price * item.quantity),
+                    'status': item.order.status
+                })
 
         # --- Stock alerts (stock <= 3) --- always visible
         low_stock = list(products.filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10])
@@ -441,6 +560,27 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         from billing.models import get_seller_commission_rate
         commission_rate_val = float(get_seller_commission_rate(stats_user))
+        
+        # --- Store Profile details ---
+        store_profile = {}
+        try:
+            profile = stats_user.profile
+            store_name = stats_user.get_full_name()
+            seller_app = stats_user.seller_applications.filter(status='approved').last()
+            if seller_app and seller_app.business_name:
+                store_name = seller_app.business_name
+            elif not store_name:
+                store_name = stats_user.username
+
+            store_profile = {
+                'store_name': store_name,
+                'phone': profile.phone_number,
+                'location': profile.location,
+                'instagram': profile.instagram_username,
+                'website': profile.website,
+            }
+        except Exception:
+            pass
 
         return Response({
             'total_products': products.count(),
@@ -454,10 +594,12 @@ class ProductViewSet(viewsets.ModelViewSet):
             'orders_by_status': status_counts,
             'top_products': top_products,
             'category_breakdown': category_breakdown,
+            'items_sold_list': items_sold_list,
             'stock_alerts': low_stock,
             'has_advanced_analytics': is_business,
             'commission_paid': commission_paid,
             'commission_rate': commission_rate_val,
+            'store_profile': store_profile,
         })
 
 from .models import LipaNumber, FAQ, SupportTicket
@@ -671,6 +813,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         if new_state == 'ASSIGNED_TRANSPORT' and order.status == 'AWAITING_DELIVERY_PAYMENT':
             new_state = 'PENDING_DELIVERY_VERIFICATION'
 
+        # FIX: WAREHOUSE_PICKUP orders shouldn't be assigned transport
+        if new_state == 'ASSIGNED_TRANSPORT' and order.fulfillment_type == 'WAREHOUSE_PICKUP':
+            new_state = 'READY_FOR_PICKUP'
+
         # FIX: S-06 — Enforce who can trigger which transitions
         STAFF_ONLY_STATES = {
             'PAID', 'EXPIRED', 'RECEIVED_AT_WAREHOUSE', 'AWAITING_DELIVERY_PAYMENT',
@@ -751,6 +897,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             delivery_code = request.data.get('delivery_code')
             if order.delivery_code and str(delivery_code).strip() != order.delivery_code:
                 return Response({'error': 'Invalid delivery code. Please verify the code with the customer.'}, status=status.HTTP_400_BAD_REQUEST)
+            if delivery_code and str(delivery_code).strip() == order.delivery_code:
+                new_state = 'COMPLETED'
+                notes = (notes + " Verified by secure delivery code.") if notes else "Verified by secure delivery code."
 
         try:
             OrderStateMachine.transition_order(order, new_state, notes=notes)
@@ -1214,6 +1363,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         data['user_id'] = self.user.id
         data['username'] = self.user.username
+        data['first_name'] = self.user.first_name
+        data['last_name'] = self.user.last_name
         data['is_staff'] = self.user.is_staff or self.user.is_superuser
         data['is_superuser'] = self.user.is_superuser
         try:
@@ -1248,6 +1399,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         token['user_id'] = user.id
         token['username'] = user.username
+        token['first_name'] = user.first_name
+        token['last_name'] = user.last_name
         token['is_staff'] = user.is_staff or user.is_superuser
         token['is_superuser'] = user.is_superuser
         

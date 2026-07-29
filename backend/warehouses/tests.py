@@ -14,7 +14,9 @@ class WarehouseIntakeTests(TestCase):
         self.staff_user = User.objects.create_user(username='staff', password='pw', is_staff=True)
         self.normal_user = User.objects.create_user(username='normal', password='pw')
 
-        self.warehouse = Warehouse.objects.create(name='Test Hub', code='TEST-HUB', region='HQ')
+        from locations.models import Region
+        r = Region.objects.create(name='HQ Region')
+        self.warehouse = Warehouse.objects.create(name='Test Warehouse', code='TEST-WH', region=r)
         self.order = Order.objects.create(
             user=self.normal_user, 
             status='SHIPPED_TO_WAREHOUSE', 

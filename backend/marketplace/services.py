@@ -18,19 +18,19 @@ class OrderStateMachine:
         'SHIPPED_TO_WAREHOUSE': ['RECEIVED_AT_WAREHOUSE'],
         'RECEIVED_AT_WAREHOUSE': ['AWAITING_DELIVERY_PAYMENT', 'ASSIGNED_TRANSPORT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'],
         'AWAITING_DELIVERY_PAYMENT': ['PENDING_DELIVERY_VERIFICATION', 'CANCELLED'],
-        'PENDING_DELIVERY_VERIFICATION': ['ASSIGNED_TRANSPORT', 'AWAITING_DELIVERY_PAYMENT', 'CANCELLED'],
+        'PENDING_DELIVERY_VERIFICATION': ['ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP', 'AWAITING_DELIVERY_PAYMENT', 'CANCELLED'],
         'ASSIGNED_TRANSPORT': ['IN_TRANSIT', 'OUT_FOR_DELIVERY'],
-        'IN_TRANSIT': ['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED'],
-        'OUT_FOR_DELIVERY': ['DELIVERED', 'FAILED_DELIVERY'],
-        'ARRIVED_AT_REGIONAL_WAREHOUSE': ['ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED'],
+        'IN_TRANSIT': ['ARRIVED_AT_REGIONAL_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED', 'COMPLETED'],
+        'OUT_FOR_DELIVERY': ['DELIVERED', 'COMPLETED', 'FAILED_DELIVERY'],
+        'ARRIVED_AT_REGIONAL_WAREHOUSE': ['ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED', 'COMPLETED'],
         'READY_FOR_VEHICLE_HANDOVER': ['DELIVERED', 'COMPLETED'],
         'READY_FOR_PICKUP': ['DELIVERED', 'COMPLETED'],
         'PROCESSING': ['SHIPPED', 'CANCELLED'],
-        'SHIPPED': ['DELIVERED', 'IN_TRANSIT'],
+        'SHIPPED': ['DELIVERED', 'COMPLETED', 'IN_TRANSIT'],
         'DELIVERED': ['COMPLETED', 'DISPUTED'],  # FIX B-15: buyer can dispute after delivery
         'DISPUTED': ['PROCESSING', 'CANCELLED'],  # FIX B-15: staff resolves
-        'FAILED_DELIVERY': ['READY_FOR_PICKUP', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'RETURNED_TO_HUB', 'CANCELLED'],
-        'RETURNED_TO_HUB': ['ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'READY_FOR_PICKUP', 'COMPLETED', 'CANCELLED'],
+        'FAILED_DELIVERY': ['READY_FOR_PICKUP', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'RETURNED_TO_WAREHOUSE', 'CANCELLED'],
+        'RETURNED_TO_WAREHOUSE': ['ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'READY_FOR_PICKUP', 'COMPLETED', 'CANCELLED'],
         'COMPLETED': [],
         'CANCELLED': [],
         'EXPIRED': [],
@@ -52,7 +52,7 @@ class OrderStateMachine:
                     'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE',
                     'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY',
                     'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP',
-                    'READY_FOR_VEHICLE_HANDOVER', 'FAILED_DELIVERY', 'RETURNED_TO_HUB'
+                    'READY_FOR_VEHICLE_HANDOVER', 'FAILED_DELIVERY', 'RETURNED_TO_WAREHOUSE'
                 ]
                 if new_state == 'CANCELLED' and locked_order.status not in cant_cancel_states:
                     pass
@@ -65,7 +65,7 @@ class OrderStateMachine:
                 warehouse_states = {
                     'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ARRIVED_AT_REGIONAL_WAREHOUSE',
                     'AWAITING_DELIVERY_PAYMENT', 'PENDING_DELIVERY_VERIFICATION', 'READY_FOR_PICKUP',
-                    'RETURNED_TO_HUB'
+                    'RETURNED_TO_WAREHOUSE'
                 }
                 if new_state in warehouse_states:
                     raise ValueError(f"State '{new_state}' is not allowed for DIRECT_DELIVERY orders.")
@@ -81,7 +81,7 @@ class OrderStateMachine:
                 logistics_states = {
                     'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ARRIVED_AT_REGIONAL_WAREHOUSE',
                     'AWAITING_DELIVERY_PAYMENT', 'PENDING_DELIVERY_VERIFICATION', 'READY_FOR_PICKUP',
-                    'RETURNED_TO_HUB', 'OUT_FOR_DELIVERY', 'IN_TRANSIT', 'ASSIGNED_TRANSPORT',
+                    'RETURNED_TO_WAREHOUSE', 'OUT_FOR_DELIVERY', 'IN_TRANSIT', 'ASSIGNED_TRANSPORT',
                     'READY_FOR_VEHICLE_HANDOVER'
                 }
                 if new_state in logistics_states:
@@ -174,6 +174,31 @@ class OrderStateMachine:
                         shipment_type='local_delivery',
                         status='pending',
                         carrier_type='driver'
+                    )
+                # Mark any existing line_haul shipment as arrived
+                Shipment.objects.filter(
+                    order=locked_order, shipment_type='line_haul', status='in_transit'
+                ).update(status='arrived_at_warehouse')
+
+            if new_state == 'IN_TRANSIT':
+                from logistics.models import Shipment
+                from django.utils import timezone as _tz
+                # Auto-record departure: create or update the line-haul shipment
+                existing = Shipment.objects.filter(
+                    order=locked_order, shipment_type='line_haul'
+                ).first()
+                if existing:
+                    if not existing.shipped_at:
+                        existing.shipped_at = _tz.now()
+                    existing.status = 'in_transit'
+                    existing.save(update_fields=['shipped_at', 'status'])
+                else:
+                    Shipment.objects.create(
+                        order=locked_order,
+                        shipment_type='line_haul',
+                        status='in_transit',
+                        carrier_type='driver',
+                        shipped_at=_tz.now(),
                     )
 
             if new_state == 'FAILED_DELIVERY':

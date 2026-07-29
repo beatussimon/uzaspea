@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, Plus } from 'lucide-react';
+import { Package, Plus, Printer } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
 import { useDialog } from '../../components/ui/Dialogs';
@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 
 const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
   'electronics': ['Color', 'Storage Capacity'],
@@ -39,8 +40,18 @@ const DashboardProducts: React.FC = () => {
   const [quickStockValue, setQuickStockValue] = useState<string>('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+  const [form, setForm] = useState({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
   const [priceTiers, setPriceTiers] = useState<any[]>([]);
+  
+  // Search and Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterCondition, setFilterCondition] = useState('');
+  
+  // Batch Upload Modal
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batchFile, setBatchFile] = useState<File | null>(null);
+  const [batchUploading, setBatchUploading] = useState(false);
   const [newVariants, setNewVariants] = useState<any[]>([]);
   const [existingImages, setExistingImages] = useState<any[]>([]);
   const [locData, setLocData] = useState({ latitude: '', longitude: '', location_name: '' });
@@ -98,8 +109,14 @@ const DashboardProducts: React.FC = () => {
     } else {
       setLoadingMore(true);
     }
+    const params = new URLSearchParams();
+    if (currentUser) params.append('mine', 'true');
+    params.append('page', p.toString());
+    if (searchQuery) params.append('q', searchQuery);
+    if (filterCategory) params.append('category', filterCategory);
+    if (filterCondition) params.append('condition', filterCondition);
     
-    api.get(`/api/products/?seller=${currentUser}&page=${p}`)
+    api.get(`/api/products/?${params.toString()}`)
       .then((res) => {
         const data = res.data.results || res.data;
         const arr = Array.isArray(data) ? data : [];
@@ -116,7 +133,14 @@ const DashboardProducts: React.FC = () => {
       })
       .catch(() => setHasMore(false))
       .finally(() => { setLoading(false); setLoadingMore(false); });
-  }, [currentUser]);
+  }, [currentUser, searchQuery, filterCategory, filterCondition]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchProducts(1, true);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery, filterCategory, filterCondition, fetchProducts]);
 
   useEffect(() => {
     fetchProducts(1, true);
@@ -227,6 +251,26 @@ const DashboardProducts: React.FC = () => {
     setImageFiles(updatedPreviews.map(p => p.file));
   };
 
+  const handleBatchUpload = async () => {
+    if (!batchFile) return;
+    setBatchUploading(true);
+    const formData = new FormData();
+    formData.append('file', batchFile);
+    try {
+      const res = await api.post('/api/products/batch_upload/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success(res.data.message || 'Batch import successful!');
+      setShowBatchModal(false);
+      setBatchFile(null);
+      fetchProducts(1, true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Batch import failed');
+    } finally {
+      setBatchUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -234,6 +278,7 @@ const DashboardProducts: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('name', form.name);
+      if (form.sku) formData.append('sku', form.sku);
       formData.append('description', form.description);
       formData.append('price', form.price);
       if (form.sale_price) formData.append('sale_price', form.sale_price);
@@ -313,7 +358,7 @@ const DashboardProducts: React.FC = () => {
       setShowForm(false);
       setEditingId(null);
       setEditingProductId(null);
-      setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+      setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
       imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
       setImagePreviews([]);
       setImageFiles([]);
@@ -331,6 +376,7 @@ const DashboardProducts: React.FC = () => {
   const handleEdit = async (product: any) => {
     setForm({
       name: product.name,
+      sku: product.sku || '',
       description: product.description,
       price: product.price,
       sale_price: product.sale_price || '',
@@ -426,22 +472,94 @@ const DashboardProducts: React.FC = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t('my_products', 'My Products')}</h2>
-        <Button
-          onClick={() => {
-            setShowForm(!showForm);
-            setEditingId(null);
-            setExistingImages([]);
-            setNewVariants([]);
-            setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
-          }}
-          disabled={user?.tier === 'customer'}
-          variant={showForm ? 'outline' : 'default'}
-          className="flex items-center gap-2"
-        >
-          <Plus size={16} />
-          {showForm ? t('cancel', 'Cancel') : t('new_product', 'New Product')}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => setShowBatchModal(true)}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Package size={16} />
+            Batch Import (CSV)
+          </Button>
+          <Button
+            onClick={() => {
+              setShowForm(!showForm);
+              setEditingId(null);
+              setExistingImages([]);
+              setNewVariants([]);
+              setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+            }}
+            disabled={user?.tier === 'customer'}
+            variant={showForm ? 'outline' : 'default'}
+            className="flex items-center gap-2"
+          >
+            <Plus size={16} />
+            {showForm ? 'Cancel' : t('add_new', 'Add New')}
+          </Button>
+          <button 
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition shadow-sm font-bold text-sm"
+          >
+            <Printer size={16} /> Print
+          </button>
+        </div>
       </div>
+
+      {/* Search and Filters */}
+      {!showForm && (
+        <div className="flex flex-col md:flex-row gap-3 mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+          <input
+            type="text"
+            placeholder="Search by Name or SKU..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 p-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="w-full md:w-48 p-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            <option value="">All Categories</option>
+            {flatCategories.map((c: any) => (
+              <option key={c.slug} value={c.slug}>{c.name}</option>
+            ))}
+          </select>
+          <select
+            value={filterCondition}
+            onChange={(e) => setFilterCondition(e.target.value)}
+            className="w-full md:w-32 p-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            <option value="">Any Condition</option>
+            <option value="New">New</option>
+            <option value="Used">Used</option>
+          </select>
+        </div>
+      )}
+
+      {/* Batch Upload Modal */}
+      {showBatchModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Batch Import Products</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Upload a CSV file with your products. Ensure your CSV has columns like Name, Description, Price, Stock, Category ID, SKU, and Condition.
+            </p>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => setBatchFile(e.target.files ? e.target.files[0] : null)}
+              className="w-full mb-6 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+            />
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowBatchModal(false)}>Cancel</Button>
+              <Button onClick={handleBatchUpload} disabled={!batchFile || batchUploading}>
+                {batchUploading ? 'Importing...' : 'Upload CSV'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {user?.tier === 'customer' && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-lg">
@@ -469,8 +587,12 @@ const DashboardProducts: React.FC = () => {
               <span className="text-xs text-brand-600 dark:text-brand-400 font-normal bg-brand-50 dark:bg-brand-900/30 px-2 py-1 rounded-full">{locStatus}</span>
             )}
           </h3>
-          <input name="name" value={form.name} onChange={handleChange} placeholder="Product Name" required
-            className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input name="name" value={form.name} onChange={handleChange} placeholder="Product Name" required
+              className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+            <input name="sku" value={form.sku} onChange={handleChange} placeholder="Part Code / SKU (Optional)"
+              className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+          </div>
           <textarea name="description" value={form.description} onChange={handleChange} placeholder="Description" required rows={3}
             className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white resize-none" />
           <div className="grid grid-cols-3 gap-4">
@@ -753,7 +875,7 @@ const DashboardProducts: React.FC = () => {
               setShowForm(false);
               setEditingId(null);
               setEditingProductId(null);
-              setForm({ name: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+              setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
               imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
               setImagePreviews([]);
               setImageFiles([]);
@@ -800,8 +922,11 @@ const DashboardProducts: React.FC = () => {
                     {product.stock === 0 ? 'Out of Stock' : product.stock <= 3 ? 'Low Stock' : 'In Stock'}
                   </span>
                 </div>
-                <p className="text-sm text-brand-600 dark:text-brand-400 font-bold mb-1">
-                  TSh {parseInt(product.price).toLocaleString()}
+                <p className="text-sm text-brand-600 dark:text-brand-400 font-bold mb-1 flex items-center gap-2">
+                  <span>TSh {parseInt(product.price).toLocaleString()}</span>
+                  {product.sku && (
+                    <span className="text-[9px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded border dark:border-gray-600">SKU: {product.sku}</span>
+                  )}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   {editingStockId === product.id ? (
@@ -864,6 +989,53 @@ const DashboardProducts: React.FC = () => {
           onClose={() => setVariantProductId(null)} 
         />
       )}
+
+      {/* Print View */}
+      <div className="hidden print:block font-sans text-black bg-white absolute top-0 left-0 w-full h-full min-h-screen z-[9999]">
+        <ReportPrintHeader 
+          title="Inventory Report" 
+          user={user} 
+        />
+        
+        <table className="w-full text-left text-sm border-collapse">
+          <thead>
+            <tr className="border-b-2 border-black">
+              <th className="py-2 px-1 w-12 font-black">S/N</th>
+              <th className="py-2 px-2 font-black">PRODUCT</th>
+              <th className="py-2 px-2 font-black">SKU/CODE</th>
+              <th className="py-2 px-2 font-black">CATEGORY</th>
+              <th className="py-2 px-2 font-black text-right">PRICE (TSH)</th>
+              <th className="py-2 px-2 font-black text-right">STOCK</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((product, idx) => (
+              <tr key={product.id} className="border-b border-gray-200">
+                <td className="py-2 px-1 font-bold">{idx + 1}</td>
+                <td className="py-2 px-2 font-bold">{product.name}</td>
+                <td className="py-2 px-2">{product.sku || '-'}</td>
+                <td className="py-2 px-2">{product.category_name || product.category || '-'}</td>
+                <td className="py-2 px-2 text-right font-mono">{parseFloat(product.price || 0).toLocaleString()}</td>
+                <td className="py-2 px-2 text-right font-mono">{product.stock}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-black font-black">
+              <td colSpan={4} className="py-2 px-2 text-right">TOTAL INVENTORY VALUE:</td>
+              <td colSpan={2} className="py-2 px-2 text-right font-mono">
+                {products.reduce((acc, p) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
+              </td>
+            </tr>
+            <tr>
+              <td colSpan={4} className="py-1 px-2 text-right">TOTAL ITEMS IN STOCK:</td>
+              <td colSpan={2} className="py-1 px-2 text-right font-mono">
+                {products.reduce((acc, p) => acc + parseInt(p.stock || 0), 0).toLocaleString()}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 };

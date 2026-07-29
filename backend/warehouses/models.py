@@ -7,7 +7,7 @@ User = get_user_model()
 class Warehouse(models.Model):
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=50, unique=True, default='')
-    region = models.CharField(max_length=100, default='')
+    region = models.ForeignKey('locations.Region', on_delete=models.PROTECT, null=True, blank=True)
     address = models.TextField()
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -79,6 +79,7 @@ def auto_route_intake(sender, instance, created, **kwargs):
         from logistics.models import Shipment
         Shipment.objects.get_or_create(
             order=order,
+            shipment_type='line_haul',
             defaults={'status': 'pending', 'carrier_type': 'driver'}
         )
         

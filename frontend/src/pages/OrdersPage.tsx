@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck, Shield, Receipt } from 'lucide-react';
+import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck, Shield, Receipt, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
@@ -112,6 +112,14 @@ const OrdersPage: React.FC = () => {
       if (order.status === 'AWAITING_DELIVERY_PAYMENT') {
         fetchSystemLipa();
       }
+      // Auto-popup review if completed/delivered and not reviewed
+      if (['COMPLETED', 'DELIVERED'].includes(order.status)) {
+        const unreviewedItem = order.items?.find((i: any) => !i.has_review);
+        if (unreviewedItem) {
+          setReviewOrderId(order.id);
+          setReviewProduct(unreviewedItem);
+        }
+      }
     }
   };
 
@@ -203,7 +211,9 @@ const OrdersPage: React.FC = () => {
         .then(res => {
           const updatedOrder = res.data;
           if (updatedOrder) {
-            setOrders(prev => prev.map(o => o.id === update.order_id ? updatedOrder : o));
+            setOrders(prev => {
+              return prev.map(o => o.id === update.order_id ? updatedOrder : o);
+            });
             if (update.status === 'COMPLETED' && update.old_status !== 'COMPLETED') {
               if (updatedOrder.items && updatedOrder.items.length > 0) {
                 setReviewOrderId(updatedOrder.id);
@@ -222,6 +232,9 @@ const OrdersPage: React.FC = () => {
                 setReviewProduct(targetOrder.items[0]);
               }
             }
+            if (update.status === 'COMPLETED') {
+                return prev.map(o => o.id === update.order_id ? { ...o, status: 'COMPLETED' } : o);
+            }
             return prev.map(o => {
               if (o.id === update.order_id) {
                   const timelineEvent = {
@@ -229,8 +242,8 @@ const OrdersPage: React.FC = () => {
                        notes: update.notes,
                        created_at: update.timestamp
                   };
-                  const currentTimeline = o.timeline_events || [];
-                   return { ...o, status: update.status, timeline_events: [timelineEvent, ...currentTimeline] };
+                  const updatedTimeline = [timelineEvent, ...(o.timeline_events || [])];
+                  return { ...o, status: update.status, timeline_events: updatedTimeline };
               }
               return o;
             });
@@ -892,29 +905,7 @@ const OrdersPage: React.FC = () => {
                                    "Thank you for choosing SokoniMax! Your satisfaction is our top priority."
                                 </p>
                                 
-                                <div className="flex gap-2 mt-3 w-full">
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); setReceiptOrder(order); }}
-                                      className="btn-secondary flex-1 py-1 text-[10px] bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-1 border-gray-200 dark:border-gray-700 shadow-sm transition"
-                                    >
-                                        <Receipt size={14} /> View Receipt
-                                    </button>
-                                    {['AWAITING_PAYMENT', 'PENDING_VERIFICATION'].includes(order.status) && (
-                                        <button 
-                                          onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
-                                          className="btn-secondary flex-1 py-1 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50"
-                                        >
-                                            Cancel Order
-                                        </button>
-                                    )}
-                                    {order.status === 'DELIVERED' && (
-                                        <button 
-                                          onClick={(e) => { e.stopPropagation(); handleReceived(order.id); }}
-                                          className="btn-primary flex-1 py-1 text-[10px] bg-green-600 hover:bg-green-700"
-                                        >
-                                            Confirm Receipt
-                                        </button>
-                                    )}
+                                <div className="flex flex-col gap-2 mt-3 w-full">
                                     {['COMPLETED', 'DELIVERED'].includes(order.status) && order.items?.some((i: any) => !i.has_review) && (
                                         <button 
                                           onClick={(e) => { 
@@ -925,19 +916,43 @@ const OrdersPage: React.FC = () => {
                                               setReviewProduct(unreviewedItem);
                                             }
                                           }}
-                                          className="btn-primary flex-1 py-1 text-[10px] bg-yellow-500 hover:bg-yellow-600 border-none text-white shadow-sm"
+                                          className="btn-primary w-full py-2 text-xs font-bold bg-yellow-500 hover:bg-yellow-600 border-none text-white shadow-md animate-pulse-subtle flex items-center justify-center gap-2 rounded-lg"
                                         >
-                                            Leave a Review
+                                            <Star size={16} className="fill-white" /> Leave a Review
                                         </button>
                                     )}
-                                    {order.status === 'DELIVERED' && !order.dispute && (
+                                    <div className="flex gap-2 w-full">
                                         <button 
-                                          onClick={(e) => { e.stopPropagation(); setOpenDisputeId(order.id); }}
-                                          className="btn-secondary flex-1 py-1 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                          onClick={(e) => { e.stopPropagation(); setReceiptOrder(order); }}
+                                          className="btn-secondary flex-1 py-1 text-[10px] bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-1 border-gray-200 dark:border-gray-700 shadow-sm transition"
                                         >
-                                            Open Dispute
+                                            <Receipt size={14} /> View Receipt
                                         </button>
-                                    )}
+                                        {['AWAITING_PAYMENT', 'PENDING_VERIFICATION'].includes(order.status) && (
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
+                                              className="btn-secondary flex-1 py-1 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            >
+                                                Cancel Order
+                                            </button>
+                                        )}
+                                        {order.status === 'DELIVERED' && (
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); handleReceived(order.id); }}
+                                              className="btn-primary flex-1 py-1 text-[10px] bg-green-600 hover:bg-green-700"
+                                            >
+                                                Confirm Receipt
+                                            </button>
+                                        )}
+                                        {order.status === 'DELIVERED' && !order.dispute && (
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); setOpenDisputeId(order.id); }}
+                                              className="btn-secondary flex-1 py-1 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                            >
+                                                Open Dispute
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -148,7 +148,7 @@ class ShipmentViewSet(viewsets.ModelViewSet):
                 OrderStateMachine.transition_order(order, 'IN_TRANSIT', notes="Shipment is in transit.")
             except Exception:
                 pass
-        elif new_status == 'arrived_at_hub' and instance.status != 'arrived_at_hub':
+        elif new_status == 'arrived_at_warehouse' and instance.status != 'arrived_at_warehouse':
             # Hand off visibility to destination warehouse if this was a transfer
             from warehouses.models import WarehouseTransfer
             transfer = WarehouseTransfer.objects.filter(order=order).order_by('-id').first()
@@ -167,12 +167,12 @@ class ShipmentViewSet(viewsets.ModelViewSet):
 
             if order_has_vehicles(order):
                 try:
-                    OrderStateMachine.transition_order(order, 'READY_FOR_VEHICLE_HANDOVER', notes="Vehicle arrived at local hub and is ready for handover.")
+                    OrderStateMachine.transition_order(order, 'READY_FOR_VEHICLE_HANDOVER', notes="Vehicle arrived at local warehouse and is ready for handover.")
                 except Exception:
                     pass
             else:
                 try:
-                    OrderStateMachine.transition_order(order, 'ARRIVED_AT_REGIONAL_WAREHOUSE', notes="Shipment arrived at regional hub.")
+                    OrderStateMachine.transition_order(order, 'ARRIVED_AT_REGIONAL_WAREHOUSE', notes="Shipment arrived at regional warehouse.")
                 except Exception:
                     pass
         elif new_status == 'delivered' and instance.status != 'delivered':
@@ -519,37 +519,51 @@ class CheckoutOptionsView(views.APIView):
         )
 
         if is_same_city:
-            # Same city: platform handles QC then delivers locally
+            # Same city/region: Offer all options including Direct Delivery
+            options.append({
+                'fulfillment_type': 'DIRECT_DELIVERY',
+                'name': 'Intercity Direct Delivery',
+                'description': 'Seller delivers the item directly to you within the same region.',
+                'shipping_method': 'DELIVERY'
+            })
             options.append({
                 'fulfillment_type': 'PLATFORM_DELIVERY',
-                'name': 'Fulfilled by Uzaspea (Recommended)',
-                'description': 'Item routes through our local warehouse for quality check before delivery to your door.',
+                'name': 'Fulfilled by Uzaspea',
+                'description': 'Item routes through our local warehouse for quality check before delivery.',
                 'shipping_method': 'DELIVERY'
             })
             options.append({
                 'fulfillment_type': 'WAREHOUSE_PICKUP',
                 'name': 'Warehouse Pickup',
-                'description': 'Pick up your item securely from our local warehouse. A unique pickup code is generated.',
+                'description': 'Pick up your item securely from our local warehouse.',
+                'shipping_method': 'PICKUP'
+            })
+            options.append({
+                'fulfillment_type': 'SELLER_PICKUP',
+                'name': 'Seller Pickup',
+                'description': 'Pick up your item directly from the seller.',
                 'shipping_method': 'PICKUP'
             })
         else:
-            # Different cities: seller ships directly (inter-city bus/courier)
-            options.append({
-                'fulfillment_type': 'DIRECT_DELIVERY',
-                'name': 'Direct Delivery (Inter-city)',
-                'description': 'Seller ships directly to you via inter-city transport. Seller provides tracking.',
-                'shipping_method': 'DELIVERY'
-            })
-            # Also offer platform inter-warehouse transfer if both warehouses exist
+            # Different cities: ONLY Platform Delivery is allowed!
             if origin_code and destination_code:
                 from warehouses.models import Warehouse
                 origin_wh = Warehouse.objects.filter(code=origin_code, is_active=True).first()
                 dest_wh = Warehouse.objects.filter(code=destination_code, is_active=True).first()
                 if origin_wh and dest_wh:
+                    origin_name = origin_wh.region.name if origin_wh.region else 'Origin'
+                    dest_name = dest_wh.region.name if dest_wh.region else 'Destination'
                     options.append({
                         'fulfillment_type': 'PLATFORM_DELIVERY',
-                        'name': 'Fulfilled by Uzaspea (Inter-city)',
-                        'description': f'Platform-managed delivery via our warehouse network from {origin_wh.region} to {dest_wh.region}.',
+                        'name': 'Fulfilled by Uzaspea (Inter-region)',
+                        'description': f'Platform-managed delivery via our warehouse network from {origin_name} to {dest_name}.',
+                        'shipping_method': 'DELIVERY'
+                    })
+                else:
+                    options.append({
+                        'fulfillment_type': 'PLATFORM_DELIVERY',
+                        'name': 'Fulfilled by Uzaspea',
+                        'description': 'Platform-managed delivery via our warehouse network.',
                         'shipping_method': 'DELIVERY'
                     })
 

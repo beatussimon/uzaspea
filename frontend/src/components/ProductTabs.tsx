@@ -3,6 +3,7 @@ import { Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import toast from 'react-hot-toast';
+import ReviewModal from './orders/ReviewModal';
 
 interface Review {
   id: number;
@@ -21,9 +22,10 @@ interface Comment {
   parent: number | null;
 }
 
-export const ProductTabs = ({ productId, sellerUsername }: { productId: number, sellerUsername?: string }) => {
+export const ProductTabs = ({ productId, sellerUsername, canReview, productObj }: { productId: number, sellerUsername?: string, canReview?: boolean, productObj?: any }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'reviews' | 'comments'>('reviews');
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
@@ -106,7 +108,17 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
       <div className="py-4">
         {activeTab === 'reviews' && (
           <div className="animate-fade-in">
-            <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">{t('verified_buyers')}</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('verified_buyers')}</h3>
+              {canReview && productObj && (
+                <button
+                  onClick={() => setShowReviewModal(true)}
+                  className="btn-primary py-1 px-3 text-xs bg-yellow-500 hover:bg-yellow-600 text-white shadow-sm flex items-center gap-1 border-none"
+                >
+                  <Star size={12} className="fill-white" /> Leave a Review
+                </button>
+              )}
+            </div>
 
             {loadingReviews ? (
               <div className="flex justify-center py-8">
@@ -140,6 +152,21 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
                   </div>
                 ))}
               </div>
+            )}
+
+            {showReviewModal && productObj && (
+              <ReviewModal
+                product={productObj}
+                onClose={() => setShowReviewModal(false)}
+                onSuccess={() => {
+                  // Reload reviews
+                  setLoadingReviews(true);
+                  api.get(`/api/reviews/?product=${productId}`)
+                    .then((res) => setReviews(res.data.results || res.data))
+                    .catch(() => toast.error('Failed to load reviews'))
+                    .finally(() => setLoadingReviews(false));
+                }}
+              />
             )}
           </div>
         )}

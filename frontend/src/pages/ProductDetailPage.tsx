@@ -26,6 +26,7 @@ interface ProductData {
   category_name: string;
   seller: number;
   seller_username: string;
+  seller_full_name?: string;
   seller_verified: boolean;
   seller_tier: string;
   seller_profile_picture: string | null;
@@ -36,6 +37,7 @@ interface ProductData {
   images: { id: number; image: string }[];
   inspections: InspectionSummary[];
   is_verified: boolean;
+  can_review?: boolean;
   location_name?: string;
   latitude?: string;
   longitude?: string;
@@ -728,31 +730,29 @@ const ProductDetailPage: React.FC = () => {
           <hr className="border-gray-200 dark:border-neutral-800 my-1" />
 
           {/* UOM and Tiered Pricing info */}
-          <div className="flex flex-col gap-2 mb-3 bg-brand-50/50 dark:bg-brand-900/10 p-3 rounded-xl border border-brand-100 dark:border-brand-800/30">
-            <div className="flex justify-between items-center text-xs">
-               <span className="font-semibold text-gray-600 dark:text-gray-400">Unit of Measure:</span>
-               <span className="font-bold text-gray-900 dark:text-white capitalize">{product.unit_of_measure || 'piece'}</span>
-            </div>
-            {product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1 && (
-              <div className="flex justify-between items-center text-xs text-brand-600 dark:text-brand-400">
-                 <span className="font-semibold">Minimum Order (MOQ):</span>
-                 <span className="font-bold">{product.minimum_order_quantity} {product.unit_of_measure}</span>
-              </div>
-            )}
-            {product.price_tiers && product.price_tiers.length > 0 && (
-              <div className="mt-2 text-xs border-t border-brand-200/50 dark:border-brand-800/50 pt-2">
-                <span className="font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Volume Discounts:</span>
-                <div className="space-y-1">
-                  {product.price_tiers.map(tier => (
-                    <div key={tier.id} className="flex justify-between text-gray-600 dark:text-gray-400">
-                      <span>{parseFloat(tier.min_quantity)} {tier.max_quantity ? `- ${parseFloat(tier.max_quantity)}` : '+'} {product.unit_of_measure}s</span>
-                      <span className="font-bold text-gray-900 dark:text-white">TSh {parseInt(tier.unit_price).toLocaleString()} / {product.unit_of_measure}</span>
-                    </div>
-                  ))}
+          {((product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1) || (product.price_tiers && product.price_tiers.length > 0)) && (
+            <div className="flex flex-col gap-2 mb-3 bg-brand-50/50 dark:bg-brand-900/10 p-3 rounded-xl border border-brand-100 dark:border-brand-800/30">
+              {product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1 && (
+                <div className="flex justify-between items-center text-xs text-brand-600 dark:text-brand-400">
+                   <span className="font-semibold">Minimum Order (MOQ):</span>
+                   <span className="font-bold">{product.minimum_order_quantity} {product.unit_of_measure || 'piece'}</span>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+              {product.price_tiers && product.price_tiers.length > 0 && (
+                <div className="mt-2 text-xs border-t border-brand-200/50 dark:border-brand-800/50 pt-2">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Volume Discounts:</span>
+                  <div className="space-y-1">
+                    {product.price_tiers.map(tier => (
+                      <div key={tier.id} className="flex justify-between text-gray-600 dark:text-gray-400">
+                        <span>{parseFloat(tier.min_quantity)} {tier.max_quantity ? `- ${parseFloat(tier.max_quantity)}` : '+'} {(product.unit_of_measure || 'piece')}s</span>
+                        <span className="font-bold text-gray-900 dark:text-white">TSh {parseInt(tier.unit_price).toLocaleString()} / {product.unit_of_measure || 'piece'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Cart & Action Buttons */}
           <div className="flex flex-col gap-3">
@@ -765,7 +765,10 @@ const ProductDetailPage: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-full bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0">
                     <button onClick={() => setQuantity(Math.max(parseFloat(product.minimum_order_quantity || '1'), quantity - 1))} className="px-2.5 py-1.5 sm:px-3 sm:py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-xs">−</button>
-                    <input type="number" min={product.minimum_order_quantity || "1"} max={selectedVariant ? selectedVariant.stock : product.stock} step="any" value={quantity} onChange={e => setQuantity(parseFloat(e.target.value) || (parseFloat(product.minimum_order_quantity || '1')))} className="bg-transparent font-extrabold text-gray-900 dark:text-white border-x border-gray-200 dark:border-gray-700 w-16 text-center text-xs focus:outline-none" />
+                    <div className="flex items-center justify-center bg-transparent border-x border-gray-200 dark:border-gray-700 px-2 min-w-[5rem]">
+                      <input type="number" min={product.minimum_order_quantity || "1"} max={selectedVariant ? selectedVariant.stock : product.stock} step="any" value={quantity} onChange={e => setQuantity(parseFloat(e.target.value) || (parseFloat(product.minimum_order_quantity || '1')))} className="bg-transparent font-extrabold text-gray-900 dark:text-white w-8 text-center text-xs focus:outline-none" style={{ appearance: 'textfield', MozAppearance: 'textfield' }} />
+                      <span className="text-[10px] text-gray-500 font-bold tracking-tight lowercase">/ {product.unit_of_measure || 'piece'}</span>
+                    </div>
                     <button onClick={() => setQuantity(Math.min((selectedVariant ? selectedVariant.stock : product.stock), quantity + 1))} className="px-2.5 py-1.5 sm:px-3 sm:py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-600 dark:text-gray-300 font-bold text-xs">+</button>
                   </div>
                   <button onClick={handleAddToCart} className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-4 bg-amber-400 hover:bg-amber-500 text-black font-extrabold rounded-full transition shadow-md active:scale-98 text-xs sm:text-sm tracking-wide">
@@ -773,7 +776,7 @@ const ProductDetailPage: React.FC = () => {
                     <span className="truncate">{t('add_to_cart')}</span>
                   </button>
                   <span className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-full text-[11px] font-bold shrink-0">
-                    {selectedVariant ? selectedVariant.stock : product.stock} {t('in_stock')}
+                    {selectedVariant ? selectedVariant.stock : product.stock} {product.unit_of_measure || 'piece'}s {t('in_stock')}
                   </span>
                 </div>
               )
@@ -818,7 +821,7 @@ const ProductDetailPage: React.FC = () => {
               <div>
                 <div className="flex items-center gap-1.5">
                   <Link to={`/${product.seller_username}`} className="text-base md:text-lg font-bold text-gray-900 dark:text-white hover:underline transition">
-                    {product.seller_username}
+                    {product.seller_full_name || product.seller_username}
                   </Link>
                   <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-4 h-4" />
                 </div>
@@ -907,7 +910,12 @@ const ProductDetailPage: React.FC = () => {
 
           {/* Product Reviews & Comments */}
           <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-            <ProductTabs productId={product.id} sellerUsername={product.seller_username} />
+            <ProductTabs 
+              productId={product.id} 
+              sellerUsername={product.seller_username} 
+              canReview={product.can_review}
+              productObj={product}
+            />
           </div>
         </div>
     </div>

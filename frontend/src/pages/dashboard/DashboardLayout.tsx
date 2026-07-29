@@ -44,7 +44,7 @@ const DashboardLayout: React.FC = () => {
   const navItems = allNavItems.filter(item => item.show);
 
   return (
-    <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6">
+    <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
       {/* Expired Subscription Banner */}
       {user?.subscription_active === false && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-400 p-4 rounded-xl flex items-center justify-between shadow-sm">
@@ -61,7 +61,7 @@ const DashboardLayout: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
         {/* Sidebar */}
         <aside className={`w-full lg:w-56 shrink-0 ${location.pathname !== '/dashboard' ? 'hidden lg:block' : ''}`}>
         <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1">

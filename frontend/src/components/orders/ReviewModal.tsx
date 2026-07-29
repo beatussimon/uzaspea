@@ -4,7 +4,7 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 
 interface ReviewModalProps {
-  orderId: number;
+  orderId?: number;
   product: any;
   onClose: () => void;
   onSuccess?: () => void;
