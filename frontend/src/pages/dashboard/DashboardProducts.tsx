@@ -286,6 +286,7 @@ const DashboardProducts: React.FC = () => {
       formData.append('category', form.category);
       formData.append('condition', form.condition);
       formData.append('is_available', String(form.is_available));
+      formData.append('requires_quote', String(form.requires_quote));
       formData.append('unit_of_measure', form.unit_of_measure);
       formData.append('minimum_order_quantity', form.minimum_order_quantity);
       if (priceTiers.length > 0) {
@@ -358,7 +359,7 @@ const DashboardProducts: React.FC = () => {
       setShowForm(false);
       setEditingId(null);
       setEditingProductId(null);
-      setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+      setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
       imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
       setImagePreviews([]);
       setImageFiles([]);
@@ -384,6 +385,7 @@ const DashboardProducts: React.FC = () => {
       category: String(product.category),
       condition: product.condition,
       is_available: product.is_available,
+      requires_quote: product.requires_quote || false,
       unit_of_measure: product.unit_of_measure || 'piece',
       minimum_order_quantity: product.minimum_order_quantity || '1',
     });
@@ -487,7 +489,7 @@ const DashboardProducts: React.FC = () => {
               setEditingId(null);
               setExistingImages([]);
               setNewVariants([]);
-              setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+              setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
             }}
             disabled={user?.tier === 'customer'}
             variant={showForm ? 'outline' : 'default'}
@@ -657,18 +659,33 @@ const DashboardProducts: React.FC = () => {
             ))}
             <button type="button" onClick={() => setPriceTiers([...priceTiers, { min_quantity: '', max_quantity: '', unit_price: '' }])} className="text-sm text-brand-600 font-semibold">+ Add Pricing Tier</button>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
-            <input 
-              type="checkbox" 
-              name="is_available" 
-              id="is_available"
-              checked={form.is_available} 
-              onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
-              className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-gray-900 dark:focus:ring-white" 
-            />
-            <label htmlFor="is_available" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Product is Available for Sale
-            </label>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
+              <input 
+                type="checkbox" 
+                name="is_available" 
+                id="is_available"
+                checked={form.is_available} 
+                onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
+                className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-gray-900 dark:focus:ring-white" 
+              />
+              <label htmlFor="is_available" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Product is Available for Sale
+              </label>
+            </div>
+            <div className="flex-1 flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
+              <input 
+                type="checkbox" 
+                name="requires_quote" 
+                id="requires_quote"
+                checked={form.requires_quote} 
+                onChange={(e) => setForm({ ...form, requires_quote: e.target.checked })}
+                className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-gray-900 dark:focus:ring-white" 
+              />
+              <label htmlFor="requires_quote" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Requires Quote (Request to Pay)
+              </label>
+            </div>
           </div>
           <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-4">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4">
@@ -875,7 +892,7 @@ const DashboardProducts: React.FC = () => {
               setShowForm(false);
               setEditingId(null);
               setEditingProductId(null);
-              setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+              setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
               imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
               setImagePreviews([]);
               setImageFiles([]);

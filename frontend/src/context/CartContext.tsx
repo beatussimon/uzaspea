@@ -13,6 +13,7 @@ interface CartItem {
   category?: string;
   weight_kg?: number;
   size?: string;
+  requires_quote?: boolean;
 }
 
 interface CartContextType {
@@ -95,6 +96,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           category: product.category_name,
           weight_kg: product.weight_kg ? parseFloat(product.weight_kg) : 1.0,
           size: product.size || 'small',
+          requires_quote: product.requires_quote || false,
         },
       ];
     });

@@ -1,8 +1,10 @@
-import { Package, Clock, CheckCircle2, Truck, XCircle, CreditCard, MapPin, ShieldAlert, Archive, Clipboard, Banknote, CheckCircle } from 'lucide-react';
+import { Package, Clock, CheckCircle2, Truck, XCircle, CreditCard, MapPin, ShieldAlert, Archive, Clipboard, Banknote, CheckCircle, Receipt } from 'lucide-react';
 
 export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; solidBg: string; icon: any }> = {
   CART: { label: 'Cart', color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-700', solidBg: 'bg-gray-600', icon: Package },
   CHECKOUT: { label: 'Checkout', color: 'text-brand-600', bg: 'bg-brand-100 dark:bg-brand-900/30', solidBg: 'bg-brand-600', icon: Package },
+  REQUESTED_INVOICE: { label: 'Quote Requested', color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30', solidBg: 'bg-amber-600', icon: Receipt },
+  INVOICE_GENERATED: { label: 'Invoice Ready', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30', solidBg: 'bg-blue-600', icon: Receipt },
   AWAITING_PAYMENT: { label: 'Awaiting Payment', color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/30', solidBg: 'bg-yellow-600', icon: CreditCard },
   PENDING_VERIFICATION: { label: 'Verifying Payment', color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-900/30', solidBg: 'bg-orange-600', icon: Clock },
   PAID: { label: 'Paid', color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30', solidBg: 'bg-green-600', icon: CheckCircle2 },

@@ -1,0 +1,75 @@
+from django.test import TestCase
+from django.contrib.auth import get_user_model
+from django.urls import reverse
+from rest_framework.test import APIClient
+from marketplace.models import ProductRequest
+
+User = get_user_model()
+
+class ProductRequestTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.seller = User.objects.create_user(username='seller1', password='password123', email='seller@example.com')
+        self.buyer = User.objects.create_user(username='buyer1', password='password123', email='buyer@example.com')
+
+    def test_seller_create_demand_card(self):
+        self.client.force_authenticate(user=self.seller)
+        url = reverse('product-request-list')
+        data = {
+            'name': 'iPhone 16 Pro Max',
+            'description': 'Latest iPhone',
+            'seller_username': self.seller.username
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['request_count'], 0) # seller created it, count starts at 0
+
+    def test_buyer_upvote_card(self):
+        pr = ProductRequest.objects.create(
+            name='iPhone 16 Pro Max',
+            description='Latest iPhone',
+            seller=self.seller,
+            request_count=0
+        )
+        
+        self.client.force_authenticate(user=self.buyer)
+        url = reverse('product-request-list')
+        data = {
+            'name': 'iPhone 16 Pro Max',
+            'seller_username': self.seller.username
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['request_count'], 1)
+
+    def test_fetch_by_seller_username(self):
+        ProductRequest.objects.create(name='Test 1', seller=self.seller)
+        
+        url = reverse('product-request-list')
+        response = self.client.get(f"{url}?seller_username={self.seller.username}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['results']), 1)
+
+    def test_convert_to_product(self):
+        from marketplace.models import Category, Product
+        cat = Category.objects.create(name='Phones')
+        pr = ProductRequest.objects.create(
+            name='Convert Me',
+            seller=self.seller,
+            category=cat,
+            price=999.99
+        )
+        self.client.force_authenticate(user=self.seller)
+        url = reverse('product-request-convert-to-product', args=[pr.id])
+        response = self.client.post(url, format='json')
+        
+        self.assertEqual(response.status_code, 200)
+        pr.refresh_from_db()
+        self.assertTrue(pr.is_fulfilled)
+        
+        product_id = response.data['product_id']
+        product = Product.objects.get(id=product_id)
+        self.assertEqual(product.name, 'Convert Me')
+        from decimal import Decimal
+        self.assertEqual(product.price, Decimal('999.99'))
+        self.assertEqual(product.category, cat)

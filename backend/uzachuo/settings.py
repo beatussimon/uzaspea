@@ -150,7 +150,7 @@ _in_test   = 'test' in sys.argv
 if not _in_docker:
     # Force local redis URL without password for local development
     # (in case REDIS_URL is inherited from the shell environment with a password)
-    REDIS_URL = 'redis://127.0.0.1:6379/0'
+    REDIS_URL = 'redis://:redis_pass@172.18.0.2:6379/0'
 
 if _in_test:
     # Tests: no-op cache so throttling doesn't block unit tests

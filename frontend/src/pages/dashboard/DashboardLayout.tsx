@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle, Lightbulb, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 const SettingsPage = lazy(() => import('./SettingsPage'));
@@ -16,6 +16,8 @@ const BillingPage = lazy(() => import('./BillingPage'));
 const TeamManagerPage = lazy(() => import('./TeamManagerPage'));
 const MyTeamPage = lazy(() => import('./MyTeamPage'));
 const DashboardPOS = lazy(() => import('./DashboardPOS'));
+const ProductRequestsBoard = lazy(() => import('./ProductRequestsBoard'));
+const InvoicesPage = lazy(() => import('./InvoicesPage'));
 
 // ============ Dashboard Layout ============
 const DashboardLayout: React.FC = () => {
@@ -32,7 +34,9 @@ const DashboardLayout: React.FC = () => {
   const allNavItems = [
     { path: '/dashboard', label: t('overview', 'Overview'), icon: LayoutDashboard, show: !isWorker || perms.view_analytics },
     { path: '/dashboard/products', label: t('products', 'Products'), icon: Package, show: !isWorker || perms.manage_products },
+    { path: '/dashboard/product-requests', label: t('product_requests', 'Product Requests'), icon: Lightbulb, show: !isWorker || perms.manage_products },
     { path: '/dashboard/orders', label: t('incoming_orders', 'Incoming Orders'), icon: ShoppingCart, show: !isWorker || perms.manage_orders },
+    { path: '/dashboard/invoices', label: t('invoices_and_quotes', 'Invoices & Quotes'), icon: FileText, show: !isWorker || perms.manage_orders },
     { path: '/dashboard/promotions', label: t('promotions', 'Promotions'), icon: Megaphone, show: !isWorker || perms.manage_products },
     { path: '/dashboard/pos', label: t('point_of_sale', 'Point of Sale'), icon: ShoppingCart, show: !isWorker || perms.manage_orders },
     { path: '/dashboard/billing', label: t('billing_commission', 'Billing & Commission'), icon: Wallet, show: !isWorker || perms.view_analytics },
@@ -128,8 +132,10 @@ const DashboardLayout: React.FC = () => {
           <Routes>
             <Route index element={<DashboardOverview />} />
             <Route path="products" element={<DashboardProducts />} />
+            <Route path="product-requests" element={<ProductRequestsBoard />} />
             <Route path="pos" element={<DashboardPOS />} />
             <Route path="orders" element={<DashboardOrders />} />
+            <Route path="invoices" element={<InvoicesPage />} />
             <Route path="promotions" element={<DashboardPromotions />} />
             <Route path="billing" element={<BillingPage />} />
             <Route path="payment-numbers" element={<PaymentNumbersManager />} />

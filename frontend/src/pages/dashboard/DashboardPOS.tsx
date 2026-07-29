@@ -207,11 +207,20 @@ const DashboardPOS: React.FC = () => {
   const addToCart = (product: Product, variant: any = null) => {
     const id = variant ? `${product.id}-${variant.id}` : `${product.id}-null`;
     const stock = variant ? variant.stock : product.stock;
-    const price = variant ? parseFloat(product.price) + parseFloat(variant.price_adjustment) : parseFloat(product.price);
+    let price = variant ? parseFloat(product.price) + parseFloat(variant.price_adjustment) : parseFloat(product.price);
     
     if (stock <= 0) {
       toast.error('Out of stock!');
       return;
+    }
+
+    if (product.requires_quote) {
+      const userPrice = window.prompt(`Enter agreed-upon price (TSh) for ${product.name}:`);
+      if (userPrice === null || isNaN(parseFloat(userPrice)) || parseFloat(userPrice) < 0) {
+        toast.error('Valid price is required for this product');
+        return;
+      }
+      price = parseFloat(userPrice);
     }
 
     setCart(prev => {
@@ -272,7 +281,8 @@ const DashboardPOS: React.FC = () => {
         items: cart.map(item => ({
           product_id: item.product_id,
           variant_id: item.variant_id,
-          quantity: item.quantity
+          quantity: item.quantity,
+          price: item.price
         }))
       };
 

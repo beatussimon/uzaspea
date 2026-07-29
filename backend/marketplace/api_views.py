@@ -1,6 +1,7 @@
 import json
 from decimal import Decimal
 from rest_framework import viewsets, permissions, status, decorators, serializers as drf_serializers
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
@@ -362,6 +363,9 @@ class ProductViewSet(viewsets.ModelViewSet):
                 except Category.DoesNotExist:
                     continue
                 
+                requires_quote_raw = str(row.get('Requires Quote') or row.get('requires_quote', 'False')).lower().strip()
+                requires_quote = requires_quote_raw in ['true', '1', 'yes', 'y']
+                
                 Product.objects.create(
                     name=row.get('Name') or row.get('name', 'Untitled'),
                     description=row.get('Description') or row.get('description', ''),
@@ -371,6 +375,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                     condition=row.get('Condition') or row.get('condition', 'New'),
                     category=category,
                     seller=seller,
+                    requires_quote=requires_quote,
                     is_available=True
                 )
                 created_count += 1
@@ -748,12 +753,24 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_staff or user.is_superuser:
-            return Order.objects.all().prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
-        from uzachuo.permissions import get_effective_sellers
-        sellers = get_effective_sellers(user, required_permission='manage_orders')
-        return Order.objects.filter(
-            Q(user=user) | Q(orderitem_set__product__seller_id__in=sellers)
-        ).distinct().prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
+            qs = Order.objects.all()
+        else:
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(user, required_permission='manage_orders')
+            qs = Order.objects.filter(
+                Q(user=user) | Q(orderitem_set__product__seller_id__in=sellers)
+            ).distinct()
+            
+        status_param = self.request.query_params.get('status')
+        exclude_statuses = self.request.query_params.get('exclude_statuses')
+        
+        if status_param:
+            qs = qs.filter(status=status_param)
+        if exclude_statuses:
+            excluded = exclude_statuses.split(',')
+            qs = qs.exclude(status__in=excluded)
+            
+        return qs.prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -1009,6 +1026,14 @@ class OrderViewSet(viewsets.ModelViewSet):
                     return Response({'error': f'Insufficient stock for {product.name}. Available: {stock_available}.'}, status=status.HTTP_400_BAD_REQUEST)
                 
                 price = variant.final_price if variant else product.price
+                if product.requires_quote:
+                    if 'price' in item_data:
+                        try:
+                            price = float(item_data['price'])
+                        except (ValueError, TypeError):
+                            return Response({'error': 'Invalid custom price provided.'}, status=status.HTTP_400_BAD_REQUEST)
+                    else:
+                        return Response({'error': f'Price is required for {product.name} because it requires a quote.'}, status=status.HTTP_400_BAD_REQUEST)
                 
                 order_items.append({
                     'product': product,
@@ -1092,6 +1117,101 @@ class OrderViewSet(viewsets.ModelViewSet):
             traceback.print_exc()
             return Response({'error': f'POS checkout error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
+
+    @decorators.action(detail=False, methods=['post'], url_path='request-invoice')
+    @transaction.atomic
+    def request_invoice(self, request):
+        """Convert cart items into an order that requires a quote/invoice."""
+        user = request.user
+        items_data = request.data.get('items', [])
+        
+        if not items_data:
+            return Response({'error': 'No items provided.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        order = Order.objects.create(
+            user=user,
+            status='REQUESTED_INVOICE',
+            shipping_method=request.data.get('shipping_method', 'DELIVERY'),
+            fulfillment_type=request.data.get('fulfillment_type', 'PLATFORM_DELIVERY')
+        )
+        
+        for item_data in items_data:
+            product_id = item_data.get('product_id')
+            quantity = int(item_data.get('quantity', 1))
+            product = Product.objects.get(id=product_id)
+            
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                quantity=quantity,
+                price=product.price if not product.requires_quote else Decimal('0.00')
+            )
+            
+        order.update_total()
+        TrackingEvent.objects.create(order=order, status='REQUESTED_INVOICE', notes='Customer requested an invoice.')
+        return Response({'order_id': order.id, 'status': order.status}, status=status.HTTP_201_CREATED)
+
+    @decorators.action(detail=True, methods=['post'], url_path='generate-invoice')
+    @transaction.atomic
+    def generate_invoice(self, request, pk=None):
+        """Seller sets prices and generates the invoice."""
+        order = self.get_object()
+        user = request.user
+        
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(user)
+        
+        # Check permissions: user must be seller of at least one item
+        seller_ids = [item.product.seller_id for item in order.orderitem_set.select_related('product').all()]
+        if not any(sid in sellers for sid in seller_ids) and not user.is_staff:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+            
+        if order.status not in ('REQUESTED_INVOICE', 'CART', 'CHECKOUT'):
+            return Response({'error': 'Order is not pending an invoice.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        prices = request.data.get('prices', {}) # {item_id: price}
+        for item in order.orderitem_set.all():
+            if str(item.id) in prices:
+                item.price = Decimal(str(prices[str(item.id)]))
+                item.save(update_fields=['price'])
+                
+        # Handle shipping fee
+        shipping_fee = request.data.get('shipping_fee')
+        if shipping_fee is not None:
+            order.shipping_fee = Decimal(str(shipping_fee))
+                
+        # Optional: pos immediate completion
+        complete_pos = request.data.get('complete_pos', False)
+        
+        order.status = 'COMPLETED' if complete_pos else 'INVOICE_GENERATED'
+        if complete_pos:
+            # Need to update delivery info
+            di = order.delivery_info or {}
+            di['is_pos'] = True
+            order.delivery_info = di
+            
+        order.save(update_fields=['status', 'shipping_fee', 'delivery_info'])
+        order.update_total()
+        TrackingEvent.objects.create(order=order, status=order.status, notes='Invoice generated by seller.')
+        
+        return Response({'status': order.status})
+
+    @decorators.action(detail=True, methods=['post'], url_path='confirm-invoice')
+    @transaction.atomic
+    def confirm_invoice(self, request, pk=None):
+        """Buyer confirms the invoice and proceeds to pay."""
+        order = self.get_object()
+        if order.user != request.user:
+            return Response({'error': 'Unauthorized'}, status=403)
+            
+        if order.status != 'INVOICE_GENERATED':
+            return Response({'error': 'No generated invoice to confirm.'}, status=400)
+            
+        order.status = 'AWAITING_PAYMENT'
+        order.save(update_fields=['status'])
+        TrackingEvent.objects.create(order=order, status='AWAITING_PAYMENT', notes='Buyer confirmed invoice.')
+        return Response({'status': order.status})
+
     @decorators.action(detail=False, methods=['get'])
     def incoming(self, request):
         """Orders containing the current seller's products."""
@@ -1125,6 +1245,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         status_filter = request.query_params.get('status', None)
         if status_filter:
             orders = orders.filter(status=status_filter)
+
+        exclude_statuses = request.query_params.get('exclude_statuses', None)
+        if exclude_statuses:
+            orders = orders.exclude(status__in=exclude_statuses.split(','))
 
         order_id_filter = request.query_params.get('order_id', None)
         if order_id_filter:
@@ -2493,15 +2617,20 @@ class PushSubscriptionView(APIView):
         if not endpoint or not p256dh or not auth:
             return Response({'error': 'Invalid subscription data'}, status=400)
 
-        sub, created = PushSubscription.objects.update_or_create(
-            endpoint=endpoint,
-            defaults={
-                'user': request.user,
-                'p256dh': p256dh,
-                'auth': auth
-            }
-        )
-        return Response({'status': 'subscribed', 'id': sub.id})
+        try:
+            sub, created = PushSubscription.objects.update_or_create(
+                endpoint=endpoint,
+                defaults={
+                    'user': request.user,
+                    'p256dh': p256dh,
+                    'auth': auth
+                }
+            )
+            return Response({'status': 'subscribed', 'id': sub.id})
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=500)
 
     def delete(self, request):
         from .models import PushSubscription
@@ -2522,3 +2651,112 @@ class PushVapidKeyView(APIView):
             return Response({'error': 'VAPID public key not configured'}, status=500)
         return Response({'public_key': public_key})
 
+
+from .models import ProductRequest
+from .serializers import ProductRequestSerializer
+from django.contrib.auth.models import User
+
+class ProductRequestViewSet(viewsets.ModelViewSet):
+    queryset = ProductRequest.objects.all()
+    serializer_class = ProductRequestSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        seller_username = self.request.query_params.get('seller_username')
+        if seller_username:
+            return ProductRequest.objects.filter(seller__username=seller_username)
+        seller_id = self.request.query_params.get('seller_id')
+        if seller_id:
+            return ProductRequest.objects.filter(seller_id=seller_id)
+        user = self.request.user
+        if not user.is_authenticated:
+            return ProductRequest.objects.none()
+        return ProductRequest.objects.filter(seller=user)
+
+    def create(self, request, *args, **kwargs):
+        name = request.data.get('name', '').strip()
+        seller_id = request.data.get('seller_id')
+        seller_username = request.data.get('seller_username')
+        
+        if not name or (not seller_id and not seller_username):
+            return Response({'error': 'name and seller_id/seller_username required'}, status=400)
+            
+        try:
+            if seller_id:
+                seller = User.objects.get(id=seller_id)
+            else:
+                seller = User.objects.get(username=seller_username)
+        except User.DoesNotExist:
+            return Response({'error': 'Seller not found'}, status=404)
+            
+        # Case insensitive check
+        pr = ProductRequest.objects.filter(seller=seller, name__iexact=name).first()
+        is_seller_creating = request.user.is_authenticated and request.user.id == seller.id
+        
+        if pr:
+            if not is_seller_creating:
+                pr.request_count += 1
+                pr.save()
+            serializer = self.get_serializer(pr)
+            return Response(serializer.data, status=200)
+        else:
+            category_id = request.data.get('category')
+            price = request.data.get('price')
+            
+            pr = ProductRequest.objects.create(
+                name=name,
+                description=request.data.get('description', ''),
+                seller=seller,
+                user=request.user if request.user.is_authenticated else None,
+                request_count=0 if is_seller_creating else 1,
+                category_id=category_id if category_id else None,
+                price=price if price else None,
+                condition=request.data.get('condition', 'New'),
+                requires_quote=str(request.data.get('requires_quote', 'false')).lower() == 'true',
+            )
+            if 'image' in request.FILES:
+                pr.image = request.FILES['image']
+                pr.save()
+                
+            serializer = self.get_serializer(pr)
+            return Response(serializer.data, status=201)
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def convert_to_product(self, request, pk=None):
+        pr = self.get_object()
+        if request.user.id != pr.seller.id:
+            return Response({'error': 'Only the seller can convert this request'}, status=403)
+            
+        if pr.is_fulfilled:
+            return Response({'error': 'Request already fulfilled'}, status=400)
+            
+        # Optional overrides during conversion
+        price = request.data.get('price', pr.price)
+        category_id = request.data.get('category', pr.category_id)
+        stock = request.data.get('stock', 1)
+        
+        if not price or not category_id:
+            return Response({'error': 'Price and Category are required to convert to a product'}, status=400)
+            
+        from marketplace.models import Product
+        import uuid
+        
+        # Create product
+        product = Product.objects.create(
+            name=pr.name,
+            description=pr.description,
+            price=price,
+            stock=stock,
+            condition=request.data.get('condition', pr.condition),
+            requires_quote=request.data.get('requires_quote', pr.requires_quote),
+            category_id=category_id,
+            seller=pr.seller,
+            is_available=True,
+            sku=f"PRQ-{uuid.uuid4().hex[:6].upper()}"
+        )
+        
+        # Mark as fulfilled
+        pr.is_fulfilled = True
+        pr.save()
+        
+        return Response({'message': 'Converted successfully', 'product_id': product.id})

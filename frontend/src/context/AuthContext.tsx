@@ -44,11 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isAuthenticated && token) {
       const payload = decodeJwtPayload(token);
       if (payload) {
-        // Expiry check
-        if (payload.exp && payload.exp < Date.now() / 1000) {
-          logout();
-          return;
-        }
+        // Let the Axios interceptor handle token expiry and refresh automatically.
         setUser({
           user_id: Number(payload.user_id),
           username: payload.username || '',

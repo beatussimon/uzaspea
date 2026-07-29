@@ -648,9 +648,12 @@ const ProductDetailPage: React.FC = () => {
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
-                TSh {(selectedVariant ? parseInt(selectedVariant.price_adjustment) + parseInt(product.price) : parseInt(product.sale_price || product.price)).toLocaleString()}
+                {product.requires_quote 
+                  ? t('price_on_request', 'Price on Request')
+                  : `TSh ${(selectedVariant ? parseInt(selectedVariant.price_adjustment) + parseInt(product.price) : parseInt(product.sale_price || product.price)).toLocaleString()}`
+                }
               </span>
-              {product.sale_price && !selectedVariant && (
+              {product.sale_price && !selectedVariant && !product.requires_quote && (
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold text-gray-400 line-through decoration-red-500/50 decoration-2">
                     TSh {parseInt(product.price).toLocaleString()}
