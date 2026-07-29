@@ -4,6 +4,8 @@ import { setLogoutCallback, decodeJwtPayload } from '../api';
 interface User {
   user_id: number;
   username: string;
+  first_name?: string;
+  last_name?: string;
   is_verified: boolean;
   tier: string;
   is_staff: boolean;
@@ -50,6 +52,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({
           user_id: Number(payload.user_id),
           username: payload.username || '',
+          first_name: payload.first_name || localStorage.getItem('first_name') || '',
+          last_name: payload.last_name || localStorage.getItem('last_name') || '',
           is_verified: payload.is_verified === true || payload.is_verified === 'true',
           tier: payload.tier || 'free',
           is_staff: payload.is_staff === true || payload.is_staff === 'true',
@@ -78,6 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (payload) {
       localStorage.setItem('user_id', String(payload.user_id));
       localStorage.setItem('username', payload.username || '');
+      localStorage.setItem('first_name', payload.first_name || '');
+      localStorage.setItem('last_name', payload.last_name || '');
       localStorage.setItem('is_verified', String(payload.is_verified || false));
       localStorage.setItem('tier', payload.tier || 'free');
       localStorage.setItem('is_staff', String(payload.is_staff || false));
@@ -90,6 +96,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       localStorage.setItem('user_id', String(userData.user_id));
       localStorage.setItem('username', userData.username);
+      localStorage.setItem('first_name', userData.first_name || '');
+      localStorage.setItem('last_name', userData.last_name || '');
       localStorage.setItem('is_verified', String(userData.is_verified || false));
       localStorage.setItem('tier', userData.tier || 'free');
       localStorage.setItem('is_staff', String(userData.is_staff || false));

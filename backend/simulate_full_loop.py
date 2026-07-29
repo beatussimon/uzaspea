@@ -45,7 +45,7 @@ def run_simulation():
         user=buyer,
         status='CHECKOUT',
         shipping_method='PICKUP',
-        delivery_info={'warehouse_code': wh_dest.code}
+        delivery_info={'warehouse_code': wh_origin.code, 'destination_warehouse_code': wh_dest.code}
     )
     OrderItem.objects.create(order=order, product=product, quantity=1, price=product.price)
     order.update_total()
@@ -86,6 +86,7 @@ def run_simulation():
     OrderStateMachine.transition_order(order, 'AWAITING_DELIVERY_PAYMENT')
     
     # 4. Delivery Payment (simulate paid)
+    OrderStateMachine.transition_order(order, 'PENDING_DELIVERY_VERIFICATION')
     OrderStateMachine.transition_order(order, 'ASSIGNED_TRANSPORT')
     
     # 5. Warehouse Transfer & Dispatch
@@ -107,7 +108,7 @@ def run_simulation():
     # 6. Logistics Shipment arrived
     print("\n6. Logistics Shipment (In Transit -> Arrived)")
     if shipment:
-        shipment.status = 'arrived_at_hub'
+        shipment.status = 'arrived_at_warehouse'
         shipment.save()
     if transfer:
         transfer.status = 'completed'

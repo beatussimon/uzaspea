@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { BarChart3, ShieldAlert, Package, ShoppingCart, DollarSign, Star, AlertTriangle } from 'lucide-react';
+import { BarChart3, ShieldAlert, Package, ShoppingCart, DollarSign, Star, AlertTriangle, Printer } from 'lucide-react';
 import { Spinner } from '../../components/ui/Spinner';
 import { KpiCard } from '../../components/ui/KpiCard';
+import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
+import { DateRangePicker, DateRange } from '../../components/ui/DateRangePicker';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -80,13 +82,25 @@ const DashboardOverview: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRange>({
+    startDate: null,
+    endDate: null,
+    label: t('all_time', 'All Time')
+  });
 
   useEffect(() => {
-    api.get('/api/products/seller_stats/')
+    setLoading(true);
+    let url = '/api/products/seller_stats/';
+    const params = new URLSearchParams();
+    if (dateRange.startDate) params.append('start_date', dateRange.startDate);
+    if (dateRange.endDate) params.append('end_date', dateRange.endDate);
+    if (params.toString()) url += `?${params.toString()}`;
+
+    api.get(url)
       .then((res) => setStats(res.data))
       .catch(() => toast.error('Failed to load stats'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [dateRange]);
 
   if (loading) {
     return (
@@ -110,7 +124,7 @@ const DashboardOverview: React.FC = () => {
       icon: ShoppingCart,
     },
     {
-      label: t('revenue_7d', 'Revenue (7D)'),
+      label: t('revenue', `Revenue (${dateRange.label})`),
       value: formatCompactCurrency(stats?.total_revenue || 0),
       fullValue: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`,
       icon: DollarSign,
@@ -144,11 +158,24 @@ const DashboardOverview: React.FC = () => {
   const pieData = Object.entries(stats?.orders_by_status || {}).map(([k, v]) => ({ name: STATUS_LABELS[k] || k, value: v as number }));
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t('store_analytics', 'Store Analytics')}</h2>
+    <div className="space-y-6 print:space-y-0 print:m-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print-hide">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t('store_analytics', 'Store Analytics')}</h2>
+        <div className="flex items-center gap-2">
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+          <button 
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-3 py-2 bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/20 dark:hover:bg-brand-900/40 text-brand-600 dark:text-brand-400 border border-transparent rounded-lg text-sm font-bold transition-colors"
+            title="Export to PDF"
+          >
+            <Printer size={16} />
+            <span className="hidden sm:inline">Export</span>
+          </button>
+        </div>
+      </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 print-hide">
         {kpis.map((kpi, i) => (
           <KpiCard
             key={i}
@@ -163,7 +190,7 @@ const DashboardOverview: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print-hide">
         {/* Revenue Area Chart */}
         <div className="lg:col-span-2 card p-5 flex flex-col h-[350px]">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center justify-between">
@@ -208,7 +235,7 @@ const DashboardOverview: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print-hide">
         {/* Top Products */}
         <div className="space-y-6">
           <div className="card overflow-hidden">
@@ -294,6 +321,80 @@ const DashboardOverview: React.FC = () => {
           ) : <p className="px-5 py-8 text-center text-gray-400 text-sm">All products well-stocked 🎉</p>}
         </div>
       </div>
+
+      {/* Items Sold List */}
+      {stats?.has_advanced_analytics && stats?.items_sold_list?.length > 0 && (
+        <div className="card overflow-hidden !border-none print:shadow-none print:m-0 print:p-0">
+          {/* Print-only Header (Redesigned) */}
+          <ReportPrintHeader 
+            title="Sales Report" 
+            user={{...user, store_profile: stats?.store_profile}} 
+            date={new Date().toLocaleDateString() + ' - ' + dateRange.label}
+          />
+
+          <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between print-hide">
+            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">Items Sold ({dateRange.label})</h3>
+            <span className="text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded uppercase">Recent 100</span>
+          </div>
+          <div className="overflow-x-auto print:overflow-visible">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 text-[10px] uppercase tracking-wider">
+                  <th className="px-3 py-3 font-semibold w-8 text-center">S/N</th>
+                  <th className="px-4 py-3 font-semibold whitespace-nowrap">Date & Time</th>
+                  <th className="px-4 py-3 font-semibold min-w-[150px]">Product</th>
+                  <th className="px-4 py-3 font-semibold text-right">Qty</th>
+                  <th className="px-4 py-3 font-semibold text-right">Price</th>
+                  <th className="px-4 py-3 font-semibold text-right">Total</th>
+                  <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50 print:divide-gray-300">
+                {stats.items_sold_list.map((item: any, idx: number) => (
+                  <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors text-sm print:text-xs">
+                    <td className="px-3 py-3 text-center text-gray-500 dark:text-gray-400 print:text-black font-medium">{idx + 1}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 print:text-black whitespace-nowrap">
+                      {new Date(item.date).toLocaleDateString()} <span className="text-[10px] text-gray-400 print:text-gray-600 ml-1">{new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white print:text-black" title={item.product_name}>
+                      <div className="line-clamp-2 max-w-[200px] print:line-clamp-none print:max-w-none">{item.product_name}</div>
+                    </td>
+                    <td className="px-4 py-3 font-bold text-gray-600 dark:text-gray-300 print:text-black text-right">
+                      {item.quantity}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 print:text-black text-right whitespace-nowrap">
+                      {formatCompactCurrency(item.price)}
+                    </td>
+                    <td className="px-4 py-3 font-black text-brand-600 dark:text-brand-400 print:text-black text-right whitespace-nowrap">
+                      {formatCompactCurrency(item.total)}
+                    </td>
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 print:bg-transparent print:border print:border-gray-300 print:text-black">
+                        {item.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2 border-gray-200 dark:border-gray-700 print:border-black font-black">
+                <tr className="bg-gray-50/50 dark:bg-gray-800/20 print:bg-transparent text-sm print:text-xs">
+                  <td colSpan={3} className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black uppercase tracking-widest">
+                    Grand Total
+                  </td>
+                  <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black">
+                    {stats.items_sold_list.reduce((acc: number, item: any) => acc + item.quantity, 0)}
+                  </td>
+                  <td className="px-4 py-4"></td>
+                  <td className="px-4 py-4 text-right text-brand-600 dark:text-brand-400 print:text-black whitespace-nowrap">
+                    {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + item.total, 0))}
+                  </td>
+                  <td className="px-4 py-4"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

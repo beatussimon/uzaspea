@@ -25,6 +25,7 @@ class IsSuperUser(permissions.BasePermission):
 class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Warehouse.objects.filter(is_active=True)
     serializer_class = WarehouseSerializer
+    pagination_class = None
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -203,7 +204,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
         from marketplace.serializers import WarehouseOrderSerializer
         from django.db.models import Q
         orders = Order.objects.filter(
-            Q(status__in=['ASSIGNED_TRANSPORT', 'READY_FOR_TRANSIT']) &
+            Q(status__in=['ASSIGNED_TRANSPORT', 'READY_FOR_TRANSIT', 'OUT_FOR_DELIVERY']) &
             (Q(delivery_info__current_warehouse_code=warehouse.code) |
              (Q(delivery_info__isnull=True) | Q(delivery_info={})))
         ).prefetch_related('orderitem_set__product', 'timeline_events', 'payments', 'shipments', 'warehouse_transfers').order_by('order_date')
@@ -306,8 +307,8 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
         from logistics.utils import order_has_vehicles
         
         if order.status == 'FAILED_DELIVERY':
-            new_status = 'RETURNED_TO_HUB'
-            notes = f"Failed delivery package returned to hub ({warehouse.name}). Condition: {package_condition}"
+            new_status = 'RETURNED_TO_WAREHOUSE'
+            notes = f"Failed delivery package returned to warehouse ({warehouse.name}). Condition: {package_condition}"
             
             origin_code = order.delivery_info.get('warehouse_code') if order.delivery_info else None
             if origin_code and origin_code != warehouse.code:
@@ -339,7 +340,10 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
                 new_status = 'ASSIGNED_TRANSPORT'
             else:
                 new_status = 'READY_FOR_PICKUP'
-            notes = f"Package inspected and shelved at destination hub ({warehouse.name}). Ready for final delivery/pickup. Condition: {package_condition}"
+            notes = f"Package inspected and shelved at destination warehouse ({warehouse.name}). Ready for final delivery/pickup. Condition: {package_condition}"
+        elif order.status == 'RETURNED_TO_WAREHOUSE':
+            new_status = 'RETURNED_TO_WAREHOUSE'
+            notes = f"Returned package processed at origin warehouse ({warehouse.name}). Ready for seller pickup. Condition: {package_condition}"
         else:
             new_status = 'RECEIVED_AT_WAREHOUSE'
             notes = f"Package received at origin warehouse ({warehouse.name}). Condition: {package_condition}"
@@ -449,6 +453,20 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
             
         from marketplace.serializers import PaymentSerializer
         payments = PaymentSerializer(order.payments.all(), many=True).data
+        
+        logistics_info = {}
+        # Prefer the line_haul shipment (the warehouse-to-warehouse transit leg)
+        shipment = (
+            order.shipments.filter(shipment_type='line_haul').order_by('-shipped_at', '-created_at').first()
+            or order.shipments.order_by('-created_at').first()
+        )
+        if shipment:
+            logistics_info = {
+                'departure_date': shipment.shipped_at.isoformat() if shipment.shipped_at else None,
+                'expected_arrival': shipment.estimated_delivery.isoformat() if shipment.estimated_delivery else None,
+                'carrier_name': shipment.get_carrier_type_display() if shipment.carrier_type else 'N/A',
+                'tracking_number': shipment.tracking_number or None,
+            }
 
         return Response({
             'id': order.id,
@@ -462,6 +480,7 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
             'seller_name': seller_name,
             'payments': payments,
             'delivery_info': order.delivery_info,
+            'logistics_info': logistics_info,
         })
 
 
@@ -595,7 +614,7 @@ class PickupVerifyView(APIView):
             
             OrderStateMachine.transition_order(
                 pickup_code.order,
-                'DELIVERED',
+                'COMPLETED',
                 notes=f"Order picked up from hub. Verified by secure one-time pickup code: {code_str}"
             )
             

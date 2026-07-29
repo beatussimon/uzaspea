@@ -76,14 +76,14 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
             # Warehouse mode: subscribe to a specific warehouse's queues
             user = self.scope.get('user')
             if user and user.is_authenticated and user.is_staff:
-                self.room_group_name = f'warehouse_orders_{self.order_id.split("_")[1]}'
+                self.room_group_name = f'warehouse_orders_{self.order_id.split("_", 1)[1]}'
             else:
                 qs = parse_qs(self.scope.get('query_string', b'').decode())
                 token = qs.get('token', [None])[0]
                 if token:
                     user = await get_user_from_token(token)
                     if user and user.is_staff:
-                        self.room_group_name = f'warehouse_orders_{self.order_id.split("_")[1]}'
+                        self.room_group_name = f'warehouse_orders_{self.order_id.split("_", 1)[1]}'
                     else:
                         await self.close()
                         return
@@ -109,10 +109,15 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
                 await self.close()
                 return
 
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+        try:
+            await self.channel_layer.group_add(
+                self.room_group_name,
+                self.channel_name
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"WebSocket group_add failed: {e}")
         await self.accept()
 
     async def disconnect(self, close_code):
@@ -154,7 +159,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if token:
                 user = await get_user_from_token(token)
         if not user or not user.is_authenticated:
-            await self.accept()
             await self.close(code=4001)
             return
         self.user = user
@@ -243,7 +247,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # Update user presence in Redis
             cache_key = f'user:seen:{self.user.id}'
             now_iso = timezone.now().isoformat()
-            cache.set(cache_key, now_iso, timeout=180)
+            cache.set(cache_key, now_iso, timeout=60)
             
             # Broadcast presence update to specific conversation partner if conv_id provided
             if conv_id:

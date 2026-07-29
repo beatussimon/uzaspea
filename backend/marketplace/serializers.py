@@ -95,6 +95,7 @@ class ProductSerializer(serializers.ModelSerializer):
     seller_tier = serializers.SerializerMethodField()
     seller_verified = serializers.SerializerMethodField()
     seller_profile_picture = serializers.SerializerMethodField()
+    seller_full_name = serializers.SerializerMethodField()
     avg_rating = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
     weekly_sales = serializers.SerializerMethodField()
@@ -110,22 +111,43 @@ class ProductSerializer(serializers.ModelSerializer):
     is_verified = serializers.BooleanField(read_only=True)
     latitude = serializers.FloatField(required=False, allow_null=True)
     longitude = serializers.FloatField(required=False, allow_null=True)
+    can_review = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'slug', 'description', 'price', 'sale_price', 'stock', 'is_available',
+        fields = ['id', 'name', 'slug', 'sku', 'description', 'price', 'sale_price', 'stock', 'is_available',
                   'unit_of_measure', 'minimum_order_quantity', 'price_tiers',
-                  'category', 'category_name', 'category_slug', 'seller', 'seller_username', 'seller_verified',
+                  'category', 'category_name', 'category_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition',
                   'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified',
                   'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude',
-                  'weight_kg', 'size']
+                  'weight_kg', 'size', 'can_review']
         read_only_fields = ['seller', 'slug']
 
     def get_inspections(self, obj):
         # View uses prefetch_related for obj.inspections, avoiding N+1
         from inspections.serializers import InspectionSummarySerializer
         return InspectionSummarySerializer(obj.inspections.all(), many=True).data
+
+    def get_can_review(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        
+        from .models import OrderItem, Review
+        from django.db.models import Q
+        
+        completed_orders_count = OrderItem.objects.filter(
+            order__user=request.user,
+            product=obj,
+            order__status__in=['COMPLETED', 'DELIVERED']
+        ).values('order').distinct().count()
+        
+        if completed_orders_count == 0:
+            return False
+            
+        reviews_count = Review.objects.filter(product=obj, user=request.user).count()
+        return completed_orders_count > reviews_count
 
     def create(self, validated_data):
         import json
@@ -192,12 +214,14 @@ class ProductSerializer(serializers.ModelSerializer):
             return False
 
     def get_seller_profile_picture(self, obj):
-        try:
-            pic = obj.seller.profile.profile_picture
-            if pic:
-                return pic.url
-        except UserProfile.DoesNotExist:
-            pass
+        if hasattr(obj.seller, 'profile') and obj.seller.profile.profile_picture:
+            return obj.seller.profile.profile_picture.url
+        return None
+
+    def get_seller_full_name(self, obj):
+        if obj.seller:
+            name = f"{obj.seller.first_name} {obj.seller.last_name}".strip()
+            return name if name else None
         return None
 
     def get_has_inspection(self, obj):  # FIX B-19
@@ -254,11 +278,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     def get_has_review(self, obj):
         from .models import Review
-        from django.db.models import Q
-        # Check if a review exists for this product and order or by the buyer
-        return Review.objects.filter(
-            Q(product=obj.product) & (Q(order=obj.order) | Q(user=obj.order.user))
-        ).exists()
+        # Check if a review exists for this product and this specific order
+        return Review.objects.filter(product=obj.product, order=obj.order).exists()
 
     def get_product_image(self, obj):
         img = obj.product.images.first()
@@ -370,6 +391,40 @@ class OrderSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 f"fulfillment_type '{fulfillment_type}' is incompatible with shipping_method 'PICKUP'."
             )
+
+        # Region-based validation
+        request = self.context.get('request')
+        if request and request.method == 'POST' and self.initial_data.get('orderitem_set'):
+            buyer_region = data.get('delivery_info', {}).get('region', '').strip().lower()
+            
+            # Find the first item to get the seller (assuming single-seller order or validating against first item)
+            first_item = self.initial_data.get('orderitem_set', [])[0]
+            if first_item:
+                product_id = first_item.get('product')
+                if isinstance(product_id, dict):
+                    product_id = product_id.get('id') or product_id.get('pk')
+                from marketplace.models import Product
+                try:
+                    product = Product.objects.get(pk=product_id)
+                    seller = product.seller
+                    
+                    # Try to get seller's region from SellerApplication first, then UserProfile
+                    seller_region = ''
+                    app = seller.seller_applications.filter(status='approved').order_by('-created_at').first()
+                    if app and app.business_region:
+                        seller_region = app.business_region.strip().lower()
+                    elif hasattr(seller, 'profile') and seller.profile.location:
+                        seller_region = seller.profile.location.strip().lower()
+                        
+                    if buyer_region and seller_region and buyer_region != seller_region:
+                        # They are in different regions, ONLY PLATFORM_DELIVERY is allowed
+                        if fulfillment_type != 'PLATFORM_DELIVERY':
+                            raise serializers.ValidationError(
+                                "Buyer and seller are in different regions. Only 'Platform Delivery' (via our warehouse) is allowed."
+                            )
+                except Product.DoesNotExist:
+                    pass
+
         return data
 
     def get_logistics_info(self, obj):
@@ -569,6 +624,23 @@ class OrderSerializer(serializers.ModelSerializer):
         promo_code_str = validated_data.pop('promo_code', None)
         # Extract items data from the source mapping
         items_data = validated_data.pop('orderitem_set', [])
+
+        # FIX: Auto-map region to warehouse
+        delivery_info = validated_data.get('delivery_info') or {}
+        if isinstance(delivery_info, dict):
+            buyer_region = delivery_info.get('region', '').strip()
+            if buyer_region:
+                try:
+                    from locations.models import Region
+                    from warehouses.models import Warehouse
+                    region_obj = Region.objects.filter(name__iexact=buyer_region).first()
+                    if region_obj:
+                        wh = Warehouse.objects.filter(region=region_obj, is_active=True).first()
+                        if wh:
+                            delivery_info['destination_warehouse_code'] = wh.code
+                            validated_data['delivery_info'] = delivery_info
+                except Exception:
+                    pass
 
         # FIX: C-01 + L-01 — wrap in transaction.atomic for rollback safety
         with transaction.atomic():

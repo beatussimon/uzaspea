@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, DollarSign, CheckCircle2, User, AlertTriangle, Package, Clock, X, MapPin } from 'lucide-react';
+import { Truck, DollarSign, CheckCircle2, CheckCircle, User, AlertTriangle, Package, Clock, X, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../api';
 import toast from 'react-hot-toast';
@@ -14,11 +14,9 @@ const SkeletonCards = () => (
 );
 
 const EmptyState = ({ text }: { text: string }) => (
-  <div className="text-center py-12 bg-white/50 dark:bg-[#111]/50 rounded-3xl border border-dashed border-gray-200 dark:border-neutral-800">
-    <div className="w-12 h-12 bg-gray-100 dark:bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-3">
-      <div className="w-1.5 h-1.5 bg-gray-300 dark:bg-neutral-700 rounded-full"></div>
-    </div>
-    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{text}</p>
+  <div className="py-8 text-center border-[1.5px] border-dashed border-gray-200 bg-gray-50/50 rounded-2xl">
+    <CheckCircle size={20} className="mx-auto text-gray-300 mb-2 stroke-[2.5]" />
+    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{text}</p>
   </div>
 );
 
@@ -143,7 +141,7 @@ const LogisticsManager: React.FC = () => {
   // Derived Queues
   const pendingShipments = shipments.filter(s => s.status === 'pending');
   const transitShipments = shipments.filter(s => s.status === 'in_transit');
-  const hubShipments = shipments.filter(s => s.status === 'arrived_at_hub');
+  const hubShipments = shipments.filter(s => s.status === 'arrived_at_warehouse');
   const deliveredShipments = shipments.filter(s => s.status === 'delivered');
 
   const unpaidPayments = payments.filter(p => !p.is_paid);
@@ -153,18 +151,18 @@ const LogisticsManager: React.FC = () => {
     <div className="w-full max-w-7xl mx-auto space-y-8 min-h-screen pb-12">
       
       {/* Header & Mode Switcher */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-1 h-full bg-brand-500 shadow-[0_0_20px_rgba(249,115,22,0.8)]"></div>
-        <div className="pl-2">
-          <h1 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3">
-            <Truck className="text-brand-500" size={28} />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white border border-gray-200 rounded-[28px] p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] relative">
+        <div className="absolute top-0 left-0 w-2 h-full bg-[#10B981] rounded-l-[28px]"></div>
+        <div className="pl-4">
+          <h1 className="text-2xl font-black text-black flex items-center gap-3">
+            <Truck className="text-[#10B981]" size={28} />
             Logistics Command
           </h1>
-          <p className="text-xs font-bold text-gray-500 mt-1 uppercase tracking-widest">Fleet & Carrier Operations</p>
+          <p className="text-[10px] font-black text-gray-500 mt-1 uppercase tracking-widest">Fleet & Carrier Operations</p>
         </div>
 
-        {/* Universal Mode Switcher (Warehouse Ops Style) */}
-        <div className="flex bg-gray-100 dark:bg-neutral-900 p-1 rounded-xl shadow-inner w-full md:w-auto">
+        {/* Universal Mode Switcher */}
+        <div className="flex bg-[#F3F4F6] p-1.5 rounded-2xl w-full md:w-auto">
           {[
             { id: 'shipments', label: 'Shipments Kanban' },
             { id: 'payments', label: 'Payouts Kanban' }
@@ -172,10 +170,10 @@ const LogisticsManager: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 md:w-48 py-3 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${
+              className={`flex-1 md:w-48 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${
                 activeTab === tab.id
-                  ? 'bg-white dark:bg-neutral-800 text-brand-600 dark:text-brand-400 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white text-gray-900 shadow-md'
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               {tab.label}
@@ -187,24 +185,24 @@ const LogisticsManager: React.FC = () => {
       {activeTab === 'shipments' ? (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[
-              { title: 'Pending Dispatch', count: pendingShipments.length, icon: Package, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-              { title: 'In Transit', count: transitShipments.length, icon: Truck, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-              { title: 'At Hub', count: hubShipments.length, icon: MapPin, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-              { title: 'Delivered', count: deliveredShipments.length, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
+              { title: 'Pending Dispatch', count: pendingShipments.length, icon: Package, color: 'text-amber-500', bg: 'bg-amber-50' },
+              { title: 'In Transit', count: transitShipments.length, icon: Truck, color: 'text-blue-500', bg: 'bg-blue-50' },
+              { title: 'At Warehouse', count: hubShipments.length, icon: MapPin, color: 'text-purple-500', bg: 'bg-purple-50' },
+              { title: 'Delivered', count: deliveredShipments.length, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50' }
             ].map((kpi, idx) => (
               <motion.div 
                 key={kpi.title}
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
-                className="glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
+                className="bg-white border border-gray-100 rounded-[24px] p-5 flex items-center gap-4 hover:shadow-md transition-shadow shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)]"
               >
-                <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
-                  <kpi.icon size={28} />
+                <div className={`w-[60px] h-[60px] rounded-[18px] flex flex-shrink-0 items-center justify-center ${kpi.bg} ${kpi.color}`}>
+                  <kpi.icon size={26} />
                 </div>
-                <div>
-                  <p className="text-3xl font-black text-gray-900 dark:text-white">{loadingShipments ? '-' : kpi.count}</p>
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">{kpi.title}</p>
+                <div className="min-w-0">
+                  <p className="text-3xl font-black text-black leading-none mb-1 truncate">{loadingShipments ? '-' : kpi.count}</p>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest truncate">{kpi.title}</p>
                 </div>
               </motion.div>
             ))}
@@ -215,8 +213,8 @@ const LogisticsManager: React.FC = () => {
             
             {/* Lane 1: Pending */}
             <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Package size={16} /> Pending
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Package size={14} className="text-amber-500" /> Pending
               </h3>
               {loadingShipments ? <SkeletonCards /> : pendingShipments.length === 0 ? <EmptyState text="No pending tasks" /> : (
                 <div className="space-y-3">
@@ -229,8 +227,8 @@ const LogisticsManager: React.FC = () => {
 
             {/* Lane 2: In Transit */}
             <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Truck size={16} /> In Transit
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Truck size={14} className="text-blue-500" /> In Transit
               </h3>
               {loadingShipments ? <SkeletonCards /> : transitShipments.length === 0 ? <EmptyState text="Empty lane" /> : (
                 <div className="space-y-3">
@@ -241,15 +239,15 @@ const LogisticsManager: React.FC = () => {
               )}
             </div>
 
-            {/* Lane 3: At Hub */}
+            {/* Lane 3: At Warehouse */}
             <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <MapPin size={16} /> Destination Hub
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <MapPin size={14} className="text-purple-500" /> Destination Warehouse
               </h3>
               {loadingShipments ? <SkeletonCards /> : hubShipments.length === 0 ? <EmptyState text="No arrivals" /> : (
                 <div className="space-y-3">
                   {hubShipments.map(ship => (
-                    <ShipmentCard key={ship.id} ship={ship} onClick={() => openEditModal(ship)} badge="Hub" badgeColor="purple" />
+                    <ShipmentCard key={ship.id} ship={ship} onClick={() => openEditModal(ship)} badge="Warehouse" badgeColor="purple" />
                   ))}
                 </div>
               )}
@@ -257,8 +255,8 @@ const LogisticsManager: React.FC = () => {
 
             {/* Lane 4: Delivered */}
             <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <CheckCircle2 size={16} /> Delivered
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-emerald-500" /> Delivered
               </h3>
               {loadingShipments ? <SkeletonCards /> : deliveredShipments.length === 0 ? <EmptyState text="No deliveries" /> : (
                 <div className="space-y-3">
@@ -274,22 +272,22 @@ const LogisticsManager: React.FC = () => {
       ) : (
         <>
           {/* KPI Cards for Payments */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { title: 'Awaiting Payouts', count: unpaidPayments.length, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-              { title: 'Disbursed', count: paidPayments.length, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
+              { title: 'Awaiting Payouts', count: unpaidPayments.length, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
+              { title: 'Disbursed', count: paidPayments.length, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50' }
             ].map((kpi, idx) => (
               <motion.div 
                 key={kpi.title}
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
-                className="glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
+                className="bg-white border border-gray-100 rounded-[24px] p-5 flex items-center gap-4 hover:shadow-md transition-shadow shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)]"
               >
-                <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
-                  <kpi.icon size={28} />
+                <div className={`w-[60px] h-[60px] rounded-[18px] flex flex-shrink-0 items-center justify-center ${kpi.bg} ${kpi.color}`}>
+                  <kpi.icon size={26} />
                 </div>
-                <div>
-                  <p className="text-3xl font-black text-gray-900 dark:text-white">{loadingPayments ? '-' : kpi.count}</p>
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">{kpi.title}</p>
+                <div className="min-w-0">
+                  <p className="text-3xl font-black text-black leading-none mb-1 truncate">{loadingPayments ? '-' : kpi.count}</p>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest truncate">{kpi.title}</p>
                 </div>
               </motion.div>
             ))}
@@ -300,8 +298,8 @@ const LogisticsManager: React.FC = () => {
             
             {/* Lane 1: Unpaid */}
             <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Clock size={16} /> Awaiting Payout
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Clock size={14} className="text-amber-500" /> Awaiting Payout
               </h3>
               {loadingPayments ? <SkeletonCards /> : unpaidPayments.length === 0 ? <EmptyState text="All clear!" /> : (
                 <div className="space-y-3">
@@ -320,8 +318,8 @@ const LogisticsManager: React.FC = () => {
 
             {/* Lane 2: Paid */}
             <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <CheckCircle2 size={16} /> Disbursed
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-emerald-500" /> Disbursed
               </h3>
               {loadingPayments ? <SkeletonCards /> : paidPayments.length === 0 ? <EmptyState text="Empty lane" /> : (
                 <div className="space-y-3">
@@ -430,16 +428,16 @@ const LogisticsManager: React.FC = () => {
                     <div className="flex flex-col gap-3 mt-6">
                       <button
                         type="button"
-                        onClick={(e) => handleUpdateShipment(e, 'arrived_at_hub')}
+                        onClick={(e) => handleUpdateShipment(e, 'arrived_at_warehouse')}
                         disabled={savingEdit}
                         className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-white font-black rounded-xl text-sm uppercase tracking-widest transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)] disabled:opacity-50"
                       >
-                        {savingEdit ? 'Syncing...' : 'Mark Arrived at Hub'}
+                        {savingEdit ? 'Syncing...' : 'Mark Arrived at Warehouse'}
                       </button>
                     </div>
                   )}
 
-                  {(selectedShipment.status === 'in_transit' || selectedShipment.status === 'arrived_at_hub') && (
+                  {(selectedShipment.status === 'in_transit' || selectedShipment.status === 'arrived_at_warehouse') && (
                     <div className="flex flex-col gap-3 mt-6">
                       <div className="pt-4 border-t border-gray-200 dark:border-neutral-800">
                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-2 block">Customer Delivery Code (Required)</label>
@@ -485,27 +483,27 @@ const ShipmentCard = ({ ship, onClick, badge, badgeColor }: { ship: any, onClick
   return (
     <div 
       onClick={onClick}
-      className="bg-white dark:bg-[#111] border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-4 cursor-pointer hover:border-brand-500 hover:shadow-xl transition-all group relative overflow-hidden"
+      className="bg-white border border-gray-200 shadow-sm rounded-3xl p-4 cursor-pointer hover:border-[#10B981] hover:shadow-lg transition-all group relative overflow-hidden"
     >
       <div className={`absolute top-0 left-0 w-1 h-full bg-${badgeColor}-500 opacity-0 group-hover:opacity-100 transition-opacity`}></div>
       <div className="flex justify-between items-start mb-3">
         <div>
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">SHP-{ship.id.toString().padStart(5, '0')}</p>
-          <h4 className="text-sm font-black text-gray-900 dark:text-white mt-0.5">Order #{ship.order}</h4>
+          <h4 className="text-sm font-black text-gray-900 mt-0.5">Order #{ship.order}</h4>
         </div>
         <span className={`px-2 py-1 bg-${badgeColor}-500/10 text-${badgeColor}-500 text-[9px] font-black uppercase tracking-widest rounded-lg border border-${badgeColor}-500/20`}>
           {badge}
         </span>
       </div>
       
-      <div className="space-y-2 mt-4 pt-3 border-t border-gray-50 dark:border-neutral-800/50">
-        <div className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300">
+      <div className="space-y-2 mt-4 pt-3 border-t border-gray-100">
+        <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
           {ship.carrier_type === 'driver' ? <User size={14} className="text-gray-400" /> : <Truck size={14} className="text-gray-400" />}
           {ship.carrier_type === 'driver' ? (ship.driver_username ? `@${ship.driver_username}` : 'Unassigned') : 'External Courier'}
         </div>
         
         {ship.has_vehicles && (
-          <div className="inline-flex items-center gap-1.5 text-[9px] text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full font-bold border border-amber-500/20 uppercase mt-1">
+          <div className="inline-flex items-center gap-1.5 text-[9px] text-[#F59E0B] bg-[#FFF5E5] px-2 py-1 rounded-full font-bold border border-[#F59E0B]/20 uppercase mt-1">
             <AlertTriangle size={10} /> Needs Driver
           </div>
         )}
@@ -516,27 +514,27 @@ const ShipmentCard = ({ ship, onClick, badge, badgeColor }: { ship: any, onClick
 
 const PaymentCard = ({ pay, onAction, loading, status }: { pay: any, onAction: () => void, loading: boolean, status: 'paid' | 'unpaid' }) => {
   return (
-    <div className="bg-white dark:bg-[#111] border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-4 hover:border-brand-500 transition-colors relative overflow-hidden group">
+    <div className="bg-white border border-gray-200 shadow-sm rounded-3xl p-4 hover:border-[#10B981] hover:shadow-lg transition-all relative overflow-hidden group">
       <div className={`absolute top-0 left-0 w-1 h-full ${status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500'} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
       <div className="flex justify-between items-start mb-3">
         <div>
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">PAY-{pay.id.toString().padStart(4, '0')}</p>
-          <h4 className="text-lg font-black text-gray-900 dark:text-white mt-0.5">TZS {Number(pay.amount).toLocaleString()}</h4>
+          <h4 className="text-lg font-black text-gray-900 mt-0.5">TZS {Number(pay.amount).toLocaleString()}</h4>
         </div>
       </div>
       
-      <div className="space-y-2 text-xs font-bold text-gray-500 pt-3 border-t border-gray-50 dark:border-neutral-800/50">
+      <div className="space-y-2 text-xs font-bold text-gray-500 pt-3 border-t border-gray-100">
         <p className="flex justify-between">
           <span className="text-gray-400 uppercase tracking-widest text-[9px]">Driver</span>
-          <span className="text-gray-900 dark:text-white">@{pay.driver_username || 'Unknown'}</span>
+          <span className="text-gray-900">@{pay.driver_username || 'Unknown'}</span>
         </p>
         <p className="flex justify-between">
           <span className="text-gray-400 uppercase tracking-widest text-[9px]">Context</span>
-          <span className="text-brand-600 dark:text-brand-400">Order #{pay.shipment_order_id}</span>
+          <span className="text-[#10B981]">Order #{pay.shipment_order_id}</span>
         </p>
       </div>
 
-      <div className="mt-4 pt-3 border-t border-gray-50 dark:border-neutral-800/50">
+      <div className="mt-4 pt-3 border-t border-gray-100">
         {status === 'unpaid' ? (
           <button
             onClick={onAction}

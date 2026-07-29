@@ -34,7 +34,7 @@ def run_simulation():
     order = Order.objects.create(
         user=buyer,
         status='CHECKOUT',
-        delivery_info={'warehouse_code': wh_dest.code}  # Buyer wants to pick up at destination hub!
+        delivery_info={'warehouse_code': wh_origin.code, 'destination_warehouse_code': wh_dest.code}  # Buyer wants to pick up at destination warehouse!
     )
     OrderItem.objects.create(order=order, product=prod, price=100, quantity=1)
     
@@ -76,10 +76,10 @@ def run_simulation():
     shipment = Shipment.objects.create(order=order, status='in_transit', carrier_type='driver')
     print(f" -> Logistics took over. Shipment is {shipment.status}. Order is {order.status}")
     
-    # 6. ARRIVAL AT DESTINATION HUB
-    print("\n5. Logistics marks Arrived at Hub")
-    if shipment.status != 'arrived_at_hub':
-        shipment.status = 'arrived_at_hub'
+    # 6. ARRIVAL AT DESTINATION WAREHOUSE
+    print("\n5. Logistics marks Arrived at Warehouse")
+    if shipment.status != 'arrived_at_warehouse':
+        shipment.status = 'arrived_at_warehouse'
         shipment.save()
         
         t = WarehouseTransfer.objects.filter(order=order).order_by('-id').first()
@@ -95,7 +95,7 @@ def run_simulation():
     print(f" -> Order is {order.status}. Transfer status: {transfer.status}.")
     
     # 7. DESTINATION INTAKE -> READY FOR PICKUP
-    print("\n6. Destination Hub prepares for pickup")
+    print("\n6. Destination Warehouse prepares for pickup")
     OrderStateMachine.transition_order(order, 'READY_FOR_PICKUP')
     print(f" -> Order is {order.status}. Pickup code generated.")
     

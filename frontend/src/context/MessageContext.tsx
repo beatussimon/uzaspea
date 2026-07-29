@@ -125,17 +125,17 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [activeConversationId]);
 
   // Load conversations initially
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (silent = false) => {
     if (!isAuthenticated) return;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await api.get('/api/conversations/');
       const list = res.data.results || res.data || [];
       setConversations(list);
     } catch (e) {
       console.error('Failed to load conversations:', e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [isAuthenticated]);
 
@@ -455,6 +455,7 @@ const subscribeToWebPush = async () => {
 
   useEffect(() => {
     let pingInterval: number;
+    let pollInterval: number;
     if (isAuthenticated) {
       connectWS();
       pingInterval = window.setInterval(() => {
@@ -463,10 +464,16 @@ const subscribeToWebPush = async () => {
             wsRef.current.send(JSON.stringify({ type: 'presence_ping' }));
           } catch (e) {}
         }
-      }, 60000); // Send ping every 60 seconds
+      }, 30000); // Send ping every 30 seconds
+
+      // Quietly poll conversations to keep online statuses perfectly accurate
+      pollInterval = window.setInterval(() => {
+        loadConversations(true);
+      }, 30000);
     }
     return () => {
       if (pingInterval) clearInterval(pingInterval);
+      if (pollInterval) clearInterval(pollInterval);
       if (wsRef.current) {
         wsRef.current.onclose = null;
         wsRef.current.onerror = null;

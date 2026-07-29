@@ -9,6 +9,18 @@ import SafeImage from '../components/SafeImage';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/Input';
+import { AddressAutocomplete } from '../components/AddressAutocomplete';
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
 
 const CITIES_COORDS: Record<string, { lat: number; lng: number }> = {
   'Dar es Salaam': { lat: -6.776012, lng: 39.178326 },
@@ -38,9 +50,13 @@ const CheckoutPage: React.FC = () => {
   const [quotes, setQuotes] = useState<any[]>([]);
   const [selectedQuoteCode, setSelectedQuoteCode] = useState('standard');
 
-  const [sellerCoords, setSellerCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [sellerCoords, setSellerCoords] = useState<{ lat: number; lng: number; region?: string } | null>(null);
+  const [deliveryCoords, setDeliveryCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [citiesCoords, setCitiesCoords] = useState<Record<string, { lat: number; lng: number; code: string }>>({});
+  
+  const [regionsData, setRegionsData] = useState<any[]>([]);
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
 
   const [form, setForm] = useState({
     fullName: '',
@@ -48,6 +64,7 @@ const CheckoutPage: React.FC = () => {
     deliveryAddress: '',
     notes: '',
   });
+  const [isEditingDetails, setIsEditingDetails] = useState(true);
 
   useEffect(() => {
     const fetchSellerCoords = async () => {
@@ -60,7 +77,10 @@ const CheckoutPage: React.FC = () => {
               setSellerCoords({
                 lat: parseFloat(res.data.latitude),
                 lng: parseFloat(res.data.longitude),
+                region: res.data.location
               });
+            } else if (res.data.location) {
+               setSellerCoords({ lat: -6.8161, lng: 39.2803, region: res.data.location });
             }
           } catch (err) {
             console.error('Failed to fetch seller coords', err);
@@ -78,14 +98,21 @@ const CheckoutPage: React.FC = () => {
         if (username) {
           const res = await api.get(`/api/profiles/${username}/`);
           const data = res.data;
+          const fullName = `${data.user?.first_name || ''} ${data.user?.last_name || ''}`.trim() || data.username || '';
+          const phone = data.phone_number || '';
+          const deliveryAddress = data.location || '';
+          
           setForm(prev => ({
             ...prev,
-            fullName: prev.fullName || `${data.user?.first_name || ''} ${data.user?.last_name || ''}`.trim() || data.username || '',
-            phone: prev.phone || data.phone_number || '',
-            deliveryAddress: prev.deliveryAddress || data.location || '',
+            fullName: prev.fullName || fullName,
+            phone: prev.phone || phone,
+            deliveryAddress: prev.deliveryAddress || deliveryAddress,
           }));
           if (data.location) {
             setSelectedCity(data.location);
+          }
+          if (fullName && phone && deliveryAddress) {
+            setIsEditingDetails(false);
           }
         }
       } catch (err) {
@@ -96,6 +123,35 @@ const CheckoutPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const fetchRegions = async () => {
+      try {
+        const res = await api.get('/api/locations/regions/');
+        setRegionsData(res.data.results || res.data || []);
+      } catch (err) {
+        console.error('Failed to load regions', err);
+      }
+    };
+    fetchRegions();
+  }, []);
+
+  const availableDistricts = useMemo(() => {
+    const r = regionsData.find(x => x.name === selectedCity);
+    return r?.districts || [];
+  }, [regionsData, selectedCity]);
+
+  // Handle region change to explicitly set the first district
+  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCity = e.target.value;
+    setSelectedCity(newCity);
+    const newCityData = regionsData.find((r: any) => r.name === newCity);
+    if (newCityData?.districts?.length > 0) {
+      setSelectedDistrict(newCityData.districts[0].name);
+    } else {
+      setSelectedDistrict('');
+    }
+  };
+
+  useEffect(() => {
     const fetchWarehouses = async () => {
       try {
         const res = await api.get('/api/warehouses/warehouses/');
@@ -104,10 +160,10 @@ const CheckoutPage: React.FC = () => {
         
         const dynamicCoords: Record<string, { lat: number; lng: number; code: string }> = {};
         list.forEach((w: any) => {
-          if (w.region && w.latitude !== null && w.longitude !== null) {
-            dynamicCoords[w.region] = {
-              lat: Number(w.latitude),
-              lng: Number(w.longitude),
+          if (w.region_name) {
+            dynamicCoords[w.region_name] = {
+              lat: Number(w.latitude ?? -6.3690),
+              lng: Number(w.longitude ?? 34.8888),
               code: w.code
             };
           }
@@ -153,11 +209,15 @@ const CheckoutPage: React.FC = () => {
     const sellerLat = sellerCoords?.lat ?? -6.8161;
     const sellerLng = sellerCoords?.lng ?? 39.2803;
     const originWarehouseCode = ((): string => {
+      if (sellerCoords?.region) {
+        const matchingCity = Object.keys(citiesCoords).find(k => k.toLowerCase() === sellerCoords.region!.toLowerCase());
+        if (matchingCity) return citiesCoords[matchingCity].code;
+      }
       let nearestCode = 'DAR-01';
       let minDistance = Infinity;
-      const listToUse = warehouses.length > 0 ? warehouses : [
-        { code: 'DAR-01', latitude: -6.8161, longitude: 39.2803 },
-        { code: 'MWZ-01', latitude: -2.5167, longitude: 32.9000 }
+      const listToUse = Object.keys(citiesCoords).length > 0 ? Object.values(citiesCoords).map(c => ({ code: c.code, latitude: c.lat, longitude: c.lng })) : [
+        { code: 'WH-DAR-ES-SALAAM-01', latitude: -6.8161, longitude: 39.2803 },
+        { code: 'WH-MWANZA-01', latitude: -2.5167, longitude: 32.9000 }
       ];
       for (const w of listToUse) {
         const wLat = Number(w.latitude);
@@ -199,11 +259,15 @@ const CheckoutPage: React.FC = () => {
     const sellerLat = sellerCoords?.lat ?? -6.8161;
     const sellerLng = sellerCoords?.lng ?? 39.2803;
     const originWarehouseCode = ((): string => {
+      if (sellerCoords?.region) {
+        const matchingCity = Object.keys(citiesCoords).find(k => k.toLowerCase() === sellerCoords.region!.toLowerCase());
+        if (matchingCity) return citiesCoords[matchingCity].code;
+      }
       let nearestCode = 'DAR-01';
       let minDistance = Infinity;
-      const listToUse = warehouses.length > 0 ? warehouses : [
-        { code: 'DAR-01', latitude: -6.8161, longitude: 39.2803 },
-        { code: 'MWZ-01', latitude: -2.5167, longitude: 32.9000 }
+      const listToUse = Object.keys(citiesCoords).length > 0 ? Object.values(citiesCoords).map(c => ({ code: c.code, latitude: c.lat, longitude: c.lng })) : [
+        { code: 'WH-DAR-ES-SALAAM-01', latitude: -6.8161, longitude: 39.2803 },
+        { code: 'WH-MWANZA-01', latitude: -2.5167, longitude: 32.9000 }
       ];
       for (const w of listToUse) {
         const wLat = Number(w.latitude);
@@ -310,28 +374,25 @@ const CheckoutPage: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const getNearestWarehouseCode = (lat: number, lng: number): string => {
-        let nearestCode = 'DAR-01';
-        let minDistance = Infinity;
-        const listToUse = warehouses.length > 0 ? warehouses : [
-          { code: 'DAR-01', latitude: -6.8161, longitude: 39.2803 },
-          { code: 'MWZ-01', latitude: -2.5167, longitude: 32.9000 }
-        ];
-        for (const w of listToUse) {
-          const wLat = Number(w.latitude);
-          const wLng = Number(w.longitude);
-          const d = Math.sqrt(Math.pow(wLat - lat, 2) + Math.pow(wLng - lng, 2));
-          if (d < minDistance) {
-            minDistance = d;
-            nearestCode = w.code;
-          }
+      const nearestWarehouseCode = (() => {
+        if (sellerCoords?.region) {
+          const matchingCity = Object.keys(citiesCoords).find(k => k.toLowerCase() === sellerCoords.region!.toLowerCase());
+          if (matchingCity) return citiesCoords[matchingCity].code;
         }
-        return nearestCode;
-      };
-
-      const sellerLat = sellerCoords?.lat ?? -6.8161;
-      const sellerLng = sellerCoords?.lng ?? 39.2803;
-      const nearestWarehouseCode = getNearestWarehouseCode(sellerLat, sellerLng);
+        let code = 'DAR-01';
+        let minDistance = Infinity;
+        const listToUse = Object.keys(citiesCoords).length > 0 ? Object.values(citiesCoords).map(c => ({ code: c.code, lat: c.lat, lng: c.lng })) : [
+          { code: 'WH-DAR-ES-SALAAM-01', lat: -6.8161, lng: 39.2803 },
+          { code: 'WH-MWANZA-01', lat: -2.5167, lng: 32.9000 }
+        ];
+        const sLat = sellerCoords?.lat ?? -6.8161;
+        const sLng = sellerCoords?.lng ?? 39.2803;
+        for (const w of listToUse) {
+          const d = Math.sqrt(Math.pow(w.lat - sLat, 2) + Math.pow(w.lng - sLng, 2));
+          if (d < minDistance) { minDistance = d; code = w.code; }
+        }
+        return code;
+      })();
 
       const orderData = {
         items: checkoutItems.map((item) => {
@@ -356,7 +417,9 @@ const CheckoutPage: React.FC = () => {
         delivery_info: {
           full_name: form.fullName,
           phone: form.phone,
-          address: `${form.deliveryAddress}, ${selectedCity}`,
+          address: `${form.deliveryAddress}, ${selectedDistrict}, ${selectedCity}`,
+          region: selectedCity,
+          district: selectedDistrict,
           notes: form.notes,
           shipping_speed: shippingMethod === 'DELIVERY' ? selectedQuoteCode : undefined,
           warehouse_code: nearestWarehouseCode,
@@ -400,61 +463,92 @@ const CheckoutPage: React.FC = () => {
         {/* Delivery Form */}
         <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-4">
           <div className="card p-6">
-            <div className="flex flex-col gap-1.5 w-full mb-6">
-              <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
-                {t('city_region_label', 'City / Region *')}
-              </label>
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white"
-                required
-              >
-                {Object.keys(citiesCoords).map((city) => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-            </div>
+            {/* City & District fields moved inside the Edit Details section below */}
 
             <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white uppercase mb-4">{t('shipping_method')}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="mb-6">
               {loadingOptions ? (
                 // HIGH-3: Skeleton while options load
-                [1, 2].map(i => (
-                  <div key={i} className="p-4 rounded-btn border-2 border-surface-border dark:border-surface-dark-border animate-pulse h-24 bg-gray-100 dark:bg-gray-800" />
-                ))
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[1, 2].map(i => (
+                    <div key={i} className="p-4 rounded-btn border-2 border-surface-border dark:border-surface-dark-border animate-pulse h-24 bg-gray-100 dark:bg-gray-800" />
+                  ))}
+                </div>
               ) : fulfillmentOptions.length === 0 ? (
-                <p className="text-xs text-gray-400 col-span-2 py-4 text-center">No delivery options available for this location.</p>
+                <p className="text-xs text-gray-400 py-4 text-center">No delivery options available for this location.</p>
               ) : (
-              fulfillmentOptions.map((opt) => {
-                const isSelected = fulfillmentType === opt.fulfillment_type;
-                return (
-                  <button
-                    key={opt.fulfillment_type}
-                    type="button"
-                    onClick={() => {
-                      setFulfillmentType(opt.fulfillment_type);
-                      setShippingMethod(opt.shipping_method);
-                    }}
-                    className={`p-4 rounded-btn border-2 flex flex-col items-start gap-2 transition-all duration-200 text-left ${
-                      isSelected
-                        ? 'border-brand-600 bg-brand-50/10'
-                        : 'border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {opt.shipping_method === 'DELIVERY' ? <Truck size={18} className={isSelected ? 'text-brand-600' : 'text-gray-500'} /> : <MapPin size={18} className={isSelected ? 'text-brand-600' : 'text-gray-500'} />}
-                      <span className={`font-bold text-xs uppercase tracking-wider ${isSelected ? 'text-brand-600' : 'text-gray-700 dark:text-gray-300'}`}>{opt.name}</span>
+                <>
+                  {/* Delivery Group */}
+                  {fulfillmentOptions.some(o => o.shipping_method === 'DELIVERY') && (
+                    <div className="mb-6">
+                      <h3 className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest mb-3">Delivery Options</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {fulfillmentOptions.filter(o => o.shipping_method === 'DELIVERY').map((opt) => {
+                          const isSelected = fulfillmentType === opt.fulfillment_type;
+                          return (
+                            <button
+                              key={opt.fulfillment_type}
+                              type="button"
+                              onClick={() => {
+                                setFulfillmentType(opt.fulfillment_type);
+                                setShippingMethod(opt.shipping_method);
+                              }}
+                              className={`p-4 rounded-btn border-2 flex flex-col items-start gap-2 transition-all duration-200 text-left ${
+                                isSelected
+                                  ? 'border-brand-600 bg-brand-50/10'
+                                  : 'border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Truck size={18} className={isSelected ? 'text-brand-600' : 'text-gray-500'} />
+                                <span className={`font-bold text-xs uppercase tracking-wider ${isSelected ? 'text-brand-600' : 'text-gray-700 dark:text-gray-300'}`}>{opt.name}</span>
+                              </div>
+                              <span className="text-xs text-gray-500">{opt.description}</span>
+                              <span className="text-[10px] font-bold text-gray-400 mt-auto pt-2">
+                                {fulfillmentType === 'PLATFORM_DELIVERY' && activeQuote && isSelected
+                                  ? `~TSh ${activeQuote.price.toLocaleString()} estimated` : ''}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <span className="text-xs text-gray-500">{opt.description}</span>
-                    <span className="text-[10px] font-bold text-gray-400 mt-auto pt-2">
-                      {opt.shipping_method === 'DELIVERY' && fulfillmentType === 'PLATFORM_DELIVERY' && activeQuote && isSelected
-                        ? `~TSh ${activeQuote.price.toLocaleString()} estimated`
-                        : opt.shipping_method === 'PICKUP' ? 'Free' : ''}
-                    </span>
-                  </button>
-                );
-              })
+                  )}
+
+                  {/* Pickup Group */}
+                  {fulfillmentOptions.some(o => o.shipping_method === 'PICKUP') && (
+                    <div>
+                      <h3 className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest mb-3">Pickup Options</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {fulfillmentOptions.filter(o => o.shipping_method === 'PICKUP').map((opt) => {
+                          const isSelected = fulfillmentType === opt.fulfillment_type;
+                          return (
+                            <button
+                              key={opt.fulfillment_type}
+                              type="button"
+                              onClick={() => {
+                                setFulfillmentType(opt.fulfillment_type);
+                                setShippingMethod(opt.shipping_method);
+                              }}
+                              className={`p-4 rounded-btn border-2 flex flex-col items-start gap-2 transition-all duration-200 text-left ${
+                                isSelected
+                                  ? 'border-brand-600 bg-brand-50/10'
+                                  : 'border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <MapPin size={18} className={isSelected ? 'text-brand-600' : 'text-gray-500'} />
+                                <span className={`font-bold text-xs uppercase tracking-wider ${isSelected ? 'text-brand-600' : 'text-gray-700 dark:text-gray-300'}`}>{opt.name}</span>
+                              </div>
+                              <span className="text-xs text-gray-500">{opt.description}</span>
+                              <span className="text-[10px] font-bold text-gray-400 mt-auto pt-2">Free</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -504,7 +598,7 @@ const CheckoutPage: React.FC = () => {
 
                     {/* DIRECT_DELIVERY notice */}
                     {fulfillmentType === 'DIRECT_DELIVERY' && (
-                      <div className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 p-3 rounded-btn">
+                      <div className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 p-3 rounded-btn mb-4">
                         <p className="text-xs text-amber-700 dark:text-amber-400 font-bold flex items-center gap-2">
                           <Truck size={14} />
                           The seller will ship directly to your address. Shipping fee is agreed with seller.
@@ -512,14 +606,140 @@ const CheckoutPage: React.FC = () => {
                       </div>
                     )}
 
-                    {/* CRIT-3: Contact fields always shown for DELIVERY — seller needs to reach buyer */}
-                    <FormField id="fullName" name="fullName" label={t('first_name') + " & " + t('last_name') + " *"} type="text" required value={form.fullName} onChange={handleChange} placeholder={t('first_name')} />
-                    <FormField id="phone" name="phone" label={t('phone_number') + " *"} type="tel" required value={form.phone} onChange={handleChange} placeholder="+255 7XX XXX XXX" />
-                    <FormField id="deliveryAddress" name="deliveryAddress" label={t('delivery_address') + " *"} type="text" required value={form.deliveryAddress} onChange={handleChange} placeholder="Street, Area" />
-                    <div className="flex flex-col gap-1.5 w-full">
-                      <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">{t('notes_optional', 'Notes (optional)')}</label>
-                      <textarea name="notes" value={form.notes} onChange={handleChange} rows={3} className="flex w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white resize-none" placeholder={t('notes_placeholder', 'Special delivery instructions...')} />
-                    </div>
+                    {!isEditingDetails ? (
+                      <div className="bg-gray-50 dark:bg-neutral-800/50 p-4 rounded-xl border border-surface-border dark:border-surface-dark-border">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                            <MapPin size={16} className="text-brand-500" /> Deliver To
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingDetails(true)}
+                            className="text-xs font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                        <div className="text-sm text-gray-700 dark:text-gray-300">
+                          <p className="font-bold">{form.fullName}</p>
+                          <p>{form.phone}</p>
+                          <p className="mt-1">{form.deliveryAddress}</p>
+                          <p className="text-xs text-gray-500 mt-1">{selectedCity}{selectedDistrict ? `, ${selectedDistrict}` : ''}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 border border-surface-border dark:border-surface-dark-border p-5 rounded-xl bg-gray-50/50 dark:bg-neutral-800/20">
+                        <div className="flex justify-between items-center mb-2">
+                          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase">Shipping Details</h3>
+                          {form.fullName && form.phone && form.deliveryAddress && (
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingDetails(false)}
+                              className="text-xs font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+
+                        {/* City & District */}
+                        <div className="flex flex-col md:flex-row gap-4">
+                          <div className="flex flex-col gap-1.5 w-full">
+                            <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
+                              {t('city_region_label', 'City / Region *')}
+                            </label>
+                            <select
+                              value={selectedCity}
+                              onChange={handleCityChange}
+                              className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white"
+                              required
+                            >
+                              <option value="" disabled>Select a region</option>
+                              {regionsData.length > 0 
+                                ? regionsData.map((r: any) => <option key={r.name} value={r.name}>{r.name}</option>)
+                                : Object.keys(citiesCoords).map((city) => <option key={city} value={city}>{city}</option>)
+                              }
+                            </select>
+                          </div>
+
+                          {availableDistricts.length > 0 && (
+                            <div className="flex flex-col gap-1.5 w-full">
+                              <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
+                                {t('district_label', 'District *')}
+                              </label>
+                              <select
+                                value={selectedDistrict}
+                                onChange={(e) => setSelectedDistrict(e.target.value)}
+                                className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white"
+                                required
+                              >
+                                {availableDistricts.map((d: any) => (
+                                  <option key={d.name} value={d.name}>{d.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-4">
+                          <FormField id="fullName" name="fullName" label={t('first_name') + " & " + t('last_name') + " *"} type="text" required value={form.fullName} onChange={handleChange} placeholder={t('first_name')} />
+                          <FormField id="phone" name="phone" label={t('phone_number') + " *"} type="tel" required value={form.phone} onChange={handleChange} placeholder="+255 7XX XXX XXX" />
+                        </div>
+                        
+                        <div className="flex flex-col gap-1.5 w-full">
+                          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">{t('delivery_address') + " *"}</label>
+                          <AddressAutocomplete
+                            value={form.deliveryAddress}
+                            onChange={(val, coords, region, district) => {
+                              setForm(prev => ({ ...prev, deliveryAddress: val }));
+                              if (coords) setDeliveryCoords(coords);
+                              
+                              if (region) {
+                                // Find matching region in regionsData
+                                const matchingRegion = regionsData.find((r: any) => 
+                                  r.name.toLowerCase() === region.toLowerCase() || 
+                                  region.toLowerCase().includes(r.name.toLowerCase()) ||
+                                  r.name.toLowerCase().includes(region.toLowerCase())
+                                );
+                                
+                                if (matchingRegion) {
+                                  setSelectedCity(matchingRegion.name);
+                                  
+                                  if (district && matchingRegion.districts) {
+                                    const matchingDistrict = matchingRegion.districts.find((d: any) =>
+                                      d.name.toLowerCase() === district.toLowerCase() ||
+                                      district.toLowerCase().includes(d.name.toLowerCase()) ||
+                                      d.name.toLowerCase().includes(district.toLowerCase())
+                                    );
+                                    if (matchingDistrict) {
+                                      setSelectedDistrict(matchingDistrict.name);
+                                    } else {
+                                      setSelectedDistrict(matchingRegion.districts[0]?.name || '');
+                                    }
+                                  } else {
+                                    setSelectedDistrict(matchingRegion.districts?.[0]?.name || '');
+                                  }
+                                } else {
+                                  // Fallback: Just set the raw region string
+                                  setSelectedCity(region);
+                                }
+                              }
+                            }}
+                          />
+                          {deliveryCoords && sellerCoords && (
+                            <p className="text-xs font-bold text-brand-600 dark:text-brand-400 mt-1 flex items-center gap-1">
+                              <MapPin size={12} />
+                              ~{calculateDistance(sellerCoords.lat, sellerCoords.lng, deliveryCoords.lat, deliveryCoords.lng).toFixed(1)} km from the seller's store
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 w-full">
+                          <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">{t('notes_optional', 'Notes (optional)')}</label>
+                          <textarea name="notes" value={form.notes} onChange={handleChange} rows={2} className="flex w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white resize-none" placeholder={t('notes_placeholder', 'Special delivery instructions...')} />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -541,7 +761,9 @@ const CheckoutPage: React.FC = () => {
                   <div className="bg-brand-50/10 dark:bg-brand-900/10 p-4 rounded-btn border border-brand-100/30 dark:border-brand-900/20">
                     <p className="text-xs font-bold text-brand-700 dark:text-brand-300 flex items-center gap-2">
                       <Shield size={14} />
-                      {t('pickup_notice', 'Your order will be held at our main warehouse. A secure pickup code will be generated upon arrival.')}
+                      {fulfillmentType === 'SELLER_PICKUP' 
+                        ? t('seller_pickup_notice', "You will pick up your order directly from the seller's location. Contact details will be provided after checkout.")
+                        : t('pickup_notice', 'Your order will be held at our local warehouse. A secure pickup code will be generated upon arrival.')}
                     </p>
                   </div>
                 </motion.div>

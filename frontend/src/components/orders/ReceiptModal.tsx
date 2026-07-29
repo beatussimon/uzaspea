@@ -163,9 +163,10 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
                   <div key={i} className="text-[11px] mb-2 last:mb-0">
                     <div className="font-bold whitespace-normal leading-tight">{name}</div>
                     {variantName && <div className="text-[10px] text-gray-600">[{variantName}]</div>}
-                    <div className="flex justify-between mt-0.5">
-                      <span className="text-gray-600">{qty} x {price.toLocaleString()}/=</span>
-                      <span className="font-bold">{total.toLocaleString()}/=</span>
+                    <div className="flex justify-between items-center mt-1 text-[11px]">
+                      <span className="flex-1 text-gray-500 text-[10px]">@{price.toLocaleString()}/=</span>
+                      <span className="w-10 text-center font-bold text-gray-800 dark:text-gray-200">{qty}</span>
+                      <span className="w-16 text-right font-bold">{total.toLocaleString()}/=</span>
                     </div>
                   </div>
                 );
@@ -194,8 +195,8 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
               <span>TOTAL TSH</span>
               <span>
                 {(() => {
-                  const rawTot = parseFloat(order.total_amount || 0);
-                  return Math.round(isNaN(rawTot) ? 0 : rawTot).toLocaleString() + '/=';
+                  const finalTotal = subtotal + (shippingFee > 0 ? shippingFee : (estShippingFee > 0 && !isPickup ? estShippingFee : 0));
+                  return Math.round(finalTotal).toLocaleString() + '/=';
                 })()}
               </span>
             </div>

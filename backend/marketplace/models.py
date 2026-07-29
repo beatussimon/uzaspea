@@ -208,6 +208,7 @@ class Product(models.Model):
 
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, blank=True)
+    sku = models.CharField(max_length=100, blank=True, null=True, help_text="Part code, SKU, or serial number")
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -349,7 +350,7 @@ class Review(models.Model):
     approved = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = ('user', 'product')  # One review per user per product
+        pass
 
     def __str__(self):
         return f"Review by {self.user.username} for {self.product.name}"
@@ -484,7 +485,7 @@ class Order(models.Model):
         ('FAILED_DELIVERY', 'Failed Delivery'),
         ('EXPIRED', 'Expired'),
         ('DISPUTED', 'Disputed'),
-        ('RETURNED_TO_HUB', 'Returned To Hub'),
+        ('RETURNED_TO_WAREHOUSE', 'Returned To Warehouse'),
     )
     SHIPPING_CHOICES = (
         ('PICKUP', 'Physical Pickup'),

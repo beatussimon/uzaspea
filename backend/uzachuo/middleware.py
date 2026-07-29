@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class ActiveUserMiddleware:
     """
     Middleware to track user's last seen timestamp in Redis cache.
-    Updates the 'user:seen:{user_id}' key with a 3-minute TTL.
+    Updates the 'user:seen:{user_id}' key with a 1-minute TTL.
     """
     def __init__(self, get_response):
         self.get_response = get_response
@@ -33,6 +33,6 @@ class ActiveUserMiddleware:
         if user_id:
             cache_key = f'user:seen:{user_id}'
             # Store timestamp; expiration is handled by cache timeout
-            cache.set(cache_key, timezone.now().isoformat(), timeout=180)
+            cache.set(cache_key, timezone.now().isoformat(), timeout=60)
 
         return response

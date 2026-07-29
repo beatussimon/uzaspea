@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../api';
 import toast from 'react-hot-toast';
 import { 
-  Package, CheckCircle, Clock, Truck, QrCode, X, Search, Activity, Camera, PenTool, ShieldCheck, Key, MapPin, Zap,
+  Package, CheckCircle, Clock, Truck, QrCode, X, Activity, Camera, PenTool, ShieldCheck, Key, MapPin, Zap,
   RefreshCw
 } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
@@ -35,7 +35,7 @@ const WarehouseStaffLayout: React.FC = () => {
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   // Modals & Context
-  const [activeModal, setActiveModal] = useState<'intake' | 'origin_intake' | 'destination_intake' | 'last_mile_sorting' | 'pricing' | 'dispatch' | 'pickup' | 'verify' | null>(null);
+  const [activeModal, setActiveModal] = useState<'intake' | 'origin_intake' | 'destination_intake' | 'last_mile_sorting' | 'pricing' | 'dispatch' | 'pickup' | 'verify' | 'confirm_delivery' | null>(null);
   const [orderPreview, setOrderPreview] = useState<any>(null);
 
   // Intake Form State
@@ -55,6 +55,7 @@ const WarehouseStaffLayout: React.FC = () => {
 
   // Pickup Form State
   const [pickupCode, setPickupCode] = useState('');
+  const [deliveryCodeInput, setDeliveryCodeInput] = useState('');
 
   // Dispatch Form State
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -179,6 +180,9 @@ const WarehouseStaffLayout: React.FC = () => {
       const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${encodeURIComponent(cleanQuery)}`);
       const order = res.data;
       setOrderPreview(order);
+      if (order.delivery_info?.destination_warehouse_code) {
+        setDestinationWarehouseCode(order.delivery_info.destination_warehouse_code);
+      }
       setScanQuery('');
       scanInputRef.current?.blur();
 
@@ -213,7 +217,7 @@ const WarehouseStaffLayout: React.FC = () => {
           setActiveModal('pickup');
           break;
         case 'FAILED_DELIVERY':
-        case 'RETURNED_TO_HUB':
+        case 'RETURNED_TO_WAREHOUSE':
           setActiveModal('destination_intake');
           break;
         default:
@@ -232,30 +236,45 @@ const WarehouseStaffLayout: React.FC = () => {
   };
 
   useEffect(() => {
-    if (showScanner) {
-      const html5QrCode = new Html5Qrcode("reader");
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-          setShowScanner(false);
-          html5QrCode.stop().then(() => {
-            html5QrCode.clear();
-          }).catch(() => {});
-          setScanQuery(decodedText);
-          processScan(decodedText);
-        },
-        () => { /* ignore error/frame */ }
-      ).catch((err) => {
-        console.error("Camera access failed", err);
-        toast.error("Could not access camera. Please check camera permission settings.");
-        setShowScanner(false);
-      });
+    let html5QrCode: Html5Qrcode | null = null;
+    let isMounted = true;
+    let scanTimeout: ReturnType<typeof setTimeout>;
 
-      return () => {
-        html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
-      };
+    if (showScanner) {
+      scanTimeout = setTimeout(() => {
+        if (!isMounted) return;
+        try {
+          html5QrCode = new Html5Qrcode("reader");
+          html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText) => {
+              if (html5QrCode) {
+                html5QrCode.stop().then(() => { html5QrCode?.clear(); }).catch(() => {});
+              }
+              setShowScanner(false);
+              setScanQuery(decodedText);
+              processScan(decodedText);
+            },
+            () => { /* ignore frame errors */ }
+          ).catch((err) => {
+            console.error("Camera access failed", err);
+            toast.error("Could not access camera. Please check permissions.");
+            setShowScanner(false);
+          });
+        } catch(e) {
+          console.error("Scanner init error", e);
+        }
+      }, 300); // Wait for modal to render
     }
+
+    return () => {
+      isMounted = false;
+      clearTimeout(scanTimeout);
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => html5QrCode?.clear()).catch(() => {});
+      }
+    };
   }, [showScanner]);
 
   const handleActionClick = async (orderId: string, actionType: string) => {
@@ -264,6 +283,9 @@ const WarehouseStaffLayout: React.FC = () => {
       const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${encodeURIComponent(orderId)}`);
       const order = res.data;
       setOrderPreview(order);
+      if (order.delivery_info?.destination_warehouse_code) {
+        setDestinationWarehouseCode(order.delivery_info.destination_warehouse_code);
+      }
       if (actionType === 'intake') {
         if (order.status === 'SHIPPED_TO_WAREHOUSE') setActiveModal('origin_intake');
         else if (order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE') setActiveModal('last_mile_sorting');
@@ -416,6 +438,31 @@ const WarehouseStaffLayout: React.FC = () => {
     }
   };
 
+  // Confirm Last-Mile Delivery by Code
+  const submitConfirmDelivery = async () => {
+    if (!deliveryCodeInput || deliveryCodeInput.trim().length < 4) {
+      toast.error('Please enter the delivery code provided by the recipient.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('delivery_code', deliveryCodeInput.trim());
+      formData.append('status', 'DELIVERED');
+      await api.post(`/api/orders/${orderPreview?.id}/advance/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success('Delivery confirmed! Order marked as DELIVERED.');
+      closeModal();
+      fetchAllQueues(selectedWarehouseId);
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || 'Code verification failed. Check the code and try again.';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const closeModal = () => {
     setActiveModal(null);
     setOrderPreview(null);
@@ -426,23 +473,24 @@ const WarehouseStaffLayout: React.FC = () => {
     setDeliveryFee('');
     setDestinationWarehouseCode('');
     setPickupCode('');
+    setDeliveryCodeInput('');
   };
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-8 min-h-screen">
       
       {/* Header & Smart Scan */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-1 h-full bg-brand-500 shadow-[0_0_20px_rgba(249,115,22,0.8)]"></div>
-        <div className="pl-2">
-          <h1 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3">
-            <Activity className="text-brand-500" size={28} />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white border border-gray-200 rounded-[28px] p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] relative">
+        <div className="absolute top-0 left-0 w-2 h-full bg-[#F59E0B] rounded-l-[28px]"></div>
+        <div className="pl-4">
+          <h1 className="text-2xl font-black text-black flex items-center gap-3">
+            <Activity className="text-[#F59E0B]" size={28} />
             Operations Board
           </h1>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Active Hub</span>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Warehouse</span>
             <select
-              className="text-xs font-bold bg-gray-100 dark:bg-neutral-800 border-none rounded-lg px-2 py-1 text-brand-600 dark:text-brand-400 outline-none cursor-pointer"
+              className="text-xs font-bold text-[#F59E0B] outline-none cursor-pointer bg-transparent border-none p-0"
               value={selectedWarehouseId}
               onChange={(e) => setSelectedWarehouseId(e.target.value)}
             >
@@ -457,7 +505,7 @@ const WarehouseStaffLayout: React.FC = () => {
         <div className="w-full md:w-auto flex items-center gap-2">
           <form onSubmit={handleSmartScan} className="relative group flex-1">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-              <QrCode className={`${scanning ? 'animate-pulse text-brand-500' : 'text-gray-400 group-focus-within:text-brand-500'} transition-colors`} size={20} />
+              <QrCode className={`${scanning ? 'animate-pulse text-[#F59E0B]' : 'text-gray-400 group-focus-within:text-[#F59E0B]'} transition-colors`} size={20} />
             </div>
             <input
               ref={scanInputRef}
@@ -466,18 +514,18 @@ const WarehouseStaffLayout: React.FC = () => {
               value={scanQuery}
               onChange={(e) => setScanQuery(e.target.value)}
               disabled={scanning}
-              className="w-full md:w-80 h-14 pl-12 pr-12 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:border-gray-900 dark:focus:border-white focus:ring-4 focus:ring-gray-900/10 dark:focus:ring-white/10 transition-all shadow-inner disabled:opacity-50"
+              className="w-full md:w-80 h-14 pl-12 pr-12 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 focus:border-[#F59E0B] focus:ring-4 focus:ring-[#F59E0B]/10 transition-all shadow-sm disabled:opacity-50"
             />
             {scanning && (
               <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                <div className="animate-spin h-5 w-5 border-2 border-brand-500 border-t-transparent rounded-full" />
+                <div className="animate-spin h-5 w-5 border-2 border-[#F59E0B] border-t-transparent rounded-full" />
               </div>
             )}
           </form>
           <button 
             type="button"
             onClick={() => setShowScanner(true)}
-            className="h-14 px-4 bg-brand-100 hover:bg-brand-200 dark:bg-brand-900/30 dark:hover:bg-brand-900/50 text-brand-600 dark:text-brand-400 rounded-2xl flex items-center justify-center transition-colors shadow-sm"
+            className="w-14 h-14 bg-[#FFF5E5] hover:bg-[#FFEAD0] text-[#F59E0B] rounded-2xl flex items-center justify-center transition-colors shadow-sm shrink-0"
           >
             <Camera size={24} />
           </button>
@@ -485,45 +533,45 @@ const WarehouseStaffLayout: React.FC = () => {
       </div>
 
       {/* Smart Filters */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 hide-scrollbar">
+      <div className="flex items-center gap-3 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 hide-scrollbar">
         <button 
           onClick={() => setQueueFilter('all')}
-          className={`whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-black uppercase tracking-widest transition-all ${queueFilter === 'all' ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-neutral-800 dark:text-gray-400 dark:hover:bg-neutral-700'}`}
+          className={`whitespace-nowrap px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all ${queueFilter === 'all' ? 'bg-[#D97706] text-white shadow-md' : 'bg-[#F3F4F6] text-gray-500 hover:bg-gray-200'}`}
         >
           All Tasks
         </button>
         <button 
           onClick={() => setQueueFilter('origin')}
-          className={`whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-black uppercase tracking-widest transition-all ${queueFilter === 'origin' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-neutral-800 dark:text-gray-400 dark:hover:bg-neutral-700'}`}
+          className={`whitespace-nowrap px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all ${queueFilter === 'origin' ? 'bg-[#D97706] text-white shadow-md' : 'bg-[#F3F4F6] text-gray-500 hover:bg-gray-200'}`}
         >
-          Origin Hub
+          Origin Warehouse
         </button>
         <button 
           onClick={() => setQueueFilter('destination')}
-          className={`whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-black uppercase tracking-widest transition-all ${queueFilter === 'destination' ? 'bg-green-600 text-white shadow-lg shadow-green-500/30' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-neutral-800 dark:text-gray-400 dark:hover:bg-neutral-700'}`}
+          className={`whitespace-nowrap px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all ${queueFilter === 'destination' ? 'bg-[#D97706] text-white shadow-md' : 'bg-[#F3F4F6] text-gray-500 hover:bg-gray-200'}`}
         >
-          Destination Hub
+          Destination Warehouse
         </button>
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex border-b border-gray-200 dark:border-neutral-800 mb-6 gap-6">
+      <div className="flex border-b border-gray-200 mb-8 gap-8">
         <button 
           onClick={() => setActiveTab('line_haul')}
-          className={`pb-3 font-black uppercase tracking-widest text-sm transition-all border-b-2 ${
+          className={`pb-3 font-black uppercase tracking-widest text-[13px] transition-all border-b-[3px] ${
             activeTab === 'line_haul' 
-              ? 'border-brand-500 text-brand-600 dark:text-brand-400' 
-              : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+              ? 'border-[#F59E0B] text-[#F59E0B]' 
+              : 'border-transparent text-gray-400 hover:text-gray-600'
           }`}
         >
           Line-Haul & Origin Logistics
         </button>
         <button 
           onClick={() => setActiveTab('local_logistics')}
-          className={`pb-3 font-black uppercase tracking-widest text-sm transition-all border-b-2 ${
+          className={`pb-3 font-black uppercase tracking-widest text-[13px] transition-all border-b-[3px] ${
             activeTab === 'local_logistics' 
-              ? 'border-brand-500 text-brand-600 dark:text-brand-400' 
-              : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+              ? 'border-[#F59E0B] text-[#F59E0B]' 
+              : 'border-transparent text-gray-400 hover:text-gray-600'
           }`}
         >
           Local Warehouse Logistics (Last-Mile)
@@ -535,24 +583,24 @@ const WarehouseStaffLayout: React.FC = () => {
           {/* KPI Cards (Line-Haul) */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[
-              { title: 'Origin Intake', count: applyFilter(pendingIntakes.filter(o => o.status === 'SHIPPED_TO_WAREHOUSE')).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-              { title: 'Pricing Queue', count: applyFilter(receivedIntakes).length, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-              { title: 'Hold Shelf', count: applyFilter(awaitingPayments).length, icon: ShieldCheck, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-              { title: 'Line-Haul Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code !== currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: 'bg-green-500/10' }
+              { title: 'Origin Intake', count: applyFilter(pendingIntakes.filter(o => o.status === 'SHIPPED_TO_WAREHOUSE')).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+              { title: 'Pricing Queue', count: applyFilter(receivedIntakes).length, icon: Clock, color: 'text-[#F59E0B]', bg: 'bg-[#FFF5E5]' },
+              { title: 'Hold Shelf', count: applyFilter(awaitingPayments).length, icon: ShieldCheck, color: 'text-yellow-500', bg: 'bg-yellow-50' },
+              { title: 'Line-Haul Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code !== currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: 'bg-green-50' }
             ].map((kpi, idx) => (
               <motion.div 
                 key={kpi.title}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className="glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
+                className="bg-white border border-gray-100 rounded-[24px] p-5 flex items-center gap-4 hover:shadow-md transition-shadow shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)]"
               >
-                <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
-                  <kpi.icon size={28} />
+                <div className={`w-[60px] h-[60px] rounded-[18px] flex flex-shrink-0 items-center justify-center ${kpi.bg} ${kpi.color}`}>
+                  <kpi.icon size={26} />
                 </div>
-                <div>
-                  <p className="text-3xl font-black text-gray-900 dark:text-white">{loading ? '-' : kpi.count}</p>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{kpi.title}</p>
+                <div className="min-w-0">
+                  <p className="text-3xl font-black text-black leading-none mb-1 truncate">{loading ? '-' : kpi.count}</p>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest truncate">{kpi.title}</p>
                 </div>
               </motion.div>
             ))}
@@ -628,14 +676,14 @@ const WarehouseStaffLayout: React.FC = () => {
 
           {/* Inter-Warehouse Transfers Section */}
           <div className="mt-12 space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-200 shadow-sm dark:border-neutral-800 pb-4">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
               <div>
-                <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                  <RefreshCw size={20} className="text-brand-500 animate-spin-slow" />
+                <h2 className="text-xl font-black text-black uppercase tracking-tight flex items-center gap-2">
+                  <RefreshCw size={20} className="text-[#F59E0B]" />
                   Inter-Warehouse Transfers
                 </h2>
-                <p className="text-xs font-medium text-gray-505 dark:text-neutral-400 mt-1">
-                  Manage transfer shipments moving between regional hubs
+                <p className="text-xs font-medium text-gray-500 mt-1">
+                  Manage transfer shipments moving between regional warehouses
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -657,16 +705,16 @@ const WarehouseStaffLayout: React.FC = () => {
                 {incomingTransfers.length === 0 ? <EmptyState text="No incoming transfers" /> : (
                   <div className="space-y-3">
                     {incomingTransfers.map(transfer => (
-                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-neutral-800/30 rounded-2xl border border-gray-200 shadow-sm dark:border-neutral-800">
+                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-white rounded-2xl border border-gray-200 shadow-sm">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-gray-900 dark:text-white">Order #{transfer.order}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-500">In Transit</span>
+                            <span className="text-xs font-black text-black">Order #{transfer.order}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-500">In Transit</span>
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
-                            Origin: <span className="font-semibold text-gray-700 dark:text-neutral-300">{transfer.source_warehouse_name}</span>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Origin: <span className="font-semibold text-gray-900">{transfer.source_warehouse_name}</span>
                           </p>
-                          <p className="text-[10px] text-gray-400 dark:text-neutral-500 mt-0.5">
+                          <p className="text-[10px] text-gray-400 mt-0.5">
                             Shipped: {transfer.shipped_at ? new Date(transfer.shipped_at).toLocaleString() : 'N/A'}
                           </p>
                         </div>
@@ -685,21 +733,21 @@ const WarehouseStaffLayout: React.FC = () => {
               {/* Outgoing Transfers (Ready to Ship) */}
               <div className="space-y-4">
                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <RefreshCw size={14} className="text-amber-500" /> Outgoing Transfers
+                  <RefreshCw size={14} className="text-[#F59E0B]" /> Outgoing Transfers
                 </h3>
                 {outgoingTransfers.length === 0 ? <EmptyState text="No outgoing transfers pending" /> : (
                   <div className="space-y-3">
                     {outgoingTransfers.map(transfer => (
-                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-neutral-800/30 rounded-2xl border border-gray-200 shadow-sm dark:border-neutral-800">
+                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-white rounded-2xl border border-gray-200 shadow-sm">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-gray-900 dark:text-white">Order #{transfer.order}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-500">Pending</span>
+                            <span className="text-xs font-black text-black">Order #{transfer.order}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#FFF5E5] text-[#F59E0B]">Pending</span>
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
-                            Destination: <span className="font-semibold text-gray-700 dark:text-neutral-300">{transfer.destination_warehouse_name}</span>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Destination: <span className="font-semibold text-gray-900">{transfer.destination_warehouse_name}</span>
                           </p>
-                          <p className="text-[10px] text-gray-400 dark:text-neutral-500 mt-0.5">
+                          <p className="text-[10px] text-gray-400 mt-0.5">
                             Created: {new Date(transfer.created_at).toLocaleString()}
                           </p>
                         </div>
@@ -730,7 +778,7 @@ const WarehouseStaffLayout: React.FC = () => {
           {/* KPI Cards (Local Logistics) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { title: 'Dest Hub Intake', count: applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+              { title: 'Dest WH Intake', count: applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
               { title: 'Local Delivery Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: 'bg-green-500/10' },
               { title: 'Ready for Pickup / Release', count: applyFilter(readyForPickup).length, icon: Key, color: 'text-purple-500', bg: 'bg-purple-500/10' }
             ].map((kpi, idx) => (
@@ -757,12 +805,12 @@ const WarehouseStaffLayout: React.FC = () => {
             {/* Lane 1: Dest Hub Intake */}
             <div className="space-y-4">
               <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Package size={16} /> Destination Hub Intake
+                <Package size={16} /> Destination Warehouse Intake
               </h3>
               {loading ? <SkeletonCards /> : applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).length === 0 ? <EmptyState text="No pending intakes" /> : (
                 <div className="space-y-3">
                   {applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).map(order => (
-                    <QueueCard key={order.id} order={order} badge={order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE' ? 'Hub Arrived' : 'Inbound Transfer'} onClick={() => handleActionClick(order.id.toString(), 'intake')} />
+                    <QueueCard key={order.id} order={order} badge={order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE' ? 'WH Arrived' : 'Inbound Transfer'} onClick={() => handleActionClick(order.id.toString(), 'intake')} />
                   ))}
                 </div>
               )}
@@ -776,7 +824,29 @@ const WarehouseStaffLayout: React.FC = () => {
               {loading ? <SkeletonCards /> : applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).length === 0 ? <EmptyState text="No deliveries" /> : (
                 <div className="space-y-3">
                   {applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).map(order => (
-                    <QueueCard key={order.id} order={order} badge="Last Mile" onClick={() => handleActionClick(order.id.toString(), 'dispatch')} />
+                    order.status === 'OUT_FOR_DELIVERY' ? (
+                      <div key={order.id} className="p-4 bg-white dark:bg-neutral-900 rounded-2xl border-2 border-green-500/40 shadow-sm flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-gray-900 dark:text-white">Order #{order.id}</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Out for Delivery</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1 truncate max-w-[200px]">
+                              {order.delivery_info?.full_name} · {order.delivery_info?.address}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleActionClick(order.id.toString(), 'confirm_delivery')}
+                          className="w-full px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-xs font-black rounded-xl uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+                        >
+                          <Key size={14} /> Confirm Delivery (Enter Code)
+                        </button>
+                      </div>
+                    ) : (
+                      <QueueCard key={order.id} order={order} badge="Last Mile" onClick={() => handleActionClick(order.id.toString(), 'dispatch')} />
+                    )
                   ))}
                 </div>
               )}
@@ -822,16 +892,18 @@ const WarehouseStaffLayout: React.FC = () => {
                     {activeModal === 'pricing' && <Clock size={32} />}
                     {activeModal === 'dispatch' && <Truck size={32} />}
                     {activeModal === 'verify' && <ShieldCheck size={32} />}
+                    {activeModal === 'confirm_delivery' && <Key size={32} className="text-green-600" />}
                   </div>
                   <div>
                     <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
                       {activeModal === 'origin_intake' && 'Package Intake (From Seller)'}
-                      {activeModal === 'destination_intake' && 'Regional Hub Receipt'}
+                      {activeModal === 'destination_intake' && 'Regional WH Receipt'}
                       {activeModal === 'last_mile_sorting' && 'Last-Mile Sorting'}
                       {activeModal === 'pricing' && 'Confirm Pricing'}
                       {activeModal === 'dispatch' && 'Dispatch Transfer'}
                       {activeModal === 'pickup' && 'Verify Pickup'}
                       {activeModal === 'verify' && 'Verify Payment'}
+                      {activeModal === 'confirm_delivery' && 'Confirm Last-Mile Delivery'}
                     </h2>
                     <p className="text-sm text-gray-500 font-bold">Order #{orderPreview?.id}</p>
                   </div>
@@ -990,7 +1062,7 @@ const WarehouseStaffLayout: React.FC = () => {
                     <button 
                       onClick={() => {
                         if (!photo) {
-                          toast.error('A package photo is required for destination hub receipt.');
+                          toast.error('A package photo is required for destination warehouse receipt.');
                           return;
                         }
                         if (sellerSigRef.current?.isEmpty() || staffSigRef.current?.isEmpty()) {
@@ -1003,7 +1075,7 @@ const WarehouseStaffLayout: React.FC = () => {
                       disabled={submitting} 
                       className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6"
                     >
-                      {submitting ? 'Confirming Receipt...' : 'Confirm Hub Receipt'}
+                      {submitting ? 'Confirming Receipt...' : 'Confirm WH Receipt'}
                     </button>
                   </div>
                 )}
@@ -1186,6 +1258,44 @@ const WarehouseStaffLayout: React.FC = () => {
                   </div>
                 )}
 
+                {/* Confirm Delivery (Last Mile) */}
+                {activeModal === 'confirm_delivery' && (
+                  <div className="space-y-6">
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-2xl p-4">
+                      <p className="text-sm font-bold text-green-800 dark:text-green-300 flex items-center gap-2">
+                        <Key size={16} /> Ask the recipient for their delivery code and enter it below to confirm hand-off.
+                      </p>
+                      {orderPreview?.delivery_info && (
+                        <div className="mt-3 text-xs text-green-700 dark:text-green-400 space-y-1">
+                          <p><span className="font-bold">Recipient:</span> {orderPreview.delivery_info.full_name}</p>
+                          <p><span className="font-bold">Phone:</span> {orderPreview.delivery_info.phone}</p>
+                          <p><span className="font-bold">Address:</span> {orderPreview.delivery_info.address}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2 text-center">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Recipient's Delivery Code</label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        placeholder="••••••"
+                        value={deliveryCodeInput}
+                        onChange={e => setDeliveryCodeInput(e.target.value.replace(/\D/g, ''))}
+                        className="w-full text-center tracking-[1em] text-4xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-green-500 rounded-xl px-4 py-6 outline-none"
+                        autoFocus
+                      />
+                      <p className="text-xs text-gray-400">The buyer received this code in their orders page</p>
+                    </div>
+                    <button
+                      onClick={submitConfirmDelivery}
+                      disabled={submitting || deliveryCodeInput.length < 4}
+                      className="w-full py-4 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30 flex justify-center items-center gap-2"
+                    >
+                      <CheckCircle size={24} /> {submitting ? 'Confirming...' : 'Confirm Delivery & Complete Order'}
+                    </button>
+                  </div>
+                )}
+
                 {/* Verify Specific */}
                 {activeModal === 'verify' && (
                   <div className="space-y-6">
@@ -1252,9 +1362,9 @@ const SkeletonCards = () => (
 );
 
 const EmptyState = ({ text }: { text: string }) => (
-  <div className="py-8 text-center border-2 border-dashed border-gray-200 dark:border-neutral-800 rounded-2xl">
-    <CheckCircle size={24} className="mx-auto text-gray-300 dark:text-gray-700 mb-2" />
-    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{text}</p>
+  <div className="py-8 text-center border-[1.5px] border-dashed border-gray-200 bg-gray-50/50 rounded-2xl">
+    <CheckCircle size={20} className="mx-auto text-gray-300 mb-2 stroke-[2.5]" />
+    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{text}</p>
   </div>
 );
 
@@ -1263,49 +1373,45 @@ const formatDate = (dateStr: string | null) => {
   return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
-const QueueCard = ({ order, badge, onClick }: { order: any, badge: string, onClick: () => void }) => (
+const QueueCard = ({ order, badge, onClick }: { order: any, badge?: string, onClick: () => void }) => (
   <motion.div 
     whileHover={{ scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className="p-4 bg-white dark:bg-neutral-900 border border-gray-200 shadow-sm dark:border-neutral-800 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer flex justify-between items-center group w-full"
+    className="p-3 bg-white border border-gray-200 rounded-2xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] hover:shadow-md transition cursor-pointer flex justify-between items-center group w-full relative"
   >
-    <div className="overflow-hidden w-full">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-[10px] font-black uppercase tracking-widest bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">
-          #{order.id}
-        </span>
-        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
-          badge === 'Inbound' ? 'bg-blue-50 text-blue-600' :
-          badge === 'Received' ? 'bg-amber-50 text-amber-600' :
-          'bg-green-50 text-green-600'
-        }`}>
-          {badge}
-        </span>
-      </div>
-      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-        {order.items?.[0]?.product_name || 'SokoniMax Secured Package'}
-      </p>
-
-      {order.logistics_info && (
-        <div className="mt-2 pt-2 border-t border-gray-200 shadow-sm dark:border-neutral-800/80 space-y-1">
-          <div className="flex items-center justify-between text-[10px] text-gray-400">
-            <span>Departed:</span>
-            <span className="font-semibold text-gray-600 dark:text-neutral-300">{formatDate(order.logistics_info.departure_date)}</span>
-          </div>
-          <div className="flex items-center justify-between text-[10px] text-gray-400">
-            <span>Expected:</span>
-            <span className="font-semibold text-gray-600 dark:text-neutral-300">{formatDate(order.logistics_info.expected_arrival)}</span>
-          </div>
+    <div className="flex items-center gap-3 w-full">
+      <div className="relative shrink-0">
+        <div className="w-[64px] h-[64px] bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center border border-gray-100">
+          {order.items?.[0]?.product_image ? (
+            <img src={order.items[0].product_image} className="w-full h-full object-cover" alt="" />
+          ) : (
+            <Package size={24} className="text-gray-300" />
+          )}
         </div>
-      )}
+        {order.items?.length > 1 && (
+          <div className="absolute -bottom-1 -right-1 bg-[#F59E0B] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-white">
+            +{order.items.length - 1}
+          </div>
+        )}
+      </div>
 
-      <p className="text-[10px] text-gray-400 font-medium truncate mt-1">
-        Buyer: {order.buyer_username || 'Unknown'}
-      </p>
-    </div>
-    <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-neutral-800 flex items-center justify-center text-gray-400 group-hover:bg-brand-50 group-hover:text-brand-500 transition-colors shrink-0 ml-2 self-start mt-1">
-      <Search size={14} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="text-[10px] font-black uppercase tracking-widest bg-[#FFF5E5] text-[#F59E0B] px-1.5 py-0.5 rounded">
+            {badge || `ORDER #${order.id}`}
+          </span>
+          <span className="text-[10px] font-bold text-gray-400">
+            {formatDate(order.order_date)}
+          </span>
+        </div>
+        <p className="text-sm font-black text-black truncate uppercase tracking-tight">
+          {order.items?.[0]?.product_name || 'SokoniMax Package'}
+        </p>
+        <p className="text-xs text-gray-500 font-bold truncate">
+          Store: <span className="text-gray-900">@{order.items?.[0]?.seller_username || 'seller'}</span>
+        </p>
+      </div>
     </div>
   </motion.div>
 );

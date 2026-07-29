@@ -31,7 +31,7 @@ class Shipment(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('in_transit', 'In Transit'),
-        ('arrived_at_hub', 'Arrived At Hub'),
+        ('arrived_at_warehouse', 'Arrived At Warehouse'),
         ('delivered', 'Delivered'),
     ]
     SHIPMENT_TYPE_CHOICES = [

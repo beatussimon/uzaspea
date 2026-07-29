@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'billing',
     'warehouses',
     'logistics',
+    'locations',
 ]
 
 REST_FRAMEWORK = {
