@@ -108,7 +108,7 @@ const ProductList = () => {
 
   const buildParams = useCallback(
     (p: number) => {
-      const params: Record<string, string> = { page: String(p) };
+      const params: Record<string, string> = { page: String(p), page_size: '12' };
       const cat = selectedSubcategory || selectedCategory;
       if (cat) params.category = cat;
       if (minPrice) params.min_price = minPrice;
