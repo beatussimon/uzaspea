@@ -8,6 +8,7 @@ import api from '../api';
 import ProductCard from '../components/ProductCard';
 import SponsorCard from '../components/SponsorCard';
 import { ProductCardSkeleton } from '../components/Skeleton';
+import { apiCache } from '../utils/apiCache';
 
 const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } } as any;
 const cardVariants = {
@@ -127,44 +128,99 @@ const ProductList = () => {
     (p: number, reset = false) => {
       if (isFetchingRef.current && !reset) return;
       
+      const prms = buildParams(p);
+      const cacheKey = `products:${JSON.stringify(prms)}`;
+      const cached = apiCache.get(cacheKey);
+
       if (reset) {
-        setLoading(true);
-        setPage(1);
+        if (cached) {
+          // Instant cache hit for initial load
+          setProducts(Array.isArray(cached.data.results) ? cached.data.results : []);
+          setHasMore(!!cached.data.next);
+          setLoading(false);
+          setPage(1);
+        } else {
+          setLoading(true);
+          setPage(1);
+        }
       } else {
-        setLoadingMore(true);
+        if (cached) {
+          // Instant cache hit for infinite scroll next page
+          const incoming = Array.isArray(cached.data.results) ? cached.data.results : [];
+          setProducts((prev) => {
+            const existingIds = new Set(prev.map(pr => pr.id));
+            const uniqueIncoming = incoming.filter((item: any) => !existingIds.has(item.id));
+            return [...prev, ...uniqueIncoming];
+          });
+          setHasMore(!!cached.data.next);
+          setLoadingMore(false);
+          
+          // Pre-fetch next page immediately after a cache hit
+          if (cached.data.next) {
+            const nextParams = buildParams(p + 1);
+            const nextKey = `products:${JSON.stringify(nextParams)}`;
+            if (!apiCache.get(nextKey)) {
+              api.get('/api/products/', { params: nextParams }).then(res => apiCache.set(nextKey, res.data)).catch(()=>{});
+            }
+          }
+          return; // Skip fetch since we already got it instantly
+        } else {
+          setLoadingMore(true);
+        }
       }
       
       isFetchingRef.current = true;
       
       if (reset) {
         Promise.all([
-          api.get('/api/products/', { params: buildParams(p) }).catch(() => ({ data: { results: [] } })),
+          api.get('/api/products/', { params: prms }).catch(() => ({ data: { results: [] } })),
           saved ? Promise.resolve({ data: { results: [] } }) : api.get('/api/sponsored/', { params: { ...buildParams(1), public: 'true' } }).catch(() => ({ data: { results: [] } }))
         ]).then(([prodRes, sponsRes]) => {
+          apiCache.set(cacheKey, prodRes.data); // Store to cache
+          
           const prodData = prodRes.data.results || prodRes.data || [];
           const sponsData = sponsRes.data.results || sponsRes.data || [];
           
           setSponsoredAds(Array.isArray(sponsData) ? sponsData : []);
           setProducts(Array.isArray(prodData) ? prodData : []);
           setHasMore(!!(prodRes.data && prodRes.data.next));
+
+          // Eager pre-fetch next page
+          if (prodRes.data && prodRes.data.next) {
+             const nextParams = buildParams(2);
+             const nextKey = `products:${JSON.stringify(nextParams)}`;
+             if (!apiCache.get(nextKey)) {
+               api.get('/api/products/', { params: nextParams }).then(res => apiCache.set(nextKey, res.data)).catch(()=>{});
+             }
+          }
         }).finally(() => {
           setLoading(false);
           setLoadingMore(false);
           isFetchingRef.current = false;
         });
       } else {
-        api.get('/api/products/', { params: buildParams(p) })
+        api.get('/api/products/', { params: prms })
           .then((res) => {
+            apiCache.set(cacheKey, res.data); // Store to cache
+            
             const data = res.data.results || res.data;
             const incoming = Array.isArray(data) ? data : [];
             
             setProducts((prev) => {
-              // Deduplicate based on product ID to prevent React key warnings
-              const existingIds = new Set(prev.map(p => p.id));
-              const uniqueIncoming = incoming.filter(p => !existingIds.has(p.id));
+              const existingIds = new Set(prev.map(pr => pr.id));
+              const uniqueIncoming = incoming.filter((item: any) => !existingIds.has(item.id));
               return [...prev, ...uniqueIncoming];
             });
             setHasMore(!!res.data.next);
+
+            // Eager pre-fetch next page
+            if (res.data.next) {
+               const nextParams = buildParams(p + 1);
+               const nextKey = `products:${JSON.stringify(nextParams)}`;
+               if (!apiCache.get(nextKey)) {
+                 api.get('/api/products/', { params: nextParams }).then(nxtRes => apiCache.set(nextKey, nxtRes.data)).catch(()=>{});
+               }
+            }
           })
           .catch(() => setHasMore(false))
           .finally(() => { 
@@ -174,7 +230,7 @@ const ProductList = () => {
           });
       }
     },
-    [buildParams]
+    [buildParams, saved]
   );
 
   useEffect(() => { 

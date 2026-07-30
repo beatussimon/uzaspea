@@ -6,14 +6,11 @@ import { useTranslation, Trans } from 'react-i18next';
 import api from '../api';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { useTheme } from '../context/ThemeContext';
+import { apiCache } from '../utils/apiCache';
 
 // Snap Sections
 import SnapScrollContainer from '../components/landing/SnapScrollContainer';
-import TrendingSection from '../components/landing/TrendingSection';
-import FeaturedSection from '../components/landing/FeaturedSection';
-import NewArrivalsSection from '../components/landing/NewArrivalsSection';
 import CategoryShowcaseSection from '../components/landing/CategoryShowcaseSection';
-import InsightsSection from '../components/landing/InsightsSection';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -21,13 +18,7 @@ const LandingPage = () => {
   const { t } = useTranslation();
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [promotions, setPromotions] = useState<any[]>([]);
-  const [newArrivals, setNewArrivals] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
-  const [trendingGroups, setTrendingGroups] = useState<any>(null);
-  
-  const [loadingPromotions, setLoadingPromotions] = useState(true);
-  const [loadingNew, setLoadingNew] = useState(true);
 
   // Framer motion values for the drag-to-wiggle effect
   const constraintsRef = useRef<HTMLDivElement>(null);
@@ -48,35 +39,23 @@ const LandingPage = () => {
       img.src = src;
     });
 
-    // Fetch stats & trending
+    // Fetch stats for the hero
     api.get('/api/analytics/trending/')
       .then(res => {
         setStats(res.data.stats);
-        setTrendingGroups(res.data.trending_products || { top_sellers: [], most_saved: [], newest_trending: [] });
       })
-      .catch(() => {
-        setTrendingGroups({ top_sellers: [], most_saved: [], newest_trending: [] });
-      });
+      .catch(() => {});
 
-    // Fetch promotions
-    api.get('/api/sponsored/?public=true&page_size=8')
-      .then(promoRes => {
-        const promoData = Array.isArray(promoRes.data.results || promoRes.data) 
-          ? (promoRes.data.results || promoRes.data) : [];
-        setPromotions(promoData);
-        setLoadingPromotions(false);
-      })
-      .catch(() => setLoadingPromotions(false));
-
-    // Fetch new arrivals (latest products)
-    api.get('/api/products/?page_size=8&sort_by=newest')
-      .then(prodRes => {
-        const prodData = Array.isArray(prodRes.data.results || prodRes.data) 
-          ? (prodRes.data.results || prodRes.data) : [];
-        setNewArrivals(prodData);
-        setLoadingNew(false);
-      })
-      .catch(() => setLoadingNew(false));
+    // Pre-warm the cache for the products list page so navigation is instant
+    const productsParams = { page: '1', page_size: '12' };
+    const productsCacheKey = `products:${JSON.stringify(productsParams)}`;
+    if (!apiCache.get(productsCacheKey)) {
+      api.get('/api/products/', { params: productsParams })
+        .then(res => {
+          apiCache.set(productsCacheKey, res.data);
+        })
+        .catch(() => {});
+    }
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -91,11 +70,9 @@ const LandingPage = () => {
   const sections = [
     { id: 'hero', label: 'Home' },
     { id: 'categories', label: 'Categories' },
-    { id: 'trending', label: 'Trending' },
-    { id: 'featured', label: 'Featured' },
-    { id: 'new-arrivals', label: 'New Arrivals' },
-    { id: 'insights', label: 'Insights' }
+    { id: 'redirect', label: 'Products' } // Invisible redirect section
   ];
+  
   const [scrollProgress, setScrollProgress] = useState(0);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -103,6 +80,21 @@ const LandingPage = () => {
     const progress = target.scrollTop / (window.innerHeight || 800);
     setScrollProgress(Math.min(progress, 1));
   };
+
+  // When the redirect section comes into view, navigate to products
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        navigate('/products');
+      }
+    }, { threshold: 0.1 });
+
+    const redirectEl = document.getElementById('redirect');
+    if (redirectEl) {
+      observer.observe(redirectEl);
+    }
+    return () => observer.disconnect();
+  }, [navigate]);
 
   return (
     <>
@@ -134,7 +126,6 @@ const LandingPage = () => {
         {/* 1. HERO SECTION */}
         <div className="relative w-full h-full flex flex-col justify-center overflow-hidden group">
           <div className="absolute inset-0 z-0 overflow-hidden flex cursor-grab active:cursor-grabbing" ref={constraintsRef}>
-            {/* Draggable surface for wobble effect, background is now global */}
           </div>
 
           <div className="relative z-10 w-full max-w-4xl px-10 sm:px-14 md:px-16 mx-auto text-center pointer-events-none pt-20">
@@ -204,29 +195,9 @@ const LandingPage = () => {
 
       {/* 2. SHOP BY CATEGORY */}
       <CategoryShowcaseSection />
-
-      {/* 3. TRENDING NOW */}
-      <TrendingSection 
-        trendingGroups={trendingGroups} 
-        loading={!trendingGroups} 
-      />
-
-      {/* 4. FEATURED LISTINGS */}
-      <FeaturedSection 
-        promotions={promotions} 
-        loading={loadingPromotions} 
-      />
-
-      {/* 5. NEW ARRIVALS */}
-      <NewArrivalsSection 
-        newArrivals={newArrivals} 
-        loading={loadingNew} 
-      />
-
-      {/* 6. PLATFORM INSIGHTS */}
-      <InsightsSection 
-        stats={stats} 
-      />
+      
+      {/* 3. INVISIBLE REDIRECT TRIGGER */}
+      <div id="redirect" className="h-[20vh] w-full invisible pointer-events-none opacity-0"></div>
 
     </SnapScrollContainer>
     </>
