@@ -59,7 +59,7 @@ const LandingPage = () => {
       });
 
     // Fetch promotions
-    api.get('/api/sponsored/?public=true&page_size=16')
+    api.get('/api/sponsored/?public=true&page_size=8')
       .then(promoRes => {
         const promoData = Array.isArray(promoRes.data.results || promoRes.data) 
           ? (promoRes.data.results || promoRes.data) : [];
@@ -69,7 +69,7 @@ const LandingPage = () => {
       .catch(() => setLoadingPromotions(false));
 
     // Fetch new arrivals (latest products)
-    api.get('/api/products/?page_size=16&sort_by=newest')
+    api.get('/api/products/?page_size=8&sort_by=newest')
       .then(prodRes => {
         const prodData = Array.isArray(prodRes.data.results || prodRes.data) 
           ? (prodRes.data.results || prodRes.data) : [];
