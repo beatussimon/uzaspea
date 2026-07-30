@@ -1,0 +1,96 @@
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  env_file: ./backend/.env
+  environment:
+    - DATABASE_URL=${DATABASE_URL}
+    - REDIS_URL=${REDIS_URL}
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  # ─── Celery Worker ─────────────────────────────────────────────
+  celery-worker:
+    <<: *backend-common
+    container_name: uzaspea-celery-worker
+    restart: unless-stopped
+    volumes:
+      - ./persistent_data/media:/app/media
+    command: celery -A uzachuo worker --loglevel=warning --concurrency=2 --max-tasks-per-child=50
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
+  # ─── Celery Beat ───────────────────────────────────────────────
+  celery-beat:
+    <<: *backend-common
+    container_name: uzaspea-celery-beat
+    restart: unless-stopped
+    volumes:
+      - ./persistent_data/media:/app/media
+      - ./persistent_data/celerybeat:/app/celerybeat
+    command: celery -A uzachuo beat --loglevel=warning --schedule /app/celerybeat/celerybeat-schedule
+    deploy:
+      resources:
+        limits:
+          memory: 80M
+
+  # ─── Postgres ──────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: uzaspea-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-uzaspea}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=128MB"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "effective_cache_size=256MB"
+      - "-c"
+      - "max_connections=100"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./persistent_data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  # ─── Redis ─────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: uzaspea-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 64mb --maxmemory-policy allkeys-lru --save ""
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./persistent_data/redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 96M

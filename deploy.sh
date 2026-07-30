@@ -1,51 +1,54 @@
 #!/bin/bash
 set -e
 
-SSH_KEY="~/.ssh/LightsailDefaultKey-ap-south-1.pem"
-HOST="ubuntu@3.6.193.212"
+APP_INSTANCE="3.6.193.212"
+DATA_INSTANCE="13.235.198.184"
+APP_SSH_KEY="~/.ssh/LightsailDefaultKey-ap-south-1.pem"
+DATA_SSH_KEY="~/.ssh/LightsailDefaultKey-ap-south-1-sokonimax.pem"
 
 echo "Pushing latest code to GitHub..."
 ./push_script.sh
 
-echo "Connecting to production server..."
-
-ssh -o StrictHostKeyChecking=no -i $SSH_KEY $HOST << 'EOF'
+echo "=========================================="
+echo " Deploying to Data Node ($DATA_INSTANCE)  "
+echo "=========================================="
+ssh -o StrictHostKeyChecking=no -i $DATA_SSH_KEY ubuntu@$DATA_INSTANCE << 'EOF'
   set -e
-  
   echo "=> Entering deployment directory..."
   cd ~/uzaspea
-  
-  echo "=> Running automated database backup..."
-  chmod +x scripts/backup.sh
-  ./scripts/backup.sh
   
   echo "=> Fetching latest code and resetting to origin/master..."
   git fetch origin master
   git reset --hard origin/master
   git clean -fd
   
-  echo "=> Building and restarting Docker containers..."
-  docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
-  
-  echo "=> Waiting 15s for services to stabilize..."
-  sleep 15
-  curl -s http://localhost/api/site-settings/ || true
-  
-  echo -e "\n=> Running database migrations..."
-  docker compose -f docker-compose.prod.yml exec -T backend python manage.py migrate
+  echo "=> Building and restarting Data Node containers (Postgres, Redis, Celery)..."
+  docker compose -f docker-compose.data.yml up -d --build --remove-orphans
+EOF
 
-  echo -e "\n=> Seeding the database with essential data..."
-  docker compose -f docker-compose.prod.yml exec -T backend sh -c "SEED_ADMIN_PASSWORD=\${SEED_ADMIN_PASSWORD} python manage.py seed"
+echo "=========================================="
+echo " Deploying to App Node ($APP_INSTANCE)    "
+echo "=========================================="
+ssh -o StrictHostKeyChecking=no -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << 'EOF'
+  set -e
+  echo "=> Entering deployment directory..."
+  cd ~/uzaspea
   
-  echo -e "\n=> Cleaning up duplicate conversation threads..."
-  docker compose -f docker-compose.prod.yml exec -T backend python manage.py merge_conversations
+  echo "=> Fetching latest code and resetting to origin/master..."
+  git fetch origin master
+  git reset --hard origin/master
+  git clean -fd
   
-  echo "=> Setting up automated daily backup cron job..."
-  sudo touch /var/log/uzaspea-backup.log
-  sudo chown ubuntu:ubuntu /var/log/uzaspea-backup.log
-  (crontab -l 2>/dev/null | grep -v "/home/ubuntu/uzaspea/scripts/backup.sh"; echo "0 2 * * * /home/ubuntu/uzaspea/scripts/backup.sh >> /var/log/uzaspea-backup.log 2>&1") | crontab -
+  echo "=> Building and restarting App Node containers (Traefik, Backend, Frontend)..."
+  docker compose -f docker-compose.app.yml up -d --build --remove-orphans
   
-  echo "=> Deployment successfully completed on server."
+  echo "=> Waiting 10s for services to stabilize..."
+  sleep 10
+  
+  echo -e "\n=> Running database migrations (remotely on Data Node)..."
+  docker compose -f docker-compose.app.yml exec -T backend python manage.py migrate
+
+  echo -e "\n=> Deployment successfully completed on server."
 EOF
 
 echo -e "\nDeployment process finished locally!"
