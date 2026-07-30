@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import SafeImage from '../SafeImage';
 import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
+import { preloadProductList } from '../../App';
 
 let categoriesCache: any[] | null = null;
 let categoriesPromise: Promise<any> | null = null;
@@ -162,6 +163,9 @@ const CategoryBar: React.FC = () => {
                   key={cat.id} 
                   className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group"
                   onClick={() => handleCategoryClick(cat.slug)}
+                  onMouseEnter={preloadProductList}
+                  onFocus={preloadProductList}
+                  onTouchStart={preloadProductList}
                 >
                   <div className={`relative w-20 h-20 md:w-36 md:h-36 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 overflow-visible border-2 ${isActive ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
                     {cat.product_count > 0 && (
@@ -202,6 +206,9 @@ const CategoryBar: React.FC = () => {
         {!isProductDetailPage && (
           <button 
             onClick={() => handleCategoryClick('')}
+            onMouseEnter={preloadProductList}
+            onFocus={preloadProductList}
+            onTouchStart={preloadProductList}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shrink-0 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-100 border-transparent shadow-sm"
           >
             <LayoutGrid size={12} className="stroke-[2]" />
@@ -224,6 +231,9 @@ const CategoryBar: React.FC = () => {
               <button
                 key={cat.id}
                 onClick={() => isProductDetailPage ? navigate(clickUrl) : handleCategoryClick(cat.slug)}
+                onMouseEnter={preloadProductList}
+                onFocus={preloadProductList}
+                onTouchStart={preloadProductList}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shrink-0 bg-white dark:bg-neutral-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-800 shadow-sm"
               >
                 {cat.image ? (

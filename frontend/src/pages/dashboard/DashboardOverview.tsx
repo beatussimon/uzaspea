@@ -344,8 +344,9 @@ const DashboardOverview: React.FC = () => {
                   <th className="px-4 py-3 font-semibold whitespace-nowrap">Date & Time</th>
                   <th className="px-4 py-3 font-semibold min-w-[150px]">Product</th>
                   <th className="px-4 py-3 font-semibold text-right">Qty</th>
-                  <th className="px-4 py-3 font-semibold text-right">Price</th>
-                  <th className="px-4 py-3 font-semibold text-right">Total</th>
+                  <th className="px-4 py-3 font-semibold text-right">Cost (Unit)</th>
+                  <th className="px-4 py-3 font-semibold text-right">Price (Unit)</th>
+                  <th className="px-4 py-3 font-semibold text-right">Total Rev</th>
                   <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Status</th>
                 </tr>
               </thead>
@@ -361,6 +362,9 @@ const DashboardOverview: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 font-bold text-gray-600 dark:text-gray-300 print:text-black text-right">
                       {item.quantity}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 print:text-black text-right whitespace-nowrap">
+                      {item.buying_price ? formatCompactCurrency(item.buying_price) : '-'}
                     </td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300 print:text-black text-right whitespace-nowrap">
                       {formatCompactCurrency(item.price)}
@@ -384,9 +388,11 @@ const DashboardOverview: React.FC = () => {
                   <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black">
                     {stats.items_sold_list.reduce((acc: number, item: any) => acc + item.quantity, 0)}
                   </td>
-                  <td className="px-4 py-4"></td>
-                  <td className="px-4 py-4 text-right text-brand-600 dark:text-brand-400 print:text-black whitespace-nowrap">
-                    {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + item.total, 0))}
+                  <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap">
+                    {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + ((item.buying_price || 0) * item.quantity), 0))} (Est. Cost)
+                  </td>
+                  <td className="px-4 py-4 text-right text-brand-600 dark:text-brand-400 print:text-black whitespace-nowrap font-bold" colSpan={2}>
+                    {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + item.total, 0))} (Revenue)
                   </td>
                   <td className="px-4 py-4"></td>
                 </tr>

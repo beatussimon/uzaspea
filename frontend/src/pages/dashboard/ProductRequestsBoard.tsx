@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Clock, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, CheckCircle2 } from 'lucide-react';
+import { Lightbulb, TrendingUp, Clock, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, CheckCircle2, Printer, DollarSign, Edit } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -9,9 +9,20 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../context/AuthContext';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid, LabelList } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 import { useNavigate } from 'react-router-dom';
-const CHART_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316'];
+import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
+
+const formatCompactCurrency = (num: number, currency = 'TSh') => {
+  if (!num) return `${currency} 0`;
+  if (num >= 1000000) {
+    return `${currency} ${(num / 1000000).toFixed(1)}M`;
+  }
+  if (num >= 1000) {
+    return `${currency} ${(num / 1000).toFixed(1)}k`;
+  }
+  return `${currency} ${num.toLocaleString()}`;
+};
 
 const ProductRequestsBoard: React.FC = () => {
   const { t } = useTranslation();
@@ -24,12 +35,14 @@ const ProductRequestsBoard: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editingRequestId, setEditingRequestId] = useState<number | null>(null);
   
   // Form State
   const [newReqName, setNewReqName] = useState('');
   const [newReqDesc, setNewReqDesc] = useState('');
   const [newReqCategory, setNewReqCategory] = useState('');
   const [newReqPrice, setNewReqPrice] = useState('');
+  const [newReqBuyingPrice, setNewReqBuyingPrice] = useState('');
   const [newReqCondition, setNewReqCondition] = useState('New');
   const [newReqRequiresQuote, setNewReqRequiresQuote] = useState(false);
   const [newReqImage, setNewReqImage] = useState<File | null>(null);
@@ -82,20 +95,29 @@ const ProductRequestsBoard: React.FC = () => {
       
       if (newReqCategory) formData.append('category', newReqCategory);
       if (newReqPrice) formData.append('price', newReqPrice);
+      if (newReqBuyingPrice) formData.append('buying_price', newReqBuyingPrice);
       formData.append('condition', newReqCondition);
       formData.append('requires_quote', newReqRequiresQuote.toString());
       if (newReqImage) formData.append('image', newReqImage);
 
-      await api.post('/api/product-requests/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      if (editingRequestId) {
+        await api.patch(`/api/product-requests/${editingRequestId}/`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        toast.success(t('request_updated', 'Demand Card updated successfully!'));
+      } else {
+        await api.post('/api/product-requests/', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        toast.success(t('request_created', 'Demand Card created successfully!'));
+      }
       
-      toast.success(t('request_created', 'Demand card created successfully!'));
       setIsModalOpen(false);
       resetForm();
       fetchRequests(false);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to create request');
+      console.error(err);
+      toast.error(err.response?.data?.error || t('request_error', 'Failed to save demand card'));
     } finally {
       setCreating(false);
     }
@@ -103,6 +125,19 @@ const ProductRequestsBoard: React.FC = () => {
 
   const handleConvert = (req: any) => {
     navigate('/dashboard/products', { state: { convert_request: req } });
+  };
+
+  const handleEditClick = (req: any) => {
+    setEditingRequestId(req.id);
+    setNewReqName(req.name || '');
+    setNewReqDesc(req.description || '');
+    setNewReqCategory(req.category || '');
+    setNewReqPrice(req.price || '');
+    setNewReqBuyingPrice(req.buying_price || '');
+    setNewReqCondition(req.condition || 'New');
+    setNewReqRequiresQuote(req.requires_quote || false);
+    setNewReqImage(null);
+    setIsModalOpen(true);
   };
 
   const handleVote = async (req: any) => {
@@ -122,10 +157,12 @@ const ProductRequestsBoard: React.FC = () => {
   };
 
   const resetForm = () => {
+    setEditingRequestId(null);
     setNewReqName('');
     setNewReqDesc('');
     setNewReqCategory('');
     setNewReqPrice('');
+    setNewReqBuyingPrice('');
     setNewReqCondition('New');
     setNewReqRequiresQuote(false);
     setNewReqImage(null);
@@ -176,11 +213,17 @@ const ProductRequestsBoard: React.FC = () => {
   const totalRequests = activeRequests.length;
   const totalVotes = activeRequests.reduce((acc, curr) => acc + (curr.request_count || 0), 0);
   const topRequested = activeRequests.length > 0 ? activeRequests.reduce((max, curr) => (curr.request_count > max.request_count ? curr : max), activeRequests[0]) : null;
+  const projectedRevenue = activeRequests.reduce((acc, req) => acc + (req.price ? parseFloat(req.price) * req.request_count : 0), 0);
+  const totalMissedCost = activeRequests.reduce((acc, req) => acc + (req.buying_price ? parseFloat(req.buying_price) * req.request_count : 0), 0);
+  const potentialProfit = projectedRevenue - totalMissedCost;
 
   const chartData = useMemo(() => {
     return activeRequests
-      .sort((a, b) => b.request_count - a.request_count)
-      .slice(0, 5)
+      .sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateA - dateB;
+      })
       .map(req => ({
         name: req.name.length > 12 ? req.name.substring(0, 12) + '...' : req.name,
         fullName: req.name,
@@ -209,8 +252,9 @@ const ProductRequestsBoard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 print:m-0 print:space-y-0">
+      <div className="print:hidden space-y-6">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             {t('product_requests', 'Demand Analytics')}
@@ -219,10 +263,18 @@ const ProductRequestsBoard: React.FC = () => {
             {t('product_requests_desc', 'Analyze customer demand and convert requested items directly into your inventory.')}
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 shadow-sm">
-          <Plus size={16} />
-          {t('create_demand_card', 'Create Demand Card')}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 shadow-sm whitespace-nowrap text-sm">
+            <Plus size={16} />
+            {t('create_demand', 'Create Demand')}
+          </Button>
+          <button 
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition shadow-sm font-bold text-sm"
+          >
+            <Printer size={16} /> Print
+          </button>
+        </div>
       </header>
 
       {requests.length === 0 ? (
@@ -269,29 +321,58 @@ const ProductRequestsBoard: React.FC = () => {
                 </p>
               </div>
             </div>
+
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition">
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                <DollarSign size={24} />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">Total Missed Cost</p>
+                <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-1 truncate">
+                  {formatCompactCurrency(totalMissedCost)}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Projected Total Cost</p>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition">
+              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl">
+                <TrendingUp size={24} />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">Potential Profit</p>
+                <p className="text-lg font-black text-purple-600 dark:text-purple-400 mt-1 truncate">
+                  {formatCompactCurrency(potentialProfit)}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">From Costs</p>
+              </div>
+            </div>
           </div>
 
           {/* Chart Section */}
           <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-6">
-              <BarChart2 size={20} className="text-brand-500" />
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Top 5 Trending Unfulfilled Requests</h3>
+              <TrendingUp size={20} className="text-brand-500" />
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Demand Curve (All Active Requests)</h3>
             </div>
             {chartData.length > 0 && chartData.some(d => d.votes > 0) ? (
               <div className="h-[280px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.2} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} dy={10} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} angle={-45} textAnchor="end" height={60} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(107, 114, 128, 0.05)' }} />
-                    <Bar dataKey="votes" radius={[6, 6, 0, 0]} barSize={40}>
-                      <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={12} fontWeight={600} />
-                      {chartData.map((_entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} className="transition-all duration-300 hover:opacity-80" />
-                      ))}
-                    </Bar>
-                  </BarChart>
+                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(107, 114, 128, 0.2)', strokeWidth: 2, fill: 'transparent' }} />
+                    <Area type="monotone" dataKey="votes" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorVotes)">
+                      <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={11} fontWeight={600} offset={10} />
+                    </Area>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             ) : (
@@ -316,7 +397,7 @@ const ProductRequestsBoard: React.FC = () => {
                         {t('product_name', 'Product Info')} {getSortIcon('name')}
                       </div>
                     </th>
-                    <th scope="col" className="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition select-none" onClick={() => handleSort('request_count')}>
+                    <th scope="col" className="px-2 py-4 w-24 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition select-none" onClick={() => handleSort('request_count')}>
                       <div className="flex items-center gap-1">
                         <TrendingUp size={14} />
                         Demand {getSortIcon('request_count')}
@@ -335,8 +416,8 @@ const ProductRequestsBoard: React.FC = () => {
                 <tbody>
                   {sortedRequests.map((req) => (
                     <tr key={req.id} className={`border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition ${req.is_fulfilled ? 'bg-gray-50 dark:bg-gray-800/50 opacity-75' : 'bg-white dark:bg-gray-800'}`}>
-                      <td className="px-6 py-4 max-w-[250px]">
-                        <div className="flex items-start gap-3">
+                      <td className="px-6 py-4 max-w-[250px] align-middle">
+                        <div className="flex items-center gap-3">
                           {req.image ? (
                             <img src={req.image} alt={req.name} className="w-10 h-10 rounded-lg object-cover" />
                           ) : (
@@ -346,19 +427,30 @@ const ProductRequestsBoard: React.FC = () => {
                           )}
                           <div>
                             <p className="font-semibold text-gray-900 dark:text-white truncate">{req.name}</p>
-                            <div className="flex items-center gap-2 text-xs text-gray-500 mt-1 flex-wrap">
-                              {req.price && <span className="font-medium text-brand-600">${req.price}</span>}
-                              {req.condition && <span>• {req.condition}</span>}
+                            <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-xs text-gray-500 mt-1 items-center">
+                              {req.buying_price && (
+                                <>
+                                  <span className="text-gray-400">Buy:</span>
+                                  <span className="font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap">{formatCompactCurrency(req.buying_price)}</span>
+                                </>
+                              )}
+                              {req.price && (
+                                <>
+                                  <span className="text-gray-400">Sell:</span>
+                                  <span className="font-medium text-brand-600 dark:text-brand-400 whitespace-nowrap">{formatCompactCurrency(req.price)}</span>
+                                </>
+                              )}
                             </div>
+                            {req.condition && <div className="text-xs text-gray-400 mt-0.5 whitespace-nowrap">• {req.condition}</div>}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-2 py-4 text-center align-middle">
                         <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full bg-brand-100 text-brand-800 dark:bg-brand-900/30 dark:text-brand-300 font-bold">
                           {req.request_count}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 align-middle">
                         {req.is_fulfilled ? (
                           <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
                             <CheckCircle2 size={14} /> In Inventory
@@ -369,12 +461,22 @@ const ProductRequestsBoard: React.FC = () => {
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm align-middle">
                         {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right flex justify-end gap-2">
-                        {!req.is_fulfilled ? (
-                           <>
+                      <td className="px-6 py-4 whitespace-nowrap text-right align-middle">
+                        <div className="flex justify-end gap-2 items-center">
+                          {!req.is_fulfilled ? (
+                             <>
+                             <Button 
+                               type="button"
+                               size="sm" 
+                               variant="outline"
+                               className="text-xs h-8"
+                               onClick={() => handleEditClick(req)}
+                             >
+                               <Edit size={14} className="mr-1" /> Edit
+                             </Button>
                              <Button 
                                type="button"
                                size="sm" 
@@ -396,10 +498,11 @@ const ProductRequestsBoard: React.FC = () => {
                                <ArrowRightCircle size={14} className="mr-1" />
                                Convert to Product
                              </Button>
-                           </>
+                            </>
                         ) : (
-                          <span className="text-gray-400 text-sm">Fulfilled</span>
+                          <span className="text-gray-400 dark:text-gray-600 text-xs italic">Fulfilled</span>
                         )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -409,8 +512,9 @@ const ProductRequestsBoard: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title="Create Product in Making">
+      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title={editingRequestId ? "Edit Demand Card" : "Create Product in Making"}>
         <form onSubmit={handleCreateRequest} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Build a demand card that looks exactly like a product. Once demand is high enough, you can seamlessly add it to your inventory!
@@ -428,19 +532,33 @@ const ProductRequestsBoard: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Estimated Price (Optional)
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={newReqPrice}
-                onChange={(e) => setNewReqPrice(e.target.value)}
-                placeholder="0.00"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Estimated Selling Price
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newReqPrice}
+                  onChange={(e) => setNewReqPrice(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Estimated Buying Price
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newReqBuyingPrice}
+                  onChange={(e) => setNewReqBuyingPrice(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
             </div>
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
@@ -455,8 +573,7 @@ const ProductRequestsBoard: React.FC = () => {
                 ))}
               </select>
             </div>
-          </div>
-
+            
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Condition</label>
@@ -513,12 +630,67 @@ const ProductRequestsBoard: React.FC = () => {
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" loading={creating}>
-              Create Demand Card
+            <Button type="submit" loading={creating} className="whitespace-nowrap text-sm">
+              {editingRequestId ? 'Save Changes' : 'Create Demand'}
             </Button>
           </div>
         </form>
       </Modal>
+
+      {/* Print View */}
+      <div className="hidden print:block font-sans text-black bg-white absolute top-0 left-0 w-full h-full min-h-screen z-[9999]">
+        <ReportPrintHeader 
+          title="Demand Analytics Report" 
+          user={user} 
+        />
+        
+        <table className="w-full text-left text-sm border-collapse mt-6">
+          <thead>
+            <tr className="border-b-2 border-black">
+              <th className="py-2 px-1 w-12 font-black">S/N</th>
+              <th className="py-2 px-2 font-black">PRODUCT</th>
+              <th className="py-2 px-2 font-black">CATEGORY</th>
+              <th className="py-2 px-2 font-black text-center">VOTES</th>
+              <th className="py-2 px-2 font-black text-right">EST. COST (TSH)</th>
+              <th className="py-2 px-2 font-black text-right">EST. PRICE (TSH)</th>
+              <th className="py-2 px-2 font-black text-center">STATUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRequests.map((req, idx) => (
+              <tr key={req.id} className="border-b border-gray-200">
+                <td className="py-2 px-1 font-bold">{idx + 1}</td>
+                <td className="py-2 px-2 font-bold">{req.name}</td>
+                <td className="py-2 px-2">{req.category_name || '-'}</td>
+                <td className="py-2 px-2 text-center">{req.request_count}</td>
+                <td className="py-2 px-2 text-right font-mono">{req.buying_price ? parseFloat(req.buying_price).toLocaleString() : '-'}</td>
+                <td className="py-2 px-2 text-right font-mono">{req.price ? parseFloat(req.price).toLocaleString() : '-'}</td>
+                <td className="py-2 px-2 text-center">{req.is_fulfilled ? 'Fulfilled' : 'Active'}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-black font-black">
+              <td colSpan={4} className="py-2 px-2 text-right">TOTAL MISSED COST:</td>
+              <td colSpan={3} className="py-2 px-2 text-right font-mono text-rose-700">
+                {totalMissedCost.toLocaleString()} TZS
+              </td>
+            </tr>
+            <tr className="font-black">
+              <td colSpan={4} className="py-2 px-2 text-right">PROJECTED REVENUE:</td>
+              <td colSpan={3} className="py-2 px-2 text-right font-mono text-emerald-700">
+                {projectedRevenue.toLocaleString()} TZS
+              </td>
+            </tr>
+            <tr className="font-black border-t border-gray-200">
+              <td colSpan={4} className="py-2 px-2 text-right">POTENTIAL PROFIT:</td>
+              <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-700">
+                {potentialProfit.toLocaleString()} TZS
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 };

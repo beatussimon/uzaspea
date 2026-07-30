@@ -211,20 +211,11 @@ class Product(models.Model):
     sku = models.CharField(max_length=100, blank=True, null=True, help_text="Part code, SKU, or serial number")
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    buying_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     stock = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     unit_of_measure = models.CharField(
-        max_length=20,
-        choices=[
-            ('piece', 'Piece(s)'),
-            ('kg', 'Kilogram(s)'),
-            ('ton', 'Ton(s)'),
-            ('liter', 'Liter(s)'),
-            ('box', 'Box(es)'),
-            ('dozen', 'Dozen(s)'),
-            ('pair', 'Pair(s)'),
-            ('meter', 'Meter(s)'),
-        ],
+        max_length=50,
         default='piece'
     )
     minimum_order_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))
@@ -1405,6 +1396,7 @@ class ProductRequest(models.Model):
     request_count = models.PositiveIntegerField(default=1)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='product_requests')
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    buying_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     condition = models.CharField(max_length=4, choices=Product.CONDITION_CHOICES, default='New')
     requires_quote = models.BooleanField(default=False)
     image = models.ImageField(upload_to='product-requests/', null=True, blank=True)

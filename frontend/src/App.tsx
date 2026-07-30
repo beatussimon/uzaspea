@@ -28,6 +28,10 @@ import ErrorBoundary from './components/ErrorBoundary';
 // Lazy load large layout bundles for bundle size optimization
 const ProductList = lazy(() => import('./pages/ProductList'));
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'));
+
+// Export preload functions for instant navigation on hover
+export const preloadProductDetail = () => import('./pages/ProductDetailPage');
+export const preloadProductList = () => import('./pages/ProductList');
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const TeamsPage = lazy(() => import('./pages/TeamsPage'));

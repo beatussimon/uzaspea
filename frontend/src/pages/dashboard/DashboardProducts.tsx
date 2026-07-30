@@ -41,7 +41,7 @@ const DashboardProducts: React.FC = () => {
   const [quickStockValue, setQuickStockValue] = useState<string>('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+  const [form, setForm] = useState({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
   const [priceTiers, setPriceTiers] = useState<any[]>([]);
   
   // Search and Filters
@@ -303,6 +303,7 @@ const DashboardProducts: React.FC = () => {
       if (form.sku) formData.append('sku', form.sku);
       formData.append('description', form.description);
       formData.append('price', form.price);
+      if (form.buying_price) formData.append('buying_price', form.buying_price);
       if (form.sale_price) formData.append('sale_price', form.sale_price);
       formData.append('stock', form.stock);
       formData.append('category', form.category);
@@ -385,7 +386,7 @@ const DashboardProducts: React.FC = () => {
       setShowForm(false);
       setEditingId(null);
       setEditingProductId(null);
-      setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+      setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
       imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
       setImagePreviews([]);
       setImageFiles([]);
@@ -406,6 +407,7 @@ const DashboardProducts: React.FC = () => {
       sku: product.sku || '',
       description: product.description,
       price: product.price,
+      buying_price: product.buying_price || '',
       sale_price: product.sale_price || '',
       stock: String(product.stock),
       category: String(product.category),
@@ -515,7 +517,7 @@ const DashboardProducts: React.FC = () => {
               setEditingId(null);
               setExistingImages([]);
               setNewVariants([]);
-              setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+              setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
             }}
             disabled={user?.tier === 'customer'}
             variant={showForm ? 'outline' : 'default'}
@@ -623,8 +625,10 @@ const DashboardProducts: React.FC = () => {
           </div>
           <textarea name="description" value={form.description} onChange={handleChange} placeholder="Description" required rows={3}
             className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white resize-none" />
-          <div className="grid grid-cols-3 gap-4">
-            <input name="price" value={form.price} onChange={handleChange} placeholder="Price" type="number" required
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <input name="price" value={form.price} onChange={handleChange} placeholder="Selling Price *" type="number" required
+              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+            <input name="buying_price" value={form.buying_price} onChange={handleChange} placeholder="Buying Price (Optional)" type="number"
               className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
             <input name="sale_price" value={form.sale_price} onChange={handleChange} placeholder="Sale Price (Optional)" type="number"
               className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
@@ -646,17 +650,42 @@ const DashboardProducts: React.FC = () => {
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <select name="unit_of_measure" value={form.unit_of_measure} onChange={handleChange} required title="Unit of Measure"
-              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white">
-              <option value="piece">Piece(s)</option>
-              <option value="kg">Kilogram(s)</option>
-              <option value="ton">Ton(s)</option>
-              <option value="liter">Liter(s)</option>
-              <option value="box">Box(es)</option>
-              <option value="dozen">Dozen(s)</option>
-              <option value="pair">Pair(s)</option>
-              <option value="meter">Meter(s)</option>
-            </select>
+            <div className="flex gap-2">
+              <select 
+                value={['piece', 'kg', 'ton', 'liter', 'box', 'dozen', 'pair', 'meter'].includes(form.unit_of_measure) ? form.unit_of_measure : 'custom'} 
+                onChange={(e) => {
+                  if (e.target.value === 'custom') {
+                    setForm({ ...form, unit_of_measure: '' });
+                  } else {
+                    setForm({ ...form, unit_of_measure: e.target.value });
+                  }
+                }}
+                required 
+                title="Unit of Measure"
+                className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="piece">Piece(s)</option>
+                <option value="kg">Kilogram(s)</option>
+                <option value="ton">Ton(s)</option>
+                <option value="liter">Liter(s)</option>
+                <option value="box">Box(es)</option>
+                <option value="dozen">Dozen(s)</option>
+                <option value="pair">Pair(s)</option>
+                <option value="meter">Meter(s)</option>
+                <option value="custom">Custom...</option>
+              </select>
+              {!['piece', 'kg', 'ton', 'liter', 'box', 'dozen', 'pair', 'meter'].includes(form.unit_of_measure) && (
+                <input 
+                  type="text" 
+                  name="unit_of_measure" 
+                  value={form.unit_of_measure} 
+                  onChange={handleChange} 
+                  placeholder="e.g. gallon" 
+                  required 
+                  className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white"
+                />
+              )}
+            </div>
             <input name="minimum_order_quantity" value={form.minimum_order_quantity} onChange={handleChange} placeholder="Minimum Order Quantity" type="number" step="0.01" required
               className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
           </div>
@@ -918,7 +947,7 @@ const DashboardProducts: React.FC = () => {
               setShowForm(false);
               setEditingId(null);
               setEditingProductId(null);
-              setForm({ name: '', sku: '', description: '', price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+              setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
               imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
               setImagePreviews([]);
               setImageFiles([]);
@@ -967,8 +996,11 @@ const DashboardProducts: React.FC = () => {
                 </div>
                 <p className="text-sm text-brand-600 dark:text-brand-400 font-bold mb-1 flex items-center gap-2">
                   <span>TSh {parseInt(product.price).toLocaleString()}</span>
+                  {product.buying_price && (
+                    <span className="text-xs text-gray-500 font-normal ml-2">Cost: TSh {parseInt(product.buying_price).toLocaleString()}</span>
+                  )}
                   {product.sku && (
-                    <span className="text-[9px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded border dark:border-gray-600">SKU: {product.sku}</span>
+                    <span className="text-[9px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded border dark:border-gray-600 ml-auto">SKU: {product.sku}</span>
                   )}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-gray-400">
@@ -1047,6 +1079,7 @@ const DashboardProducts: React.FC = () => {
               <th className="py-2 px-2 font-black">PRODUCT</th>
               <th className="py-2 px-2 font-black">SKU/CODE</th>
               <th className="py-2 px-2 font-black">CATEGORY</th>
+              <th className="py-2 px-2 font-black text-right">COST (TSH)</th>
               <th className="py-2 px-2 font-black text-right">PRICE (TSH)</th>
               <th className="py-2 px-2 font-black text-right">STOCK</th>
             </tr>
@@ -1058,6 +1091,7 @@ const DashboardProducts: React.FC = () => {
                 <td className="py-2 px-2 font-bold">{product.name}</td>
                 <td className="py-2 px-2">{product.sku || '-'}</td>
                 <td className="py-2 px-2">{product.category_name || product.category || '-'}</td>
+                <td className="py-2 px-2 text-right font-mono">{product.buying_price ? parseFloat(product.buying_price).toLocaleString() : '-'}</td>
                 <td className="py-2 px-2 text-right font-mono">{parseFloat(product.price || 0).toLocaleString()}</td>
                 <td className="py-2 px-2 text-right font-mono">{product.stock}</td>
               </tr>
