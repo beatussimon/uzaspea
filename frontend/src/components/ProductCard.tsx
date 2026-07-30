@@ -8,6 +8,7 @@ import SafeImage from './SafeImage';
 import toast from 'react-hot-toast';
 import VerifiedBadge from './VerifiedBadge';
 import { timeAgo } from '../utils/timeAgo';
+import { preloadProductDetail } from '../App';
 
 const TrendingMetricBadge = ({ product, metricType = 'auto' }: { product: any; metricType?: boolean | string }) => {
   const { t } = useTranslation();
@@ -233,7 +234,14 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
   if (viewMode === 'list') {
     return (
       <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-75 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-400/60 dark:ring-yellow-500/40' : ''}`}>
-        <Link to={`/product/${product.slug}`} {...bgState} className="flex flex-row items-center gap-4 flex-1 min-w-0">
+        <Link 
+          to={`/product/${product.slug}`} 
+          {...bgState} 
+          className="flex flex-row items-center gap-4 flex-1 min-w-0"
+          onMouseEnter={preloadProductDetail}
+          onFocus={preloadProductDetail}
+          onTouchStart={preloadProductDetail}
+        >
           {/* Horizontal Image Carousel */}
           <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} />
 
@@ -305,7 +313,14 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
 
   return (
     <div className={`group relative card overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-75`}>
-      <Link to={`/product/${product.slug}`} {...bgState} className="relative flex-1 flex flex-col h-full w-full">
+      <Link 
+        to={`/product/${product.slug}`} 
+        {...bgState} 
+        className="relative flex-1 flex flex-col h-full w-full"
+        onMouseEnter={preloadProductDetail}
+        onFocus={preloadProductDetail}
+        onTouchStart={preloadProductDetail}
+      >
         {/* Image Carousel — fixed height */}
         <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} />
 

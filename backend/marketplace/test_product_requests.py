@@ -8,8 +8,12 @@ User = get_user_model()
 
 class ProductRequestTests(TestCase):
     def setUp(self):
+        from marketplace.models import SubscriptionTier, Subscription
+        from django.utils import timezone
         self.client = APIClient()
-        self.seller = User.objects.create_user(username='seller1', password='password123', email='seller@example.com', tier='business')
+        self.seller = User.objects.create_user(username='seller1', password='password123', email='seller@example.com')
+        tier = SubscriptionTier.objects.create(name='Business', tier_level='business', price=1000, duration=30)
+        Subscription.objects.create(user=self.seller, tier=tier, is_active=True, start_date=timezone.now(), end_date=timezone.now() + timezone.timedelta(days=30))
         self.buyer = User.objects.create_user(username='buyer1', password='password123', email='buyer@example.com')
 
     def test_seller_create_demand_card(self):
@@ -18,11 +22,14 @@ class ProductRequestTests(TestCase):
         data = {
             'name': 'iPhone 16 Pro Max',
             'description': 'Latest iPhone',
-            'seller_username': self.seller.username
+            'seller_username': self.seller.username,
+            'price': '1000.00',
+            'buying_price': '800.00'
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['request_count'], 0) # seller created it, count starts at 0
+        self.assertEqual(response.data['buying_price'], '800.00')
 
     def test_buyer_upvote_card(self):
         pr = ProductRequest.objects.create(

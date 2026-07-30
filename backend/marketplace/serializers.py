@@ -20,7 +20,7 @@ class ProductRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'seller', 'seller_username', 
             'user', 'user_username', 'request_count', 'created_at', 'last_requested',
-            'category', 'price', 'condition', 'requires_quote', 'image', 'is_fulfilled'
+            'category', 'price', 'buying_price', 'condition', 'requires_quote', 'image', 'is_fulfilled'
         ]
         read_only_fields = ['request_count', 'last_requested']
 
@@ -128,7 +128,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'slug', 'sku', 'description', 'price', 'sale_price', 'stock', 'is_available',
+        fields = ['id', 'name', 'slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock', 'is_available',
                   'unit_of_measure', 'minimum_order_quantity', 'price_tiers',
                   'category', 'category_name', 'category_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',

@@ -557,6 +557,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                     'product_name': item.product.name,
                     'quantity': item.quantity,
                     'price': float(item.price),
+                    'buying_price': float(item.product.buying_price) if item.product.buying_price is not None else None,
                     'total': float(item.price * item.quantity),
                     'status': item.order.status
                 })
@@ -2720,6 +2721,7 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
                 request_count=0 if is_seller_creating else 1,
                 category_id=category_id if category_id else None,
                 price=price if price else None,
+                buying_price=request.data.get('buying_price') if request.data.get('buying_price') else None,
                 condition=request.data.get('condition', 'New'),
                 requires_quote=str(request.data.get('requires_quote', 'false')).lower() == 'true',
             )
