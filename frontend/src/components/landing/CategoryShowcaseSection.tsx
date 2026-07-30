@@ -65,16 +65,20 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
             exit="hidden"
           >
             {/* Header */}
-            <motion.div variants={itemVariants} className="text-center mb-10 flex-shrink-0">
-              <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-gray-900 dark:text-white flex items-center justify-center gap-3">
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                  <LayoutGrid className="w-5 h-5 md:w-6 md:h-6" />
+            <motion.div variants={itemVariants} className="mb-10 flex-shrink-0 flex justify-center w-full">
+              <div className="flex items-center gap-4 md:gap-5">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 shadow-sm">
+                  <LayoutGrid className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
-                {t('shop_by_category', 'SHOP BY CATEGORY')}
-              </h2>
-              <p className="text-sm md:text-base font-medium text-gray-500 dark:text-gray-400 mt-2">
-                {t('find_exactly_what_youre_looking_for', 'Find exactly what you\'re looking for')}
-              </p>
+                <div className="flex flex-col items-start text-left">
+                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-gray-900 dark:text-white leading-none">
+                    {t('shop_by_category', 'SHOP BY CATEGORY')}
+                  </h2>
+                  <p className="text-sm md:text-base lg:text-lg font-medium text-gray-500 dark:text-gray-400 mt-1.5 md:mt-2">
+                    {t('find_exactly_what_youre_looking_for', 'Find exactly what you\'re looking for')}
+                  </p>
+                </div>
+              </div>
             </motion.div>
 
             {/* Circular Category Grid */}

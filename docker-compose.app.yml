@@ -1,0 +1,106 @@
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  env_file: ./backend/.env
+  environment:
+    - DATABASE_URL=${DATABASE_URL}
+    - REDIS_URL=${REDIS_URL}
+
+services:
+  # ─── Traefik Reverse Proxy ──────────────────────────────────────
+  traefik:
+    image: traefik:v2.11
+    container_name: uzaspea-traefik
+    command:
+      - "--api.insecure=false"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=uzaspea_default"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--accesslog.fields.headers.defaultmode=keep"
+    ports:
+      - "80:80"
+      - "443:443"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`pasifiq.store`) && PathPrefix(`/traefik-dashboard`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=superuser-auth@file"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik_dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+      - ./traefik_acme.json:/etc/traefik/acme.json
+    deploy:
+      resources:
+        limits:
+          memory: 80M
+
+  # ─── Backend: Uvicorn ──────────────────────────────────────────
+  backend:
+    <<: *backend-common
+    container_name: uzaspea-backend
+    stop_grace_period: 30s
+    restart: unless-stopped
+    volumes:
+      - ./persistent_data/media:/app/media
+      - ./persistent_data/static:/app/staticfiles
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 3 --ws websockets --timeout-graceful-shutdown 30"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`pasifiq.store`) && (PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`) || PathPrefix(`/ws`))"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+
+  # ─── Frontend: Nginx SPA ───────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    container_name: uzaspea-frontend
+    restart: unless-stopped
+    volumes:
+      - ./persistent_data/media:/app/media:ro
+    depends_on:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`pasifiq.store`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 80M

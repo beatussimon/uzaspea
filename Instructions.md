@@ -158,20 +158,25 @@ uzaspea/
 
 ---
 
-## 7. Production Environment (AWS Lightsail http://3.6.193.212/)
+## 7. Production Environment (AWS Lightsail - Multi-Node Architecture)
 
-The production system runs on a **1GB AWS Lightsail instance** running Ubuntu. Due to strict memory constraints, all services are configured to fit within hard resource limits.
+The production system runs across **two AWS Lightsail instances** to separate web traffic from heavy database/cache IO.
 
-### Docker Container Structure & Memory Budget
-The stack is orchestrated using `docker-compose.prod.yml`:
-1. **`traefik` (Traefik v2.11)**: Edge reverse proxy. Limits access-logging. Runs on port 80. Routes paths starting with `/api`, `/admin`, `/static`, and `/ws` to the backend. Memory limit: **80MB**.
-2. **`backend` (Django ASGI)**: Serves HTTP/WebSockets via Uvicorn. Auto-runs migrations and static file collection on launch. Memory limit: **400MB**.
-3. **`celery-worker`**: Executes Celery tasks asynchronously with concurrency limited to 1. Memory limit: **150MB**.
-4. **`celery-beat`**: Triggers scheduled cron events. Memory limit: **60MB**.
-5. **`frontend` (Nginx serving SPA)**: Serves static React code built with `VITE_API_BASE_URL` pointed to `http://3.6.193.212`. Map SPA routes back to `index.html`. Memory limit: **48MB**.
-6. **`db` (Postgres 15-alpine)**: Database. Configured with optimized memory settings (`shared_buffers=64MB`, `work_mem=2MB`, `maintenance_work_mem=32MB`, `effective_cache_size=256MB`). Memory limit: **256MB**.
-7. **`redis` (Redis 7-alpine)**: Cache & Channels transport broker. Disables disk persistence for speed/memory (`--save ""`). Memory limit: **64MB**.
-- **Total Memory Budget: 1058MB**
+### Instance 1: App Server (3.6.193.212)
+Runs the web components. Uses `docker-compose.app.yml`.
+1. **`traefik` (Traefik v2.11)**: Edge reverse proxy. Routes `/api`, `/admin`, `/static`, and `/ws` to backend. Memory limit: **80MB**.
+2. **`backend` (Django ASGI)**: Serves HTTP/WebSockets via Uvicorn. Memory limit: **600MB**.
+3. **`frontend` (Nginx serving SPA)**: Serves static React code. Memory limit: **80MB**.
+
+### Instance 2: Data Node (13.235.198.184)
+Runs the database, cache, and background workers. Uses `docker-compose.data.yml`.
+1. **`db` (Postgres 15-alpine)**: Configured with optimized memory settings (`shared_buffers=128MB`). Memory limit: **384MB**.
+2. **`redis` (Redis 7-alpine)**: Cache & Channels transport broker. Memory limit: **96MB**.
+3. **`celery-worker`**: Executes Celery tasks asynchronously. Memory limit: **200MB**.
+4. **`celery-beat`**: Triggers scheduled cron events. Memory limit: **80MB**.
+
+**Firewall Configuration:**
+Instance 2 strictly blocks public web traffic. Ports `5432` (Postgres) and `6379` (Redis) are open but restricted to only allow incoming connections from Instance 1 (`3.6.193.212/32`).
 
 ---
 
