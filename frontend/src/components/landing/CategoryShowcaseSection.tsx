@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { LayoutGrid } from 'lucide-react';
+import { LayoutGrid, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import SafeImage from '../SafeImage';
 import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
@@ -58,23 +58,23 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
       <AnimatePresence>
         {isActive && (
           <motion.div 
-            className="relative z-10 w-full h-full pt-20 pb-10 flex flex-col items-center justify-center max-w-6xl mx-auto px-4 sm:px-6 lg:px-8"
+            className="relative z-10 w-full h-full pt-12 md:pt-16 pb-6 md:pb-8 flex flex-col items-center justify-center max-w-6xl mx-auto px-4 sm:px-6 lg:px-8"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
             exit="hidden"
           >
             {/* Header */}
-            <motion.div variants={itemVariants} className="mb-10 flex-shrink-0 flex justify-center w-full">
-              <div className="flex items-center gap-4 md:gap-5">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 shadow-sm">
-                  <LayoutGrid className="w-6 h-6 md:w-8 md:h-8" />
+            <motion.div variants={itemVariants} className="mb-6 md:mb-8 flex-shrink-0 flex justify-center w-full">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 shadow-sm">
+                  <LayoutGrid className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
                 <div className="flex flex-col items-start text-left">
-                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-gray-900 dark:text-white leading-none">
+                  <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900 dark:text-white leading-none">
                     {t('shop_by_category', 'SHOP BY CATEGORY')}
                   </h2>
-                  <p className="text-sm md:text-base lg:text-lg font-medium text-gray-500 dark:text-gray-400 mt-1.5 md:mt-2">
+                  <p className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">
                     {t('find_exactly_what_youre_looking_for', 'Find exactly what you\'re looking for')}
                   </p>
                 </div>
@@ -119,10 +119,19 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
             </div>
             
             {/* Scroll indicator for the redirect section */}
-            <motion.div variants={itemVariants} className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center opacity-50">
-              <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Scroll for Products</span>
-              <div className="w-1 h-6 bg-gradient-to-b from-gray-400 to-transparent rounded-full" />
-            </motion.div>
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex justify-center w-full z-20 pointer-events-none">
+              <motion.div variants={itemVariants} className="flex flex-col items-center justify-center opacity-80 pointer-events-auto">
+                <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Scroll for Products</span>
+                <div 
+                  className="animate-float cursor-pointer mt-1"
+                  onClick={() => {
+                    document.getElementById('redirect')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <ChevronDown className="h-8 w-8 md:h-10 md:w-10 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors drop-shadow-md" />
+                </div>
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

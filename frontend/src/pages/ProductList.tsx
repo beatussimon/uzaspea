@@ -27,6 +27,7 @@ type GridEntry =
 // ================================================================
 const ProductList = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
   const selectedCategory = searchParams.get('category') || '';
@@ -49,12 +50,42 @@ const ProductList = () => {
     });
   };
 
-  const [products, setProducts] = useState<any[]>([]);
+  const initialParams = (() => {
+    const params: Record<string, string> = { page: '1', page_size: '12' };
+    const cat = selectedSubcategory || selectedCategory;
+    if (cat) params.category = cat;
+    if (minPrice) params.min_price = minPrice;
+    if (maxPrice) params.max_price = maxPrice;
+    if (condition) params.condition = condition;
+    if (sortBy) params.sort_by = sortBy;
+    if (urlQuery) params.q = urlQuery;
+    if (saved) params.saved = 'true';
+    if (savedTime) params.saved_time = savedTime;
+    return params;
+  })();
+
+  const initialProductsCacheKey = `products:${JSON.stringify(initialParams)}`;
+  const initialSponsoredCacheKey = `sponsored:${JSON.stringify({ ...initialParams, public: 'true' })}`;
+
+  const [products, setProducts] = useState<any[]>(() => {
+    const cached = apiCache.get(initialProductsCacheKey);
+    return cached && Array.isArray(cached.data.results) ? cached.data.results : [];
+  });
   const [categories, setCategories] = useState<any[]>([]);
-  const [sponsoredAds, setSponsoredAds] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [sponsoredAds, setSponsoredAds] = useState<any[]>(() => {
+    if (saved) return [];
+    const cached = apiCache.get(initialSponsoredCacheKey);
+    return cached && Array.isArray(cached.data.results) ? cached.data.results : [];
+  });
+  const [loading, setLoading] = useState(() => {
+    const cached = apiCache.get(initialProductsCacheKey);
+    return !cached;
+  });
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(() => {
+    const cached = apiCache.get(initialProductsCacheKey);
+    return cached ? !!cached.data.next : true;
+  });
   const [_page, setPage] = useState(1);
 
   const [gridCols, setGridCols] = useState(() => {
@@ -132,11 +163,27 @@ const ProductList = () => {
       const cacheKey = `products:${JSON.stringify(prms)}`;
       const cached = apiCache.get(cacheKey);
 
+      const sponsParams = { ...buildParams(1), public: 'true' };
+      const sponsCacheKey = `sponsored:${JSON.stringify(sponsParams)}`;
+      const cachedSpons = apiCache.get(sponsCacheKey);
+
       if (reset) {
         if (cached) {
           // Instant cache hit for initial load
           setProducts(Array.isArray(cached.data.results) ? cached.data.results : []);
           setHasMore(!!cached.data.next);
+          
+          if (cachedSpons) {
+             const sData = cachedSpons.data.results || cachedSpons.data || [];
+             setSponsoredAds(Array.isArray(sData) ? sData : []);
+          } else if (!saved) {
+             api.get('/api/sponsored/', { params: sponsParams }).then(res => {
+               apiCache.set(sponsCacheKey, res.data);
+               const sData = res.data.results || res.data || [];
+               setSponsoredAds(Array.isArray(sData) ? sData : []);
+             }).catch(() => {});
+          }
+
           setLoading(false);
           setPage(1);
         } else {
@@ -174,9 +221,12 @@ const ProductList = () => {
       if (reset) {
         Promise.all([
           api.get('/api/products/', { params: prms }).catch(() => ({ data: { results: [] } })),
-          saved ? Promise.resolve({ data: { results: [] } }) : api.get('/api/sponsored/', { params: { ...buildParams(1), public: 'true' } }).catch(() => ({ data: { results: [] } }))
+          saved ? Promise.resolve({ data: { results: [] } }) : api.get('/api/sponsored/', { params: sponsParams }).catch(() => ({ data: { results: [] } }))
         ]).then(([prodRes, sponsRes]) => {
           apiCache.set(cacheKey, prodRes.data); // Store to cache
+          if (!saved && sponsRes.data) {
+             apiCache.set(sponsCacheKey, sponsRes.data); // Store sponsored to cache
+          }
           
           const prodData = prodRes.data.results || prodRes.data || [];
           const sponsData = sponsRes.data.results || sponsRes.data || [];
@@ -248,6 +298,97 @@ const ProductList = () => {
     }
   }, [urlQuery]);
 
+  const [pullY, setPullY] = useState(0);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  // Overscroll to go back to Home
+  useEffect(() => {
+    let pullDistance = 0;
+    let startY = 0;
+    let isFlipping = false;
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      if (window.scrollY <= 0 && !isFlipping) {
+        startY = e.touches[0].clientY;
+        pullDistance = 0;
+      }
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (window.scrollY <= 0 && startY > 0 && !isFlipping) {
+        const y = e.touches[0].clientY;
+        const deltaY = y - startY;
+        if (deltaY > 0) {
+          // Add friction to the pull
+          pullDistance = deltaY * 0.4;
+          setPullY(pullDistance);
+          
+          if (pullDistance > 120) {
+            isFlipping = true;
+            setIsNavigating(true);
+            setPullY(window.innerHeight); // Swipe all the way down
+            setTimeout(() => navigate('/'), 300);
+          }
+        }
+      } else if (!isFlipping) {
+         setPullY(0);
+      }
+    };
+    
+    const handleTouchEnd = () => {
+      startY = 0;
+      if (!isFlipping) setPullY(0);
+    };
+    
+    const handleWheel = (e: WheelEvent) => {
+      if (window.scrollY <= 0 && e.deltaY < 0 && !isFlipping) {
+        pullDistance -= e.deltaY * 0.5;
+        setPullY(pullDistance);
+        
+        if (pullDistance > 150) { 
+          isFlipping = true;
+          setIsNavigating(true);
+          setPullY(window.innerHeight);
+          setTimeout(() => navigate('/'), 300);
+        }
+      } else if (!isFlipping && e.deltaY > 0) {
+        pullDistance = 0;
+        setPullY(0);
+      }
+    };
+
+    // Debounce resetting the wheel pull to allow smooth returning
+    let wheelTimeout: ReturnType<typeof setTimeout>;
+    const handleWheelEnd = () => {
+      clearTimeout(wheelTimeout);
+      wheelTimeout = setTimeout(() => {
+        if (!isFlipping) {
+           pullDistance = 0;
+           setPullY(0);
+        }
+      }, 150);
+    };
+
+    const handleWheelWrapper = (e: WheelEvent) => {
+      handleWheel(e);
+      handleWheelEnd();
+    }
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('wheel', handleWheelWrapper, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('wheel', handleWheelWrapper);
+      clearTimeout(wheelTimeout);
+    };
+  }, [navigate]);
+
+
   useEffect(() => {
     api.get('/api/categories/')
       .then((r: any) => setCategories(r.data.results || r.data))
@@ -282,7 +423,6 @@ const ProductList = () => {
   const subcategories = useMemo(() => activeParent?.children || [], [activeParent]);
 
   const [localSearch, setLocalSearch] = useState(urlQuery);
-  const navigate = useNavigate();
 
   useEffect(() => { setLocalSearch(urlQuery); }, [urlQuery]);
 
@@ -431,7 +571,15 @@ const ProductList = () => {
   const gridEntries = buildGridEntries(products, sponsoredAds);
 
   return (
-    <div id="browse" className="container-page pb-24 md:pb-8">
+    <div 
+      style={{ 
+        transform: `translateY(${pullY}px)`, 
+        transition: isNavigating ? 'transform 0.4s cubic-bezier(0.3, 0, 0.2, 1)' : pullY === 0 ? 'transform 0.2s ease' : 'none',
+        opacity: isNavigating ? 0 : 1 
+      }}
+      className="transition-opacity duration-300 bg-surface-muted dark:bg-surface-dark min-h-screen -mt-4 pt-4 md:-mt-6 md:pt-6"
+    >
+      <div id="browse" className="container-page pb-24 md:pb-8">
       {/* ===== Unified Search & Filter Section ===== */}
       <div className={(searchOpen || filtersOpen) ? "mb-6 space-y-4" : ""}>
 
@@ -795,6 +943,8 @@ const ProductList = () => {
           <div ref={sentinelRef} className="h-1" />
         </>
       )}
+
+      </div>
     </div>
   );
 };
