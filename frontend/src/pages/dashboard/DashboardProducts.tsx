@@ -14,6 +14,107 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { useLocation } from 'react-router-dom';
 
+// ─── Mobile detection (camera option only shown on touch devices) ─────────────
+const isMobile = () =>
+  typeof window !== 'undefined' &&
+  ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+// ─── Reusable image picker button ────────────────────────────────────────────
+interface ImagePickerButtonProps {
+  label?: string;
+  compact?: boolean;
+  multiple?: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+const ImagePickerButton: React.FC<ImagePickerButtonProps> = ({
+  label = 'Add Images',
+  compact = false,
+  multiple = false,
+  onChange,
+}) => {
+  const [open, setOpen] = React.useState(false);
+  const cameraRef = React.useRef<HTMLInputElement>(null);
+  const galleryRef = React.useRef<HTMLInputElement>(null);
+  const mobile = isMobile();
+
+  return (
+    <>
+      {mobile && (
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" multiple={multiple} onChange={onChange} className="hidden" />
+      )}
+      <input ref={galleryRef} type="file" accept="image/*" multiple={multiple} onChange={onChange} className="hidden" />
+
+      {/* trigger button */}
+      <button
+        type="button"
+        onClick={() => (mobile ? setOpen(true) : galleryRef.current?.click())}
+        className={
+          compact
+            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-brand-300 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10 text-brand-700 dark:text-brand-400 text-xs font-semibold hover:bg-brand-100 dark:hover:bg-brand-900/20 transition-colors'
+            : 'flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-brand-300 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10 text-brand-700 dark:text-brand-400 font-semibold text-sm hover:bg-brand-100 dark:hover:bg-brand-900/20 transition-colors w-full justify-center'
+        }
+      >
+        <svg className={compact ? 'w-3.5 h-3.5' : 'w-5 h-5'} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        {label}
+      </button>
+
+      {/* bottom-sheet picker — mobile only */}
+      {open && mobile && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setOpen(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div
+            className="relative w-full max-w-md mx-auto bg-white dark:bg-gray-900 rounded-t-3xl px-5 pt-4 pb-10 shadow-2xl animate-slide-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-5" />
+            <p className="text-center text-base font-bold text-gray-900 dark:text-white mb-5">{label}</p>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Camera */}
+              <button
+                type="button"
+                onClick={() => { setOpen(false); cameraRef.current?.click(); }}
+                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-brand-50 dark:hover:bg-brand-900/20 hover:border-brand-300 dark:hover:border-brand-700 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Use Camera</span>
+              </button>
+              {/* Gallery */}
+              <button
+                type="button"
+                onClick={() => { setOpen(false); galleryRef.current?.click(); }}
+                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-brand-50 dark:hover:bg-brand-900/20 hover:border-brand-300 dark:hover:border-brand-700 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Choose File</span>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="mt-4 w-full py-3 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+
 const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
   'electronics': ['Color', 'Storage Capacity'],
   'electronics-mobile-phones': ['Color', 'Storage Capacity', 'RAM'],
@@ -67,6 +168,7 @@ const DashboardProducts: React.FC = () => {
   const [deletedVariantIds, setDeletedVariantIds] = useState<number[]>([]);
   const location = useLocation();
   const [fulfillRequestId, setFulfillRequestId] = useState<number | null>(null);
+
 
   // Prefill from demand card conversion
   useEffect(() => {
@@ -856,7 +958,11 @@ const DashboardProducts: React.FC = () => {
                       )}
                       <div className="flex-1">
                         <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Variation Image (Optional)</label>
-                        <input type="file" accept="image/*" onChange={e => { const nv = [...newVariants]; nv[i].imageFile = e.target.files?.[0]; setNewVariants(nv); }} className="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 outline-none" />
+                        <ImagePickerButton
+                           label="Add Image"
+                           compact
+                           onChange={e => { const nv = [...newVariants]; nv[i].imageFile = e.target.files?.[0]; setNewVariants(nv); }}
+                         />
                       </div>
                     </div>
                   </div>
@@ -882,8 +988,11 @@ const DashboardProducts: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               {existingImages.length > 0 || imagePreviews.length > 0 ? 'Upload Additional Image' : 'Product Image'}
             </label>
-            <input type="file" accept="image/*" onChange={handleImageChange}
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/30 dark:file:text-brand-400 outline-none" />
+            <ImagePickerButton
+              label={existingImages.length > 0 || imagePreviews.length > 0 ? 'Upload Additional Image' : 'Add Images'}
+              multiple
+              onChange={handleImageChange}
+            />
             
             {imagePreviews.length > 0 && (
               <div className="mt-3 space-y-3">
