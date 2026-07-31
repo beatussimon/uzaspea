@@ -37,7 +37,7 @@ const TrendingMetricBadge = ({ product, metricType = 'auto' }: { product: any; m
   }
 
   return (
-    <div className="flex items-center gap-1 text-[8.5px] font-black bg-neutral-900/90 text-white backdrop-blur-md px-2 py-0.5 rounded-card border border-orange-500/40 shadow-md uppercase tracking-wider w-fit">
+    <div className="flex items-center gap-1 text-[8.5px] font-black bg-neutral-900 text-white px-2 py-0.5 rounded-card border border-orange-500/40 shadow-md uppercase tracking-wider w-fit">
       {icon}
       <span>{label}</span>
     </div>
@@ -233,7 +233,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
 
   if (viewMode === 'list') {
     return (
-      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-75 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-400/60 dark:ring-yellow-500/40' : ''}`}>
+      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-400/60 dark:ring-yellow-500/40' : ''}`}>
         <Link 
           to={`/product/${product.slug}`} 
           {...bgState} 
@@ -312,7 +312,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
   }
 
   return (
-    <div className={`group relative card overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover active:scale-95 transition-all duration-75`}>
+    <div className={`group relative card overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-400/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all`}>
       <Link 
         to={`/product/${product.slug}`} 
         {...bgState} 
@@ -328,16 +328,16 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
         <div className="absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent">
           {/* Badges row */}
           <div className="flex flex-wrap items-center gap-1">
-            <span className="text-brand-600 dark:text-brand-400 bg-brand-50/80 dark:bg-brand-900/30 backdrop-blur-md px-1.5 py-0.5 rounded-card text-[8.5px] uppercase font-bold tracking-wider whitespace-nowrap shrink-0 border border-brand-200/20 dark:border-brand-500/10 shadow-sm">{product.category_name}</span>
+            <span className="text-brand-600 dark:text-brand-400 bg-brand-50/95 dark:bg-brand-900/90 px-1.5 py-0.5 rounded-card text-[8.5px] uppercase font-bold tracking-wider whitespace-nowrap shrink-0 border border-brand-200/50 dark:border-brand-500/30 shadow-sm">{product.category_name}</span>
             <div className="flex flex-wrap items-center gap-1">
               {product.is_verified && (
-                 <div className="flex items-center gap-0.5 text-[7.5px] text-brand-600 dark:text-brand-400 font-black bg-brand-50/80 dark:bg-brand-900/30 backdrop-blur-md px-1.5 py-0.5 rounded-card border border-brand-100/20 dark:border-brand-800/10 whitespace-nowrap shrink-0 shadow-sm" title={t('verified_seller', 'Verified Seller')}>
+                 <div className="flex items-center gap-0.5 text-[7.5px] text-brand-600 dark:text-brand-400 font-black bg-brand-50/95 dark:bg-brand-900/90 px-1.5 py-0.5 rounded-card border border-brand-100/50 dark:border-brand-800/30 whitespace-nowrap shrink-0 shadow-sm" title={t('verified_seller', 'Verified Seller')}>
                    <Shield size={8} className="fill-current" />
                    <span className="uppercase tracking-widest text-[7.5px]">{t('verified', 'Verified')}</span>
                  </div>
               )}
               {product.has_inspection && (
-                 <div className="flex items-center gap-0.5 text-[7.5px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50/80 dark:bg-emerald-900/30 backdrop-blur-md px-1.5 py-0.5 rounded-card border border-emerald-100/20 dark:border-emerald-800/10 whitespace-nowrap shrink-0 shadow-sm" title={t('professionally_inspected', 'Professionally Inspected')}>
+                 <div className="flex items-center gap-0.5 text-[7.5px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50/95 dark:bg-emerald-900/90 px-1.5 py-0.5 rounded-card border border-emerald-100/50 dark:border-emerald-800/30 whitespace-nowrap shrink-0 shadow-sm" title={t('professionally_inspected', 'Professionally Inspected')}>
                    <Shield size={8} />
                    <span className="uppercase tracking-widest text-[7.5px]">{t('inspected_label', 'Inspected ✓')}</span>
                  </div>
@@ -346,12 +346,12 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
           </div>
 
           {/* Product Name Bubble */}
-          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/70 dark:bg-[#0A0A0A]/70 backdrop-blur-md border border-white/20 dark:border-white/5 shadow-sm">
+          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm">
             <h3 className="font-bold text-xs text-gray-900 dark:text-white line-clamp-1 transition-colors">{product.name}</h3>
           </div>
           
           {/* Price Bubble */}
-          <div className="w-fit px-2 py-0.5 rounded-card bg-white/70 dark:bg-[#0A0A0A]/70 backdrop-blur-md border border-white/20 dark:border-white/5 shadow-sm flex items-baseline gap-1.5">
+          <div className="w-fit px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm flex items-baseline gap-1.5">
             {product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) && (
               <span className="text-[10px] text-gray-400 line-through font-medium">TSh {parseInt(product.price).toLocaleString()}</span>
             )}
@@ -363,14 +363,14 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
           {/* Seller Info Bubbles */}
           <div className="flex items-center gap-1 w-full overflow-x-auto no-scrollbar">
             {/* Seller Username Bubble */}
-            <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/90 dark:bg-black/95 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
+            <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
               <span className="truncate">{product.seller_username || 'Seller'}</span>
               <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3 shrink-0" />
             </div>
 
             {/* Location Bubble */}
             {product.location_name && (
-              <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/90 dark:bg-black/95 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
+              <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
                 <MapPin size={8} strokeWidth={2.5} className="shrink-0 text-brand-500 dark:text-brand-400" />
                 <span className="truncate max-w-[42px]">{product.location_name}</span>
               </div>
@@ -378,14 +378,14 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
 
             {/* Time Bubble */}
             {product.created_at && (
-              <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/90 dark:bg-black/95 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
+              <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
                 <Clock size={8} strokeWidth={2.5} className="shrink-0 text-gray-500 dark:text-gray-400" />
                 <span className="whitespace-nowrap">{timeAgo(product.created_at)}</span>
               </div>
             )}
 
             {/* Rating Bubble */}
-            <div className="flex gap-0.5 items-center shrink-0 bg-white/90 dark:bg-black/95 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm text-gray-800 dark:text-gray-200 font-bold text-[8.5px]">
+            <div className="flex gap-0.5 items-center shrink-0 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm text-gray-800 dark:text-gray-200 font-bold text-[8.5px]">
               <Star size={8} strokeWidth={2.5} className={product.avg_rating > 0 ? "fill-yellow-400 text-yellow-400 shrink-0" : "text-gray-500 dark:text-gray-400 shrink-0"} />
               <span>{product.avg_rating > 0 ? product.avg_rating : '0.0'}</span>
             </div>
@@ -395,7 +395,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
 
       {/* Top overlay: Like */}
       <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
-        <button onClick={handleLike} className={`h-8 px-2.5 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md flex items-center justify-center gap-1.5 shadow-md transition-colors ${liked ? 'bg-red-50 dark:bg-red-900/40 text-red-500 border border-red-200 dark:border-red-800/50' : 'hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-500 border border-transparent'}`} title="Like">
+        <button onClick={handleLike} className={`h-8 px-2.5 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center gap-1.5 shadow-md transition-colors ${liked ? 'bg-red-50 dark:bg-red-900/40 text-red-500 border border-red-200 dark:border-red-800/50' : 'hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-500 border border-transparent'}`} title="Like">
           <Heart size={14} className={liked ? 'fill-current' : ''} />
           <span className="text-[10px] font-bold">{likeCount}</span>
         </button>

@@ -233,11 +233,8 @@ const DashboardProducts: React.FC = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-      setImageFiles(files);
+      setImageFiles(prev => [...prev, ...files]);
       
-      // Revoke previous URLs to avoid memory leaks
-      imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
-
       const newPreviews = files.map(file => {
         const url = URL.createObjectURL(file);
         const previewItem = { url, file, aspectStatus: 'Checking...' };
@@ -259,7 +256,8 @@ const DashboardProducts: React.FC = () => {
         return previewItem;
       });
 
-      setImagePreviews(newPreviews);
+      setImagePreviews(prev => [...prev, ...newPreviews]);
+      e.target.value = '';
     }
   };
 
@@ -500,9 +498,9 @@ const DashboardProducts: React.FC = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t('my_products', 'My Products')}</h2>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Button
             onClick={() => setShowBatchModal(true)}
             variant="outline"
@@ -882,10 +880,10 @@ const DashboardProducts: React.FC = () => {
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {existingImages.length > 0 ? 'Upload Additional Images' : 'Product Images (multiple)'}
+              {existingImages.length > 0 || imagePreviews.length > 0 ? 'Upload Additional Image' : 'Product Image'}
             </label>
-            <input type="file" multiple accept="image/*" onChange={handleImageChange}
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100" />
+            <input type="file" accept="image/*" onChange={handleImageChange}
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 dark:file:bg-brand-900/30 dark:file:text-brand-400 outline-none" />
             
             {imagePreviews.length > 0 && (
               <div className="mt-3 space-y-3">

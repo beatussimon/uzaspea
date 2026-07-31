@@ -496,7 +496,7 @@ const ProductDetailPage: React.FC = () => {
           className="relative z-10 w-full flex-1 flex items-center justify-center p-3 sm:p-6 pb-16 sm:pb-20 lg:pb-20 cursor-zoom-in overflow-hidden"
           onClick={() => setLightboxOpen(true)}
         >
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={selectedImage}
               initial={{ opacity: 0, scale: 0.97 }}
@@ -919,8 +919,6 @@ const ProductDetailPage: React.FC = () => {
             <ProductTabs 
               productId={product.id} 
               sellerUsername={product.seller_username} 
-              canReview={product.can_review}
-              productObj={product}
             />
           </div>
         </div>

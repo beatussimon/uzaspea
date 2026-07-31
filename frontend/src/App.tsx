@@ -25,13 +25,13 @@ import CategoryBar from './components/layout/CategoryBar';
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
 
-// Lazy load large layout bundles for bundle size optimization
-const ProductList = lazy(() => import('./pages/ProductList'));
-const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'));
+import ProductList from './pages/ProductList';
+import ProductDetailPage from './pages/ProductDetailPage';
 
 // Export preload functions for instant navigation on hover
-export const preloadProductDetail = () => import('./pages/ProductDetailPage');
-export const preloadProductList = () => import('./pages/ProductList');
+export const preloadProductDetail = () => Promise.resolve();
+// preloadProductList is no longer needed since it's eagerly loaded
+export const preloadProductList = () => Promise.resolve();
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const TeamsPage = lazy(() => import('./pages/TeamsPage'));
@@ -139,7 +139,7 @@ function AppLayout() {
   useStatusBar();
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${isLandingPage ? 'bg-black' : 'bg-surface-muted dark:bg-surface-dark'} flex flex-col`}>
+    <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300">
       <Navbar />
       {!isLandingPage && <div className="h-14 md:h-20 pt-safe print-hide" />} {/* Spacer matching navbar height, hidden on landing */}
       

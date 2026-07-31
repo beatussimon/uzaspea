@@ -44,7 +44,7 @@ ssh -o StrictHostKeyChecking=no -i $DATA_SSH_KEY ubuntu@$DATA_INSTANCE << 'EOF'
   git reset --hard origin/master
   
   # Inject production environment variables for the Data Node
-  cat <<ENV_EOF > .env
+  cat <<ENV_EOF > backend/.env
 DATABASE_URL=postgres://postgres:local_password@db:5432/uzaspea
 DB_NAME=uzaspea
 DB_USER=postgres

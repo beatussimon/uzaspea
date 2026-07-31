@@ -49,10 +49,22 @@ const LandingPage = () => {
     // Pre-warm the cache for the products list page so navigation is instant
     const productsParams = { page: '1', page_size: '12' };
     const productsCacheKey = `products:${JSON.stringify(productsParams)}`;
+    
+    const sponsParams = { ...productsParams, public: 'true' };
+    const sponsCacheKey = `sponsored:${JSON.stringify(sponsParams)}`;
+
     if (!apiCache.get(productsCacheKey)) {
       api.get('/api/products/', { params: productsParams })
         .then(res => {
           apiCache.set(productsCacheKey, res.data);
+        })
+        .catch(() => {});
+    }
+
+    if (!apiCache.get(sponsCacheKey)) {
+      api.get('/api/sponsored/', { params: sponsParams })
+        .then(res => {
+          apiCache.set(sponsCacheKey, res.data);
         })
         .catch(() => {});
     }
