@@ -140,8 +140,10 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const res = await api.get('/api/conversations/');
       const list = res.data.results || res.data || [];
       setConversations(list);
-    } catch (e) {
-      console.error('Failed to load conversations:', e);
+    } catch (e: any) {
+      if (e?.response?.status !== 401) {
+        console.error('Failed to load conversations:', e);
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -159,8 +161,11 @@ const urlB64ToUint8Array = (base64String: string) => {
   return outputArray;
 };
 
+let pushSubscribeInFlight = false;
 const subscribeToWebPush = async () => {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (pushSubscribeInFlight) return;
+  pushSubscribeInFlight = true;
   try {
     const registration = await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
@@ -185,8 +190,13 @@ const subscribeToWebPush = async () => {
         keys: subJSON.keys
       });
     }
-  } catch (error) {
-    console.error('Failed to subscribe to web push:', error);
+  } catch (error: any) {
+    // 500 can occur in dev (React Strict Mode double-invoke race) — not an actual error
+    if (error?.response?.status !== 500) {
+      console.error('Failed to subscribe to web push:', error);
+    }
+  } finally {
+    pushSubscribeInFlight = false;
   }
 };
 

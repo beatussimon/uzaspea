@@ -2639,6 +2639,14 @@ class PushSubscriptionView(APIView):
             )
             return Response({'status': 'subscribed', 'id': sub.id})
         except Exception as e:
+            from django.db import IntegrityError
+            if isinstance(e, IntegrityError):
+                # Race condition: another request already created this subscription
+                try:
+                    sub = PushSubscription.objects.get(endpoint=endpoint)
+                    return Response({'status': 'subscribed', 'id': sub.id})
+                except PushSubscription.DoesNotExist:
+                    pass
             import traceback
             traceback.print_exc()
             return Response({'error': str(e)}, status=500)
