@@ -483,12 +483,16 @@ const ProductDetailPage: React.FC = () => {
 
         {/* 2. AMBIENT BLURRED BACKGROUND FILL */}
         {currentImageSrc && (
-          <img
-            src={currentImageSrc}
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover filter blur-3xl opacity-40 scale-125 select-none pointer-events-none"
-          />
+          <>
+            <img
+              src={currentImageSrc}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover filter blur-[50px] opacity-100 scale-110 select-none pointer-events-none"
+            />
+            {/* Subtle dark overlay for contrast so the main image pops and UI controls are visible */}
+            <div className="absolute inset-0 bg-black/30 pointer-events-none"></div>
+          </>
         )}
 
         {/* 3. MAIN CRISP IMAGE (Constrained above thumbnail strip to prevent overlap) */}
