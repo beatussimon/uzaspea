@@ -450,7 +450,7 @@ const ProductDetailPage: React.FC = () => {
       )}
 
       {/* LEFT SIDE: Media Stage (Full width on mobile, 100vh on desktop) */}
-      <div className="relative w-full lg:w-[58%] xl:w-[62%] h-[52vh] min-h-[340px] sm:h-[56vh] lg:h-full bg-neutral-950 overflow-hidden flex flex-col items-center justify-between select-none group/stage shrink-0">
+      <div className="relative w-full lg:w-[58%] xl:w-[62%] h-[70vh] min-h-[400px] sm:h-[75vh] lg:h-full bg-neutral-950 overflow-hidden flex flex-col items-center justify-between select-none group/stage shrink-0">
         
         {/* 1. TOP-LEFT OVERLAY: Close (X) + OKO Logo */}
         <div className="absolute top-3.5 left-3.5 z-40 flex items-center gap-3">
@@ -497,7 +497,7 @@ const ProductDetailPage: React.FC = () => {
 
         {/* 3. MAIN CRISP IMAGE (Constrained above thumbnail strip to prevent overlap) */}
         <div 
-          className="relative z-10 w-full flex-1 flex items-center justify-center p-3 sm:p-6 pb-16 sm:pb-20 lg:pb-20 cursor-zoom-in overflow-hidden"
+          className="relative z-10 w-full flex-1 flex items-center justify-center p-1 sm:p-2 pb-14 sm:pb-16 lg:pb-16 cursor-zoom-in overflow-hidden"
           onClick={() => setLightboxOpen(true)}
         >
           <AnimatePresence mode="wait" initial={false}>
@@ -514,7 +514,7 @@ const ProductDetailPage: React.FC = () => {
                   src={currentImageSrc}
                   alt={product.name}
                   category={product.category_name}
-                  className="max-w-full max-h-[34vh] sm:max-h-[40vh] lg:max-h-[72vh] object-contain drop-shadow-2xl transition-transform duration-300"
+                  className="max-w-full max-h-[60vh] sm:max-h-[65vh] lg:max-h-[85vh] object-contain drop-shadow-2xl transition-transform duration-300"
                   containMode="contain"
                   loading="eager"
                 />
