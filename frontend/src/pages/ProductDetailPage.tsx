@@ -182,17 +182,17 @@ const ImageLightbox = ({
         )}
       </div>
 
-      {/* Thumbnails strip at bottom */}
+      {/* Thumbnails strip at bottom - small and compact */}
       {images.length > 1 && (
         <div 
-          className="h-24 md:h-32 bg-black/80 border-t border-white/10 flex items-center justify-start md:justify-center gap-2 p-4 overflow-x-auto no-scrollbar w-full"
+          className="h-14 bg-black/60 border-t border-white/10 flex items-center justify-center gap-1.5 px-3 overflow-x-auto no-scrollbar w-full"
           onClick={(e) => e.stopPropagation()}
         >
           {images.map((img, i) => (
             <button
               key={i}
               onClick={() => scrollToIndex(i)}
-              className={`relative h-full aspect-[4/3] shrink-0 overflow-hidden rounded-none border-0 ring-0 transition-all ${
+              className={`relative shrink-0 w-12 h-9 overflow-hidden rounded-sm border-0 ring-0 transition-all ${
                 currentIndex === i 
                   ? 'opacity-100 scale-105' 
                   : 'opacity-50 hover:opacity-90 scale-100'
@@ -497,7 +497,7 @@ const ProductDetailPage: React.FC = () => {
 
         {/* 3. MAIN CRISP IMAGE (Constrained above thumbnail strip to prevent overlap) */}
         <div 
-          className="relative z-10 w-full flex-1 flex items-center justify-center p-1 sm:p-2 pb-14 sm:pb-16 lg:pb-16 cursor-zoom-in overflow-hidden"
+          className="relative z-10 w-full flex-1 flex items-center justify-center p-1 sm:p-2 pb-14 sm:pb-16 lg:pb-2 cursor-zoom-in overflow-hidden"
           onClick={() => setLightboxOpen(true)}
         >
           <AnimatePresence mode="wait" initial={false}>
@@ -559,15 +559,15 @@ const ProductDetailPage: React.FC = () => {
           </button>
         )}
 
-        {/* 7. BARE FLOATING THUMBNAILS AT BOTTOM (Positioned cleanly below image area, never overlapping) */}
+        {/* 7. BARE FLOATING THUMBNAILS AT BOTTOM - hidden on desktop, small on mobile */}
         {images.length > 1 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 max-w-[95%] overflow-x-auto no-scrollbar px-1 py-0.5">
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 max-w-[90%] overflow-x-auto no-scrollbar px-1 py-0.5 lg:hidden">
             {images.map((img, idx) => (
               <button
                 key={img.id}
                 onMouseEnter={() => setSelectedImage(idx)}
                 onClick={() => setSelectedImage(idx)}
-                className={`relative shrink-0 w-12 h-9 sm:w-14 sm:h-10 md:w-16 md:h-12 overflow-hidden border-0 ring-0 rounded-none transition-all cursor-pointer ${
+                className={`relative shrink-0 w-10 h-7 sm:w-11 sm:h-8 overflow-hidden border-0 ring-0 rounded-sm transition-all cursor-pointer ${
                   idx === selectedImage
                     ? 'opacity-100 scale-105 shadow-2xl'
                     : 'opacity-50 hover:opacity-90 scale-100'
