@@ -450,7 +450,7 @@ const ProductDetailPage: React.FC = () => {
       )}
 
       {/* LEFT SIDE: Media Stage (Full width on mobile, 100vh on desktop) */}
-      <div className="relative w-full lg:w-[58%] xl:w-[62%] h-[70vh] min-h-[400px] sm:h-[75vh] lg:h-full bg-neutral-950 overflow-hidden flex flex-col items-center justify-between select-none group/stage shrink-0">
+      <div className="relative w-full lg:w-[58%] xl:w-[62%] h-[80vh] sm:h-[85vh] lg:h-full bg-neutral-950 overflow-hidden flex flex-col items-center justify-center select-none group/stage shrink-0">
         
         {/* 1. TOP-LEFT OVERLAY: Close (X) + OKO Logo */}
         <div className="absolute top-3.5 left-3.5 z-40 flex items-center gap-3">
@@ -495,10 +495,29 @@ const ProductDetailPage: React.FC = () => {
           </>
         )}
 
-        {/* 3. MAIN CRISP IMAGE (Constrained above thumbnail strip to prevent overlap) */}
+        {/* 3. MAIN CRISP IMAGE — fills entire stage, swipe to navigate */}
         <div 
-          className="relative z-10 w-full flex-1 flex items-center justify-center p-1 sm:p-2 pb-14 sm:pb-16 lg:pb-2 cursor-zoom-in overflow-hidden"
+          className="relative z-10 w-full h-full flex items-center justify-center cursor-zoom-in overflow-hidden"
           onClick={() => setLightboxOpen(true)}
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            (e.currentTarget as any)._touchStartX = touch.clientX;
+            (e.currentTarget as any)._touchStartY = touch.clientY;
+          }}
+          onTouchEnd={(e) => {
+            const startX = (e.currentTarget as any)._touchStartX;
+            const startY = (e.currentTarget as any)._touchStartY;
+            if (startX == null) return;
+            const touch = e.changedTouches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+            // Only swipe if horizontal movement > vertical and > 50px threshold
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50 && images.length > 1) {
+              e.preventDefault();
+              if (dx < 0) setSelectedImage(prev => (prev < images.length - 1 ? prev + 1 : 0));
+              else setSelectedImage(prev => (prev > 0 ? prev - 1 : images.length - 1));
+            }
+          }}
         >
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -514,7 +533,7 @@ const ProductDetailPage: React.FC = () => {
                   src={currentImageSrc}
                   alt={product.name}
                   category={product.category_name}
-                  className="max-w-full max-h-[60vh] sm:max-h-[65vh] lg:max-h-[85vh] object-contain drop-shadow-2xl transition-transform duration-300"
+                  className="max-w-full max-h-full object-contain drop-shadow-2xl transition-transform duration-300"
                   containMode="contain"
                   loading="eager"
                 />
@@ -559,22 +578,20 @@ const ProductDetailPage: React.FC = () => {
           </button>
         )}
 
-        {/* 7. BARE FLOATING THUMBNAILS AT BOTTOM - hidden on desktop, small on mobile */}
+        {/* 7. MINIMAL DOT INDICATORS — replaces bulky thumbnail strip */}
         {images.length > 1 && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 max-w-[90%] overflow-x-auto no-scrollbar px-1 py-0.5 lg:hidden">
-            {images.map((img, idx) => (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5">
+            {images.map((_, idx) => (
               <button
-                key={img.id}
-                onMouseEnter={() => setSelectedImage(idx)}
-                onClick={() => setSelectedImage(idx)}
-                className={`relative shrink-0 w-10 h-7 sm:w-11 sm:h-8 overflow-hidden border-0 ring-0 rounded-sm transition-all cursor-pointer ${
+                key={idx}
+                onClick={(e) => { e.stopPropagation(); setSelectedImage(idx); }}
+                className={`rounded-full transition-all cursor-pointer ${
                   idx === selectedImage
-                    ? 'opacity-100 scale-105 shadow-2xl'
-                    : 'opacity-50 hover:opacity-90 scale-100'
+                    ? 'w-2.5 h-2.5 bg-white shadow-lg'
+                    : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80'
                 }`}
-              >
-                <SafeImage src={img.image} alt="" category={product.category_name} className="w-full h-full object-cover" />
-              </button>
+                aria-label={`Image ${idx + 1}`}
+              />
             ))}
           </div>
         )}
