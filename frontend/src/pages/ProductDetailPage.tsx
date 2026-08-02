@@ -449,11 +449,11 @@ const ProductDetailPage: React.FC = () => {
         />
       )}
 
-      {/* LEFT SIDE: Media Stage (Full width on mobile, 100vh on desktop) */}
-      <div className="relative w-full lg:w-[58%] xl:w-[62%] h-[80vh] sm:h-[85vh] lg:h-full bg-neutral-950 overflow-hidden flex flex-col items-center justify-center select-none group/stage shrink-0">
+      {/* LEFT SIDE: Media Stage (Square on mobile, 100vh on desktop) */}
+      <div className="relative w-full aspect-square lg:aspect-auto lg:w-[58%] xl:w-[62%] lg:h-full bg-neutral-950 overflow-hidden flex flex-col items-center justify-center select-none group/stage shrink-0">
         
         {/* 1. TOP-LEFT OVERLAY: Close (X) + OKO Logo */}
-        <div className="absolute top-3.5 left-3.5 z-40 flex items-center gap-3">
+        <div className="absolute top-3.5 left-3.5 z-40 flex items-center gap-3 bg-black/40 backdrop-blur-md px-2 py-1.5 rounded-2xl shadow-lg border border-white/10">
           {/* Bare X close button */}
           <button
             onPointerDown={(e) => {
@@ -464,20 +464,20 @@ const ProductDetailPage: React.FC = () => {
                 navigate('/products');
               }
             }}
-            className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-white/90 hover:text-white hover:bg-black/50 rounded-full transition-all active:scale-95 cursor-pointer drop-shadow-lg"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded-full transition-all active:scale-95 cursor-pointer"
             title="Close"
             aria-label="Close product view"
           >
-            <X size={22} />
+            <X size={20} />
           </button>
 
           {/* Bare OKO Logo */}
           <button
             onClick={() => navigate('/')}
-            className="h-8 sm:h-9 flex items-center justify-center transition-all active:scale-95 cursor-pointer drop-shadow-lg"
+            className="h-7 sm:h-8 flex items-center justify-center transition-all active:scale-95 cursor-pointer pr-1"
             title="Go to Homepage"
           >
-            <img src="/logo.png" alt="OKO" className="h-full w-auto object-contain" />
+            <img src="/logo.png" alt="OKO" className="h-full w-auto object-contain drop-shadow-md" />
           </button>
         </div>
 
@@ -578,9 +578,9 @@ const ProductDetailPage: React.FC = () => {
           </button>
         )}
 
-        {/* 7. MINIMAL DOT INDICATORS — replaces bulky thumbnail strip */}
+        {/* 7. MINIMAL DOT INDICATORS — hidden on mobile per user request */}
         {images.length > 1 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5">
+          <div className="hidden sm:flex absolute bottom-3 left-1/2 -translate-x-1/2 z-40 items-center gap-1.5">
             {images.map((_, idx) => (
               <button
                 key={idx}

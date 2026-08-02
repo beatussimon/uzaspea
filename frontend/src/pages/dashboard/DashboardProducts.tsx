@@ -393,113 +393,7 @@ const DashboardProducts: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
 
-    try {
-      const formData = new FormData();
-      formData.append('name', form.name);
-      if (form.sku) formData.append('sku', form.sku);
-      formData.append('description', form.description);
-      formData.append('price', form.price);
-      if (form.buying_price) formData.append('buying_price', form.buying_price);
-      if (form.sale_price) formData.append('sale_price', form.sale_price);
-      formData.append('stock', form.stock);
-      formData.append('category', form.category);
-      formData.append('condition', form.condition);
-      formData.append('is_available', String(form.is_available));
-      formData.append('requires_quote', String(form.requires_quote));
-      formData.append('unit_of_measure', form.unit_of_measure);
-      formData.append('minimum_order_quantity', form.minimum_order_quantity);
-      if (fulfillRequestId) {
-        formData.append('fulfill_request_id', String(fulfillRequestId));
-      }
-      if (priceTiers.length > 0) {
-        formData.append('price_tiers', JSON.stringify(priceTiers));
-      }
-      if (locData.latitude) formData.append('latitude', locData.latitude);
-      if (locData.longitude) formData.append('longitude', locData.longitude);
-      if (locData.location_name) formData.append('location_name', locData.location_name);
-
-      imageFiles.forEach((file) => {
-        formData.append('uploaded_images', file);
-      });
-
-      let baseProductId = null;
-      if (editingId) {
-        await api.put(`/api/products/${editingId}/`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        toast.success('Product updated!');
-        baseProductId = editingProductId;
-      } else {
-        const res = await api.post('/api/products/', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        toast.success('Product created!');
-        baseProductId = res.data.id;
-        setFulfillRequestId(null);
-      }
-
-      if (newVariants.length > 0 && baseProductId) {
-        for (const nv of newVariants) {
-          const parts = variationColumns.map(col => nv.fields?.[col]).filter(Boolean);
-          if (parts.length === 0) continue;
-          const finalName = parts.join(' / ');
-          const finalAdjustment = nv.price_adj_sign === '-' ? `-${nv.price_adjustment || '0'}` : (nv.price_adjustment || '0');
-          const vData = new FormData();
-          vData.append('product', String(baseProductId));
-          vData.append('name', finalName);
-          vData.append('price_adjustment', finalAdjustment);
-          vData.append('stock', nv.stock || '0');
-          vData.append('is_available', 'true');
-          if (nv.imageFile) {
-            vData.append('image', nv.imageFile);
-          }
-          try {
-            if (nv.id) {
-              await api.put(`/api/variants/${nv.id}/`, vData, { headers: { 'Content-Type': 'multipart/form-data' } });
-            } else {
-              await api.post('/api/variants/', vData, { headers: { 'Content-Type': 'multipart/form-data' } });
-            }
-          } catch (err) {
-            console.error('Variant save failed:', err);
-          }
-        }
-        toast.success('Variations saved!');
-      }
-
-      if (deletedVariantIds.length > 0) {
-        for (const id of deletedVariantIds) {
-          try {
-            const vData = new FormData();
-            vData.append('is_available', 'false');
-            vData.append('stock', '0');
-            await api.patch(`/api/variants/${id}/`, vData);
-          } catch (e) {
-            console.error('Failed to soft delete variant', e);
-          }
-        }
-      }
-
-      setShowForm(false);
-      setEditingId(null);
-      setEditingProductId(null);
-      setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
-      imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
-      setImagePreviews([]);
-      setImageFiles([]);
-      setExistingImages([]);
-      setNewVariants([]);
-      setDeletedVariantIds([]);
-      fetchProducts(1, true);
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to save product');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleEdit = async (product: any) => {
     setForm({
@@ -708,367 +602,430 @@ const DashboardProducts: React.FC = () => {
         </div>
       )}
 
-      {/* Product Form */}
-      {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-6 mb-6 shadow-sm space-y-4">
-          <h3 className="font-bold text-gray-900 dark:text-white flex items-center justify-between">
-            <span>{editingId ? 'Edit Product' : 'Create Product'}</span>
-            {!editingId && (
-              <span className="text-xs text-brand-600 dark:text-brand-400 font-normal bg-brand-50 dark:bg-brand-900/30 px-2 py-1 rounded-full">{locStatus}</span>
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* PRODUCT FORM — MULTI-STEP WIZARD                         */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {showForm && (() => {
+        const [wizardStep, setWizardStep] = React.useState(1);
+        const [uploadProgress, setUploadProgress] = React.useState<number | null>(null);
+        const [uploadStatus, setUploadStatus] = React.useState('');
+        const [showAdvanced, setShowAdvanced] = React.useState(false);
+        const [dragOver, setDragOver] = React.useState(false);
+        const dropRef = React.useRef<HTMLDivElement>(null);
+
+        const canProceedStep1 = imagePreviews.length > 0 || existingImages.length > 0 || !!editingId;
+        const canSubmit = form.name && form.price && form.stock && form.category && form.description;
+
+        // XHR submit with real progress
+        const handleSubmitWithProgress = async (e: React.FormEvent) => {
+          e.preventDefault();
+          if (!canSubmit) { toast.error('Please fill in all required fields'); return; }
+          setSubmitting(true);
+          setUploadProgress(0);
+          setUploadStatus('Preparing upload...');
+          try {
+            const fd = new FormData();
+            fd.append('name', form.name);
+            if (form.sku) fd.append('sku', form.sku);
+            fd.append('description', form.description);
+            fd.append('price', form.price);
+            if (form.buying_price) fd.append('buying_price', form.buying_price);
+            if (form.sale_price) fd.append('sale_price', form.sale_price);
+            fd.append('stock', form.stock);
+            fd.append('category', form.category);
+            fd.append('condition', form.condition);
+            fd.append('is_available', String(form.is_available));
+            fd.append('requires_quote', String(form.requires_quote));
+            fd.append('unit_of_measure', form.unit_of_measure);
+            fd.append('minimum_order_quantity', form.minimum_order_quantity);
+            if (fulfillRequestId) fd.append('fulfill_request_id', String(fulfillRequestId));
+            if (priceTiers.length > 0) fd.append('price_tiers', JSON.stringify(priceTiers));
+            if (locData.latitude) fd.append('latitude', locData.latitude);
+            if (locData.longitude) fd.append('longitude', locData.longitude);
+            if (locData.location_name) fd.append('location_name', locData.location_name);
+            imageFiles.forEach((file) => fd.append('uploaded_images', file));
+
+            const token = localStorage.getItem('access_token');
+            const url = editingId ? `/api/products/${editingId}/` : '/api/products/';
+            const method = editingId ? 'PUT' : 'POST';
+
+            const result: any = await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open(method, url);
+              if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+              xhr.upload.onprogress = (ev) => {
+                if (ev.lengthComputable) {
+                  const pct = Math.round((ev.loaded / ev.total) * 100);
+                  setUploadProgress(pct);
+                  setUploadStatus(pct < 50 ? 'Uploading photos...' : pct < 90 ? 'Almost there...' : 'Processing...');
+                }
+              };
+              xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); }
+                } else {
+                  try { reject(JSON.parse(xhr.responseText)); } catch { reject({ detail: 'Upload failed' }); }
+                }
+              };
+              xhr.onerror = () => reject({ detail: 'Network error' });
+              xhr.send(fd);
+            });
+
+            setUploadProgress(100);
+            setUploadStatus('Done!');
+            const baseProductId = editingId ? editingProductId : result.id;
+            toast.success(editingId ? 'Product updated!' : 'Product created!');
+
+            if (newVariants.length > 0 && baseProductId) {
+              for (const nv of newVariants) {
+                const parts = variationColumns.map(col => nv.fields?.[col]).filter(Boolean);
+                if (parts.length === 0) continue;
+                const vData = new FormData();
+                vData.append('product', String(baseProductId));
+                vData.append('name', parts.join(' / '));
+                vData.append('price_adjustment', nv.price_adj_sign === '-' ? `-${nv.price_adjustment || '0'}` : (nv.price_adjustment || '0'));
+                vData.append('stock', nv.stock || '0');
+                vData.append('is_available', 'true');
+                if (nv.imageFile) vData.append('image', nv.imageFile);
+                try {
+                  if (nv.id) await api.put(`/api/variants/${nv.id}/`, vData, { headers: { 'Content-Type': 'multipart/form-data' } });
+                  else await api.post('/api/variants/', vData, { headers: { 'Content-Type': 'multipart/form-data' } });
+                } catch {}
+              }
+            }
+            if (deletedVariantIds.length > 0) {
+              for (const id of deletedVariantIds) {
+                try { await api.patch(`/api/variants/${id}/`, { is_available: false, stock: 0 }); } catch {}
+              }
+            }
+
+            setShowForm(false); setEditingId(null); setEditingProductId(null); setFulfillRequestId(null);
+            setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+            imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
+            setImagePreviews([]); setImageFiles([]); setExistingImages([]); setNewVariants([]); setDeletedVariantIds([]); setPriceTiers([]);
+            fetchProducts(1, true);
+          } catch (error: any) {
+            toast.error(error?.detail || 'Failed to save product');
+          } finally {
+            setSubmitting(false); setUploadProgress(null); setUploadStatus('');
+          }
+        };
+
+        const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragOver(true); };
+        const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setDragOver(false); };
+        const handleDrop = (e: React.DragEvent) => {
+          e.preventDefault(); setDragOver(false);
+          const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+          if (!files.length) return;
+          setImageFiles(prev => [...prev, ...files]);
+          const newPreviews = files.map(file => {
+            const url = URL.createObjectURL(file);
+            const item = { url, file, aspectStatus: 'Checking...' };
+            const img = new Image(); img.onload = () => {
+              const r = img.naturalWidth / img.naturalHeight;
+              setImagePreviews(prev => prev.map(p => p.url === url ? { ...p, aspectStatus: r >= 0.85 && r <= 1.15 ? 'Perfect' : r < 0.85 ? 'Vertical' : 'Good' } : p));
+            }; img.src = url;
+            return item;
+          });
+          setImagePreviews(prev => [...prev, ...newPreviews]);
+        };
+
+        const cancelForm = () => {
+          setShowForm(false); setEditingId(null); setEditingProductId(null);
+          setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+          imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
+          setImagePreviews([]); setImageFiles([]); setExistingImages([]); setNewVariants([]); setDeletedVariantIds([]);
+        };
+
+        return (
+          <form onSubmit={handleSubmitWithProgress} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-6 shadow-lg overflow-hidden">
+
+            {/* ─── UPLOAD PROGRESS OVERLAY ─── */}
+            {submitting && uploadProgress !== null && (
+              <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center space-y-5">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-brand-50 dark:bg-brand-900/30 flex items-center justify-center">
+                    {uploadProgress < 100 ? (
+                      <svg className="w-8 h-8 text-brand-600 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    ) : (
+                      <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{uploadStatus}</p>
+                    <p className="text-sm text-gray-500 mt-1">{uploadProgress}%</p>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%`, background: uploadProgress >= 100 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #f59e0b, #f97316)' }} />
+                  </div>
+                </div>
+              </div>
             )}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input name="name" value={form.name} onChange={handleChange} placeholder="Product Name" required
-              className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
-            <input name="sku" value={form.sku} onChange={handleChange} placeholder="Part Code / SKU (Optional)"
-              className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
-          </div>
-          <textarea name="description" value={form.description} onChange={handleChange} placeholder="Description" required rows={3}
-            className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white resize-none" />
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <input name="price" value={form.price} onChange={handleChange} placeholder="Selling Price *" type="number" required
-              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
-            <input name="buying_price" value={form.buying_price} onChange={handleChange} placeholder="Buying Price (Optional)" type="number"
-              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
-            <input name="sale_price" value={form.sale_price} onChange={handleChange} placeholder="Sale Price (Optional)" type="number"
-              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
-            <input name="stock" value={form.stock} onChange={handleChange} placeholder="Stock" type="number" required
-              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <select name="category" value={form.category} onChange={handleChange} required
-              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white">
-              <option value="">Select Category</option>
-              {flatCategories.map((cat: any) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-            <select name="condition" value={form.condition} onChange={handleChange}
-              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white">
-              <option value="New">New</option>
-              <option value="Used">Used</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex gap-2">
-              <select 
-                value={['piece', 'kg', 'ton', 'liter', 'box', 'dozen', 'pair', 'meter'].includes(form.unit_of_measure) ? form.unit_of_measure : 'custom'} 
-                onChange={(e) => {
-                  if (e.target.value === 'custom') {
-                    setForm({ ...form, unit_of_measure: '' });
-                  } else {
-                    setForm({ ...form, unit_of_measure: e.target.value });
-                  }
-                }}
-                required 
-                title="Unit of Measure"
-                className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="piece">Piece(s)</option>
-                <option value="kg">Kilogram(s)</option>
-                <option value="ton">Ton(s)</option>
-                <option value="liter">Liter(s)</option>
-                <option value="box">Box(es)</option>
-                <option value="dozen">Dozen(s)</option>
-                <option value="pair">Pair(s)</option>
-                <option value="meter">Meter(s)</option>
-                <option value="custom">Custom...</option>
-              </select>
-              {!['piece', 'kg', 'ton', 'liter', 'box', 'dozen', 'pair', 'meter'].includes(form.unit_of_measure) && (
-                <input 
-                  type="text" 
-                  name="unit_of_measure" 
-                  value={form.unit_of_measure} 
-                  onChange={handleChange} 
-                  placeholder="e.g. gallon" 
-                  required 
-                  className="w-full p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white"
-                />
+
+            {/* ─── STEP INDICATOR ─── */}
+            <div className="px-5 pt-5 pb-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{editingId ? 'Edit Product' : 'New Product'}</h3>
+                {!editingId && locData.latitude && (
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/></svg>
+                    Location captured
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {[1, 2].map(step => (
+                  <React.Fragment key={step}>
+                    <button type="button" onClick={() => { if (step < wizardStep || (step === 2 && canProceedStep1)) setWizardStep(step); }}
+                      className={`flex items-center gap-1.5 text-xs font-bold transition-all ${wizardStep === step ? 'text-brand-600 dark:text-brand-400' : wizardStep > step ? 'text-emerald-600 dark:text-emerald-400 cursor-pointer' : 'text-gray-400'}`}>
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black ${wizardStep === step ? 'bg-brand-600 text-white' : wizardStep > step ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
+                        {wizardStep > step ? '✓' : step}
+                      </span>
+                      {step === 1 ? 'Photos' : 'Details'}
+                    </button>
+                    {step < 2 && <div className={`flex-1 h-0.5 rounded-full ${wizardStep > step ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700'}`} />}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-5 pb-5">
+              {/* ═══ STEP 1: PHOTOS ═══ */}
+              {wizardStep === 1 && (
+                <div className="space-y-4">
+                  {existingImages.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Current Images</p>
+                      <div className="flex gap-2 overflow-x-auto pb-2">
+                        {existingImages.map((img: any) => (
+                          <div key={img.id} className="w-20 h-20 shrink-0 rounded-lg overflow-hidden border-2 border-emerald-400">
+                            <SafeImage src={img.image} alt="Product" category={categories.find(c => String(c.id) === String(form.category))?.name || ''} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div ref={dropRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+                    className={`rounded-xl border-2 border-dashed transition-all duration-200 ${dragOver ? 'border-brand-500 bg-brand-50/80 dark:bg-brand-900/20 scale-[1.01]' : 'border-gray-300 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-900/30 hover:border-brand-400'} ${imagePreviews.length > 0 ? 'p-4' : 'p-8'}`}>
+                    {imagePreviews.length === 0 ? (
+                      <div className="text-center">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
+                          <svg className="w-8 h-8 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-base font-bold text-gray-700 dark:text-gray-200 mb-1">{dragOver ? 'Drop photos here!' : 'Add product photos'}</p>
+                        <p className="text-sm text-gray-500 mb-4">Drag and drop or tap to browse</p>
+                        <ImagePickerButton label="Choose Photos" multiple onChange={handleImageChange} />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                          {imagePreviews.map((p, idx) => (
+                            <div key={p.url} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 group">
+                              <img src={p.url} alt="Preview" className="w-full h-full object-cover" />
+                              <button type="button" onClick={() => handleRemoveImage(idx)}
+                                className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-red-600 text-white rounded-full transition opacity-0 group-hover:opacity-100" title="Remove">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <ImagePickerButton label="Add More" compact multiple onChange={handleImageChange} />
+                          <span className="text-xs text-gray-400">{imagePreviews.length} photo{imagePreviews.length !== 1 ? 's' : ''}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3 pt-1">
+                    <button type="button" onClick={cancelForm} className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm">Cancel</button>
+                    <button type="button" onClick={() => setWizardStep(2)} disabled={!canProceedStep1 && !editingId}
+                      className="flex-[2] py-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-500 text-white font-bold rounded-lg transition text-sm flex items-center justify-center gap-2">
+                      Next: Details <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ═══ STEP 2: DETAILS ═══ */}
+              {wizardStep === 2 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Product Name *</label>
+                      <input name="name" value={form.name} onChange={handleChange} placeholder="e.g. iPhone 15 Pro Max" required
+                        className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Category *</label>
+                      <select name="category" value={form.category} onChange={handleChange} required
+                        className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition">
+                        <option value="">Select Category</option>
+                        {flatCategories.map((cat: any) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Price *</label>
+                      <input name="price" value={form.price} onChange={handleChange} placeholder="0" type="number" required
+                        className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Stock *</label>
+                      <input name="stock" value={form.stock} onChange={handleChange} placeholder="0" type="number" required
+                        className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Condition</label>
+                      <select name="condition" value={form.condition} onChange={handleChange}
+                        className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition">
+                        <option value="New">New</option><option value="Used">Used</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Description *</label>
+                    <textarea name="description" value={form.description} onChange={handleChange} placeholder="Describe your product..." required rows={3}
+                      className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white resize-none focus:ring-2 focus:ring-brand-500 outline-none transition" />
+                  </div>
+
+                  {/* ─── ADVANCED OPTIONS ACCORDION ─── */}
+                  <button type="button" onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="w-full flex items-center justify-between py-2.5 px-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                    <span className="flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                      Advanced Options
+                    </span>
+                    <svg className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+
+                  {showAdvanced && (
+                    <div className="space-y-4 pl-1 border-l-2 border-brand-200 dark:border-brand-800 ml-1">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pl-3">
+                        <div><label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">SKU</label>
+                          <input name="sku" value={form.sku} onChange={handleChange} placeholder="Optional" className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none" /></div>
+                        <div><label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Buying Price</label>
+                          <input name="buying_price" value={form.buying_price} onChange={handleChange} placeholder="Cost" type="number" className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none" /></div>
+                        <div><label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Sale Price</label>
+                          <input name="sale_price" value={form.sale_price} onChange={handleChange} placeholder="Discount" type="number" className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none" /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 pl-3">
+                        <div><label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Unit</label>
+                          <select value={['piece','kg','ton','liter','box','dozen','pair','meter'].includes(form.unit_of_measure) ? form.unit_of_measure : 'custom'}
+                            onChange={(e) => setForm({...form, unit_of_measure: e.target.value === 'custom' ? '' : e.target.value})}
+                            className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none">
+                            <option value="piece">Piece(s)</option><option value="kg">Kg</option><option value="ton">Ton</option>
+                            <option value="liter">Liter</option><option value="box">Box</option><option value="dozen">Dozen</option>
+                            <option value="pair">Pair</option><option value="meter">Meter</option><option value="custom">Custom...</option>
+                          </select>
+                          {!['piece','kg','ton','liter','box','dozen','pair','meter'].includes(form.unit_of_measure) && (
+                            <input type="text" name="unit_of_measure" value={form.unit_of_measure} onChange={handleChange} placeholder="e.g. gallon" required className="w-full mt-2 p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none" />
+                          )}
+                        </div>
+                        <div><label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Min Order Qty</label>
+                          <input name="minimum_order_quantity" value={form.minimum_order_quantity} onChange={handleChange} placeholder="1" type="number" step="0.01"
+                            className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none" /></div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3 pl-3">
+                        <label className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer flex-1">
+                          <input type="checkbox" checked={form.is_available} onChange={(e) => setForm({...form, is_available: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-brand-600" />
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Available</span>
+                        </label>
+                        <label className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer flex-1">
+                          <input type="checkbox" checked={form.requires_quote} onChange={(e) => setForm({...form, requires_quote: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-brand-600" />
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Requires Quote</span>
+                        </label>
+                      </div>
+                      <div className="pl-3">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Volume Pricing</p>
+                        {priceTiers.map((tier, idx) => (
+                          <div key={idx} className="flex gap-2 mb-2 items-center">
+                            <input type="number" step="0.01" placeholder="Min" required value={tier.min_quantity} onChange={e => { const t=[...priceTiers]; t[idx].min_quantity=e.target.value; setPriceTiers(t); }} className="w-1/3 p-2 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+                            <input type="number" step="0.01" placeholder="Max" value={tier.max_quantity||''} onChange={e => { const t=[...priceTiers]; t[idx].max_quantity=e.target.value; setPriceTiers(t); }} className="w-1/3 p-2 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+                            <input type="number" step="0.01" placeholder="Price" required value={tier.unit_price} onChange={e => { const t=[...priceTiers]; t[idx].unit_price=e.target.value; setPriceTiers(t); }} className="w-1/3 p-2 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
+                            <button type="button" onClick={() => setPriceTiers(priceTiers.filter((_,i)=>i!==idx))} className="text-red-500 font-bold px-1.5 text-sm">✕</button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => setPriceTiers([...priceTiers,{min_quantity:'',max_quantity:'',unit_price:''}])} className="text-xs text-brand-600 font-bold">+ Add Tier</button>
+                      </div>
+                      <div className="pl-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Variations</p>
+                          <div className="flex gap-2">
+                            {showCustomColumnInput ? (
+                              <div className="flex items-center gap-1.5">
+                                <input autoFocus placeholder="e.g. Size" value={customColumnName} onChange={e => setCustomColumnName(e.target.value)}
+                                  onKeyDown={e => { if (e.key==='Enter'&&customColumnName.trim()) { setVariationColumns([...variationColumns,customColumnName.trim()]); setNewVariants(prev=>prev.map(v=>({...v,fields:{...v.fields,[customColumnName.trim()]:''}})));setCustomColumnName('');setShowCustomColumnInput(false);} else if (e.key==='Escape') setShowCustomColumnInput(false); }}
+                                  className="text-xs p-1.5 border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-white outline-none w-20" />
+                                <button type="button" onClick={() => { if(customColumnName.trim()){setVariationColumns([...variationColumns,customColumnName.trim()]);setNewVariants(prev=>prev.map(v=>({...v,fields:{...v.fields,[customColumnName.trim()]:''}})));setCustomColumnName('');} setShowCustomColumnInput(false); }} className="text-[10px] font-bold text-white bg-brand-600 px-2 py-1 rounded">Add</button>
+                              </div>
+                            ) : (
+                              <button type="button" onClick={() => setShowCustomColumnInput(true)} className="text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded flex items-center gap-1"><Plus size={10}/> Column</button>
+                            )}
+                            <button type="button" onClick={() => setNewVariants([...newVariants,{fields:{},price_adj_sign:'+',price_adjustment:'0',stock:'0'}])} className="text-[10px] font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-1 rounded flex items-center gap-1"><Plus size={10}/> Option</button>
+                          </div>
+                        </div>
+                        {variationColumns.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {variationColumns.map((col,idx) => (
+                              <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[10px] font-bold text-gray-600 dark:text-gray-300">
+                                {col} <button type="button" onClick={()=>setVariationColumns(variationColumns.filter((_,i)=>i!==idx))} className="text-gray-400 hover:text-red-500 ml-0.5">✕</button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {newVariants.map((v,i) => (
+                          <div key={i} className="p-3 mb-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <div className="flex flex-wrap gap-2 items-end">
+                              {variationColumns.map((col,colIdx) => (
+                                <div key={colIdx} className="w-24 shrink-0">
+                                  <label className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5 truncate">{col}</label>
+                                  <input placeholder="Value" value={v.fields?.[col]||''} onChange={e=>{const nv=[...newVariants];if(!nv[i].fields)nv[i].fields={};nv[i].fields[col]=e.target.value;setNewVariants(nv);}}
+                                    className="w-full p-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-white outline-none" />
+                                </div>
+                              ))}
+                              <div className="w-16 shrink-0"><label className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Stock</label>
+                                <input placeholder="0" type="number" value={v.stock} onChange={e=>{const nv=[...newVariants];nv[i].stock=e.target.value;setNewVariants(nv);}} className="w-full p-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-white outline-none" /></div>
+                              <div className="w-24 shrink-0"><label className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Price Adj.</label>
+                                <div className="flex border border-gray-200 dark:border-gray-600 rounded overflow-hidden">
+                                  <select value={v.price_adj_sign} onChange={e=>{const nv=[...newVariants];nv[i].price_adj_sign=e.target.value;setNewVariants(nv);}} className="bg-gray-100 dark:bg-gray-800 text-xs px-1 py-1.5 outline-none border-r border-gray-200 dark:border-gray-600 font-bold"><option value="+">+</option><option value="-">-</option></select>
+                                  <input placeholder="0" type="number" value={v.price_adjustment} onChange={e=>{const nv=[...newVariants];nv[i].price_adjustment=e.target.value;setNewVariants(nv);}} className="w-full p-1.5 text-xs bg-transparent dark:text-white outline-none" />
+                                </div>
+                              </div>
+                              <button type="button" onClick={()=>{const nv=[...newVariants];const removed=nv.splice(i,1)[0];setNewVariants(nv);if(removed.id)setDeletedVariantIds(prev=>[...prev,removed.id]);}}
+                                className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded p-1 self-end mb-0.5">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 2 Actions */}
+                  <div className="flex gap-3 pt-1">
+                    <button type="button" onClick={() => setWizardStep(1)}
+                      className="py-2.5 px-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg> Back
+                    </button>
+                    <button type="submit" disabled={submitting || !canSubmit}
+                      className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-500 text-white font-bold rounded-lg transition text-sm">
+                      {editingId ? 'Update Product' : 'Create Product'}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
-            <input name="minimum_order_quantity" value={form.minimum_order_quantity} onChange={handleChange} placeholder="Minimum Order Quantity" type="number" step="0.01" required
-              className="p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white" />
-          </div>
-          <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-4">
-            <h4 className="font-bold text-gray-900 dark:text-white mb-2">Volume / Tiered Pricing (Optional)</h4>
-            <p className="text-xs text-gray-500 mb-3">Set lower prices for customers buying in bulk. Leave Max Qty empty for "and above".</p>
-            {priceTiers.map((tier, idx) => (
-              <div key={idx} className="flex gap-2 mb-2 items-center">
-                <input type="number" step="0.01" placeholder="Min Qty" required value={tier.min_quantity} onChange={e => {
-                  const newTiers = [...priceTiers];
-                  newTiers[idx].min_quantity = e.target.value;
-                  setPriceTiers(newTiers);
-                }} className="w-1/3 p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white text-sm" />
-                <input type="number" step="0.01" placeholder="Max Qty" value={tier.max_quantity || ''} onChange={e => {
-                  const newTiers = [...priceTiers];
-                  newTiers[idx].max_quantity = e.target.value;
-                  setPriceTiers(newTiers);
-                }} className="w-1/3 p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white text-sm" />
-                <input type="number" step="0.01" placeholder="Unit Price" required value={tier.unit_price} onChange={e => {
-                  const newTiers = [...priceTiers];
-                  newTiers[idx].unit_price = e.target.value;
-                  setPriceTiers(newTiers);
-                }} className="w-1/3 p-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white text-sm" />
-                <button type="button" onClick={() => setPriceTiers(priceTiers.filter((_, i) => i !== idx))} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded">X</button>
-              </div>
-            ))}
-            <button type="button" onClick={() => setPriceTiers([...priceTiers, { min_quantity: '', max_quantity: '', unit_price: '' }])} className="text-sm text-brand-600 font-semibold">+ Add Pricing Tier</button>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
-              <input 
-                type="checkbox" 
-                name="is_available" 
-                id="is_available"
-                checked={form.is_available} 
-                onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
-                className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-gray-900 dark:focus:ring-white" 
-              />
-              <label htmlFor="is_available" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Product is Available for Sale
-              </label>
-            </div>
-            <div className="flex-1 flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
-              <input 
-                type="checkbox" 
-                name="requires_quote" 
-                id="requires_quote"
-                checked={form.requires_quote} 
-                onChange={(e) => setForm({ ...form, requires_quote: e.target.checked })}
-                className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-gray-900 dark:focus:ring-white" 
-              />
-              <label htmlFor="requires_quote" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Requires Quote (Request to Pay)
-              </label>
-            </div>
-          </div>
-          <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-4">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4">
-              <div>
-                <h4 className="font-bold text-gray-900 dark:text-white">Product Variations</h4>
-                <p className="text-xs text-gray-500">Configure category-specific variations like size, color, or capacity.</p>
-              </div>
-              <div className="flex flex-col gap-3">
-                {variationColumns.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Active Columns:</span>
-                    {variationColumns.map((col, idx) => (
-                      <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300 shadow-sm">
-                        {col}
-                        <button type="button" onClick={() => setVariationColumns(variationColumns.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded p-0.5 transition" title="Remove column">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-2 items-center">
-                  {showCustomColumnInput ? (
-                    <div className="flex items-center gap-2">
-                      <input 
-                        autoFocus
-                        placeholder="e.g. Length"
-                        value={customColumnName}
-                        onChange={e => setCustomColumnName(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && customColumnName.trim()) {
-                            const col = customColumnName.trim();
-                            setVariationColumns([...variationColumns, col]);
-                            setNewVariants(prev => prev.map(v => ({ ...v, fields: { ...v.fields, [col]: '' } })));
-                            setCustomColumnName('');
-                            setShowCustomColumnInput(false);
-                          } else if (e.key === 'Escape') {
-                            setShowCustomColumnInput(false);
-                          }
-                        }}
-                        className="text-xs p-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white outline-none focus:border-brand-500 w-24"
-                      />
-                      <button type="button" onClick={() => {
-                          if (customColumnName.trim()) {
-                            const col = customColumnName.trim();
-                            setVariationColumns([...variationColumns, col]);
-                            setNewVariants(prev => prev.map(v => ({ ...v, fields: { ...v.fields, [col]: '' } })));
-                            setCustomColumnName('');
-                          }
-                          setShowCustomColumnInput(false);
-                      }} className="text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 px-2 py-1.5 rounded-lg transition">
-                        Add
-                      </button>
-                      <button type="button" onClick={() => setShowCustomColumnInput(false)} className="text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-2 py-1.5">
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button type="button" onClick={() => setShowCustomColumnInput(true)} className="text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 px-3 py-1.5 rounded-lg flex items-center gap-1 transition whitespace-nowrap">
-                      <Plus size={14} /> Add Custom Column
-                    </button>
-                  )}
-                  <button type="button" onClick={() => setNewVariants([...newVariants, { fields: {}, price_adj_sign: '+', price_adjustment: '0', stock: '0' }])} className="text-xs font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/20 dark:hover:bg-brand-900/40 px-3 py-1.5 rounded-lg flex items-center gap-1 transition whitespace-nowrap">
-                    <Plus size={14} /> Add Option
-                  </button>
-                </div>
-              </div>
-            </div>
-            {newVariants.length > 0 && (
-              <div className="space-y-3 mb-4 overflow-x-auto pb-2">
-                {newVariants.map((v, i) => (
-                  <div key={i} className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 relative min-w-max">
-                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
-                      <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Variation Option {i + 1}</h5>
-                      <button type="button" onClick={() => { 
-                          const nv = [...newVariants]; 
-                          const removed = nv.splice(i, 1)[0]; 
-                          setNewVariants(nv); 
-                          if (removed.id) setDeletedVariantIds(prev => [...prev, removed.id]);
-                        }} className="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                        Remove Option
-                      </button>
-                    </div>
-                    <div className="flex gap-3 items-end">
-                       {variationColumns.map((col, colIdx) => (
-                         <div key={colIdx} className="w-32 shrink-0">
-                           <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1 truncate" title={col}>{col}</label>
-                           <input placeholder={`e.g. Value`} value={v.fields?.[col] || ''} onChange={e => { const nv = [...newVariants]; if (!nv[i].fields) nv[i].fields = {}; nv[i].fields[col] = e.target.value; setNewVariants(nv); }} className="w-full p-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:ring-1 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition" />
-                         </div>
-                       ))}
-                       <div className="w-24 shrink-0">
-                         <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Stock</label>
-                         <input placeholder="0" type="number" value={v.stock} onChange={e => { const nv = [...newVariants]; nv[i].stock = e.target.value; setNewVariants(nv); }} className="w-full p-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:ring-1 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white outline-none transition" required />
-                       </div>
-                       <div className="w-32 shrink-0">
-                         <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Price Adj.</label>
-                         <div className="flex border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus-within:ring-1 focus-within:ring-gray-900/10 dark:focus-within:ring-white/10 focus-within:border-gray-900 dark:focus-within:border-white transition overflow-hidden">
-                           <select value={v.price_adj_sign} onChange={e => { const nv = [...newVariants]; nv[i].price_adj_sign = e.target.value; setNewVariants(nv); }} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-2 text-sm outline-none border-r border-gray-200 dark:border-gray-600 font-bold">
-                             <option value="+">+</option>
-                             <option value="-">-</option>
-                           </select>
-                           <input placeholder="0" type="number" value={v.price_adjustment} onChange={e => { const nv = [...newVariants]; nv[i].price_adjustment = e.target.value; setNewVariants(nv); }} className="w-full p-2 text-sm bg-transparent dark:text-white outline-none" />
-                         </div>
-                       </div>
-                    </div>
-                    <div className="mt-3 flex items-center gap-3">
-                      {v.existingImageUrl && !v.imageFile && (
-                        <SafeImage src={v.existingImageUrl} alt="Variant" category="product" className="w-10 h-10 rounded border dark:border-gray-700 object-cover shrink-0" />
-                      )}
-                      {v.imageFile && (
-                        <div className="w-10 h-10 rounded border border-brand-500 bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center shrink-0">
-                          <Package size={16} className="text-brand-500" />
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Variation Image (Optional)</label>
-                        <ImagePickerButton
-                           label="Add Image"
-                           compact
-                           onChange={e => { const nv = [...newVariants]; nv[i].imageFile = e.target.files?.[0]; setNewVariants(nv); }}
-                         />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          {existingImages.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Current Images
-              </label>
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {existingImages.map((img: any) => (
-                  <div key={img.id} className="relative w-20 h-20 shrink-0">
-                    <SafeImage src={img.image} alt="Product" category={categories.find(c => String(c.id) === String(form.category))?.name || ''} className="w-full h-full object-cover rounded-lg border dark:border-gray-600" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {existingImages.length > 0 || imagePreviews.length > 0 ? 'Upload Additional Image' : 'Product Image'}
-            </label>
-            <ImagePickerButton
-              label={existingImages.length > 0 || imagePreviews.length > 0 ? 'Upload Additional Image' : 'Add Images'}
-              multiple
-              onChange={handleImageChange}
-            />
-            
-            {imagePreviews.length > 0 && (
-              <div className="mt-3 space-y-3">
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                  {imagePreviews.map((p, idx) => (
-                    <div key={p.url} className="relative aspect-square rounded-lg border border-surface-border dark:border-surface-dark-border bg-gray-50 dark:bg-gray-900 overflow-hidden group">
-                      <img src={p.url} alt="Preview" className="w-full h-full object-cover" />
-                      
-                      {/* Delete button */}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(idx)}
-                        className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-black/90 text-white rounded-full transition z-20"
-                        title="Remove image"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+          </form>
+        );
+      })()}
 
-                      {/* Aspect Ratio Badge */}
-                      <div className="absolute bottom-0 inset-x-0 p-1 bg-black/75 text-white text-[8px] font-bold text-center z-10 leading-none">
-                        <span className={
-                          p.aspectStatus === 'Perfect (1:1)' 
-                            ? 'text-emerald-400' 
-                            : p.aspectStatus === 'Good (Landscape)' 
-                              ? 'text-sky-400' 
-                              : p.aspectStatus.includes('Tall') 
-                                ? 'text-amber-400 font-extrabold'
-                                : 'text-gray-300'
-                        }>
-                          {p.aspectStatus}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {imagePreviews.some(p => p.aspectStatus.includes('Tall')) && (
-                  <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-xl flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-medium">
-                    <span className="text-sm leading-none">⚠️</span>
-                    <div>
-                      <strong className="font-extrabold">Vertical (Tall) Images:</strong> Some of your images are vertical phone photos. These will be displayed with blurred side borders to fit the listing cards. For the cleanest presentation, we recommend cropping them to a square (1:1) or landscape format.
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {imageFiles.length > 0 && (
-              <p className="text-xs text-gray-400 mt-1">{imageFiles.length} file(s) selected</p>
-            )}
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 leading-relaxed">
-              💡 <strong>Recommended:</strong> Square images (1:1 ratio) with a minimum resolution of 800x800px (max 5MB) for perfect matching. Standard formats like JPEG, PNG, and WebP are supported and will be automatically optimized.
-            </p>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => {
-              setShowForm(false);
-              setEditingId(null);
-              setEditingProductId(null);
-              setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
-              imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
-              setImagePreviews([]);
-              setImageFiles([]);
-              setExistingImages([]);
-              setNewVariants([]);
-              setDeletedVariantIds([]);
-            }} disabled={submitting} className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-              Cancel
-            </button>
-            <button type="submit" disabled={submitting}
-              className="flex-[2] py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-semibold rounded-lg transition">
-              {submitting ? 'Saving...' : editingId ? 'Update Product' : 'Create Product'}
-            </button>
-          </div>
         </form>
       )}
 
