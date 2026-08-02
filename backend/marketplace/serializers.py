@@ -144,7 +144,12 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_can_review(self, obj):
         request = self.context.get('request')
+        view = self.context.get('view')
         if not request or not request.user.is_authenticated:
+            return False
+            
+        # Avoid N+1 queries by only checking this on the detail view
+        if view and getattr(view, 'action', None) == 'list':
             return False
         
         from .models import OrderItem, Review

@@ -138,10 +138,27 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         )
 
+        from django.db.models.functions import Coalesce
+        from marketplace.models import Review
+        
+        avg_rating_subquery = Subquery(
+            Review.objects.filter(product=OuterRef('pk'))
+            .values('product')
+            .annotate(avg=Avg('rating'))
+            .values('avg')[:1]
+        )
+        
+        like_count_subquery = Subquery(
+            Like.objects.filter(product=OuterRef('pk'))
+            .values('product')
+            .annotate(cnt=Count('id'))
+            .values('cnt')[:1]
+        )
+
         # Base queryset with annotations
         base = Product.objects.annotate(
-            annotated_avg_rating=Avg('reviews__rating'),
-            annotated_like_count=Count('likes', distinct=True),
+            annotated_avg_rating=avg_rating_subquery,
+            annotated_like_count=Coalesce(like_count_subquery, Value(0)),
             annotated_is_liked=is_liked_expr,
             annotated_has_inspection=has_inspection_expr,
             annotated_inspection_verdict=inspection_verdict_expr,
@@ -149,7 +166,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         ).select_related(
             'seller', 'seller__profile', 'category'
         ).prefetch_related(
-            'images', 'likes', 'reviews', 'inspections', 'inspections__report'
+            'images', 'inspections', 'inspections__report'
         )
         
         # FIX: Ensure detail actions (delete/edit) don't get blocked by list filters

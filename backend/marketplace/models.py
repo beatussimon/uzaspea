@@ -248,6 +248,9 @@ class Product(models.Model):
         indexes = [
             models.Index(fields=['is_available', '-created_at']),
             models.Index(fields=['category', '-created_at']),
+            models.Index(fields=['seller', '-created_at']),
+            models.Index(fields=['is_available', 'stock']),
+            models.Index(fields=['condition']),
         ]
 
     def save(self, *args, **kwargs):
