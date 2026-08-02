@@ -157,7 +157,7 @@ const DashboardProducts: React.FC = () => {
   const [newVariants, setNewVariants] = useState<any[]>([]);
   const [existingImages, setExistingImages] = useState<any[]>([]);
   const [locData, setLocData] = useState({ latitude: '', longitude: '', location_name: '' });
-  const [locStatus, setLocStatus] = useState('');
+  const [, setLocStatus] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<Array<{ url: string; file: File; aspectStatus: string }>>([]);
@@ -1025,9 +1025,6 @@ const DashboardProducts: React.FC = () => {
           </form>
         );
       })()}
-
-        </form>
-      )}
 
       {/* Products Table */}
       {loading ? (
