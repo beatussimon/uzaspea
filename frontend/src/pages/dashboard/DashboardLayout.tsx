@@ -1,6 +1,6 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle, Lightbulb, FileText } from 'lucide-react';
+import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle, Lightbulb, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 const SettingsPage = lazy(() => import('./SettingsPage'));
@@ -24,6 +24,7 @@ const DashboardLayout: React.FC = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const { user } = useAuth();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const isBusiness = user?.tier === 'business' || localStorage.getItem('tier') === 'business';
   const isWorker = user?.tier === 'worker' || localStorage.getItem('tier') === 'worker';
@@ -67,22 +68,32 @@ const DashboardLayout: React.FC = () => {
 
       <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
         {/* Sidebar */}
-        <aside className={`w-full lg:w-56 shrink-0 ${location.pathname !== '/dashboard' ? 'hidden lg:block' : ''}`}>
-        <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1">
+        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 ${location.pathname !== '/dashboard' ? 'hidden lg:block' : ''}`}>
+        <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1 relative h-full">
+          
+          <button 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
+            title={isSidebarCollapsed ? t('expand', 'Expand') : t('collapse', 'Collapse')}
+          >
+            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
+                className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
                   isActive
                     ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
                 }`}
+                title={isSidebarCollapsed ? item.label : undefined}
               >
-                <item.icon size={18} />
-                {item.label}
+                <item.icon size={18} className="shrink-0" />
+                {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}
@@ -92,10 +103,11 @@ const DashboardLayout: React.FC = () => {
               <hr className="my-2 border-surface-border dark:border-surface-dark-border" />
               <Link
                 to="/staff-admin"
-                className="flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm text-brand-600 dark:text-brand-400 font-bold hover:bg-brand-50 dark:hover:bg-brand-900/10 transition"
+                className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm text-brand-600 dark:text-brand-400 font-bold hover:bg-brand-50 dark:hover:bg-brand-900/10 transition`}
+                title={isSidebarCollapsed ? t('staff_admin', 'Staff Admin') : undefined}
               >
-                <Shield size={18} />
-                {t('staff_admin', 'Staff Admin')}
+                <Shield size={18} className="shrink-0" />
+                {!isSidebarCollapsed && <span className="truncate">{t('staff_admin', 'Staff Admin')}</span>}
               </Link>
             </>
           )}
@@ -103,25 +115,27 @@ const DashboardLayout: React.FC = () => {
           <hr className="my-2 border-surface-border dark:border-surface-dark-border" />
           <Link
             to="/dashboard/settings"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
+            className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
               location.pathname.startsWith('/dashboard/settings')
                 ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
             }`}
+            title={isSidebarCollapsed ? t('account_settings', 'Account Settings') : undefined}
           >
-            <Settings size={18} />
-            {t('account_settings', 'Account Settings')}
+            <Settings size={18} className="shrink-0" />
+            {!isSidebarCollapsed && <span className="truncate">{t('account_settings', 'Account Settings')}</span>}
           </Link>
           <Link
             to="/dashboard/help-center"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
+            className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
               location.pathname.startsWith('/dashboard/help-center')
                 ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
             }`}
+            title={isSidebarCollapsed ? t('help_center', 'Help Center') : undefined}
           >
-            <HelpCircle size={18} />
-            {t('help_center', 'Help Center')}
+            <HelpCircle size={18} className="shrink-0" />
+            {!isSidebarCollapsed && <span className="truncate">{t('help_center', 'Help Center')}</span>}
           </Link>
         </nav>
       </aside>
