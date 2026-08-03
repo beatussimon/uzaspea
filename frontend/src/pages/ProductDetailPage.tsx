@@ -449,34 +449,78 @@ const ProductDetailPage: React.FC = () => {
         />
       )}
 
-      {/* LEFT SIDE: Media Stage (Square on mobile, 100vh on desktop) */}
-      <div className="relative w-full aspect-square lg:aspect-auto lg:w-[58%] xl:w-[62%] lg:h-full bg-neutral-950 overflow-hidden flex flex-col items-center justify-center select-none group/stage shrink-0">
-        
-        {/* 1. TOP-LEFT OVERLAY: Close (X) + OKO Logo */}
-        <div className="absolute top-3.5 left-3.5 z-40 flex items-center gap-3 bg-black/40 backdrop-blur-md px-2 py-1.5 rounded-2xl shadow-lg border border-white/10">
-          {/* Bare X close button */}
+      {/* ═══ MOBILE IMAGE GRID (< lg only) ═══ */}
+      <div className="block lg:hidden relative w-full bg-neutral-950 shrink-0">
+        {/* Top-left overlay: Close (X) + Logo */}
+        <div className="absolute top-3 left-3 z-40 flex items-center gap-2.5 bg-black/40 backdrop-blur-md px-2 py-1.5 rounded-2xl shadow-lg border border-white/10">
           <button
-            onPointerDown={(e) => {
-              e.preventDefault(); // Prevent default touch behavior
-              if (window.history.length > 1) {
-                navigate(-1);
-              } else {
-                navigate('/products');
-              }
-            }}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded-full transition-all active:scale-95 cursor-pointer"
-            title="Close"
+            onPointerDown={(e) => { e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/products'); }}
+            className="w-8 h-8 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded-full transition-all active:scale-95 cursor-pointer"
             aria-label="Close product view"
           >
             <X size={20} />
           </button>
+          <button onClick={() => navigate('/')} className="h-7 flex items-center justify-center transition-all active:scale-95 cursor-pointer pr-1" title="Go to Homepage">
+            <img src="/logo.png" alt="OKO" className="h-full w-auto object-contain drop-shadow-md" />
+          </button>
+        </div>
 
-          {/* Bare OKO Logo */}
+        {images.length <= 1 ? (
+          /* Single image — full width square */
+          <div className="w-full aspect-square relative cursor-pointer" onClick={() => setLightboxOpen(true)}>
+            {currentImageSrc && (
+              <>
+                <img src={currentImageSrc} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover filter blur-[50px] opacity-100 scale-110 select-none pointer-events-none" />
+                <div className="absolute inset-0 bg-black/30 pointer-events-none" />
+              </>
+            )}
+            <div className="relative z-10 w-full h-full flex items-center justify-center">
+              {currentImageSrc ? (
+                <SafeImage src={currentImageSrc} alt={product.name} category={product.category_name} className="max-w-full max-h-full object-contain drop-shadow-2xl" containMode="contain" loading="eager" />
+              ) : (
+                <SafeImage src="" alt={product.name} category={product.category_name} className="w-full h-full" transparent />
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Multiple images — grid: large left + 2 small stacked right */
+          <div className="w-full grid grid-cols-[2.2fr_1fr] gap-[2px]" style={{ aspectRatio: '4/3' }}>
+            {/* Main large image */}
+            <div className="relative cursor-pointer overflow-hidden" onClick={() => { setSelectedImage(0); setLightboxOpen(true); }}>
+              <img src={images[0]?.image || ''} alt={product.name} className="w-full h-full object-cover" loading="eager" />
+            </div>
+            {/* Right column: 2 stacked thumbnails */}
+            <div className="flex flex-col gap-[2px]">
+              {images.slice(1, 3).map((img, idx) => (
+                <div key={idx} className="relative flex-1 cursor-pointer overflow-hidden" onClick={() => { setSelectedImage(idx + 1); setLightboxOpen(true); }}>
+                  <img src={img.image || ''} alt={`${product.name} ${idx + 2}`} className="w-full h-full object-cover" loading="lazy" />
+                  {/* "+N more" overlay on the last visible thumbnail */}
+                  {idx === 1 && images.length > 3 && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <span className="text-white text-lg font-bold">+{images.length - 3}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {/* If only 2 images total, the second slot fills the whole right column */}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ═══ DESKTOP IMAGE STAGE (lg+ only) ═══ */}
+      <div className="hidden lg:flex relative lg:w-[58%] xl:w-[62%] lg:h-full bg-neutral-950 overflow-hidden flex-col items-center justify-center select-none group/stage shrink-0">
+        
+        {/* 1. TOP-LEFT OVERLAY: Close (X) + OKO Logo */}
+        <div className="absolute top-3.5 left-3.5 z-40 flex items-center gap-3 bg-black/40 backdrop-blur-md px-2 py-1.5 rounded-2xl shadow-lg border border-white/10">
           <button
-            onClick={() => navigate('/')}
-            className="h-7 sm:h-8 flex items-center justify-center transition-all active:scale-95 cursor-pointer pr-1"
-            title="Go to Homepage"
+            onPointerDown={(e) => { e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/products'); }}
+            className="w-9 h-9 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded-full transition-all active:scale-95 cursor-pointer"
+            title="Close" aria-label="Close product view"
           >
+            <X size={20} />
+          </button>
+          <button onClick={() => navigate('/')} className="h-8 flex items-center justify-center transition-all active:scale-95 cursor-pointer pr-1" title="Go to Homepage">
             <img src="/logo.png" alt="OKO" className="h-full w-auto object-contain drop-shadow-md" />
           </button>
         </div>
@@ -484,34 +528,22 @@ const ProductDetailPage: React.FC = () => {
         {/* 2. AMBIENT BLURRED BACKGROUND FILL */}
         {currentImageSrc && (
           <>
-            <img
-              src={currentImageSrc}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-cover filter blur-[50px] opacity-100 scale-110 select-none pointer-events-none"
-            />
-            {/* Subtle dark overlay for contrast so the main image pops and UI controls are visible */}
-            <div className="absolute inset-0 bg-black/30 pointer-events-none"></div>
+            <img src={currentImageSrc} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover filter blur-[50px] opacity-100 scale-110 select-none pointer-events-none" />
+            <div className="absolute inset-0 bg-black/30 pointer-events-none" />
           </>
         )}
 
-        {/* 3. MAIN CRISP IMAGE — fills entire stage, swipe to navigate */}
+        {/* 3. MAIN CRISP IMAGE */}
         <div 
           className="relative z-10 w-full h-full flex items-center justify-center cursor-zoom-in overflow-hidden"
           onClick={() => setLightboxOpen(true)}
-          onTouchStart={(e) => {
-            const touch = e.touches[0];
-            (e.currentTarget as any)._touchStartX = touch.clientX;
-            (e.currentTarget as any)._touchStartY = touch.clientY;
-          }}
+          onTouchStart={(e) => { (e.currentTarget as any)._touchStartX = e.touches[0].clientX; (e.currentTarget as any)._touchStartY = e.touches[0].clientY; }}
           onTouchEnd={(e) => {
             const startX = (e.currentTarget as any)._touchStartX;
             const startY = (e.currentTarget as any)._touchStartY;
             if (startX == null) return;
-            const touch = e.changedTouches[0];
-            const dx = touch.clientX - startX;
-            const dy = touch.clientY - startY;
-            // Only swipe if horizontal movement > vertical and > 50px threshold
+            const dx = e.changedTouches[0].clientX - startX;
+            const dy = e.changedTouches[0].clientY - startY;
             if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50 && images.length > 1) {
               e.preventDefault();
               if (dx < 0) setSelectedImage(prev => (prev < images.length - 1 ? prev + 1 : 0));
@@ -520,78 +552,41 @@ const ProductDetailPage: React.FC = () => {
           }}
         >
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={selectedImage}
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.03 }}
-              transition={{ duration: 0.2 }}
-              className="w-full h-full flex items-center justify-center"
-            >
+            <motion.div key={selectedImage} initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.03 }} transition={{ duration: 0.2 }} className="w-full h-full flex items-center justify-center">
               {currentImageSrc ? (
-                <SafeImage
-                  src={currentImageSrc}
-                  alt={product.name}
-                  category={product.category_name}
-                  className="max-w-full max-h-full object-contain drop-shadow-2xl transition-transform duration-300"
-                  containMode="contain"
-                  loading="eager"
-                />
+                <SafeImage src={currentImageSrc} alt={product.name} category={product.category_name} className="max-w-full max-h-full object-contain drop-shadow-2xl transition-transform duration-300" containMode="contain" loading="eager" />
               ) : (
-                <SafeImage
-                  src=""
-                  alt={product.name}
-                  category={product.category_name}
-                  className="w-full h-full"
-                  transparent
-                />
+                <SafeImage src="" alt={product.name} category={product.category_name} className="w-full h-full" transparent />
               )}
             </motion.div>
           </AnimatePresence>
         </div>
 
-        {/* 4. OVERLAID PREVIOUS ARROW (<) - Hidden on mobile */}
+        {/* 4. OVERLAID PREVIOUS ARROW */}
         {images.length > 1 && (
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedImage(prev => (prev > 0 ? prev - 1 : images.length - 1));
-            }}
-            className="hidden sm:flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full items-center justify-center shadow-2xl backdrop-blur-md transition-all hover:scale-110 active:scale-95 z-30 cursor-pointer"
-            aria-label="Previous image"
-          >
+          <button onClick={(e) => { e.stopPropagation(); setSelectedImage(prev => (prev > 0 ? prev - 1 : images.length - 1)); }}
+            className="flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full items-center justify-center shadow-2xl backdrop-blur-md transition-all hover:scale-110 active:scale-95 z-30 cursor-pointer"
+            aria-label="Previous image">
             <ChevronLeft size={24} strokeWidth={2.5} />
           </button>
         )}
 
-        {/* 5. OVERLAID NEXT ARROW (>) - Hidden on mobile */}
+        {/* 5. OVERLAID NEXT ARROW */}
         {images.length > 1 && (
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedImage(prev => (prev < images.length - 1 ? prev + 1 : 0));
-            }}
-            className="hidden sm:flex absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full items-center justify-center shadow-2xl backdrop-blur-md transition-all hover:scale-110 active:scale-95 z-30 cursor-pointer"
-            aria-label="Next image"
-          >
+          <button onClick={(e) => { e.stopPropagation(); setSelectedImage(prev => (prev < images.length - 1 ? prev + 1 : 0)); }}
+            className="flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full items-center justify-center shadow-2xl backdrop-blur-md transition-all hover:scale-110 active:scale-95 z-30 cursor-pointer"
+            aria-label="Next image">
             <ChevronRight size={24} strokeWidth={2.5} />
           </button>
         )}
 
-        {/* 7. MINIMAL DOT INDICATORS — hidden on mobile per user request */}
+        {/* 7. MINIMAL DOT INDICATORS — desktop only */}
         {images.length > 1 && (
-          <div className="hidden sm:flex absolute bottom-3 left-1/2 -translate-x-1/2 z-40 items-center gap-1.5">
+          <div className="flex absolute bottom-3 left-1/2 -translate-x-1/2 z-40 items-center gap-1.5">
             {images.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={(e) => { e.stopPropagation(); setSelectedImage(idx); }}
-                className={`rounded-full transition-all cursor-pointer ${
-                  idx === selectedImage
-                    ? 'w-2.5 h-2.5 bg-white shadow-lg'
-                    : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80'
-                }`}
-                aria-label={`Image ${idx + 1}`}
-              />
+              <button key={idx} onClick={(e) => { e.stopPropagation(); setSelectedImage(idx); }}
+                className={`rounded-full transition-all cursor-pointer ${idx === selectedImage ? 'w-2.5 h-2.5 bg-white shadow-lg' : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80'}`}
+                aria-label={`Image ${idx + 1}`} />
             ))}
           </div>
         )}
