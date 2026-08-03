@@ -6,10 +6,10 @@ export const Skeleton = ({ className }: { className?: string }) => (
   </div>
 );
 
-export const ProductCardSkeleton = ({ viewMode = 'grid' }: { viewMode?: 'grid' | 'list' }) => {
+export const ProductCardSkeleton = ({ viewMode = 'grid', className = '' }: { viewMode?: 'grid' | 'list', className?: string }) => {
   if (viewMode === 'list') {
     return (
-      <div className="card overflow-hidden flex flex-row items-center p-2 gap-4 border border-surface-border dark:border-surface-dark-border">
+      <div className={`card overflow-hidden flex flex-row items-center p-2 gap-4 border border-surface-border dark:border-surface-dark-border ${className}`}>
         <Skeleton className="w-24 h-24 md:w-32 md:h-32 shrink-0 rounded-lg" />
         <div className="flex-1 min-w-0 py-1">
           <div className="flex gap-2 mb-2">
@@ -28,7 +28,7 @@ export const ProductCardSkeleton = ({ viewMode = 'grid' }: { viewMode?: 'grid' |
   }
 
   return (
-    <div className="card overflow-hidden flex flex-col h-full bg-white dark:bg-gray-800 border border-surface-border dark:border-surface-dark-border">
+    <div className={`card overflow-hidden flex flex-col h-full bg-white dark:bg-gray-800 border border-surface-border dark:border-surface-dark-border ${className}`}>
       {/* Image box */}
       <Skeleton className="aspect-[4/3] rounded-none" />
       

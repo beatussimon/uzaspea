@@ -22,7 +22,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
       }
     }
 
-    const checkNotifications = async () => {
+    const checkNotifications = async (silent = false) => {
       try {
         const res = await api.get('/api/notifications/');
         const list = res.data.results || res.data || [];
@@ -63,7 +63,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
     };
 
     checkNotifications();
-    const interval = setInterval(checkNotifications, 30000);
+    const interval = setInterval(() => checkNotifications(true), 30000);
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
