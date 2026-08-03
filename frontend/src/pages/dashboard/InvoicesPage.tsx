@@ -53,7 +53,7 @@ const InvoicesPage: React.FC = () => {
   const openQuoteModal = (order: any) => {
     setSelectedOrder(order);
     const initialPrices: Record<string, string> = {};
-    order.relevant_items.forEach((item: any) => {
+    (order.relevant_items || []).forEach((item: any) => {
       initialPrices[item.id] = String(item.price || 0);
     });
     setPrices(initialPrices);
@@ -93,7 +93,7 @@ const InvoicesPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              ${order.relevant_items.map((item: any) => `
+              ${(order.relevant_items || []).map((item: any) => `
                 <tr>
                   <td>${item.product_name} ${item.variant_name ? `(${item.variant_name})` : ''}</td>
                   <td>${item.quantity}</td>
@@ -104,7 +104,7 @@ const InvoicesPage: React.FC = () => {
             </tbody>
           </table>
           <div class="total">
-            Total: TSh ${order.relevant_items.reduce((sum: number, item: any) => sum + Number(item.subtotal), 0).toLocaleString()}
+            Total: TSh ${(order.relevant_items || []).reduce((sum: number, item: any) => sum + Number(item.subtotal), 0).toLocaleString()}
           </div>
         </body>
       </html>
@@ -159,7 +159,7 @@ const InvoicesPage: React.FC = () => {
                   <Clock size={14} /> {new Date(order.created_at).toLocaleString()}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {order.relevant_items.map((item: any) => (
+                  {(order.relevant_items || []).map((item: any) => (
                     <div key={item.id} className="bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
                       {item.quantity}x {item.product_name}
                     </div>
@@ -193,7 +193,7 @@ const InvoicesPage: React.FC = () => {
             </p>
             
             <div className="space-y-4">
-              {selectedOrder.relevant_items.map((item: any) => (
+              {(selectedOrder.relevant_items || []).map((item: any) => (
                 <div key={item.id} className="flex flex-col gap-1.5">
                   <label className="text-sm font-bold text-gray-900 dark:text-white flex justify-between">
                     <span>{item.product_name} {item.variant_name ? `(${item.variant_name})` : ''}</span>
