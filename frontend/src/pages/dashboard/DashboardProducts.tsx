@@ -645,7 +645,40 @@ const DashboardProducts: React.FC = () => {
             if (locData.latitude) fd.append('latitude', locData.latitude);
             if (locData.longitude) fd.append('longitude', locData.longitude);
             if (locData.location_name) fd.append('location_name', locData.location_name);
-            imageFiles.forEach((file) => fd.append('uploaded_images', file));
+            
+            // Compress images before upload to speed up network and backend processing
+            const compressedFiles = await Promise.all(
+              imageFiles.map(file => {
+                return new Promise<File>((resolve) => {
+                  const img = new Image();
+                  const url = URL.createObjectURL(file);
+                  img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_WIDTH = 1200;
+                    if (width > MAX_WIDTH) {
+                      height = Math.round((height * MAX_WIDTH) / width);
+                      width = MAX_WIDTH;
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return resolve(file);
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob((blob) => {
+                      if (!blob) return resolve(file);
+                      resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+                    }, 'image/jpeg', 0.85);
+                  };
+                  img.onerror = () => resolve(file);
+                  img.src = url;
+                });
+              })
+            );
+            
+            compressedFiles.forEach((file) => fd.append('uploaded_images', file));
 
             const token = localStorage.getItem('access_token');
             const url = editingId ? `/api/products/${editingId}/` : '/api/products/';

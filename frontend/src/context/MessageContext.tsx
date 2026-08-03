@@ -141,7 +141,7 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const list = res.data.results || res.data || [];
       setConversations(list);
     } catch (e: any) {
-      if (e?.response?.status !== 401) {
+      if (!silent && e?.response?.status !== 401) {
         console.error('Failed to load conversations:', e);
       }
     } finally {

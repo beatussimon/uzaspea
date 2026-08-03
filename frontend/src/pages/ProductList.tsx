@@ -8,6 +8,7 @@ import api from '../api';
 import ProductCard from '../components/ProductCard';
 import SponsorCard from '../components/SponsorCard';
 import { ProductCardSkeleton } from '../components/Skeleton';
+import CategoriesSidebar from '../components/CategoriesSidebar';
 import { apiCache } from '../utils/apiCache';
 
 const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } } as any;
@@ -876,9 +877,14 @@ const ProductList = () => {
             ))}
           </div>
         )}
+        )}
       </div>
 
-      {/* ===== Product Grid ===== */}
+      <div className="flex flex-col md:flex-row gap-6">
+        <CategoriesSidebar defaultExpanded={false} />
+        
+        <div className="flex-1 min-w-0">
+          {/* ===== Product Grid ===== */}
       {loading ? (
         <div 
           className={viewMode === 'grid' 
@@ -886,8 +892,8 @@ const ProductList = () => {
             : "flex flex-col gap-3"
           }
         >
-          {[...Array(10)].map((_, i) => (
-            <ProductCardSkeleton key={i} viewMode={viewMode} />
+          {[...Array(12)].map((_, i) => (
+            <ProductCardSkeleton key={i} viewMode={viewMode} className={i >= 10 ? "2xl:hidden" : ""} />
           ))}
         </div>
       ) : (
@@ -943,7 +949,8 @@ const ProductList = () => {
           <div ref={sentinelRef} className="h-1" />
         </>
       )}
-
+        </div>
+      </div>
       </div>
     </div>
   );

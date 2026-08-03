@@ -251,8 +251,6 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
                {isSponsored && (
                  <span className="text-white bg-brand-600 px-1.5 py-0.5 rounded-card text-[8px] uppercase font-black tracking-widest shrink-0 shadow-md">{t('sponsored', 'Sponsored')}</span>
                )}
-               <span className="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full text-[9px] uppercase font-bold tracking-wider shrink-0">{product.category_name}</span>
-               <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
                <div className="flex items-center gap-1 shrink-0">
                  <span className="text-[10px] text-gray-500 truncate max-w-[80px]">{product.seller_username}</span>
                  <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3" />
@@ -328,7 +326,6 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
         <div className="absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent">
           {/* Badges row */}
           <div className="flex flex-wrap items-center gap-1">
-            <span className="text-brand-600 dark:text-brand-400 bg-brand-50/95 dark:bg-brand-900/90 px-1.5 py-0.5 rounded-card text-[8.5px] uppercase font-bold tracking-wider whitespace-nowrap shrink-0 border border-brand-200/50 dark:border-brand-500/30 shadow-sm">{product.category_name}</span>
             <div className="flex flex-wrap items-center gap-1">
               {product.is_verified && (
                  <div className="flex items-center gap-0.5 text-[7.5px] text-brand-600 dark:text-brand-400 font-black bg-brand-50/95 dark:bg-brand-900/90 px-1.5 py-0.5 rounded-card border border-brand-100/50 dark:border-brand-800/30 whitespace-nowrap shrink-0 shadow-sm" title={t('verified_seller', 'Verified Seller')}>

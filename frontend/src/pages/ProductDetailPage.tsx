@@ -12,6 +12,8 @@ import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { Skeleton } from '../components/Skeleton';
 import { timeAgo } from '../utils/timeAgo';
+import CategoriesSidebar from '../components/CategoriesSidebar';
+import { apiCache } from '../utils/apiCache';
 import { fetchProductCached } from '../components/layout/CategoryBar';
 
 interface ProductData {
@@ -182,10 +184,10 @@ const ImageLightbox = ({
         )}
       </div>
 
-      {/* Thumbnails strip at bottom - small and compact */}
+      {/* Thumbnails strip at bottom - hidden on mobile, visible on desktop */}
       {images.length > 1 && (
         <div 
-          className="h-14 bg-black/60 border-t border-white/10 flex items-center justify-center gap-1.5 px-3 overflow-x-auto no-scrollbar w-full"
+          className="hidden md:flex h-14 bg-black/60 border-t border-white/10 items-center justify-center gap-1.5 px-3 overflow-x-auto no-scrollbar w-full"
           onClick={(e) => e.stopPropagation()}
         >
           {images.map((img, i) => (
@@ -508,8 +510,11 @@ const ProductDetailPage: React.FC = () => {
         )}
       </div>
 
+      {/* ═══ DESKTOP CATEGORY SIDEBAR (xl+ only) ═══ */}
+      <CategoriesSidebar variant="sidebar" defaultExpanded={true} />
+
       {/* ═══ DESKTOP IMAGE STAGE (lg+ only) ═══ */}
-      <div className="hidden lg:flex relative lg:w-[58%] xl:w-[62%] lg:h-full bg-neutral-950 overflow-hidden flex-col items-center justify-center select-none group/stage shrink-0">
+      <div className="hidden lg:flex relative flex-1 min-w-0 lg:h-full bg-neutral-950 overflow-hidden flex-col items-center justify-center select-none group/stage shrink-0">
         
         {/* 1. TOP-LEFT OVERLAY: Close (X) + OKO Logo */}
         <div className="absolute top-3.5 left-3.5 z-40 flex items-center gap-3 bg-black/40 backdrop-blur-md px-2 py-1.5 rounded-2xl shadow-lg border border-white/10">
@@ -593,7 +598,7 @@ const ProductDetailPage: React.FC = () => {
       </div>
 
       {/* RIGHT SIDE: Product Info & Buy Sidebar */}
-      <div className="w-full lg:w-[42%] xl:w-[38%] h-auto lg:h-full bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 overflow-y-visible lg:overflow-y-auto p-5 sm:p-6 lg:p-7 flex flex-col gap-5 shrink-0">
+      <div className="w-full lg:w-[400px] xl:w-[450px] 2xl:w-[480px] h-auto lg:h-full bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 overflow-y-visible lg:overflow-y-auto p-5 sm:p-6 lg:p-7 flex flex-col gap-5 shrink-0">
           {/* Header Area */}
           <div>
             <div className="flex flex-wrap justify-between items-start gap-4 mb-2">
