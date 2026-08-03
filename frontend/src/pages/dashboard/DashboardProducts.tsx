@@ -169,6 +169,14 @@ const DashboardProducts: React.FC = () => {
   const location = useLocation();
   const [fulfillRequestId, setFulfillRequestId] = useState<number | null>(null);
 
+  // Wizard state — must be at component top level (React Rules of Hooks)
+  const [wizardStep, setWizardStep] = useState(1);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const dropRef = React.useRef<HTMLDivElement>(null);
+
 
   // Prefill from demand card conversion
   useEffect(() => {
@@ -606,12 +614,6 @@ const DashboardProducts: React.FC = () => {
       {/* PRODUCT FORM — MULTI-STEP WIZARD                         */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {showForm && (() => {
-        const [wizardStep, setWizardStep] = React.useState(1);
-        const [uploadProgress, setUploadProgress] = React.useState<number | null>(null);
-        const [uploadStatus, setUploadStatus] = React.useState('');
-        const [showAdvanced, setShowAdvanced] = React.useState(false);
-        const [dragOver, setDragOver] = React.useState(false);
-        const dropRef = React.useRef<HTMLDivElement>(null);
 
         const canProceedStep1 = imagePreviews.length > 0 || existingImages.length > 0 || !!editingId;
         const canSubmit = form.name && form.price && form.stock && form.category && form.description;
@@ -699,7 +701,7 @@ const DashboardProducts: React.FC = () => {
               }
             }
 
-            setShowForm(false); setEditingId(null); setEditingProductId(null); setFulfillRequestId(null);
+            setShowForm(false); setEditingId(null); setEditingProductId(null); setFulfillRequestId(null); setWizardStep(1); setShowAdvanced(false);
             setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
             imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
             setImagePreviews([]); setImageFiles([]); setExistingImages([]); setNewVariants([]); setDeletedVariantIds([]); setPriceTiers([]);
@@ -731,7 +733,7 @@ const DashboardProducts: React.FC = () => {
         };
 
         const cancelForm = () => {
-          setShowForm(false); setEditingId(null); setEditingProductId(null);
+          setShowForm(false); setEditingId(null); setEditingProductId(null); setWizardStep(1); setShowAdvanced(false);
           setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
           imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
           setImagePreviews([]); setImageFiles([]); setExistingImages([]); setNewVariants([]); setDeletedVariantIds([]);
