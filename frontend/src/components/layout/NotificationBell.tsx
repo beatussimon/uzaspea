@@ -56,7 +56,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
         if (err.response?.status === 401) {
           // Token expired or invalid, silently ignore to avoid console spam
           clearInterval(interval);
-        } else {
+        } else if (!silent) {
           console.error('Error fetching notifications:', err);
         }
       }

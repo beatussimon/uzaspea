@@ -13,7 +13,6 @@ import VerifiedBadge from '../components/VerifiedBadge';
 import { Skeleton } from '../components/Skeleton';
 import { timeAgo } from '../utils/timeAgo';
 import CategoriesSidebar from '../components/CategoriesSidebar';
-import { apiCache } from '../utils/apiCache';
 import { fetchProductCached } from '../components/layout/CategoryBar';
 
 interface ProductData {
