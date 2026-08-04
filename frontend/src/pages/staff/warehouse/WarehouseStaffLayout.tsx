@@ -22,9 +22,16 @@ interface Order {
   status: string;
   delivery_info?: {
     destination_warehouse_code?: string;
+    full_name?: string;
+    address?: string;
+    current_warehouse_code?: string;
+    phone?: string;
+    [key: string]: any;
   };
-  payments?: Array<{ status: string; [key: string]: unknown }>;
-  [key: string]: unknown;
+  payments?: Array<{ status: string; [key: string]: any }>;
+  items?: Array<any>;
+  shipments?: Array<any>;
+  [key: string]: any;
 }
 
 interface Transfer {
@@ -346,6 +353,7 @@ const WarehouseStaffLayout: React.FC = () => {
     setSubmitting(true);
     const formData = new FormData();
     formData.append('warehouse', selectedWarehouseId);
+    if (!orderPreview) return;
     formData.append('order', orderPreview.id.toString());
     formData.append('package_condition', condition);
     formData.append('notes', notes || (requireSignatures ? '' : 'Intake check-in (Signatures bypassed)'));
@@ -376,6 +384,7 @@ const WarehouseStaffLayout: React.FC = () => {
       return;
     }
     setSubmitting(true);
+    if (!orderPreview) return;
     try {
       await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/set-delivery-fee/`, {
         order_id: orderPreview.id,
@@ -395,6 +404,7 @@ const WarehouseStaffLayout: React.FC = () => {
   // Dispatch Submission
   const submitDispatch = async () => {
     setSubmitting(true);
+    if (!orderPreview) return;
     try {
       // 1. Check if shipment already exists for this order, or create it
       const shipRes = await api.get(`/api/logistics/shipments/?order=${orderPreview.id}`);
@@ -437,12 +447,13 @@ const WarehouseStaffLayout: React.FC = () => {
   // Verify Submission
   const submitVerify = async (status: string) => {
     setSubmitting(true);
+    if (!orderPreview) return;
     try {
       const formData = new FormData();
       formData.append('status', status);
       formData.append('notes', 'Payment verified by warehouse staff.');
       
-      await api.post(`/api/orders/${orderPreview?.id}/advance/`, formData, {
+      await api.post(`/api/orders/${orderPreview.id}/advance/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       toast.success(status === 'ASSIGNED_TRANSPORT' ? 'Payment verified and assigned to transport!' : 'Payment rejected, customer notified.');
@@ -481,11 +492,12 @@ const WarehouseStaffLayout: React.FC = () => {
       return;
     }
     setSubmitting(true);
+    if (!orderPreview) return;
     try {
       const formData = new FormData();
       formData.append('delivery_code', deliveryCodeInput.trim());
       formData.append('status', 'DELIVERED');
-      await api.post(`/api/orders/${orderPreview?.id}/advance/`, formData, {
+      await api.post(`/api/orders/${orderPreview.id}/advance/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       toast.success('Delivery confirmed! Order marked as DELIVERED.');
