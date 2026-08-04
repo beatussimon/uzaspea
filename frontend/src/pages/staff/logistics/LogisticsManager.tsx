@@ -12,13 +12,13 @@ interface Shipment {
   driver?: number | string;
   tracking_number?: string;
   estimated_delivery?: string;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 interface Driver {
   id: number | string;
   username?: string;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 interface Payment {
@@ -27,7 +27,7 @@ interface Payment {
   driver_name: string;
   status: string;
   amount: number | string;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 // Reusable Components matching Warehouse Ops design language
@@ -57,7 +57,7 @@ const LogisticsManager: React.FC = () => {
   // Payments states
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
-  const [payingId, setPayingId] = useState<number | null>(null);
+  const [payingId, setPayingId] = useState<number | string | null>(null);
 
   // Edit Shipment Modal states
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
@@ -106,7 +106,7 @@ const LogisticsManager: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleMarkPaid = async (id: number) => {
+  const handleMarkPaid = async (id: number | string) => {
     setPayingId(id);
     try {
       await api.post(`/api/logistics/driver-payments/${id}/pay/`);
@@ -122,7 +122,7 @@ const LogisticsManager: React.FC = () => {
   const openEditModal = (shipment: Shipment) => {
     setSelectedShipment(shipment);
     setEditStatus(shipment.status);
-    setEditCarrierType(shipment.carrier_type);
+    setEditCarrierType(shipment.carrier_type as 'driver' | 'third_party');
     setEditDriver(shipment.driver?.toString() || '');
     setEditTrackingNum(shipment.tracking_number || '');
     setEditDeliveryTime(shipment.estimated_delivery ? shipment.estimated_delivery.substring(0, 16) : '');

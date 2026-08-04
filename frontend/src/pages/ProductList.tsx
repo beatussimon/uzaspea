@@ -68,22 +68,22 @@ const ProductList = () => {
   const initialSponsoredCacheKey = `sponsored:${JSON.stringify({ ...initialParams, public: 'true' })}`;
 
   const [products, setProducts] = useState<any[]>(() => {
-    const cached = apiCache.get(initialProductsCacheKey);
+    const cached = apiCache.get<any>(initialProductsCacheKey);
     return cached && Array.isArray(cached.data.results) ? cached.data.results : [];
   });
   const [categories, setCategories] = useState<any[]>([]);
   const [sponsoredAds, setSponsoredAds] = useState<any[]>(() => {
     if (saved) return [];
-    const cached = apiCache.get(initialSponsoredCacheKey);
+    const cached = apiCache.get<any>(initialSponsoredCacheKey);
     return cached && Array.isArray(cached.data.results) ? cached.data.results : [];
   });
   const [loading, setLoading] = useState(() => {
-    const cached = apiCache.get(initialProductsCacheKey);
+    const cached = apiCache.get<any>(initialProductsCacheKey);
     return !cached;
   });
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(() => {
-    const cached = apiCache.get(initialProductsCacheKey);
+    const cached = apiCache.get<any>(initialProductsCacheKey);
     return cached ? !!cached.data.next : true;
   });
   const [_page, setPage] = useState(1);
@@ -161,11 +161,11 @@ const ProductList = () => {
       
       const prms = buildParams(p);
       const cacheKey = `products:${JSON.stringify(prms)}`;
-      const cached = apiCache.get(cacheKey);
+      const cached = apiCache.get<any>(cacheKey);
 
       const sponsParams = { ...buildParams(1), public: 'true' };
       const sponsCacheKey = `sponsored:${JSON.stringify(sponsParams)}`;
-      const cachedSpons = apiCache.get(sponsCacheKey);
+      const cachedSpons = apiCache.get<any>(sponsCacheKey);
 
       if (reset) {
         if (cached) {
@@ -206,7 +206,7 @@ const ProductList = () => {
           if (cached.data.next) {
             const nextParams = buildParams(p + 1);
             const nextKey = `products:${JSON.stringify(nextParams)}`;
-            if (!apiCache.get(nextKey)) {
+            if (!apiCache.get<any>(nextKey)) {
               api.get('/api/products/', { params: nextParams }).then(res => apiCache.set(nextKey, res.data)).catch(()=>{});
             }
           }
@@ -239,7 +239,7 @@ const ProductList = () => {
           if (prodRes.data && prodRes.data.next) {
              const nextParams = buildParams(2);
              const nextKey = `products:${JSON.stringify(nextParams)}`;
-             if (!apiCache.get(nextKey)) {
+             if (!apiCache.get<any>(nextKey)) {
                api.get('/api/products/', { params: nextParams }).then(res => apiCache.set(nextKey, res.data)).catch(()=>{});
              }
           }
@@ -267,7 +267,7 @@ const ProductList = () => {
             if (res.data.next) {
                const nextParams = buildParams(p + 1);
                const nextKey = `products:${JSON.stringify(nextParams)}`;
-               if (!apiCache.get(nextKey)) {
+               if (!apiCache.get<any>(nextKey)) {
                  api.get('/api/products/', { params: nextParams }).then(nxtRes => apiCache.set(nextKey, nxtRes.data)).catch(()=>{});
                }
             }
