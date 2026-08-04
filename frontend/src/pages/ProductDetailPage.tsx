@@ -219,8 +219,8 @@ const ProductMap = ({ lat, lng, isDesktop, locationName }: { lat: string | numbe
   if (!lat || !lng) return null;
 
   return (
-    <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
-      <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between mb-3">
          <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
            <MapPin className="text-brand-500" />
            Location
@@ -231,7 +231,7 @@ const ProductMap = ({ lat, lng, isDesktop, locationName }: { lat: string | numbe
            </button>
          )}
       </div>
-      {locationName && <p className="text-sm text-gray-500 mb-4 flex items-center gap-1.5"><MapPin size={14}/>{locationName}</p>}
+      {locationName && <p className={`text-sm text-gray-500 flex items-center gap-1.5 ${showMap ? 'mb-4' : ''}`}><MapPin size={14}/>{locationName}</p>}
       
       {showMap && (
         <div className="w-full h-64 md:h-96 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 relative z-0 bg-gray-100 dark:bg-gray-800">
@@ -407,6 +407,26 @@ const ProductDetailPage: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [images, lightboxOpen]);
+
+  useEffect(() => {
+    if (isAuthenticated && product && location.search.includes('auto_message=true')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('auto_message');
+      navigate(url.pathname + url.search, { replace: true });
+      
+      const createConversationAndSend = async () => {
+        try {
+          const convRes = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
+          const convId = convRes.data.id;
+          const prefillMessage = `Hi, is this still available?`;
+          navigate(`/messages/${convId}`, { state: { prefillMessage, sendImmediately: true } });
+        } catch {
+          toast.error('Failed to start conversation');
+        }
+      };
+      createConversationAndSend();
+    }
+  }, [isAuthenticated, product, location.search, navigate]);
 
   if (loading) {
     return (
@@ -593,80 +613,16 @@ const ProductDetailPage: React.FC = () => {
       </div>
 
       {/* RIGHT SIDE: Product Info & Buy Sidebar */}
-      <div className="w-full lg:w-[42%] xl:w-[38%] h-auto lg:h-full bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 overflow-y-visible lg:overflow-y-auto p-5 sm:p-6 lg:p-7 flex flex-col gap-5 shrink-0">
+      <div className="w-full lg:w-[42%] xl:w-[38%] h-auto lg:h-full bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 overflow-y-visible lg:overflow-y-auto p-4 sm:p-5 flex flex-col gap-4 shrink-0">
           {/* Header Area */}
-          <div>
-            <div className="flex flex-wrap justify-between items-start gap-4 mb-2">
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link 
-                    to={`/?category=${product.category_name}`} 
-                    className="text-xs font-black uppercase tracking-widest text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
-                  >
-                    {product.category_name}
-                  </Link>
-                  <span className="text-gray-300 dark:text-gray-600 font-bold">•</span>
-                  <span className={`px-2 py-0.5 rounded-card text-[10px] font-black uppercase tracking-wider ${
-                    product.condition === 'New' 
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                  }`}>
-                    {product.condition}
-                  </span>
-                </div>
-                <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight">
-                  {product.name}
-                </h1>
-              </div>
-
-              {/* Action Buttons (Like, Share) */}
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1 bg-surface-muted dark:bg-[#242526] rounded-full p-1 pr-2 border border-gray-200 dark:border-gray-800">
-                  <button
-                    onClick={handleLike}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 ${
-                      liked
-                        ? 'bg-red-500 text-white shadow-md'
-                        : 'bg-white dark:bg-[#3a3b3c] text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#4e4f50] shadow-sm'
-                    }`}
-                    title="Like"
-                  >
-                    <Heart size={16} className={liked ? 'fill-current' : ''} />
-                  </button>
-                  <span className="text-xs font-bold text-gray-600 dark:text-gray-300 px-1">{likeCount}</span>
-                </div>
-                <button
-                  onClick={handleShare}
-                  className="w-10 h-10 bg-surface-muted dark:bg-[#242526] hover:bg-gray-200 dark:hover:bg-[#3a3b3c] text-gray-700 dark:text-gray-200 rounded-full flex items-center justify-center transition-all active:scale-95 border border-gray-200 dark:border-gray-800"
-                  title="Share"
-                >
-                  <Share2 size={18} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-              {product.location_name && (
-                <span className="flex items-center gap-1">
-                  <MapPin size={13} className="text-gray-400" />
-                  {product.location_name}
-                </span>
-              )}
-              {product.created_at && (
-                <span className="flex items-center gap-1">
-                  <Clock size={13} className="text-gray-400" />
-                  {t('posted')} {timeAgo(product.created_at)}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <hr className="border-gray-200 dark:border-neutral-800 my-1" />
-
-          {/* Price & Badge */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+          <div className="flex flex-col">
+            <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight">
+              {product.name}
+            </h1>
+            
+            {/* Price below title */}
+            <div className="flex items-center gap-3 flex-wrap mt-1">
+              <span className="text-[26px] font-black text-gray-900 dark:text-white tracking-tight">
                 {product.requires_quote 
                   ? t('price_on_request', 'Price on Request')
                   : `TSh ${(selectedVariant ? parseInt(selectedVariant.price_adjustment) + parseInt(product.price) : parseInt(product.sale_price || product.price)).toLocaleString()}`
@@ -674,7 +630,7 @@ const ProductDetailPage: React.FC = () => {
               </span>
               {product.sale_price && !selectedVariant && !product.requires_quote && (
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-gray-400 line-through decoration-red-500/50 decoration-2">
+                  <span className="text-base font-bold text-gray-400 line-through decoration-red-500/50 decoration-2">
                     TSh {parseInt(product.price).toLocaleString()}
                   </span>
                   <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-black rounded-md uppercase tracking-wider shadow-sm shadow-red-500/20">
@@ -683,11 +639,68 @@ const ProductDetailPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+              <Link 
+                to={`/?category=${product.category_name}`} 
+                className="font-bold uppercase tracking-widest text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
+              >
+                {product.category_name}
+              </Link>
+              <span>•</span>
+              <span className={`px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider ${
+                product.condition === 'New' 
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
+                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+              }`}>
+                {product.condition}
+              </span>
+              {product.location_name && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <MapPin size={12} className="text-gray-400" />
+                    {product.location_name}
+                  </span>
+                </>
+              )}
+              {product.created_at && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <Clock size={12} className="text-gray-400" />
+                    {timeAgo(product.created_at)}
+                  </span>
+                </>
+              )}
+            </div>
+            
+            {/* Action Buttons (Like, Share) */}
+            <div className="flex items-center gap-2 mt-3">
+              <button
+                onClick={handleLike}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm transition-all active:scale-95 ${
+                  liked
+                    ? 'bg-red-50 dark:bg-red-950/30 text-red-500'
+                    : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
+                }`}
+              >
+                <Heart size={16} className={liked ? 'fill-current' : ''} />
+                {liked ? 'Saved' : 'Save'}
+                <span className="text-xs opacity-70">({likeCount})</span>
+              </button>
+              <button
+                onClick={handleShare}
+                className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-sm transition-all active:scale-95"
+              >
+                <Share2 size={16} />
+                Share
+              </button>
+            </div>
           </div>
 
           {variants.length > 0 && (
             <>
-              <hr className="border-gray-200 dark:border-neutral-800 my-1" />
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">Select Variation</span>
@@ -749,8 +762,6 @@ const ProductDetailPage: React.FC = () => {
             </>
           )}
 
-          <hr className="border-gray-200 dark:border-neutral-800 my-1" />
-
           {/* UOM and Tiered Pricing info */}
           {((product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1) || (product.price_tiers && product.price_tiers.length > 0)) && (
             <div className="flex flex-col gap-2 mb-3 bg-brand-50/50 dark:bg-brand-900/10 p-3 rounded-xl border border-brand-100 dark:border-brand-800/30">
@@ -811,8 +822,6 @@ const ProductDetailPage: React.FC = () => {
             )}
           </div>
 
-          <hr className="border-gray-200 dark:border-neutral-800 my-1" />
-
           {/* Description */}
           <div>
              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">{t('description')}</h3>
@@ -826,66 +835,79 @@ const ProductDetailPage: React.FC = () => {
              )}
           </div>
 
-          <hr className="border-gray-200 dark:border-neutral-800 my-1" />
-
           {/* Merchant Trust */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 md:gap-4">
-              <div className="w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
-                {product.seller_profile_picture ? (
-                  <img src={product.seller_profile_picture} alt={product.seller_username} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xl md:text-2xl font-black text-gray-500 dark:text-gray-400 uppercase">
-                    {product.seller_username.charAt(0)}
-                  </span>
-                )}
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <Link to={`/${product.seller_username}`} className="text-base md:text-lg font-bold text-gray-900 dark:text-white hover:underline transition">
-                    {product.seller_full_name || product.seller_username}
-                  </Link>
-                  <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-4 h-4" />
-                </div>
-                <div className="flex items-center gap-1">
-                  {product.avg_rating > 0 ? (
-                    <>
-                      <div className="flex text-amber-400">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star key={star} size={11} className={star <= product.avg_rating ? 'fill-current' : 'text-gray-200 dark:text-gray-700'} />
-                        ))}
-                      </div>
-                      <span className="text-[10px] font-bold text-gray-500">({product.avg_rating})</span>
-                    </>
+          <div className="flex flex-col gap-3 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800/50">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-800 flex items-center justify-center shrink-0">
+                  {product.seller_profile_picture ? (
+                    <img src={product.seller_profile_picture} alt={product.seller_username} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-[10px] text-gray-400 italic">{t('no_reviews_yet', 'No reviews yet')}</span>
+                    <span className="text-lg font-black text-gray-500 dark:text-gray-400 uppercase">
+                      {product.seller_username.charAt(0)}
+                    </span>
                   )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <Link to={`/${product.seller_username}`} className="text-base font-bold text-gray-900 dark:text-white hover:underline transition">
+                      {product.seller_full_name || product.seller_username}
+                    </Link>
+                    <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {product.avg_rating > 0 ? (
+                      <>
+                        <div className="flex text-amber-400">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star key={star} size={11} className={star <= product.avg_rating ? 'fill-current' : 'text-gray-200 dark:text-gray-700'} />
+                          ))}
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-500">({product.avg_rating})</span>
+                      </>
+                    ) : (
+                      <span className="text-[10px] text-gray-400 italic">{t('no_reviews_yet', 'No reviews yet')}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
             
             {product.seller_username !== localStorage.getItem('username') && (
-              <button
-                onClick={async () => {
-                  try {
-                    const convRes = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
-                    const convId = convRes.data.id;
-                    const prefillMessage = `Hi, I'm interested in your listing: "${product.name}" (TZS ${Number(product.price).toLocaleString()}). Could you provide more details?`;
-                    navigate(`/messages/${convId}`, { state: { prefillMessage } });
-                  } catch { toast.error('Login to message seller'); }
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold transition-colors"
-              >
-                <MessageSquare size={14} /> {t('contact')}
-              </button>
+              <div className="flex flex-col gap-2 mt-1">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Send Seller a Message</p>
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-white dark:bg-[#242526] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+                    Hi, is this still available?
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!isAuthenticated) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('auto_message', 'true');
+                        navigate('/login?next=' + encodeURIComponent(url.pathname + url.search));
+                        return;
+                      }
+                      try {
+                        const convRes = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
+                        const convId = convRes.data.id;
+                        const prefillMessage = `Hi, is this still available?`;
+                        navigate(`/messages/${convId}`, { state: { prefillMessage, sendImmediately: true } });
+                      } catch { toast.error('Failed to start conversation'); }
+                    }}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap"
+                  >
+                    <MessageSquare size={16} /> Send
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
           {/* Verification & Inspection Services */}
           {(isOwnProduct || (product.inspections && product.inspections.length > 0)) && (
             <>
-              <hr className="border-gray-200 dark:border-neutral-800 my-1" />
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 mt-1">
                 <div className="flex items-center gap-2">
                   <Shield size={16} className="text-brand-500" />
                   <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">
@@ -931,7 +953,7 @@ const ProductDetailPage: React.FC = () => {
           )}
 
           {/* Product Reviews & Comments */}
-          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+          <div className="mt-1">
             <ProductTabs 
               productId={product.id} 
               sellerUsername={product.seller_username} 

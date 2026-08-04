@@ -16,6 +16,7 @@ from .utils import is_vehicle_category, order_has_vehicles
 class DeliveryOptionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DeliveryOption.objects.filter(is_active=True)
     serializer_class = DeliveryOptionSerializer
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
 
@@ -304,6 +305,7 @@ class ShipmentViewSet(viewsets.ModelViewSet):
 
 
 class DeliveryQuoteView(views.APIView):
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -507,6 +509,7 @@ class DriverViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 class CheckoutOptionsView(views.APIView):
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):

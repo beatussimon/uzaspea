@@ -260,13 +260,18 @@ const Navbar = () => {
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <button 
-              onClick={() => i18n.changeLanguage(i18n.language?.startsWith('sw') ? 'en' : 'sw')} 
-              className={`${themeButtonClass} inline-flex items-center justify-center gap-1`}
+              onClick={() => {
+                const currentLang = i18n.language?.split('-')[0] || 'en';
+                i18n.changeLanguage(currentLang === 'sw' ? 'en' : 'sw');
+              }} 
+              className={`${themeButtonClass} inline-flex items-center justify-center gap-1 min-w-[50px]`}
               aria-label="Toggle Language"
-              title={`Switch to ${i18n.language?.startsWith('sw') ? 'English' : 'Swahili'}`}
+              title={`Switch to ${i18n.language?.split('-')[0] === 'sw' ? 'English' : 'Swahili'}`}
             >
               <Globe size={18} />
-              <span className="text-[10px] font-bold">{i18n.language?.startsWith('sw') ? 'EN' : 'SW'}</span>
+              <span className="text-[10px] font-bold uppercase">
+                {i18n.language?.split('-')[0] || 'EN'}
+              </span>
             </button>
           </div>
 

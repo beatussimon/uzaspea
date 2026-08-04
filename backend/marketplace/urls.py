@@ -13,7 +13,7 @@ from .api_views import (
     MobileNetworkViewSet, TrendingAnalyticsView, reverse_geocode,
     SubscriptionTierViewSet, UserPaymentConfirmationViewSet, SellerApplicationViewSet,
     TeamMemberViewSet, UserSubscriptionViewSet, TeamRolePresetsView, PromoCodeViewSet,
-    ProductRequestViewSet
+    ProductRequestViewSet, SellerAnalyticsView
 )
 
 router = DefaultRouter()
@@ -54,6 +54,7 @@ urlpatterns = [
     path('api/auth/verify-superuser/', VerifySuperuserView.as_view(), name='verify_superuser'),  # FIX D-02/D-03
     path('api/site-settings/', SiteSettingsView.as_view(), name='site-settings'),  # FIX B-18
     path('api/analytics/trending/', TrendingAnalyticsView.as_view(), name='analytics-trending'),
+    path('api/analytics/seller/', SellerAnalyticsView.as_view(), name='analytics-seller'),
     path('api/health/reverse_geocode/', reverse_geocode, name='reverse-geocode'),
     path('api/team-role-presets/', TeamRolePresetsView.as_view(), name='team-role-presets'),
     path('api/push/subscribe/', __import__('marketplace.api_views').api_views.PushSubscriptionView.as_view(), name='push-subscribe'),

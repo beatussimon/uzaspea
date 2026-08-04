@@ -531,7 +531,7 @@ const ProductList = () => {
       });
     });
 
-    const COLS = gridCols;
+    const COLS = viewMode === 'list' ? 1 : gridCols;
     const REGULAR_ROWS_BETWEEN = 3; // 3 rows of regular items between each sponsored row
     const entries: GridEntry[] = [];
     let promoIdx = 0;
@@ -560,9 +560,11 @@ const ProductList = () => {
       }
     }
 
-    // Always inject any remaining sponsored items at the end
-    while (promoIdx < promoted.length) {
-      injectSponsoredRow();
+    // Always inject any remaining sponsored items at the end ONLY if there are no more regular products to fetch
+    if (!hasMore) {
+      while (promoIdx < promoted.length) {
+        injectSponsoredRow();
+      }
     }
 
     return entries;
@@ -882,7 +884,7 @@ const ProductList = () => {
       {loading ? (
         <div 
           className={viewMode === 'grid' 
-            ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5" 
+            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none"
             : "flex flex-col gap-3"
           }
         >

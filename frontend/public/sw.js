@@ -23,7 +23,9 @@ self.addEventListener('push', function(event) {
       url: data.url || '/'
     }
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch(err => console.error('Notification failed:', err))
+  );
 });
 
 self.addEventListener('notificationclick', function(event) {

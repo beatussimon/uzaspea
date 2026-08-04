@@ -28,7 +28,7 @@ const SettingsPage: React.FC = () => {
     const [loadingUpgradeData, setLoadingUpgradeData] = useState(false);
 
     const [pushPermission, setPushPermission] = useState<NotificationPermission>(
-        typeof window !== 'undefined' ? Notification.permission : 'default'
+        typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
     );
 
     const enablePushNotifications = async () => {
@@ -270,8 +270,8 @@ const SettingsPage: React.FC = () => {
                         </p>
                     </div>
                     {pushPermission !== 'granted' ? (
-                        <button onClick={enablePushNotifications} className="btn-primary text-sm px-4 py-2">
-                            Enable Push Notifications
+                        <button onClick={enablePushNotifications} className="btn-primary text-sm px-4 py-2" disabled={pushPermission === 'denied'}>
+                            {pushPermission === 'denied' ? 'Notifications Blocked' : 'Enable Push Notifications'}
                         </button>
                     ) : (
                         <span className="text-xs font-bold text-green-500 bg-green-500/10 px-3 py-1.5 rounded-full flex items-center gap-1.5">

@@ -227,10 +227,9 @@ const PhotoCapture: React.FC<{
         }
       }, 100);
     } catch (err) {
-      console.error("Camera access failed, falling back to upload:", err);
-      toast.error("Could not start live camera. Falling back to upload.");
+      console.error("Camera access failed:", err);
+      toast.error("Could not start live camera. Please allow camera permissions to proceed.");
       setShowCamera(false);
-      inputRef.current?.click();
     }
   };
 
@@ -284,34 +283,6 @@ const PhotoCapture: React.FC<{
     }
   };
 
-  const handleFallbackUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setGpsStatus('acquiring');
-    let lat: number | null = null;
-    let lng: number | null = null;
-    try {
-      const pos = await getLocation();
-      lat = pos.lat;
-      lng = pos.lng;
-      setGpsStatus('ready');
-    } catch {
-      setGpsStatus('unavailable');
-      const confirmNoGps = window.confirm('GPS Location is unavailable. Proceed without GPS?');
-      if (!confirmNoGps) {
-        e.target.value = '';
-        setGpsStatus('idle');
-        return;
-      }
-    }
-    onCapture(file, lat, lng);
-    if (lat !== null) {
-      toast.success(`${label} captured with GPS`);
-    } else {
-      toast.success(`${label} captured (no GPS)`);
-    }
-  };
-
   return (
     <div className="flex flex-col gap-2 w-full">
       {gpsStatus !== 'idle' && !showCamera && (
@@ -345,15 +316,6 @@ const PhotoCapture: React.FC<{
         </span>
         <span className="text-xs text-gray-400">Live Camera only</span>
       </button>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleFallbackUpload}
-      />
 
       {showCamera && (
         <div className="fixed inset-0 bg-neutral-950/95 z-[9999] flex flex-col items-center justify-between p-6">

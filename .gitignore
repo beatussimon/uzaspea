@@ -84,3 +84,4 @@ cookies.txt
 
 # Backend logs
 backend/logs/
+backend/scripts/scratch/

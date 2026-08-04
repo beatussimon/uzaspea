@@ -1279,6 +1279,7 @@ class FraudFlagViewSet(viewsets.ModelViewSet):
 # ──────────────────────────────────────────────
 
 class PublicVerifyView(APIView):
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, inspection_id):

@@ -123,9 +123,9 @@ class PickupCodeTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['status'], 'success')
         
-        # Verify order status transitions to DELIVERED
+        # Verify order status transitions to COMPLETED
         self.order.refresh_from_db()
-        self.assertEqual(self.order.status, 'DELIVERED')
+        self.assertEqual(self.order.status, 'COMPLETED')
 
         # 2. Second verification should fail (one-time-use)
         res_fail = self.client.post('/api/warehouses/pickup/verify/', {'code': self.pickup_code.code}, format='json')

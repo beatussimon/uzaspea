@@ -4,6 +4,32 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../api';
 import toast from 'react-hot-toast';
 
+interface Shipment {
+  id: number | string;
+  order: number | string;
+  status: string;
+  carrier_type: string;
+  driver?: number | string;
+  tracking_number?: string;
+  estimated_delivery?: string;
+  [key: string]: unknown;
+}
+
+interface Driver {
+  id: number | string;
+  username?: string;
+  [key: string]: unknown;
+}
+
+interface Payment {
+  id: number | string;
+  driver: number | string;
+  driver_name: string;
+  status: string;
+  amount: number | string;
+  [key: string]: unknown;
+}
+
 // Reusable Components matching Warehouse Ops design language
 const SkeletonCards = () => (
   <div className="space-y-3">
@@ -24,17 +50,17 @@ const LogisticsManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'shipments' | 'payments'>('shipments');
 
   // Shipment states
-  const [shipments, setShipments] = useState<any[]>([]);
+  const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loadingShipments, setLoadingShipments] = useState(true);
-  const [drivers, setDrivers] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
 
   // Payments states
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [payingId, setPayingId] = useState<number | null>(null);
 
   // Edit Shipment Modal states
-  const [selectedShipment, setSelectedShipment] = useState<any | null>(null);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [editStatus, setEditStatus] = useState('');
   const [editCarrierType, setEditCarrierType] = useState<'driver' | 'third_party'>('driver');
   const [editDriver, setEditDriver] = useState('');
@@ -86,14 +112,14 @@ const LogisticsManager: React.FC = () => {
       await api.post(`/api/logistics/driver-payments/${id}/pay/`);
       toast.success('Payment disbursed to driver successfully.');
       fetchPayments();
-    } catch (err: any) {
+    } catch (err: any | unknown) {
       toast.error(err.response?.data?.error || 'Failed to process payment.');
     } finally {
       setPayingId(null);
     }
   };
 
-  const openEditModal = (shipment: any) => {
+  const openEditModal = (shipment: Shipment) => {
     setSelectedShipment(shipment);
     setEditStatus(shipment.status);
     setEditCarrierType(shipment.carrier_type);
@@ -130,7 +156,7 @@ const LogisticsManager: React.FC = () => {
       setSelectedShipment(null);
       setDeliveryCode('');
       fetchShipments();
-    } catch (err: any) {
+    } catch (err: any | unknown) {
       const msg = err.response?.data?.detail || err.response?.data?.error || 'Failed to update shipment.';
       toast.error(msg);
     } finally {
@@ -169,7 +195,7 @@ const LogisticsManager: React.FC = () => {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'shipments' | 'payments')}
               className={`flex-1 md:w-48 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${
                 activeTab === tab.id
                   ? 'bg-white text-gray-900 shadow-md'
@@ -371,7 +397,7 @@ const LogisticsManager: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Carrier Mode</label>
-                      <select required className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white" value={editCarrierType} onChange={(e) => setEditCarrierType(e.target.value as any)}>
+                      <select required className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-sm font-bold outline-none text-gray-900 dark:text-white" value={editCarrierType} onChange={(e) => setEditCarrierType(e.target.value as 'driver' | 'third_party')}>
                         <option value="driver">SokoniMax Fleet</option>
                         <option value="third_party">Third-Party Courier</option>
                       </select>
@@ -479,7 +505,7 @@ const LogisticsManager: React.FC = () => {
 };
 
 // Sub-components for Kanban Cards (matching Warehouse Ops QueueCard design)
-const ShipmentCard = ({ ship, onClick, badge, badgeColor }: { ship: any, onClick: () => void, badge: string, badgeColor: string }) => {
+const ShipmentCard = ({ ship, onClick, badge, badgeColor }: { ship: Shipment, onClick: () => void, badge: string, badgeColor: string }) => {
   return (
     <div 
       onClick={onClick}
@@ -512,7 +538,7 @@ const ShipmentCard = ({ ship, onClick, badge, badgeColor }: { ship: any, onClick
   );
 };
 
-const PaymentCard = ({ pay, onAction, loading, status }: { pay: any, onAction: () => void, loading: boolean, status: 'paid' | 'unpaid' }) => {
+const PaymentCard = ({ pay, onAction, loading, status }: { pay: Payment, onAction: () => void, loading: boolean, status: 'paid' | 'unpaid' }) => {
   return (
     <div className="bg-white border border-gray-200 shadow-sm rounded-3xl p-4 hover:border-[#10B981] hover:shadow-lg transition-all relative overflow-hidden group">
       <div className={`absolute top-0 left-0 w-1 h-full ${status === 'paid' ? 'bg-emerald-500' : 'bg-amber-500'} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
