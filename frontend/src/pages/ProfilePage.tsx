@@ -531,13 +531,6 @@ const ProfilePage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-gray-100 dark:border-neutral-800">
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">{t('account_type')}</p>
-                <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                  <VerifiedBadge tier={profile.tier} isVerified={profile.is_verified} className="w-4 h-4" />
-                  <span>{profile.is_verified ? t('verified_shop') : profile.tier === 'customer' || !profile.tier ? t('buyer_account') : t('seller_account')}</span>
-                </p>
-              </div>
-              <div className="space-y-1">
                 <p className="text-[10px] font-black text-gray-400 dark:text-neutral-500 uppercase tracking-wider">{t('verification_status')}</p>
                 <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                   {profile.is_verified ? (

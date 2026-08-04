@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useParams, Navigate } from 'react-router-dom';
 import {
   ChevronRight, Shield, Clock, Eye, ClipboardList, CheckCircle2, CreditCard,
-  AlertTriangle, XCircle, LayoutDashboard, BarChart2, Search, Users,
+  AlertTriangle, XCircle, LayoutDashboard, BarChart2, Search, Users, ChevronLeft,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Breadcrumbs from '../../../components/Breadcrumbs';
@@ -908,6 +908,16 @@ const StaffInspectionLayout: React.FC<{ user?: any }> = ({ user }) => {
   const isSuper = localStorage.getItem('is_superuser') === 'true';
   const hasManagePerm = isSuper || user?.permissions?.includes('can_manage_inspections');
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('inspection_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = () => {
+    const newVal = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newVal);
+    localStorage.setItem('inspection_sidebar_collapsed', String(newVal));
+  };
+
   // Detect whether we're under /staff-admin or /staff
   const base = location.pathname.startsWith('/staff-admin')
     ? '/staff-admin/inspections'
@@ -928,10 +938,19 @@ const StaffInspectionLayout: React.FC<{ user?: any }> = ({ user }) => {
       <Breadcrumbs />
       
       <div className="flex flex-col lg:flex-row gap-6 mt-4">
-      <aside className="w-full lg:w-56 shrink-0">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 shadow-sm dark:border-gray-700 p-2 space-y-1">
-          <div className="px-3 py-2 mb-1">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Inspections</h3>
+      <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0`}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 space-y-1">
+          <div className="px-3 py-2 mb-1 flex items-center justify-between">
+            {!isSidebarCollapsed && (
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Inspections</h3>
+            )}
+            <button
+              onClick={toggleSidebar}
+              className={`p-1 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition ${isSidebarCollapsed ? 'mx-auto' : ''}`}
+              title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
           </div>
           {navItems.map((item) => {
             const isActive = item.exact
@@ -941,20 +960,21 @@ const StaffInspectionLayout: React.FC<{ user?: any }> = ({ user }) => {
             const active = item.exact ? exactActive : isActive;
             return (
               <Link key={item.path} to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+                title={isSidebarCollapsed ? item.label : undefined}
+                className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg text-sm transition ${
                   active
                     ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}>
-                <item.icon size={16} />
-                {item.label}
+                <item.icon size={16} className="shrink-0" />
+                {!isSidebarCollapsed && <span>{item.label}</span>}
               </Link>
             );
           })}
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 transition-all duration-300">
         <Routes>
           <Route index element={<StaffInspectionDashboard hasPerm={hasManagePerm} />} />
           <Route path="requests" element={hasManagePerm ? <AllRequests /> : <Navigate to={base} />} />

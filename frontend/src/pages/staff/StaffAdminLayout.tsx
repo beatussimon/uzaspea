@@ -4,7 +4,8 @@ import {
   LayoutDashboard, ClipboardList, Shield, ScrollText,
   Users, CheckCircle2, XCircle, Clock, AlertTriangle,
   UserPlus, UserMinus, Building2, Briefcase, Plus,
-  CreditCard, FileText, Layers, Megaphone, Star, MessageSquare
+  CreditCard, FileText, Layers, Megaphone, Star, MessageSquare,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
@@ -1051,6 +1052,13 @@ const AuditLogViewer: React.FC = () => {
 // ============ Staff Admin Layout ============
 const StaffAdminLayout: React.FC = () => {
   const location = useLocation();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('adminSidebarCollapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('adminSidebarCollapsed', isSidebarCollapsed.toString());
+  }, [isSidebarCollapsed]);
 
   const navItems = [
     { path: '/staff-admin', label: 'Overview', icon: LayoutDashboard },
@@ -1072,39 +1080,52 @@ const StaffAdminLayout: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-[1400px] mx-auto p-4 flex flex-col lg:flex-row gap-8 min-h-screen">
-      <aside className="w-full lg:w-64 shrink-0">
+    <div className="max-w-7xl mx-auto p-4 flex flex-col lg:flex-row gap-6 min-h-screen">
+      <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0`}>
         <div className="sticky top-24 space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-brand-600/5 border border-brand-100/50 dark:border-brand-900/20 p-3 space-y-1 max-h-[70vh] overflow-y-auto no-scrollbar">
-                <div className="px-4 py-3 mb-2 flex items-center gap-2 border-b border-gray-50 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 space-y-1 relative max-h-[70vh] overflow-y-auto no-scrollbar">
+                
+                <button 
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
+                  title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
+                >
+                  {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+                </button>
+
+                <div className={`px-3 py-2 mb-1 flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0 border-none' : 'opacity-100'}`}>
                     <div className="w-2 h-2 rounded-full bg-brand-600 animate-pulse" />
-                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">C&C Terminal</h3>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">Admin Terminal</h3>
                 </div>
-                {navItems.map((item) => {
-                    const isActive = location.pathname === item.path || (
-                        item.path !== '/staff-admin' && 
-                        (item.path !== '/staff' || !location.pathname.startsWith('/staff-admin')) && 
-                        location.pathname.startsWith(item.path)
-                    );
-                    return (
-                    <Link key={item.path} to={item.path}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition ${
-                        isActive
-                            ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 -translate-y-0.5'
-                            : 'text-gray-500 hover:bg-brand-50 dark:hover:bg-brand-900/10 hover:text-brand-600'
-                        }`}
-                    >
-                        <item.icon size={16} />
-                        {item.label}
-                    </Link>
-                    );
-                })}
+                
+                <div className="flex flex-col gap-1">
+                  {navItems.map((item) => {
+                      const isActive = location.pathname === item.path || (
+                          item.path !== '/staff-admin' && 
+                          (item.path !== '/staff' || !location.pathname.startsWith('/staff-admin')) && 
+                          location.pathname.startsWith(item.path)
+                      );
+                      return (
+                      <Link key={item.path} to={item.path}
+                          title={isSidebarCollapsed ? item.label : undefined}
+                          className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-lg text-sm transition group ${
+                          isActive
+                              ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                      >
+                          <item.icon size={16} className={isSidebarCollapsed ? 'shrink-0' : ''} />
+                          {!isSidebarCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
+                      </Link>
+                      );
+                  })}
+                </div>
             </div>
             
-            <div className="bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-2xl p-5 border-0 shadow-lg shadow-brand-600/20">
-                <Shield size={24} className="mb-4 opacity-50" />
-                <h4 className="text-sm font-black uppercase tracking-widest mb-1">Admin Mode</h4>
-                <p className="text-[10px] text-white/70 leading-relaxed font-medium">You have unrestricted access to all operations, metrics, user accounts, and staff records.</p>
+            <div className={`bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-xl p-4 border-0 shadow-sm transition-opacity duration-300 ${isSidebarCollapsed ? 'hidden' : 'block'}`}>
+                <Shield size={20} className="mb-3 opacity-50" />
+                <h4 className="text-xs font-black uppercase tracking-widest mb-1">Admin Mode</h4>
+                <p className="text-[10px] text-white/70 leading-relaxed font-medium">You have unrestricted access to all operations.</p>
             </div>
         </div>
       </aside>

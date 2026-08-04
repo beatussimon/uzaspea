@@ -103,9 +103,16 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
                 from django.db import transaction
                 from decimal import Decimal
 
-                if not order.delivery_info:
-                    order.delivery_info = {}
-                new_di = dict(order.delivery_info)
+                import json
+                di_raw = order.delivery_info
+                if isinstance(di_raw, str):
+                    try:
+                        di_raw = json.loads(di_raw)
+                    except json.JSONDecodeError:
+                        di_raw = {}
+                if not di_raw or not isinstance(di_raw, dict):
+                    di_raw = {}
+                new_di = dict(di_raw)
                 new_di['destination_warehouse_code'] = dest_code
                 order.delivery_info = new_di
                 order.shipping_fee = fee
@@ -354,9 +361,16 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
             notes=notes
         )
 
-        if not order.delivery_info:
-            order.delivery_info = {}
-        new_di = dict(order.delivery_info)
+        import json
+        di_raw = order.delivery_info
+        if isinstance(di_raw, str):
+            try:
+                di_raw = json.loads(di_raw)
+            except json.JSONDecodeError:
+                di_raw = {}
+        if not di_raw or not isinstance(di_raw, dict):
+            di_raw = {}
+        new_di = dict(di_raw)
         new_di['current_warehouse_code'] = warehouse.code
         order.delivery_info = new_di
         order.save(update_fields=['delivery_info'])

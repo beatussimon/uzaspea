@@ -6,10 +6,12 @@ class RegionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Region.objects.all().order_by('name')
     serializer_class = RegionSerializer
     pagination_class = None
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
 class DistrictViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = District.objects.all().order_by('name')
     serializer_class = DistrictSerializer
     pagination_class = None
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]

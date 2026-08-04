@@ -336,9 +336,15 @@ const MobileBottomNav = () => {
                     {isDark ? <Sun size={20} /> : <Moon size={20} />}
                     <span>{isDark ? t('light_mode') : t('dark_mode')}</span>
                   </button>
-                  <button onClick={() => i18n.changeLanguage(i18n.language?.startsWith('sw') ? 'en' : 'sw')} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors text-left w-full">
-                    <Globe size={20} />
-                    <span>{i18n.language?.startsWith('sw') ? 'English' : 'Kiswahili'}</span>
+                  <button onClick={() => {
+                    const currentLang = i18n.language?.split('-')[0] || 'en';
+                    i18n.changeLanguage(currentLang === 'sw' ? 'en' : 'sw');
+                  }} className="flex items-center justify-between p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors w-full">
+                    <div className="flex items-center gap-4">
+                      <Globe size={20} />
+                      <span>{i18n.language?.split('-')[0] === 'sw' ? 'Kiswahili' : 'English'}</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Switch</span>
                   </button>
                   <Link to="/dashboard/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors">
                     <Settings size={20} />

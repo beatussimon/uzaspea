@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useState } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle, Lightbulb, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle, Lightbulb, FileText, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 const SettingsPage = lazy(() => import('./SettingsPage'));
@@ -8,6 +8,7 @@ const SettingsPage = lazy(() => import('./SettingsPage'));
 const HelpCenterPage = lazy(() => import('./HelpCenterPage'));
 
 const DashboardOverview = lazy(() => import('./DashboardOverview'));
+const DashboardAnalytics = lazy(() => import('./DashboardAnalytics'));
 const DashboardProducts = lazy(() => import('./DashboardProducts'));
 const DashboardPromotions = lazy(() => import('./DashboardPromotions'));
 const DashboardOrders = lazy(() => import('./DashboardOrders'));
@@ -34,6 +35,7 @@ const DashboardLayout: React.FC = () => {
 
   const allNavItems = [
     { path: '/dashboard', label: t('overview', 'Overview'), icon: LayoutDashboard, show: !isWorker || perms.view_analytics },
+    { path: '/dashboard/analytics', label: t('analytics', 'Analytics'), icon: TrendingUp, show: !isWorker || perms.view_analytics },
     { path: '/dashboard/products', label: t('products', 'Products'), icon: Package, show: !isWorker || perms.manage_products },
     { path: '/dashboard/product-requests', label: t('product_requests', 'Product Requests'), icon: Lightbulb, show: !isWorker || perms.manage_products },
     { path: '/dashboard/orders', label: t('incoming_orders', 'Incoming Orders'), icon: ShoppingCart, show: !isWorker || perms.manage_orders },
@@ -145,6 +147,7 @@ const DashboardLayout: React.FC = () => {
         <Suspense fallback={<div className="p-8 text-center text-sm text-gray-500 animate-pulse">Loading Help Center...</div>}>
           <Routes>
             <Route index element={<DashboardOverview />} />
+            <Route path="analytics" element={<DashboardAnalytics />} />
             <Route path="products" element={<DashboardProducts />} />
             <Route path="product-requests" element={<ProductRequestsBoard />} />
             <Route path="pos" element={<DashboardPOS />} />

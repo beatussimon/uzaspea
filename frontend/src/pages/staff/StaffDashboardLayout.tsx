@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
   CheckCircle2, XCircle, Clock, AlertTriangle, Shield, Star,
   CreditCard, FileText, Layers, MessageSquare, Send, Package, Truck,
-  BarChart2
+  BarChart2, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../../api';
@@ -1319,6 +1319,13 @@ const StaffDashboardLayout: React.FC = () => {
   const location = useLocation();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('staffSidebarCollapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('staffSidebarCollapsed', isSidebarCollapsed.toString());
+  }, [isSidebarCollapsed]);
 
   useEffect(() => {
     api.get('/api/staff/dashboard-summary/')
@@ -1387,28 +1394,41 @@ const StaffDashboardLayout: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
-      <aside className="w-full lg:w-56 shrink-0">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 shadow-sm dark:border-gray-700 p-2 space-y-1">
-          <div className="px-3 py-2 mb-1 border-b dark:border-gray-700">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+      <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0`}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 shadow-sm dark:border-gray-700 p-2 space-y-1 relative">
+          
+          <button 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
+            title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
+          >
+            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+
+          <div className={`px-3 py-2 mb-1 border-b dark:border-gray-700 transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0 border-none' : 'opacity-100'}`}>
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
               {data?.user?.is_inspector && !canManageInspections ? 'Inspector Panel' : 'Staff Panel'}
             </h3>
-            {data?.user.username && <p className="text-[10px] text-brand-600 font-bold mt-1">@{data.user.username}</p>}
+            {data?.user.username && <p className="text-[10px] text-brand-600 font-bold mt-1 truncate">@{data.user.username}</p>}
           </div>
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link key={item.path} to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
-                  isActive
-                    ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}>
-                <item.icon size={16} />
-                {item.label}
-              </Link>
-            );
-          })}
+
+          <div className="flex flex-col gap-1">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link key={item.path} to={item.path}
+                  title={isSidebarCollapsed ? item.label : undefined}
+                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-lg text-sm transition group ${
+                    isActive
+                      ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}>
+                  <item.icon size={16} className={isSidebarCollapsed ? 'shrink-0' : ''} />
+                  {!isSidebarCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </aside>
 

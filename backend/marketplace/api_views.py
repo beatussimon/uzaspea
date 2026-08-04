@@ -50,10 +50,11 @@ class GeocodeAnonRateThrottle(AnonRateThrottle):
 class GeocodeUserRateThrottle(UserRateThrottle):
     rate = '100/minute'
 
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes, authentication_classes
 import requests
 
 @api_view(['GET'])
+@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 @throttle_classes([GeocodeAnonRateThrottle, GeocodeUserRateThrottle])
 def reverse_geocode(request):
@@ -683,6 +684,7 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
 
 class FAQViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FAQSerializer
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
     def get_queryset(self):
         qs = FAQ.objects.filter(is_published=True)
@@ -1648,6 +1650,7 @@ class ChangePasswordView(APIView):
         return Response({'status': 'password changed'})
 
 class RegisterView(APIView):
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
     throttle_classes = [RegisterRateThrottle]  # FIX D-07
@@ -1921,6 +1924,7 @@ class VerifySuperuserRateThrottle(AnonRateThrottle):
 # ─── FIX D-02/D-03: ForwardAuth endpoint for Traefik ───────────────
 class VerifySuperuserView(APIView):
     """ForwardAuth endpoint: returns 200 for valid superuser JWT, else 401/403."""
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
     throttle_classes = [VerifySuperuserRateThrottle]
 
@@ -1965,6 +1969,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
 class MobileNetworkViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = MobileNetwork.objects.all()
     serializer_class = MobileNetworkSerializer
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
 
@@ -2215,6 +2220,7 @@ class DeliveryZoneViewSet(viewsets.ModelViewSet):
 
 # ─── FIX B-18: Site Settings View ───────────────────────────────
 class SiteSettingsView(APIView):
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
     def get(self, request):
         return Response(SiteSettingsSerializer(SiteSettings.get()).data)
@@ -2277,6 +2283,7 @@ class TrendingAnalyticsView(APIView):
     Returns realistic platform analytics for the Trending Page.
     Publicly accessible.
     """
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
@@ -2315,29 +2322,33 @@ class TrendingAnalyticsView(APIView):
 
         # 5. Trending Products
         from django.db.models.functions import Coalesce
+        from decimal import Decimal
+        from django.db.models import DecimalField
 
-        # Get IDs of orders that qualify as "this week's" completed orders
         weekly_order_ids = Order.objects.filter(
             order_date__gte=seven_days_ago,
             status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED']
         ).values_list('id', flat=True)
-
-        from decimal import Decimal
-        from django.db.models import DecimalField
         
-        base_qs = Product.objects.select_related('category', 'seller').prefetch_related('images', 'likes').filter(
-            is_available=True
-        ).annotate(
-            weekly_sales=Coalesce(Sum(
-                'orderitem__quantity',
-                filter=Q(orderitem__order_id__in=weekly_order_ids)
-            ), Decimal('0'), output_field=DecimalField()),
+        # Simple two-step process to avoid complex annotation errors
+        trending_products = Product.objects.select_related('category', 'seller').prefetch_related('images', 'likes').filter(is_available=True)
+        
+        # We can sort by simple attributes and then limit to 8
+        trending_products = trending_products.annotate(
             like_count=Count('likes', distinct=True)
         )
-
-        top_sellers_qs = base_qs.order_by('-weekly_sales', '-like_count', '-created_at')[:8]
-        most_saved_qs = base_qs.order_by('-like_count', '-weekly_sales', '-created_at')[:8]
-        newest_trending_qs = base_qs.order_by('-created_at', '-like_count')[:8]
+        
+        # Top sellers based on order items
+        from django.db.models import Sum
+        order_items = OrderItem.objects.filter(order__in=weekly_order_ids).values('product_id').annotate(qty=Sum('quantity'))
+        sales_dict = {item['product_id']: item['qty'] for item in order_items}
+        
+        top_sellers_qs = list(trending_products)
+        top_sellers_qs.sort(key=lambda p: (sales_dict.get(p.id, 0), p.like_count, p.created_at), reverse=True)
+        top_sellers_qs = top_sellers_qs[:8]
+        
+        most_saved_qs = trending_products.order_by('-like_count', '-created_at')[:8]
+        newest_trending_qs = trending_products.order_by('-created_at', '-like_count')[:8]
         
         top_sellers_serialized = ProductSerializer(
             top_sellers_qs, many=True, context={'request': request}
@@ -2378,6 +2389,7 @@ class SubscriptionTierViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = SubscriptionTier.objects.filter(is_active=True)
     from .serializers import SubscriptionTierSerializer
     serializer_class = SubscriptionTierSerializer
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
 
@@ -2678,6 +2690,7 @@ class PushSubscriptionView(APIView):
         return Response({'status': 'unsubscribed'})
 
 class PushVapidKeyView(APIView):
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
@@ -2756,3 +2769,86 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
                 
             serializer = self.get_serializer(pr)
             return Response(serializer.data, status=201)
+
+class SellerAnalyticsView(APIView):
+    """
+    Returns analytics for the logged-in seller.
+    Includes revenue, active listings, unfulfilled orders, and out-of-stock items.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        now = timezone.now()
+        thirty_days_ago = now - timedelta(days=30)
+        
+        # 1. Total Revenue (Last 30 Days)
+        # Sum of order items sold by this seller in completed orders
+        revenue_data = OrderItem.objects.filter(
+            product__seller=user,
+            order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED'],
+            order__order_date__gte=thirty_days_ago
+        ).aggregate(total_revenue=Sum(F('quantity') * F('price')))
+        total_revenue = float(revenue_data['total_revenue'] or 0.0)
+        
+        # 2. Active Listings
+        active_listings_count = Product.objects.filter(seller=user, is_available=True).count()
+        
+        # 3. Unfulfilled Orders Count
+        # Orders containing at least one product from this seller that are PAID but not SHIPPED
+        unfulfilled_orders_count = Order.objects.filter(
+            orderitem_set__product__seller=user,
+            status='PAID'
+        ).distinct().count()
+        
+        # 4. Out of stock products
+        out_of_stock_count = Product.objects.filter(
+            seller=user, 
+            stock__lte=0, 
+            is_available=True
+        ).count()
+        
+        # 5. Top Selling Products
+        from django.db.models import F
+        top_products = Product.objects.filter(seller=user).annotate(
+            sales=Sum(
+                'orderitem_set__quantity', 
+                filter=Q(orderitem_set__order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED'])
+            ),
+            revenue=Sum(
+                F('orderitem_set__quantity') * F('orderitem_set__price'),
+                filter=Q(orderitem_set__order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED'])
+            )
+        ).filter(sales__gt=0).order_by('-sales')[:5]
+        
+        top_selling_products = [
+            {
+                "name": p.name,
+                "sales": float(p.sales or 0),
+                "revenue": float(p.revenue or 0)
+            } for p in top_products
+        ]
+        
+        # 6. Recent Orders
+        recent_orders = Order.objects.filter(
+            orderitem_set__product__seller=user
+        ).distinct().order_by('-order_date')[:5]
+        
+        recent_orders_data = [
+            {
+                "id": o.id,
+                "date": o.order_date.isoformat(),
+                "status": o.status,
+                "total": float(o.total_amount)
+            } for o in recent_orders
+        ]
+        
+        return Response({
+            "total_revenue": total_revenue,
+            "active_listings_count": active_listings_count,
+            "unfulfilled_orders_count": unfulfilled_orders_count,
+            "out_of_stock_count": out_of_stock_count,
+            "top_selling_products": top_selling_products,
+            "recent_orders": recent_orders_data
+        })
+

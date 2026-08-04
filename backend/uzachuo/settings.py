@@ -25,7 +25,9 @@ if not os.path.exists('/.dockerenv'):
                         pass
 
 # FIX: S-01 — Never commit the real secret key
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'unsafe-dev-only-key-change-before-deploy')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    raise ValueError("DJANGO_SECRET_KEY must be set in environment")
 
 # FIX: S-02 — Read from environment; default to False for dev safety
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
@@ -152,7 +154,7 @@ _in_test   = 'test' in sys.argv
 if not _in_docker:
     # Force local redis URL without password for local development
     # (in case REDIS_URL is inherited from the shell environment with a password)
-    REDIS_URL = 'redis://:redis_pass@172.18.0.2:6379/0'
+    REDIS_URL = 'redis://127.0.0.1:6379/0'
 
 if _in_test:
     # Tests: no-op cache so throttling doesn't block unit tests
@@ -354,6 +356,6 @@ LOGGING = {
 }
 
 # Web Push VAPID Configuration
-WEBPUSH_VAPID_PRIVATE_KEY = os.environ.get('WEBPUSH_VAPID_PRIVATE_KEY', 'MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgQr1lUsqkVW9s5RJZ/+mHaM9tSt6j0QTxv9vLJqPpeoahRANCAATPX7DUQzMhQqvJFkR/h63r/dCO95rKYMbZDBSn15BUnyCNlzoXnNQYU+v/h/Gi675fyaK7Lr7LiYqv0gnHsuLU')
-WEBPUSH_VAPID_PUBLIC_KEY = os.environ.get('WEBPUSH_VAPID_PUBLIC_KEY', 'BM9fsNRDMyFCq8kWRH-Hrev90I73mspgxtkMFKfXkFSfII2XOhec1BhT6_-H8aLrvl_JorsuvsuJiq_SCcey4tQ')
+WEBPUSH_VAPID_PRIVATE_KEY = os.environ.get('WEBPUSH_VAPID_PRIVATE_KEY')
+WEBPUSH_VAPID_PUBLIC_KEY = os.environ.get('WEBPUSH_VAPID_PUBLIC_KEY')
 WEBPUSH_VAPID_CLAIMS = {"sub": "mailto:admin@sokonimax.com"}

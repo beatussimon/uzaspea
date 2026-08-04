@@ -3,12 +3,12 @@
  * This lives outside the React component lifecycle to persist data across route changes.
  */
 
-interface CacheEntry {
-  data: any;
+interface CacheEntry<T = unknown> {
+  data: T;
   timestamp: number;
 }
 
-const cache: Record<string, CacheEntry> = {};
+const cache: Record<string, CacheEntry<unknown>> = {};
 const STALE_MS = 60 * 1000; // 60 seconds
 
 export const apiCache = {
@@ -17,7 +17,7 @@ export const apiCache = {
    * @param key The unique cache key (e.g., stringified params)
    * @returns An object containing the data and a boolean indicating if it's stale, or null if not found.
    */
-  get(key: string): { data: any; isStale: boolean } | null {
+  get<T>(key: string): { data: T; isStale: boolean } | null {
     const entry = cache[key];
     if (!entry) return null;
     return {
@@ -31,7 +31,7 @@ export const apiCache = {
    * @param key The unique cache key.
    * @param data The data to store.
    */
-  set(key: string, data: any) {
+  set<T>(key: string, data: T) {
     cache[key] = {
       data,
       timestamp: Date.now(),

@@ -10,18 +10,54 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useOrderTracking } from '../../../hooks/useOrderTracking';
 
+interface Warehouse {
+  id: number | string;
+  code: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+interface Order {
+  id: number | string;
+  status: string;
+  delivery_info?: {
+    destination_warehouse_code?: string;
+  };
+  payments?: Array<{ status: string; [key: string]: unknown }>;
+  [key: string]: unknown;
+}
+
+interface Transfer {
+  id: number | string;
+  order: number | string;
+  destination_warehouse?: string | number;
+  source_warehouse?: string | number;
+  source_warehouse_name?: string;
+  destination_warehouse_name?: string;
+  status: string;
+  created_at: string;
+  shipped_at?: string;
+  [key: string]: unknown;
+}
+
+interface Driver {
+  id: number | string;
+  name: string;
+  [key: string]: unknown;
+}
+
 const WarehouseStaffLayout: React.FC = () => {
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
   
   // Queues
-  const [pendingIntakes, setPendingIntakes] = useState<any[]>([]);
-  const [receivedIntakes, setReceivedIntakes] = useState<any[]>([]);
-  const [awaitingPayments, setAwaitingPayments] = useState<any[]>([]);
-  const [outboundOrders, setOutboundOrders] = useState<any[]>([]);
-  const [readyForPickup, setReadyForPickup] = useState<any[]>([]);
-  const [incomingTransfers, setIncomingTransfers] = useState<any[]>([]);
-  const [outgoingTransfers, setOutgoingTransfers] = useState<any[]>([]);
+  const [pendingIntakes, setPendingIntakes] = useState<Order[]>([]);
+  const [receivedIntakes, setReceivedIntakes] = useState<Order[]>([]);
+  const [awaitingPayments, setAwaitingPayments] = useState<Order[]>([]);
+  const [outboundOrders, setOutboundOrders] = useState<Order[]>([]);
+  const [readyForPickup, setReadyForPickup] = useState<Order[]>([]);
+  const [incomingTransfers, setIncomingTransfers] = useState<Transfer[]>([]);
+  const [outgoingTransfers, setOutgoingTransfers] = useState<Transfer[]>([]);
 
   // Smart Filters
   const [queueFilter, setQueueFilter] = useState<'all' | 'origin' | 'destination'>('all');
@@ -36,7 +72,7 @@ const WarehouseStaffLayout: React.FC = () => {
 
   // Modals & Context
   const [activeModal, setActiveModal] = useState<'intake' | 'origin_intake' | 'destination_intake' | 'last_mile_sorting' | 'pricing' | 'dispatch' | 'pickup' | 'verify' | 'confirm_delivery' | null>(null);
-  const [orderPreview, setOrderPreview] = useState<any>(null);
+  const [orderPreview, setOrderPreview] = useState<Order | null>(null);
 
   // Intake Form State
   const [condition, setCondition] = useState('good');
@@ -58,7 +94,7 @@ const WarehouseStaffLayout: React.FC = () => {
   const [deliveryCodeInput, setDeliveryCodeInput] = useState('');
 
   // Dispatch Form State
-  const [drivers, setDrivers] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [carrierType, setCarrierType] = useState<'driver' | 'third_party'>('driver');
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -75,7 +111,7 @@ const WarehouseStaffLayout: React.FC = () => {
         setWarehouses(list);
         if (list.length > 0) {
           const savedId = localStorage.getItem('sokonimax_warehouse_id');
-          if (savedId && list.some((w: any) => w.id.toString() === savedId)) {
+          if (savedId && list.some((w: Warehouse) => w.id.toString() === savedId)) {
             setSelectedWarehouseId(savedId);
           } else {
             setSelectedWarehouseId(list[0].id.toString());
@@ -133,12 +169,12 @@ const WarehouseStaffLayout: React.FC = () => {
       setReadyForPickup(pickupRes.data.results || pickupRes.data || []);
 
       const incoming = (transfersInTransitRes.data.results || transfersInTransitRes.data || []).filter(
-        (t: any) => t.destination_warehouse.toString() === whId
+        (t: Transfer) => t.destination_warehouse?.toString() === whId
       );
       setIncomingTransfers(incoming);
 
       const outgoing = (transfersPendingRes.data.results || transfersPendingRes.data || []).filter(
-        (t: any) => t.source_warehouse.toString() === whId
+        (t: Transfer) => t.source_warehouse?.toString() === whId
       );
       setOutgoingTransfers(outgoing);
     } catch (err) {
@@ -162,7 +198,7 @@ const WarehouseStaffLayout: React.FC = () => {
     if (selectedWarehouseId) fetchAllQueues(selectedWarehouseId);
   });
 
-  const applyFilter = (list: any[]) => {
+  const applyFilter = (list: Order[]) => {
     if (queueFilter === 'all') return list;
     return list.filter(order => {
       const isDestination = order.delivery_info?.destination_warehouse_code === currentWh?.code;
@@ -223,7 +259,7 @@ const WarehouseStaffLayout: React.FC = () => {
         default:
           toast.success(`Order #${order.id} loaded (${order.status.replace(/_/g, ' ')})`);
       }
-    } catch (err: any) {
+    } catch (err: any | unknown) {
       toast.error(err.response?.data?.error || 'Order not found or invalid barcode.');
     } finally {
       setScanning(false);
@@ -292,7 +328,7 @@ const WarehouseStaffLayout: React.FC = () => {
         else if (order.status === 'IN_TRANSIT' || order.status === 'FAILED_DELIVERY') setActiveModal('destination_intake');
         else setActiveModal('origin_intake');
       } else {
-        setActiveModal(actionType as any);
+        setActiveModal(actionType as typeof activeModal);
       }
     } catch {
       toast.error('Failed to load order details');
@@ -322,7 +358,7 @@ const WarehouseStaffLayout: React.FC = () => {
       toast.success(`Order #${orderPreview.id} securely checked into warehouse!`);
       closeModal();
       fetchAllQueues(selectedWarehouseId);
-    } catch (err: any) {
+    } catch (err: any | unknown) {
       toast.error(err.response?.data?.detail || err.response?.data?.error || 'Failed to record intake.');
     } finally {
       setSubmitting(false);
@@ -349,7 +385,7 @@ const WarehouseStaffLayout: React.FC = () => {
       toast.success('Delivery fee confirmed!');
       closeModal();
       fetchAllQueues(selectedWarehouseId);
-    } catch (err: any) {
+    } catch (err: any | unknown) {
       toast.error(err.response?.data?.error || 'Failed to set fee.');
     } finally {
       setSubmitting(false);
@@ -366,7 +402,7 @@ const WarehouseStaffLayout: React.FC = () => {
       const existingShipment = shipmentsList[0];
 
       const driverId = carrierType === 'driver' && selectedDriverId ? parseInt(selectedDriverId) : null;
-      const shipmentData: any = {
+      const shipmentData: Record<string, unknown> = {
         order: orderPreview.id,
         carrier_type: carrierType,
         driver: driverId,
@@ -391,7 +427,7 @@ const WarehouseStaffLayout: React.FC = () => {
       toast.success('Order dispatched successfully with carrier details!');
       closeModal();
       fetchAllQueues(selectedWarehouseId);
-    } catch (err: any) {
+    } catch (err: any | unknown) {
       toast.error(err.response?.data?.error || err.response?.data?.detail || 'Failed to dispatch order.');
     } finally {
       setSubmitting(false);
@@ -412,7 +448,7 @@ const WarehouseStaffLayout: React.FC = () => {
       toast.success(status === 'ASSIGNED_TRANSPORT' ? 'Payment verified and assigned to transport!' : 'Payment rejected, customer notified.');
       closeModal();
       if (selectedWarehouseId) fetchAllQueues(selectedWarehouseId);
-    } catch (err: any) {
+    } catch (err: any | unknown) {
       toast.error(err.response?.data?.error || err.response?.data?.detail || 'Failed to verify payment');
     } finally {
       setSubmitting(false);
@@ -431,7 +467,7 @@ const WarehouseStaffLayout: React.FC = () => {
       toast.success(`Order released successfully!`);
       closeModal();
       fetchAllQueues(selectedWarehouseId);
-    } catch (err: any) {
+    } catch (err: any | unknown) {
       toast.error(err.response?.data?.error || 'Verification failed.');
     } finally {
       setSubmitting(false);
@@ -455,7 +491,7 @@ const WarehouseStaffLayout: React.FC = () => {
       toast.success('Delivery confirmed! Order marked as DELIVERED.');
       closeModal();
       fetchAllQueues(selectedWarehouseId);
-    } catch (err: any) {
+    } catch (err: any | unknown) {
       const msg = err.response?.data?.error || err.response?.data?.detail || 'Code verification failed. Check the code and try again.';
       toast.error(msg);
     } finally {
@@ -1183,7 +1219,7 @@ const WarehouseStaffLayout: React.FC = () => {
                           className="w-full text-sm font-bold bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none"
                         >
                           <option value="">-- Select Driver --</option>
-                          {drivers.map((d: any) => (
+                          {drivers.map((d: Driver) => (
                             <option key={d.id} value={d.id}>
                               {d.username} ({d.vehicle_type || 'No Vehicle'} - {d.assigned_region || 'No Region'})
                             </option>
@@ -1300,7 +1336,7 @@ const WarehouseStaffLayout: React.FC = () => {
                 {activeModal === 'verify' && (
                   <div className="space-y-6">
                     {(() => {
-                       const payment = orderPreview?.payments?.find((p: any) => p.status === 'PENDING_VERIFICATION');
+                       const payment = orderPreview?.payments?.find((p) => p.status === 'PENDING_VERIFICATION');
                        if (!payment) return <p className="text-sm text-gray-500 text-center">No pending payment records found.</p>;
                        return (
                          <div className="space-y-4">
@@ -1373,7 +1409,7 @@ const formatDate = (dateStr: string | null) => {
   return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
-const QueueCard = ({ order, badge, onClick }: { order: any, badge?: string, onClick: () => void }) => (
+const QueueCard = ({ order, badge, onClick }: { order: Order, badge?: string, onClick: () => void }) => (
   <motion.div 
     whileHover={{ scale: 1.02 }}
     whileTap={{ scale: 0.98 }}

@@ -79,7 +79,7 @@ export const ProductTabs = ({ productId, sellerUsername }: { productId: number, 
   };
 
   return (
-    <div className="mt-8 border-t dark:border-gray-700 pt-6">
+    <div>
       <div className="flex border-b border-gray-200 dark:border-gray-700">
         <button
           className={`py-2 px-4 transition-colors ${
