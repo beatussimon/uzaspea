@@ -105,7 +105,7 @@ const AdminOverviewPanel: React.FC<{ data: DashboardData['admin_overview'] }> = 
       <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Global Admin Metrics (Pending Actions)</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {metrics.map((m) => (
-          <Link key={m.label} to={m.path} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-4 hover:shadow-md transition group">
+          <Link key={m.label} to={m.path} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-4 hover:shadow-md transition group">
             <div className={`text-xs font-bold ${m.colorClass} flex items-center gap-1 mb-2`}>
                <m.icon size={14} /> {m.label}
             </div>
@@ -158,7 +158,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
       <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-8 mb-4">
         {isGlobal ? "System-Wide Task Overview" : "My Task Progress"}
       </h3>
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-6 mb-6">
+      <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-6 mb-6">
         <div className="flex justify-between items-end mb-2">
           <div>
             <p className="text-sm text-gray-500 font-medium">Overall Completion</p>
@@ -197,7 +197,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
       </div>
 
       {isGlobal && data.admin_task_metrics && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-6 mb-6">
+        <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-6 mb-6">
           <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <BarChart2 className="text-brand-500" size={20} />
             Worker Performance Analytics
@@ -224,7 +224,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
         {/* Left Column: Task Pools */}
         <div className="space-y-6">
            {/* Unassigned Pool */}
-           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
+           <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
                 <AlertTriangle size={16} className="text-orange-500" /> Open Task Pool
               </h3>
@@ -252,7 +252,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
            </div>
 
            {/* My Current Tasks */}
-           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
+           <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <ClipboardList size={16} className="text-brand-500" /> Assigned to Me
@@ -284,7 +284,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
         <div className="space-y-6">
            {/* Promo Queue */}
            { (data.user.permissions.includes('can_review_promotions') || data.user.permissions.includes('can_approve_content')) && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
+              <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <Megaphone size={16} className="text-purple-500" /> Promotion Approvals
@@ -311,7 +311,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
 
            {/* Inspection Shortcut */}
            {((data.user.permissions.includes('can_manage_inspections') || data.user.is_superuser)) && (
-              <Link to="/staff/inspections" className="block p-5 bg-brand-600 rounded-xl text-white hover:bg-brand-700 transition">
+              <Link to="/staff/inspections" className="block p-5 bg-brand-600 rounded-card text-white hover:bg-brand-700 transition">
                  <h3 className="font-bold flex items-center gap-2 mb-1">
                    <Shield size={18} /> Manage Inspections
                  </h3>
@@ -320,7 +320,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
            )}
 
            {data.user.is_inspector && (
-              <Link to="/inspector/jobs" className="block p-5 bg-emerald-600 rounded-xl text-white hover:bg-emerald-700 transition">
+              <Link to="/inspector/jobs" className="block p-5 bg-emerald-600 rounded-card text-white hover:bg-emerald-700 transition">
                  <h3 className="font-bold flex items-center gap-2 mb-1">
                    <ClipboardList size={18} /> My Inspection Jobs
                  </h3>
@@ -329,7 +329,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
            )}
 
            {/* Activity Log */}
-           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
+           <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5">
             <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
               <Activity size={16} className="text-green-500" /> My Activity
             </h3>
@@ -414,14 +414,14 @@ export const SubscriptionConfirmation: React.FC = () => {
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
       ) : items.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+        <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
           <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
           <p className="text-gray-500">No {filter} subscription requests</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {items.map((item) => (
-            <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 hover:shadow-sm transition flex flex-col justify-between">
+            <div key={item.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 hover:shadow-sm transition flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-start mb-3">
                   <div>
@@ -436,7 +436,7 @@ export const SubscriptionConfirmation: React.FC = () => {
                 <p className="text-xs text-gray-400 mb-3">Submitted: {fmtDate(item.created_at)}</p>
 
                 {item.proof && (
-                  <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 mb-4 h-32" onClick={() => setPreviewImage(item.proof)}>
+                  <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-surface-border dark:border-surface-dark-border mb-4 h-32" onClick={() => setPreviewImage(item.proof)}>
                     <img src={item.proof} alt="Payment proof" className="w-full h-full object-cover group-hover:scale-105 transition" />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
                       <span className="text-white text-xs font-semibold">Click to View Receipt</span>
@@ -459,7 +459,7 @@ export const SubscriptionConfirmation: React.FC = () => {
       {/* Modal for image preview */}
       {previewImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[85vh] overflow-auto bg-white dark:bg-gray-900 p-2 rounded-xl" onClick={e => e.stopPropagation()}>
+          <div className="relative max-w-3xl max-h-[85vh] overflow-auto bg-white dark:bg-[#0A0A0A] p-2 rounded-card" onClick={e => e.stopPropagation()}>
             <button onClick={() => setPreviewImage(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition">✕</button>
             <img src={previewImage} alt="Payment Proof Full" className="max-w-full max-h-[80vh] object-contain rounded" />
           </div>
@@ -528,14 +528,14 @@ export const SellerApplicationsManager: React.FC = () => {
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
       ) : items.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+        <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
           <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
           <p className="text-gray-500">No {filter} seller applications</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {items.map((item) => (
-            <div key={item.id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 p-4 rounded-xl space-y-3">
+            <div key={item.id} className="bg-white dark:bg-[#0A0A0A] border dark:border-gray-700 p-4 rounded-card space-y-3">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-bold text-gray-900 dark:text-white">{item.business_name}</h3>
@@ -567,10 +567,10 @@ export const SellerApplicationsManager: React.FC = () => {
                     View ID Document
                   </a>
                   {item.id_document && item.id_document.match(/\.(jpeg|jpg|gif|png)$/i) && (
-                    <img src={item.id_document} alt="ID Document Preview" className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700" />
+                    <img src={item.id_document} alt="ID Document Preview" className="w-full h-32 object-cover rounded-lg border border-surface-border dark:border-surface-dark-border" />
                   )}
                   {item.id_document && item.id_document.match(/\.(pdf)$/i) && (
-                    <iframe src={item.id_document} className="w-full h-32 rounded-lg border border-gray-200 dark:border-gray-700" title="ID Preview" />
+                    <iframe src={item.id_document} className="w-full h-32 rounded-lg border border-surface-border dark:border-surface-dark-border" title="ID Preview" />
                   )}
                 </div>
                 
@@ -581,10 +581,10 @@ export const SellerApplicationsManager: React.FC = () => {
                       View Business Doc
                     </a>
                     {item.business_document.match(/\.(jpeg|jpg|gif|png)$/i) && (
-                      <img src={item.business_document} alt="Business Document Preview" className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700" />
+                      <img src={item.business_document} alt="Business Document Preview" className="w-full h-32 object-cover rounded-lg border border-surface-border dark:border-surface-dark-border" />
                     )}
                     {item.business_document.match(/\.(pdf)$/i) && (
-                      <iframe src={item.business_document} className="w-full h-32 rounded-lg border border-gray-200 dark:border-gray-700" title="Business Doc Preview" />
+                      <iframe src={item.business_document} className="w-full h-32 rounded-lg border border-surface-border dark:border-surface-dark-border" title="Business Doc Preview" />
                     )}
                   </div>
                 )}
@@ -670,14 +670,14 @@ export const CommissionPaymentsManager: React.FC = () => {
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
       ) : items.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+        <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
           <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
           <p className="text-gray-500">No {filter.toLowerCase()} commission payments</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {items.map((item) => (
-            <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 hover:shadow-sm transition flex flex-col justify-between">
+            <div key={item.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 hover:shadow-sm transition flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-start mb-3">
                   <div>
@@ -692,7 +692,7 @@ export const CommissionPaymentsManager: React.FC = () => {
                 {item.rejection_reason && <p className="text-xs text-red-500 mb-2">Rejection Reason: {item.rejection_reason}</p>}
 
                 {item.receipt_screenshot && (
-                  <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 mb-4 h-32" onClick={() => setPreviewImage(item.receipt_screenshot)}>
+                  <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-surface-border dark:border-surface-dark-border mb-4 h-32" onClick={() => setPreviewImage(item.receipt_screenshot)}>
                     <img src={item.receipt_screenshot} alt="Receipt Screenshot" className="w-full h-full object-cover group-hover:scale-105 transition" />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
                       <span className="text-white text-xs font-semibold">Click to View Receipt</span>
@@ -715,7 +715,7 @@ export const CommissionPaymentsManager: React.FC = () => {
       {/* Modal for image preview */}
       {previewImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[85vh] overflow-auto bg-white dark:bg-gray-900 p-2 rounded-xl" onClick={e => e.stopPropagation()}>
+          <div className="relative max-w-3xl max-h-[85vh] overflow-auto bg-white dark:bg-[#0A0A0A] p-2 rounded-card" onClick={e => e.stopPropagation()}>
             <button onClick={() => setPreviewImage(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition">✕</button>
             <img src={previewImage} alt="Receipt Screenshot Full" className="max-w-full max-h-[80vh] object-contain rounded" />
           </div>
@@ -791,9 +791,9 @@ export const ProductModeration: React.FC = () => {
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Product Moderation</h2>
         <div className="flex gap-2">
           <input type="text" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white" />
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white" />
           <select value={filter} onChange={e => setFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white">
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white">
             <option value="all">All Listings</option>
             <option value="active">Active Only</option>
             <option value="suspended">Suspended Only</option>
@@ -804,14 +804,14 @@ export const ProductModeration: React.FC = () => {
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
       ) : filteredProducts.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+        <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
           <AlertTriangle size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
           <p className="text-gray-500">No products found matching criteria</p>
         </div>
       ) : (
         <div className="space-y-3">
           {filteredProducts.map((p) => (
-            <div key={p.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-4 hover:shadow-sm transition flex gap-4">
+            <div key={p.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-4 hover:shadow-sm transition flex gap-4">
               <div className="w-24 h-24 rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden shrink-0 border dark:border-gray-600">
                 {p.images && p.images.length > 0 ? (
                   <img src={p.images[0].image} alt={p.name} className="w-full h-full object-cover" />
@@ -953,14 +953,14 @@ export const PromotionQueue: React.FC = () => {
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
       ) : promos.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
+        <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
           <Megaphone size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
           <p className="text-gray-500">No {filter} promotions</p>
         </div>
       ) : (
         <div className="space-y-3">
           {promos.map((p: any) => (
-            <div key={p.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 hover:shadow-sm transition">
+            <div key={p.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 hover:shadow-sm transition">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900 dark:text-white">{p.title || `${p.product_name || 'Product'} Promotion`}</h3>
@@ -977,7 +977,7 @@ export const PromotionQueue: React.FC = () => {
                   {p.payment_proof && (
                     <div className="mt-2.5">
                       <p className="text-[10px] text-gray-400 uppercase font-black tracking-wider mb-1">Payment Proof:</p>
-                      <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 max-w-[200px] h-24 bg-gray-50" onClick={() => setPreviewImage(p.payment_proof)}>
+                      <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-surface-border dark:border-surface-dark-border max-w-[200px] h-24 bg-gray-50" onClick={() => setPreviewImage(p.payment_proof)}>
                         <img src={p.payment_proof} alt="Promotion payment proof" className="w-full h-full object-cover group-hover:scale-105 transition" />
                       </div>
                     </div>
@@ -1063,7 +1063,7 @@ export const ReviewsManager: React.FC = () => {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">Review Moderation</h3>
             <div className="space-y-3">
                 {reviews.map(review => (
-                    <div key={review.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 hover:shadow-sm transition flex gap-4">
+                    <div key={review.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 hover:shadow-sm transition flex gap-4">
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="font-bold text-gray-900 dark:text-white">{review.rating}/5 Stars</span>
@@ -1116,7 +1116,7 @@ export const DisputesManager: React.FC = () => {
             ))}
             <div className="mt-4 space-y-3">
                 {disputes.map(d => (
-                    <div key={d.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 hover:shadow-sm transition">
+                    <div key={d.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 hover:shadow-sm transition">
                         <p className="font-bold text-gray-900 dark:text-white">Order #{d.order} — {d.opened_by_username}</p>
                         <p className="text-sm text-gray-600 mt-1">{d.reason}</p>
                         {d.status === 'open' && (
@@ -1206,13 +1206,13 @@ export const SupportTicketsManager: React.FC = () => {
   );
 
   return (
-    <div className="h-[75vh] flex rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
+    <div className="h-[75vh] flex rounded-card border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] overflow-hidden shadow-sm">
       {/* Left Pane - Tickets list */}
-      <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-3 bg-gray-50/50 dark:bg-gray-900/10">
+      <div className="w-1/3 border-r border-surface-border dark:border-surface-dark-border flex flex-col">
+        <div className="p-4 border-b border-surface-border dark:border-surface-dark-border space-y-3 bg-gray-50/50 dark:bg-gray-900/10">
           <h3 className="font-bold text-gray-900 dark:text-white">Support Inbox</h3>
           <input type="text" placeholder="Search tickets..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none" />
+            className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none" />
           <div className="flex gap-1 overflow-x-auto pb-1">
             {['open', 'in_progress', 'resolved', 'closed'].map(s => (
               <button key={s} onClick={() => { setStatusFilter(s); setSelectedTicket(null); }}
@@ -1249,7 +1249,7 @@ export const SupportTicketsManager: React.FC = () => {
         {selectedTicket ? (
           <div className="flex-1 flex flex-col h-full overflow-hidden">
             {/* Header */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center">
+            <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] flex justify-between items-center">
               <div>
                 <h4 className="font-bold text-gray-900 dark:text-white text-sm">{selectedTicket.subject}</h4>
                 <p className="text-xs text-gray-500 dark:text-gray-400">By: {selectedTicket.name} ({selectedTicket.email})</p>
@@ -1269,7 +1269,7 @@ export const SupportTicketsManager: React.FC = () => {
               {/* User Original Message */}
               <div className="flex items-start gap-2 max-w-[80%]">
                 <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold text-xs">U</div>
-                <div className="p-3 rounded-2xl bg-white dark:bg-gray-800 border dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300">
+                <div className="p-3 rounded-2xl bg-white dark:bg-[#0A0A0A] border dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300">
                   <p className="font-semibold mb-1 text-[10px] text-gray-400">User Message · {fmtDate(selectedTicket.created_at)}</p>
                   <p>{selectedTicket.message}</p>
                 </div>
@@ -1289,16 +1289,16 @@ export const SupportTicketsManager: React.FC = () => {
 
             {/* Input Box */}
             {['open', 'in_progress'].includes(selectedTicket.status) ? (
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex gap-2">
+              <div className="p-4 border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] flex gap-2">
                 <input type="text" placeholder="Type your response..." value={replyText} onChange={e => setReplyText(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSendReply()}
-                  className="flex-1 px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white" />
+                  className="flex-1 px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white" />
                 <button onClick={handleSendReply} className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1">
                   <Send size={12} /> Reply
                 </button>
               </div>
             ) : (
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-center text-xs text-gray-400 italic">
+              <div className="p-4 border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] text-center text-xs text-gray-400 italic">
                 This ticket is resolved/closed. You cannot send replies.
               </div>
             )}
@@ -1395,11 +1395,11 @@ const StaffDashboardLayout: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
       <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0`}>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 shadow-sm dark:border-gray-700 p-2 space-y-1 relative">
+        <div className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border shadow-sm p-2 space-y-1 relative">
           
           <button 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
+            className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
             title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
           >
             {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}

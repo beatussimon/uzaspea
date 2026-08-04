@@ -134,7 +134,7 @@ const RevenueChart: React.FC = () => {
   }).join(' ');
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
+    <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5">
       <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Platform Revenue Trend (TZS)</h4>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-48 overflow-visible">
         {/* Grids */}
@@ -178,7 +178,7 @@ const WorkloadChart: React.FC<{ staffers: Staffer[] }> = ({ staffers }) => {
   const maxTasks = Math.max(...activeStaffers.map(s => s.tasks_count || 1), 5);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5">
+    <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5">
       <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Staff Task Distribution</h4>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-48 overflow-visible">
         {/* Axis and Grids */}
@@ -252,7 +252,7 @@ const AdminOverview: React.FC = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {kpis.map((kpi, i) => (
-          <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-4 transition-transform hover:scale-105 shadow-sm">
+          <div key={i} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-4 transition-transform hover:scale-105 shadow-sm">
             <div className="flex items-center justify-between mb-2">
                <kpi.icon size={16} className={`text-${kpi.color}-500`} />
             </div>
@@ -269,7 +269,7 @@ const AdminOverview: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 overflow-hidden shadow-sm">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm overflow-hidden shadow-sm">
             <div className="px-5 py-4 border-b border-gray-200 shadow-sm dark:border-gray-700 flex items-center justify-between">
               <h3 className="text-sm font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest">Global Activity Log</h3>
               <ScrollText size={16} className="text-brand-500" />
@@ -288,7 +288,7 @@ const AdminOverview: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 shadow-sm">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 shadow-sm">
               <h3 className="text-sm font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest mb-6 border-b pb-4 dark:border-gray-700">Teams & Capacity</h3>
               <div className="space-y-6">
                   {data.departments.map((dept, i) => (
@@ -401,9 +401,9 @@ const PlatformUserExplorer: React.FC = () => {
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Platform Users Explorer</h2>
         <div className="flex gap-2">
           <input type="text" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none" />
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none" />
           <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none">
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none">
             <option value="all">All Users</option>
             <option value="staff">Staff Members</option>
             <option value="superuser">Superusers</option>
@@ -412,7 +412,7 @@ const PlatformUserExplorer: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 overflow-x-auto shadow-sm">
+      <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm overflow-x-auto shadow-sm">
         <table className="w-full text-left">
           <thead className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700">
             <tr>
@@ -469,7 +469,7 @@ const PlatformUserExplorer: React.FC = () => {
       {/* Inspector Promotion Modal */}
       {showInspectorModal && inspectorUser && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border dark:border-gray-700">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border dark:border-gray-700">
             <button onClick={() => setShowInspectorModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
               <XCircle size={20} />
             </button>
@@ -495,21 +495,21 @@ const PlatformUserExplorer: React.FC = () => {
       {/* Role Change Modal */}
       {showRoleModal && roleUser && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border dark:border-gray-700">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border dark:border-gray-700">
             <button onClick={() => setShowRoleModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
               <XCircle size={20} />
             </button>
             <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2">Manage User Roles</h3>
             <p className="text-xs text-gray-500 mb-4">Modifying permissions for <span className="font-bold">@{roleUser.username}</span></p>
             <div className="space-y-4">
-              <label className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750">
+              <label className="flex items-center justify-between p-3 border border-surface-border dark:border-surface-dark-border rounded-card cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750">
                 <div>
                   <div className="font-bold text-gray-900 dark:text-white text-sm">Staff Privileges</div>
                   <div className="text-xs text-gray-500">Access to C&C Terminal dashboard</div>
                 </div>
                 <input type="checkbox" checked={isStaffRole} onChange={e => setIsStaffRole(e.target.checked)} className="rounded text-brand-600 focus:ring-gray-900 dark:focus:ring-white h-5 w-5" />
               </label>
-              <label className="flex items-center justify-between p-3 border border-red-200 dark:border-red-900/30 rounded-xl cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/10">
+              <label className="flex items-center justify-between p-3 border border-red-200 dark:border-red-900/30 rounded-card cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/10">
                 <div>
                   <div className="font-bold text-red-700 dark:text-red-400 text-sm">Superuser Privileges</div>
                   <div className="text-[10px] text-red-500">Full system access (Danger)</div>
@@ -583,7 +583,7 @@ const EmployeeManager: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {staff.map(member => (
-                    <div key={member.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 p-5 group hover:border-brand-500/30 transition shadow-sm">
+                    <div key={member.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 group hover:border-brand-500/30 transition shadow-sm">
                         <div className="flex items-start justify-between">
                             <div className="flex gap-3">
                                 <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-black text-gray-400 uppercase">
@@ -632,7 +632,7 @@ const EmployeeManager: React.FC = () => {
             {/* Department Change Modal */}
             {showDeptModal && deptStaffer && (
               <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border dark:border-gray-700">
+                <div className="bg-white dark:bg-[#0A0A0A] rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border dark:border-gray-700">
                   <button onClick={() => setShowDeptModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
                     <XCircle size={20} />
                   </button>
@@ -738,7 +738,7 @@ const TaskBoard: React.FC = () => {
         </div>
 
         {showCreate && (
-            <form onSubmit={handleCreateTask} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-150 dark:border-gray-700 p-6 border-brand-200 dark:border-brand-900/30 animate-slide-up space-y-4 shadow-sm">
+            <form onSubmit={handleCreateTask} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-gray-150 dark:border-gray-700 p-6 border-brand-200 dark:border-brand-900/30 animate-slide-up space-y-4 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} placeholder="Task Title" className="input text-sm" required />
                     <select value={newTask.category} onChange={e => setNewTask({...newTask, category: e.target.value})} className="input text-sm" required>
@@ -767,8 +767,8 @@ const TaskBoard: React.FC = () => {
             {columns.map(col => {
                 const colTasks = tasks.filter(t => t.status === col.key);
                 return (
-                    <div key={col.key} className="flex flex-col h-[70vh] bg-gray-50 dark:bg-gray-800/20 rounded-2xl p-2 border border-gray-200 shadow-sm dark:border-gray-700/30">
-                        <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700/50 mb-3">
+                    <div key={col.key} className="flex flex-col h-[70vh] bg-gray-50 dark:bg-neutral-900/20 rounded-2xl p-2 border border-surface-border dark:border-surface-dark-border shadow-sm/30">
+                        <div className="px-4 py-3 flex items-center justify-between border-b border-surface-border dark:border-surface-dark-border/50 mb-3">
                              <div className="flex items-center gap-2">
                                 <col.icon size={16} className="text-gray-400" />
                                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">{col.label}</span>
@@ -778,7 +778,7 @@ const TaskBoard: React.FC = () => {
                         
                         <div className="flex-1 overflow-y-auto px-1 space-y-3 pb-4 scroll-slim">
                             {colTasks.map(t => (
-                                <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl p-4 hover:shadow-lg transition-all duration-300 group relative shadow-sm border border-gray-200 shadow-sm dark:border-gray-700">
+                                <div key={t.id} className="bg-white dark:bg-[#0A0A0A] rounded-card p-4 hover:shadow-lg transition-all duration-300 group relative shadow-sm border border-surface-border dark:border-surface-dark-border shadow-sm">
                                     <div className="flex justify-between items-start mb-2">
                                         <Badge text={t.priority} className={priorityColors[t.priority]} />
                                         {t.is_overdue && <AlertTriangle size={14} className="text-red-500 animate-pulse" />}
@@ -923,7 +923,7 @@ const PermissionMatrix: React.FC = () => {
         <span className="text-xs text-gray-400">Directly toggle capabilities of each active staff member</span>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 overflow-x-auto shadow-sm">
+      <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm overflow-x-auto shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700">
@@ -996,7 +996,7 @@ const AuditLogViewer: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 overflow-hidden shadow-sm">
+                <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm overflow-hidden shadow-sm">
                     <div className="divide-y divide-gray-50 dark:divide-gray-700">
                         {logs.map(log => (
                             <div key={log.id} onClick={() => setSelectedLog(log)} className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition cursor-pointer ${selectedLog?.id === log.id ? 'bg-brand-50/30 dark:bg-brand-950/10 border-l-4 border-brand-600' : ''}`}>
@@ -1022,7 +1022,7 @@ const AuditLogViewer: React.FC = () => {
 
             {/* Slide-over Side Drawer for JSON Metadata Inspector */}
             {selectedLog && (
-                <div className="w-full xl:w-80 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-xl p-5 shadow-lg flex flex-col justify-between shrink-0 h-[70vh] sticky top-24">
+                <div className="w-full xl:w-80 border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] rounded-card p-5 shadow-lg flex flex-col justify-between shrink-0 h-[70vh] sticky top-24">
                     <div>
                         <div className="flex justify-between items-center mb-4 border-b pb-2 dark:border-gray-700">
                             <h3 className="font-bold text-gray-900 dark:text-white text-sm">Metadata Inspector</h3>
@@ -1036,7 +1036,7 @@ const AuditLogViewer: React.FC = () => {
                             
                             <div className="mt-4">
                                 <strong className="text-gray-700 dark:text-gray-300 block mb-1">Extra Data JSON:</strong>
-                                <pre className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border dark:border-gray-700 text-[10px] font-mono overflow-auto max-h-48 text-gray-700 dark:text-gray-300 scrollbar-thin">
+                                <pre className="bg-gray-50 dark:bg-[#0A0A0A] p-3 rounded-lg border dark:border-gray-700 text-[10px] font-mono overflow-auto max-h-48 text-gray-700 dark:text-gray-300 scrollbar-thin">
                                     {JSON.stringify(selectedLog.extra_data || {}, null, 2)}
                                 </pre>
                             </div>
@@ -1083,11 +1083,11 @@ const StaffAdminLayout: React.FC = () => {
     <div className="max-w-7xl mx-auto p-4 flex flex-col lg:flex-row gap-6 min-h-screen">
       <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0`}>
         <div className="sticky top-24 space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 space-y-1 relative max-h-[70vh] overflow-y-auto no-scrollbar">
+            <div className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1 relative max-h-[70vh] overflow-y-auto no-scrollbar">
                 
                 <button 
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
+                  className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
                   title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
                 >
                   {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -1122,7 +1122,7 @@ const StaffAdminLayout: React.FC = () => {
                 </div>
             </div>
             
-            <div className={`bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-xl p-4 border-0 shadow-sm transition-opacity duration-300 ${isSidebarCollapsed ? 'hidden' : 'block'}`}>
+            <div className={`bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-card p-4 border-0 shadow-sm transition-opacity duration-300 ${isSidebarCollapsed ? 'hidden' : 'block'}`}>
                 <Shield size={20} className="mb-3 opacity-50" />
                 <h4 className="text-xs font-black uppercase tracking-widest mb-1">Admin Mode</h4>
                 <p className="text-[10px] text-white/70 leading-relaxed font-medium">You have unrestricted access to all operations.</p>
