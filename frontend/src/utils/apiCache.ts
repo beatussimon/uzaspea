@@ -21,7 +21,7 @@ export const apiCache = {
     const entry = cache[key];
     if (!entry) return null;
     return {
-      data: entry.data,
+      data: entry.data as T,
       isStale: Date.now() - entry.timestamp > STALE_MS,
     };
   },
