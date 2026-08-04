@@ -14,7 +14,7 @@ interface Warehouse {
   id: number | string;
   code: string;
   name: string;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 interface Order {
@@ -44,13 +44,13 @@ interface Transfer {
   status: string;
   created_at: string;
   shipped_at?: string;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 interface Driver {
   id: number | string;
   name: string;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 const WarehouseStaffLayout: React.FC = () => {
@@ -1437,7 +1437,7 @@ const QueueCard = ({ order, badge, onClick }: { order: Order, badge?: string, on
             <Package size={24} className="text-gray-300" />
           )}
         </div>
-        {order.items?.length > 1 && (
+        {order.items && order.items.length > 1 && (
           <div className="absolute -bottom-1 -right-1 bg-[#F59E0B] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-white">
             +{order.items.length - 1}
           </div>

@@ -207,7 +207,7 @@ const PhotoCapture: React.FC<{
   onCapture: (file: File, lat: number | null, lng: number | null) => void;
   captured?: boolean;
 }> = ({ label, onCapture, captured }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'acquiring' | 'ready' | 'unavailable'>('idle');
