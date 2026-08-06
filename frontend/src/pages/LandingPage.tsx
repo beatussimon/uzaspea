@@ -11,6 +11,7 @@ import { apiCache } from '../utils/apiCache';
 // Snap Sections
 import SnapScrollContainer from '../components/landing/SnapScrollContainer';
 import CategoryShowcaseSection from '../components/landing/CategoryShowcaseSection';
+import SEO from '../components/SEO';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -108,8 +109,24 @@ const LandingPage = () => {
     return () => observer.disconnect();
   }, [navigate]);
 
+  // Schema for Sitelinks Search Box
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "url": import.meta.env.VITE_SITE_URL || "https://pasifiq.store",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": `${import.meta.env.VITE_SITE_URL || "https://pasifiq.store"}/products?q={search_term_string}`
+      },
+      "query-input": "required name=search_term_string"
+    }
+  };
+
   return (
     <>
+      <SEO schema={websiteSchema} />
       {/* Global Fixed Background */}
       <div className="fixed inset-0 z-0 overflow-hidden flex pointer-events-none bg-black">
         <div 

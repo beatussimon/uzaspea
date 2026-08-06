@@ -13,6 +13,7 @@ import VerifiedBadge from '../components/VerifiedBadge';
 import { Skeleton } from '../components/Skeleton';
 import { timeAgo } from '../utils/timeAgo';
 import { fetchProductCached } from '../components/layout/CategoryBar';
+import SEO from '../components/SEO';
 
 interface ProductData {
   id: number;
@@ -458,8 +459,45 @@ const ProductDetailPage: React.FC = () => {
   const currentUsername = localStorage.getItem('username');
   const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
 
+  // Structured Data Schema for Product
+  const productSchema = {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": product.name,
+    "image": images.map(img => img.image).filter(Boolean),
+    "description": product.description,
+    "sku": product.id.toString(),
+    "brand": {
+      "@type": "Brand",
+      "name": product.seller_username
+    },
+    "offers": {
+      "@type": "Offer",
+      "url": `${import.meta.env.VITE_SITE_URL || 'https://pasifiq.store'}/product/${product.slug}`,
+      "priceCurrency": "TZS",
+      "price": product.sale_price ? product.sale_price : product.price,
+      "availability": product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      "itemCondition": product.condition === 'New' ? "https://schema.org/NewCondition" : "https://schema.org/UsedCondition"
+    }
+  };
+  
+  if (product.avg_rating > 0) {
+    (productSchema as any).aggregateRating = {
+      "@type": "AggregateRating",
+      "ratingValue": product.avg_rating,
+      "reviewCount": product.like_count > 0 ? product.like_count : 1
+    };
+  }
+
   return (
     <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+      <SEO 
+        title={`${product.name} - SokoniMax`} 
+        description={product.description.substring(0, 160)}
+        image={currentImageSrc}
+        type="product"
+        schema={productSchema}
+      />
       {/* Lightbox */}
       {lightboxOpen && (
         <ImageLightbox

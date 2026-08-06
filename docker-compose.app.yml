@@ -66,7 +66,7 @@ services:
              uvicorn uzachuo.asgi:application --host 0.0.0.0 --port 8000 --workers 3 --ws websockets --timeout-graceful-shutdown 30"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`pasifiq.store`) && (PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`) || PathPrefix(`/ws`))"
+      - "traefik.http.routers.backend.rule=Host(`pasifiq.store`) && (PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`) || PathPrefix(`/ws`) || PathPrefix(`/sitemap`) || PathPrefix(`/robots.txt`))"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
@@ -83,6 +83,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_SITE_URL: ${VITE_SITE_URL:-https://pasifiq.store}
     container_name: uzaspea-frontend
     restart: unless-stopped
     volumes:
