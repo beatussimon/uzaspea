@@ -9,6 +9,7 @@ import ProductCard from '../components/ProductCard';
 import SponsorCard from '../components/SponsorCard';
 import { ProductCardSkeleton } from '../components/Skeleton';
 import { apiCache } from '../utils/apiCache';
+import SEO from '../components/SEO';
 
 const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } } as any;
 const cardVariants = {
@@ -572,6 +573,12 @@ const ProductList = () => {
 
   const gridEntries = buildGridEntries(products, sponsoredAds);
 
+  const seoTitle = urlQuery 
+    ? `Search Results for "${urlQuery}" - SokoniMax`
+    : selectedCategory 
+      ? `${categories.find((c: any) => c.slug === selectedCategory)?.name || 'Category'} - SokoniMax`
+      : 'Browse Products - SokoniMax';
+
   return (
     <div 
       style={{ 
@@ -581,6 +588,10 @@ const ProductList = () => {
       }}
       className="transition-opacity duration-300 bg-surface-muted dark:bg-surface-dark min-h-screen -mt-4 pt-4 md:-mt-6 md:pt-6"
     >
+      <SEO 
+        title={seoTitle} 
+        description={`Find the best ${urlQuery || selectedCategory || 'products'} on SokoniMax. Verified sellers, secure payments, and fast delivery in Tanzania.`} 
+      />
       <div id="browse" className="container-page pb-24 md:pb-8">
       {/* ===== Unified Search & Filter Section ===== */}
       <div className={(searchOpen || filtersOpen) ? "mb-6 space-y-4" : ""}>
