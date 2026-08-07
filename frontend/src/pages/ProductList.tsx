@@ -412,7 +412,7 @@ const ProductList = () => {
           });
         } 
       },
-      { rootMargin: '800px' }
+      { rootMargin: '2000px' }
     );
     
     obs.observe(sentinel);
