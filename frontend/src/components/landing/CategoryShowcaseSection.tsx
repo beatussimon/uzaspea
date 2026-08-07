@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import SafeImage from '../SafeImage';
 import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
 import api from '../../api';
+import { apiCache } from '../../utils/apiCache';
 
 interface CategoryShowcaseSectionProps {
   isActive?: boolean;
@@ -15,19 +16,24 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
   isActive = false
 }) => {
   const { t } = useTranslation();
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<any[]>(() => {
+    const cached = apiCache.get<any>('categories:all');
+    return cached ? (cached.data.results || cached.data) : [];
+  });
+  const [loading, setLoading] = useState(!categories.length);
 
   useEffect(() => {
+    if (categories.length > 0) return; // Skip if already loaded from cache
     api.get('/api/categories/')
       .then((res) => {
+        apiCache.set('categories:all', res.data);
         const allCats = res.data.results || res.data;
         // Ensure we only show top-level categories or limit to a reasonable number if too many
         setCategories(allCats);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [categories.length]);
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },

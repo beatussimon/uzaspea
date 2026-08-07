@@ -28,9 +28,17 @@ const SafeImage: React.FC<SafeImageProps> = ({
   ...props
 }) => {
   const [errored, setErrored] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [containerRatio, setContainerRatio] = useState<number | null>(null);
   const [imageRatio, setImageRatio] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    if (imageRef.current && imageRef.current.complete) {
+      setIsLoaded(true);
+    }
+  }, []);
 
   const measureContainer = useCallback(() => {
     if (containerRef.current) {
@@ -74,6 +82,7 @@ const SafeImage: React.FC<SafeImageProps> = ({
   };
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    setIsLoaded(true);
     const img = e.currentTarget;
     if (img.naturalWidth && img.naturalHeight) {
       setImageRatio(img.naturalWidth / img.naturalHeight);
@@ -304,21 +313,22 @@ const SafeImage: React.FC<SafeImageProps> = ({
             src={safeSrc}
             alt=""
             aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 opacity-30 dark:opacity-40 select-none pointer-events-none"
+            className={`absolute inset-0 w-full h-full object-cover filter blur-xl scale-110 opacity-30 dark:opacity-40 select-none pointer-events-none transition-opacity duration-500 ${isLoaded ? '' : 'opacity-0'}`}
             loading="lazy"
           />
         )}
         {/* Crisp original copy of the image */}
         <img
           {...props}
+          ref={imageRef}
           src={safeSrc}
           alt={alt}
           loading={loading}
           onError={handleError}
           onLoad={handleLoad}
-          className={`relative z-10 w-full h-full transition-all duration-300 ${
+          className={`relative z-10 w-full h-full transition-all duration-500 ease-out ${
             shouldBlur ? 'object-contain max-w-full max-h-full' : 'object-cover'
-          }`}
+          } ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         />
       </div>
     );
@@ -327,12 +337,13 @@ const SafeImage: React.FC<SafeImageProps> = ({
   return (
     <img
       {...props}
-      className={`${className} ${containMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+      ref={imageRef}
+      className={`${className} transition-all duration-500 ease-out ${isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm'} ${containMode === 'contain' ? 'object-contain' : 'object-cover'}`}
       alt={alt}
       src={safeSrc}
       loading={loading}
       onError={handleError}
-      onLoad={onLoad}
+      onLoad={handleLoad}
     />
   );
 };
