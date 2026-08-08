@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Moon, Sun, Shield, User, Settings, ShoppingBag, 
@@ -25,9 +25,6 @@ const Navbar = () => {
   const { openSearch } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const urlQuery = searchParams.get('q') || '';
-  const hasActiveFilters = !!(searchParams.get('min_price') || searchParams.get('max_price') || searchParams.get('condition') || searchParams.get('sort_by') || searchParams.get('category') || searchParams.get('subcategory') || searchParams.get('saved_time'));
 
   const [isAtTop, setIsAtTop] = useState(true);
   const lastScrollY = useRef(0);
@@ -262,26 +259,9 @@ const Navbar = () => {
             )}
 
             {/* Core Utility Icons (Visible to All) */}
-            {location.pathname === '/products' ? (
-              <button 
-                onClick={openSearch}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm mr-1 ${
-                  (urlQuery || hasActiveFilters)
-                    ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400'
-                    : 'bg-white border-gray-200 text-gray-700 dark:bg-[#0A0A0A] dark:border-neutral-800 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
-                }`}
-              >
-                <Search size={12} />
-                <span>{urlQuery ? `Search: ${urlQuery}` : t('search_and_filters', 'Search & Filters')}</span>
-                {hasActiveFilters && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand-500 dark:bg-brand-400 ml-0.5 animate-pulse" />
-                )}
-              </button>
-            ) : (
-              <button onClick={openSearch} className={iconButtonClass} aria-label="Search">
-                <Search size={18} />
-              </button>
-            )}
+            <button onClick={openSearch} className={iconButtonClass} aria-label="Search">
+              <Search size={18} />
+            </button>
 
             <button onClick={toggleTheme} className={themeButtonClass} aria-label="Toggle theme">
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
