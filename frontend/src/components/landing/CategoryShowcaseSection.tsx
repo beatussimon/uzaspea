@@ -28,8 +28,24 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
       .then((res) => {
         apiCache.set('categories:all', res.data);
         const allCats = res.data.results || res.data;
-        // Ensure we only show top-level categories or limit to a reasonable number if too many
-        setCategories(allCats);
+        
+        const getDeepCount = (cat: any): number => {
+          let count = cat.product_count || 0;
+          if (cat.children && Array.isArray(cat.children)) {
+            cat.children.forEach((child: any) => {
+              count += getDeepCount(child);
+            });
+          }
+          return count;
+        };
+
+        const filtered = allCats
+          .filter((c: any) => !c.parent)
+          .map((c: any) => ({ ...c, total_products: getDeepCount(c) }))
+          .filter((c: any) => c.total_products > 0)
+          .sort((a: any, b: any) => b.total_products - a.total_products);
+
+        setCategories(filtered);
         setLoading(false);
       })
       .catch(() => setLoading(false));
