@@ -27,7 +27,23 @@ const GlobalSearchModal: React.FC = () => {
   const [maxPrice, setMaxPrice] = useState('');
   const [condition, setCondition] = useState('');
   const [sortBy, setSortBy] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const urlView = searchParams.get('view');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    if (urlView === 'grid' || urlView === 'list') return urlView;
+    return (localStorage.getItem('viewMode') as 'grid' | 'list') || 'grid';
+  });
+
+  const handleViewModeChange = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('viewMode', mode);
+    
+    // Instantly apply the view mode if we're on the products page
+    if (window.location.pathname.includes('/products')) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('view', mode);
+      navigate(`/products?${params.toString()}`, { replace: true });
+    }
+  };
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -236,7 +252,7 @@ const GlobalSearchModal: React.FC = () => {
                   <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-xl p-1 flex shadow-sm">
                     <button 
                       type="button"
-                      onClick={() => setViewMode('grid')}
+                      onClick={() => handleViewModeChange('grid')}
                       className={`flex-1 p-2 rounded-lg transition-colors flex justify-center items-center ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
                       title="Grid View"
                     >
@@ -244,7 +260,7 @@ const GlobalSearchModal: React.FC = () => {
                     </button>
                     <button 
                       type="button"
-                      onClick={() => setViewMode('list')}
+                      onClick={() => handleViewModeChange('list')}
                       className={`flex-1 p-2 rounded-lg transition-colors flex justify-center items-center ${viewMode === 'list' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
                       title="List View"
                     >
@@ -329,7 +345,7 @@ const GlobalSearchModal: React.FC = () => {
                       <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-700 rounded-xl p-1 flex shadow-sm w-full mt-2">
                         <button 
                           type="button"
-                          onClick={() => setViewMode('grid')}
+                          onClick={() => handleViewModeChange('grid')}
                           className={`flex-1 p-2 rounded-lg transition-colors flex justify-center items-center ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white font-bold' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'}`}
                         >
                           <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24" className="mr-1.5"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg>
@@ -337,7 +353,7 @@ const GlobalSearchModal: React.FC = () => {
                         </button>
                         <button 
                           type="button"
-                          onClick={() => setViewMode('list')}
+                          onClick={() => handleViewModeChange('list')}
                           className={`flex-1 p-2 rounded-lg transition-colors flex justify-center items-center ${viewMode === 'list' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white font-bold' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'}`}
                         >
                           <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24" className="mr-1.5"><path d="M3 4h18v2H3zm0 7h18v2H3zm0 7h18v2H3z"/></svg>
