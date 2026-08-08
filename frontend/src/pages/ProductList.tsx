@@ -1,14 +1,12 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, X, Bell } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import ProductCard from '../components/ProductCard';
 import SponsorCard from '../components/SponsorCard';
 import { ProductCardSkeleton } from '../components/Skeleton';
-import { useSearch } from '../context/SearchContext';
 import { apiCache } from '../utils/apiCache';
 import SEO from '../components/SEO';
 
@@ -121,24 +119,16 @@ const ProductList = () => {
     };
   }, []);
 
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const { openSearch } = useSearch();
+  const urlView = searchParams.get('view');
+  const viewMode = urlView === 'grid' || urlView === 'list' ? urlView : (localStorage.getItem('viewMode') as any) || 'grid';
 
-  // Temporary local states for filter inputs inside collapsible panel
-  const [tempMinPrice, setTempMinPrice] = useState('');
-  const [tempMaxPrice, setTempMaxPrice] = useState('');
-  const [tempCondition, setTempCondition] = useState('');
-  const [tempSortBy, setTempSortBy] = useState('');
-  const [tempSavedTime, setTempSavedTime] = useState('');
-
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (localStorage.getItem('viewMode') as any) || 'grid');
+  useEffect(() => {
+    localStorage.setItem('viewMode', viewMode);
+  }, [viewMode]);
 
   const isFetchingRef = useRef(false);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const isAuthenticated = !!localStorage.getItem('access_token');
-  
-  
 
   const buildParams = useCallback(
     (p: number) => {
@@ -426,26 +416,13 @@ const ProductList = () => {
 
 
 
-  const hasActiveFilters = !!(minPrice || maxPrice || condition || sortBy || selectedCategory || selectedSubcategory || savedTime);
-
-  // Sync temp inputs with active state when panel opens
-  useEffect(() => {
-    if (filtersOpen) {
-      setTempMinPrice(minPrice);
-      setTempMaxPrice(maxPrice);
-      setTempCondition(condition);
-      setTempSortBy(sortBy);
-      setTempSavedTime(savedTime);
-    }
-  }, [filtersOpen, minPrice, maxPrice, condition, sortBy, savedTime]);
-
   const activePills: any[] = [];
   if (minPrice) {
     activePills.push({
       id: 'minPrice',
       label: 'Min Price',
       value: `TSh ${parseInt(minPrice).toLocaleString()}`,
-      onRemove: () => { updateFilters({ min_price: '' }); setTempMinPrice(''); },
+      onRemove: () => { updateFilters({ min_price: '' }); },
     });
   }
   if (maxPrice) {
@@ -453,7 +430,7 @@ const ProductList = () => {
       id: 'maxPrice',
       label: 'Max Price',
       value: `TSh ${parseInt(maxPrice).toLocaleString()}`,
-      onRemove: () => { updateFilters({ max_price: '' }); setTempMaxPrice(''); },
+      onRemove: () => { updateFilters({ max_price: '' }); },
     });
   }
   if (condition) {
@@ -461,7 +438,7 @@ const ProductList = () => {
       id: 'condition',
       label: 'Condition',
       value: condition,
-      onRemove: () => { updateFilters({ condition: '' }); setTempCondition(''); },
+      onRemove: () => { updateFilters({ condition: '' }); },
     });
   }
   if (sortBy) {
@@ -477,7 +454,7 @@ const ProductList = () => {
       id: 'sortBy',
       label: 'Sort',
       value: sortLabel,
-      onRemove: () => { updateFilters({ sort_by: '' }); setTempSortBy(''); },
+      onRemove: () => { updateFilters({ sort_by: '' }); },
     });
   }
   if (selectedCategory) {
@@ -506,7 +483,7 @@ const ProductList = () => {
       id: 'savedTime',
       label: 'Saved',
       value: label,
-      onRemove: () => { updateFilters({ saved_time: '' }); setTempSavedTime(''); },
+      onRemove: () => { updateFilters({ saved_time: '' }); },
     });
   }
 
@@ -586,194 +563,9 @@ const ProductList = () => {
         description={`Find the best ${urlQuery || selectedCategory || 'products'} on SokoniMax. Verified sellers, secure payments, and fast delivery in Tanzania.`} 
       />
       <div id="browse" className="container-page pb-24 md:pb-8">
-      <div className={filtersOpen ? "mb-6 space-y-4" : ""}>
+      <div className="mb-6 space-y-4">
 
 
-
-
-
-        {/* Collapsible Filter Panel */}
-        <AnimatePresence>
-          {filtersOpen && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-card p-5 shadow-md my-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Min Price (TSh)</label>
-                    <input 
-                      type="number" 
-                      value={tempMinPrice} 
-                      onChange={(e) => setTempMinPrice(e.target.value)} 
-                      placeholder="0" 
-                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Max Price (TSh)</label>
-                    <input 
-                      type="number" 
-                      value={tempMaxPrice} 
-                      onChange={(e) => setTempMaxPrice(e.target.value)} 
-                      placeholder="Any" 
-                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">{t('condition', 'Condition')}</label>
-                    <select 
-                      value={tempCondition} 
-                      onChange={(e) => setTempCondition(e.target.value)} 
-                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
-                    >
-                      <option value="">{t('all_conditions', 'All Conditions')}</option>
-                      <option value="New">{t('new', 'New')}</option>
-                      <option value="Used">{t('used', 'Used')}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">{t('sort_by', 'Sort By')}</label>
-                    <select 
-                      value={tempSortBy} 
-                      onChange={(e) => setTempSortBy(e.target.value)} 
-                      className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
-                    >
-                      <option value="">{t('newest_listings', 'Newest Listings')}</option>
-                      <option value="price_asc">{t('price_low_high', 'Price: Low to High')}</option>
-                      <option value="price_desc">{t('price_high_low', 'Price: High to Low')}</option>
-                      <option value="rating">{t('top_rated', 'Top Rated')}</option>
-                    </select>
-                  </div>
-                  {saved && (
-                    <div>
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Time Saved</label>
-                      <select 
-                        value={tempSavedTime} 
-                        onChange={(e) => setTempSavedTime(e.target.value)} 
-                        className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-neutral-800 rounded-xl bg-gray-50 dark:bg-neutral-900/50 dark:text-white outline-none focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
-                      >
-                        <option value="">All Time</option>
-                        <option value="24h">Last 24 Hours</option>
-                        <option value="7d">Last 7 Days</option>
-                        <option value="30d">Last 30 Days</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2 justify-end mt-4 pt-4 border-t border-gray-100 dark:border-neutral-900">
-                  <button 
-                    onClick={() => {
-                      setTempMinPrice('');
-                      setTempMaxPrice('');
-                      setTempCondition('');
-                      setTempSortBy('');
-                      setTempSavedTime('');
-                      updateFilters({
-                        min_price: '',
-                        max_price: '',
-                        condition: '',
-                        sort_by: '',
-                        saved_time: ''
-                      });
-                      setPage(1);
-                      setFiltersOpen(false);
-                    }}
-                    className="px-4 py-2 border border-gray-200 dark:border-neutral-800 text-gray-700 dark:text-gray-300 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-900 transition-colors"
-                  >
-                    {t('reset_filters', 'Reset Filters')}
-                  </button>
-                  <button 
-                    onClick={() => {
-                      updateFilters({
-                        min_price: tempMinPrice,
-                        max_price: tempMaxPrice,
-                        condition: tempCondition,
-                        sort_by: tempSortBy,
-                        saved_time: tempSavedTime
-                      });
-                      setPage(1);
-                      setFiltersOpen(false);
-                    }} 
-                    className="px-6 py-2 bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
-                  >
-                    {t('apply_filters', 'Apply Filters')}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Action Controls Row */}
-        <div className="flex justify-end w-full px-4 md:px-0 mb-3">
-          <div className="flex items-center gap-2.5 shrink-0">
-            {urlQuery && isAuthenticated && (
-              <button 
-                onClick={async () => {
-                  await api.post('/api/saved-searches/', { query: urlQuery, category: selectedCategory, min_price: minPrice, max_price: maxPrice, notify_on_match: true });
-                  toast.success('Search saved! You\'ll be notified of new matches.');
-                }} 
-                className="flex text-[10px] text-brand-600 dark:text-brand-400 font-black uppercase tracking-wider items-center gap-1 hover:underline"
-              >
-                <Bell size={12} /> Save search
-              </button>
-            )}
-
-            {/* View Mode Toggle */}
-            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-xl p-1 flex shadow-sm">
-              <button 
-                onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                title="Grid View"
-              >
-                <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg>
-              </button>
-              <button 
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                title="List View"
-              >
-                <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M3 4h18v2H3zm0 7h18v2H3zm0 7h18v2H3z"/></svg>
-              </button>
-            </div>
-
-            {/* Search Toggle Button */}
-            <button 
-              onClick={openSearch}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm ${
-                urlQuery
-                  ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400'
-                  : 'bg-white border-gray-200 text-gray-700 dark:bg-[#0A0A0A] dark:border-neutral-800 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
-              }`}
-            >
-              <Search size={12} />
-              <span>{urlQuery ? `Search: ${urlQuery}` : t('search', 'Search')}</span>
-            </button>
-
-            {/* Filter Toggle Button */}
-            <button 
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm ${
-                filtersOpen 
-                  ? 'bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900' 
-                  : hasActiveFilters
-                    ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400'
-                    : 'bg-white border-gray-200 text-gray-700 dark:bg-[#0A0A0A] dark:border-neutral-800 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
-              }`}
-            >
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M3 4h18M7 9h10M10 14h4"/></svg>
-              <span>Filters</span>
-              {hasActiveFilters && (
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-500 dark:bg-brand-400 ml-0.5 animate-pulse" />
-              )}
-            </button>
-          </div>
-        </div>
 
         {/* Active Filter Pills */}
         {activePills.length > 0 && (
@@ -810,11 +602,6 @@ const ProductList = () => {
               <button
                 onClick={() => {
                   updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved: '', saved_time: '' });
-                  setTempMinPrice('');
-                  setTempMaxPrice('');
-                  setTempCondition('');
-                  setTempSortBy('');
-                  setTempSavedTime('');
                 }}
                 className="text-xs font-bold text-gray-400 hover:text-brand-600 transition-colors ml-1 uppercase tracking-tighter"
               >
@@ -866,7 +653,7 @@ const ProductList = () => {
               <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
                 <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
-                <button onClick={() => { updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved_time: '' }); setTempMinPrice(''); setTempMaxPrice(''); setTempCondition(''); setTempSortBy(''); setTempSavedTime(''); }} className="text-brand-600 dark:text-brand-400 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
+                <button onClick={() => { updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved_time: '' }); }} className="text-brand-600 dark:text-brand-400 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
               </div>
             ) : (
               gridEntries.map((entry, idx) => {
