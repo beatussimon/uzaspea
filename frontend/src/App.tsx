@@ -11,6 +11,8 @@ import { ChatToastContainer } from './components/ChatToast';
 import { PwaInstallPrompt } from './components/PwaInstallPrompt';
 import { useStatusBar } from './hooks/useStatusBar';
 import { ScrollToTopFab } from './components/ui/ScrollToTopFab';
+import { SearchProvider } from './context/SearchContext';
+import GlobalSearchModal from './components/GlobalSearchModal';
 
 
 import LandingPage from './pages/LandingPage';
@@ -159,6 +161,7 @@ function AppLayout() {
       <MobileBottomNav />
       <ScrollToTopFab />
       <GlobalTermsModal />
+      <GlobalSearchModal />
 
       <Toaster
         position="top-right"
@@ -180,13 +183,15 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
-          <MessageProvider>
-            <CartProvider>
-              <DialogProvider>
-                <AppLayout />
-              </DialogProvider>
-            </CartProvider>
-          </MessageProvider>
+          <SearchProvider>
+            <MessageProvider>
+              <CartProvider>
+                <DialogProvider>
+                  <AppLayout />
+                </DialogProvider>
+              </CartProvider>
+            </MessageProvider>
+          </SearchProvider>
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
