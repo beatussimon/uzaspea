@@ -410,7 +410,23 @@ const ProductList = () => {
     return () => obs.disconnect();
   }, [hasMore, loadingMore, loading, fetchProducts]);
 
-  const topCategories = useMemo(() => categories.filter((c: any) => !c.parent), [categories]);
+  const topCategories = useMemo(() => {
+    const getDeepCount = (cat: any): number => {
+      let count = cat.product_count || 0;
+      if (cat.children && Array.isArray(cat.children)) {
+        cat.children.forEach((child: any) => {
+          count += getDeepCount(child);
+        });
+      }
+      return count;
+    };
+
+    return categories
+      .filter((c: any) => !c.parent)
+      .map((c: any) => ({ ...c, total_products: getDeepCount(c) }))
+      .filter((c: any) => c.total_products > 0)
+      .sort((a, b) => b.total_products - a.total_products);
+  }, [categories]);
   const activeParent = useMemo(() => topCategories.find((c: any) => c.slug === selectedCategory), [topCategories, selectedCategory]);
   const subcategories = useMemo(() => activeParent?.children || [], [activeParent]);
 

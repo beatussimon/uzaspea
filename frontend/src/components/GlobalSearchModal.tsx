@@ -61,7 +61,27 @@ const GlobalSearchModal: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const topCategories = useMemo(() => categories.filter((c: any) => !c.parent), [categories]);
+  const topCategories = useMemo(() => {
+    // Helper to recursively sum product counts
+    const getDeepCount = (cat: any): number => {
+      let count = cat.product_count || 0;
+      if (cat.children && Array.isArray(cat.children)) {
+        cat.children.forEach((child: any) => {
+          count += getDeepCount(child);
+        });
+      }
+      return count;
+    };
+
+    return categories
+      .filter((c: any) => !c.parent)
+      .map((c: any) => ({
+        ...c,
+        total_products: getDeepCount(c)
+      }))
+      .filter((c: any) => c.total_products > 0)
+      .sort((a, b) => b.total_products - a.total_products);
+  }, [categories]);
 
   // Load recent searches
   useEffect(() => {
