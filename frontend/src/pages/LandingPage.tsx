@@ -72,9 +72,20 @@ const LandingPage = () => {
     }
   }, []);
 
+  const [showCategories] = useState(() => {
+    const currentHour = new Date().getHours().toString();
+    const lastViewedHour = localStorage.getItem('lastCategoryViewHour');
+    
+    if (lastViewedHour !== currentHour) {
+      localStorage.setItem('lastCategoryViewHour', currentHour);
+      return true;
+    }
+    return false;
+  });
+
   const sections = [
     { id: 'hero', label: 'Home' },
-    { id: 'categories', label: 'Categories' },
+    ...(showCategories ? [{ id: 'categories', label: 'Categories' }] : []),
     { id: 'redirect', label: 'Products' } // Invisible redirect section
   ];
   
@@ -208,7 +219,7 @@ const LandingPage = () => {
           <div 
             className="animate-float"
             onClick={() => {
-              document.getElementById('categories')?.scrollIntoView({ behavior: 'smooth' });
+              document.getElementById(showCategories ? 'categories' : 'redirect')?.scrollIntoView({ behavior: 'smooth' });
             }}
           >
             <ChevronDown className="h-10 w-10 text-white/80 hover:text-white transition-colors drop-shadow-lg" />
@@ -217,7 +228,7 @@ const LandingPage = () => {
       </div>
 
       {/* 2. SHOP BY CATEGORY */}
-      <CategoryShowcaseSection />
+      {showCategories && <CategoryShowcaseSection />}
       
       {/* 3. INVISIBLE REDIRECT TRIGGER */}
       <div id="redirect" className="h-[20vh] w-full invisible pointer-events-none opacity-0"></div>
