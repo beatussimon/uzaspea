@@ -37,13 +37,20 @@ const GlobalSearchModal: React.FC = () => {
     setViewMode(mode);
     localStorage.setItem('viewMode', mode);
     
-    // Instantly apply the view mode if we're on the products page
-    if (window.location.pathname.includes('/products')) {
-      const params = new URLSearchParams(window.location.search);
-      params.set('view', mode);
-      navigate(`/products?${params.toString()}`, { replace: true });
-    }
+    // Build full query with all current filters + new view mode, navigate instantly
+    const params = new URLSearchParams();
+    if (query.trim()) params.set('q', query.trim());
+    if (category) params.set('category', category);
+    if (minPrice) params.set('min_price', minPrice);
+    if (maxPrice) params.set('max_price', maxPrice);
+    if (condition) params.set('condition', condition);
+    if (sortBy) params.set('sort_by', sortBy);
+    if (mode !== 'grid') params.set('view', mode);
+    const qs = params.toString();
+    navigate(qs ? `/products?${qs}` : '/products', { replace: true });
+    // Do NOT close modal — user can see the layout change live
   };
+
 
   const inputRef = useRef<HTMLInputElement>(null);
 
