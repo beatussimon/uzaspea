@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, X, Bell } from 'lucide-react';
@@ -8,6 +8,7 @@ import api from '../api';
 import ProductCard from '../components/ProductCard';
 import SponsorCard from '../components/SponsorCard';
 import { ProductCardSkeleton } from '../components/Skeleton';
+import { useSearch } from '../context/SearchContext';
 import { apiCache } from '../utils/apiCache';
 import SEO from '../components/SEO';
 
@@ -121,7 +122,7 @@ const ProductList = () => {
   }, []);
 
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(!!urlQuery);
+  const { openSearch } = useSearch();
 
   // Temporary local states for filter inputs inside collapsible panel
   const [tempMinPrice, setTempMinPrice] = useState('');
@@ -295,7 +296,7 @@ const ProductList = () => {
 
   useEffect(() => {
     if (urlQuery) {
-      setSearchOpen(true);
+      // Do nothing, results are already filtered
     }
   }, [urlQuery]);
 
@@ -423,15 +424,7 @@ const ProductList = () => {
   const activeParent = useMemo(() => topCategories.find((c: any) => c.slug === selectedCategory), [topCategories, selectedCategory]);
   const subcategories = useMemo(() => activeParent?.children || [], [activeParent]);
 
-  const [localSearch, setLocalSearch] = useState(urlQuery);
 
-  useEffect(() => { setLocalSearch(urlQuery); }, [urlQuery]);
-
-  const onSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (localSearch.trim()) navigate(`/products?q=${encodeURIComponent(localSearch.trim())}`);
-    else navigate('/products');
-  };
 
   const hasActiveFilters = !!(minPrice || maxPrice || condition || sortBy || selectedCategory || selectedSubcategory || savedTime);
 
@@ -593,49 +586,11 @@ const ProductList = () => {
         description={`Find the best ${urlQuery || selectedCategory || 'products'} on SokoniMax. Verified sellers, secure payments, and fast delivery in Tanzania.`} 
       />
       <div id="browse" className="container-page pb-24 md:pb-8">
-      {/* ===== Unified Search & Filter Section ===== */}
-      <div className={(searchOpen || filtersOpen) ? "mb-6 space-y-4" : ""}>
+      <div className={filtersOpen ? "mb-6 space-y-4" : ""}>
 
 
 
 
-
-        {/* Collapsible Search Panel */}
-        <AnimatePresence>
-          {searchOpen && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-card p-4 shadow-md my-2 flex justify-center">
-                <form onSubmit={onSearchSubmit} className="relative flex items-center w-full max-w-2xl group">
-                  <Search className="absolute left-4 text-gray-400 dark:text-neutral-500 transition-colors group-focus-within:text-brand-500 pointer-events-none" size={20} />
-                  <input
-                    type="search"
-                    value={localSearch}
-                    onChange={(e) => setLocalSearch(e.target.value)}
-                    placeholder="Search products, categories, or brands..."
-                    className="w-full pl-12 pr-12 py-3 text-sm bg-white dark:bg-[#0A0A0A] text-gray-950 dark:text-white rounded-xl border border-gray-200 dark:border-neutral-800 shadow-sm focus:border-gray-900 dark:focus:border-white focus:bg-white dark:focus:bg-black outline-none transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                    aria-label="Search products"
-                  />
-                  {localSearch && (
-                    <button
-                      type="button"
-                      onClick={() => { setLocalSearch(''); navigate('/products'); }}
-                      className="absolute right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                      aria-label="Clear search"
-                    >
-                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                  )}
-                </form>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Collapsible Filter Panel */}
         <AnimatePresence>
@@ -789,20 +744,15 @@ const ProductList = () => {
 
             {/* Search Toggle Button */}
             <button 
-              onClick={() => setSearchOpen(!searchOpen)}
+              onClick={openSearch}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-sm ${
-                searchOpen 
-                  ? 'bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900' 
-                  : urlQuery
-                    ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400'
-                    : 'bg-white border-gray-200 text-gray-700 dark:bg-[#0A0A0A] dark:border-neutral-800 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
+                urlQuery
+                  ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-400'
+                  : 'bg-white border-gray-200 text-gray-700 dark:bg-[#0A0A0A] dark:border-neutral-800 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-900'
               }`}
             >
               <Search size={12} />
-              <span>{t('search', 'Search')}</span>
-              {urlQuery && (
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-500 dark:bg-brand-400 ml-0.5 animate-pulse" />
-              )}
+              <span>{urlQuery ? `Search: ${urlQuery}` : t('search', 'Search')}</span>
             </button>
 
             {/* Filter Toggle Button */}

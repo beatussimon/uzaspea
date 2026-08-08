@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { 
   Moon, Sun, Shield, User, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, HelpCircle, 
-  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Globe, Heart
+  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Globe, Heart, Search
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import VerifiedBadge from '../VerifiedBadge';
@@ -13,6 +13,7 @@ import NotificationBell from './NotificationBell';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useMessages } from '../../context/MessageContext';
+import { useSearch } from '../../context/SearchContext';
 
 const Navbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -21,6 +22,7 @@ const Navbar = () => {
   const { isDark, toggleTheme } = useTheme();
   const { cartCount } = useCart();
   const { totalUnread: messageUnreadCount } = useMessages();
+  const { openSearch } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -234,6 +236,9 @@ const Navbar = () => {
                 </Link>
 
                 {/* Core Utility Icons */}
+                <button onClick={openSearch} className={iconButtonClass} aria-label="Search">
+                  <Search size={18} />
+                </button>
                 <NotificationBell className={bellClass} />
 
                 <Link to="/messages" className={iconButtonClass} aria-label="View messages">
@@ -460,8 +465,11 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile Right Actions: Notification Bell */}
-          <div className="lg:hidden flex items-center">
+          {/* Mobile Right Actions: Notification Bell & Search */}
+          <div className="lg:hidden flex items-center gap-1">
+            <button onClick={openSearch} className={`p-2 ${useLightStyle ? 'text-white/85' : 'text-gray-600 dark:text-gray-300'}`} aria-label="Search">
+              <Search size={20} />
+            </button>
             <NotificationBell className={bellClass} />
           </div>
         </div>

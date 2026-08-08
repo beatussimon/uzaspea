@@ -7,6 +7,7 @@ import api from '../api';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { useTheme } from '../context/ThemeContext';
 import { apiCache } from '../utils/apiCache';
+import { useSearch } from '../context/SearchContext';
 
 // Snap Sections
 import SnapScrollContainer from '../components/landing/SnapScrollContainer';
@@ -17,8 +18,8 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { t } = useTranslation();
+  const { openSearch } = useSearch();
   
-  const [searchQuery, setSearchQuery] = useState('');
   const [stats, setStats] = useState<any>(null);
 
   // Framer motion values for the drag-to-wiggle effect
@@ -70,15 +71,6 @@ const LandingPage = () => {
         .catch(() => {});
     }
   }, []);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?q=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      navigate('/products');
-    }
-  };
 
   const sections = [
     { id: 'hero', label: 'Home' },
@@ -175,22 +167,24 @@ const LandingPage = () => {
             style={{ rotate: rotateForm, skewX: skewForm }}
             className="bg-white/95 dark:bg-black/90 p-2 rounded-full shadow-2xl flex flex-col md:flex-row gap-2 max-w-2xl mx-auto border-4 border-white/10 backdrop-blur-md pointer-events-auto origin-center"
           >
-            <form onSubmit={handleSearch} className="flex-1 flex relative w-full">
+            <div 
+              onClick={openSearch} 
+              className="flex-1 flex relative w-full cursor-pointer group"
+            >
               <input
                 type="text"
                 placeholder={t('search_placeholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-6 pr-14 py-3 bg-transparent text-gray-900 dark:text-white focus:outline-none font-bold text-base md:text-lg rounded-full"
+                readOnly
+                className="w-full pl-6 pr-14 py-3 bg-transparent text-gray-900 dark:text-white focus:outline-none font-bold text-base md:text-lg rounded-full cursor-pointer pointer-events-none"
               />
               <button
-                type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-gray-400 hover:text-brand-600 transition-colors"
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-gray-400 group-hover:text-brand-600 transition-colors pointer-events-none"
                 aria-label="Search"
               >
                 <Search className="h-6 w-6" />
               </button>
-            </form>
+            </div>
           </motion.div>
 
           {stats && (
