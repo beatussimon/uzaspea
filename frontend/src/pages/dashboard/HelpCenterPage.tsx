@@ -14,6 +14,9 @@ const HelpCenterPage: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [userTickets, setUserTickets] = useState<any[]>([]);
     const [siteSettings, setSiteSettings] = useState<any>({});
+    const [activeTicket, setActiveTicket] = useState<any | null>(null);
+    const [replyMessage, setReplyMessage] = useState('');
+    const [replying, setReplying] = useState(false);
 
     useEffect(() => {
         api.get('/api/site-settings/').then(r => setSiteSettings(r.data)).catch(() => {});
@@ -77,6 +80,23 @@ const HelpCenterPage: React.FC = () => {
             toast.error('Failed to send message. Please try again.');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleTicketReply = async (e: React.FormEvent, ticketId: number) => {
+        e.preventDefault();
+        setReplying(true);
+        try {
+            await api.post(`/api/support-tickets/${ticketId}/reply/`, { message: replyMessage });
+            setReplyMessage('');
+            const res = await api.get('/api/support-tickets/');
+            setUserTickets(res.data.results || res.data);
+            setActiveTicket((res.data.results || res.data).find((t: any) => t.id === ticketId) || null);
+            toast.success('Reply sent.');
+        } catch (error) {
+            toast.error('Failed to send reply.');
+        } finally {
+            setReplying(false);
         }
     };
 
@@ -232,10 +252,15 @@ const HelpCenterPage: React.FC = () => {
                             {userTickets.map(ticket => {
                                 const isResolved = ticket.status === 'resolved' || ticket.status === 'closed';
                                 const isInProgress = ticket.status === 'in_progress';
+                                const isActive = activeTicket?.id === ticket.id;
+                                
                                 return (
-                                    <div key={ticket.id} className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{ticket.subject}</h3>
+                                    <div key={ticket.id} className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 transition-all">
+                                        <div 
+                                            className="flex justify-between items-start mb-2 cursor-pointer group"
+                                            onClick={() => setActiveTicket(isActive ? null : ticket)}
+                                        >
+                                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm group-hover:text-brand-600 transition-colors">{ticket.subject}</h3>
                                             <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0 ${
                                                 isInProgress ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300' :
                                                 isResolved ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300' :
@@ -247,11 +272,51 @@ const HelpCenterPage: React.FC = () => {
                                                 </span>
                                             </span>
                                         </div>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{ticket.message}</p>
-                                        {ticket.staff_reply && (
-                                            <div className="mt-3 p-3 bg-brand-50 dark:bg-brand-900/20 border-l-4 border-brand-500 rounded-r-lg">
-                                                <p className="text-xs font-bold text-brand-700 dark:text-brand-400 uppercase mb-1">{t('support_team_response', 'Support Team Response:')}</p>
-                                                <p className="text-sm text-gray-800 dark:text-gray-200">{ticket.staff_reply}</p>
+                                        
+                                        {!isActive && (
+                                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                                {ticket.messages && ticket.messages.length > 0 ? ticket.messages[ticket.messages.length - 1].body : 'No messages yet.'}
+                                            </p>
+                                        )}
+
+                                        {isActive && (
+                                            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                                                <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                                                    {ticket.messages?.map((msg: any) => {
+                                                        const isStaff = !!msg.is_internal || msg.sender_name === 'Staff' || (msg.sender && ticket.assigned_to && msg.sender === ticket.assigned_to);
+                                                        return (
+                                                            <div key={msg.id} className={`flex flex-col ${isStaff ? 'items-start' : 'items-end'}`}>
+                                                                <span className="text-xs text-gray-500 mb-1 font-bold">{isStaff ? t('support_team', 'Support Team') : t('you', 'You')}</span>
+                                                                <div className={`p-3 rounded-xl max-w-[90%] text-sm ${
+                                                                    isStaff 
+                                                                        ? 'bg-brand-50 dark:bg-brand-900/20 border-l-4 border-brand-500 rounded-tl-none text-gray-800 dark:text-gray-200' 
+                                                                        : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-tr-none text-gray-700 dark:text-gray-300'
+                                                                }`}>
+                                                                    {msg.body}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                
+                                                {!isResolved && (
+                                                    <form onSubmit={(e) => handleTicketReply(e, ticket.id)} className="mt-4 flex gap-2">
+                                                        <input 
+                                                            type="text" 
+                                                            className="input flex-1" 
+                                                            placeholder="Type a reply..." 
+                                                            value={replyMessage}
+                                                            onChange={e => setReplyMessage(e.target.value)}
+                                                            required
+                                                        />
+                                                        <button type="submit" disabled={replying} className="btn-primary shrink-0 px-4">
+                                                            {replying ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={16} />}
+                                                        </button>
+                                                    </form>
+                                                )}
+                                                {isResolved && (
+                                                    <p className="text-xs text-center text-gray-500 italic mt-2">This ticket is resolved. Please open a new ticket for further questions.</p>
+                                                )}
                                             </div>
                                         )}
                                     </div>

@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
-from django.db.models import Q, Sum, Count, Avg
+from django.db.models import Q, Sum, Count, Avg, F
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
@@ -139,6 +139,17 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         )
 
+        from django.utils import timezone
+        from django.db.models import Q
+        from marketplace.models import SponsoredListing
+        is_sponsored_expr = Exists(
+            SponsoredListing.objects.filter(
+                Q(expires_at__gt=timezone.now()) | Q(expires_at__isnull=True),
+                product=OuterRef('pk'), 
+                status='approved'
+            )
+        )
+
         from django.db.models.functions import Coalesce
         from marketplace.models import Review
         
@@ -163,7 +174,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             annotated_is_liked=is_liked_expr,
             annotated_has_inspection=has_inspection_expr,
             annotated_inspection_verdict=inspection_verdict_expr,
-            annotated_is_verified=is_verified_expr
+            annotated_is_verified=is_verified_expr,
+            annotated_is_sponsored=is_sponsored_expr
         ).select_related(
             'seller', 'seller__profile', 'category'
         ).prefetch_related(
@@ -721,6 +733,23 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(user=user)
+        
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def reply(self, request, pk=None):
+        ticket = self.get_object()
+        body = request.data.get('message')
+        if not body:
+            return Response({'error': 'message is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from .models import TicketMessage
+        TicketMessage.objects.create(
+            ticket=ticket,
+            sender=request.user,
+            sender_name=request.user.first_name or request.user.username,
+            body=body,
+            is_internal=False
+        )
+        return Response({'status': 'Message added to ticket'})
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CategorySerializer
@@ -1733,6 +1762,47 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return UserProfile.objects.all()
 
+    def list(self, request, *args, **kwargs):
+        q = request.query_params.get('q', '').strip().lower()
+        if not q:
+            return super().list(request, *args, **kwargs)
+            
+        from django.core.cache import cache
+        cache_key = 'searchable_user_profiles'
+        cached_profiles = cache.get(cache_key)
+        
+        if cached_profiles is None:
+            profiles = UserProfile.objects.filter(user__is_active=True).select_related('user')
+            cached_profiles = []
+            for p in profiles:
+                cached_profiles.append({
+                    'id': p.id,
+                    'username': p.user.username,
+                    'tier': p.tier,
+                    'is_verified': p.is_verified,
+                    'profile_picture': p.profile_picture.url if p.profile_picture else None,
+                })
+            cache.set(cache_key, cached_profiles, timeout=86400 * 7)
+            
+        # Perform in-memory text matching
+        results = [
+            p for p in cached_profiles
+            if q in p['username'].lower()
+        ]
+        
+        # Sort so exact matches are first, then prefix, then anywhere
+        results.sort(key=lambda p: (
+            0 if p['username'].lower() == q else
+            1 if p['username'].lower().startswith(q) else
+            2
+        ))
+        
+        page = self.paginate_queryset(results)
+        if page is not None:
+            return self.get_paginated_response(page)
+            
+        return Response(results)
+
     def get_permissions(self):  # FIX: S-07
         if self.action in ['update', 'partial_update', 'destroy']:
             return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
@@ -2339,7 +2409,6 @@ class TrendingAnalyticsView(APIView):
         )
         
         # Top sellers based on order items
-        from django.db.models import Sum
         order_items = OrderItem.objects.filter(order__in=weekly_order_ids).values('product_id').annotate(qty=Sum('quantity'))
         sales_dict = {item['product_id']: item['qty'] for item in order_items}
         
@@ -2697,7 +2766,7 @@ class PushVapidKeyView(APIView):
         from django.conf import settings
         public_key = getattr(settings, 'WEBPUSH_VAPID_PUBLIC_KEY', None)
         if not public_key:
-            return Response({'error': 'VAPID public key not configured'}, status=500)
+            return Response({'public_key': None})
         return Response({'public_key': public_key})
 
 
@@ -2779,6 +2848,13 @@ class SellerAnalyticsView(APIView):
 
     def get(self, request):
         user = request.user
+        
+        from django.core.cache import cache
+        cache_key = f"seller_analytics_{user.id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
         now = timezone.now()
         thirty_days_ago = now - timedelta(days=30)
         
@@ -2809,15 +2885,14 @@ class SellerAnalyticsView(APIView):
         ).count()
         
         # 5. Top Selling Products
-        from django.db.models import F
         top_products = Product.objects.filter(seller=user).annotate(
             sales=Sum(
-                'orderitem_set__quantity', 
-                filter=Q(orderitem_set__order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED'])
+                'orderitem__quantity', 
+                filter=Q(orderitem__order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED'])
             ),
             revenue=Sum(
-                F('orderitem_set__quantity') * F('orderitem_set__price'),
-                filter=Q(orderitem_set__order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED'])
+                F('orderitem__quantity') * F('orderitem__price'),
+                filter=Q(orderitem__order__status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED'])
             )
         ).filter(sales__gt=0).order_by('-sales')[:5]
         
@@ -2843,12 +2918,15 @@ class SellerAnalyticsView(APIView):
             } for o in recent_orders
         ]
         
-        return Response({
+        response_data = {
             "total_revenue": total_revenue,
             "active_listings_count": active_listings_count,
             "unfulfilled_orders_count": unfulfilled_orders_count,
             "out_of_stock_count": out_of_stock_count,
             "top_selling_products": top_selling_products,
             "recent_orders": recent_orders_data
-        })
+        }
+        
+        cache.set(cache_key, response_data, timeout=60)
+        return Response(response_data)
 

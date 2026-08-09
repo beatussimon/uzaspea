@@ -149,12 +149,14 @@ const Navbar = () => {
     : 'text-gray-600 dark:text-gray-300';
 
   const iconButtonClass = useLightStyle
-    ? 'relative p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
-    : 'relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
+    ? 'group relative p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
+    : 'group relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
 
   const themeButtonClass = useLightStyle
-    ? 'p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
-    : 'p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
+    ? 'group relative p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
+    : 'group relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
+
+  const tooltipClass = "absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-bold rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-[9999]";
 
   const navBackgroundClass = (isHomepage || isAtTop)
     ? 'bg-transparent border-none backdrop-blur-none shadow-none'
@@ -233,9 +235,13 @@ const Navbar = () => {
 
                 <Link to="/products?saved=true" className={iconButtonClass} aria-label="View saved items">
                   <Heart size={18} />
+                  <span className={tooltipClass}>{t('saved', 'Saved')}</span>
                 </Link>
 
-                <NotificationBell className={bellClass} />
+                <div className="group relative flex">
+                  <NotificationBell className={bellClass} />
+                  <span className={tooltipClass}>{t('notifications', 'Notifications')}</span>
+                </div>
 
                 <Link to="/messages" className={iconButtonClass} aria-label="View messages">
                   <MessageSquare size={18} />
@@ -244,6 +250,7 @@ const Navbar = () => {
                       {messageUnreadCount > 99 ? '99' : messageUnreadCount}
                     </span>
                   )}
+                  <span className={tooltipClass}>{t('messages', 'Messages')}</span>
                 </Link>
 
                 <Link to="/cart" className={iconButtonClass} aria-label="View shopping cart">
@@ -253,6 +260,7 @@ const Navbar = () => {
                       {cartCount > 99 ? '99' : cartCount}
                     </span>
                   )}
+                  <span className={tooltipClass}>{t('cart', 'Cart')}</span>
                 </Link>
 
               </>
@@ -261,10 +269,12 @@ const Navbar = () => {
             {/* Core Utility Icons (Visible to All) */}
             <button onClick={openSearch} className={iconButtonClass} aria-label="Search">
               <Search size={18} />
+              <span className={tooltipClass}>{t('search', 'Search')}</span>
             </button>
 
             <button onClick={toggleTheme} className={themeButtonClass} aria-label="Toggle theme">
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              <span className={tooltipClass}>{isDark ? t('light_mode', 'Light Mode') : t('dark_mode', 'Dark Mode')}</span>
             </button>
             <button 
               onClick={() => {
@@ -273,12 +283,12 @@ const Navbar = () => {
               }} 
               className={`${themeButtonClass} inline-flex items-center justify-center gap-1 min-w-[50px]`}
               aria-label="Toggle Language"
-              title={`Switch to ${i18n.language?.split('-')[0] === 'sw' ? 'English' : 'Swahili'}`}
             >
               <Globe size={18} />
               <span className="text-[10px] font-bold uppercase">
                 {i18n.language?.split('-')[0] || 'EN'}
               </span>
+              <span className={tooltipClass}>{i18n.language?.split('-')[0] === 'sw' ? 'English' : 'Swahili'}</span>
             </button>
           </div>
 
@@ -289,7 +299,7 @@ const Navbar = () => {
               <div className="relative" onClick={(e) => e.stopPropagation()}>
                 <button 
                   onClick={() => setProfileOpen(!profileOpen)} 
-                  className={`flex items-center gap-1 p-0.5 rounded-full transition-all focus:outline-none ${
+                  className={`group relative flex items-center gap-1 p-0.5 rounded-full transition-all focus:outline-none ${
                     useLightStyle 
                       ? 'hover:bg-white/10' 
                       : 'hover:bg-gray-100 dark:hover:bg-neutral-900'
@@ -303,6 +313,7 @@ const Navbar = () => {
                     {username.charAt(0).toUpperCase()}
                   </div>
                   <ChevronDown size={14} className={useLightStyle ? 'text-white/80 mr-0.5' : 'text-gray-400 dark:text-gray-500 mr-0.5'} />
+                  <span className={tooltipClass}>{t('profile', 'Profile')}</span>
                 </button>
 
                 {profileOpen && (

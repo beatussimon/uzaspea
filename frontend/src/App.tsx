@@ -69,6 +69,12 @@ const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = fal
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+
+  // If role checks are required but user hasn't loaded yet, show loading
+  const needsRoleCheck = requireStaff || requireSuperuser || requireInspector || requireSeller;
+  if (needsRoleCheck && !user) {
+    return <SuspenseLoader />;
+  }
   
   if (user) {
     if (requireSuperuser && !user.is_superuser) return <Navigate to="/" replace />;

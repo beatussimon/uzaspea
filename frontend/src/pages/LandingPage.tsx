@@ -75,13 +75,14 @@ const LandingPage = () => {
   const [showCategories] = useState(() => {
     const currentHour = new Date().getHours().toString();
     const lastViewedHour = localStorage.getItem('lastCategoryViewHour');
-    
-    if (lastViewedHour !== currentHour) {
-      localStorage.setItem('lastCategoryViewHour', currentHour);
-      return true;
-    }
-    return false;
+    return lastViewedHour !== currentHour;
   });
+
+  useEffect(() => {
+    if (showCategories) {
+      localStorage.setItem('lastCategoryViewHour', new Date().getHours().toString());
+    }
+  }, [showCategories]);
 
   const sections = [
     { id: 'hero', label: 'Home' },

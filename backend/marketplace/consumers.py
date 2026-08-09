@@ -163,7 +163,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
         self.user = user
         self.group_name = f'chat_{user.id}'
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        try:
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"ChatConsumer group_add failed: {e}")
         await self.accept()
 
     async def disconnect(self, close_code):

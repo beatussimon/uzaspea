@@ -254,7 +254,7 @@ const DashboardOverview: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right shrink-0 max-w-[100px] sm:max-w-[140px]">
-                    <p className="text-sm font-black text-brand-600 truncate" title={`TSh ${p.revenue.toLocaleString()}`}>TSh {p.revenue.toLocaleString()}</p>
+                    <p className="text-sm font-black text-brand-600 truncate" title={`TSh ${(p.revenue ?? 0).toLocaleString()}`}>TSh {(p.revenue ?? 0).toLocaleString()}</p>
                   </div>
                 </div>
               ))}

@@ -105,8 +105,6 @@ const CategoryBar: React.FC = () => {
   const allowedPaths = ['/products', '/product'];
   const showBar = allowedPaths.some(p => location.pathname.startsWith(p));
 
-  if (!showBar) return null;
-
   const topCategories = useMemo(() => {
     const getDeepCount = (cat: any): number => {
       let count = cat.product_count || 0;
@@ -124,6 +122,8 @@ const CategoryBar: React.FC = () => {
       .filter((c: any) => c.total_products > 0)
       .sort((a, b) => b.total_products - a.total_products);
   }, [categories]);
+
+  if (!showBar) return null;
 
   const handleCategoryClick = (slug: string) => {
     if (isProductsPage) {
