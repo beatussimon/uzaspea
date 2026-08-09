@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
@@ -27,7 +27,7 @@ type GridEntry =
 // ================================================================
 const ProductList = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
   const selectedCategory = searchParams.get('category') || '';
