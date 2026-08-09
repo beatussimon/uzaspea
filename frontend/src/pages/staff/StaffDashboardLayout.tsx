@@ -203,7 +203,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
             Worker Performance Analytics
           </h3>
           <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%" minWidth={1} minHeight={1}>
               <BarChart data={data.admin_task_metrics.worker_performance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" className="dark:opacity-10" />
                 <XAxis dataKey="worker" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
@@ -1142,8 +1142,8 @@ export const SupportTicketsManager: React.FC = () => {
   const [tickets, setTickets] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState('open');
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
-  const [chatReplies, setChatReplies] = useState<Record<number, Array<{ sender: string; message: string; timestamp: Date }>>>({});
   const [replyText, setReplyText] = useState('');
+  const [isInternal, setIsInternal] = useState(false);
   const [search, setSearch] = useState('');
 
   const fetchTickets = useCallback(() => {
@@ -1160,49 +1160,40 @@ export const SupportTicketsManager: React.FC = () => {
     setSelectedTicket(t);
   };
 
-  const handleTakeTicket = async (id: number) => {
+  const handleUpdateStatus = async (id: number, status: string) => {
     try {
-      await api.patch(`/api/staff/support-tickets/${id}/`, { status: 'in_progress' });
-      toast.success('Ticket moved to In Progress');
+      await api.patch(`/api/staff/support-tickets/${id}/update_status/`, { status });
+      toast.success(`Ticket marked as ${status}`);
       fetchTickets();
-      setSelectedTicket((prev: any) => prev ? { ...prev, status: 'in_progress' } : null);
+      setSelectedTicket((prev: any) => prev ? { ...prev, status } : null);
     } catch {
-      toast.error('Failed to take ticket');
+      toast.error('Failed to update ticket status');
     }
   };
 
-  const handleSendReply = () => {
+  const handleSendReply = async () => {
     if (!replyText.trim() || !selectedTicket) return;
-    const ticketId = selectedTicket.id;
-    const newReply = {
-      sender: 'Staff Member',
-      message: replyText,
-      timestamp: new Date()
-    };
-    setChatReplies(prev => ({
-      ...prev,
-      [ticketId]: [...(prev[ticketId] || []), newReply]
-    }));
-    setReplyText('');
-    toast.success('Reply sent (mocked)');
-  };
-
-  const handleResolve = async (id: number) => {
-    const notes = prompt('Enter resolution notes:');
-    if (notes === null) return;
     try {
-      await api.post(`/api/staff/support-tickets/${id}/resolve/`, { notes });
-      toast.success('Ticket resolved successfully');
-      fetchTickets();
-      setSelectedTicket(null);
+      await api.post(`/api/staff/support-tickets/${selectedTicket.id}/reply/`, {
+        reply: replyText,
+        is_internal: isInternal
+      });
+      toast.success(isInternal ? 'Internal note added' : 'Reply sent');
+      setReplyText('');
+      
+      // Reload tickets to get new messages
+      const r = await api.get(`/api/staff/support-tickets/?status=${statusFilter}`);
+      const newTickets = r.data.results || r.data;
+      setTickets(newTickets);
+      setSelectedTicket(newTickets.find((t: any) => t.id === selectedTicket.id) || null);
     } catch {
-      toast.error('Failed to resolve ticket');
+      toast.error('Failed to send reply');
     }
   };
 
   const filteredTickets = tickets.filter(t => 
     t.subject.toLowerCase().includes(search.toLowerCase()) || 
-    t.message.toLowerCase().includes(search.toLowerCase())
+    (t.messages && t.messages.some((m: any) => m.body.toLowerCase().includes(search.toLowerCase())))
   );
 
   return (
@@ -1217,30 +1208,40 @@ export const SupportTicketsManager: React.FC = () => {
             {['open', 'in_progress', 'resolved', 'closed'].map(s => (
               <button key={s} onClick={() => { setStatusFilter(s); setSelectedTicket(null); }}
                 className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition capitalize shrink-0 ${statusFilter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
-                {s}
+                {s.replace('_', ' ')}
               </button>
             ))}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
           {filteredTickets.length === 0 ? (
-            <p className="text-xs text-gray-400 text-center py-8 italic">No {statusFilter} tickets</p>
-          ) : filteredTickets.map(t => (
-            <div key={t.id} onClick={() => handleSelectTicket(t)}
-              className={`p-4 cursor-pointer transition flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 ${selectedTicket?.id === t.id ? 'bg-brand-50/50 dark:bg-brand-950/20 border-l-4 border-brand-600' : ''}`}>
-              <div>
-                <div className="flex justify-between items-start gap-1">
-                  <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{t.subject}</p>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${t.status === 'open' ? 'bg-red-100 text-red-700' : t.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                    {t.status}
-                  </span>
+            <p className="text-xs text-gray-400 text-center py-8 italic">No {statusFilter.replace('_', ' ')} tickets</p>
+          ) : filteredTickets.map(t => {
+            const latestMsg = t.messages && t.messages.length > 0 ? t.messages[t.messages.length - 1].body : '';
+            return (
+              <div key={t.id} onClick={() => handleSelectTicket(t)}
+                className={`p-4 cursor-pointer transition flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 ${selectedTicket?.id === t.id ? 'bg-brand-50/50 dark:bg-brand-950/20 border-l-4 border-brand-600' : ''}`}>
+                <div>
+                  <div className="flex justify-between items-start gap-1">
+                    <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{t.subject}</p>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${t.status === 'open' ? 'bg-red-100 text-red-700' : t.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {t.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-1">
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Category: {t.category}</p>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                      t.priority === 'urgent' ? 'bg-red-500 text-white' : 
+                      t.priority === 'high' ? 'bg-orange-100 text-orange-700' : 
+                      'bg-gray-100 text-gray-600'
+                    }`}>{t.priority}</span>
+                  </div>
+                  <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{latestMsg}</p>
                 </div>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">Category: {t.category}</p>
-                <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{t.message}</p>
+                <p className="text-[9px] text-gray-400 mt-2 self-end">{fmtDate(t.created_at)}</p>
               </div>
-              <p className="text-[9px] text-gray-400 mt-2 self-end">{fmtDate(t.created_at)}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -1256,46 +1257,61 @@ export const SupportTicketsManager: React.FC = () => {
               </div>
               <div className="flex gap-2">
                 {selectedTicket.status === 'open' && (
-                  <button onClick={() => handleTakeTicket(selectedTicket.id)} className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition">Accept Ticket</button>
+                  <button onClick={() => handleUpdateStatus(selectedTicket.id, 'in_progress')} className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition">Accept</button>
                 )}
                 {['open', 'in_progress'].includes(selectedTicket.status) && (
-                  <button onClick={() => handleResolve(selectedTicket.id)} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">Resolve Ticket</button>
+                  <button onClick={() => handleUpdateStatus(selectedTicket.id, 'resolved')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">Resolve</button>
                 )}
               </div>
             </div>
 
             {/* Message Thread */}
             <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50/50 dark:bg-gray-900/20">
-              {/* User Original Message */}
-              <div className="flex items-start gap-2 max-w-[80%]">
-                <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold text-xs">U</div>
-                <div className="p-3 rounded-2xl bg-white dark:bg-[#0A0A0A] border dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300">
-                  <p className="font-semibold mb-1 text-[10px] text-gray-400">User Message · {fmtDate(selectedTicket.created_at)}</p>
-                  <p>{selectedTicket.message}</p>
-                </div>
-              </div>
-
-              {/* Replies (if any) */}
-              {(chatReplies[selectedTicket.id] || []).map((reply, idx) => (
-                <div key={idx} className="flex items-start gap-2 max-w-[80%] ml-auto flex-row-reverse">
-                  <div className="w-8 h-8 rounded-full bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold text-xs">S</div>
-                  <div className="p-3 rounded-2xl bg-brand-600 text-white text-xs">
-                    <p className="font-semibold mb-1 text-[10px] text-brand-200">Staff · {reply.timestamp.toLocaleTimeString()}</p>
-                    <p>{reply.message}</p>
+              {selectedTicket.messages?.map((msg: any) => {
+                const isUser = !msg.is_internal && msg.sender_name === selectedTicket.name;
+                const isInternal = msg.is_internal;
+                
+                return (
+                  <div key={msg.id} className={`flex items-start gap-2 max-w-[80%] ${isUser ? '' : 'ml-auto flex-row-reverse'}`}>
+                    <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${
+                      isUser ? 'bg-brand-100 text-brand-600' : isInternal ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'
+                    }`}>
+                      {isUser ? 'U' : 'S'}
+                    </div>
+                    <div className={`p-3 rounded-2xl text-xs ${
+                      isUser ? 'bg-white dark:bg-[#0A0A0A] border dark:border-gray-700 text-gray-700 dark:text-gray-300' :
+                      isInternal ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200' :
+                      'bg-brand-600 text-white'
+                    }`}>
+                      <p className={`font-semibold mb-1 text-[10px] ${isUser ? 'text-gray-400' : isInternal ? 'text-yellow-600' : 'text-brand-200'}`}>
+                        {msg.sender_name} {isInternal && '(Internal Note)'} · {fmtDate(msg.created_at)}
+                      </p>
+                      <p>{msg.body}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Input Box */}
             {['open', 'in_progress'].includes(selectedTicket.status) ? (
-              <div className="p-4 border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] flex gap-2">
-                <input type="text" placeholder="Type your response..." value={replyText} onChange={e => setReplyText(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSendReply()}
-                  className="flex-1 px-3 py-2 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white" />
-                <button onClick={handleSendReply} className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1">
-                  <Send size={12} /> Reply
-                </button>
+              <div className="p-4 border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A]">
+                <div className="flex gap-4 mb-2 border-b border-gray-100 dark:border-gray-800">
+                  <button onClick={() => setIsInternal(false)} className={`text-xs font-bold pb-2 border-b-2 ${!isInternal ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-400'}`}>Public Reply</button>
+                  <button onClick={() => setIsInternal(true)} className={`text-xs font-bold pb-2 border-b-2 ${isInternal ? 'border-yellow-500 text-yellow-500' : 'border-transparent text-gray-400'}`}>Internal Note</button>
+                </div>
+                <div className="flex gap-2">
+                  <input type="text" placeholder={isInternal ? "Type an internal note..." : "Type your response to the user..."} value={replyText} onChange={e => setReplyText(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSendReply()}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 bg-white dark:bg-[#0A0A0A] ${
+                      isInternal ? 'border-yellow-300 focus:ring-yellow-100 focus:border-yellow-500 text-yellow-900 dark:text-yellow-100' : 'border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white'
+                    }`} />
+                  <button onClick={handleSendReply} className={`px-4 py-2 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 ${
+                    isInternal ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-brand-600 hover:bg-brand-700'
+                  }`}>
+                    <Send size={12} /> {isInternal ? 'Add Note' : 'Reply'}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="p-4 border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] text-center text-xs text-gray-400 italic">

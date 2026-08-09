@@ -882,7 +882,7 @@ const CheckoutPage: React.FC = () => {
             {appliedPromo && (
               <div className="flex justify-between items-center text-green-600 dark:text-green-500 font-bold">
                 <span>Discount ({appliedPromo.code})</span>
-                <span>- TSh {Number(appliedPromo.discount_amount).toLocaleString()}</span>
+                <span>- TSh {Number(appliedPromo.discount_amount || 0).toLocaleString()}</span>
               </div>
             )}
             <div className="flex justify-between items-center font-bold">

@@ -39,11 +39,46 @@ class FAQSerializer(serializers.ModelSerializer):
         model = FAQ
         fields = '__all__'
 
+from .models import TicketMessage
+
+class TicketMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TicketMessage
+        fields = '__all__'
+        read_only_fields = ['ticket', 'sender', 'sender_name', 'is_internal', 'created_at']
+
 class SupportTicketSerializer(serializers.ModelSerializer):
+    messages = serializers.SerializerMethodField()
+    # We will still accept 'message' in write operations for the initial ticket creation
+    message = serializers.CharField(write_only=True, required=False)
+
     class Meta:
         model = SupportTicket
         fields = '__all__'
-        read_only_fields = ['user', 'status', 'assigned_to', 'staff_notes', 'staff_reply', 'resolved_at']
+        read_only_fields = ['user', 'status', 'assigned_to', 'resolved_at']
+
+    def get_messages(self, obj):
+        request = self.context.get('request')
+        is_staff = request and request.user and request.user.is_staff
+        
+        msgs = obj.messages.all()
+        if not is_staff:
+            msgs = msgs.filter(is_internal=False)
+            
+        return TicketMessageSerializer(msgs, many=True).data
+
+    def create(self, validated_data):
+        initial_message = validated_data.pop('message', '')
+        ticket = super().create(validated_data)
+        if initial_message:
+            TicketMessage.objects.create(
+                ticket=ticket,
+                sender=ticket.user,
+                sender_name=ticket.name,
+                body=initial_message,
+                is_internal=False
+            )
+        return ticket
 
 class CategorySerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()
@@ -125,6 +160,10 @@ class ProductSerializer(serializers.ModelSerializer):
     latitude = serializers.FloatField(required=False, allow_null=True)
     longitude = serializers.FloatField(required=False, allow_null=True)
     can_review = serializers.SerializerMethodField()
+    is_sponsored = serializers.SerializerMethodField()
+
+    def get_is_sponsored(self, obj):
+        return getattr(obj, 'annotated_is_sponsored', False)
 
     class Meta:
         model = Product
@@ -134,7 +173,7 @@ class ProductSerializer(serializers.ModelSerializer):
                   'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',
                   'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified',
                   'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude',
-                  'weight_kg', 'size', 'can_review']
+                  'weight_kg', 'size', 'can_review', 'is_sponsored']
         read_only_fields = ['seller', 'slug']
 
     def get_inspections(self, obj):

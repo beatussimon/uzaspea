@@ -84,14 +84,14 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '60/minute',
-        'user': '120/minute',
-        'register': '5/hour',
-        'login': '10/hour',
-        'ticket': '10/hour',
-        'verify_superuser': '30/minute',
-        'order_create': '10/minute',
-        'order_create_anon': '3/minute',
+        'anon': '1000/minute',
+        'user': '5000/minute',
+        'register': '50/hour',
+        'login': '100/hour',
+        'ticket': '100/hour',
+        'verify_superuser': '300/minute',
+        'order_create': '100/minute',
+        'order_create_anon': '30/minute',
     },
 }
 

@@ -361,9 +361,17 @@ class StaffPermissionViewSet(viewsets.ModelViewSet):
 class StaffDashboardView(APIView):
     """Summary payload for non-admin staff: their tasks, pending promos, recent actions."""
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+    throttle_classes = []
 
     def get(self, request):
         user = request.user
+        
+        from django.core.cache import cache
+        cache_key = f"staff_dashboard_summary_{user.id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
         priority_order = models.Case(
             models.When(priority='urgent', then=models.Value(1)),
             models.When(priority='high', then=models.Value(2)),
@@ -406,7 +414,6 @@ class StaffDashboardView(APIView):
                 'seller': p.user.username, 'status': p.status,
                 'created_at': p.created_at.isoformat(),
             } for p in pending_promos]
-
         # My recent actions
         my_actions = TaskAction.objects.filter(performed_by=user).select_related('task').order_by('-performed_at')[:10]
         actions_data = [{
@@ -473,7 +480,7 @@ class StaffDashboardView(APIView):
                 'worker_performance': list(perf_dict.values())
             }
 
-        return Response({
+        response_data = {
             'user': {
                 'username': user.username,
                 'is_inspector': hasattr(user, 'inspector_profile'),
@@ -487,7 +494,10 @@ class StaffDashboardView(APIView):
             'recent_actions': actions_data,
             'admin_overview': admin_overview,
             'admin_task_metrics': admin_task_metrics,
-        })
+        }
+        
+        cache.set(cache_key, response_data, timeout=60)
+        return Response(response_data)
 
 
 class SponsoredListingReviewViewSet(viewsets.ModelViewSet):
@@ -621,32 +631,52 @@ class StaffSupportTicketViewSet(viewsets.ModelViewSet):
             qs = qs.filter(status=status_filter)
         return qs
 
-    @decorators.action(detail=True, methods=['post'])
-    def resolve(self, request, pk=None):
+    @decorators.action(detail=True, methods=['patch'])
+    def update_status(self, request, pk=None):
         ticket = self.get_object()
-        ticket.status = 'resolved'
+        status_val = request.data.get('status')
+        priority_val = request.data.get('priority')
+        
+        if status_val:
+            ticket.status = status_val
+            if status_val == 'resolved' and not ticket.resolved_at:
+                ticket.resolved_at = tz.now()
+        if priority_val:
+            ticket.priority = priority_val
+            
         ticket.assigned_to = request.user
-        ticket.staff_notes = request.data.get('notes', '')
-        ticket.resolved_at = tz.now()
         ticket.save()
-        return Response({'status': 'resolved'})
+        return Response({'status': 'updated'})
 
     @decorators.action(detail=True, methods=['post'])
     def reply(self, request, pk=None):
-        from marketplace.models import push_notification
+        from marketplace.models import push_notification, TicketMessage
         ticket = self.get_object()
         reply_text = request.data.get('reply', '').strip()
+        is_internal = request.data.get('is_internal', False)
+        
         if not reply_text:
             return Response({'error': 'Reply cannot be empty.'}, status=400)
-        ticket.staff_reply = reply_text
-        ticket.status = 'in_progress'
+            
+        TicketMessage.objects.create(
+            ticket=ticket,
+            sender=request.user,
+            sender_name=request.user.first_name or request.user.username,
+            body=reply_text,
+            is_internal=is_internal
+        )
+        
         ticket.assigned_to = request.user
-        ticket.save(update_fields=['staff_reply', 'status', 'assigned_to'])
-        if ticket.user:
+        if ticket.status == 'open' and not is_internal:
+            ticket.status = 'in_progress'
+        ticket.save()
+        
+        if not is_internal and ticket.user:
             push_notification(ticket.user, 'order_status',
                 'Support Reply',
                 f'Staff replied to your ticket: "{ticket.subject}"',
                 '/help')
+                
         return Response({'status': 'replied'})
 
 

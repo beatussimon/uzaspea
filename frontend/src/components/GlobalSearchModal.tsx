@@ -61,26 +61,46 @@ const GlobalSearchModal: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const topCategories = useMemo(() => {
-    // Helper to recursively sum product counts
-    const getDeepCount = (cat: any): number => {
-      let count = cat.product_count || 0;
-      if (cat.children && Array.isArray(cat.children)) {
-        cat.children.forEach((child: any) => {
-          count += getDeepCount(child);
-        });
-      }
-      return count;
+  const rootCategories = useMemo(() => {
+    return categories.filter((c: any) => !c.parent);
+  }, [categories]);
+
+  const activeRootCategory = useMemo(() => {
+    if (!category || !categories.length) return null;
+    return categories.find((c: any) => 
+      c.slug === category || (c.children && c.children.some((child: any) => child.slug === category))
+    );
+  }, [category, categories]);
+
+  const activeSubCategory = useMemo(() => {
+    if (!activeRootCategory || activeRootCategory.slug === category) return null;
+    return activeRootCategory.children?.find((c: any) => c.slug === category) || null;
+  }, [activeRootCategory, category]);
+
+  const handleRootCategoryChange = (slug: string) => {
+    setCategory(slug);
+  };
+
+  const handleSubCategoryChange = (slug: string) => {
+    setCategory(slug || (activeRootCategory ? activeRootCategory.slug : ''));
+  };
+
+  const popularCategories = useMemo(() => {
+    const flattenCategories = (cats: any[]): any[] => {
+      let flat: any[] = [];
+      cats.forEach(cat => {
+        flat.push(cat);
+        if (cat.children && Array.isArray(cat.children) && cat.children.length > 0) {
+          flat = flat.concat(flattenCategories(cat.children));
+        }
+      });
+      return flat;
     };
 
-    return categories
-      .filter((c: any) => !c.parent)
-      .map((c: any) => ({
-        ...c,
-        total_products: getDeepCount(c)
-      }))
-      .filter((c: any) => c.total_products > 0)
-      .sort((a, b) => b.total_products - a.total_products);
+    const allFlattened = flattenCategories(categories);
+    return allFlattened
+      .filter((c: any) => (!c.children || c.children.length === 0) && (c.product_count || c.annotated_product_count || 0) > 0)
+      .sort((a, b) => (b.product_count || b.annotated_product_count || 0) - (a.product_count || a.annotated_product_count || 0));
   }, [categories]);
 
   // Load recent searches
@@ -110,6 +130,10 @@ const GlobalSearchModal: React.FC = () => {
 
   // Hydrate states when opened
   useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeSearch();
+    };
+
     if (isSearchOpen) {
       setQuery(searchParams.get('q') || '');
       setCategory(searchParams.get('category') || '');
@@ -121,11 +145,19 @@ const GlobalSearchModal: React.FC = () => {
       
       setTimeout(() => inputRef.current?.focus(), 100);
       document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleEscape);
     } else {
       document.body.style.overflow = '';
       setShowMobileFilters(false);
+      window.removeEventListener('keydown', handleEscape);
     }
-  }, [isSearchOpen, searchParams]);
+    
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleEscape);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSearchOpen]);
 
   // Debounced API call for predictive search
   useEffect(() => {
@@ -138,33 +170,31 @@ const GlobalSearchModal: React.FC = () => {
 
     setIsSearching(true);
     const timer = setTimeout(() => {
-      api.get('/api/products/', { 
-        params: { 
-          q, 
-          category,
-          min_price: minPrice,
-          max_price: maxPrice,
-          condition,
-          sort_by: sortBy,
-          page_size: 4 
-        } 
-      })
-        .then(res => {
-          setSuggestions(res.data.results || []);
-          setIsSearching(false);
-        })
-        .catch(() => {
-          setIsSearching(false);
-        });
+      Promise.all([
+        api.get('/api/profiles/', { params: { q, page_size: 3 } }).catch(() => ({ data: { results: [] } })),
+        api.get('/api/products/', { 
+          params: { q, category, min_price: minPrice, max_price: maxPrice, condition, sort_by: sortBy, page_size: 4 } 
+        }).catch(() => ({ data: { results: [] } }))
+      ]).then(([profileRes, productRes]) => {
+        const profiles = (profileRes.data.results || profileRes.data || []).map((p: any) => ({ ...p, type: 'account' }));
+        const products = (productRes.data.results || []).map((p: any) => ({ ...p, type: 'product' }));
+        const sortedProducts = [...products].sort((a: any, b: any) => (b.is_sponsored ? 1 : 0) - (a.is_sponsored ? 1 : 0));
+        
+        setSuggestions([...profiles, ...sortedProducts]);
+        setIsSearching(false);
+      });
     }, 300);
 
     return () => clearTimeout(timer);
   }, [query, category, minPrice, maxPrice, condition, sortBy]);
 
-  const buildQueryString = () => {
+  const buildQueryString = (overrides?: { category?: string; query?: string }) => {
     const params = new URLSearchParams();
-    if (query.trim()) params.set('q', query.trim());
-    if (category) params.set('category', category);
+    const q = overrides?.query !== undefined ? overrides.query : query;
+    const cat = overrides?.category !== undefined ? overrides.category : category;
+
+    if (q.trim()) params.set('q', q.trim());
+    if (cat) params.set('category', cat);
     if (minPrice) params.set('min_price', minPrice);
     if (maxPrice) params.set('max_price', maxPrice);
     if (condition) params.set('condition', condition);
@@ -173,11 +203,27 @@ const GlobalSearchModal: React.FC = () => {
     return params.toString();
   };
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = (e?: React.FormEvent, overrides?: { category?: string; query?: string }) => {
     if (e) e.preventDefault();
-    if (query.trim()) saveRecentSearch(query);
+    const finalQuery = overrides?.query !== undefined ? overrides.query.trim() : query.trim();
+    const finalCat = overrides?.category !== undefined ? overrides.category : category;
     
-    const qs = buildQueryString();
+    if (!finalQuery && !finalCat && !minPrice && !maxPrice && !condition) return;
+    
+    // Save to recent searches
+    if (finalQuery) {
+      const newSearches = [finalQuery, ...recentSearches.filter(s => s !== finalQuery)].slice(0, 5);
+      setRecentSearches(newSearches);
+      localStorage.setItem('recentSearches', JSON.stringify(newSearches));
+    }
+
+    if (suggestions.length > 0 && suggestions[0].type === 'account') {
+      navigate(`/${suggestions[0].username}`);
+      closeSearch();
+      return;
+    }
+
+    const qs = buildQueryString(overrides);
     navigate(qs ? `/products?${qs}` : '/products');
     closeSearch();
   };
@@ -190,10 +236,16 @@ const GlobalSearchModal: React.FC = () => {
     setSortBy('');
   };
 
-  const handleSuggestionClick = (product: any) => {
-    if (query.trim()) saveRecentSearch(query);
-    navigate(`/product/${product.slug}`);
+  const handleSuggestionClick = (item: any) => {
+    if (item.type === 'account') {
+      navigate(`/${item.username}`);
+      closeSearch();
+      return;
+    }
     closeSearch();
+    navigate(`/product/${item.slug}`, {
+      state: { backgroundLocation: location }
+    });
   };
 
   const activeFilterCount = [category, minPrice, maxPrice, condition, sortBy].filter(Boolean).length;
@@ -201,14 +253,14 @@ const GlobalSearchModal: React.FC = () => {
   return (
     <AnimatePresence>
       {isSearchOpen && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-safe sm:pt-[5vh] px-4 pb-4">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-safe sm:pt-[8vh] px-4 pb-4 pointer-events-none">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={closeSearch}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-md pointer-events-auto"
           />
 
           <motion.div
@@ -216,10 +268,10 @@ const GlobalSearchModal: React.FC = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="relative w-full max-w-5xl bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl overflow-hidden border border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row max-h-[90vh]"
+            className="relative w-full max-w-5xl bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-[24px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden border border-white/20 dark:border-white/5 flex flex-col md:flex-row max-h-[85vh] pointer-events-auto"
           >
             {/* Desktop Sidebar Filters */}
-            <div className="hidden md:flex flex-col w-[280px] border-r border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50">
+            <div className="hidden md:flex flex-col w-[280px] border-r border-neutral-200/50 dark:border-neutral-800/50 bg-neutral-50/50 dark:bg-transparent">
               <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300 font-bold uppercase tracking-wider text-xs">
                   <Filter className="w-4 h-4" />
@@ -231,32 +283,49 @@ const GlobalSearchModal: React.FC = () => {
               </div>
               
               <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-6">
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">Category</label>
-                  <select 
-                    value={category} 
-                    onChange={(e) => setCategory(e.target.value)} 
-                    className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none focus:border-neutral-900 dark:focus:border-neutral-300"
-                  >
-                    <option value="">All Categories</option>
-                    {topCategories.map((c: any) => (
-                      <option key={c.slug} value={c.slug}>{c.name}</option>
-                    ))}
-                  </select>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">Category</label>
+                    <select 
+                      value={activeRootCategory ? activeRootCategory.slug : ''} 
+                      onChange={(e) => handleRootCategoryChange(e.target.value)} 
+                      className="w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow"
+                    >
+                      <option value="">All Categories</option>
+                      {rootCategories.map((c: any) => (
+                        <option key={c.slug} value={c.slug}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {activeRootCategory && activeRootCategory.children && activeRootCategory.children.length > 0 && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">Subcategory</label>
+                      <select 
+                        value={activeSubCategory ? activeSubCategory.slug : ''} 
+                        onChange={(e) => handleSubCategoryChange(e.target.value)} 
+                        className="w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow"
+                      >
+                        <option value="">All in {activeRootCategory.name}</option>
+                        {activeRootCategory.children.map((c: any) => (
+                          <option key={c.slug} value={c.slug}>{c.name}</option>
+                        ))}
+                      </select>
+                    </motion.div>
+                  )}
                 </div>
                 
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">Price Range</label>
                   <div className="flex items-center gap-2">
-                    <input type="number" placeholder="Min" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none focus:border-neutral-900 dark:focus:border-neutral-300" />
+                    <input type="number" placeholder="Min" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow" />
                     <span className="text-neutral-400">-</span>
-                    <input type="number" placeholder="Max" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none focus:border-neutral-900 dark:focus:border-neutral-300" />
+                    <input type="number" placeholder="Max" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow" />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">Condition</label>
-                  <select value={condition} onChange={(e) => setCondition(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none focus:border-neutral-900 dark:focus:border-neutral-300">
+                  <select value={condition} onChange={(e) => setCondition(e.target.value)} className="w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow">
                     <option value="">Any Condition</option>
                     <option value="new">New</option>
                     <option value="used_good">Used - Good</option>
@@ -266,7 +335,7 @@ const GlobalSearchModal: React.FC = () => {
 
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">Sort By</label>
-                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none focus:border-neutral-900 dark:focus:border-neutral-300">
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow">
                     <option value="">Newest Listings</option>
                     <option value="price_asc">Price: Low to High</option>
                     <option value="price_desc">Price: High to Low</option>
@@ -276,11 +345,11 @@ const GlobalSearchModal: React.FC = () => {
 
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">View Mode</label>
-                  <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-neutral-800 rounded-xl p-1 flex shadow-sm">
+                  <div className="bg-neutral-200/50 dark:bg-neutral-900/50 rounded-xl p-1 flex">
                     <button 
                       type="button"
                       onClick={() => handleViewModeChange('grid')}
-                      className={`flex-1 p-2 rounded-lg transition-colors flex justify-center items-center ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                      className={`flex-1 p-2 rounded-lg transition-all flex justify-center items-center ${viewMode === 'grid' ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm font-bold' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
                       title="Grid View"
                     >
                       <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg>
@@ -288,7 +357,7 @@ const GlobalSearchModal: React.FC = () => {
                     <button 
                       type="button"
                       onClick={() => handleViewModeChange('list')}
-                      className={`flex-1 p-2 rounded-lg transition-colors flex justify-center items-center ${viewMode === 'list' ? 'bg-gray-100 text-gray-900 dark:bg-neutral-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                      className={`flex-1 p-2 rounded-lg transition-all flex justify-center items-center ${viewMode === 'list' ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm font-bold' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
                       title="List View"
                     >
                       <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M3 4h18v2H3zm0 7h18v2H3zm0 7h18v2H3z"/></svg>
@@ -300,16 +369,16 @@ const GlobalSearchModal: React.FC = () => {
 
             {/* Main Search Area */}
             <div className="flex-1 flex flex-col h-full overflow-hidden">
-              <div className="relative border-b border-neutral-200 dark:border-neutral-800 z-10 bg-white dark:bg-neutral-900">
+              <div className="relative border-b border-neutral-100 dark:border-neutral-800/50 z-10 bg-transparent">
                 <form onSubmit={handleSubmit} className="flex items-center w-full relative">
-                  <Search className="absolute left-4 w-6 h-6 text-neutral-400" />
+                  <Search className="absolute left-6 w-6 h-6 text-brand-500" />
                   <input
                     ref={inputRef}
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder={t('search_placeholder', 'Search products, categories, or brands...')}
-                    className="w-full h-16 pl-14 pr-[120px] sm:pr-24 bg-transparent text-lg font-medium text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none"
+                    className="w-full h-20 pl-16 pr-[120px] sm:pr-24 bg-transparent text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-300 dark:placeholder:text-neutral-700 focus:outline-none"
                   />
                   
                   {/* Mobile Filters Toggle & Clear Button */}
@@ -345,10 +414,18 @@ const GlobalSearchModal: React.FC = () => {
                         {activeFilterCount > 0 && <button onClick={clearFilters} className="text-xs text-brand-500 font-bold">Clear All</button>}
                       </div>
                       
-                      <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none">
-                        <option value="">All Categories</option>
-                        {topCategories.map((c: any) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
-                      </select>
+                      <div className="space-y-2">
+                        <select value={activeRootCategory ? activeRootCategory.slug : ''} onChange={(e) => handleRootCategoryChange(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none focus:border-neutral-900 dark:focus:border-neutral-300">
+                          <option value="">All Categories</option>
+                          {rootCategories.map((c: any) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                        </select>
+                        {activeRootCategory && activeRootCategory.children && activeRootCategory.children.length > 0 && (
+                          <select value={activeSubCategory ? activeSubCategory.slug : ''} onChange={(e) => handleSubCategoryChange(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none focus:border-neutral-900 dark:focus:border-neutral-300">
+                            <option value="">All in {activeRootCategory.name}</option>
+                            {activeRootCategory.children.map((c: any) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                          </select>
+                        )}
+                      </div>
 
                       <div className="flex items-center gap-2">
                         <input type="number" placeholder="Min Price" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none" />
@@ -407,7 +484,7 @@ const GlobalSearchModal: React.FC = () => {
                           {recentSearches.map((term, i) => (
                             <button
                               key={i}
-                              onClick={() => { setQuery(term); handleSubmit(); }}
+                              onClick={() => { setQuery(term); handleSubmit(undefined, { query: term }); }}
                               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800/50 text-neutral-700 dark:text-neutral-300 transition-colors text-left group"
                             >
                               <Clock className="w-4 h-4 text-neutral-400 group-hover:text-brand-500" />
@@ -422,13 +499,13 @@ const GlobalSearchModal: React.FC = () => {
                     <div>
                       <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-3">Popular Categories</h3>
                       <div className="flex flex-wrap gap-2">
-                        {topCategories.slice(0, 8).map((cat: any) => (
+                        {popularCategories.slice(0, 8).map((cat: any) => (
                           <button
                             key={cat.slug}
-                            onClick={() => { setCategory(cat.slug); handleSubmit(); }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 hover:border-brand-500 dark:hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 text-sm font-medium transition-colors"
+                            onClick={() => { setCategory(cat.slug); handleSubmit(undefined, { category: cat.slug }); }}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800/60 hover:bg-brand-50 dark:hover:bg-brand-500/20 text-neutral-700 dark:text-neutral-300 hover:text-brand-600 dark:hover:text-brand-400 text-sm font-medium transition-colors border border-transparent hover:border-brand-500/30"
                           >
-                            <Tag className="w-3.5 h-3.5 text-neutral-400" />
+                            <Tag className="w-3.5 h-3.5 opacity-50" />
                             {cat.name}
                           </button>
                         ))}
@@ -448,34 +525,80 @@ const GlobalSearchModal: React.FC = () => {
                           <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Preview Results</h3>
                         </div>
                         <div className="space-y-1">
-                          {suggestions.map(product => (
+                          {suggestions.map(item => (
                             <button
-                              key={product.id}
-                              onClick={() => handleSuggestionClick(product)}
+                              key={`${item.type}-${item.id}`}
+                              onClick={() => handleSuggestionClick(item)}
                               className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-colors text-left group"
                             >
-                              <div className="w-12 h-12 rounded-lg bg-neutral-200 dark:bg-neutral-800 overflow-hidden shrink-0">
-                                <SafeImage 
-                                  src={product.images?.[0]?.image} 
-                                  alt={product.title}
-                                  className="w-full h-full object-cover"
-                                />
+                              <div className={`w-12 h-12 overflow-hidden shrink-0 flex items-center justify-center ${item.type === 'account' ? 'rounded-full ring-2 ring-transparent group-hover:ring-brand-500/20 transition-all' : 'rounded-lg'} bg-neutral-200 dark:bg-neutral-800`}>
+                                {item.type === 'account' ? (
+                                  item.profile_picture ? (
+                                    <SafeImage 
+                                      src={item.profile_picture} 
+                                      alt={item.username}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full bg-brand-100 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400 flex items-center justify-center font-bold text-lg uppercase">
+                                      {item.username.charAt(0)}
+                                    </div>
+                                  )
+                                ) : (
+                                  <SafeImage 
+                                    src={item.images?.[0]?.image} 
+                                    alt={item.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-bold text-sm text-neutral-900 dark:text-white truncate group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
-                                  {product.title}
-                                </p>
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate flex items-center gap-1">
-                                  {product.category_name} 
-                                  {product.condition && <span className="opacity-50">• {product.condition}</span>}
-                                </p>
+                                {item.type === 'account' ? (
+                                  <>
+                                    <p className="font-bold text-sm text-neutral-900 dark:text-white truncate flex items-center gap-2 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                                      @{item.username}
+                                      {item.is_verified && (
+                                        <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                        </svg>
+                                      )}
+                                    </p>
+                                    <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate flex items-center gap-1 capitalize">
+                                      {item.tier.replace('_', ' ')}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="font-bold text-sm text-neutral-900 dark:text-white truncate flex items-center gap-2 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                                      {item.name}
+                                      {item.is_sponsored && (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-brand-500/10 text-brand-600 dark:text-brand-400">
+                                          Ad
+                                        </span>
+                                      )}
+                                    </p>
+                                    <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate flex items-center gap-1">
+                                      {item.category_name} 
+                                      {item.condition && <span className="opacity-50">• {item.condition}</span>}
+                                    </p>
+                                  </>
+                                )}
                               </div>
-                              <div className="shrink-0 text-right pr-2">
-                                <p className="font-bold text-sm text-brand-600 dark:text-brand-400">
-                                  {product.price ? product.price.toLocaleString() : 'Negotiable'}
-                                  {product.price && <span className="text-[10px] ml-1">TZS</span>}
-                                </p>
-                              </div>
+                              {item.type === 'product' && (
+                                <div className="shrink-0 text-right pr-2">
+                                  <p className="font-bold text-sm text-brand-600 dark:text-brand-400">
+                                    {item.price ? item.price.toLocaleString() : 'Negotiable'}
+                                    {item.price && <span className="text-[10px] ml-1">TZS</span>}
+                                  </p>
+                                </div>
+                              )}
+                              {item.type === 'account' && (
+                                <div className="shrink-0 text-right pr-2">
+                                  <span className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-[9px] font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-widest border border-neutral-200 dark:border-neutral-700/50">
+                                    Profile
+                                  </span>
+                                </div>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -496,12 +619,12 @@ const GlobalSearchModal: React.FC = () => {
               </div>
               
               {/* Sticky Submit Button Footer */}
-              <div className="p-3 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 z-10 shrink-0">
+              <div className="p-4 border-t border-neutral-100 dark:border-neutral-800/50 bg-transparent z-10 shrink-0">
                 <button 
                   onClick={() => handleSubmit()}
-                  className="w-full p-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition-colors flex items-center justify-center gap-2"
+                  className="w-full p-4 bg-gradient-to-r from-brand-500 to-brand-600 text-neutral-950 rounded-xl font-black text-base shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
                 >
-                  <Search className="w-4 h-4" />
+                  <Search className="w-5 h-5" />
                   Show Results {activeFilterCount > 0 ? `(${activeFilterCount} Filters)` : ''}
                 </button>
               </div>

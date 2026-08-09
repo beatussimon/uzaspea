@@ -7,6 +7,6 @@ chmod +x /home/bea/uzaspea/askpass.sh
 setsid ssh-add /home/bea/.ssh/id_ed25519 < /dev/null
 cd /home/bea/uzaspea
 git remote set-url origin git@github.com:beatussimon/uzaspea.git
-git push origin --force --all
-git push origin --force --tags
+git push origin master --force-with-lease
+git push origin --tags
 

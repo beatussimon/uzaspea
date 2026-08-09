@@ -290,95 +290,6 @@ const ProductList = () => {
     }
   }, [urlQuery]);
 
-  const [pullY, setPullY] = useState(0);
-  const [isNavigating, setIsNavigating] = useState(false);
-
-  // Overscroll to go back to Home
-  useEffect(() => {
-    let pullDistance = 0;
-    let startY = 0;
-    let isFlipping = false;
-    
-    const handleTouchStart = (e: TouchEvent) => {
-      if (window.scrollY <= 0 && !isFlipping) {
-        startY = e.touches[0].clientY;
-        pullDistance = 0;
-      }
-    };
-    
-    const handleTouchMove = (e: TouchEvent) => {
-      if (window.scrollY <= 0 && startY > 0 && !isFlipping) {
-        const y = e.touches[0].clientY;
-        const deltaY = y - startY;
-        if (deltaY > 0) {
-          // Add friction to the pull
-          pullDistance = deltaY * 0.4;
-          setPullY(pullDistance);
-          
-          if (pullDistance > 120) {
-            isFlipping = true;
-            setIsNavigating(true);
-            setPullY(window.innerHeight); // Swipe all the way down
-            setTimeout(() => navigate('/'), 300);
-          }
-        }
-      } else if (!isFlipping) {
-         setPullY(0);
-      }
-    };
-    
-    const handleTouchEnd = () => {
-      startY = 0;
-      if (!isFlipping) setPullY(0);
-    };
-    
-    const handleWheel = (e: WheelEvent) => {
-      if (window.scrollY <= 0 && e.deltaY < 0 && !isFlipping) {
-        pullDistance -= e.deltaY * 0.5;
-        setPullY(pullDistance);
-        
-        if (pullDistance > 150) { 
-          isFlipping = true;
-          setIsNavigating(true);
-          setPullY(window.innerHeight);
-          setTimeout(() => navigate('/'), 300);
-        }
-      } else if (!isFlipping && e.deltaY > 0) {
-        pullDistance = 0;
-        setPullY(0);
-      }
-    };
-
-    // Debounce resetting the wheel pull to allow smooth returning
-    let wheelTimeout: ReturnType<typeof setTimeout>;
-    const handleWheelEnd = () => {
-      clearTimeout(wheelTimeout);
-      wheelTimeout = setTimeout(() => {
-        if (!isFlipping) {
-           pullDistance = 0;
-           setPullY(0);
-        }
-      }, 150);
-    };
-
-    const handleWheelWrapper = (e: WheelEvent) => {
-      handleWheel(e);
-      handleWheelEnd();
-    }
-
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchmove', handleTouchMove, { passive: true });
-    window.addEventListener('touchend', handleTouchEnd, { passive: true });
-    window.addEventListener('wheel', handleWheelWrapper, { passive: true });
-
-    return () => {
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
-      window.removeEventListener('wheel', handleWheelWrapper);
-      clearTimeout(wheelTimeout);
-    };
-  }, [navigate]);
 
 
   useEffect(() => {
@@ -403,7 +314,7 @@ const ProductList = () => {
           });
         } 
       },
-      { rootMargin: '2000px' }
+      { rootMargin: '400px' }
     );
     
     obs.observe(sentinel);
@@ -566,14 +477,7 @@ const ProductList = () => {
       : 'Browse Products - SokoniMax';
 
   return (
-    <div 
-      style={{ 
-        transform: `translateY(${pullY}px)`, 
-        transition: isNavigating ? 'transform 0.4s cubic-bezier(0.3, 0, 0.2, 1)' : pullY === 0 ? 'transform 0.2s ease' : 'none',
-        opacity: isNavigating ? 0 : 1 
-      }}
-      className="transition-opacity duration-300 bg-surface-muted dark:bg-surface-dark min-h-screen -mt-4 pt-4 md:-mt-6 md:pt-6"
-    >
+    <div className="bg-surface-muted dark:bg-surface-dark min-h-screen -mt-4 pt-4 md:-mt-6 md:pt-6">
       <SEO 
         title={seoTitle} 
         description={`Find the best ${urlQuery || selectedCategory || 'products'} on SokoniMax. Verified sellers, secure payments, and fast delivery in Tanzania.`} 

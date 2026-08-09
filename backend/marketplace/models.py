@@ -832,12 +832,10 @@ class SupportTicket(models.Model):
     email = models.EmailField()
     category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
     subject = models.CharField(max_length=255)
-    message = models.TextField()
+    priority = models.CharField(max_length=20, choices=[('low','Low'),('normal','Normal'),('high','High'),('urgent','Urgent')], default='normal')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
                                      related_name='assigned_tickets')
-    staff_notes = models.TextField(blank=True)
-    staff_reply = models.TextField(blank=True, help_text="Response visible to the ticket creator")
     resolved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -845,6 +843,16 @@ class SupportTicket(models.Model):
     class Meta:
         ordering = ['-created_at']
 
+class TicketMessage(models.Model):
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ticket_messages')
+    sender_name = models.CharField(max_length=100, blank=True)
+    body = models.TextField()
+    is_internal = models.BooleanField(default=False, help_text="If true, only staff can see this message")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
 
 # ─── Notification System (B-11) ──────────────────────────────────
 class Notification(models.Model):
@@ -1048,6 +1056,16 @@ class ProductVariant(models.Model):
 
     class Meta:
         ordering = ['name']
+        
+# --- Cache Invalidation Signals ---
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.core.cache import cache
+
+@receiver([post_save, post_delete], sender=UserProfile)
+def invalidate_user_profile_search_cache(sender, instance, **kwargs):
+    cache.delete('searchable_user_profiles')
+
 
     def __str__(self):
         return f'{self.product.name} — {self.name}'
