@@ -113,15 +113,7 @@ const GlobalSearchModal: React.FC = () => {
     } catch (e) {}
   }, []);
 
-  const saveRecentSearch = (searchQuery: string) => {
-    const q = searchQuery.trim();
-    if (!q) return;
-    try {
-      const updated = [q, ...recentSearches.filter(item => item !== q)].slice(0, 5);
-      setRecentSearches(updated);
-      localStorage.setItem('recentSearches', JSON.stringify(updated));
-    } catch (e) {}
-  };
+
 
   const clearRecent = () => {
     setRecentSearches([]);
