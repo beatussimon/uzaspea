@@ -183,25 +183,10 @@ const DashboardPOS: React.FC = () => {
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      const inStockVariants = p.variants ? p.variants.filter((v: any) => v.stock > 0 && v.is_available !== false) : [];
-      const hasVariantStock = inStockVariants.length > 0;
-      const hasBaseStock = p.stock > 0;
-      
-      const isAvailable = (p.variants && p.variants.length > 0) ? hasVariantStock : hasBaseStock;
-      if (!isAvailable) return false;
-
       if (searchQuery) {
         return p.name.toLowerCase().includes(searchQuery.toLowerCase());
       }
       return true;
-    }).map(p => {
-      if (p.variants && p.variants.length > 0) {
-        return {
-          ...p,
-          variants: p.variants.filter((v: any) => v.stock > 0 && v.is_available !== false)
-        };
-      }
-      return p;
     });
   }, [products, searchQuery]);
 

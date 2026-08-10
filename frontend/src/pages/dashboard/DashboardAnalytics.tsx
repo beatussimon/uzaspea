@@ -74,7 +74,7 @@ const DashboardAnalytics: React.FC = () => {
             <DollarSign size={20} />
             <h3 className="font-semibold text-gray-700 dark:text-gray-300">Revenue (30d)</h3>
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">KES {(data.total_revenue ?? 0).toLocaleString()}</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">TZS {(data.total_revenue ?? 0).toLocaleString()}</p>
         </div>
 
         <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border p-5 rounded-2xl shadow-sm">
@@ -118,7 +118,7 @@ const DashboardAnalytics: React.FC = () => {
                   <span className="font-medium text-gray-800 dark:text-gray-200">{product.name}</span>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{product.sales} sold</p>
-                    <p className="text-xs text-gray-500">KES {(product.revenue ?? 0).toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">TZS {(product.revenue ?? 0).toLocaleString()}</p>
                   </div>
                 </li>
               ))}
@@ -156,7 +156,7 @@ const DashboardAnalytics: React.FC = () => {
                           {order.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-semibold">KES {(order.total ?? 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 font-semibold">TZS {(order.total ?? 0).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
