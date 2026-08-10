@@ -3,7 +3,7 @@ import { Bell, ShoppingBag, MessageSquare, Star, Info, Check, Trash2 } from 'luc
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../api';
 import { timeAgo } from '../../utils/timeAgo';
-import { useTranslation } from 'react-i18next';
+
 
 interface NotificationBellProps {
   className?: string;
@@ -11,7 +11,7 @@ interface NotificationBellProps {
 }
 
 const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeClassName }) => {
-  const { t } = useTranslation();
+
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);

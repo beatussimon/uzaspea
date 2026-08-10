@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+
 
 interface ExpandableSearchProps {
   value: string;
@@ -16,7 +16,7 @@ const ExpandableSearch: React.FC<ExpandableSearchProps> = ({
   placeholder = 'Search...', 
   pillLabel = 'Search' 
 }) => {
-  const { t } = useTranslation();
+
   const [isExpanded, setIsExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
