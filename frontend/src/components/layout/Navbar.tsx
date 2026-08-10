@@ -146,9 +146,7 @@ const Navbar = () => {
   const isHomepage = location.pathname === '/';
   const useLightStyle = isDark || isHomepage;
 
-  const bellClass = useLightStyle
-    ? 'text-white/85 hover:text-white'
-    : 'text-gray-600 dark:text-gray-300';
+
 
   const iconButtonClass = useLightStyle
     ? 'group relative p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'

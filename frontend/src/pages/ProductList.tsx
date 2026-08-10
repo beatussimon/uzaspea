@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
-import { X, Search } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import ProductCard from '../components/ProductCard';

@@ -85,7 +85,7 @@ const HelpCenterPage: React.FC = () => {
                 subject: ticketForm.subject.trim() || `[${selectedCategory}] Customer Enquiry`,
                 category: mappedCategory,
                 name: user?.username || 'Guest User',
-                email: user?.email || 'guest@oko.com'
+                email: (user as any)?.email || 'guest@oko.com'
             };
             const res = await api.post('/api/support-tickets/', payload);
             setUserTickets(prev => [res.data, ...prev]);
