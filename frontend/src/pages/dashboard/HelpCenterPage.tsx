@@ -3,14 +3,16 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { Mail, Phone, MapPin, Search, ChevronDown, ChevronUp, Send, MessageCircle, ShoppingBag, Lightbulb, Bug, HelpCircle, Clock, CheckCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const HelpCenterPage: React.FC = () => {
     const { t } = useTranslation();
+    const { user } = useAuth();
     const [faqs, setFaqs] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
     const [ticketForm, setTicketForm] = useState({ subject: '', message: '' });
-    const [selectedCategory, setSelectedCategory] = useState<string>('General');
+    const [selectedCategory, setSelectedCategory] = useState<string>('other');
     const [submitting, setSubmitting] = useState(false);
     const [userTickets, setUserTickets] = useState<any[]>([]);
     const [siteSettings, setSiteSettings] = useState<any>({});
@@ -68,9 +70,22 @@ const HelpCenterPage: React.FC = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
+            // Map frontend category IDs to backend choices
+            const categoryMap: Record<string, string> = {
+                'general': 'other',
+                'orders': 'order_issue',
+                'feedback': 'other',
+                'bug': 'bug_report',
+                'other': 'other'
+            };
+            const mappedCategory = categoryMap[selectedCategory] || 'other';
+
             const payload = {
                 ...ticketForm,
-                subject: ticketForm.subject.trim() || `[${selectedCategory}] Customer Enquiry`
+                subject: ticketForm.subject.trim() || `[${selectedCategory}] Customer Enquiry`,
+                category: mappedCategory,
+                name: user?.username || 'Guest User',
+                email: user?.email || 'guest@oko.com'
             };
             const res = await api.post('/api/support-tickets/', payload);
             setUserTickets(prev => [res.data, ...prev]);

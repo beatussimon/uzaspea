@@ -13,6 +13,7 @@ import VerifiedBadge from '../components/VerifiedBadge';
 import { Skeleton } from '../components/Skeleton';
 import { timeAgo } from '../utils/timeAgo';
 import { fetchProductCached } from '../components/layout/CategoryBar';
+import { useMessages } from '../context/MessageContext';
 import SEO from '../components/SEO';
 
 interface ProductData {
@@ -266,6 +267,7 @@ const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
+  const { openDesktopChat } = useMessages();
   const initialProduct = (location.state as any)?.initialProduct || null;
 
   const [product, setProduct] = useState<ProductData | null>(initialProduct);
@@ -420,7 +422,11 @@ const ProductDetailPage: React.FC = () => {
           const convRes = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
           const convId = convRes.data.id;
           const prefillMessage = `Hi, is this still available?`;
-          navigate(`/messages/${convId}`, { state: { prefillMessage, sendImmediately: true } });
+          if (window.innerWidth >= 768) {
+            openDesktopChat(convId, prefillMessage);
+          } else {
+            navigate(`/messages/${convId}`, { state: { prefillMessage, sendImmediately: true } });
+          }
         } catch {
           toast.error('Failed to start conversation');
         }
@@ -651,7 +657,7 @@ const ProductDetailPage: React.FC = () => {
       </div>
 
       {/* RIGHT SIDE: Product Info & Buy Sidebar */}
-      <div className="w-full lg:w-[42%] xl:w-[38%] h-auto lg:h-full bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 overflow-y-visible lg:overflow-y-auto p-4 sm:p-5 flex flex-col gap-4 shrink-0">
+      <div className="w-full lg:w-[42%] xl:w-[38%] h-auto lg:h-full bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 overflow-y-visible lg:overflow-y-auto p-5 sm:p-6 flex flex-col gap-8 shrink-0">
           {/* Header Area */}
           <div className="flex flex-col">
             <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight">
@@ -738,10 +744,9 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {variants.length > 0 && (
-            <>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">Select Variation</span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Select Variation</span>
                   {selectedVariant && (
                     <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
                       TSh {(parseInt(product.price) + parseInt(selectedVariant.price_adjustment)).toLocaleString()}
@@ -797,31 +802,30 @@ const ProductDetailPage: React.FC = () => {
                   ))}
                 </div>
               </div>
-            </>
           )}
 
           {/* UOM and Tiered Pricing info */}
           {((product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1) || (product.price_tiers && product.price_tiers.length > 0)) && (
-            <div className="flex flex-col gap-2 mb-3 bg-brand-50/50 dark:bg-brand-900/10 p-3 rounded-xl border border-brand-100 dark:border-brand-800/30">
-              {product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1 && (
-                <div className="flex justify-between items-center text-xs text-brand-600 dark:text-brand-400">
-                   <span className="font-semibold">Minimum Order (MOQ):</span>
-                   <span className="font-bold">{product.minimum_order_quantity} {product.unit_of_measure || 'piece'}</span>
-                </div>
-              )}
-              {product.price_tiers && product.price_tiers.length > 0 && (
-                <div className="mt-2 text-xs border-t border-brand-200/50 dark:border-brand-800/50 pt-2">
-                  <span className="font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Volume Discounts:</span>
-                  <div className="space-y-1">
-                    {product.price_tiers.map(tier => (
-                      <div key={tier.id} className="flex justify-between text-gray-600 dark:text-gray-400">
-                        <span>{parseFloat(tier.min_quantity)} {tier.max_quantity ? `- ${parseFloat(tier.max_quantity)}` : '+'} {(product.unit_of_measure || 'piece')}s</span>
-                        <span className="font-bold text-gray-900 dark:text-white">TSh {parseInt(tier.unit_price).toLocaleString()} / {product.unit_of_measure || 'piece'}</span>
-                      </div>
-                    ))}
+            <div className="flex flex-col gap-2 bg-brand-50/50 dark:bg-brand-900/10 p-4 rounded-2xl border border-transparent">
+                {product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1 && (
+                  <div className="flex justify-between items-center text-xs text-brand-600 dark:text-brand-400">
+                     <span className="font-semibold">Minimum Order (MOQ):</span>
+                     <span className="font-bold">{product.minimum_order_quantity} {product.unit_of_measure || 'piece'}</span>
                   </div>
-                </div>
-              )}
+                )}
+                {product.price_tiers && product.price_tiers.length > 0 && (
+                  <div className="mt-2 text-xs border-t border-brand-200/50 dark:border-brand-800/50 pt-2">
+                    <span className="font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Volume Discounts:</span>
+                    <div className="space-y-1">
+                      {product.price_tiers.map(tier => (
+                        <div key={tier.id} className="flex justify-between text-gray-600 dark:text-gray-400">
+                          <span>{parseFloat(tier.min_quantity)} {tier.max_quantity ? `- ${parseFloat(tier.max_quantity)}` : '+'} {(product.unit_of_measure || 'piece')}s</span>
+                          <span className="font-bold text-gray-900 dark:text-white">TSh {parseInt(tier.unit_price).toLocaleString()} / {product.unit_of_measure || 'piece'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </div>
           )}
 
@@ -874,7 +878,9 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Merchant Trust */}
-          <div className="flex flex-col gap-3 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800/50">
+          <div>
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Seller Info</h3>
+            <div className="flex flex-col gap-3 bg-gray-50 dark:bg-[#242526] p-4 rounded-2xl border border-transparent">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-800 flex items-center justify-center shrink-0">
@@ -930,7 +936,11 @@ const ProductDetailPage: React.FC = () => {
                         const convRes = await api.post('/api/conversations/', { seller: product.seller, product: product.id });
                         const convId = convRes.data.id;
                         const prefillMessage = `Hi, is this still available?`;
-                        navigate(`/messages/${convId}`, { state: { prefillMessage, sendImmediately: true } });
+                        if (window.innerWidth >= 768) {
+                          openDesktopChat(convId, prefillMessage);
+                        } else {
+                          navigate(`/messages/${convId}`, { state: { prefillMessage, sendImmediately: true } });
+                        }
                       } catch { toast.error('Failed to start conversation'); }
                     }}
                     className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap"
@@ -941,14 +951,14 @@ const ProductDetailPage: React.FC = () => {
               </div>
             )}
           </div>
+          </div>
 
           {/* Verification & Inspection Services */}
           {(isOwnProduct || (product.inspections && product.inspections.length > 0)) && (
-            <>
-              <div className="flex flex-col gap-3 mt-1">
-                <div className="flex items-center gap-2">
-                  <Shield size={16} className="text-brand-500" />
-                  <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Shield size={16} className="text-brand-500" />
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">
                     {product.inspections?.length > 0 ? t('inspection_history') : t('professional_inspection')}
                   </h4>
                   {product.is_verified && (
@@ -980,18 +990,20 @@ const ProductDetailPage: React.FC = () => {
                       {product.inspections?.length > 0 ? t('request_reinspection') : t('request_inspection')}
                     </Link>
                   )}
-                </div>
               </div>
-            </>
+            </div>
           )}
 
           {/* Map Location */}
           {product.latitude && product.longitude && (
-            <ProductMap lat={product.latitude} lng={product.longitude} locationName={product.location_name} isDesktop={isDesktop} />
+            <div>
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Location</h3>
+              <ProductMap lat={product.latitude} lng={product.longitude} locationName={product.location_name} isDesktop={isDesktop} />
+            </div>
           )}
 
           {/* Product Reviews & Comments */}
-          <div className="mt-1">
+          <div>
             <ProductTabs 
               productId={product.id} 
               sellerUsername={product.seller_username} 

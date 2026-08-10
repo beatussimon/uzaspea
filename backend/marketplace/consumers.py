@@ -320,6 +320,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
         
+        # Also send back to sender so they get the real ID and timestamp
+        await self.send(text_data=json.dumps({
+            'type': 'chat_message',
+            'conversation_id': conv_id,
+            'message': msg_data,
+        }))
+        
         # Trigger web push if recipient is offline (using a background task)
         from asgiref.sync import sync_to_async
         @sync_to_async

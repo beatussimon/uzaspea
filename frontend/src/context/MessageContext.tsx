@@ -92,6 +92,35 @@ interface MessageContextType {
   setMessages: React.Dispatch<React.SetStateAction<{ [convId: number]: Message[] }>>;
   typingStatus: { [convId: number]: boolean };
   sendTypingStatus: (convId: number, isTyping: boolean) => void;
+  
+  // Desktop Multi-Window Dock State & Helpers
+  isMessengerListOpen: boolean;
+  setIsMessengerListOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  openChatWindows: number[];
+  minimizedChatWindows: number[];
+  prefillMessages: { [convId: number]: string };
+  openChatWindow: (convId: number, prefillMessage?: string) => void;
+  minimizeChatWindow: (convId: number) => void;
+  closeChatWindow: (convId: number) => void;
+  toggleMessengerList: () => void;
+
+  // Legacy fallback compatibility
+  isDesktopPopupOpen: boolean;
+  setIsDesktopPopupOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  desktopActiveConvId: number | null;
+  setDesktopActiveConvId: React.Dispatch<React.SetStateAction<number | null>>;
+  isDesktopMinimized: boolean;
+  setIsDesktopMinimized: React.Dispatch<React.SetStateAction<boolean>>;
+  desktopPrefillMessage: string;
+  setDesktopPrefillMessage: React.Dispatch<React.SetStateAction<string>>;
+  openConvIds: number[];
+  minimizedConvIds: number[];
+  openDesktopChat: (convId?: number | null, prefill?: string) => void;
+  closeDesktopChat: () => void;
+  toggleDesktopChat: () => void;
+  toggleDesktopMinimize: () => void;
+  closeThreadBubble: (convId: number) => void;
+  openThreadBubble: (convId: number) => void;
 }
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
@@ -105,6 +134,82 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState(true);
   const [typingStatus, setTypingStatus] = useState<{ [convId: number]: boolean }>({});
 
+  // Desktop Multi-Window Chat Dock State
+  const [isMessengerListOpen, setIsMessengerListOpen] = useState(false);
+  const [openChatWindows, setOpenChatWindows] = useState<number[]>([]);
+  const [minimizedChatWindows, setMinimizedChatWindows] = useState<number[]>([]);
+  const [prefillMessages, setPrefillMessages] = useState<{ [convId: number]: string }>({});
+
+  const openChatWindow = useCallback((convId: number, prefillMessage?: string) => {
+    setOpenChatWindows(prev => {
+      if (prev.includes(convId)) return prev;
+      // Max 3 active windows on screen; oldest gets minimized if exceeds 3
+      if (prev.length >= 3) {
+        const oldest = prev[0];
+        setMinimizedChatWindows(min => min.includes(oldest) ? min : [...min, oldest]);
+      }
+      return [...prev, convId];
+    });
+    setMinimizedChatWindows(prev => prev.filter(id => id !== convId));
+    if (prefillMessage) {
+      setPrefillMessages(prev => ({ ...prev, [convId]: prefillMessage }));
+    }
+  }, []);
+
+  const minimizeChatWindow = useCallback((convId: number) => {
+    setMinimizedChatWindows(prev => prev.includes(convId) ? prev : [...prev, convId]);
+  }, []);
+
+  const closeChatWindow = useCallback((convId: number) => {
+    setOpenChatWindows(prev => prev.filter(id => id !== convId));
+    setMinimizedChatWindows(prev => prev.filter(id => id !== convId));
+    setPrefillMessages(prev => {
+      const next = { ...prev };
+      delete next[convId];
+      return next;
+    });
+  }, []);
+
+  const toggleMessengerList = useCallback(() => {
+    setIsMessengerListOpen(prev => !prev);
+  }, []);
+
+  // Legacy fallback compatibility
+  const [isDesktopPopupOpen, setIsDesktopPopupOpen] = useState(false);
+  const [desktopActiveConvId, setDesktopActiveConvId] = useState<number | null>(null);
+  const [isDesktopMinimized, setIsDesktopMinimized] = useState(false);
+  const [desktopPrefillMessage, setDesktopPrefillMessage] = useState('');
+  const openConvIds: number[] = [];
+  const minimizedConvIds: number[] = [];
+
+  const openDesktopChat = useCallback((convId?: number | null, prefill?: string) => {
+    if (convId !== undefined && convId !== null) {
+      openChatWindow(convId, prefill);
+    } else {
+      setIsMessengerListOpen(true);
+    }
+  }, [openChatWindow]);
+
+  const openThreadBubble = useCallback((convId: number) => {
+    setOpenChatWindows(prev => prev.includes(convId) ? prev : [...prev, convId]);
+    setMinimizedChatWindows(prev => prev.includes(convId) ? prev : [...prev, convId]);
+  }, []);
+
+  const closeThreadBubble = useCallback((convId: number) => {
+    closeChatWindow(convId);
+  }, [closeChatWindow]);
+
+  const closeDesktopChat = useCallback(() => {
+    setIsMessengerListOpen(false);
+  }, []);
+
+  const toggleDesktopChat = useCallback(() => {
+    setIsMessengerListOpen(prev => !prev);
+  }, []);
+
+  const toggleDesktopMinimize = useCallback(() => {
+    setIsDesktopMinimized(prev => !prev);
+  }, []);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -228,6 +333,18 @@ const subscribeToWebPush = async () => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  // Refs for instantaneous access in WebSocket callbacks
+  const openChatWindowsRef = useRef<number[]>([]);
+  const minimizedChatWindowsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    openChatWindowsRef.current = openChatWindows;
+  }, [openChatWindows]);
+
+  useEffect(() => {
+    minimizedChatWindowsRef.current = minimizedChatWindows;
+  }, [minimizedChatWindows]);
+
   // Connect WebSocket
   const connectWS = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -253,7 +370,6 @@ const subscribeToWebPush = async () => {
 
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const host = window.location.host;
-    // Connect to ws/chat/
     const wsUrl = `${protocol}://${host}/ws/chat/?token=${token}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -265,7 +381,7 @@ const subscribeToWebPush = async () => {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        const currentUserId = userRef.current?.user_id;
+        const currentUserId = Number(userRef.current?.user_id || (userRef.current as any)?.id || localStorage.getItem('user_id') || '0');
 
         if (data.type === 'typing') {
           const convId = Number(data.conversation_id);
@@ -321,118 +437,91 @@ const subscribeToWebPush = async () => {
         }
 
         if (data.type === 'chat_message') {
-
           const convId = Number(data.conversation_id);
           const msg: Message = data.message;
 
-          // Clear typing status instantly when message arrives
+          // Clear typing status for this conversation when message arrives
           setTypingStatus(prev => ({ ...prev, [convId]: false }));
 
-          // 1. Update messages cache if it exists or if it's the active conversation
-          if (activeConvIdRef.current === convId) {
-            setMessages(prev => {
-              const currentMsgs = prev[convId] || [];
-              if (currentMsgs.some(m => m.id === msg.id)) return prev;
-              return {
-                ...prev,
-                [convId]: [...currentMsgs, msg],
-              };
-            });
-            // Mark read since we are looking at it
-            if (msg.sender !== currentUserId) {
-              // Send read receipt over WS
-              try {
-                ws.send(JSON.stringify({
-                  type: 'read_receipt',
-                  conversation_id: convId,
-                  message_ids: [msg.id]
-                }));
-              } catch (e) {
-                console.warn('Failed to send WS read receipt', e);
-              }
-              api.get(`/api/conversations/${convId}/messages/`).catch(() => {});
+          // 1. ALWAYS update messages state so real-time messages display instantly
+          setMessages(prev => {
+            const currentMsgs = prev[convId] || [];
+            // Remove optimistic message if present, or avoid duplicates
+            const cleaned = currentMsgs.filter(m => m.id !== msg.id && !(m.id < 0 && m.content === msg.content));
+            return {
+              ...prev,
+              [convId]: [...cleaned, msg],
+            };
+          });
 
-              // Also trigger native device notification if tab is in the background
-              if (document.hidden && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                try {
-                  const notification = new Notification(`New message from ${msg.sender_username}`, {
-                    body: msg.content,
-                    icon: '/logo_dark.png',
-                    tag: `chat-msg-${convId}`,
-                  });
-                  notification.onclick = () => {
-                    window.focus();
-                  };
-                } catch (e) {
-                  console.warn('Native notification failed:', e);
-                }
+          const isThreadFocused = activeConvIdRef.current === convId || 
+            (openChatWindowsRef.current.includes(convId) && !minimizedChatWindowsRef.current.includes(convId));
+
+          // Send read receipt if we are actively viewing this conversation
+          if (msg.sender !== currentUserId && isThreadFocused) {
+            try {
+              ws.send(JSON.stringify({
+                type: 'read_receipt',
+                conversation_id: convId,
+                message_ids: [msg.id]
+              }));
+            } catch (e) {
+              console.warn('Failed to send WS read receipt', e);
+            }
+            api.get(`/api/conversations/${convId}/messages/`).catch(() => {});
+          }
+
+          // Trigger toast & spawn bubble if received from someone else and NOT focused
+          if (msg.sender !== currentUserId && !isThreadFocused) {
+            setOpenChatWindows(prev => prev.includes(convId) ? prev : [...prev, convId]);
+            setMinimizedChatWindows(prev => prev.includes(convId) ? prev : [...prev, convId]);
+
+            const toastId = `${Date.now()}-${Math.random()}`;
+            const initials = (msg.sender_username || 'Chat').substring(0, 2).toUpperCase();
+            setToasts(prev => [
+              ...prev.filter(t => t.conversationId !== convId),
+              {
+                id: toastId,
+                conversationId: convId,
+                senderUsername: msg.sender_username,
+                content: msg.content,
+                avatarText: initials,
+              },
+            ]);
+
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              try {
+                const notification = new Notification(`New message from ${msg.sender_username}`, {
+                  body: msg.content,
+                  icon: '/logo_dark.png',
+                  tag: `chat-msg-${convId}`,
+                });
+                notification.onclick = () => {
+                  window.focus();
+                };
+              } catch (e) {
+                console.warn('Native notification failed:', e);
               }
             }
-          } else {
-            // Active conversation is NOT this one
-            // Update messages cache anyway if it's already fetched
-            setMessages(prev => {
-              if (!prev[convId]) return prev;
-              const currentMsgs = prev[convId];
-              if (currentMsgs.some(m => m.id === msg.id)) return prev;
-              return {
-                ...prev,
-                [convId]: [...currentMsgs, msg],
-              };
-            });
+          }
 
-            // Trigger Facebook style notification toast if it's from someone else
-            if (msg.sender !== currentUserId) {
-              const toastId = `${Date.now()}-${Math.random()}`;
-              const initials = msg.sender_username.substring(0, 2).toUpperCase();
-              setToasts(prev => [
-                ...prev.slice(-2), // Keep max 3 toasts stacked
-                {
-                  id: toastId,
-                  conversationId: convId,
-                  senderUsername: msg.sender_username,
-                  content: msg.content,
-                  avatarText: initials,
-                },
-              ]);
-
-              // Also trigger native device notification if permitted
-              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                try {
-                  const notification = new Notification(`New message from ${msg.sender_username}`, {
-                    body: msg.content,
-                    icon: '/logo_dark.png',
-                    tag: `chat-msg-${convId}`,
-                  });
-                  notification.onclick = () => {
-                    window.focus();
-                    window.location.href = `/messages/${convId}`;
-                  };
-                } catch (e) {
-                  console.warn('Native notification failed:', e);
-                }
-              }
-            }
-
-            // Always send delivery receipt if we received it and we are not the sender
-            if (msg.sender !== currentUserId) {
-              try {
-                ws.send(JSON.stringify({
-                  type: 'delivery_receipt',
-                  conversation_id: convId,
-                  message_ids: [msg.id]
-                }));
-              } catch (e) {
-                console.warn('Failed to send WS delivery receipt', e);
-              }
+          // Always send delivery receipt if received and not the sender
+          if (msg.sender !== currentUserId) {
+            try {
+              ws.send(JSON.stringify({
+                type: 'delivery_receipt',
+                conversation_id: convId,
+                message_ids: [msg.id]
+              }));
+            } catch (e) {
+              console.warn('Failed to send WS delivery receipt', e);
             }
           }
 
           // 2. Update conversations list
           setConversations(prev => {
-            // Find if conversation exists in our list
             const existingIdx = prev.findIndex(c => c.id === convId);
-            const isUnread = msg.sender !== currentUserId && activeConvIdRef.current !== convId;
+            const isUnread = msg.sender !== currentUserId && !isThreadFocused;
 
             if (existingIdx > -1) {
               const updated = [...prev];
@@ -440,13 +529,11 @@ const subscribeToWebPush = async () => {
               updated[existingIdx] = {
                 ...conv,
                 last_message: msg,
-                unread_count: isUnread ? conv.unread_count + 1 : conv.unread_count,
+                unread_count: isUnread ? (conv.unread_count || 0) + 1 : (isThreadFocused ? 0 : conv.unread_count),
                 updated_at: new Date().toISOString(),
               };
-              // Sort to top
               return updated.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
             } else {
-              // Refresh full list because we might have a new conversation started by someone else
               loadConversations();
               return prev;
             }
@@ -658,10 +745,45 @@ const subscribeToWebPush = async () => {
     setMessages,
     typingStatus,
     sendTypingStatus,
+
+    // Desktop Multi-Window Dock State & Helpers
+    isMessengerListOpen,
+    setIsMessengerListOpen,
+    openChatWindows,
+    minimizedChatWindows,
+    prefillMessages,
+    openChatWindow,
+    minimizeChatWindow,
+    closeChatWindow,
+    toggleMessengerList,
+
+    // Legacy fallback compatibility
+    isDesktopPopupOpen,
+    setIsDesktopPopupOpen,
+    desktopActiveConvId,
+    setDesktopActiveConvId,
+    isDesktopMinimized,
+    setIsDesktopMinimized,
+    desktopPrefillMessage,
+    setDesktopPrefillMessage,
+    openConvIds,
+    minimizedConvIds,
+    openDesktopChat,
+    closeDesktopChat,
+    toggleDesktopChat,
+    toggleDesktopMinimize,
+    openThreadBubble,
+    closeThreadBubble,
   }), [
     conversations, totalUnread, activeConversationId, setActiveConversationId,
     messages, fetchMessages, sendMessage, toasts, dismissToast, loading,
-    setConversations, setMessages, typingStatus, sendTypingStatus
+    setConversations, setMessages, typingStatus, sendTypingStatus,
+    isMessengerListOpen, setIsMessengerListOpen, openChatWindows, minimizedChatWindows, prefillMessages,
+    openChatWindow, minimizeChatWindow, closeChatWindow, toggleMessengerList,
+    isDesktopPopupOpen, setIsDesktopPopupOpen, desktopActiveConvId, setDesktopActiveConvId,
+    isDesktopMinimized, setIsDesktopMinimized, desktopPrefillMessage, setDesktopPrefillMessage,
+    openConvIds, minimizedConvIds, openDesktopChat, closeDesktopChat, toggleDesktopChat, toggleDesktopMinimize,
+    openThreadBubble, closeThreadBubble,
   ]);
 
   return (

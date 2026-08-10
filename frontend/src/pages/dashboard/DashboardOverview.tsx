@@ -198,7 +198,7 @@ const DashboardOverview: React.FC = () => {
             <BarChart3 size={16} className="text-brand-500" />
           </h3>
           <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={280} minWidth={1} minHeight={1}>
                <AreaChart data={stats?.revenue_data || []}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -220,7 +220,7 @@ const DashboardOverview: React.FC = () => {
         <div className="card p-5 flex flex-col h-[350px]">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4">Order Status</h3>
           <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={280} minWidth={1} minHeight={1}>
               <PieChart>
                 <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                   {pieData.map((_, index) => (
