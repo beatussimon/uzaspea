@@ -159,6 +159,8 @@ services:
     image: redis:7-alpine
     container_name: uzaspea-redis
     command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 32mb --maxmemory-policy allkeys-lru --save ""
+    ports:
+      - "6379:6379"
     volumes:
       - ./persistent_data/redis:/data
     healthcheck:

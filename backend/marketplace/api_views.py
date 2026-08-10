@@ -2035,6 +2035,11 @@ class NotificationViewSet(viewsets.ModelViewSet):
         count = Notification.objects.filter(user=request.user, is_read=False).count()
         return Response({'count': count})
 
+    @decorators.action(detail=False, methods=['delete'])
+    def clear_all(self, request):
+        Notification.objects.filter(user=request.user).delete()
+        return Response({'status': 'all cleared'})
+
 
 class MobileNetworkViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = MobileNetwork.objects.all()
@@ -2081,6 +2086,33 @@ class ConversationViewSet(viewsets.ModelViewSet):
             )
 
         return Response(ConversationSerializer(conv, context={'request': request}).data)
+
+    @decorators.action(detail=True, methods=['post'])
+    def read(self, request, pk=None):
+        conv = self.get_object()
+        if not (conv.buyer == request.user or conv.seller == request.user):
+            return Response(status=403)
+            
+        unread_msgs = Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user)
+        unread_ids = list(unread_msgs.values_list('id', flat=True))
+        if unread_ids:
+            unread_msgs.update(is_read=True, is_delivered=True)
+            try:
+                from channels.layers import get_channel_layer
+                from asgiref.sync import async_to_sync
+                other = conv.seller if request.user == conv.buyer else conv.buyer
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    f'chat_{other.id}',
+                    {
+                        'type': 'chat_read_update',
+                        'conversation_id': conv.id,
+                        'message_ids': unread_ids,
+                    }
+                )
+            except Exception:
+                pass
+        return Response({'status': 'ok'})
 
     @decorators.action(detail=True, methods=['get', 'post'])
     def messages(self, request, pk=None):

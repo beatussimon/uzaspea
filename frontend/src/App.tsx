@@ -54,6 +54,7 @@ const PrivacyPolicyPage = lazy(() => import('./pages/legal/PrivacyPolicyPage'));
 const SellerContractPage = lazy(() => import('./pages/legal/SellerContractPage'));
 
 import GlobalTermsModal from './components/GlobalTermsModal';
+import DesktopChatDock from './components/chat/DesktopChatDock';
 
 // Fallback loader for Lazy views
 const SuspenseLoader = () => (
@@ -180,6 +181,7 @@ function AppLayout() {
       />
       <ChatToastContainer />
       <PwaInstallPrompt />
+      <DesktopChatDock />
     </div>
   );
 }

@@ -16,10 +16,12 @@ import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import ProductRequestModal from '../components/ProductRequestModal';
+import { useMessages } from '../context/MessageContext';
 
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
   const { username } = useParams<{ username: string }>();
+  const { conversations, openDesktopChat } = useMessages();
   const [profile, setProfile] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [productRequests, setProductRequests] = useState<any[]>([]);
@@ -310,13 +312,23 @@ const ProfilePage: React.FC = () => {
                       {t('call')}
                     </a>
                   )}
-                  <a 
-                    href={`/messages?user=${username}`}
-                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition active:scale-95 flex items-center gap-1.5"
+                  <button 
+                    onClick={() => {
+                      if (window.innerWidth >= 768) {
+                        const existing = conversations.find(c => 
+                          c.buyer_username.toLowerCase() === (username || '').toLowerCase() || 
+                          c.seller_username.toLowerCase() === (username || '').toLowerCase()
+                        );
+                        openDesktopChat(existing ? existing.id : null);
+                      } else {
+                        window.location.href = `/messages?user=${username}`;
+                      }
+                    }}
+                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
                     {t('message')}
-                  </a>
+                  </button>
                   <button
                     onClick={() => setIsRequestModalOpen(true)}
                     className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-200 dark:border-brand-900 text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/10 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition active:scale-95 flex items-center gap-1.5"

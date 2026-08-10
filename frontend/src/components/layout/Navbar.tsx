@@ -21,7 +21,7 @@ const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const { cartCount } = useCart();
-  const { totalUnread: messageUnreadCount } = useMessages();
+  const { totalUnread: messageUnreadCount, toggleDesktopChat, isMessengerListOpen } = useMessages();
   const { openSearch } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -135,7 +135,9 @@ const Navbar = () => {
 
   // Close dropdowns on outside click
   useEffect(() => {
-    const close = () => { setProfileOpen(false); };
+    const close = () => { 
+      setProfileOpen(false); 
+    };
     document.addEventListener('click', close);
     return () => document.removeEventListener('click', close);
   }, []);
@@ -151,6 +153,13 @@ const Navbar = () => {
   const iconButtonClass = useLightStyle
     ? 'group relative p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
     : 'group relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-full transition-all duration-300';
+
+  const getIconBtnClass = (isActive: boolean) => {
+    if (!isActive) return iconButtonClass;
+    return useLightStyle
+      ? 'group relative p-2 text-white bg-white/20 rounded-full transition-all duration-300'
+      : 'group relative p-2 text-black dark:text-brand-400 bg-gray-100 dark:bg-brand-900/20 rounded-full transition-all duration-300';
+  };
 
   const themeButtonClass = useLightStyle
     ? 'group relative p-2 text-white/85 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300'
@@ -172,6 +181,20 @@ const Navbar = () => {
 
         {/* ---- Left Navigation Links ---- */}
         <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center justify-start pl-8 md:pl-12 gap-6">
+          {/* Sell button (Only visible to verified sellers) */}
+          {isAuthenticated && isSeller && (
+            <Link 
+              to="/dashboard/products#new" 
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 shadow-sm ${
+                useLightStyle
+                  ? 'bg-white text-gray-900 hover:bg-gray-100'
+                  : 'bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900'
+              }`}
+            >
+              <PlusCircle size={14} />
+              <span>{t('sell')}</span>
+            </Link>
+          )}
           {[
             { path: '/', label: t('home', 'Home') },
             { path: '/products', label: t('products_nav') },
@@ -218,43 +241,33 @@ const Navbar = () => {
           <div className="hidden lg:flex items-center gap-2">
             {isAuthenticated && (
               <>
-                {/* Sell button (Only visible to verified sellers) */}
-                {isSeller && (
-                  <Link 
-                    to="/dashboard/products#new" 
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 shadow-sm mr-1 ${
-                      useLightStyle
-                        ? 'bg-white text-gray-900 hover:bg-gray-100'
-                        : 'bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900'
-                    }`}
-                  >
-                    <PlusCircle size={14} />
-                    <span>{t('sell')}</span>
-                  </Link>
-                )}
 
-                <Link to="/products?saved=true" className={iconButtonClass} aria-label="View saved items">
-                  <Heart size={18} />
+                <Link to="/products?saved=true" className={getIconBtnClass(location.pathname === '/products' && location.search.includes('saved=true'))} aria-label="View saved items">
+                  <Heart size={18} className={location.pathname === '/products' && location.search.includes('saved=true') ? (useLightStyle ? 'fill-white' : 'fill-black dark:fill-brand-400') : ''} />
                   <span className={tooltipClass}>{t('saved', 'Saved')}</span>
                 </Link>
 
                 <div className="group relative flex">
-                  <NotificationBell className={bellClass} />
+                  <NotificationBell className={getIconBtnClass(false)} activeClassName={getIconBtnClass(true)} />
                   <span className={tooltipClass}>{t('notifications', 'Notifications')}</span>
                 </div>
 
-                <Link to="/messages" className={iconButtonClass} aria-label="View messages">
-                  <MessageSquare size={18} />
+                <button 
+                  onClick={toggleDesktopChat} 
+                  className={getIconBtnClass(isMessengerListOpen)} 
+                  aria-label="View messages"
+                >
+                  <MessageSquare size={18} className={isMessengerListOpen ? (useLightStyle ? 'fill-white' : 'fill-black dark:fill-brand-400 text-black dark:text-brand-400') : ''} />
                   {messageUnreadCount > 0 && (
                     <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white dark:border-gray-950 animate-pulse">
                       {messageUnreadCount > 99 ? '99' : messageUnreadCount}
                     </span>
                   )}
                   <span className={tooltipClass}>{t('messages', 'Messages')}</span>
-                </Link>
+                </button>
 
-                <Link to="/cart" className={iconButtonClass} aria-label="View shopping cart">
-                  <ShoppingCart size={18} />
+                <Link to="/cart" className={getIconBtnClass(location.pathname === '/cart')} aria-label="View shopping cart">
+                  <ShoppingCart size={18} className={location.pathname === '/cart' ? (useLightStyle ? 'fill-white' : 'fill-black dark:fill-brand-400 text-black dark:text-brand-400') : ''} />
                   {cartCount > 0 && (
                     <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white dark:border-gray-950">
                       {cartCount > 99 ? '99' : cartCount}
@@ -300,9 +313,9 @@ const Navbar = () => {
                 <button 
                   onClick={() => setProfileOpen(!profileOpen)} 
                   className={`group relative flex items-center gap-1 p-0.5 rounded-full transition-all focus:outline-none ${
-                    useLightStyle 
-                      ? 'hover:bg-white/10' 
-                      : 'hover:bg-gray-100 dark:hover:bg-neutral-900'
+                    profileOpen
+                      ? (useLightStyle ? 'bg-white/20' : 'bg-gray-200 dark:bg-neutral-800 ring-2 ring-brand-500/20')
+                      : (useLightStyle ? 'hover:bg-white/10' : 'hover:bg-gray-100 dark:hover:bg-neutral-900')
                   }`}
                 >
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-inner transition-colors ${
@@ -480,10 +493,10 @@ const Navbar = () => {
 
           {/* Mobile Right Actions: Notification Bell & Search */}
           <div className="lg:hidden flex items-center gap-1">
-            <button onClick={openSearch} className={`p-2 ${useLightStyle ? 'text-white/85' : 'text-gray-600 dark:text-gray-300'}`} aria-label="Search">
+            <button onClick={openSearch} className={getIconBtnClass(false)} aria-label="Search">
               <Search size={20} />
             </button>
-            <NotificationBell className={bellClass} />
+            <NotificationBell className={getIconBtnClass(false)} activeClassName={getIconBtnClass(true)} />
           </div>
         </div>
       </div>

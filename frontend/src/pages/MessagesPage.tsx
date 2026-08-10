@@ -35,6 +35,11 @@ const MessagesPage: React.FC = () => {
     sendTypingStatus,
   } = useMessages();
 
+  // Do not automatically open floating chat on desktop full page to avoid dual UI
+  useEffect(() => {
+    // Left intentionally blank or redirect logic could go here if we wanted to enforce dock-only
+  }, []);
+
 
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'main' | 'sokoni'>('main');
@@ -93,13 +98,34 @@ const MessagesPage: React.FC = () => {
     };
   }, [id, isLocallyTyping, sendTypingStatus]);
 
+  const [initialUnreadCount, setInitialUnreadCount] = useState<number | null>(null);
+  const [unreadMessageIds, setUnreadMessageIds] = useState<Set<number>>(new Set());
+  const [firstUnreadMsgId, setFirstUnreadMsgId] = useState<number | null>(null);
+  const firstUnreadRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToInitialRef = useRef(false);
+
   useEffect(() => {
     // Reset typing states on conversation switch
     setIsLocallyTyping(false);
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
+    
+    // Reset unread tracking state
+    setInitialUnreadCount(null);
+    setUnreadMessageIds(new Set());
+    setFirstUnreadMsgId(null);
+    hasScrolledToInitialRef.current = false;
   }, [id]);
+
+  useEffect(() => {
+    if (id && initialUnreadCount === null) {
+      const conv = conversations.find(c => c.id === parseInt(id));
+      if (conv) {
+        setInitialUnreadCount(conv.unread_count);
+      }
+    }
+  }, [id, conversations, initialUnreadCount]);
 
 
 
@@ -174,7 +200,34 @@ const MessagesPage: React.FC = () => {
 
   const prevMessagesLengthRef = useRef(currentMessages.length);
   useEffect(() => {
-    if (currentMessages.length > prevMessagesLengthRef.current) {
+    if (currentMessages.length > 0 && !hasScrolledToInitialRef.current && initialUnreadCount !== null) {
+      hasScrolledToInitialRef.current = true;
+      let unreadIds = new Set<number>();
+      let firstUnreadId: number | null = null;
+      if (initialUnreadCount > 0) {
+        let count = 0;
+        for (let i = currentMessages.length - 1; i >= 0; i--) {
+          const msg = currentMessages[i];
+          if (msg.sender !== parseInt(userId.toString())) {
+            unreadIds.add(msg.id);
+            firstUnreadId = msg.id;
+            count++;
+            if (count >= initialUnreadCount) break;
+          }
+        }
+        setUnreadMessageIds(unreadIds);
+        setFirstUnreadMsgId(firstUnreadId);
+      }
+      
+      setTimeout(() => {
+        if (initialUnreadCount > 0 && firstUnreadRef.current) {
+          firstUnreadRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
+        } else {
+          scrollToBottom('auto');
+        }
+      }, 100);
+      lastConvIdRef.current = id;
+    } else if (hasScrolledToInitialRef.current && currentMessages.length > prevMessagesLengthRef.current) {
       const addedCount = currentMessages.length - prevMessagesLengthRef.current;
       if (isScrolledUp && addedCount > 0) {
         // Assume last message sender
@@ -194,7 +247,7 @@ const MessagesPage: React.FC = () => {
        scrollToBottom('smooth');
     }
     prevMessagesLengthRef.current = currentMessages.length;
-  }, [currentMessages, id, currentTypingStatus, isScrolledUp, userId]);
+  }, [currentMessages, id, currentTypingStatus, isScrolledUp, userId, initialUnreadCount]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -628,6 +681,7 @@ const MessagesPage: React.FC = () => {
                       {groupedMessages[dateStr].map((msg, index) => {
                         const isMe = Number(msg.sender) === Number(userId);
                         const showAvatar = !isMe;
+                        const isFirstUnread = msg.id === firstUnreadMsgId;
                         
                         // Display precise date on hover
                         const messageTime = new Date(msg.created_at).toLocaleTimeString(undefined, {
@@ -636,7 +690,14 @@ const MessagesPage: React.FC = () => {
                         });
 
                         return (
-                          <div key={msg.id} className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          <div key={msg.id} ref={isFirstUnread ? firstUnreadRef : null} className="w-full flex flex-col">
+                            {isFirstUnread && (
+                              <div className="w-full flex items-center justify-center my-4 relative self-center" style={{ width: '117%' }}>
+                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-brand-500/30 dark:border-brand-400/20"></div></div>
+                                <span className="relative bg-white dark:bg-[#0a0a0a] px-3 text-[10px] font-bold text-brand-500 dark:text-brand-400 uppercase tracking-widest select-none shadow-sm rounded-full border border-brand-500/20 dark:border-brand-400/10">New Messages</span>
+                              </div>
+                            )}
+                            <div className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
                             {/* Sender Avatar */}
                             {showAvatar && (
                               <div 
@@ -666,6 +727,8 @@ const MessagesPage: React.FC = () => {
                                 <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all whitespace-pre-wrap break-words ${
                                   isMe
                                     ? 'bg-brand-500 text-white rounded-br-sm shadow-sm'
+                                    : unreadMessageIds.has(msg.id)
+                                    ? 'bg-brand-50/50 dark:bg-brand-900/10 text-gray-900 dark:text-gray-100 border border-brand-200/50 dark:border-brand-800/30 rounded-bl-sm'
                                     : 'bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] text-gray-900 dark:text-white rounded-bl-sm'
                                 }`}>
                                   {msg.content}
@@ -699,6 +762,7 @@ const MessagesPage: React.FC = () => {
                                 </div>
                               )}
                             </motion.div>
+                          </div>
                           </div>
                         );
                       })}

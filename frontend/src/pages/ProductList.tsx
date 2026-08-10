@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { X, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import ProductCard from '../components/ProductCard';
@@ -9,6 +9,7 @@ import SponsorCard from '../components/SponsorCard';
 import { ProductCardSkeleton } from '../components/Skeleton';
 import { apiCache } from '../utils/apiCache';
 import SEO from '../components/SEO';
+import ExpandableSearch from '../components/ExpandableSearch';
 
 const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } } as any;
 const cardVariants = {
@@ -404,6 +405,14 @@ const ProductList = () => {
       onRemove: () => updateFilters({ subcategory: '' }),
     });
   }
+  if (saved) {
+    activePills.push({
+      id: 'saved',
+      label: 'Filter',
+      value: 'Saved Items',
+      onRemove: () => { updateFilters({ saved: '' }); },
+    });
+  }
   if (savedTime) {
     const label = savedTime === '24h' ? 'Last 24 Hours' : savedTime === '7d' ? 'Last 7 Days' : 'Last 30 Days';
     activePills.push({
@@ -484,8 +493,18 @@ const ProductList = () => {
       />
       <div id="browse" className="container-page pb-24 md:pb-8">
       <div className="mb-6 space-y-4">
-
-
+        
+        {/* Local Search for Saved Items */}
+        {saved && (
+          <div className="px-4 md:px-0 flex justify-center w-full">
+            <ExpandableSearch 
+              value={urlQuery} 
+              onChange={(val) => updateFilters({ q: val })} 
+              placeholder={t('search_saved_items', 'Search your saved items...')}
+              pillLabel={t('search_saved', 'Search Saved')}
+            />
+          </div>
+        )}
 
         {/* Active Filter Pills */}
         {activePills.length > 0 && (

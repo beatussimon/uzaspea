@@ -123,9 +123,17 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
       </div>
 
       {viewMode === 'list' ? (
-        <span className={`absolute top-1 left-1 text-[8px] px-1.5 py-0.5 rounded-card font-bold text-white shadow-sm uppercase z-10 ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
-          {product.condition === 'New' ? t('new', 'New') : t('used', 'Used')}
-        </span>
+        <div className="absolute top-1 left-1 flex flex-col gap-1 z-10 pointer-events-none">
+          <span className={`text-[8px] px-1.5 py-0.5 rounded-card font-bold text-white shadow-sm uppercase w-fit ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
+            {product.condition === 'New' ? t('new', 'New') : t('used', 'Used')}
+          </span>
+          {product.is_liked && (
+            <span className="bg-brand-500 text-white text-[8px] px-1.5 py-0.5 rounded-card font-black shadow-sm flex items-center gap-1 uppercase w-fit tracking-wider">
+              <Heart size={8} className="fill-current text-white" />
+              {t('saved', 'Saved')}
+            </span>
+          )}
+        </div>
       ) : (
         <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
           {showTrendingMetrics && <TrendingMetricBadge product={product} metricType={showTrendingMetrics} />}
@@ -140,6 +148,12 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
           {product.old_price > product.price && (
             <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-card font-black shadow-md uppercase w-fit">
               -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
+            </span>
+          )}
+          {product.is_liked && (
+            <span className="bg-brand-500 text-white text-[9px] px-2 py-0.5 rounded-card font-black shadow-md flex items-center gap-1 uppercase w-fit tracking-wider">
+              <Heart size={10} className="fill-current text-white" />
+              {t('saved', 'Saved')}
             </span>
           )}
         </div>
