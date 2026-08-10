@@ -256,7 +256,11 @@ const CheckoutPage: React.FC = () => {
 
   const fetchCheckoutOptions = async (city: string, abortSignal?: AbortSignal) => {
     const coords = citiesCoords[city] || CITIES_COORDS[city];
-    if (!coords) return;
+    if (!coords) {
+      setFulfillmentOptions([]);
+      setLoadingOptions(false);
+      return;
+    }
     const sellerLat = sellerCoords?.lat ?? -6.8161;
     const sellerLng = sellerCoords?.lng ?? 39.2803;
     const originWarehouseCode = ((): string => {
@@ -300,7 +304,7 @@ const CheckoutPage: React.FC = () => {
       console.error('Failed to load fulfillment options', err);
       toast.error('Could not load delivery options. Please try again.');
     } finally {
-      if (!abortSignal?.aborted) setLoadingOptions(false);
+      setLoadingOptions(false);
     }
   };
 
