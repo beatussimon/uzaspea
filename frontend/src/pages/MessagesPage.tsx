@@ -304,11 +304,11 @@ const MessagesPage: React.FC = () => {
 
   const getGradient = (username: string) => {
     const colors = [
-      'from-blue-500 to-indigo-600',
-      'from-emerald-500 to-teal-600',
-      'from-purple-500 to-pink-600',
-      'from-rose-500 to-orange-600',
-      'from-amber-500 to-yellow-600',
+      'bg-blue-500 ',
+      'from-emerald-500 ',
+      'bg-purple-500 ',
+      'from-rose-500 ',
+      'from-amber-500 ',
     ];
     let hash = 0;
     for (let i = 0; i < username.length; i++) {
@@ -473,7 +473,7 @@ const MessagesPage: React.FC = () => {
                     onClick={() => navigate(`/messages/${conv.id}`)}
                     className={`flex items-center gap-3.5 p-3 rounded-2xl cursor-pointer transition-all duration-200 ${
                       isActive 
-                        ? 'bg-brand-50 dark:bg-brand-950/20 text-brand-600' 
+                        ? '  text-brand-500' 
                         : 'hover:bg-gray-50 dark:hover:bg-neutral-900/50'
                     }`}
                   >
@@ -489,7 +489,7 @@ const MessagesPage: React.FC = () => {
                           className="w-12 h-12 rounded-full object-cover shadow-sm border border-gray-200 dark:border-neutral-700"
                         />
                       ) : (
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(otherUsername)} shadow-sm hover:opacity-80 transition-opacity`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm  ${getGradient(otherUsername)} shadow-sm hover:opacity-80 transition-opacity`}>
                           {initials}
                         </div>
                       )}
@@ -595,7 +595,7 @@ const MessagesPage: React.FC = () => {
                       className="relative shrink-0 cursor-pointer"
                       onClick={() => navigate(`/${Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username}`)}
                     >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${getGradient(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username)} hover:opacity-80 transition-opacity`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm  ${getGradient(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username)} hover:opacity-80 transition-opacity`}>
                         {(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
                       </div>
                       {activeConv.is_online && (
@@ -640,9 +640,9 @@ const MessagesPage: React.FC = () => {
 
               {/* Product Reference Banner */}
               {activeConv && activeConv.product_name && (
-                <div className="px-4 md:px-5 py-2 border-b border-gray-200/60 dark:border-neutral-800/50 flex items-center justify-between gap-3 text-xs shrink-0 font-medium bg-brand-50/30 dark:bg-brand-950/5">
+                <div className="px-4 md:px-5 py-2 border-b border-gray-200/60 dark:border-neutral-800/50 flex items-center justify-between gap-3 text-xs shrink-0 font-medium  ">
                   <span className="text-gray-600 dark:text-gray-300">
-                    Regarding: <strong className="text-brand-600 dark:text-brand-400">{activeConv.product_name}</strong>
+                    Regarding: <strong className="text-brand-500 dark:text-brand-500">{activeConv.product_name}</strong>
                   </span>
                   {activeConv.product && (
                     <button 
@@ -693,15 +693,15 @@ const MessagesPage: React.FC = () => {
                           <div key={msg.id} ref={isFirstUnread ? firstUnreadRef : null} className="w-full flex flex-col">
                             {isFirstUnread && (
                               <div className="w-full flex items-center justify-center my-4 relative self-center" style={{ width: '117%' }}>
-                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-brand-500/30 dark:border-brand-400/20"></div></div>
-                                <span className="relative bg-white dark:bg-[#0a0a0a] px-3 text-[10px] font-bold text-brand-500 dark:text-brand-400 uppercase tracking-widest select-none shadow-sm rounded-full border border-brand-500/20 dark:border-brand-400/10">New Messages</span>
+                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-brand-500/30 dark:border-brand-500/20"></div></div>
+                                <span className="relative bg-white dark:bg-[#0a0a0a] px-3 text-[10px] font-bold text-brand-500 dark:text-brand-500 uppercase tracking-widest select-none shadow-sm rounded-full border border-brand-500/20 dark:border-brand-500/10">New Messages</span>
                               </div>
                             )}
                             <div className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
                             {/* Sender Avatar */}
                             {showAvatar && (
                               <div 
-                                className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(msg.sender_username)} cursor-pointer hover:opacity-80 transition-opacity`}
+                                className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px]  ${getGradient(msg.sender_username)} cursor-pointer hover:opacity-80 transition-opacity`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   navigate(`/${msg.sender_username}`);
@@ -728,7 +728,7 @@ const MessagesPage: React.FC = () => {
                                   isMe
                                     ? 'bg-brand-500 text-white rounded-br-sm shadow-sm'
                                     : unreadMessageIds.has(msg.id)
-                                    ? 'bg-brand-50/50 dark:bg-brand-900/10 text-gray-900 dark:text-gray-100 border border-brand-200/50 dark:border-brand-800/30 rounded-bl-sm'
+                                    ? '  text-gray-900 dark:text-gray-100 border border-brand-500/50 dark:border-brand-500/30 rounded-bl-sm'
                                     : 'bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] text-gray-900 dark:text-white rounded-bl-sm'
                                 }`}>
                                   {msg.content}
@@ -774,7 +774,7 @@ const MessagesPage: React.FC = () => {
                     <div className="flex items-end gap-2.5">
                     {activeConv && (
                       <div 
-                        className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px] bg-gradient-to-br ${getGradient(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username)} cursor-pointer hover:opacity-80 transition-opacity`}
+                        className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px]  ${getGradient(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username)} cursor-pointer hover:opacity-80 transition-opacity`}
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/${activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username}`);
@@ -811,7 +811,7 @@ const MessagesPage: React.FC = () => {
                       scrollToBottom('smooth');
                       setNewMessagesCount(0);
                     }}
-                    className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-500 text-white rounded-full shadow-lg text-[11px] font-bold hover:bg-brand-600 transition-colors animate-bounce"
+                    className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-500 text-white rounded-full shadow-lg text-[11px] font-bold hover:bg-brand-500 transition-colors animate-bounce"
                   >
                     {newMessagesCount} new message{newMessagesCount > 1 ? 's' : ''} 
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>

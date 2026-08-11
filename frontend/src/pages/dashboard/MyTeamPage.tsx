@@ -225,7 +225,7 @@ export const MyTeamPage: React.FC = () => {
               {Object.entries(membership.permissions).map(([name, val]) => (
                 <div key={name} className="flex justify-between items-center text-xs">
                   <span className="text-gray-400 capitalize font-medium">{name.replace('_', ' ')}</span>
-                  <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[9px] ${val ? 'bg-green-950/40 text-green-400 border border-green-900/50' : 'bg-gray-950 text-gray-600 border border-gray-900'}`}>
+                  <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[9px] ${val ? ' text-green-500 border border-green-500/50' : 'bg-gray-950 text-gray-600 border border-gray-900'}`}>
                     {val ? 'Enabled' : 'Disabled'}
                   </span>
                 </div>

@@ -76,7 +76,7 @@ const SystemPaymentMethodsManager: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="p-8 text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600 mx-auto" /></div>;
+    return <div className="p-8 text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500 mx-auto" /></div>;
   }
 
   return (
@@ -200,8 +200,8 @@ const SystemPaymentMethodsManager: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                      method.purpose === 'subscriptions' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
-                      method.purpose === 'commissions' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                      method.purpose === 'subscriptions' ? ' text-purple-500  dark:text-purple-500' :
+                      method.purpose === 'commissions' ? ' text-blue-500  dark:text-blue-500' :
                       'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                     }`}>
                       {method.purpose}
@@ -220,13 +220,13 @@ const SystemPaymentMethodsManager: React.FC = () => {
                             is_system: method.is_system,
                           });
                         }}
-                        className="p-2 text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
+                        className="p-2 text-brand-500   rounded-lg transition"
                       >
                         <Edit2 size={16} />
                       </button>
                       <button
                         onClick={() => handleDelete(method.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
+                        className="p-2 text-red-500   rounded-lg transition"
                       >
                         <Trash2 size={16} />
                       </button>

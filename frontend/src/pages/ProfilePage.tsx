@@ -230,19 +230,19 @@ const ProfilePage: React.FC = () => {
     <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 space-y-12">
       {/* Expired Subscription Banner */}
       {isOwner && isSubscriptionExpired && (
-        <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-4   border border-red-500 dark:border-red-500/30 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <Info className="text-red-500 shrink-0 mt-0.5" size={18} />
             <div className="space-y-1">
-              <h4 className="text-xs font-black uppercase tracking-wider text-red-800 dark:text-red-400">Subscription Expired</h4>
-              <p className="text-xs text-red-700 dark:text-red-300 font-medium">
+              <h4 className="text-xs font-black uppercase tracking-wider text-red-500 dark:text-red-500">Subscription Expired</h4>
+              <p className="text-xs text-red-500 dark:text-red-500 font-medium">
                 Your seller privileges have expired. All of your listed products are hidden from the marketplace.
               </p>
             </div>
           </div>
           <Link 
             to="/upgrade" 
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition text-center shrink-0 shadow-lg shadow-red-600/20"
+            className="px-4 py-2 bg-red-500 hover:bg-red-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition text-center shrink-0 shadow-lg shadow-red-600/20"
           >
             Renew Now
           </Link>
@@ -298,7 +298,7 @@ const ProfilePage: React.FC = () => {
                     className={`px-6 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95 ${
                       followStatus.following 
                         ? 'border border-gray-350 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-gray-700 dark:text-neutral-300' 
-                        : 'bg-brand-500 hover:bg-brand-600 text-white shadow-sm'
+                        : 'bg-brand-500 hover:bg-brand-500 text-white shadow-sm'
                     }`}
                   >
                     {followStatus.following ? t('following') : t('follow')}
@@ -306,7 +306,7 @@ const ProfilePage: React.FC = () => {
                   {profile?.phone_number && (
                     <a 
                       href={`tel:${profile.phone_number}`}
-                      className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-200 dark:border-brand-900 text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/10 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition active:scale-95 flex items-center gap-1.5"
+                      className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500     transition active:scale-95 flex items-center gap-1.5"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                       {t('call')}
@@ -331,7 +331,7 @@ const ProfilePage: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setIsRequestModalOpen(true)}
-                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-200 dark:border-brand-900 text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/10 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition active:scale-95 flex items-center gap-1.5"
+                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500     transition active:scale-95 flex items-center gap-1.5"
                   >
                     <Plus size={14} />
                     {t('request_product', 'Request Product')}
@@ -393,7 +393,7 @@ const ProfilePage: React.FC = () => {
                   href={profile.website} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="flex items-center gap-1.5 text-brand-600 dark:text-brand-400 hover:underline"
+                  className="flex items-center gap-1.5 text-brand-500 dark:text-brand-500 hover:underline"
                 >
                   <Globe size={13} />
                   <span className="truncate">{profile.website.replace(/^https?:\/\//, '')}</span>
@@ -404,7 +404,7 @@ const ProfilePage: React.FC = () => {
                   href={`https://instagram.com/${profile.instagram_username.replace('@', '')}`}
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="flex items-center gap-1.5 hover:text-brand-600 transition"
+                  className="flex items-center gap-1.5 hover:text-brand-500 transition"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
@@ -465,8 +465,8 @@ const ProfilePage: React.FC = () => {
                 </div>
                 <div className="flex overflow-x-auto gap-4 pb-4 px-4 sm:px-0 hide-scrollbar snap-x snap-mandatory">
                   {productRequests.map(req => (
-                    <div key={req.id} className="snap-start shrink-0 w-[240px] bg-white dark:bg-neutral-900 border border-brand-100 dark:border-neutral-800 rounded-2xl shadow-sm flex flex-col justify-between group transition-all duration-300 hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-brand-500/10 to-transparent rounded-bl-full pointer-events-none z-10" />
+                    <div key={req.id} className="snap-start shrink-0 w-[240px] bg-white dark:bg-neutral-900 border border-brand-500 dark:border-neutral-800 rounded-2xl shadow-sm flex flex-col justify-between group transition-all duration-300 hover:shadow-md hover:border-brand-500 dark:hover:border-brand-500 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-16 h-16   to-transparent rounded-bl-full pointer-events-none z-10" />
                       
                       <div className="relative h-[120px] bg-gray-100 dark:bg-neutral-800 flex items-center justify-center overflow-hidden">
                         {req.image ? (
@@ -474,14 +474,14 @@ const ProfilePage: React.FC = () => {
                         ) : (
                           <Package size={40} className="text-gray-300 dark:text-neutral-700" />
                         )}
-                        <div className="absolute top-2 left-2 px-2 py-1 bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold rounded-lg uppercase tracking-wider text-brand-600 dark:text-brand-400">
+                        <div className="absolute top-2 left-2 px-2 py-1 bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold rounded-lg uppercase tracking-wider text-brand-500 dark:text-brand-500">
                           Coming Soon
                         </div>
                       </div>
 
                       <div className="p-4 flex-1 flex flex-col">
                         <div className="flex justify-between items-start mb-1">
-                          <h3 className="font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors" title={req.name}>
+                          <h3 className="font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 dark:group-hover:text-brand-500 transition-colors" title={req.name}>
                             {req.name}
                           </h3>
                         </div>
@@ -575,7 +575,7 @@ const ProfilePage: React.FC = () => {
                     {t('store_showcase')} ({(profile.store_images || []).length}/9)
                   </h3>
                   {isOwner && (profile.store_images || []).length < 9 && (
-                    <label className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer flex items-center gap-1">
+                    <label className="text-xs font-bold text-brand-500 dark:text-brand-500 hover:underline cursor-pointer flex items-center gap-1">
                       <Plus size={14} /> {t('add_picture')}
                       <input 
                         type="file" 
@@ -603,7 +603,7 @@ const ProfilePage: React.FC = () => {
                           <button 
                             type="button"
                             onClick={() => handleStoreImageDelete(img.id)}
-                            className="absolute top-1.5 right-1.5 p-1 bg-black/60 hover:bg-red-600 text-white rounded-full transition opacity-0 group-hover:opacity-100 shadow-md flex items-center justify-center"
+                            className="absolute top-1.5 right-1.5 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition opacity-0 group-hover:opacity-100 shadow-md flex items-center justify-center"
                             title="Delete Picture"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -777,7 +777,7 @@ const ProfilePage: React.FC = () => {
                       className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg border transition ${
                         user.is_following
                           ? 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'
-                          : 'bg-brand-500 border-brand-500 text-white hover:bg-brand-600 hover:border-brand-600'
+                          : 'bg-brand-500 border-brand-500 text-white hover:bg-brand-500 hover:border-brand-500'
                       }`}
                     >
                       {user.is_following ? 'Unfollow' : 'Follow'}

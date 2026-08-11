@@ -147,7 +147,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({ value,
         <button
           type="button"
           onClick={handleGetCurrentLocation}
-          className="absolute right-2 p-1.5 text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-md transition-colors"
+          className="absolute right-2 p-1.5 text-gray-400 hover:text-brand-500   rounded-md transition-colors"
           title={t('use_current_location', 'Use current location')}
           disabled={locating}
         >

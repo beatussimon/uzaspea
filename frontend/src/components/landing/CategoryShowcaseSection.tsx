@@ -73,8 +73,8 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
     <div className="relative w-full h-[100dvh] bg-transparent overflow-hidden flex flex-col justify-center">
       {/* Subtle Dynamic Background Accent */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-purple-500/5 dark:bg-purple-500/10 blur-[120px]" />
-        <div className="absolute bottom-[10%] right-[10%] w-[40%] h-[40%] rounded-full bg-indigo-500/5 dark:bg-indigo-500/10 blur-[100px]" />
+        <div className="absolute top-[20%] left-[-10%] w-[50%] h-[50%] rounded-full   blur-[120px]" />
+        <div className="absolute bottom-[10%] right-[10%] w-[40%] h-[40%] rounded-full   blur-[100px]" />
       </div>
 
       <AnimatePresence>
@@ -89,7 +89,7 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
             {/* Header */}
             <motion.div variants={itemVariants} className="mb-6 md:mb-8 flex-shrink-0 flex justify-center w-full">
               <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 shadow-sm">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full   flex items-center justify-center text-purple-500 dark:text-purple-500 shrink-0 shadow-sm">
                   <LayoutGrid className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
                 <div className="flex flex-col items-start text-left">
@@ -130,7 +130,7 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
                       
                       <Link 
                         to={`/products?category=${cat.slug}`}
-                        className="text-xs sm:text-sm md:text-base font-bold text-gray-800 dark:text-gray-200 text-center line-clamp-2 leading-tight group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors"
+                        className="text-xs sm:text-sm md:text-base font-bold text-gray-800 dark:text-gray-200 text-center line-clamp-2 leading-tight group-hover:text-brand-500 dark:group-hover:text-brand-500 transition-colors"
                       >
                         {cat.name}
                       </Link>

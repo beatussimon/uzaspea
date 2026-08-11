@@ -46,7 +46,7 @@ const DashboardAnalytics: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
       </div>
     );
   }
@@ -58,7 +58,7 @@ const DashboardAnalytics: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <TrendingUp className="text-brand-600" />
+            <TrendingUp className="text-brand-500" />
             {t('seller_analytics', 'Seller Analytics')}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -70,7 +70,7 @@ const DashboardAnalytics: React.FC = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3 text-brand-600 mb-2">
+          <div className="flex items-center gap-3 text-brand-500 mb-2">
             <DollarSign size={20} />
             <h3 className="font-semibold text-gray-700 dark:text-gray-300">Revenue (30d)</h3>
           </div>
@@ -78,7 +78,7 @@ const DashboardAnalytics: React.FC = () => {
         </div>
 
         <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3 text-blue-600 mb-2">
+          <div className="flex items-center gap-3 text-blue-500 mb-2">
             <Package size={20} />
             <h3 className="font-semibold text-gray-700 dark:text-gray-300">Active Listings</h3>
           </div>
@@ -86,7 +86,7 @@ const DashboardAnalytics: React.FC = () => {
         </div>
 
         <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3 text-orange-600 mb-2">
+          <div className="flex items-center gap-3 text-orange-500 mb-2">
             <ShoppingCart size={20} />
             <h3 className="font-semibold text-gray-700 dark:text-gray-300">Unfulfilled Orders</h3>
           </div>
@@ -94,7 +94,7 @@ const DashboardAnalytics: React.FC = () => {
         </div>
 
         <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3 text-red-600 mb-2">
+          <div className="flex items-center gap-3 text-red-500 mb-2">
             <AlertTriangle size={20} />
             <h3 className="font-semibold text-gray-700 dark:text-gray-300">Out of Stock</h3>
           </div>
@@ -149,8 +149,8 @@ const DashboardAnalytics: React.FC = () => {
                       <td className="px-4 py-3">{new Date(order.date).toLocaleDateString()}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          order.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : 
-                          order.status === 'PAID' ? 'bg-blue-100 text-blue-800' : 
+                          order.status === 'COMPLETED' ? ' text-green-500' : 
+                          order.status === 'PAID' ? ' text-blue-500' : 
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {order.status}

@@ -102,7 +102,7 @@ const RegisterPage: React.FC = () => {
           {/* Progress Bar */}
           <div className="h-1.5 w-full bg-surface-muted dark:bg-[#111]">
             <motion.div 
-              className="h-full bg-brand-600"
+              className="h-full bg-brand-500"
               initial={{ width: '0%' }}
               animate={{ width: step === 1 ? '50%' : '100%' }}
               transition={{ duration: 0.5, ease: "circOut" }}
@@ -274,14 +274,14 @@ const RegisterPage: React.FC = () => {
                           name="terms_accepted"
                           type="checkbox"
                           required
-                          className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-600 dark:border-neutral-700 dark:bg-neutral-900"
+                          className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-neutral-700 dark:bg-neutral-900"
                           checked={formData.terms_accepted}
                           onChange={handleChange}
                         />
                       </div>
                       <div className="text-sm">
                         <label htmlFor="terms_accepted" className="font-medium text-gray-700 dark:text-gray-300">
-                          I agree to the <Link to="/terms" target="_blank" className="text-brand-600 hover:underline">Terms and Conditions</Link> and <Link to="/privacy" target="_blank" className="text-brand-600 hover:underline">Privacy Policy</Link>.
+                          I agree to the <Link to="/terms" target="_blank" className="text-brand-500 hover:underline">Terms and Conditions</Link> and <Link to="/privacy" target="_blank" className="text-brand-500 hover:underline">Privacy Policy</Link>.
                         </label>
                       </div>
                     </div>
@@ -313,7 +313,7 @@ const RegisterPage: React.FC = () => {
 
         <p className="text-center text-sm text-gray-550 dark:text-gray-400 mt-8">
           {t('already_have_account')}{' '}
-          <Link to="/login" className="font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 transition-colors">
+          <Link to="/login" className="font-bold text-brand-500 hover:text-brand-500 dark:text-brand-500 transition-colors">
             {t('login')}
           </Link>
         </p>

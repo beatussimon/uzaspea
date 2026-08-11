@@ -165,7 +165,7 @@ const LandingPage = () => {
           <h1 className="text-4xl md:text-5xl font-black text-white mb-4 drop-shadow-xl tracking-tight leading-tight origin-center flex flex-col items-center justify-center">
             <span className="inline-block text-white">
               <Trans i18nKey="hero_title_main">
-                Buy <span className="text-yellow-400">confidently</span> new and used items in <span className="text-yellow-400">Tanzania</span>
+                Buy <span className="text-yellow-500">confidently</span> new and used items in <span className="text-yellow-500">Tanzania</span>
               </Trans>
             </span>
           </h1>
@@ -191,7 +191,7 @@ const LandingPage = () => {
               />
               <button
                 type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-gray-400 group-hover:text-brand-600 transition-colors pointer-events-none"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-gray-400 group-hover:text-brand-500 transition-colors pointer-events-none"
                 aria-label="Search"
               >
                 <Search className="h-6 w-6" />

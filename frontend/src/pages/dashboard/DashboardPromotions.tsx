@@ -204,7 +204,7 @@ const DashboardPromotions: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <Megaphone className="text-brand-600" size={24} /> Promotions & Campaigns
+          <Megaphone className="text-brand-500" size={24} /> Promotions & Campaigns
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Grow your sales using sponsored product ads or create promotional discount codes.</p>
       </div>
@@ -216,7 +216,7 @@ const DashboardPromotions: React.FC = () => {
             onClick={() => setActiveTab('sponsored')}
             className={`py-3.5 border-b-2 text-sm font-bold transition-all ${
               activeTab === 'sponsored'
-                ? 'border-brand-600 text-brand-600'
+                ? 'border-brand-500 text-brand-500'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
@@ -226,7 +226,7 @@ const DashboardPromotions: React.FC = () => {
             onClick={() => setActiveTab('coupons')}
             className={`py-3.5 border-b-2 text-sm font-bold transition-all ${
               activeTab === 'coupons'
-                ? 'border-brand-600 text-brand-600'
+                ? 'border-brand-500 text-brand-500'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
@@ -237,7 +237,7 @@ const DashboardPromotions: React.FC = () => {
         {activeTab === 'sponsored' ? (
           <button
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition text-xs font-bold shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-500 text-white rounded-lg transition text-xs font-bold shadow-sm"
           >
             <Plus size={14} />
             {showForm ? 'Cancel' : 'Request Ad Placement'}
@@ -245,7 +245,7 @@ const DashboardPromotions: React.FC = () => {
         ) : (
           <button
             onClick={() => setShowPromoForm(!showPromoForm)}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition text-xs font-bold shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-500 text-white rounded-lg transition text-xs font-bold shadow-sm"
           >
             <Plus size={14} />
             {showPromoForm ? 'Cancel' : 'New Promo Code'}
@@ -286,24 +286,24 @@ const DashboardPromotions: React.FC = () => {
                 </select>
               </div>
 
-              <div className="bg-brand-50 dark:bg-brand-900/20 p-3 rounded-lg border border-brand-100 dark:border-brand-900/30">
-                <p className="text-sm font-bold text-brand-800 dark:text-brand-300">
+              <div className="  p-3 rounded-lg border border-brand-500 dark:border-brand-500/30">
+                <p className="text-sm font-bold text-brand-500 dark:text-brand-500">
                   Total Cost: {(Number(form.duration_days) * 1000).toLocaleString()} TSh
                 </p>
-                <p className="text-xs text-brand-600 dark:text-brand-400 mt-1">
+                <p className="text-xs text-brand-500 dark:text-brand-500 mt-1">
                   Transfer the amount to one of our mobile numbers below to complete the request.
                 </p>
               </div>
 
               {loadingLipa ? (
                 <div className="flex justify-center py-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-600" />
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-500" />
                 </div>
               ) : (
                 <div>
                   <p className="text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wider">Pay to these numbers:</p>
                   {adminLipa.length === 0 ? (
-                    <p className="text-xs text-yellow-600">No official payment numbers configured. Please contact support.</p>
+                    <p className="text-xs text-yellow-500">No official payment numbers configured. Please contact support.</p>
                   ) : (
                     <div className="space-y-2">
                       {adminLipa.map((lipa: any) => (
@@ -312,7 +312,7 @@ const DashboardPromotions: React.FC = () => {
                             {lipa.network?.image ? (
                               <img src={lipa.network.image} alt={lipa.network.name} className="w-full h-full object-contain" />
                             ) : (
-                              <Smartphone size={16} className="text-green-600" />
+                              <Smartphone size={16} className="text-green-500" />
                             )}
                           </div>
                           <div>
@@ -348,14 +348,14 @@ const DashboardPromotions: React.FC = () => {
                 </div>
               </div>
 
-              <button type="submit" disabled={submitting} className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-semibold rounded-lg transition font-bold shadow-md">
+              <button type="submit" disabled={submitting} className="w-full py-3 bg-brand-500 hover:bg-brand-500 disabled:bg-brand-500 text-white font-semibold rounded-lg transition font-bold shadow-md">
                 {submitting ? 'Submitting...' : 'Submit Promotion Request'}
               </button>
             </form>
           )}
 
           {loading ? (
-            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
           ) : promotions.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
               <Megaphone size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3 animate-pulse" />
@@ -366,7 +366,7 @@ const DashboardPromotions: React.FC = () => {
               {promotions.map((p: any) => (
                 <div key={p.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 border-l-4 border-l-brand-600 shadow-sm animate-fade-in">
                   <div className="flex justify-between items-start mb-2">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${p.approved ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${p.approved ? ' text-green-500  dark:text-green-500' : ' text-yellow-500  dark:text-yellow-500'}`}>
                       {p.approved ? 'Live' : 'Pending Verification'}
                     </span>
                     <span className="text-[10px] text-gray-400 font-medium">{new Date(p.created_at).toLocaleDateString()}</span>
@@ -467,14 +467,14 @@ const DashboardPromotions: React.FC = () => {
                 </div>
               </div>
 
-              <button type="submit" disabled={submittingPromo} className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-bold rounded-lg transition shadow-md shadow-brand-600/10">
+              <button type="submit" disabled={submittingPromo} className="w-full py-3 bg-brand-500 hover:bg-brand-500 disabled:bg-brand-500 text-white font-bold rounded-lg transition shadow-md shadow-brand-600/10">
                 {submittingPromo ? 'Creating Promo...' : 'Create Promo Code'}
               </button>
             </form>
           )}
 
           {loadingPromo ? (
-            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
           ) : promoCodes.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
               <Ticket size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3 animate-pulse" />
@@ -502,7 +502,7 @@ const DashboardPromotions: React.FC = () => {
                         <td className="p-4 font-mono font-black text-gray-900 dark:text-white text-sm">
                           {promo.code}
                         </td>
-                        <td className="p-4 font-bold text-brand-600 dark:text-brand-400">
+                        <td className="p-4 font-bold text-brand-500 dark:text-brand-500">
                           {promo.discount_type === 'percentage'
                             ? `${parseFloat(promo.value)}% Off`
                             : `TSh ${parseInt(promo.value, 10).toLocaleString()} Off`}
@@ -523,7 +523,7 @@ const DashboardPromotions: React.FC = () => {
                             title={promo.is_active ? 'Deactivate code' : 'Activate code'}
                           >
                             {promo.is_active ? (
-                              <ToggleRight size={32} className="text-brand-600" />
+                              <ToggleRight size={32} className="text-brand-500" />
                             ) : (
                               <ToggleLeft size={32} className="text-gray-300 dark:text-gray-600" />
                             )}
@@ -532,7 +532,7 @@ const DashboardPromotions: React.FC = () => {
                         <td className="p-4 text-center">
                           <button
                             onClick={() => handleDeletePromo(promo.id)}
-                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-md transition"
+                            className="p-1.5 text-red-500 hover:text-red-500   rounded-md transition"
                             title="Delete promo code"
                           >
                             <Trash2 size={16} />

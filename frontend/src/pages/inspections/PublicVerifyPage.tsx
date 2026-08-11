@@ -12,7 +12,7 @@ const Badge: React.FC<{ text: string; className?: string }> = ({ text, className
 
 const Spinner = () => (
   <div className="flex justify-center py-16">
-    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" />
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
   </div>
 );
 
@@ -49,8 +49,8 @@ const PublicVerifyPage: React.FC = () => {
   return (
     <div className="max-w-lg mx-auto py-10 px-4">
       <div className="card p-8 text-center">
-        <div className="p-3 bg-brand-50 dark:bg-brand-900/20 rounded-full w-14 h-14 flex items-center justify-center mx-auto mb-4">
-          <Shield size={28} className="text-brand-600 dark:text-brand-400" />
+        <div className="p-3   rounded-full w-14 h-14 flex items-center justify-center mx-auto mb-4">
+          <Shield size={28} className="text-brand-500 dark:text-brand-500" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Verify Inspection</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
@@ -68,7 +68,7 @@ const PublicVerifyPage: React.FC = () => {
         {loading && <div className="mt-6"><Spinner /></div>}
 
         {searched && !loading && !result && (
-          <div className="mt-6 p-4 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300 text-sm">
+          <div className="mt-6 p-4 rounded-lg   border border-red-500 dark:border-red-500/30 text-red-500 dark:text-red-500 text-sm">
             No inspection found with this ID.
           </div>
         )}
@@ -76,14 +76,14 @@ const PublicVerifyPage: React.FC = () => {
         {result && (
           <div className={`mt-6 p-5 rounded-xl border-2 text-left ${
             result.is_verified
-              ? 'bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-700'
-              : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 dark:border-yellow-700'
+              ? '  border-green-500 dark:border-green-500'
+              : '  border-yellow-500 dark:border-yellow-500'
           }`}>
             <div className="flex items-center gap-2 mb-3">
               {result.is_verified
-                ? <CheckCircle size={20} className="text-green-600" />
-                : <Clock size={20} className="text-yellow-600" />}
-              <span className={`font-bold ${result.is_verified ? 'text-green-700 dark:text-green-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
+                ? <CheckCircle size={20} className="text-green-500" />
+                : <Clock size={20} className="text-yellow-500" />}
+              <span className={`font-bold ${result.is_verified ? 'text-green-500 dark:text-green-500' : 'text-yellow-500 dark:text-yellow-500'}`}>
                 {result.is_verified ? 'Verified Inspection' : 'Inspection In Progress'}
               </span>
             </div>
@@ -122,7 +122,7 @@ const PublicVerifyPage: React.FC = () => {
 
             {/* Render full report if verified */}
             {result.is_verified && result.summary && (
-              <div className="mt-5 pt-5 border-t border-green-200 dark:border-green-800/50 space-y-4">
+              <div className="mt-5 pt-5 border-t border-green-500 dark:border-green-500/50 space-y-4">
                 <div className="flex items-center gap-4 flex-wrap">
                   {result.quality_score && (
                     <div className="text-center shrink-0">
@@ -133,8 +133,8 @@ const PublicVerifyPage: React.FC = () => {
                   {result.grade && (
                     <div className="text-center shrink-0">
                       <div className={`text-2xl font-black ${
-                        result.grade.startsWith('A') ? 'text-green-600' :
-                        result.grade.startsWith('B') ? 'text-blue-600' :
+                        result.grade.startsWith('A') ? 'text-green-500' :
+                        result.grade.startsWith('B') ? 'text-blue-500' :
                         result.grade.startsWith('C') ? 'text-amber-500' : 'text-red-500'
                       }`}>{result.grade}</div>
                       <div className="text-[10px] uppercase font-bold text-gray-500">Grade</div>
@@ -159,9 +159,9 @@ const PublicVerifyPage: React.FC = () => {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium text-sm text-gray-900 dark:text-white">{fi.label}</span>
                               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                                fi.severity === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400' :
+                                fi.severity === 'critical' ? ' text-red-500  dark:text-red-500' :
                                 fi.severity === 'major' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' :
-                                'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                                ' text-blue-500  dark:text-blue-500'
                               }`}>{fi.severity}</span>
                             </div>
                             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Found: <span className="font-medium text-gray-800 dark:text-gray-200">{fi.response}</span></p>

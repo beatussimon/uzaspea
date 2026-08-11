@@ -15,7 +15,7 @@ import {
 
 const Spinner = () => (
   <div className="flex justify-center py-16">
-    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" />
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
   </div>
 );
 
@@ -64,10 +64,10 @@ const StaffInspectionDashboard: React.FC<{ hasPerm?: boolean }> = ({ hasPerm = t
   }
 
   const statCards = [
-    { label: 'Total Requests', val: stats?.total || 0, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/20' },
-    { label: 'Pending QA', val: stats?.pending_qa || 0, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
-    { label: 'Fraud Flags', val: stats?.fraud_flags || 0, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
-    { label: 'SLA Breaches', val: stats?.sla_breaches || 0, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+    { label: 'Total Requests', val: stats?.total || 0, color: 'text-brand-500', bg: ' ' },
+    { label: 'Pending QA', val: stats?.pending_qa || 0, color: 'text-purple-500', bg: ' ' },
+    { label: 'Fraud Flags', val: stats?.fraud_flags || 0, color: 'text-red-500', bg: ' ' },
+    { label: 'SLA Breaches', val: stats?.sla_breaches || 0, color: 'text-orange-500', bg: ' ' },
   ];
 
   const statusRows = Object.entries(stats?.by_status || {}).filter(([, v]) => (v as number) > 0);
@@ -106,7 +106,7 @@ const StaffInspectionDashboard: React.FC<{ hasPerm?: boolean }> = ({ hasPerm = t
           <Link key={item.to} to={item.to}
             className="card p-4 flex items-center gap-3 hover:shadow-card-hover transition group">
             <item.icon size={20} className={item.color} />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-brand-600 transition">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-brand-500 transition">
               {item.label}
             </span>
             <ChevronRight size={14} className="text-gray-400 ml-auto" />
@@ -179,7 +179,7 @@ const AllRequests: React.FC = () => {
                 <Badge text={STATUS_LABELS[req.status] || req.status} className={STATUS_COLORS[req.status] || 'badge-gray'} />
                 <span className="font-mono text-xs text-gray-400">{req.inspection_id}</span>
               </div>
-              <p className="font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 transition line-clamp-1">
+              <p className="font-semibold text-gray-900 dark:text-white group-hover:text-brand-500 transition line-clamp-1">
                 {req.item_name}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -188,7 +188,7 @@ const AllRequests: React.FC = () => {
             </div>
             <div className="text-right shrink-0">
               <p className="text-xs text-gray-400">{fmtDate(req.created_at)}</p>
-              {req.has_report && <p className="text-xs text-green-600 mt-1">Report ready</p>}
+              {req.has_report && <p className="text-xs text-green-500 mt-1">Report ready</p>}
             </div>
           </Link>
         ))}
@@ -331,7 +331,7 @@ const StaffRequestDetail: React.FC = () => {
         {/* Bill & Generate */}
         <div className="card p-5 space-y-4">
           <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <CreditCard size={16} className="text-brand-600" /> Bill
+            <CreditCard size={16} className="text-brand-500" /> Bill
           </h3>
           {request.bill ? (
             <div className="space-y-2 text-sm">
@@ -353,7 +353,7 @@ const StaffRequestDetail: React.FC = () => {
                   <span>Total</span>
                   <span>{fmtMoney(request.bill.total_amount, request.bill.currency)}</span>
                 </div>
-                <div className="flex justify-between text-brand-600 mt-1">
+                <div className="flex justify-between text-brand-500 mt-1">
                   <span>Deposit</span>
                   <span className="font-semibold">{fmtMoney(request.bill.deposit_amount, request.bill.currency)}</span>
                 </div>
@@ -373,14 +373,14 @@ const StaffRequestDetail: React.FC = () => {
         {/* Assignment */}
         <div className="card p-5 space-y-4">
           <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <Users size={16} className="text-brand-600" /> Assignment
+            <Users size={16} className="text-brand-500" /> Assignment
           </h3>
           {request.assignment ? (
             <div className="space-y-2 text-sm">
-              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                <p className="font-medium text-green-700 dark:text-green-400">{request.assignment.inspector_name}</p>
+              <div className="p-3 rounded-lg   border border-green-500 dark:border-green-500">
+                <p className="font-medium text-green-500 dark:text-green-500">{request.assignment.inspector_name}</p>
                 <Badge text={request.assignment.inspector_level} className="badge-blue capitalize mt-1" />
-                <div className="flex items-center gap-3 mt-1 text-xs font-medium text-green-800 dark:text-green-300">
+                <div className="flex items-center gap-3 mt-1 text-xs font-medium text-green-500 dark:text-green-500">
                   {request.assignment.inspector_phone && <span>📞 {request.assignment.inspector_phone}</span>}
                   {request.assignment.inspector_email && <span>✉️ {request.assignment.inspector_email}</span>}
                 </div>
@@ -389,12 +389,12 @@ const StaffRequestDetail: React.FC = () => {
                 </p>
               </div>
               {request.assignment.job_contact && (
-                <div className="p-3 rounded-lg bg-brand-50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/30">
+                <div className="p-3 rounded-lg   border border-brand-500 dark:border-brand-500/30">
                   <p className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-widest">Job Contact</p>
                   <p className="font-medium text-gray-900 dark:text-white">
                     {request.assignment.job_contact.name} <span className="text-xs font-normal text-gray-500">({request.assignment.job_contact.label})</span>
                   </p>
-                  <div className="flex items-center gap-3 mt-1 text-xs font-medium text-brand-600 dark:text-brand-400">
+                  <div className="flex items-center gap-3 mt-1 text-xs font-medium text-brand-500 dark:text-brand-500">
                     {request.assignment.job_contact.phone && (
                       <a href={`tel:${request.assignment.job_contact.phone}`} className="hover:underline">📞 {request.assignment.job_contact.phone}</a>
                     )}
@@ -418,13 +418,13 @@ const StaffRequestDetail: React.FC = () => {
               </select>
 
               {inspectors.length === 0 && !showAllInspectors && (
-                <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
-                   <p className="text-xs text-orange-700 dark:text-orange-300">
+                <div className="p-3 rounded-lg   border border-orange-500 dark:border-orange-500">
+                   <p className="text-xs text-orange-500 dark:text-orange-500">
                      No inspectors are certified for this specific category yet.
                    </p>
                    <button 
                      onClick={() => setShowAllInspectors(true)}
-                     className="text-xs font-bold text-brand-600 hover:underline mt-1">
+                     className="text-xs font-bold text-brand-500 hover:underline mt-1">
                      Show all available inspectors anyway
                    </button>
                 </div>
@@ -465,16 +465,16 @@ const StaffRequestDetail: React.FC = () => {
 
       {/* QA Review */}
       {request.status === 'qa_review' && request.report && !request.report.is_locked && (
-        <div className="card p-5 border-2 border-purple-300 dark:border-purple-700 space-y-4">
+        <div className="card p-5 border-2 border-purple-500 dark:border-purple-500 space-y-4">
           <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-purple-600" /> QA Review
+            <CheckCircle2 size={16} className="text-purple-500" /> QA Review
           </h3>
 
           {/* Report summary */}
           <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-surface-border dark:border-surface-dark-border space-y-3">
             <div className="flex items-center gap-3 flex-wrap">
               <span className={`text-lg font-black uppercase ${
-                request.report.verdict === 'pass' ? 'text-green-600 dark:text-green-400'
+                request.report.verdict === 'pass' ? 'text-green-500 dark:text-green-500'
                 : request.report.verdict === 'conditional' ? 'text-amber-500'
                 : 'text-red-500'
               }`}>{request.report.verdict}</span>
@@ -506,7 +506,7 @@ const StaffRequestDetail: React.FC = () => {
                   <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{section}</span>
                     {items.filter(i => i.flagged).length > 0 && (
-                      <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+                      <span className="text-xs text-red-500 dark:text-red-500 font-semibold">
                         {items.filter(i => i.flagged).length} issues
                       </span>
                     )}
@@ -514,22 +514,22 @@ const StaffRequestDetail: React.FC = () => {
                   <div className="divide-y divide-gray-100 dark:divide-gray-700">
                     {items.map((r: any) => (
                       <div key={r.id} className={`px-4 py-2.5 flex items-center justify-between gap-3 text-sm ${
-                        r.flagged ? 'bg-red-50/40 dark:bg-red-950/10' : ''
+                        r.flagged ? ' ' : ''
                       }`}>
                         <div className="flex-1 min-w-0">
-                          <span className={`font-medium ${r.flagged ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                          <span className={`font-medium ${r.flagged ? 'text-red-500 dark:text-red-500' : 'text-gray-900 dark:text-white'}`}>
                             {r.item_label}
                           </span>
                           <span className={`ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                            r.severity === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+                            r.severity === 'critical' ? ' text-red-500  dark:text-red-500'
                             : r.severity === 'major' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                            : ' text-blue-500  dark:text-blue-500'
                           }`}>{r.severity}</span>
                           {r.notes && <p className="text-xs text-gray-400 mt-0.5 truncate">{r.notes}</p>}
                         </div>
                         <span className={`shrink-0 text-xs font-bold px-2 py-1 rounded-lg ${
-                          r.flagged ? 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                          : 'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400'
+                          r.flagged ? ' text-red-500  dark:text-red-500'
+                          : ' text-green-500  dark:text-green-500'
                         }`}>{r.response_value}</span>
                       </div>
                     ))}
@@ -540,22 +540,22 @@ const StaffRequestDetail: React.FC = () => {
           )}
 
           {request.report.qa_notes && (
-            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
-              <p className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-1">Previous QA Notes</p>
-              <p className="text-sm text-orange-700 dark:text-orange-300">{request.report.qa_notes}</p>
+            <div className="p-3 rounded-lg   border border-orange-500 dark:border-orange-500">
+              <p className="text-xs font-bold text-orange-500 dark:text-orange-500 uppercase tracking-wide mb-1">Previous QA Notes</p>
+              <p className="text-sm text-orange-500 dark:text-orange-500">{request.report.qa_notes}</p>
             </div>
           )}
 
           <div className="flex gap-3">
             <button onClick={handleQaApprove}
-              className="flex-1 btn-primary bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 py-2.5">
+              className="flex-1 btn-primary bg-green-500 hover:bg-green-500 flex items-center justify-center gap-2 py-2.5">
               <CheckCircle2 size={15} /> Approve & Publish
             </button>
             <div className="flex-1 space-y-2">
               <input className="input text-xs" placeholder="QA notes for return..."
                 value={qaNote} onChange={(e) => setQaNote(e.target.value)} />
               <button onClick={handleQaReturn}
-                className="w-full btn-secondary text-orange-600 border-orange-300 hover:bg-orange-50 py-2.5 flex items-center justify-center gap-2">
+                className="w-full btn-secondary text-orange-500 border-orange-500  py-2.5 flex items-center justify-center gap-2">
                 <XCircle size={15} /> Return for Revision
               </button>
             </div>
@@ -608,7 +608,7 @@ const DispatcherQueue: React.FC = () => {
               className="card p-4 flex items-center justify-between gap-3 hover:shadow-card-hover transition group">
               <div>
                 <Badge text={STATUS_LABELS[req.status]} className={STATUS_COLORS[req.status]} />
-                <p className="font-semibold text-gray-900 dark:text-white mt-1 group-hover:text-brand-600 transition">{req.item_name}</p>
+                <p className="font-semibold text-gray-900 dark:text-white mt-1 group-hover:text-brand-500 transition">{req.item_name}</p>
                 <p className="text-xs text-gray-500">{req.category_path} • {req.client_username}</p>
               </div>
               <div className="text-right shrink-0">
@@ -660,10 +660,10 @@ const QAQueue: React.FC = () => {
                 <div className="flex items-center gap-2 mb-1">
                   <Badge text={report.verdict.toUpperCase()} className={VERDICT_COLORS[report.verdict]} />
                   {report.qa_notes && (
-                    <Badge text="Auto-flagged" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" />
+                    <Badge text="Auto-flagged" className=" text-red-500  dark:text-red-500" />
                   )}
                 </div>
-                <p className="font-medium text-gray-900 dark:text-white group-hover:text-brand-600 transition">
+                <p className="font-medium text-gray-900 dark:text-white group-hover:text-brand-500 transition">
                   {report.submitted_by_username}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">Finalized: {fmtDate(report.finalized_at || report.submitted_at)}</p>
@@ -745,11 +745,11 @@ const PaymentApprovals: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3 flex-wrap shrink-0">
                   <button onClick={() => handleApprove(p.id)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition">
+                    className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition">
                     <CheckCircle2 size={14} /> Approve
                   </button>
                   <button onClick={() => handleReject(p.id)}
-                    className="flex items-center gap-1.5 px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-medium transition">
+                    className="flex items-center gap-1.5 px-4 py-2 border border-red-500 text-red-500   rounded-lg text-sm font-medium transition">
                     <XCircle size={14} /> Reject
                   </button>
                 </div>
@@ -798,25 +798,25 @@ const FraudFlagsPanel: React.FC = () => {
       <h2 className="text-xl font-bold text-gray-900 dark:text-white">Fraud Flags</h2>
       {unresolved.length === 0 && (
         <div className="card p-8 text-center">
-          <Shield size={40} className="mx-auto text-green-400 mb-3" />
+          <Shield size={40} className="mx-auto text-green-500 mb-3" />
           <p className="text-gray-500">No active fraud flags</p>
         </div>
       )}
       {unresolved.map((f) => (
-        <div key={f.id} className="card p-4 border-l-4 border-red-400">
+        <div key={f.id} className="card p-4 border-l-4 border-red-500">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle size={14} className="text-red-500" />
-                <Badge text={f.flag_type.replace(/_/g, ' ')} className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" />
+                <Badge text={f.flag_type.replace(/_/g, ' ')} className=" text-red-500  dark:text-red-500" />
                 <Link to={`${base}/request/${f.request}`}
-                  className="text-xs text-brand-600 hover:underline font-mono">{f.request_id}</Link>
+                  className="text-xs text-brand-500 hover:underline font-mono">{f.request_id}</Link>
               </div>
               <p className="text-sm text-gray-700 dark:text-gray-300">{f.details}</p>
               <p className="text-xs text-gray-400 mt-1">{fmtDate(f.created_at)}</p>
             </div>
             <button onClick={() => handleResolve(f.id)}
-              className="btn-ghost text-xs px-3 py-1.5 text-green-600 shrink-0">
+              className="btn-ghost text-xs px-3 py-1.5 text-green-500 shrink-0">
               Resolve
             </button>
           </div>
@@ -867,7 +867,7 @@ const InspectorPerformance: React.FC = () => {
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Score</span>
-                <span className={`font-bold ${p.performance_score >= 80 ? 'text-green-600' : p.performance_score >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                <span className={`font-bold ${p.performance_score >= 80 ? 'text-green-500' : p.performance_score >= 60 ? 'text-yellow-500' : 'text-red-500'}`}>
                   {p.performance_score}
                 </span>
               </div>
@@ -881,7 +881,7 @@ const InspectorPerformance: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Available</span>
-                <span className={p.is_available ? 'text-green-600' : 'text-gray-400'}>
+                <span className={p.is_available ? 'text-green-500' : 'text-gray-400'}>
                   {p.is_available ? 'Yes' : 'No'}
                 </span>
               </div>
@@ -963,7 +963,7 @@ const StaffInspectionLayout: React.FC<{ user?: any }> = ({ user }) => {
                 title={isSidebarCollapsed ? item.label : undefined}
                 className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-lg text-sm transition ${
                   active
-                    ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                    ? '  text-brand-500 dark:text-brand-500 font-medium'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}>
                 <item.icon size={16} className="shrink-0" />

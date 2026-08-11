@@ -192,7 +192,7 @@ const MobileBottomNav = () => {
             {/* User Profile Summary */}
             {isAuthenticated ? (
               <div className="p-6 flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-brand-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                <div className="w-16 h-16 rounded-full bg-brand-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
                   {username.charAt(0).toUpperCase()}
                 </div>
                 <div>
@@ -208,8 +208,8 @@ const MobileBottomNav = () => {
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('welcome_to')}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('login_or_create')}</p>
                 <div className="flex gap-3">
-                  <Link to="/login" onClick={() => setIsMenuOpen(false)} className="flex-1 btn-primary py-2 text-center text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white rounded-lg">{t('login')}</Link>
-                  <Link to="/register" onClick={() => setIsMenuOpen(false)} className="flex-1 py-2 text-center text-sm font-bold border-2 border-brand-600 text-brand-600 rounded-lg">{t('register')}</Link>
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)} className="flex-1 btn-primary py-2 text-center text-sm font-bold bg-brand-500 hover:bg-brand-500 text-white rounded-lg">{t('login')}</Link>
+                  <Link to="/register" onClick={() => setIsMenuOpen(false)} className="flex-1 py-2 text-center text-sm font-bold border-2 border-brand-500 text-brand-500 rounded-lg">{t('register')}</Link>
                 </div>
               </div>
             )}
@@ -222,34 +222,34 @@ const MobileBottomNav = () => {
                   <div>
                     <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t('personal_portal')}</p>
                     <div className="grid grid-cols-1 gap-2">
-                      <Link to={`/${username}`} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                      <Link to={`/${username}`} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
                         <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                          <User size={20} className="text-brand-600" />
+                          <User size={20} className="text-brand-500" />
                           <span className="font-medium">{t('my_profile')}</span>
                         </div>
-                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
                       </Link>
-                      <Link to="/orders" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                      <Link to="/orders" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
                         <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                          <ShoppingBag size={20} className="text-brand-600" />
+                          <ShoppingBag size={20} className="text-brand-500" />
                           <span className="font-medium">{t('my_orders')}</span>
                         </div>
-                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
                       </Link>
-                      <Link to="/teams" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                      <Link to="/teams" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
                         <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                          <Shield size={20} className="text-brand-600" />
+                          <Shield size={20} className="text-brand-500" />
                           <span className="font-medium">Teams</span>
                         </div>
-                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
                       </Link>
                       {(isSeller || isInspector) && (
-                        <Link to="/inspections" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                        <Link to="/inspections" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
                           <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                            <ClipboardList size={20} className="text-brand-600" />
+                            <ClipboardList size={20} className="text-brand-500" />
                             <span className="font-medium">{t('my_inspections')}</span>
                           </div>
-                          <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                          <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
                         </Link>
                       )}
                     </div>
@@ -261,30 +261,30 @@ const MobileBottomNav = () => {
                       <>
                         <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t('sell_and_grow')}</p>
                         <div className="grid grid-cols-1 gap-2">
-                          <Link to="/dashboard" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                          <Link to="/dashboard" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
                             <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                              <LayoutDashboard size={20} className="text-brand-600" />
+                              <LayoutDashboard size={20} className="text-brand-500" />
                               <span className="font-medium">{t('seller_dashboard')}</span>
                             </div>
-                            <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                            <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
                           </Link>
-                          <Link to="/dashboard/products#new" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                          <Link to="/dashboard/products#new" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
                             <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                              <Package size={20} className="text-brand-600" />
+                              <Package size={20} className="text-brand-500" />
                               <span className="font-medium">{t('add_new_product')}</span>
                             </div>
-                            <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                            <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
                           </Link>
                         </div>
                       </>
                     ) : (
                       <div className="grid grid-cols-1 gap-2">
-                        <Link to="/upgrade" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                        <Link to="/upgrade" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
                           <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                            <PlusCircle size={20} className="text-brand-600" />
+                            <PlusCircle size={20} className="text-brand-500" />
                             <span className="font-medium">{t('become_a_seller')}</span>
                           </div>
-                          <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                          <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
                         </Link>
                       </div>
                     )}
@@ -296,30 +296,30 @@ const MobileBottomNav = () => {
                   <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t('management')}</p>
                   <div className="grid grid-cols-1 gap-2">
                     {isSuperuser && (
-                      <Link to="/staff-admin" className="flex items-center justify-between p-3 rounded-btn bg-brand-50/50 dark:bg-brand-900/10 hover:bg-brand-100 dark:hover:bg-brand-900/30 group transition-colors">
-                        <div className="flex items-center gap-4 text-brand-700 dark:text-brand-300">
+                      <Link to="/staff-admin" className="flex items-center justify-between p-3 rounded-btn     group transition-colors">
+                        <div className="flex items-center gap-4 text-brand-500 dark:text-brand-500">
                           <ShieldCheck size={20} />
                           <span className="font-bold">{t('staff_admin_panel')}</span>
                         </div>
-                        <ChevronRight size={18} className="text-brand-400" />
+                        <ChevronRight size={18} className="text-brand-500" />
                       </Link>
                     )}
                     {(isStaff || isSuperuser) && (
-                      <Link to="/staff" className="flex items-center justify-between p-3 rounded-btn bg-brand-50/50 dark:bg-brand-900/10 hover:bg-brand-100 dark:hover:bg-brand-900/30 group transition-colors">
-                        <div className="flex items-center gap-4 text-brand-700 dark:text-brand-300">
+                      <Link to="/staff" className="flex items-center justify-between p-3 rounded-btn     group transition-colors">
+                        <div className="flex items-center gap-4 text-brand-500 dark:text-brand-500">
                           <LayoutDashboard size={20} />
                           <span className="font-bold">{t('staff_dashboard')}</span>
                         </div>
-                        <ChevronRight size={18} className="text-brand-400" />
+                        <ChevronRight size={18} className="text-brand-500" />
                       </Link>
                     )}
                     {isInspector && (
-                      <Link to="/inspector/jobs" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50 hover:bg-brand-50 dark:hover:bg-brand-900/20 group transition-colors">
+                      <Link to="/inspector/jobs" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
                         <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                          <Shield size={20} className="text-brand-600" />
+                          <Shield size={20} className="text-brand-500" />
                           <span className="font-medium">{t('inspector_job_list')}</span>
                         </div>
-                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-600 transition-colors" />
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
                       </Link>
                     )}
                   </div>
@@ -363,7 +363,7 @@ const MobileBottomNav = () => {
               <div className="px-6 mt-8 mb-4">
                 <button 
                   onClick={() => { logout(); sessionStorage.clear(); setIsMenuOpen(false); navigate('/'); }}
-                  className="w-full flex items-center justify-center gap-3 p-4 rounded-btn border-2 border-red-100 dark:border-red-900/30 text-red-600 font-bold active:bg-red-50 dark:active:bg-red-900/20 transition-colors"
+                  className="w-full flex items-center justify-center gap-3 p-4 rounded-btn border-2 border-red-500 dark:border-red-500/30 text-red-500 font-bold active: dark:active: transition-colors"
                   >
                   <LogOut size={20} />
                   {t('sign_out_from')}
@@ -391,11 +391,11 @@ const MobileBottomNav = () => {
             className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
           >
             <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
-              <Home size={24} className={`transition-colors ${isActive('/') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/') ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('home')}</span>
+              <Home size={24} className={`transition-colors ${isActive('/') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/') ? 2.5 : 2} />
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('home')}</span>
             </motion.div>
             {isActive('/') && (
-              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
             )}
           </Link>
 
@@ -405,11 +405,11 @@ const MobileBottomNav = () => {
             className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
           >
             <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
-              <ShoppingBag size={24} className={`transition-colors ${isActive('/products') && !location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && !location.search.includes('saved=true') ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && !location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('products_nav')}</span>
+              <ShoppingBag size={24} className={`transition-colors ${isActive('/products') && !location.search.includes('saved=true') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && !location.search.includes('saved=true') ? 2.5 : 2} />
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && !location.search.includes('saved=true') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('products_nav')}</span>
             </motion.div>
             {isActive('/products') && !location.search.includes('saved=true') && (
-              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
             )}
           </Link>
 
@@ -422,17 +422,17 @@ const MobileBottomNav = () => {
           >
             <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
               <div className="relative">
-                <ShoppingCart size={24} className={`transition-colors ${isActive('/cart') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/cart') ? 2.5 : 2} />
+                <ShoppingCart size={24} className={`transition-colors ${isActive('/cart') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/cart') ? 2.5 : 2} />
                 {cartCount > 0 && (
                   <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white dark:border-gray-900 px-1 shadow-sm">
                     {cartCount > 99 ? '99+' : cartCount}
                   </span>
                 )}
               </div>
-              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/cart') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('cart')}</span>
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/cart') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('cart')}</span>
             </motion.div>
             {isActive('/cart') && (
-              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
             )}
           </Link>
 
@@ -444,17 +444,17 @@ const MobileBottomNav = () => {
             >
               <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
                 <div className="relative">
-                  <MessageSquare size={24} className={`transition-colors ${isActive('/messages') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/messages') ? 2.5 : 2} />
+                  <MessageSquare size={24} className={`transition-colors ${isActive('/messages') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/messages') ? 2.5 : 2} />
                   {messageUnreadCount > 0 && (
                     <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white dark:border-gray-900 px-1 shadow-sm animate-pulse">
                       {messageUnreadCount > 99 ? '99+' : messageUnreadCount}
                     </span>
                   )}
                 </div>
-                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/messages') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>Chats</span>
+                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/messages') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>Chats</span>
               </motion.div>
               {isActive('/messages') && (
-                <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+                <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
               )}
             </Link>
           )}
@@ -466,17 +466,17 @@ const MobileBottomNav = () => {
             >
               <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
                 <div className="relative">
-                  <Heart size={24} className={`transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && location.search.includes('saved=true') ? 2.5 : 2} />
+                  <Heart size={24} className={`transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isActive('/products') && location.search.includes('saved=true') ? 2.5 : 2} />
                   {savedCount > 0 && (
                     <span className="absolute -top-1.5 -right-2 bg-gray-500/80 backdrop-blur-sm text-white text-[9px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-white dark:border-gray-900 px-1 shadow-sm">
                       {savedCount > 99 ? '99+' : savedCount}
                     </span>
                   )}
                 </div>
-                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('saved', 'Saved')}</span>
+                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/products') && location.search.includes('saved=true') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('saved', 'Saved')}</span>
               </motion.div>
               {isActive('/products') && location.search.includes('saved=true') && (
-                <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+                <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
               )}
             </Link>
           )}
@@ -489,11 +489,11 @@ const MobileBottomNav = () => {
             className="relative flex flex-col items-center justify-center w-16 h-full gap-1 tap-highlight-transparent group"
           >
             <motion.div whileTap={{ scale: 0.85 }} className="relative flex flex-col items-center z-10">
-              <Menu size={24} className={`transition-colors ${isMenuOpen ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isMenuOpen ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isMenuOpen ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{t('menu')}</span>
+              <Menu size={24} className={`transition-colors ${isMenuOpen ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} strokeWidth={isMenuOpen ? 2.5 : 2} />
+              <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isMenuOpen ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('menu')}</span>
             </motion.div>
             {isMenuOpen && (
-              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-600 dark:bg-brand-400" />
+              <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />
             )}
           </button>
         </div>

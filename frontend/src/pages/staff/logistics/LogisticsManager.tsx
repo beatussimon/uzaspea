@@ -214,8 +214,8 @@ const LogisticsManager: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[
               { title: 'Pending Dispatch', count: pendingShipments.length, icon: Package, color: 'text-amber-500', bg: 'bg-amber-50' },
-              { title: 'In Transit', count: transitShipments.length, icon: Truck, color: 'text-blue-500', bg: 'bg-blue-50' },
-              { title: 'At Warehouse', count: hubShipments.length, icon: MapPin, color: 'text-purple-500', bg: 'bg-purple-50' },
+              { title: 'In Transit', count: transitShipments.length, icon: Truck, color: 'text-blue-500', bg: '' },
+              { title: 'At Warehouse', count: hubShipments.length, icon: MapPin, color: 'text-purple-500', bg: '' },
               { title: 'Delivered', count: deliveredShipments.length, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50' }
             ].map((kpi, idx) => (
               <motion.div 
@@ -382,7 +382,7 @@ const LogisticsManager: React.FC = () => {
               <div className="p-6 md:p-8 overflow-y-auto flex-1">
                 {/* Modal Header */}
                 <div className="flex items-center gap-4 mb-8">
-                  <div className="w-16 h-16 rounded-2xl bg-brand-500/10 flex items-center justify-center text-brand-500">
+                  <div className="w-16 h-16 rounded-2xl  flex items-center justify-center text-brand-500">
                     <Truck size={32} />
                   </div>
                   <div>
@@ -444,7 +444,7 @@ const LogisticsManager: React.FC = () => {
                       type="button"
                       onClick={(e) => handleUpdateShipment(e, 'in_transit')}
                       disabled={savingEdit}
-                      className="w-full py-4 bg-brand-600 hover:bg-brand-500 text-white font-black rounded-xl text-sm uppercase tracking-widest transition-colors shadow-[0_0_20px_rgba(249,115,22,0.3)] disabled:opacity-50 mt-6"
+                      className="w-full py-4 bg-brand-500 hover:bg-brand-500 text-white font-black rounded-xl text-sm uppercase tracking-widest transition-colors shadow-[0_0_20px_rgba(249,115,22,0.3)] disabled:opacity-50 mt-6"
                     >
                       {savingEdit ? 'Syncing...' : 'Dispatch (Mark In Transit)'}
                     </button>
@@ -478,7 +478,7 @@ const LogisticsManager: React.FC = () => {
                           type="button"
                           onClick={(e) => handleUpdateShipment(e, 'delivered')}
                           disabled={savingEdit || deliveryCode.length !== 6}
-                          className="w-full py-4 bg-green-500 hover:bg-green-400 text-white font-black rounded-xl text-sm uppercase tracking-widest transition-colors shadow-[0_0_20px_rgba(34,197,94,0.3)] disabled:opacity-50"
+                          className="w-full py-4 bg-green-500 hover:bg-green-500 text-white font-black rounded-xl text-sm uppercase tracking-widest transition-colors shadow-[0_0_20px_rgba(34,197,94,0.3)] disabled:opacity-50"
                         >
                           {savingEdit ? 'Syncing...' : 'Mark Delivered to Customer'}
                         </button>

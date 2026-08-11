@@ -694,6 +694,7 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
         else:
             serializer.save(seller=self.request.user, is_system=False)
 
+@method_decorator(cache_page(60 * 60 * 24), name='dispatch')
 class FAQViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = FAQSerializer
     authentication_classes = []
@@ -1404,7 +1405,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
             raise drf_serializers.ValidationError("You can only review products you have completely purchased and received.")
         
         order = serializer.validated_data.get('order')
-        if order and order.user != self.request.user:
+        if order and order.user_id != self.request.user.id:
             raise drf_serializers.ValidationError("Order does not belong to you.")
 
         # If review already exists for this user and product, update it instead of throwing error

@@ -228,7 +228,7 @@ const ProductMap = ({ lat, lng, isDesktop, locationName }: { lat: string | numbe
            Location
          </h3>
          {!isDesktop && (
-           <button onClick={() => setShowMap(!showMap)} className="text-xs px-3 py-1.5 rounded-full bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-400 font-bold hover:bg-brand-100 transition border border-brand-100 dark:border-brand-800">
+           <button onClick={() => setShowMap(!showMap)} className="text-xs px-3 py-1.5 rounded-full  text-brand-500  dark:text-brand-500 font-bold  transition border border-brand-500 dark:border-brand-500">
              {showMap ? 'Hide Map' : 'Show Map'}
            </button>
          )}
@@ -250,7 +250,7 @@ const ProductMap = ({ lat, lng, isDesktop, locationName }: { lat: string | numbe
             className="w-full h-full"
           />
           <div className="absolute bottom-2 right-2 bg-white/90 dark:bg-black/90 px-3 py-1.5 text-[11px] rounded-lg shadow-lg z-10 backdrop-blur-md border border-gray-200 dark:border-gray-800">
-            <a href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`} target="_blank" rel="noreferrer" className="text-brand-600 dark:text-brand-400 font-bold hover:underline flex items-center gap-1">
+            <a href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`} target="_blank" rel="noreferrer" className="text-brand-500 dark:text-brand-500 font-bold hover:underline flex items-center gap-1">
                Open Map
             </a>
           </div>
@@ -456,7 +456,7 @@ const ProductDetailPage: React.FC = () => {
     return (
       <div className="text-center py-20">
         <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300">{t('product_not_found')}</h2>
-        <Link to="/" className="text-brand-600 mt-4 inline-block hover:underline">← {t('back_to_products')}</Link>
+        <Link to="/" className="text-brand-500 mt-4 inline-block hover:underline">← {t('back_to_products')}</Link>
       </div>
     );
   }
@@ -687,7 +687,7 @@ const ProductDetailPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
               <Link 
                 to={`/?category=${product.category_name}`} 
-                className="font-bold uppercase tracking-widest text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
+                className="font-bold uppercase tracking-widest text-brand-500 dark:text-brand-500 hover:text-brand-500 dark:hover:text-brand-500 transition-colors"
               >
                 {product.category_name}
               </Link>
@@ -725,7 +725,7 @@ const ProductDetailPage: React.FC = () => {
                 onClick={handleLike}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm transition-all active:scale-95 ${
                   liked
-                    ? 'bg-red-50 dark:bg-red-950/30 text-red-500'
+                    ? '  text-red-500'
                     : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
                 }`}
               >
@@ -748,7 +748,7 @@ const ProductDetailPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Select Variation</span>
                   {selectedVariant && (
-                    <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
+                    <span className="text-xs font-bold text-brand-500 dark:text-brand-500">
                       TSh {(parseInt(product.price) + parseInt(selectedVariant.price_adjustment)).toLocaleString()}
                     </span>
                   )}
@@ -792,7 +792,7 @@ const ProductDetailPage: React.FC = () => {
                       )}
                       <span className={v.stock <= 0 ? 'line-through opacity-70' : ''}>{v.name}</span>
                       {v.stock <= 0 ? (
-                        <span className="text-[10px] uppercase text-red-500/80 dark:text-red-400/80 font-black ml-1">(Out of stock)</span>
+                        <span className="text-[10px] uppercase text-red-500/80 dark:text-red-500/80 font-black ml-1">(Out of stock)</span>
                       ) : v.price_adjustment !== '0.00' && (
                         <span className="opacity-75 text-xs ml-1">
                           (+TSh {parseInt(v.price_adjustment).toLocaleString()})
@@ -806,15 +806,15 @@ const ProductDetailPage: React.FC = () => {
 
           {/* UOM and Tiered Pricing info */}
           {((product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1) || (product.price_tiers && product.price_tiers.length > 0)) && (
-            <div className="flex flex-col gap-2 bg-brand-50/50 dark:bg-brand-900/10 p-4 rounded-2xl border border-transparent">
+            <div className="flex flex-col gap-2   p-4 rounded-2xl border border-transparent">
                 {product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1 && (
-                  <div className="flex justify-between items-center text-xs text-brand-600 dark:text-brand-400">
+                  <div className="flex justify-between items-center text-xs text-brand-500 dark:text-brand-500">
                      <span className="font-semibold">Minimum Order (MOQ):</span>
                      <span className="font-bold">{product.minimum_order_quantity} {product.unit_of_measure || 'piece'}</span>
                   </div>
                 )}
                 {product.price_tiers && product.price_tiers.length > 0 && (
-                  <div className="mt-2 text-xs border-t border-brand-200/50 dark:border-brand-800/50 pt-2">
+                  <div className="mt-2 text-xs border-t border-brand-500/50 dark:border-brand-500/50 pt-2">
                     <span className="font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Volume Discounts:</span>
                     <div className="space-y-1">
                       {product.price_tiers.map(tier => (
@@ -943,7 +943,7 @@ const ProductDetailPage: React.FC = () => {
                         }
                       } catch { toast.error('Failed to start conversation'); }
                     }}
-                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-500 text-white text-sm font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap"
                   >
                     <MessageSquare size={16} /> Send
                   </button>
@@ -962,7 +962,7 @@ const ProductDetailPage: React.FC = () => {
                     {product.inspections?.length > 0 ? t('inspection_history') : t('professional_inspection')}
                   </h4>
                   {product.is_verified && (
-                    <span className="px-1.5 py-0.5 bg-brand-600 text-white text-[8px] font-black rounded-card uppercase tracking-widest">Verified</span>
+                    <span className="px-1.5 py-0.5 bg-brand-500 text-white text-[8px] font-black rounded-card uppercase tracking-widest">Verified</span>
                   )}
                 </div>
                 
@@ -979,7 +979,7 @@ const ProductDetailPage: React.FC = () => {
                           {insp.verdict ? `Verdict: ${insp.verdict.toUpperCase()}` : `Status: ${insp.status.replace('_', ' ').toUpperCase()}`}
                         </span>
                       </div>
-                      <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase">{t('report')} →</span>
+                      <span className="text-[10px] font-bold text-brand-500 dark:text-brand-500 uppercase">{t('report')} →</span>
                     </Link>
                   ))}
 

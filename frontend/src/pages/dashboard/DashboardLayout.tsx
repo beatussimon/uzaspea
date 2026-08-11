@@ -54,7 +54,7 @@ const DashboardLayout: React.FC = () => {
     <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
       {/* Expired Subscription Banner */}
       {user?.subscription_active === false && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-400 p-4 rounded-xl flex items-center justify-between shadow-sm">
+        <div className="  border border-red-500 dark:border-red-500 text-red-500 dark:text-red-500 p-4 rounded-xl flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
             <AlertCircle size={24} className="text-red-500" />
             <div>
@@ -62,7 +62,7 @@ const DashboardLayout: React.FC = () => {
               <p className="text-sm">Your seller subscription has expired. Please renew it to keep your account active and avoid listing suspension.</p>
             </div>
           </div>
-          <Link to="/dashboard/billing" className="btn-primary py-2 px-4 bg-red-600 hover:bg-red-700 border-none text-white text-sm whitespace-nowrap">
+          <Link to="/dashboard/billing" className="btn-primary py-2 px-4 bg-red-500 hover:bg-red-500 border-none text-white text-sm whitespace-nowrap">
             Renew Now
           </Link>
         </div>
@@ -89,7 +89,7 @@ const DashboardLayout: React.FC = () => {
                 to={item.path}
                 className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
                   isActive
-                    ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                    ? '  text-brand-500 dark:text-brand-500 font-medium'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
                 }`}
                 title={isSidebarCollapsed ? item.label : undefined}
@@ -105,7 +105,7 @@ const DashboardLayout: React.FC = () => {
               <hr className="my-2 border-surface-border dark:border-surface-dark-border" />
               <Link
                 to="/staff-admin"
-                className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm text-brand-600 dark:text-brand-400 font-bold hover:bg-brand-50 dark:hover:bg-brand-900/10 transition`}
+                className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm text-brand-500 dark:text-brand-500 font-bold   transition`}
                 title={isSidebarCollapsed ? t('staff_admin', 'Staff Admin') : undefined}
               >
                 <Shield size={18} className="shrink-0" />
@@ -119,7 +119,7 @@ const DashboardLayout: React.FC = () => {
             to="/dashboard/settings"
             className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
               location.pathname.startsWith('/dashboard/settings')
-                ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                ? '  text-brand-500 dark:text-brand-500 font-medium'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
             }`}
             title={isSidebarCollapsed ? t('account_settings', 'Account Settings') : undefined}
@@ -131,7 +131,7 @@ const DashboardLayout: React.FC = () => {
             to="/dashboard/help-center"
             className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
               location.pathname.startsWith('/dashboard/help-center')
-                ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                ? '  text-brand-500 dark:text-brand-500 font-medium'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
             }`}
             title={isSidebarCollapsed ? t('help_center', 'Help Center') : undefined}

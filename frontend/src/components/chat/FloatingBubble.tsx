@@ -19,11 +19,11 @@ export const FloatingBubble: React.FC<FloatingBubbleProps> = ({ conv }) => {
 
   const getGradient = (name: string) => {
     const gradients = [
-      'from-amber-500 to-amber-600',
-      'from-blue-500 to-indigo-600',
-      'from-emerald-500 to-teal-600',
-      'from-purple-500 to-pink-600',
-      'from-rose-500 to-red-600',
+      'from-amber-500 ',
+      'bg-blue-500 ',
+      'from-emerald-500 ',
+      'bg-purple-500 ',
+      'from-rose-500 ',
     ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -40,7 +40,7 @@ export const FloatingBubble: React.FC<FloatingBubbleProps> = ({ conv }) => {
       title={`Chat with ${personName}`}
     >
       <div className="relative shrink-0">
-        <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(personName)} shadow-md`}>
+        <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(personName)} shadow-md`}>
           {personName ? personName.substring(0, 2).toUpperCase() : <MessageSquare size={14} />}
         </div>
 

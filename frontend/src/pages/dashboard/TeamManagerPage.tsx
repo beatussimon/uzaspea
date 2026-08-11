@@ -321,7 +321,7 @@ export const TeamManagerPage: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       {Object.entries(member.permissions).map(([name, val]) => (
                         <span key={name} className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                          val ? 'bg-green-950/30 text-green-400 border border-green-900/50' : 'bg-gray-950 text-gray-600'
+                          val ? ' text-green-500 border border-green-500/50' : 'bg-gray-950 text-gray-600'
                         }`}>
                           {name.replace('manage_', '').replace('view_', '')}
                         </span>
@@ -334,7 +334,7 @@ export const TeamManagerPage: React.FC = () => {
                     {editingId === member.id ? (
                       <button
                         onClick={() => handleSaveEdit(member.id)}
-                        className="p-2 text-green-500 hover:bg-green-950/30 rounded-lg transition"
+                        className="p-2 text-green-500  rounded-lg transition"
                         title="Save Permissions"
                       >
                         <Save size={16} />
@@ -351,7 +351,7 @@ export const TeamManagerPage: React.FC = () => {
                     
                     <button
                       onClick={() => handleRemove(member.id)}
-                      className="p-2 text-red-500 hover:bg-red-950/30 rounded-lg transition"
+                      className="p-2 text-red-500  rounded-lg transition"
                       title="Remove Member"
                     >
                       <Trash2 size={16} />

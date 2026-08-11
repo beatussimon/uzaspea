@@ -39,7 +39,7 @@ const DisputeModal: React.FC<DisputeModalProps> = ({ orderId, onClose, onSuccess
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
         <div className="card w-full max-w-md p-6 animate-slide-up shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-red-600" />
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-red-500" />
             <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
                 <XCircle size={24} />
             </button>
@@ -87,7 +87,7 @@ const DisputeModal: React.FC<DisputeModalProps> = ({ orderId, onClose, onSuccess
                 <button 
                     type="submit" 
                     disabled={submittingDispute}
-                    className="btn-primary w-full py-3 flex items-center justify-center gap-2 text-base font-bold bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/20"
+                    className="btn-primary w-full py-3 flex items-center justify-center gap-2 text-base font-bold bg-red-500 hover:bg-red-500 shadow-lg shadow-red-600/20"
                 >
                     {submittingDispute ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <AlertTriangle size={20} />}
                     Submit Dispute

@@ -270,7 +270,7 @@ const GlobalSearchModal: React.FC = () => {
                   Filters
                 </div>
                 {activeFilterCount > 0 && (
-                  <button onClick={clearFilters} className="text-[10px] text-brand-600 dark:text-brand-400 hover:underline font-bold uppercase tracking-wider">Clear</button>
+                  <button onClick={clearFilters} className="text-[10px] text-brand-500 dark:text-brand-500 hover:underline font-bold uppercase tracking-wider">Clear</button>
                 )}
               </div>
               
@@ -470,7 +470,7 @@ const GlobalSearchModal: React.FC = () => {
                       <div>
                         <div className="flex items-center justify-between mb-3">
                           <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Recent Searches</h3>
-                          <button onClick={clearRecent} className="text-xs text-brand-600 dark:text-brand-400 hover:underline">Clear</button>
+                          <button onClick={clearRecent} className="text-xs text-brand-500 dark:text-brand-500 hover:underline">Clear</button>
                         </div>
                         <div className="space-y-1">
                           {recentSearches.map((term, i) => (
@@ -495,7 +495,7 @@ const GlobalSearchModal: React.FC = () => {
                           <button
                             key={cat.slug}
                             onClick={() => { setCategory(cat.slug); handleSubmit(undefined, { category: cat.slug }); }}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800/60 hover:bg-brand-50 dark:hover:bg-brand-500/20 text-neutral-700 dark:text-neutral-300 hover:text-brand-600 dark:hover:text-brand-400 text-sm font-medium transition-colors border border-transparent hover:border-brand-500/30"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-100 dark:bg-neutral-800/60   text-neutral-700 dark:text-neutral-300 hover:text-brand-500 dark:hover:text-brand-500 text-sm font-medium transition-colors border border-transparent hover:border-brand-500/30"
                           >
                             <Tag className="w-3.5 h-3.5 opacity-50" />
                             {cat.name}
@@ -532,7 +532,7 @@ const GlobalSearchModal: React.FC = () => {
                                       className="w-full h-full object-cover"
                                     />
                                   ) : (
-                                    <div className="w-full h-full bg-brand-100 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400 flex items-center justify-center font-bold text-lg uppercase">
+                                    <div className="w-full h-full  text-brand-500  dark:text-brand-500 flex items-center justify-center font-bold text-lg uppercase">
                                       {item.username.charAt(0)}
                                     </div>
                                   )
@@ -547,7 +547,7 @@ const GlobalSearchModal: React.FC = () => {
                               <div className="flex-1 min-w-0">
                                 {item.type === 'account' ? (
                                   <>
-                                    <p className="font-bold text-sm text-neutral-900 dark:text-white truncate flex items-center gap-2 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                                    <p className="font-bold text-sm text-neutral-900 dark:text-white truncate flex items-center gap-2 group-hover:text-brand-500 dark:group-hover:text-brand-500 transition-colors">
                                       @{item.username}
                                       {item.is_verified && (
                                         <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -561,10 +561,10 @@ const GlobalSearchModal: React.FC = () => {
                                   </>
                                 ) : (
                                   <>
-                                    <p className="font-bold text-sm text-neutral-900 dark:text-white truncate flex items-center gap-2 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                                    <p className="font-bold text-sm text-neutral-900 dark:text-white truncate flex items-center gap-2 group-hover:text-brand-500 dark:group-hover:text-brand-500 transition-colors">
                                       {item.name}
                                       {item.is_sponsored && (
-                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-brand-500/10 text-brand-600 dark:text-brand-400">
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider  text-brand-500 dark:text-brand-500">
                                           Ad
                                         </span>
                                       )}
@@ -578,7 +578,7 @@ const GlobalSearchModal: React.FC = () => {
                               </div>
                               {item.type === 'product' && (
                                 <div className="shrink-0 text-right pr-2">
-                                  <p className="font-bold text-sm text-brand-600 dark:text-brand-400">
+                                  <p className="font-bold text-sm text-brand-500 dark:text-brand-500">
                                     {item.price ? item.price.toLocaleString() : 'Negotiable'}
                                     {item.price && <span className="text-[10px] ml-1">TZS</span>}
                                   </p>
@@ -614,7 +614,7 @@ const GlobalSearchModal: React.FC = () => {
               <div className="p-4 border-t border-neutral-100 dark:border-neutral-800/50 bg-transparent z-10 shrink-0">
                 <button 
                   onClick={() => handleSubmit()}
-                  className="w-full p-4 bg-gradient-to-r from-brand-500 to-brand-600 text-neutral-950 rounded-xl font-black text-base shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                  className="w-full p-4  bg-brand-500  text-neutral-950 rounded-xl font-black text-base shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
                 >
                   <Search className="w-5 h-5" />
                   Show Results {activeFilterCount > 0 ? `(${activeFilterCount} Filters)` : ''}

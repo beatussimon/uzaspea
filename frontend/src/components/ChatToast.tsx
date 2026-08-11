@@ -43,11 +43,11 @@ const ChatToastItem: React.FC<ChatToastItemProps> = ({ toast, onDismiss, onClick
 
   const getGradient = (username: string) => {
     const colors = [
-      'from-blue-500 to-indigo-600',
-      'from-emerald-500 to-teal-600',
-      'from-purple-500 to-pink-600',
-      'from-rose-500 to-orange-600',
-      'from-amber-500 to-yellow-600',
+      'bg-blue-500 ',
+      'from-emerald-500 ',
+      'bg-purple-500 ',
+      'from-rose-500 ',
+      'from-amber-500 ',
     ];
     let hash = 0;
     for (let i = 0; i < username.length; i++) {
@@ -66,10 +66,10 @@ const ChatToastItem: React.FC<ChatToastItemProps> = ({ toast, onDismiss, onClick
       className="pointer-events-auto flex items-stretch bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl overflow-hidden cursor-pointer hover:shadow-2xl transition-all duration-300 ring-1 ring-black/5 dark:ring-white/5 active:scale-98 group"
       onClick={onClick}
     >
-      <div className="w-1.5 bg-brand-500 dark:bg-brand-400 shrink-0" />
+      <div className="w-1.5 bg-brand-500 dark:bg-brand-500 shrink-0" />
 
       <div className="flex-1 p-3.5 flex items-center gap-3.5 min-w-0">
-        <div className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold bg-gradient-to-br ${getGradient(toast.senderUsername)} shadow-md ring-2 ring-white dark:ring-gray-900`}>
+        <div className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold  ${getGradient(toast.senderUsername)} shadow-md ring-2 ring-white dark:ring-gray-900`}>
           {toast.avatarText}
         </div>
 

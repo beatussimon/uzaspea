@@ -56,7 +56,7 @@ const CartPage: React.FC = () => {
           <Button
             variant="ghost"
             onClick={handleClearCart}
-            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 font-bold"
+            className="text-red-500 hover:text-red-500   font-bold"
           >
             {t('clear_all')}
           </Button>
@@ -71,9 +71,9 @@ const CartPage: React.FC = () => {
             <div key={merchant} className="card overflow-hidden">
               <div className="p-4 bg-surface-muted dark:bg-[#111]/45 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <ShoppingBag size={16} className="text-brand-600 dark:text-brand-400" />
+                  <ShoppingBag size={16} className="text-brand-500 dark:text-brand-500" />
                   <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">
-                    {t('seller')}: <span className="text-brand-600 dark:text-brand-400 font-extrabold">@{merchant}</span>
+                    {t('seller')}: <span className="text-brand-500 dark:text-brand-500 font-extrabold">@{merchant}</span>
                   </h3>
                 </div>
               </div>
@@ -96,11 +96,11 @@ const CartPage: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <Link
                         to={`/product/${item.slug}`}
-                        className="font-bold text-gray-900 dark:text-white truncate block hover:text-brand-600 dark:hover:text-brand-400 transition"
+                        className="font-bold text-gray-900 dark:text-white truncate block hover:text-brand-500 dark:hover:text-brand-500 transition"
                       >
                         {item.name}
                       </Link>
-                      <p className="text-brand-600 dark:text-brand-400 font-extrabold mt-1 text-sm">
+                      <p className="text-brand-500 dark:text-brand-500 font-extrabold mt-1 text-sm">
                         {item.requires_quote ? t('price_on_request', 'Price on Request') : `TSh ${item.price.toLocaleString()}`}
                       </p>
                       <p className="text-2xs font-bold text-gray-400 uppercase tracking-wide mt-0.5">
@@ -136,7 +136,7 @@ const CartPage: React.FC = () => {
  
                     <button
                       onClick={() => removeFromCart(item.productId)}
-                      className="p-2 text-red-400 hover:text-red-650 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-btn transition shrink-0 ml-2"
+                      className="p-2 text-red-500 hover:text-red-500   rounded-btn transition shrink-0 ml-2"
                       title="Remove item"
                     >
                       <Trash2 size={16} />

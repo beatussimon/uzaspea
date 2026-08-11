@@ -484,7 +484,7 @@ const CheckoutPage: React.FC = () => {
     <div className="container-page max-w-5xl">
       <div className="mb-6 flex flex-col gap-1">
         <h1 className="text-heading-md font-black text-gray-900 dark:text-white uppercase">{t('checkout')}</h1>
-        <p className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wide">
+        <p className="text-xs font-bold text-brand-500 dark:text-brand-500 uppercase tracking-wide">
           {t('seller')}: @{merchant}
         </p>
       </div>
@@ -511,7 +511,7 @@ const CheckoutPage: React.FC = () => {
                   {/* Delivery Group */}
                   {fulfillmentOptions.some(o => o.shipping_method === 'DELIVERY') && (
                     <div className="mb-6">
-                      <h3 className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest mb-3">Delivery Options</h3>
+                      <h3 className="text-xs font-bold text-brand-500 dark:text-brand-500 uppercase tracking-widest mb-3">Delivery Options</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {fulfillmentOptions.filter(o => o.shipping_method === 'DELIVERY').map((opt) => {
                           const isSelected = fulfillmentType === opt.fulfillment_type;
@@ -525,13 +525,13 @@ const CheckoutPage: React.FC = () => {
                               }}
                               className={`p-4 rounded-btn border-2 flex flex-col items-start gap-2 transition-all duration-200 text-left ${
                                 isSelected
-                                  ? 'border-brand-600 bg-brand-50/10'
+                                  ? 'border-brand-500 '
                                   : 'border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600'
                               }`}
                             >
                               <div className="flex items-center gap-2">
-                                <Truck size={18} className={isSelected ? 'text-brand-600' : 'text-gray-500'} />
-                                <span className={`font-bold text-xs uppercase tracking-wider ${isSelected ? 'text-brand-600' : 'text-gray-700 dark:text-gray-300'}`}>{opt.name}</span>
+                                <Truck size={18} className={isSelected ? 'text-brand-500' : 'text-gray-500'} />
+                                <span className={`font-bold text-xs uppercase tracking-wider ${isSelected ? 'text-brand-500' : 'text-gray-700 dark:text-gray-300'}`}>{opt.name}</span>
                               </div>
                               <span className="text-xs text-gray-500">{opt.description}</span>
                               <span className="text-[10px] font-bold text-gray-400 mt-auto pt-2">
@@ -548,7 +548,7 @@ const CheckoutPage: React.FC = () => {
                   {/* Pickup Group */}
                   {fulfillmentOptions.some(o => o.shipping_method === 'PICKUP') && (
                     <div>
-                      <h3 className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest mb-3">Pickup Options</h3>
+                      <h3 className="text-xs font-bold text-brand-500 dark:text-brand-500 uppercase tracking-widest mb-3">Pickup Options</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {fulfillmentOptions.filter(o => o.shipping_method === 'PICKUP').map((opt) => {
                           const isSelected = fulfillmentType === opt.fulfillment_type;
@@ -562,13 +562,13 @@ const CheckoutPage: React.FC = () => {
                               }}
                               className={`p-4 rounded-btn border-2 flex flex-col items-start gap-2 transition-all duration-200 text-left ${
                                 isSelected
-                                  ? 'border-brand-600 bg-brand-50/10'
+                                  ? 'border-brand-500 '
                                   : 'border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600'
                               }`}
                             >
                               <div className="flex items-center gap-2">
-                                <MapPin size={18} className={isSelected ? 'text-brand-600' : 'text-gray-500'} />
-                                <span className={`font-bold text-xs uppercase tracking-wider ${isSelected ? 'text-brand-600' : 'text-gray-700 dark:text-gray-300'}`}>{opt.name}</span>
+                                <MapPin size={18} className={isSelected ? 'text-brand-500' : 'text-gray-500'} />
+                                <span className={`font-bold text-xs uppercase tracking-wider ${isSelected ? 'text-brand-500' : 'text-gray-700 dark:text-gray-300'}`}>{opt.name}</span>
                               </div>
                               <span className="text-xs text-gray-500">{opt.description}</span>
                               <span className="text-[10px] font-bold text-gray-400 mt-auto pt-2">Free</span>
@@ -610,7 +610,7 @@ const CheckoutPage: React.FC = () => {
                                 onClick={() => setSelectedQuoteCode(q.code)}
                                 className={`p-3 border rounded-btn flex flex-col justify-center items-center transition-all duration-200 ${
                                   isSel
-                                    ? 'border-brand-600 bg-brand-50/10 text-brand-600'
+                                    ? 'border-brand-500  text-brand-500'
                                     : 'border-surface-border dark:border-surface-dark-border text-gray-500 dark:text-gray-400 hover:bg-surface-muted dark:hover:bg-white/5'
                                 }`}
                               >
@@ -645,7 +645,7 @@ const CheckoutPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setIsEditingDetails(true)}
-                            className="text-xs font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                            className="text-xs font-bold text-brand-500 hover:text-brand-500 dark:text-brand-500"
                           >
                             Edit
                           </button>
@@ -757,7 +757,7 @@ const CheckoutPage: React.FC = () => {
                             }}
                           />
                           {deliveryCoords && sellerCoords && (
-                            <p className="text-xs font-bold text-brand-600 dark:text-brand-400 mt-1 flex items-center gap-1">
+                            <p className="text-xs font-bold text-brand-500 dark:text-brand-500 mt-1 flex items-center gap-1">
                               <MapPin size={12} />
                               ~{calculateDistance(sellerCoords.lat, sellerCoords.lng, deliveryCoords.lat, deliveryCoords.lng).toFixed(1)} km from the seller's store
                             </p>
@@ -788,8 +788,8 @@ const CheckoutPage: React.FC = () => {
                     <FormField id="fullName" name="fullName" label={t('first_name') + " & " + t('last_name') + " *"} type="text" required value={form.fullName} onChange={handleChange} placeholder={t('first_name')} />
                     <FormField id="phone" name="phone" label={t('phone_number') + " *"} type="tel" required value={form.phone} onChange={handleChange} placeholder="+255 7XX XXX XXX" />
                   </div>
-                  <div className="bg-brand-50/10 dark:bg-brand-900/10 p-4 rounded-btn border border-brand-100/30 dark:border-brand-900/20">
-                    <p className="text-xs font-bold text-brand-700 dark:text-brand-300 flex items-center gap-2">
+                  <div className="  p-4 rounded-btn border border-brand-500/30 dark:border-brand-500/20">
+                    <p className="text-xs font-bold text-brand-500 dark:text-brand-500 flex items-center gap-2">
                       <Shield size={14} />
                       {fulfillmentType === 'SELLER_PICKUP' 
                         ? t('seller_pickup_notice', "You will pick up your order directly from the seller's location. Contact details will be provided after checkout.")
@@ -842,15 +842,15 @@ const CheckoutPage: React.FC = () => {
               {t('promo_code', 'Promo Code')}
             </label>
             {appliedPromo ? (
-              <div className="flex justify-between items-center bg-green-50 dark:bg-green-950/20 border border-green-100/50 dark:border-green-900/30 p-2 rounded-btn">
+              <div className="flex justify-between items-center   border border-green-500/50 dark:border-green-500/30 p-2 rounded-btn">
                 <div>
-                  <span className="font-mono font-black text-xs text-green-700 dark:text-green-400">{appliedPromo.code}</span>
-                  <span className="text-[10px] text-green-600 dark:text-green-500 block font-bold uppercase tracking-wider mt-0.5">Applied!</span>
+                  <span className="font-mono font-black text-xs text-green-500 dark:text-green-500">{appliedPromo.code}</span>
+                  <span className="text-[10px] text-green-500 dark:text-green-500 block font-bold uppercase tracking-wider mt-0.5">Applied!</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleRemovePromo}
-                  className="text-2xs font-bold text-red-500 hover:text-red-700 transition uppercase tracking-wide"
+                  className="text-2xs font-bold text-red-500 hover:text-red-500 transition uppercase tracking-wide"
                 >
                   {t('remove')}
                 </button>
@@ -884,7 +884,7 @@ const CheckoutPage: React.FC = () => {
               </span>
             </div>
             {appliedPromo && (
-              <div className="flex justify-between items-center text-green-600 dark:text-green-500 font-bold">
+              <div className="flex justify-between items-center text-green-500 dark:text-green-500 font-bold">
                 <span>Discount ({appliedPromo.code})</span>
                 <span>- TSh {Number(appliedPromo.discount_amount || 0).toLocaleString()}</span>
               </div>
@@ -897,7 +897,7 @@ const CheckoutPage: React.FC = () => {
                   ? t('pickup_fee', 'Pickup Fee')
                   : t('shipping_billed_later', 'Shipping (Billed Later)')}
               </span>
-              <span className="text-brand-600 dark:text-brand-400 uppercase text-[10px] tracking-wide"
+              <span className="text-brand-500 dark:text-brand-500 uppercase text-[10px] tracking-wide"
                 title={fulfillmentType === 'DIRECT_DELIVERY'
                   ? 'Shipping fee to be agreed with seller.'
                   : 'Final shipping is confirmed by warehouse staff after your item is dropped off.'}>
@@ -910,7 +910,7 @@ const CheckoutPage: React.FC = () => {
             </div>
             <div className="border-t border-surface-border dark:border-surface-dark-border pt-2 flex justify-between items-center">
               <span className="font-extrabold text-sm text-gray-950 dark:text-white uppercase">{t('due_today', 'Due Today')}</span>
-              <span className="text-lg font-black text-brand-600 dark:text-brand-400">
+              <span className="text-lg font-black text-brand-500 dark:text-brand-500">
                 TSh {finalTotal.toLocaleString()}
               </span>
             </div>

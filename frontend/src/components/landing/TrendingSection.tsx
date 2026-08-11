@@ -43,7 +43,7 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
     <div className="relative w-full h-full bg-transparent transition-colors duration-300 overflow-hidden flex flex-col justify-center">
       {/* Subtle Dynamic Background Accent */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-orange-500/5 dark:bg-orange-500/10 blur-[120px]" />
+        <div className="absolute top-[10%] left-[-10%] w-[50%] h-[50%] rounded-full   blur-[120px]" />
         <div className="absolute bottom-[10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-amber-500/5 dark:bg-amber-500/10 blur-[120px]" />
       </div>
 
@@ -59,7 +59,7 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
             {/* Standardized Header */}
             <motion.div variants={itemVariants} className="text-center mb-6 px-4 flex-shrink-0">
               <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900 dark:text-white flex items-center justify-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-950/50 flex items-center justify-center text-orange-600 dark:text-orange-400">
+                <div className="w-8 h-8 rounded-full   flex items-center justify-center text-orange-500 dark:text-orange-500">
                   <Flame className="w-5 h-5" />
                 </div>
                 {t('trending_now', 'TRENDING NOW')}

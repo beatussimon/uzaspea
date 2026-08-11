@@ -45,13 +45,13 @@ export const Tabs: React.FC<TabsProps> = ({
               variant === 'underline' && [
                 'border-b-2 -mb-px',
                 isActive
-                  ? 'border-brand-500 text-brand-600 dark:text-brand-400 font-extrabold'
+                  ? 'border-brand-500 text-brand-500 dark:text-brand-500 font-extrabold'
                   : 'border-transparent text-gray-550 hover:text-gray-900 dark:hover:text-white',
               ],
               variant === 'pills' && [
                 'rounded-btn',
                 isActive
-                  ? 'bg-white dark:bg-[#0A0A0A] text-brand-600 dark:text-brand-400 shadow-sm'
+                  ? 'bg-white dark:bg-[#0A0A0A] text-brand-500 dark:text-brand-500 shadow-sm'
                   : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white',
               ]
             )}
@@ -63,7 +63,7 @@ export const Tabs: React.FC<TabsProps> = ({
                 className={cn(
                   'rounded-full px-1.5 py-0.5 text-[10px] font-bold shrink-0',
                   isActive
-                    ? 'bg-brand-100 text-brand-850 dark:bg-brand-900/30 dark:text-brand-300'
+                    ? ' text-brand-500  dark:text-brand-500'
                     : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-gray-400'
                 )}
               >

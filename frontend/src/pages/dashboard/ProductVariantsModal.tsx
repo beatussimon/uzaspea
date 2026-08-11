@@ -78,7 +78,7 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
         <div className="p-4 overflow-y-auto flex-1">
           {loading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -100,7 +100,7 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
                         </p>
                       </div>
                     </div>
-                    <button onClick={() => handleDelete(v.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition">
+                    <button onClick={() => handleDelete(v.id)} className="p-2 text-red-500   rounded-lg transition">
                       <Trash size={16} />
                     </button>
                   </div>
@@ -108,7 +108,7 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
               )}
 
               {!showForm ? (
-                <button onClick={() => setShowForm(true)} className="w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 hover:text-brand-600 hover:border-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/10 transition flex items-center justify-center gap-2">
+                <button onClick={() => setShowForm(true)} className="w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 hover:text-brand-500 hover:border-brand-500   transition flex items-center justify-center gap-2">
                   <Plus size={16} /> Add Variant
                 </button>
               ) : (
@@ -146,10 +146,10 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
                   </div>
                   <div>
                     <label className="text-xs font-bold text-gray-400 block mb-1">Image (Optional)</label>
-                    <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} className="text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-brand-50 file:text-brand-700" />
+                    <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} className="text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file: file:text-brand-500" />
                   </div>
                   <div className="flex items-center gap-2 pt-2">
-                    <button type="submit" className="flex-1 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-bold transition">Save</button>
+                    <button type="submit" className="flex-1 py-2 bg-brand-500 hover:bg-brand-500 text-white rounded-lg text-sm font-bold transition">Save</button>
                     <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-bold transition">Cancel</button>
                   </div>
                 </form>

@@ -140,7 +140,7 @@ const SettingsPage: React.FC = () => {
             {/* Profile Info */}
             <div className="card p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
-                    <User size={18} className="text-brand-600" />
+                    <User size={18} className="text-brand-500" />
                     <h3 className="font-bold text-gray-900 dark:text-white">Profile Information</h3>
                 </div>
                 {[
@@ -169,12 +169,12 @@ const SettingsPage: React.FC = () => {
             {/* Business Location Coords */}
             <div className="card p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
-                    <MapPin size={18} className="text-brand-600" />
+                    <MapPin size={18} className="text-brand-500" />
                     <h3 className="font-bold text-gray-900 dark:text-white">Business Location Coordinates</h3>
                 </div>
                 {profile.is_location_verified === false && (
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 rounded-r mb-4">
-                        <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                    <div className="  border-l-4 border-yellow-500 p-4 rounded-r mb-4">
+                        <p className="text-sm text-yellow-500 dark:text-yellow-500">
                             Your business location is pending verification by SokoniMax staff.
                             Update your coordinates below and save — our team will review and verify your location.
                         </p>
@@ -237,15 +237,15 @@ const SettingsPage: React.FC = () => {
             {/* Tier Status */}
             <div className="card p-6">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                    <Bell size={18} className="text-brand-600" /> Subscription Tier
+                    <Bell size={18} className="text-brand-500" /> Subscription Tier
                 </h3>
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm text-gray-500">Current Plan</p>
-                        <p className="font-black text-xl capitalize text-brand-600">{profile.tier || 'Free'}</p>
+                        <p className="font-black text-xl capitalize text-brand-500">{profile.tier || 'Free'}</p>
                         {profile.tier === 'free' && <p className="text-xs text-gray-400 mt-1">Upgrade to list more products and get promoted placement</p>}
                         {profile.tier === 'standard' && <p className="text-xs text-gray-400 mt-1">You have access to standard seller features</p>}
-                        {profile.tier === 'premium' && <p className="text-xs text-green-600 mt-1">✓ Full access to all premium features</p>}
+                        {profile.tier === 'premium' && <p className="text-xs text-green-500 mt-1">✓ Full access to all premium features</p>}
                     </div>
                     {profile.tier !== 'premium' && (
                         <button onClick={handleOpenUpgrade} className="btn-primary text-sm">Upgrade Plan</button>
@@ -256,7 +256,7 @@ const SettingsPage: React.FC = () => {
             {/* Push Notifications Card */}
             <div className="card p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
-                    <Bell size={18} className="text-brand-600 animate-bounce" />
+                    <Bell size={18} className="text-brand-500 animate-bounce" />
                     <h3 className="font-bold text-gray-900 dark:text-white">Push Notifications</h3>
                 </div>
                 <p className="text-xs text-gray-500 leading-relaxed">
@@ -274,7 +274,7 @@ const SettingsPage: React.FC = () => {
                             {pushPermission === 'denied' ? 'Notifications Blocked' : 'Enable Push Notifications'}
                         </button>
                     ) : (
-                        <span className="text-xs font-bold text-green-500 bg-green-500/10 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-green-500  px-3 py-1.5 rounded-full flex items-center gap-1.5">
                             <CheckCircle2 size={14} /> Active
                         </span>
                     )}
@@ -284,7 +284,7 @@ const SettingsPage: React.FC = () => {
             {/* Change Password */}
             <div className="card p-6 space-y-3">
                 <div className="flex items-center gap-2 mb-2">
-                    <Lock size={18} className="text-brand-600" />
+                    <Lock size={18} className="text-brand-500" />
                     <h3 className="font-bold text-gray-900 dark:text-white">Change Password</h3>
                 </div>
                 <input type="password" placeholder="Current Password" value={passwords.old}
@@ -308,7 +308,7 @@ const SettingsPage: React.FC = () => {
 
                         {loadingUpgradeData ? (
                             <div className="flex justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" />
                             </div>
                         ) : (
                             <div className="space-y-4">
@@ -317,14 +317,14 @@ const SettingsPage: React.FC = () => {
                                         <p className="text-xs text-gray-500">Choose one of the premium tiers below to upgrade your store limits:</p>
                                         <div className="grid grid-cols-1 gap-3">
                                             {tiers.map((t: any) => (
-                                                <div key={t.id} onClick={() => setSelectedTier(t)} className="p-4 border dark:border-gray-700 rounded-xl hover:border-brand-500 dark:hover:border-brand-500 cursor-pointer transition bg-gray-50 dark:bg-gray-700/30 hover:bg-brand-50/10 flex justify-between items-center">
+                                                <div key={t.id} onClick={() => setSelectedTier(t)} className="p-4 border dark:border-gray-700 rounded-xl hover:border-brand-500 dark:hover:border-brand-500 cursor-pointer transition bg-gray-50 dark:bg-gray-700/30  flex justify-between items-center">
                                                     <div>
                                                         <h4 className="font-bold text-gray-900 dark:text-white capitalize text-sm">{t.name} Plan</h4>
                                                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.benefits || 'Premium store features'}</p>
                                                         <p className="text-[10px] text-gray-400 mt-1">Duration: {t.duration} Days</p>
                                                     </div>
                                                     <div className="text-right shrink-0">
-                                                        <p className="font-black text-brand-600 text-sm">TSh {Number(t.price).toLocaleString()}</p>
+                                                        <p className="font-black text-brand-500 text-sm">TSh {Number(t.price).toLocaleString()}</p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -335,18 +335,18 @@ const SettingsPage: React.FC = () => {
                                     </div>
                                 ) : (
                                     <form onSubmit={handleUpgradeSubmit} className="space-y-4">
-                                        <div className="flex items-center justify-between p-3 bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-900/30 rounded-xl">
+                                        <div className="flex items-center justify-between p-3   border border-brand-500 dark:border-brand-500/30 rounded-xl">
                                             <div>
-                                                <p className="text-xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider">Selected Plan</p>
+                                                <p className="text-xs text-brand-500 dark:text-brand-500 font-bold uppercase tracking-wider">Selected Plan</p>
                                                 <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm">{selectedTier.name} ({selectedTier.duration} Days)</h4>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-xs text-gray-500">Total Price</p>
-                                                <p className="font-black text-brand-600 text-sm">TSh {Number(selectedTier.price).toLocaleString()}</p>
+                                                <p className="font-black text-brand-500 text-sm">TSh {Number(selectedTier.price).toLocaleString()}</p>
                                             </div>
                                         </div>
 
-                                        <button type="button" onClick={() => setSelectedTier(null)} className="text-xs text-brand-600 hover:underline">
+                                        <button type="button" onClick={() => setSelectedTier(null)} className="text-xs text-brand-500 hover:underline">
                                             ← Choose a different plan
                                         </button>
 
@@ -355,7 +355,7 @@ const SettingsPage: React.FC = () => {
                                                 Pay to these numbers:
                                             </p>
                                             {adminLipa.length === 0 ? (
-                                                <p className="text-xs text-yellow-600">No official payment numbers configured. Please contact support.</p>
+                                                <p className="text-xs text-yellow-500">No official payment numbers configured. Please contact support.</p>
                                             ) : (
                                                 <div className="space-y-2">
                                                     {adminLipa.map((lipa: any) => (
@@ -364,7 +364,7 @@ const SettingsPage: React.FC = () => {
                                                                 {lipa.network_logo ? (
                                                                     <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
                                                                 ) : (
-                                                                    <Smartphone size={16} className="text-green-600" />
+                                                                    <Smartphone size={16} className="text-green-500" />
                                                                 )}
                                                             </div>
                                                             <div>
