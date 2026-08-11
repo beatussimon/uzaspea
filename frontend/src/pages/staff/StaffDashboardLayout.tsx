@@ -66,13 +66,13 @@ const priorityColors: Record<string, string> = {
   low: 'text-gray-500', medium: 'text-brand-500', high: 'text-orange-500', urgent: 'text-red-500',
 };
 const statusBg: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  in_progress: 'bg-brand-100 text-brand-800 dark:bg-brand-900/30 dark:text-brand-400',
-  on_hold: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-  completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  pending: ' text-yellow-500  dark:text-yellow-500',
+  in_progress: ' text-brand-500  dark:text-brand-500',
+  on_hold: ' text-orange-500  dark:text-orange-500',
+  completed: ' text-green-500  dark:text-green-500',
+  cancelled: ' text-red-500  dark:text-red-500',
+  approved: ' text-green-500  dark:text-green-500',
+  rejected: ' text-red-500  dark:text-red-500',
 };
 const Badge: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => (
   <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
@@ -112,7 +112,7 @@ const AdminOverviewPanel: React.FC<{ data: DashboardData['admin_overview'] }> = 
             <div className="flex items-end justify-between">
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{m.val}</p>
               <div className="opacity-0 group-hover:opacity-100 transition">
-                <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded uppercase tracking-widest">Manage</span>
+                <span className="text-[10px] font-bold text-brand-500  px-2 py-1 rounded uppercase tracking-widest">Manage</span>
               </div>
             </div>
           </Link>
@@ -125,7 +125,7 @@ const AdminOverviewPanel: React.FC<{ data: DashboardData['admin_overview'] }> = 
 const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
   const [claiming, setClaiming] = useState<number | null>(null);
 
-  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>;
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" /></div>;
   if (!data) return <p className="text-center text-gray-400 py-12">No data available</p>;
 
   const handleClaim = async (id: number) => {
@@ -145,7 +145,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Staff Dashboard</h2>
-        <div className="text-xs text-brand-600 font-bold bg-brand-50 dark:bg-brand-900/20 px-3 py-1 rounded-full uppercase tracking-widest">
+        <div className="text-xs text-brand-500 font-bold   px-3 py-1 rounded-full uppercase tracking-widest">
            {data.user.username}
         </div>
       </div>
@@ -167,7 +167,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
             </h4>
           </div>
           <div className="text-right">
-            <span className="text-brand-600 font-bold text-2xl">
+            <span className="text-brand-500 font-bold text-2xl">
               {tc.pending + tc.in_progress + tc.on_hold + tc.completed > 0 ? Math.round((tc.completed / (tc.pending + tc.in_progress + tc.on_hold + tc.completed)) * 100) : 0}%
             </span>
           </div>
@@ -241,7 +241,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
                        <button 
                          onClick={() => handleClaim(t.id)}
                          disabled={claiming === t.id}
-                         className="px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition"
+                         className="px-3 py-1 bg-brand-500 hover:bg-brand-500 text-white text-xs font-bold rounded-lg transition"
                        >
                          {claiming === t.id ? '...' : 'Claim'}
                        </button>
@@ -257,7 +257,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <ClipboardList size={16} className="text-brand-500" /> Assigned to Me
               </h3>
-              <Link to="/staff/tasks" className="text-xs text-brand-600 dark:text-brand-400 hover:underline">View all →</Link>
+              <Link to="/staff/tasks" className="text-xs text-brand-500 dark:text-brand-500 hover:underline">View all →</Link>
             </div>
             {data.tasks.length === 0 ? (
               <p className="text-gray-400 text-sm text-center py-4">Nothing on your plate right now.</p>
@@ -268,7 +268,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
                     <div className="flex items-center gap-3">
                       {t.is_overdue && <AlertTriangle size={14} className="text-red-500" />}
                       <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-brand-600">{t.title}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-brand-500">{t.title}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{t.category} • <span className={priorityColors[t.priority]}>{t.priority}</span></p>
                       </div>
                     </div>
@@ -289,7 +289,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
                   <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <Megaphone size={16} className="text-purple-500" /> Promotion Approvals
                   </h3>
-                  <Link to="/staff/promotions" className="text-xs text-brand-600 dark:text-brand-400 hover:underline">View all →</Link>
+                  <Link to="/staff/promotions" className="text-xs text-brand-500 dark:text-brand-500 hover:underline">View all →</Link>
                 </div>
                 {data.pending_promotions.length === 0 ? (
                    <p className="text-xs text-gray-400 italic">No promotions awaiting review.</p>
@@ -311,11 +311,11 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
 
            {/* Inspection Shortcut */}
            {((data.user.permissions.includes('can_manage_inspections') || data.user.is_superuser)) && (
-              <Link to="/staff/inspections" className="block p-5 bg-brand-600 rounded-card text-white hover:bg-brand-700 transition">
+              <Link to="/staff/inspections" className="block p-5 bg-brand-500 rounded-card text-white hover:bg-brand-500 transition">
                  <h3 className="font-bold flex items-center gap-2 mb-1">
                    <Shield size={18} /> Manage Inspections
                  </h3>
-                 <p className="text-xs text-brand-100 opacity-80">Access Dispatch Queue, QA Reviews, and Inspector controls.</p>
+                 <p className="text-xs text-brand-500 opacity-80">Access Dispatch Queue, QA Reviews, and Inspector controls.</p>
               </Link>
            )}
 
@@ -339,7 +339,7 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
                   <span className="text-gray-400 shrink-0 w-16">{fmtDate(a.performed_at).split(',')[0]}</span>
                   <div>
                     <p className="text-gray-700 dark:text-gray-300">
-                      <span className="font-bold uppercase tracking-tighter text-[10px] text-brand-600 mr-2">{a.action_type}</span>
+                      <span className="font-bold uppercase tracking-tighter text-[10px] text-brand-500 mr-2">{a.action_type}</span>
                       {a.task_title}
                     </p>
                   </div>
@@ -404,7 +404,7 @@ export const SubscriptionConfirmation: React.FC = () => {
         <div className="flex gap-1">
           {['pending', 'approved', 'rejected'].map((s) => (
             <button key={s} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
               {s}
             </button>
           ))}
@@ -412,7 +412,7 @@ export const SubscriptionConfirmation: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
           <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -428,7 +428,7 @@ export const SubscriptionConfirmation: React.FC = () => {
                     <h3 className="font-semibold text-gray-900 dark:text-white">@{item.username}</h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400">Reference: {item.reference}</p>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-100 text-brand-800 dark:bg-brand-900/30 dark:text-brand-400">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold  text-brand-500  dark:text-brand-500">
                     {item.tier_name}
                   </span>
                 </div>
@@ -447,8 +447,8 @@ export const SubscriptionConfirmation: React.FC = () => {
 
               {filter === 'pending' && (
                 <div className="flex gap-2">
-                  <button onClick={() => handleVerify(item.id)} className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">Confirm Upgrade</button>
-                  <button onClick={() => handleReject(item.id)} className="flex-1 py-2 border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg text-xs font-bold transition">Reject</button>
+                  <button onClick={() => handleVerify(item.id)} className="flex-1 py-2 bg-green-500 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition">Confirm Upgrade</button>
+                  <button onClick={() => handleReject(item.id)} className="flex-1 py-2 border border-red-500 text-red-500   rounded-lg text-xs font-bold transition">Reject</button>
                 </div>
               )}
             </div>
@@ -518,7 +518,7 @@ export const SellerApplicationsManager: React.FC = () => {
         <div className="flex gap-1">
           {['pending', 'approved', 'rejected'].map((s) => (
             <button key={s} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
               {s}
             </button>
           ))}
@@ -526,7 +526,7 @@ export const SellerApplicationsManager: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
           <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -541,7 +541,7 @@ export const SellerApplicationsManager: React.FC = () => {
                   <h3 className="font-bold text-gray-900 dark:text-white">{item.business_name}</h3>
                   <p className="text-xs text-gray-500">Submitted by: @{item.username}</p>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold   text-brand-500 dark:text-brand-500">
                   {item.requested_tier_name}
                 </span>
               </div>
@@ -593,11 +593,11 @@ export const SellerApplicationsManager: React.FC = () => {
               {item.status === 'pending' && (
                 <div className="flex gap-2 pt-2 border-t dark:border-gray-700">
                   <button onClick={() => handleApprove(item.id)}
-                    className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">
+                    className="flex-1 py-2 bg-green-500 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition">
                     Approve
                   </button>
                   <button onClick={() => handleReject(item.id)}
-                    className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition">
+                    className="flex-1 py-2 bg-red-500 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition">
                     Reject
                   </button>
                 </div>
@@ -660,7 +660,7 @@ export const CommissionPaymentsManager: React.FC = () => {
         <div className="flex gap-1">
           {['PENDING', 'APPROVED', 'REJECTED'].map((s) => (
             <button key={s} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
               {s.toLowerCase()}
             </button>
           ))}
@@ -668,7 +668,7 @@ export const CommissionPaymentsManager: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
           <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -703,8 +703,8 @@ export const CommissionPaymentsManager: React.FC = () => {
 
               {filter === 'PENDING' && (
                 <div className="flex gap-2">
-                  <button onClick={() => handleVerify(item.id)} className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">Confirm Payment</button>
-                  <button onClick={() => handleReject(item.id)} className="flex-1 py-2 border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg text-xs font-bold transition">Reject</button>
+                  <button onClick={() => handleVerify(item.id)} className="flex-1 py-2 bg-green-500 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition">Confirm Payment</button>
+                  <button onClick={() => handleReject(item.id)} className="flex-1 py-2 border border-red-500 text-red-500   rounded-lg text-xs font-bold transition">Reject</button>
                 </div>
               )}
             </div>
@@ -802,7 +802,7 @@ export const ProductModeration: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
       ) : filteredProducts.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
           <AlertTriangle size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -823,22 +823,22 @@ export const ProductModeration: React.FC = () => {
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold text-gray-900 dark:text-white truncate">{p.name}</h3>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${p.is_available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${p.is_available ? ' text-green-500' : ' text-red-500'}`}>
                       {p.is_available ? 'Active' : 'Suspended'}
                     </span>
                   </div>
-                  <p className="text-sm font-bold text-brand-600 dark:text-brand-400">TZS {parseFloat(p.price).toLocaleString()}</p>
+                  <p className="text-sm font-bold text-brand-500 dark:text-brand-500">TZS {parseFloat(p.price).toLocaleString()}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{p.description}</p>
                 </div>
                 <div className="flex justify-between items-center mt-2 text-[10px] text-gray-400">
                   <span>Seller ID: {p.seller} · Category ID: {p.category}</span>
                   <div className="flex gap-2">
                     {p.is_available ? (
-                      <button onClick={() => handleSuspend(p.id)} className="px-2.5 py-1 bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 rounded font-semibold transition">Suspend</button>
+                      <button onClick={() => handleSuspend(p.id)} className="px-2.5 py-1  text-orange-500   dark:text-orange-500 rounded font-semibold transition">Suspend</button>
                     ) : (
-                      <button onClick={() => handleApprove(p.id)} className="px-2.5 py-1 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 rounded font-semibold transition">Approve</button>
+                      <button onClick={() => handleApprove(p.id)} className="px-2.5 py-1  text-green-500   dark:text-green-500 rounded font-semibold transition">Approve</button>
                     )}
-                    <button onClick={() => handleDelete(p.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 rounded font-semibold transition">Delete</button>
+                    <button onClick={() => handleDelete(p.id)} className="px-2.5 py-1  text-red-500   dark:text-red-500 rounded font-semibold transition">Delete</button>
                   </div>
                 </div>
               </div>
@@ -943,7 +943,7 @@ export const PromotionQueue: React.FC = () => {
         <div className="flex gap-1">
           {['pending', 'approved', 'rejected'].map((s) => (
             <button key={s} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${filter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
@@ -951,7 +951,7 @@ export const PromotionQueue: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
       ) : promos.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
           <Megaphone size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -970,7 +970,7 @@ export const PromotionQueue: React.FC = () => {
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{p.description || 'No description provided.'}</p>
                   
                   {p.transaction_reference && (
-                    <p className="text-xs text-brand-600 dark:text-brand-400 mt-2 font-mono font-bold">
+                    <p className="text-xs text-brand-500 dark:text-brand-500 mt-2 font-mono font-bold">
                       Tx Reference: {p.transaction_reference}
                     </p>
                   )}
@@ -989,11 +989,11 @@ export const PromotionQueue: React.FC = () => {
                 {filter === 'pending' ? (
                   <div className="flex items-center gap-2 shrink-0">
                     <button onClick={() => handleApprove(p.id)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition">
+                      className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition">
                       <CheckCircle2 size={14} /> Approve
                     </button>
                     <button onClick={() => handleReject(p.id)}
-                      className="flex items-center gap-1.5 px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-medium transition">
+                      className="flex items-center gap-1.5 px-4 py-2 border border-red-500 text-red-500   rounded-lg text-sm font-medium transition">
                       <XCircle size={14} /> Reject
                     </button>
                   </div>
@@ -1006,7 +1006,7 @@ export const PromotionQueue: React.FC = () => {
           
           {loadingMore && (
             <div className="flex justify-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" />
             </div>
           )}
 
@@ -1067,18 +1067,18 @@ export const ReviewsManager: React.FC = () => {
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="font-bold text-gray-900 dark:text-white">{review.rating}/5 Stars</span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${review.approved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{review.approved ? 'Approved' : 'Pending'}</span>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${review.approved ? ' text-green-500' : ' text-red-500'}`}>{review.approved ? 'Approved' : 'Pending'}</span>
                             </div>
                             <p className="text-sm text-gray-700 dark:text-gray-300">"{review.comment}"</p>
                             <p className="text-xs text-gray-500 mt-2">By User {review.user} on Product {review.product}</p>
                         </div>
                         <div className="flex flex-col gap-2 shrink-0">
                             {!review.approved ? (
-                                <button onClick={() => updateReview(review.id, true)} className="bg-green-600 text-white text-xs py-1.5 px-3 rounded font-medium hover:bg-green-700">Approve</button>
+                                <button onClick={() => updateReview(review.id, true)} className="bg-green-500 text-white text-xs py-1.5 px-3 rounded font-medium hover:bg-green-500">Approve</button>
                             ) : (
-                                <button onClick={() => updateReview(review.id, false)} className="bg-yellow-600 text-white text-xs py-1.5 px-3 rounded font-medium hover:bg-yellow-700">Hide</button>
+                                <button onClick={() => updateReview(review.id, false)} className="bg-yellow-500 text-white text-xs py-1.5 px-3 rounded font-medium hover:bg-yellow-500">Hide</button>
                             )}
-                            <button onClick={() => deleteReview(review.id)} className="bg-red-50 text-red-600 text-xs py-1.5 px-3 rounded font-medium hover:bg-red-100 border border-red-200">Delete</button>
+                            <button onClick={() => deleteReview(review.id)} className=" text-red-500 text-xs py-1.5 px-3 rounded font-medium  border border-red-500">Delete</button>
                         </div>
                     </div>
                 ))}
@@ -1110,7 +1110,7 @@ export const DisputesManager: React.FC = () => {
             <h3 className="text-xl font-bold mb-4">Disputes</h3>
             {['open', 'under_review', 'resolved_buyer', 'resolved_seller'].map(s => (
                 <button key={s} onClick={() => setFilter(s)}
-                    className={`mr-2 text-xs px-3 py-1 rounded-full font-bold ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                    className={`mr-2 text-xs px-3 py-1 rounded-full font-bold ${filter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}>
                     {s.replace(/_/g, ' ')}
                 </button>
             ))}
@@ -1122,9 +1122,9 @@ export const DisputesManager: React.FC = () => {
                         {d.status === 'open' && (
                             <div className="flex gap-2 mt-3">
                                 <button onClick={() => handleResolve(d.id, 'resolved_buyer')}
-                                    className="px-3 py-1.5 border border-brand-300 text-brand-600 hover:bg-brand-50 rounded-lg text-xs font-medium transition">Favour Buyer</button>
+                                    className="px-3 py-1.5 border border-brand-500 text-brand-500  rounded-lg text-xs font-medium transition">Favour Buyer</button>
                                 <button onClick={() => handleResolve(d.id, 'resolved_seller')}
-                                    className="px-3 py-1.5 border border-green-300 text-green-600 hover:bg-green-50 rounded-lg text-xs font-medium transition">Favour Seller</button>
+                                    className="px-3 py-1.5 border border-green-500 text-green-500  rounded-lg text-xs font-medium transition">Favour Seller</button>
                                 <button onClick={() => handleResolve(d.id, 'closed')}
                                     className="px-3 py-1.5 border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-medium transition">Close</button>
                             </div>
@@ -1207,7 +1207,7 @@ export const SupportTicketsManager: React.FC = () => {
           <div className="flex gap-1 overflow-x-auto pb-1">
             {['open', 'in_progress', 'resolved', 'closed'].map(s => (
               <button key={s} onClick={() => { setStatusFilter(s); setSelectedTicket(null); }}
-                className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition capitalize shrink-0 ${statusFilter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
+                className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition capitalize shrink-0 ${statusFilter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
                 {s.replace('_', ' ')}
               </button>
             ))}
@@ -1220,11 +1220,11 @@ export const SupportTicketsManager: React.FC = () => {
             const latestMsg = t.messages && t.messages.length > 0 ? t.messages[t.messages.length - 1].body : '';
             return (
               <div key={t.id} onClick={() => handleSelectTicket(t)}
-                className={`p-4 cursor-pointer transition flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 ${selectedTicket?.id === t.id ? 'bg-brand-50/50 dark:bg-brand-950/20 border-l-4 border-brand-600' : ''}`}>
+                className={`p-4 cursor-pointer transition flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 ${selectedTicket?.id === t.id ? '  border-l-4 border-brand-500' : ''}`}>
                 <div>
                   <div className="flex justify-between items-start gap-1">
                     <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{t.subject}</p>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${t.status === 'open' ? 'bg-red-100 text-red-700' : t.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${t.status === 'open' ? ' text-red-500' : t.status === 'resolved' ? ' text-green-500' : ' text-yellow-500'}`}>
                       {t.status.replace('_', ' ')}
                     </span>
                   </div>
@@ -1232,7 +1232,7 @@ export const SupportTicketsManager: React.FC = () => {
                     <p className="text-[10px] text-gray-500 dark:text-gray-400">Category: {t.category}</p>
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
                       t.priority === 'urgent' ? 'bg-red-500 text-white' : 
-                      t.priority === 'high' ? 'bg-orange-100 text-orange-700' : 
+                      t.priority === 'high' ? ' text-orange-500' : 
                       'bg-gray-100 text-gray-600'
                     }`}>{t.priority}</span>
                   </div>
@@ -1257,10 +1257,10 @@ export const SupportTicketsManager: React.FC = () => {
               </div>
               <div className="flex gap-2">
                 {selectedTicket.status === 'open' && (
-                  <button onClick={() => handleUpdateStatus(selectedTicket.id, 'in_progress')} className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition">Accept</button>
+                  <button onClick={() => handleUpdateStatus(selectedTicket.id, 'in_progress')} className="px-3 py-1.5 bg-brand-500 hover:bg-brand-500 text-white rounded-lg text-xs font-bold transition">Accept</button>
                 )}
                 {['open', 'in_progress'].includes(selectedTicket.status) && (
-                  <button onClick={() => handleUpdateStatus(selectedTicket.id, 'resolved')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">Resolve</button>
+                  <button onClick={() => handleUpdateStatus(selectedTicket.id, 'resolved')} className="px-3 py-1.5 bg-green-500 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition">Resolve</button>
                 )}
               </div>
             </div>
@@ -1274,16 +1274,16 @@ export const SupportTicketsManager: React.FC = () => {
                 return (
                   <div key={msg.id} className={`flex items-start gap-2 max-w-[80%] ${isUser ? '' : 'ml-auto flex-row-reverse'}`}>
                     <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${
-                      isUser ? 'bg-brand-100 text-brand-600' : isInternal ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'
+                      isUser ? ' text-brand-500' : isInternal ? ' text-yellow-500' : ' text-green-500'
                     }`}>
                       {isUser ? 'U' : 'S'}
                     </div>
                     <div className={`p-3 rounded-2xl text-xs ${
                       isUser ? 'bg-white dark:bg-[#0A0A0A] border dark:border-gray-700 text-gray-700 dark:text-gray-300' :
-                      isInternal ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200' :
-                      'bg-brand-600 text-white'
+                      isInternal ? '  border border-yellow-500 dark:border-yellow-500 text-yellow-500 dark:text-yellow-500' :
+                      'bg-brand-500 text-white'
                     }`}>
-                      <p className={`font-semibold mb-1 text-[10px] ${isUser ? 'text-gray-400' : isInternal ? 'text-yellow-600' : 'text-brand-200'}`}>
+                      <p className={`font-semibold mb-1 text-[10px] ${isUser ? 'text-gray-400' : isInternal ? 'text-yellow-500' : 'text-brand-500'}`}>
                         {msg.sender_name} {isInternal && '(Internal Note)'} · {fmtDate(msg.created_at)}
                       </p>
                       <p>{msg.body}</p>
@@ -1297,17 +1297,17 @@ export const SupportTicketsManager: React.FC = () => {
             {['open', 'in_progress'].includes(selectedTicket.status) ? (
               <div className="p-4 border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A]">
                 <div className="flex gap-4 mb-2 border-b border-gray-100 dark:border-gray-800">
-                  <button onClick={() => setIsInternal(false)} className={`text-xs font-bold pb-2 border-b-2 ${!isInternal ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-400'}`}>Public Reply</button>
+                  <button onClick={() => setIsInternal(false)} className={`text-xs font-bold pb-2 border-b-2 ${!isInternal ? 'border-brand-500 text-brand-500' : 'border-transparent text-gray-400'}`}>Public Reply</button>
                   <button onClick={() => setIsInternal(true)} className={`text-xs font-bold pb-2 border-b-2 ${isInternal ? 'border-yellow-500 text-yellow-500' : 'border-transparent text-gray-400'}`}>Internal Note</button>
                 </div>
                 <div className="flex gap-2">
                   <input type="text" placeholder={isInternal ? "Type an internal note..." : "Type your response to the user..."} value={replyText} onChange={e => setReplyText(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSendReply()}
                     className={`flex-1 px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 bg-white dark:bg-[#0A0A0A] ${
-                      isInternal ? 'border-yellow-300 focus:ring-yellow-100 focus:border-yellow-500 text-yellow-900 dark:text-yellow-100' : 'border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white'
+                      isInternal ? 'border-yellow-500 focus:ring-yellow-500 focus:border-yellow-500 text-yellow-500 dark:text-yellow-500' : 'border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white'
                     }`} />
                   <button onClick={handleSendReply} className={`px-4 py-2 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 ${
-                    isInternal ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-brand-600 hover:bg-brand-700'
+                    isInternal ? 'bg-yellow-500 hover:bg-yellow-500' : 'bg-brand-500 hover:bg-brand-500'
                   }`}>
                     <Send size={12} /> {isInternal ? 'Add Note' : 'Reply'}
                   </button>
@@ -1425,7 +1425,7 @@ const StaffDashboardLayout: React.FC = () => {
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
               {data?.user?.is_inspector && !canManageInspections ? 'Inspector Panel' : 'Staff Panel'}
             </h3>
-            {data?.user.username && <p className="text-[10px] text-brand-600 font-bold mt-1 truncate">@{data.user.username}</p>}
+            {data?.user.username && <p className="text-[10px] text-brand-500 font-bold mt-1 truncate">@{data.user.username}</p>}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -1436,7 +1436,7 @@ const StaffDashboardLayout: React.FC = () => {
                   title={isSidebarCollapsed ? item.label : undefined}
                   className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-lg text-sm transition group ${
                     isActive
-                      ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                      ? '  text-brand-500 dark:text-brand-500 font-medium'
                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}>
                   <item.icon size={16} className={isSidebarCollapsed ? 'shrink-0' : ''} />

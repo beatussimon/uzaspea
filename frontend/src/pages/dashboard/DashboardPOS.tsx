@@ -113,7 +113,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
                   <td className="py-3 px-4 font-medium text-gray-900 dark:text-gray-300">
                     {new Date(order.order_date).toLocaleDateString()} {new Date(order.order_date).toLocaleTimeString()}
                   </td>
-                  <td className="py-3 px-4 text-brand-600 font-bold">#{order.id}</td>
+                  <td className="py-3 px-4 text-brand-500 font-bold">#{order.id}</td>
                   <td className="py-3 px-4 text-gray-600 dark:text-gray-400">
                     {order.delivery_info?.customer_name || 'Walk-in Customer'}
                   </td>
@@ -410,7 +410,7 @@ const DashboardPOS: React.FC = () => {
                         <SafeImage src={product.images?.[0]?.image || ''} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         {product.stock <= 0 && (
                           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-10">
-                            <span className="text-white font-black uppercase tracking-wider px-3 py-1 bg-red-600 rounded-full text-[9px] shadow-lg">Out of Stock</span>
+                            <span className="text-white font-black uppercase tracking-wider px-3 py-1 bg-red-500 rounded-full text-[9px] shadow-lg">Out of Stock</span>
                           </div>
                         )}
                         <div className="absolute top-1.5 right-1.5 bg-white/90 dark:bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded-md shadow-sm border border-black/5 text-[9px] font-bold text-gray-900 dark:text-white">
@@ -419,8 +419,8 @@ const DashboardPOS: React.FC = () => {
                       </div>
                       
                       <div className="p-2.5 md:p-3 flex flex-col flex-1">
-                        <h3 className="font-bold text-gray-900 dark:text-white text-xs line-clamp-2 mb-1 group-hover:text-brand-600 transition-colors">{product.name}</h3>
-                        <p className="text-brand-600 dark:text-brand-400 font-black text-sm mb-2">TSh {parseInt(product.price).toLocaleString()}</p>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-xs line-clamp-2 mb-1 group-hover:text-brand-500 transition-colors">{product.name}</h3>
+                        <p className="text-brand-500 dark:text-brand-500 font-black text-sm mb-2">TSh {parseInt(product.price).toLocaleString()}</p>
                         
                         <div className="mt-auto">
                           {product.variants && product.variants.length > 0 ? (
@@ -432,10 +432,10 @@ const DashboardPOS: React.FC = () => {
                                       key={v.id}
                                       onClick={() => addToCart(product, v)}
                                       disabled={v.stock <= 0}
-                                      className="w-full text-left px-2 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-700 text-[10px] font-semibold hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex justify-between items-center transition-all group/btn"
+                                      className="w-full text-left px-2 py-1.5 rounded-lg border border-gray-200 dark:border-neutral-700 text-[10px] font-semibold hover:border-brand-500   disabled:opacity-50 disabled:cursor-not-allowed flex justify-between items-center transition-all group/btn"
                                     >
-                                      <span className="truncate pr-1 dark:text-gray-300 group-hover/btn:text-brand-700 dark:group-hover/btn:text-brand-300">{v.name}</span>
-                                      <span className="font-bold text-brand-600 shrink-0">+{parseFloat(v.price_adjustment).toLocaleString()}</span>
+                                      <span className="truncate pr-1 dark:text-gray-300 group-hover/btn:text-brand-500 dark:group-hover/btn:text-brand-500">{v.name}</span>
+                                      <span className="font-bold text-brand-500 shrink-0">+{parseFloat(v.price_adjustment).toLocaleString()}</span>
                                     </button>
                                   );
                                 })}
@@ -479,7 +479,7 @@ const DashboardPOS: React.FC = () => {
           {/* Mobile Cart Floating Action Bar & Modal */}
           <div className="lg:hidden">
             {/* Floating Bar pinned to bottom */}
-            <div className="fixed bottom-16 inset-x-0 p-4 z-40 bg-gradient-to-t from-white via-white to-transparent dark:from-black dark:via-black pointer-events-none">
+            <div className="fixed bottom-16 inset-x-0 p-4 z-40  from-white via-white to-transparent dark:from-black dark:via-black pointer-events-none">
               <div className="pointer-events-auto max-w-md mx-auto">
                 <button 
                   onClick={() => setIsMobileCartOpen(true)}
@@ -724,9 +724,9 @@ const CartContent = ({
               <div className="flex-1 pr-3">
                 <h4 className="font-bold text-sm text-gray-900 dark:text-white line-clamp-2 leading-tight mb-1">{item.name}</h4>
                 {item.variant_name && <p className="text-xs font-semibold text-gray-500 bg-gray-100 dark:bg-neutral-800 inline-block px-2 py-0.5 rounded-md mb-1">{item.variant_name}</p>}
-                <p className="text-brand-600 dark:text-brand-400 font-black text-sm mt-0.5">TSh {item.price.toLocaleString()}</p>
+                <p className="text-brand-500 dark:text-brand-500 font-black text-sm mt-0.5">TSh {item.price.toLocaleString()}</p>
               </div>
-              <button onClick={() => removeFromCart(item.id)} className="text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-xl transition-all">
+              <button onClick={() => removeFromCart(item.id)} className="text-gray-300 hover:text-red-500   p-2 rounded-xl transition-all">
                 <Trash2 size={16} />
               </button>
             </div>
@@ -772,7 +772,7 @@ const CartContent = ({
       
       <div className="flex justify-between items-end mb-5 p-4 bg-white dark:bg-neutral-900 rounded-xl border border-gray-100 dark:border-neutral-800 shadow-sm">
         <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Total Due</span>
-        <span className="text-2xl font-black text-brand-600 dark:text-brand-400 leading-none tracking-tight">TSh {cartTotal.toLocaleString()}</span>
+        <span className="text-2xl font-black text-brand-500 dark:text-brand-500 leading-none tracking-tight">TSh {cartTotal.toLocaleString()}</span>
       </div>
 
       <Button 

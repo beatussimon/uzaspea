@@ -127,7 +127,7 @@ const HelpCenterPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {siteSettings.support_phone && (
                   <a href={`tel:${siteSettings.support_phone}`} className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
-                    <div className="w-12 h-12 bg-brand-100 dark:bg-brand-900/30 text-brand-600 flex items-center justify-center rounded-full">
+                    <div className="w-12 h-12   text-brand-500 flex items-center justify-center rounded-full">
                       <Phone size={24} />
                     </div>
                     <h3 className="font-bold text-gray-900 dark:text-white">Call Us</h3>
@@ -136,7 +136,7 @@ const HelpCenterPage: React.FC = () => {
                 )}
                 {siteSettings.whatsapp_number && (
                   <a href={`https://wa.me/${siteSettings.whatsapp_number.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
-                    <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center rounded-full">
+                    <div className="w-12 h-12   text-green-500 flex items-center justify-center rounded-full">
                       <MessageCircle size={24} />
                     </div>
                     <h3 className="font-bold text-gray-900 dark:text-white">WhatsApp</h3>
@@ -145,7 +145,7 @@ const HelpCenterPage: React.FC = () => {
                 )}
                 {siteSettings.support_email && (
                   <a href={`mailto:${siteSettings.support_email}`} className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center rounded-full">
+                    <div className="w-12 h-12   text-blue-500 flex items-center justify-center rounded-full">
                       <Mail size={24} />
                     </div>
                     <h3 className="font-bold text-gray-900 dark:text-white">Email Us</h3>
@@ -154,7 +154,7 @@ const HelpCenterPage: React.FC = () => {
                 )}
                 {siteSettings.address && (
                   <div className="card p-6 flex flex-col items-center text-center space-y-2">
-                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center rounded-full">
+                    <div className="w-12 h-12   text-purple-500 flex items-center justify-center rounded-full">
                       <MapPin size={24} />
                     </div>
                     <h3 className="font-bold text-gray-900 dark:text-white">Visit Us</h3>
@@ -220,11 +220,11 @@ const HelpCenterPage: React.FC = () => {
                                         onClick={() => handleCategorySelect(cat)}
                                         className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all text-left ${
                                             isSelected 
-                                                ? 'bg-brand-50 dark:bg-brand-900/30 border-brand-500 text-brand-600 dark:text-brand-400 shadow-sm' 
+                                                ? '  border-brand-500 text-brand-500 dark:text-brand-500 shadow-sm' 
                                                 : 'bg-gray-50 dark:bg-neutral-800/50 border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-neutral-600'
                                         }`}
                                     >
-                                        <IconComp size={16} className={isSelected ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'} />
+                                        <IconComp size={16} className={isSelected ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'} />
                                         <span>{cat.label}</span>
                                     </button>
                                 );
@@ -275,11 +275,11 @@ const HelpCenterPage: React.FC = () => {
                                             className="flex justify-between items-start mb-2 cursor-pointer group"
                                             onClick={() => setActiveTicket(isActive ? null : ticket)}
                                         >
-                                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm group-hover:text-brand-600 transition-colors">{ticket.subject}</h3>
+                                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm group-hover:text-brand-500 transition-colors">{ticket.subject}</h3>
                                             <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0 ${
                                                 isInProgress ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300' :
                                                 isResolved ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300' :
-                                                'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                                                '  text-blue-500 dark:text-blue-500'
                                             }`}>
                                                 {isResolved ? <CheckCircle size={12} /> : <Clock size={12} />}
                                                 <span>
@@ -304,7 +304,7 @@ const HelpCenterPage: React.FC = () => {
                                                                 <span className="text-xs text-gray-500 mb-1 font-bold">{isStaff ? t('support_team', 'Support Team') : t('you', 'You')}</span>
                                                                 <div className={`p-3 rounded-xl max-w-[90%] text-sm ${
                                                                     isStaff 
-                                                                        ? 'bg-brand-50 dark:bg-brand-900/20 border-l-4 border-brand-500 rounded-tl-none text-gray-800 dark:text-gray-200' 
+                                                                        ? '  border-l-4 border-brand-500 rounded-tl-none text-gray-800 dark:text-gray-200' 
                                                                         : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-tr-none text-gray-700 dark:text-gray-300'
                                                                 }`}>
                                                                     {msg.body}

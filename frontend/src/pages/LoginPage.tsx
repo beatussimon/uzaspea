@@ -75,12 +75,12 @@ const LoginPage: React.FC = () => {
         </div>
 
         {isBanned && (
-          <div className="mb-6 p-4 bg-red-100/10 border border-red-500/20 rounded-card flex flex-col gap-1.5">
+          <div className="mb-6 p-4  border border-red-500/20 rounded-card flex flex-col gap-1.5">
             <h3 className="text-red-500 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
               <AlertTriangle size={14} />
               {t('account_banned_title', 'Account Banned')}
             </h3>
-            <p className="text-xs text-red-650 dark:text-red-300">
+            <p className="text-xs text-red-500 dark:text-red-500">
               {t('account_banned_desc', 'Your account has been permanently restricted by SokoniMax administrators due to policy violations.')}
             </p>
           </div>
@@ -132,7 +132,7 @@ const LoginPage: React.FC = () => {
 
         <p className="text-center text-sm text-gray-500 mt-6">
           {t('dont_have_account')}{' '}
-          <Link to="/register" className="font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 hover:underline">
+          <Link to="/register" className="font-bold text-brand-500 hover:text-brand-500 dark:text-brand-500 hover:underline">
             {t('create_account_link')}
           </Link>
         </p>

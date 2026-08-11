@@ -11,7 +11,7 @@ const SellerContractPage: React.FC = () => {
         className="card p-8 sm:p-12 prose dark:prose-invert prose-brand max-w-none bg-white dark:bg-neutral-900 rounded-2xl shadow-xl"
       >
         <div className="flex items-center gap-4 mb-8 pb-8 border-b dark:border-neutral-800">
-          <div className="w-16 h-16 bg-brand-100 dark:bg-brand-900/30 text-brand-600 rounded-2xl flex items-center justify-center shrink-0">
+          <div className="w-16 h-16   text-brand-500 rounded-2xl flex items-center justify-center shrink-0">
             <Briefcase size={32} />
           </div>
           <div>
@@ -78,9 +78,9 @@ const SellerContractPage: React.FC = () => {
             </p>
           </section>
 
-          <div className="mt-12 p-6 bg-brand-50 dark:bg-brand-900/20 rounded-xl border border-brand-200 dark:border-brand-800">
-            <h3 className="font-bold text-brand-900 dark:text-brand-100 mb-2">Acknowledgment</h3>
-            <p className="text-brand-800 dark:text-brand-200 text-sm">
+          <div className="mt-12 p-6   rounded-xl border border-brand-500 dark:border-brand-500">
+            <h3 className="font-bold text-brand-500 dark:text-brand-500 mb-2">Acknowledgment</h3>
+            <p className="text-brand-500 dark:text-brand-500 text-sm">
               By checking the agreement box during the upgrade process, you electronically sign this Agreement and acknowledge that you have read, understood, and agreed to be bound by all its terms.
             </p>
           </div>

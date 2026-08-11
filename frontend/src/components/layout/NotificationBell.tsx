@@ -172,7 +172,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
         onClick={openPanel} 
         className={open && activeClassName ? activeClassName : (className || `relative btn-ghost p-2 rounded-full transition-colors ${
           open 
-            ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400' 
+            ? ' text-brand-500  dark:text-brand-500' 
             : 'hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-300'
         }`)}
       >
@@ -197,10 +197,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
               <div className="p-4 border-b border-gray-100 dark:border-neutral-800 flex items-center justify-between bg-gray-50/50 dark:bg-neutral-900/50">
               <h3 className="font-bold text-gray-900 dark:text-white">Notifications</h3>
               <div className="flex items-center gap-2">
-                <button onClick={markAllRead} className="p-1.5 hover:bg-brand-50 dark:hover:bg-brand-900/30 text-brand-600 rounded-full transition-colors tooltip tooltip-bottom" data-tip="Mark all read">
+                <button onClick={markAllRead} className="p-1.5   text-brand-500 rounded-full transition-colors tooltip tooltip-bottom" data-tip="Mark all read">
                   <Check size={16} />
                 </button>
-                <button onClick={clearAll} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 rounded-full transition-colors tooltip tooltip-bottom" data-tip="Clear all">
+                <button onClick={clearAll} className="p-1.5   text-red-500 rounded-full transition-colors tooltip tooltip-bottom" data-tip="Clear all">
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -229,7 +229,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
                             key={n.id} 
                             className={`flex gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${
                               !n.is_read 
-                                ? 'bg-brand-50/50 dark:bg-brand-900/20 hover:bg-brand-50 dark:hover:bg-brand-900/30' 
+                                ? '   ' 
                                 : 'hover:bg-gray-50 dark:hover:bg-neutral-800'
                             }`}
                             onClick={() => { 
@@ -242,7 +242,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-2">
-                                <p className={`text-sm ${!n.is_read ? 'font-bold text-brand-900 dark:text-brand-100' : 'font-medium text-gray-900 dark:text-white'}`}>
+                                <p className={`text-sm ${!n.is_read ? 'font-bold text-brand-500 dark:text-brand-500' : 'font-medium text-gray-900 dark:text-white'}`}>
                                   {n.title}
                                 </p>
                                 {!n.is_read && <span className="w-2 h-2 rounded-full bg-brand-500 mt-1.5 shrink-0" />}

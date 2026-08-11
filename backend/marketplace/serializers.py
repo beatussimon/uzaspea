@@ -323,20 +323,29 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
+    product_slug = serializers.CharField(source='product.slug', read_only=True)
     variant_name = serializers.CharField(source='variant.name', read_only=True)
     product_image = serializers.SerializerMethodField()
     seller_username = serializers.CharField(source='product.seller.username', read_only=True)
     has_review = serializers.SerializerMethodField()
+    review = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'has_review']
+        fields = ['id', 'product', 'product_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'has_review', 'review']
         read_only_fields = ['price']
 
     def get_has_review(self, obj):
         from .models import Review
         # Check if a review exists for this product and this specific order
         return Review.objects.filter(product=obj.product, order=obj.order).exists()
+
+    def get_review(self, obj):
+        from .models import Review
+        review = Review.objects.filter(product=obj.product, order=obj.order).first()
+        if review:
+            return ProductReviewSerializer(review, context=self.context).data
+        return None
 
     def get_product_image(self, obj):
         img = obj.product.images.first()
@@ -852,6 +861,8 @@ class StoreImageSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
+    first_name = serializers.CharField(source='user.first_name', read_only=True)
+    last_name = serializers.CharField(source='user.last_name', read_only=True)
     user_id = serializers.IntegerField(source='user.id', read_only=True)
     seller_rating = serializers.SerializerMethodField()  # FIX B-14
     store_images = StoreImageSerializer(many=True, read_only=True)
@@ -859,7 +870,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ['id', 'user', 'user_id', 'username', 'is_verified', 'phone_number', 'instagram_username',
+        fields = ['id', 'user', 'user_id', 'username', 'first_name', 'last_name', 'is_verified', 'phone_number', 'instagram_username',
                   'website', 'bio', 'tier', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
                   'preferred_currency', 'seller_rating', 'store_images', 'is_location_verified', 'is_following']
         read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified']  # FIX: S-07 — only staff should set these

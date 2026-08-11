@@ -49,7 +49,7 @@ const FeaturedSection: React.FC<FeaturedSectionProps> = ({
       {/* Subtle Dynamic Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-amber-500/5 dark:bg-amber-500/10 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-yellow-500/5 dark:bg-yellow-500/10 blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full   blur-[120px]" />
       </div>
 
       <AnimatePresence>
@@ -123,7 +123,7 @@ const FeaturedSection: React.FC<FeaturedSectionProps> = ({
               <motion.div variants={itemVariants} className="mt-8 flex justify-center">
                 <Link 
                   to="/products" 
-                  className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 hover:underline"
+                  className="text-brand-500 dark:text-brand-500 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 hover:underline"
                 >
                   Explore All Products <ArrowRight className="w-4 h-4" />
                 </Link>

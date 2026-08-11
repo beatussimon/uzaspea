@@ -132,7 +132,7 @@ export const TeamsPage: React.FC = () => {
                     <p className="text-xs text-gray-400">Permissions to be granted:</p>
                     <div className="flex flex-wrap gap-1.5">
                       {Object.entries(inv.permissions).map(([name, val]) => (
-                        <span key={name} className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${val ? 'bg-green-950/40 text-green-400 border border-green-900/50' : 'bg-gray-950 text-gray-600 border border-gray-900'}`}>
+                        <span key={name} className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${val ? ' text-green-500 border border-green-500/50' : 'bg-gray-950 text-gray-600 border border-gray-900'}`}>
                           {name.replace('_', ' ')}
                         </span>
                       ))}
@@ -152,7 +152,7 @@ export const TeamsPage: React.FC = () => {
                   <button
                     disabled={actioning !== null}
                     onClick={() => handleDecline(inv.id)}
-                    className="flex-1 btn-ghost py-2.5 border-red-950 text-red-500 hover:bg-red-950/20 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                    className="flex-1 btn-ghost py-2.5 border-red-500 text-red-500  text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
                   >
                     <XCircle size={14} />
                     Decline
@@ -183,7 +183,7 @@ export const TeamsPage: React.FC = () => {
                       <h4 className="font-bold text-white text-base">@{mem.owner_username}</h4>
                       <p className="text-xs text-gray-500">Business Team Owner</p>
                     </div>
-                    <span className="text-[10px] font-black uppercase bg-green-500/10 text-green-400 px-2 py-0.5 rounded border border-green-500/20">
+                    <span className="text-[10px] font-black uppercase  text-green-500 px-2 py-0.5 rounded border border-green-500/20">
                       {ROLE_LABELS[mem.role_preset] || 'Worker'}
                     </span>
                   </div>

@@ -249,11 +249,11 @@ const BillingPage: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PAID':
-        return <span className="px-2.5 py-0.5 text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full uppercase">Paid</span>;
+        return <span className="px-2.5 py-0.5 text-[10px] font-bold  text-green-500  dark:text-green-500 rounded-full uppercase">Paid</span>;
       case 'PENDING_REVIEW':
-        return <span className="px-2.5 py-0.5 text-[10px] font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-full uppercase">Pending Review</span>;
+        return <span className="px-2.5 py-0.5 text-[10px] font-bold  text-yellow-500  dark:text-yellow-500 rounded-full uppercase">Pending Review</span>;
       case 'OVERDUE':
-        return <span className="px-2.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full uppercase">Overdue</span>;
+        return <span className="px-2.5 py-0.5 text-[10px] font-bold  text-red-500  dark:text-red-500 rounded-full uppercase">Overdue</span>;
       default:
         return <span className="px-2.5 py-0.5 text-[10px] font-bold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-full uppercase">Unpaid</span>;
     }
@@ -264,7 +264,7 @@ const BillingPage: React.FC = () => {
       <div className="flex items-center justify-between mb-2">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Wallet className="text-brand-600" size={24} /> Billing & Commission
+            <Wallet className="text-brand-500" size={24} /> Billing & Commission
           </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Manage your platform fees, commission ledger, and monthly payouts.</p>
         </div>
@@ -277,7 +277,7 @@ const BillingPage: React.FC = () => {
             onClick={() => setActiveTab('subscriptions')}
             className={`py-3.5 border-b-2 text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === 'subscriptions'
-                ? 'border-brand-600 text-brand-600'
+                ? 'border-brand-500 text-brand-500'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
@@ -287,7 +287,7 @@ const BillingPage: React.FC = () => {
             onClick={() => setActiveTab('invoices')}
             className={`py-3.5 border-b-2 text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === 'invoices'
-                ? 'border-brand-600 text-brand-600'
+                ? 'border-brand-500 text-brand-500'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
@@ -297,7 +297,7 @@ const BillingPage: React.FC = () => {
             onClick={() => setActiveTab('ledger')}
             className={`py-3.5 border-b-2 text-sm font-bold transition-all ${
               activeTab === 'ledger'
-                ? 'border-brand-600 text-brand-600'
+                ? 'border-brand-500 text-brand-500'
                 : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
           >
@@ -308,7 +308,7 @@ const BillingPage: React.FC = () => {
               onClick={() => setActiveTab('driver_payments')}
               className={`py-3.5 border-b-2 text-sm font-bold transition-all ${
                 activeTab === 'driver_payments'
-                  ? 'border-brand-600 text-brand-600'
+                  ? 'border-brand-500 text-brand-500'
                   : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
             >
@@ -322,11 +322,11 @@ const BillingPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
           <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 no-scrollbar">
             <Filter size={16} className="text-gray-400 shrink-0" />
-            <button onClick={() => setDateFilter('all')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'all' ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>All Time</button>
-            <button onClick={() => setDateFilter('this_month')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'this_month' ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>This Month</button>
-            <button onClick={() => setDateFilter('last_month')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'last_month' ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>Last Month</button>
-            <button onClick={() => setDateFilter('this_year')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'this_year' ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>This Year</button>
-            <button onClick={() => setDateFilter('custom')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'custom' ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>Custom</button>
+            <button onClick={() => setDateFilter('all')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'all' ? ' text-brand-500  dark:text-brand-500' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>All Time</button>
+            <button onClick={() => setDateFilter('this_month')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'this_month' ? ' text-brand-500  dark:text-brand-500' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>This Month</button>
+            <button onClick={() => setDateFilter('last_month')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'last_month' ? ' text-brand-500  dark:text-brand-500' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>Last Month</button>
+            <button onClick={() => setDateFilter('this_year')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'this_year' ? ' text-brand-500  dark:text-brand-500' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>This Year</button>
+            <button onClick={() => setDateFilter('custom')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'custom' ? ' text-brand-500  dark:text-brand-500' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>Custom</button>
           </div>
           {dateFilter === 'custom' && (
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -340,7 +340,7 @@ const BillingPage: React.FC = () => {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" />
         </div>
       ) : activeTab === 'subscriptions' ? (
         <div className="space-y-4">
@@ -360,12 +360,12 @@ const BillingPage: React.FC = () => {
                       <div>
                         <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
-                        <div className="text-lg font-black text-brand-600 dark:text-brand-400 mb-1">TZS {Number(t.price).toLocaleString()}</div>
+                        <div className="text-lg font-black text-brand-500 dark:text-brand-500 mb-1">TZS {Number(t.price).toLocaleString()}</div>
                         <p className="text-[10px] text-gray-400">Duration: {t.duration} Days</p>
                       </div>
                       <button
                         onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
-                        className="btn-primary py-2 px-4 mt-4 w-full rounded-lg text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-sm"
+                        className="btn-primary py-2 px-4 mt-4 w-full rounded-lg text-xs font-bold bg-brand-500 hover:bg-brand-500 text-white shadow-sm"
                       >
                         Subscribe Now
                       </button>
@@ -382,9 +382,9 @@ const BillingPage: React.FC = () => {
                     <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2">
                       <span className="capitalize">{sub.tier?.name || 'Unknown Tier'}</span> Plan
                       {sub.is_expired ? (
-                        <span className="px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs rounded-full uppercase tracking-wider font-bold">Expired</span>
+                        <span className="px-2 py-0.5  text-red-500  dark:text-red-500 text-xs rounded-full uppercase tracking-wider font-bold">Expired</span>
                       ) : (
-                        <span className="px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs rounded-full uppercase tracking-wider font-bold">Active</span>
+                        <span className="px-2 py-0.5  text-green-500  dark:text-green-500 text-xs rounded-full uppercase tracking-wider font-bold">Active</span>
                       )}
                     </h3>
                     <div className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
@@ -401,7 +401,7 @@ const BillingPage: React.FC = () => {
                       {sub.is_active && (
                         <button
                           onClick={handleCancelSubscription}
-                          className="py-2 px-4 rounded-lg text-xs font-bold border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition"
+                          className="py-2 px-4 rounded-lg text-xs font-bold border border-red-500 dark:border-red-500/30 text-red-500 dark:text-red-500   transition"
                         >
                           Cancel Subscription
                         </button>
@@ -409,7 +409,7 @@ const BillingPage: React.FC = () => {
                       <button
                         onClick={() => handleOpenSubscriptionPayModal(sub)}
                         className={`btn-primary py-2 px-6 rounded-lg text-xs font-bold shadow-md w-full md:w-auto ${
-                          sub.is_expired ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/20' : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/20'
+                          sub.is_expired ? 'bg-red-500 hover:bg-red-500 text-white shadow-red-600/20' : 'bg-brand-500 hover:bg-brand-500 text-white shadow-brand-600/20'
                         }`}
                       >
                         {sub.is_expired ? 'Renew Now' : 'Pay Renewal Early'}
@@ -438,12 +438,12 @@ const BillingPage: React.FC = () => {
                           <div>
                             <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
-                            <div className="text-lg font-black text-brand-600 dark:text-brand-400 mb-1">TZS {Number(t.price).toLocaleString()}</div>
+                            <div className="text-lg font-black text-brand-500 dark:text-brand-500 mb-1">TZS {Number(t.price).toLocaleString()}</div>
                             <p className="text-[10px] text-gray-400">Duration: {t.duration} Days</p>
                           </div>
                           <button
                             onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
-                            className="btn-primary py-2 px-4 mt-4 w-full rounded-lg text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-sm"
+                            className="btn-primary py-2 px-4 mt-4 w-full rounded-lg text-xs font-bold bg-brand-500 hover:bg-brand-500 text-white shadow-sm"
                           >
                             Choose Upgrade
                           </button>
@@ -452,8 +452,8 @@ const BillingPage: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 bg-brand-50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/30 rounded-xl text-center">
-                    <p className="text-sm font-semibold text-brand-800 dark:text-brand-400">
+                  <div className="p-4   border border-brand-500 dark:border-brand-500/30 rounded-xl text-center">
+                    <p className="text-sm font-semibold text-brand-500 dark:text-brand-500">
                       You are subscribed to our highest tier plan (Business). Thank you for being a premium partner!
                     </p>
                   </div>
@@ -492,7 +492,7 @@ const BillingPage: React.FC = () => {
                         <td className="p-4 text-right text-gray-600 dark:text-gray-300">
                           TSh {Number(inv.total_order_amount).toLocaleString()}
                         </td>
-                        <td className="p-4 text-right text-brand-600 font-bold">
+                        <td className="p-4 text-right text-brand-500 font-bold">
                           TSh {Number(inv.total_commission).toLocaleString()}
                         </td>
                         <td className="p-4 text-gray-500 dark:text-gray-400">
@@ -503,7 +503,7 @@ const BillingPage: React.FC = () => {
                           {(inv.status === 'UNPAID' || inv.status === 'OVERDUE') ? (
                             <button
                               onClick={() => handleOpenPayModal(inv)}
-                              className="px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded font-bold transition text-[11px]"
+                              className="px-3 py-1 bg-brand-500 hover:bg-brand-500 text-white rounded font-bold transition text-[11px]"
                             >
                               Pay Now
                             </button>
@@ -541,7 +541,7 @@ const BillingPage: React.FC = () => {
           {ledger.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-lg">
+                <div className="p-3   text-blue-500 rounded-lg">
                   <Receipt size={24} />
                 </div>
                 <div>
@@ -552,12 +552,12 @@ const BillingPage: React.FC = () => {
                 </div>
               </div>
               <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                <div className="p-3 bg-brand-50 dark:bg-brand-900/20 text-brand-600 rounded-lg">
+                <div className="p-3   text-brand-500 rounded-lg">
                   <Wallet size={24} />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Commission</p>
-                  <p className="text-xl font-black text-brand-600 mt-1">
+                  <p className="text-xl font-black text-brand-500 mt-1">
                     TSh {Number(ledgerTotals?.total_commission || ledger.reduce((sum, entry) => sum + Number(entry.commission_amount || 0), 0)).toLocaleString()}
                   </p>
                 </div>
@@ -601,7 +601,7 @@ const BillingPage: React.FC = () => {
                         <td className="p-4 text-right text-gray-500 dark:text-gray-400">
                           {Number(entry.commission_rate)}%
                         </td>
-                        <td className="p-4 text-right font-bold text-brand-600">
+                        <td className="p-4 text-right font-bold text-brand-500">
                           TSh {Number(entry.commission_amount).toLocaleString()}
                         </td>
                       </tr>
@@ -631,17 +631,17 @@ const BillingPage: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="bg-blue-50/50 dark:bg-blue-950/15 border border-blue-100/50 dark:border-blue-900/30 p-4 rounded-xl">
-            <h4 className="text-xs font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1.5 mb-1">
+          <div className="  border border-blue-500/50 dark:border-blue-500/30 p-4 rounded-xl">
+            <h4 className="text-xs font-bold text-blue-500 dark:text-blue-500 uppercase tracking-wider flex items-center gap-1.5 mb-1">
               <Truck size={14} /> Logistics & Delivery Costs
             </h4>
-            <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+            <p className="text-xs text-blue-500 dark:text-blue-500 leading-relaxed">
               These are the driver compensation costs SokoniMax has incurred fulfilling your orders via our fleet. Note that these delivery fees are automatically deducted from the payout or charged to your account.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-              <div className="p-3 bg-brand-50 dark:bg-brand-900/20 text-brand-600 rounded-lg">
+              <div className="p-3   text-brand-500 rounded-lg">
                 <Truck size={24} />
               </div>
               <div>
@@ -650,12 +650,12 @@ const BillingPage: React.FC = () => {
               </div>
             </div>
             <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 rounded-lg">
+              <div className="p-3   text-green-500 rounded-lg">
                 <CheckCircle2 size={24} />
               </div>
               <div>
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Paid to Drivers</p>
-                <p className="text-xl font-black text-green-600 mt-1">TSh {Number(driverPaymentsTotals?.total_paid || driverPayments.filter(dp => dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
+                <p className="text-xl font-black text-green-500 mt-1">TSh {Number(driverPaymentsTotals?.total_paid || driverPayments.filter(dp => dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
               </div>
             </div>
             <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
@@ -705,9 +705,9 @@ const BillingPage: React.FC = () => {
                         </td>
                         <td className="p-4">
                           {dp.is_paid ? (
-                            <span className="px-2.5 py-0.5 text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full uppercase">Paid</span>
+                            <span className="px-2.5 py-0.5 text-[10px] font-bold  text-green-500  dark:text-green-500 rounded-full uppercase">Paid</span>
                           ) : (
-                            <span className="px-2.5 py-0.5 text-[10px] font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-full uppercase">Unpaid</span>
+                            <span className="px-2.5 py-0.5 text-[10px] font-bold  text-yellow-500  dark:text-yellow-500 rounded-full uppercase">Unpaid</span>
                           )}
                         </td>
                         <td className="p-4 text-gray-500 dark:text-gray-400">
@@ -757,31 +757,31 @@ const BillingPage: React.FC = () => {
 
             {loadingPaymentData ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" />
               </div>
             ) : (
               <form onSubmit={handlePaySubmit} className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-900/30 rounded-xl">
+                <div className="flex items-center justify-between p-3   border border-brand-500 dark:border-brand-500/30 rounded-xl">
                   {selectedInvoice ? (
                     <>
                       <div>
-                        <p className="text-xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider leading-none">Invoice Period</p>
+                        <p className="text-xs text-brand-500 dark:text-brand-500 font-bold uppercase tracking-wider leading-none">Invoice Period</p>
                         <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mt-1">{formatMonth(selectedInvoice.year, selectedInvoice.month)}</h4>
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-gray-500 leading-none">Commission Due</p>
-                        <p className="font-black text-brand-600 text-sm mt-1">TSh {Number(selectedInvoice.total_commission).toLocaleString()}</p>
+                        <p className="font-black text-brand-500 text-sm mt-1">TSh {Number(selectedInvoice.total_commission).toLocaleString()}</p>
                       </div>
                     </>
                   ) : (
                     <>
                       <div>
-                        <p className="text-xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider leading-none">Subscription</p>
+                        <p className="text-xs text-brand-500 dark:text-brand-500 font-bold uppercase tracking-wider leading-none">Subscription</p>
                         <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mt-1">{selectedSubscription?.tier?.name} Plan</h4>
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-gray-500 leading-none">Renewal Due</p>
-                        <p className="font-black text-brand-600 text-sm mt-1">TSh {Number(selectedSubscription?.tier?.price || 0).toLocaleString()}</p>
+                        <p className="font-black text-brand-500 text-sm mt-1">TSh {Number(selectedSubscription?.tier?.price || 0).toLocaleString()}</p>
                       </div>
                     </>
                   )}
@@ -792,7 +792,7 @@ const BillingPage: React.FC = () => {
                     Pay to these numbers:
                   </p>
                   {adminLipa.length === 0 ? (
-                    <p className="text-xs text-yellow-600">No official payment numbers configured. Please contact support.</p>
+                    <p className="text-xs text-yellow-500">No official payment numbers configured. Please contact support.</p>
                   ) : (
                     <div className="space-y-2">
                       {adminLipa.map((lipa: any) => (
@@ -801,7 +801,7 @@ const BillingPage: React.FC = () => {
                             {lipa.network_logo ? (
                               <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
                             ) : (
-                              <Smartphone size={16} className="text-green-600" />
+                              <Smartphone size={16} className="text-green-500" />
                             )}
                           </div>
                           <div>

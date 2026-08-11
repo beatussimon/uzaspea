@@ -233,24 +233,24 @@ export const STATUS_LABELS: Record<string, string> = {
 
 export const STATUS_COLORS: Record<string, string> = {
   requested: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-  bill_sent: 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400',
-  awaiting_payment: 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400',
+  bill_sent: ' text-brand-500  dark:text-brand-500',
+  awaiting_payment: ' text-brand-500  dark:text-brand-500',
   deposit_paid: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-  pre_inspection: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  assigned: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  in_progress: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  submitted: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  pre_inspection: ' text-yellow-500  dark:text-yellow-500',
+  assigned: ' text-blue-500  dark:text-blue-500',
+  in_progress: ' text-purple-500  dark:text-purple-500',
+  submitted: ' text-orange-500  dark:text-orange-500',
   qa_review: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-  published: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  blocked: 'bg-red-200 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+  published: ' text-green-500  dark:text-green-500',
+  cancelled: ' text-red-500  dark:text-red-500',
+  blocked: ' text-red-500  dark:text-red-500',
   rescheduled: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
 };
 
 export const VERDICT_COLORS: Record<string, string> = {
-  pass: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  conditional: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  fail: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  pass: ' text-green-500  dark:text-green-500',
+  conditional: ' text-yellow-500  dark:text-yellow-500',
+  fail: ' text-red-500  dark:text-red-500',
 };
 
 export const fmtDate = (d: string) =>

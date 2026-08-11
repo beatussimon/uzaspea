@@ -11,7 +11,7 @@ const PrivacyPolicyPage: React.FC = () => {
         className="card p-8 sm:p-12 prose dark:prose-invert prose-brand max-w-none bg-white dark:bg-neutral-900 rounded-2xl shadow-xl"
       >
         <div className="flex items-center gap-4 mb-8 pb-8 border-b dark:border-neutral-800">
-          <div className="w-16 h-16 bg-brand-100 dark:bg-brand-900/30 text-brand-600 rounded-2xl flex items-center justify-center shrink-0">
+          <div className="w-16 h-16   text-brand-500 rounded-2xl flex items-center justify-center shrink-0">
             <Lock size={32} />
           </div>
           <div>

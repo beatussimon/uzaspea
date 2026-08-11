@@ -631,10 +631,10 @@ const WarehouseStaffLayout: React.FC = () => {
           {/* KPI Cards (Line-Haul) */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[
-              { title: 'Origin Intake', count: applyFilter(pendingIntakes.filter(o => o.status === 'SHIPPED_TO_WAREHOUSE')).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
+              { title: 'Origin Intake', count: applyFilter(pendingIntakes.filter(o => o.status === 'SHIPPED_TO_WAREHOUSE')).length, icon: Package, color: 'text-blue-500', bg: '' },
               { title: 'Pricing Queue', count: applyFilter(receivedIntakes).length, icon: Clock, color: 'text-[#F59E0B]', bg: 'bg-[#FFF5E5]' },
-              { title: 'Hold Shelf', count: applyFilter(awaitingPayments).length, icon: ShieldCheck, color: 'text-yellow-500', bg: 'bg-yellow-50' },
-              { title: 'Line-Haul Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code !== currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: 'bg-green-50' }
+              { title: 'Hold Shelf', count: applyFilter(awaitingPayments).length, icon: ShieldCheck, color: 'text-yellow-500', bg: '' },
+              { title: 'Line-Haul Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code !== currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: '' }
             ].map((kpi, idx) => (
               <motion.div 
                 key={kpi.title}
@@ -735,7 +735,7 @@ const WarehouseStaffLayout: React.FC = () => {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-500">
+                <span className="text-xs font-bold px-3 py-1.5 rounded-full  text-blue-500">
                   Incoming: {incomingTransfers.length}
                 </span>
                 <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-500">
@@ -757,7 +757,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-black text-black">Order #{transfer.order}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-500">In Transit</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded  text-blue-500">In Transit</span>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
                             Origin: <span className="font-semibold text-gray-900">{transfer.source_warehouse_name}</span>
@@ -768,7 +768,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         </div>
                         <button
                           onClick={() => handleActionClick(transfer.order.toString(), 'intake')}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-lg uppercase tracking-wider transition-all"
+                          className="px-4 py-2 bg-blue-500 hover:bg-blue-500 text-white text-xs font-black rounded-lg uppercase tracking-wider transition-all"
                         >
                           Receive Package
                         </button>
@@ -826,9 +826,9 @@ const WarehouseStaffLayout: React.FC = () => {
           {/* KPI Cards (Local Logistics) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { title: 'Dest WH Intake', count: applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).length, icon: Package, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-              { title: 'Local Delivery Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: 'bg-green-500/10' },
-              { title: 'Ready for Pickup / Release', count: applyFilter(readyForPickup).length, icon: Key, color: 'text-purple-500', bg: 'bg-purple-500/10' }
+              { title: 'Dest WH Intake', count: applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).length, icon: Package, color: 'text-blue-500', bg: '' },
+              { title: 'Local Delivery Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: '' },
+              { title: 'Ready for Pickup / Release', count: applyFilter(readyForPickup).length, icon: Key, color: 'text-purple-500', bg: '' }
             ].map((kpi, idx) => (
               <motion.div 
                 key={kpi.title}
@@ -878,7 +878,7 @@ const WarehouseStaffLayout: React.FC = () => {
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-black text-gray-900 dark:text-white">Order #{order.id}</span>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Out for Delivery</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full  text-green-500">Out for Delivery</span>
                             </div>
                             <p className="text-xs text-gray-500 mt-1 truncate max-w-[200px]">
                               {order.delivery_info?.full_name} · {order.delivery_info?.address}
@@ -887,7 +887,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         </div>
                         <button
                           onClick={() => handleActionClick(order.id.toString(), 'confirm_delivery')}
-                          className="w-full px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-xs font-black rounded-xl uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+                          className="w-full px-4 py-2.5 bg-green-500 hover:bg-green-500 text-white text-xs font-black rounded-xl uppercase tracking-wider transition-all flex items-center justify-center gap-2"
                         >
                           <Key size={14} /> Confirm Delivery (Enter Code)
                         </button>
@@ -935,12 +935,12 @@ const WarehouseStaffLayout: React.FC = () => {
               <div className="p-6 md:p-8 overflow-y-auto flex-1">
                 {/* Modal Header */}
                 <div className="flex items-center gap-4 mb-8">
-                  <div className="w-16 h-16 rounded-2xl bg-brand-500/10 flex items-center justify-center text-brand-500">
+                  <div className="w-16 h-16 rounded-2xl  flex items-center justify-center text-brand-500">
                     {activeModal === 'intake' && <Package size={32} />}
                     {activeModal === 'pricing' && <Clock size={32} />}
                     {activeModal === 'dispatch' && <Truck size={32} />}
                     {activeModal === 'verify' && <ShieldCheck size={32} />}
-                    {activeModal === 'confirm_delivery' && <Key size={32} className="text-green-600" />}
+                    {activeModal === 'confirm_delivery' && <Key size={32} className="text-green-500" />}
                   </div>
                   <div>
                     <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
@@ -1023,11 +1023,11 @@ const WarehouseStaffLayout: React.FC = () => {
                       {photoPreview && <img src={photoPreview} alt="Preview" className="w-full h-32 object-cover rounded-xl mt-2" />}
                     </div>
 
-                    <div className="flex items-center gap-3 bg-brand-50 dark:bg-brand-900/20 p-4 rounded-xl cursor-pointer" onClick={() => setRequireSignatures(!requireSignatures)}>
+                    <div className="flex items-center gap-3   p-4 rounded-xl cursor-pointer" onClick={() => setRequireSignatures(!requireSignatures)}>
                       <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${requireSignatures ? 'bg-brand-500 text-white' : 'bg-gray-200 dark:bg-neutral-700'}`}>
                         {requireSignatures && <CheckCircle size={14} />}
                       </div>
-                      <span className="text-sm font-bold text-brand-700 dark:text-brand-400">Require Physical Signatures</span>
+                      <span className="text-sm font-bold text-brand-500 dark:text-brand-500">Require Physical Signatures</span>
                     </div>
 
                     {requireSignatures && (
@@ -1049,7 +1049,7 @@ const WarehouseStaffLayout: React.FC = () => {
                       </div>
                     )}
 
-                    <button onClick={submitIntake} disabled={submitting} className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6">
+                    <button onClick={submitIntake} disabled={submitting} className="w-full py-4 bg-brand-500 hover:bg-brand-500 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6">
                       {submitting ? 'Checking In...' : 'Confirm Intake'}
                     </button>
                   </div>
@@ -1077,9 +1077,9 @@ const WarehouseStaffLayout: React.FC = () => {
                       <label className="text-xs font-bold text-brand-500 uppercase tracking-wider flex items-center gap-2">
                         Package Photo (Required) *
                       </label>
-                      <label className="border-2 border-dashed border-brand-300 dark:border-brand-700 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-brand-50 dark:hover:bg-brand-900/20 transition">
+                      <label className="border-2 border-dashed border-brand-500 dark:border-brand-500 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer   transition">
                         <Camera size={24} className="text-brand-500 mb-2" />
-                        <span className="text-sm font-bold text-brand-600 dark:text-brand-400">Tap to take photo</span>
+                        <span className="text-sm font-bold text-brand-500 dark:text-brand-500">Tap to take photo</span>
                         <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => {
                           if (e.target.files && e.target.files[0]) {
                             setPhoto(e.target.files[0]);
@@ -1121,7 +1121,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         submitIntake();
                       }} 
                       disabled={submitting} 
-                      className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6"
+                      className="w-full py-4 bg-brand-500 hover:bg-brand-500 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6"
                     >
                       {submitting ? 'Confirming Receipt...' : 'Confirm WH Receipt'}
                     </button>
@@ -1137,7 +1137,7 @@ const WarehouseStaffLayout: React.FC = () => {
                     <div className="bg-gray-50 dark:bg-neutral-800 p-6 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
                       {orderPreview?.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE' && (
                         <>
-                          <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-500">
+                          <div className="w-16 h-16 rounded-full   flex items-center justify-center text-blue-500">
                             <MapPin size={32} />
                           </div>
                           <div>
@@ -1154,7 +1154,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         submitIntake();
                       }} 
                       disabled={submitting} 
-                      className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-blue-500/30 mt-6 flex items-center justify-center gap-2"
+                      className="w-full py-4 bg-blue-500 hover:bg-blue-500 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-blue-500/30 mt-6 flex items-center justify-center gap-2"
                     >
                       <Truck size={20} /> {submitting ? 'Sorting...' : 'Confirm Sorting Complete'}
                     </button>
@@ -1187,7 +1187,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         className="w-full text-2xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-4 outline-none"
                       />
                       {suggestedFee !== null && (
-                        <p className="text-sm text-brand-600 dark:text-brand-400 mt-1">
+                        <p className="text-sm text-brand-500 dark:text-brand-500 mt-1">
                           <Zap size={14} className="inline mb-1 mr-1" />
                           Suggested fee based on {feeDataPoints} past {feeDataPoints === 1 ? 'delivery' : 'deliveries'}: TSh {suggestedFee.toLocaleString()}
                         </p>
@@ -1208,14 +1208,14 @@ const WarehouseStaffLayout: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setCarrierType('driver')}
-                          className={`py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${carrierType === 'driver' ? 'border-brand-500 bg-brand-500/10 text-brand-500' : 'border-gray-250 dark:border-neutral-700 text-gray-500'}`}
+                          className={`py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${carrierType === 'driver' ? 'border-brand-500  text-brand-500' : 'border-gray-250 dark:border-neutral-700 text-gray-500'}`}
                         >
                           Fleet Driver
                         </button>
                         <button
                           type="button"
                           onClick={() => setCarrierType('third_party')}
-                          className={`py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${carrierType === 'third_party' ? 'border-brand-500 bg-brand-500/10 text-brand-500' : 'border-gray-250 dark:border-neutral-700 text-gray-500'}`}
+                          className={`py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${carrierType === 'third_party' ? 'border-brand-500  text-brand-500' : 'border-gray-250 dark:border-neutral-700 text-gray-500'}`}
                         >
                           External Courier
                         </button>
@@ -1279,7 +1279,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         : 'Transfer shipment. Dispatching will mark order as IN_TRANSIT.'}
                     </p>
 
-                    <button onClick={submitDispatch} disabled={submitting} className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30 mt-6 flex justify-center items-center gap-2">
+                    <button onClick={submitDispatch} disabled={submitting} className="w-full py-4 bg-green-500 hover:bg-green-500 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30 mt-6 flex justify-center items-center gap-2">
                       <Truck size={24} />
                       {submitting ? 'Dispatching...' : 'Confirm Dispatch & Handover'}
                     </button>
@@ -1300,7 +1300,7 @@ const WarehouseStaffLayout: React.FC = () => {
                         className="w-full text-center tracking-[1em] text-4xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-6 outline-none uppercase"
                       />
                     </div>
-                    <button onClick={submitPickup} disabled={submitting} className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6 flex justify-center items-center gap-2">
+                    <button onClick={submitPickup} disabled={submitting} className="w-full py-4 bg-brand-500 hover:bg-brand-500 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6 flex justify-center items-center gap-2">
                       <ShieldCheck size={24} /> {submitting ? 'Verifying...' : 'Verify & Release'}
                     </button>
                   </div>
@@ -1309,12 +1309,12 @@ const WarehouseStaffLayout: React.FC = () => {
                 {/* Confirm Delivery (Last Mile) */}
                 {activeModal === 'confirm_delivery' && (
                   <div className="space-y-6">
-                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-2xl p-4">
-                      <p className="text-sm font-bold text-green-800 dark:text-green-300 flex items-center gap-2">
+                    <div className="  border border-green-500 dark:border-green-500/40 rounded-2xl p-4">
+                      <p className="text-sm font-bold text-green-500 dark:text-green-500 flex items-center gap-2">
                         <Key size={16} /> Ask the recipient for their delivery code and enter it below to confirm hand-off.
                       </p>
                       {orderPreview?.delivery_info && (
-                        <div className="mt-3 text-xs text-green-700 dark:text-green-400 space-y-1">
+                        <div className="mt-3 text-xs text-green-500 dark:text-green-500 space-y-1">
                           <p><span className="font-bold">Recipient:</span> {orderPreview.delivery_info.full_name}</p>
                           <p><span className="font-bold">Phone:</span> {orderPreview.delivery_info.phone}</p>
                           <p><span className="font-bold">Address:</span> {orderPreview.delivery_info.address}</p>
@@ -1337,7 +1337,7 @@ const WarehouseStaffLayout: React.FC = () => {
                     <button
                       onClick={submitConfirmDelivery}
                       disabled={submitting || deliveryCodeInput.length < 4}
-                      className="w-full py-4 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30 flex justify-center items-center gap-2"
+                      className="w-full py-4 bg-green-500 hover:bg-green-500 disabled:opacity-40 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30 flex justify-center items-center gap-2"
                     >
                       <CheckCircle size={24} /> {submitting ? 'Confirming...' : 'Confirm Delivery & Complete Order'}
                     </button>
@@ -1367,10 +1367,10 @@ const WarehouseStaffLayout: React.FC = () => {
                             )}
 
                             <div className="flex gap-3 pt-4">
-                               <button onClick={() => submitVerify('ASSIGNED_TRANSPORT')} disabled={submitting} className="flex-1 py-4 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl text-sm md:text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30">
+                               <button onClick={() => submitVerify('ASSIGNED_TRANSPORT')} disabled={submitting} className="flex-1 py-4 bg-green-500 hover:bg-green-500 text-white font-black rounded-xl text-sm md:text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30">
                                  {submitting ? 'Processing...' : 'Verify & Assign Transport'}
                                </button>
-                               <button onClick={() => submitVerify('AWAITING_DELIVERY_PAYMENT')} disabled={submitting} className="flex-1 py-4 bg-red-100 hover:bg-red-200 text-red-600 font-black rounded-xl text-sm md:text-lg uppercase tracking-widest transition-colors">
+                               <button onClick={() => submitVerify('AWAITING_DELIVERY_PAYMENT')} disabled={submitting} className="flex-1 py-4   text-red-500 font-black rounded-xl text-sm md:text-lg uppercase tracking-widest transition-colors">
                                  Reject
                                </button>
                             </div>

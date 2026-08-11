@@ -14,7 +14,7 @@ import {
 
 const Spinner = () => (
   <div className="flex justify-center py-16">
-    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" />
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
   </div>
 );
 
@@ -102,7 +102,7 @@ const InspectorJobs: React.FC = () => {
             onClick={toggleAvailability}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               profile.is_available
-                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-200'
+                ? ' text-green-500  dark:text-green-500 '
                 : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'
             }`}
           >
@@ -136,7 +136,7 @@ const InspectorJobs: React.FC = () => {
                         text={STATUS_LABELS[job.status] || job.status}
                         className={STATUS_COLORS[job.status] || 'badge-gray'}
                       />
-                      <h3 className="font-semibold text-gray-900 dark:text-white mt-1 group-hover:text-brand-600 transition line-clamp-1">
+                      <h3 className="font-semibold text-gray-900 dark:text-white mt-1 group-hover:text-brand-500 transition line-clamp-1">
                         {job.item_name}
                       </h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400">{job.category_path}</p>
@@ -150,12 +150,12 @@ const InspectorJobs: React.FC = () => {
                           </p>
                           <div className="flex items-center gap-3 mt-0.5">
                             {job.job_contact.phone && (
-                              <a href={`tel:${job.job_contact.phone}`} className="text-brand-600 hover:underline">
+                              <a href={`tel:${job.job_contact.phone}`} className="text-brand-500 hover:underline">
                                 {job.job_contact.phone}
                               </a>
                             )}
                             {job.job_contact.email && (
-                              <a href={`mailto:${job.job_contact.email}`} className="text-brand-600 hover:underline">
+                              <a href={`mailto:${job.job_contact.email}`} className="text-brand-500 hover:underline">
                                 {job.job_contact.email}
                               </a>
                             )}
@@ -287,9 +287,9 @@ const PhotoCapture: React.FC<{
     <div className="flex flex-col gap-2 w-full">
       {gpsStatus !== 'idle' && !showCamera && (
         <div className={`flex items-center justify-center gap-1.5 text-xs font-semibold py-1 px-2 rounded-md ${
-          gpsStatus === 'acquiring' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 animate-pulse' :
-          gpsStatus === 'ready' ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
-          'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+          gpsStatus === 'acquiring' ? ' text-blue-500  dark:text-blue-500 animate-pulse' :
+          gpsStatus === 'ready' ? ' text-green-500  dark:text-green-500' :
+          ' text-red-500  dark:text-red-500'
         }`}>
           {gpsStatus === 'acquiring' && '📍 Acquiring GPS...'}
           {gpsStatus === 'ready' && '📍 GPS Ready'}
@@ -302,8 +302,8 @@ const PhotoCapture: React.FC<{
         onClick={startCamera}
         className={`flex flex-col items-center gap-2 p-5 border-2 border-dashed rounded-xl cursor-pointer transition w-full ${
           captured
-            ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
-            : 'border-surface-border dark:border-surface-dark-border hover:border-brand-400 bg-white dark:bg-gray-800'
+            ? 'border-green-500  '
+            : 'border-surface-border dark:border-surface-dark-border hover:border-brand-500 bg-white dark:bg-gray-800'
         }`}
       >
         {captured ? (
@@ -351,7 +351,7 @@ const PhotoCapture: React.FC<{
               onClick={capturePhoto} 
               className="w-20 h-20 bg-white border-[6px] border-neutral-300 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition cursor-pointer"
             >
-              <div className="w-14 h-14 bg-red-600 rounded-full" />
+              <div className="w-14 h-14 bg-red-500 rounded-full" />
             </button>
             <p className="text-xs text-neutral-400 text-center">
               Align the item in frame and press the shutter button.
@@ -599,10 +599,10 @@ const ChecklistForm: React.FC<{
             </span>
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
               item.severity === 'critical'
-                ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+                ? ' text-red-500  dark:text-red-500'
                 : item.severity === 'major'
                 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                : ' text-blue-500  dark:text-blue-500'
             }`}>
               {item.severity || 'major'}
             </span>
@@ -626,8 +626,8 @@ const ChecklistForm: React.FC<{
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition border ${
                 responses[item.id]?.value === v
                   ? v === 'Pass'
-                    ? 'bg-green-100 text-green-700 border-green-400 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700'
-                    : 'bg-red-100 text-red-700 border-red-400 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700'
+                    ? ' text-green-500 border-green-500  dark:text-green-500 dark:border-green-500'
+                    : ' text-red-500 border-red-500  dark:text-red-500 dark:border-red-500'
                   : 'bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 border-surface-border dark:border-surface-dark-border hover:border-gray-400'
               }`}
             >
@@ -646,8 +646,8 @@ const ChecklistForm: React.FC<{
               onClick={() => handleResponse(item.id, String(n))}
               className={`flex-1 py-2 rounded-lg text-sm font-bold transition border ${
                 responses[item.id]?.value === String(n)
-                  ? 'bg-brand-600 text-white border-brand-600 shadow-glow-strong'
-                  : 'bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 border-surface-border dark:border-surface-dark-border hover:border-brand-400'
+                  ? 'bg-brand-500 text-white border-brand-500 shadow-glow-strong'
+                  : 'bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 border-surface-border dark:border-surface-dark-border hover:border-brand-500'
               }`}
             >
               {n}
@@ -708,7 +708,7 @@ const ChecklistForm: React.FC<{
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="p-3 rounded-lg bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 text-xs text-brand-700 dark:text-brand-300 flex items-center gap-2">
+      <div className="p-3 rounded-lg   border border-brand-500 dark:border-brand-500 text-xs text-brand-500 dark:text-brand-500 flex items-center gap-2">
         <AlertTriangle size={14} className="shrink-0" />
         <span>Items marked * are mandatory. All photos are GPS-tagged automatically.</span>
       </div>
@@ -719,7 +719,7 @@ const ChecklistForm: React.FC<{
           <p className="text-2xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Live Report Estimate</p>
           <div className="flex items-baseline gap-2 mt-1">
             <span className={`text-2xl font-black ${
-              estimator.verdict === 'pass' ? 'text-green-600 dark:text-green-400'
+              estimator.verdict === 'pass' ? 'text-green-500 dark:text-green-500'
                 : estimator.verdict === 'conditional' ? 'text-amber-500' : 'text-red-500'
             }`}>
               Grade {estimator.grade}
@@ -729,9 +729,9 @@ const ChecklistForm: React.FC<{
         </div>
         <div className="text-right">
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider ${
-            estimator.verdict === 'pass' ? 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400'
+            estimator.verdict === 'pass' ? ' text-green-500  dark:text-green-500'
               : estimator.verdict === 'conditional' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-              : 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+              : ' text-red-500  dark:text-red-500'
           }`}>
             {estimator.verdict === 'pass' ? 'Suggested Pass'
               : estimator.verdict === 'conditional' ? 'Suggested Conditional' : 'Suggested Fail'}
@@ -750,14 +750,14 @@ const ChecklistForm: React.FC<{
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-medium">
               <span className="text-gray-500 dark:text-gray-400">Completion</span>
-              <span className={pct === 100 ? 'text-green-600 dark:text-green-400 font-bold' : 'text-gray-700 dark:text-gray-300'}>
+              <span className={pct === 100 ? 'text-green-500 dark:text-green-500 font-bold' : 'text-gray-700 dark:text-gray-300'}>
                 {answeredCount} / {allItems.length} items answered
               </span>
             </div>
             <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
-                  pct === 100 ? 'bg-green-500' : pct >= 60 ? 'bg-brand-600' : 'bg-amber-400'
+                  pct === 100 ? 'bg-green-500' : pct >= 60 ? 'bg-brand-500' : 'bg-amber-400'
                 }`}
                 style={{ width: `${pct}%` }}
               />
@@ -783,7 +783,7 @@ const ChecklistForm: React.FC<{
               >
                 <div className="flex items-center gap-2.5">
                   {complete ? (
-                    <CheckCircle size={18} className="text-green-600 dark:text-green-400 shrink-0" />
+                    <CheckCircle size={18} className="text-green-500 dark:text-green-500 shrink-0" />
                   ) : (
                     <div className="w-4.5 h-4.5 rounded-full border-2 border-gray-300 dark:border-gray-600 shrink-0" />
                   )}
@@ -806,9 +806,9 @@ const ChecklistForm: React.FC<{
       </div>
 
       {/* Dynamic Checklist Item Creator */}
-      <div className="card p-5 border border-dashed border-brand-500/30 bg-brand-500/5 dark:bg-brand-500/2 space-y-4 rounded-card">
+      <div className="card p-5 border border-dashed border-brand-500/30   space-y-4 rounded-card">
         <div className="flex items-center gap-2">
-          <PlusCircle size={18} className="text-brand-600 animate-pulse" />
+          <PlusCircle size={18} className="text-brand-500 animate-pulse" />
           <h4 className="font-bold text-sm text-gray-900 dark:text-white">Add Custom Checklist Item</h4>
         </div>
         <p className="text-2xs text-gray-400 leading-tight">
@@ -986,11 +986,11 @@ const JobExecution: React.FC = () => {
           <span className="text-gray-600 dark:text-gray-400">{job.item_address}</span>
         </div>
         {job.assignment?.job_contact && (
-          <div className="mt-3 p-3 rounded-lg bg-brand-50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/30 text-sm">
+          <div className="mt-3 p-3 rounded-lg   border border-brand-500 dark:border-brand-500/30 text-sm">
             <p className="font-medium text-gray-900 dark:text-white mb-1">
               Contact: {job.assignment.job_contact.name} <span className="text-xs font-normal text-gray-500">({job.assignment.job_contact.label})</span>
             </p>
-            <div className="flex items-center gap-4 text-brand-600 dark:text-brand-400 text-xs font-medium">
+            <div className="flex items-center gap-4 text-brand-500 dark:text-brand-500 text-xs font-medium">
               {job.assignment.job_contact.phone && (
                 <a href={`tel:${job.assignment.job_contact.phone}`} className="hover:underline flex items-center gap-1">
                   📞 {job.assignment.job_contact.phone}
@@ -1011,12 +1011,12 @@ const JobExecution: React.FC = () => {
         {['checkin', 'checklist', 'verdict'].map((s, i) => (
           <React.Fragment key={s}>
             <div className={`flex items-center gap-1.5 text-xs font-medium ${
-              step === s ? 'text-brand-600 dark:text-brand-400'
+              step === s ? 'text-brand-500 dark:text-brand-500'
                 : ['checkin', 'checklist', 'verdict'].indexOf(step) > i
-                ? 'text-green-600 dark:text-green-400' : 'text-gray-400'
+                ? 'text-green-500 dark:text-green-500' : 'text-gray-400'
             }`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                step === s ? 'bg-brand-600 text-white'
+                step === s ? 'bg-brand-500 text-white'
                   : ['checkin', 'checklist', 'verdict'].indexOf(step) > i
                   ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
               }`}>
@@ -1033,7 +1033,7 @@ const JobExecution: React.FC = () => {
       {step === 'checkin' && (
         <div className="card p-5 space-y-4">
           <div className="flex items-center gap-2 mb-1">
-            <LogIn size={18} className="text-brand-600" />
+            <LogIn size={18} className="text-brand-500" />
             <h2 className="font-semibold text-gray-900 dark:text-white">Step 1: Check In</h2>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -1060,7 +1060,7 @@ const JobExecution: React.FC = () => {
       {step === 'checklist' && template && reportId && (
         <div className="card p-5 space-y-4">
           <div className="flex items-center gap-2 mb-1">
-            <ClipboardList size={18} className="text-brand-600" />
+            <ClipboardList size={18} className="text-brand-500" />
             <h2 className="font-semibold text-gray-900 dark:text-white">Step 2: Checklist</h2>
           </div>
           <ChecklistForm
@@ -1088,7 +1088,7 @@ const JobExecution: React.FC = () => {
       {step === 'verdict' && (
         <div className="card p-5 space-y-4">
           <div className="flex items-center gap-2 mb-1">
-            <LogOut size={18} className="text-brand-600" />
+            <LogOut size={18} className="text-brand-500" />
             <h2 className="font-semibold text-gray-900 dark:text-white">Step 3: Verdict & Check Out</h2>
           </div>
 
@@ -1098,9 +1098,9 @@ const JobExecution: React.FC = () => {
             </label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { value: 'pass', label: 'Pass', color: 'border-green-400 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' },
-                { value: 'conditional', label: 'Conditional', color: 'border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' },
-                { value: 'fail', label: 'Fail', color: 'border-red-400 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' },
+                { value: 'pass', label: 'Pass', color: 'border-green-500  text-green-500  dark:text-green-500' },
+                { value: 'conditional', label: 'Conditional', color: 'border-yellow-500  text-yellow-500  dark:text-yellow-500' },
+                { value: 'fail', label: 'Fail', color: 'border-red-500  text-red-500  dark:text-red-500' },
               ].map((v) => (
                 <button
                   key={v.value}
@@ -1155,7 +1155,7 @@ const JobExecution: React.FC = () => {
               <label htmlFor="extra-docs" className="flex items-center gap-2 p-3 border border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                 <Camera size={16} className="text-gray-400" />
                 <span className="text-sm text-gray-600">Select Files...</span>
-                {extraDocs.length > 0 && <span className="ml-auto text-xs font-bold text-brand-600">{extraDocs.length} selected</span>}
+                {extraDocs.length > 0 && <span className="ml-auto text-xs font-bold text-brand-500">{extraDocs.length} selected</span>}
               </label>
               {extraDocs.length > 0 && (
                 <div className="flex flex-wrap gap-1">
@@ -1183,8 +1183,8 @@ const JobExecution: React.FC = () => {
       {/* Done */}
       {step === 'done' && (
         <div className="card p-8 text-center">
-          <div className="p-4 bg-green-100 dark:bg-green-900/30 rounded-full w-16 h-16 mx-auto flex items-center justify-center mb-4">
-            <CheckCircle size={32} className="text-green-600 dark:text-green-400" />
+          <div className="p-4   rounded-full w-16 h-16 mx-auto flex items-center justify-center mb-4">
+            <CheckCircle size={32} className="text-green-500 dark:text-green-500" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Inspection Submitted</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">

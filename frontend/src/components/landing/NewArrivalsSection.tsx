@@ -117,7 +117,7 @@ const NewArrivalsSection: React.FC<NewArrivalsSectionProps> = ({
               <motion.div variants={itemVariants} className="mt-8 flex justify-center">
                 <Link 
                   to="/products?sort_by=newest"
-                  className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 hover:underline"
+                  className="text-brand-500 dark:text-brand-500 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 hover:underline"
                 >
                   Explore All New Arrivals <ArrowRight className="w-4 h-4" />
                 </Link>

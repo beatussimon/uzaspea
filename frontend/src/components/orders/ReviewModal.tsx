@@ -57,7 +57,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
         <div className="card w-full max-w-md p-6 animate-slide-up shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-brand-600" />
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-brand-500" />
             <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
                 <XCircle size={24} />
             </button>
@@ -81,7 +81,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ orderId, product, onClose, on
                             </button>
                         ))}
                     </div>
-                    <span className="text-sm font-bold text-yellow-600">
+                    <span className="text-sm font-bold text-yellow-500">
                         {rating === 0 ? 'Select a rating' : rating === 5 ? 'Excellent!' : rating === 1 ? 'Poor' : 'Good'}
                     </span>
                 </div>

@@ -100,7 +100,7 @@ const ProductRequestModal: React.FC<ProductRequestModalProps> = ({ isOpen, onClo
               <button
                 type="submit"
                 disabled={submitting || !name.trim()}
-                className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 px-4 bg-brand-500 hover:bg-brand-500 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? t('submitting', 'Submitting...') : t('submit_request', 'Submit Request')}
               </button>

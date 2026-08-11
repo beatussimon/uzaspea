@@ -150,7 +150,7 @@ const InvoicesPage: React.FC = () => {
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                     order.status === 'REQUESTED_INVOICE' 
                       ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                      : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                      : ' text-blue-500  dark:text-blue-500'
                   }`}>
                     {order.status.replace('_', ' ')}
                   </span>

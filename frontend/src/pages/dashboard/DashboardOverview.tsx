@@ -165,7 +165,7 @@ const DashboardOverview: React.FC = () => {
           <DateRangePicker value={dateRange} onChange={setDateRange} />
           <button 
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-3 py-2 bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/20 dark:hover:bg-brand-900/40 text-brand-600 dark:text-brand-400 border border-transparent rounded-lg text-sm font-bold transition-colors"
+            className="flex items-center gap-2 px-3 py-2     text-brand-500 dark:text-brand-500 border border-transparent rounded-lg text-sm font-bold transition-colors"
             title="Export to PDF"
           >
             <Printer size={16} />
@@ -241,7 +241,7 @@ const DashboardOverview: React.FC = () => {
           <div className="card overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
               <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">Top Performing Products</h3>
-              <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded uppercase">Best Sellers</span>
+              <span className="text-[10px] font-bold text-brand-500  px-2 py-0.5 rounded uppercase">Best Sellers</span>
             </div>
             <div className="divide-y divide-gray-50 dark:divide-gray-700">
               {(stats?.top_products || []).map((p: any, i: number) => (
@@ -254,7 +254,7 @@ const DashboardOverview: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right shrink-0 max-w-[100px] sm:max-w-[140px]">
-                    <p className="text-sm font-black text-brand-600 truncate" title={`TSh ${(p.revenue ?? 0).toLocaleString()}`}>TSh {(p.revenue ?? 0).toLocaleString()}</p>
+                    <p className="text-sm font-black text-brand-500 truncate" title={`TSh ${(p.revenue ?? 0).toLocaleString()}`}>TSh {(p.revenue ?? 0).toLocaleString()}</p>
                   </div>
                 </div>
               ))}
@@ -270,7 +270,7 @@ const DashboardOverview: React.FC = () => {
           <div className="card p-5 space-y-4">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 pb-2">Your Store QR Code</h3>
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="bg-white p-3 rounded-xl border-4 border-brand-50 shadow-sm shrink-0">
+              <div className="bg-white p-3 rounded-xl border-4 border-brand-500 shadow-sm shrink-0">
                 {user?.username ? (
                   <QRCodeSVG 
                     value={`${window.location.origin}/${user.username}`} 
@@ -292,7 +292,7 @@ const DashboardOverview: React.FC = () => {
                   href={`/${user?.username}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block px-4 py-2 bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/20 dark:hover:bg-brand-900/40 text-brand-600 dark:text-brand-400 font-bold text-xs rounded-lg transition"
+                  className="inline-block px-4 py-2     text-brand-500 dark:text-brand-500 font-bold text-xs rounded-lg transition"
                 >
                   View Storefront
                 </a>
@@ -302,9 +302,9 @@ const DashboardOverview: React.FC = () => {
         </div>
 
         {/* Low Stock Alerts */}
-        <div className="card overflow-hidden border-orange-100 dark:border-orange-900/20">
-          <div className="px-5 py-4 border-b border-orange-50 dark:border-orange-900/10 flex items-center justify-between bg-orange-50/30">
-            <h3 className="text-sm font-bold text-orange-800 dark:text-orange-300">Stock Alerts</h3>
+        <div className="card overflow-hidden border-orange-500 dark:border-orange-500/20">
+          <div className="px-5 py-4 border-b border-orange-500 dark:border-orange-500/10 flex items-center justify-between ">
+            <h3 className="text-sm font-bold text-orange-500 dark:text-orange-500">Stock Alerts</h3>
             <ShieldAlert size={16} className="text-orange-500" />
           </div>
           {(stats?.stock_alerts?.length || 0) > 0 ? (
@@ -312,7 +312,7 @@ const DashboardOverview: React.FC = () => {
               {stats.stock_alerts.map((s: any, i: number) => (
                 <div key={i} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
                   <span className="text-sm font-medium text-gray-900 dark:text-white">{s.name}</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${s.stock === 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${s.stock === 0 ? ' text-red-500  dark:text-red-500' : ' text-yellow-500  dark:text-yellow-500'}`}>
                     {s.stock === 0 ? 'OUT OF STOCK' : `${s.stock} left`}
                   </span>
                 </div>
@@ -369,7 +369,7 @@ const DashboardOverview: React.FC = () => {
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300 print:text-black text-right whitespace-nowrap">
                       {formatCompactCurrency(item.price)}
                     </td>
-                    <td className="px-4 py-3 font-black text-brand-600 dark:text-brand-400 print:text-black text-right whitespace-nowrap">
+                    <td className="px-4 py-3 font-black text-brand-500 dark:text-brand-500 print:text-black text-right whitespace-nowrap">
                       {formatCompactCurrency(item.total)}
                     </td>
                     <td className="px-4 py-3 text-center whitespace-nowrap">
@@ -391,7 +391,7 @@ const DashboardOverview: React.FC = () => {
                   <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap">
                     {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + ((item.buying_price || 0) * item.quantity), 0))} (Est. Cost)
                   </td>
-                  <td className="px-4 py-4 text-right text-brand-600 dark:text-brand-400 print:text-black whitespace-nowrap font-bold" colSpan={2}>
+                  <td className="px-4 py-4 text-right text-brand-500 dark:text-brand-500 print:text-black whitespace-nowrap font-bold" colSpan={2}>
                     {formatCompactCurrency(stats.items_sold_list.reduce((acc: number, item: any) => acc + item.total, 0))} (Revenue)
                   </td>
                   <td className="px-4 py-4"></td>

@@ -42,7 +42,7 @@ const GlobalTermsModal: React.FC = () => {
         >
           <div className="p-6 md:p-8 flex-1 overflow-y-auto">
             <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-brand-100 dark:bg-brand-900/30 text-brand-600 rounded-full flex items-center justify-center">
+              <div className="w-16 h-16   text-brand-500 rounded-full flex items-center justify-center">
                 <ShieldCheck size={32} />
               </div>
             </div>
@@ -64,7 +64,7 @@ const GlobalTermsModal: React.FC = () => {
               <p className="mt-4">
                 You can read the full documents here:
               </p>
-              <div className="flex gap-4 font-semibold text-brand-600 dark:text-brand-400">
+              <div className="flex gap-4 font-semibold text-brand-500 dark:text-brand-500">
                 <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">Terms and Conditions</a>
                 <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline">Privacy Policy</a>
               </div>

@@ -39,7 +39,7 @@ const Breadcrumbs = ({ extra = [] }: { extra?: BreadcrumbItem[] }) => {
 
   return (
     <nav className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4 overflow-x-auto no-scrollbar whitespace-nowrap">
-      <Link to="/" className="hover:text-brand-600 transition-colors flex items-center gap-1">
+      <Link to="/" className="hover:text-brand-500 transition-colors flex items-center gap-1">
         <Home size={12} />
         <span>Home</span>
       </Link>
@@ -50,7 +50,7 @@ const Breadcrumbs = ({ extra = [] }: { extra?: BreadcrumbItem[] }) => {
           {idx === allItems.length - 1 ? (
             <span className="text-gray-600 dark:text-gray-300 font-bold">{item.label}</span>
           ) : (
-            <Link to={item.path} className="hover:text-brand-600 transition-colors">
+            <Link to={item.path} className="hover:text-brand-500 transition-colors">
               {item.label}
             </Link>
           )}

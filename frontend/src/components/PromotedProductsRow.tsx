@@ -43,7 +43,7 @@ const PromotedProductsRow: React.FC<PromotedProductsRowProps> = ({ promotions, l
                         {t('featured_listings', 'Featured Listings')}
                     </h2>
                 </div>
-                <Link to="/products" className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline mb-1">
+                <Link to="/products" className="text-brand-500 dark:text-brand-500 text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:underline mb-1">
                     {t('view_all_products', 'View all')} <ArrowRight className="h-4 w-4" />
                 </Link>
             </div>

@@ -234,7 +234,7 @@ const SellerUpgradePage: React.FC = () => {
       {/* Header */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">
-          Elevate Your Business with <span className="text-brand-600">SokoniMax</span>
+          Elevate Your Business with <span className="text-brand-500">SokoniMax</span>
         </h1>
         <p className="max-w-2xl mx-auto text-gray-500 dark:text-gray-400">
           Join our managed-commerce platform. We handle warehouses and logistics while you scale your sales.
@@ -289,7 +289,7 @@ const SellerUpgradePage: React.FC = () => {
               onClick={() => setSelectedTier('seller_pro')}
               className={`w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition ${
                 selectedTier === 'seller_pro' 
-                  ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' 
+                  ? 'bg-brand-500 text-white shadow-lg shadow-brand-600/30' 
                   : 'bg-gray-100 dark:bg-neutral-900 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
               }`}
             >
@@ -323,7 +323,7 @@ const SellerUpgradePage: React.FC = () => {
               onClick={() => setSelectedTier('business')}
               className={`w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition ${
                 selectedTier === 'business' 
-                  ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' 
+                  ? 'bg-brand-500 text-white shadow-lg shadow-brand-600/30' 
                   : 'bg-gray-100 dark:bg-neutral-900 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
               }`}
             >
@@ -337,7 +337,7 @@ const SellerUpgradePage: React.FC = () => {
       <div className="max-w-2xl mx-auto card p-8 border-gray-100 dark:border-neutral-800">
         {!isAuthenticated ? (
           <div className="text-center space-y-6 py-6">
-            <AlertCircle size={48} className="mx-auto text-brand-600 animate-pulse" />
+            <AlertCircle size={48} className="mx-auto text-brand-500 animate-pulse" />
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Authentication Required</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -345,20 +345,20 @@ const SellerUpgradePage: React.FC = () => {
               </p>
             </div>
             <div className="flex gap-4 max-w-sm mx-auto">
-              <Link to="/login" className="flex-1 btn-primary py-3 text-center text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-lg shadow-brand-600/20">Sign In</Link>
-              <Link to="/register" className="flex-1 py-3 text-center text-sm font-bold border-2 border-brand-600 text-brand-600 rounded-xl hover:bg-brand-50 dark:hover:bg-brand-900/10">Register</Link>
+              <Link to="/login" className="flex-1 btn-primary py-3 text-center text-sm font-bold bg-brand-500 hover:bg-brand-500 text-white rounded-xl shadow-lg shadow-brand-600/20">Sign In</Link>
+              <Link to="/register" className="flex-1 py-3 text-center text-sm font-bold border-2 border-brand-500 text-brand-500 rounded-xl  ">Register</Link>
             </div>
           </div>
         ) : isAlreadySeller ? (
           <div className="text-center space-y-6 py-6">
-            <ShieldCheck size={48} className="mx-auto text-green-600" />
+            <ShieldCheck size={48} className="mx-auto text-green-500" />
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">You Are Already a Seller!</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Your account is currently active on the <span className="font-bold capitalize text-brand-600">{user.tier}</span> subscription tier.
+                Your account is currently active on the <span className="font-bold capitalize text-brand-500">{user.tier}</span> subscription tier.
               </p>
             </div>
-            <Link to="/dashboard" className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider shadow-lg shadow-brand-600/20">
+            <Link to="/dashboard" className="inline-flex items-center gap-2 px-6 py-3 bg-brand-500 hover:bg-brand-500 text-white rounded-xl text-sm font-bold uppercase tracking-wider shadow-lg shadow-brand-600/20">
               Access Seller Dashboard <ArrowRight size={16} />
             </Link>
           </div>
@@ -374,7 +374,7 @@ const SellerUpgradePage: React.FC = () => {
                 <Clock size={48} className="mx-auto text-yellow-500 animate-pulse" />
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">Upgrade Application Pending Review</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-                  We have received your application for the <span className="font-bold capitalize text-brand-600">{application.requested_tier_name}</span> tier on your business <span className="font-bold">"{application.business_name}"</span>. Our administration team is reviewing your documents.
+                  We have received your application for the <span className="font-bold capitalize text-brand-500">{application.requested_tier_name}</span> tier on your business <span className="font-bold">"{application.business_name}"</span>. Our administration team is reviewing your documents.
                 </p>
                 <div className="text-xs text-gray-400 pt-2">
                   Submitted: {new Date(application.created_at).toLocaleDateString()}
@@ -398,7 +398,7 @@ const SellerUpgradePage: React.FC = () => {
                     } catch (e) {}
                   }
                   window.location.href = '/dashboard';
-                }} className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider shadow-lg shadow-brand-600/20">
+                }} className="inline-flex items-center gap-2 px-6 py-3 bg-brand-500 hover:bg-brand-500 text-white rounded-xl text-sm font-bold uppercase tracking-wider shadow-lg shadow-brand-600/20">
                   Access Dashboard <ArrowRight size={16} />
                 </button>
               </div>
@@ -408,16 +408,16 @@ const SellerUpgradePage: React.FC = () => {
               <div className="text-center space-y-4">
                 <AlertCircle size={48} className="mx-auto text-red-500" />
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">Application Rejected</h3>
-                <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-xl text-left">
-                  <span className="font-bold text-xs text-red-800 dark:text-red-400 uppercase tracking-widest block mb-1">Rejection Reason:</span>
-                  <p className="text-sm text-red-700 dark:text-red-300">{application.rejection_reason || 'No explanation provided by admin.'}</p>
+                <div className="p-4   border border-red-500 dark:border-red-500/30 rounded-xl text-left">
+                  <span className="font-bold text-xs text-red-500 dark:text-red-500 uppercase tracking-widest block mb-1">Rejection Reason:</span>
+                  <p className="text-sm text-red-500 dark:text-red-500">{application.rejection_reason || 'No explanation provided by admin.'}</p>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   You can update your details and resubmit the application for review.
                 </p>
                 <button 
                   onClick={handleReapply}
-                  className="px-6 py-2.5 border-2 border-brand-600 text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/10 rounded-xl text-xs font-bold uppercase tracking-wider transition"
+                  className="px-6 py-2.5 border-2 border-brand-500 text-brand-500   rounded-xl text-xs font-bold uppercase tracking-wider transition"
                 >
                   Update & Reapply
                 </button>
@@ -432,24 +432,24 @@ const SellerUpgradePage: React.FC = () => {
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white">Renewal Pending Review</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto font-medium">
-                    We are currently verifying your renewal payment reference <code className="bg-gray-100 dark:bg-neutral-900 px-1.5 py-0.5 rounded font-mono text-brand-600 font-bold">{pendingConfirmation.reference}</code> for the <span className="font-bold capitalize text-brand-600">{pendingConfirmation.tier_name}</span> plan.
+                    We are currently verifying your renewal payment reference <code className="bg-gray-100 dark:bg-neutral-900 px-1.5 py-0.5 rounded font-mono text-brand-500 font-bold">{pendingConfirmation.reference}</code> for the <span className="font-bold capitalize text-brand-500">{pendingConfirmation.tier_name}</span> plan.
                   </p>
                   <p className="text-xs text-gray-400">
                     Submitted on: {new Date(pendingConfirmation.created_at).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900/30 rounded-2xl text-xs text-yellow-850 dark:text-yellow-400 text-left">
+                <div className="p-4   border border-yellow-500 dark:border-yellow-500/30 rounded-2xl text-xs text-yellow-500 dark:text-yellow-500 text-left">
                   <strong className="block mb-1">What happens next?</strong>
                   Our administration team will verify the payment confirmation screenshot and transaction reference with the network carrier. Upon approval, your account privileges will be instantly restored.
                 </div>
               </div>
             ) : (
               <form onSubmit={handlePaymentSubmit} className="space-y-6">
-                <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-2xl flex items-start gap-3">
+                <div className="p-4   border border-red-500 dark:border-red-500/30 rounded-2xl flex items-start gap-3">
                   <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
                   <div className="space-y-1 flex-1">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-red-800 dark:text-red-400">Subscription Expired</h4>
-                    <p className="text-xs text-red-700 dark:text-red-300">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-red-500 dark:text-red-500">Subscription Expired</h4>
+                    <p className="text-xs text-red-500 dark:text-red-500">
                       Your seller subscription has expired. You have been placed on the free plan and your listings are temporarily hidden. Please submit a renewal payment to restore your seller privileges.
                     </p>
                   </div>
@@ -460,7 +460,7 @@ const SellerUpgradePage: React.FC = () => {
                     Renew Subscription
                   </h3>
                   <p className="text-xs text-gray-500 mt-1">
-                    Selected Tier: <span className="font-bold text-brand-600 capitalize">{(activeRenewalTier?.name || selectedTier).replace('_', ' ')}</span> ({activeRenewalTier ? `TZS ${Number(activeRenewalTier.price).toLocaleString()}` : 'Free'})
+                    Selected Tier: <span className="font-bold text-brand-500 capitalize">{(activeRenewalTier?.name || selectedTier).replace('_', ' ')}</span> ({activeRenewalTier ? `TZS ${Number(activeRenewalTier.price).toLocaleString()}` : 'Free'})
                   </p>
                 </div>
 
@@ -472,7 +472,7 @@ const SellerUpgradePage: React.FC = () => {
                     {lipaNumbers.map((num: any) => (
                       <div key={num.id} className="p-3 bg-gray-50 dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-xl flex items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="font-black uppercase tracking-widest text-[9px] bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-400 px-2 py-0.5 rounded-md">
+                          <span className="font-black uppercase tracking-widest text-[9px]  text-brand-500  dark:text-brand-500 px-2 py-0.5 rounded-md">
                             {num.network_name || num.network?.name}
                           </span>
                           <span className="font-bold text-gray-800 dark:text-white">{num.number}</span>
@@ -532,14 +532,14 @@ const SellerUpgradePage: React.FC = () => {
                       name="terms_accepted"
                       type="checkbox"
                       required
-                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-600 dark:border-neutral-700 dark:bg-neutral-900"
+                      className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-neutral-700 dark:bg-neutral-900"
                       checked={termsAccepted}
                       onChange={(e) => setTermsAccepted(e.target.checked)}
                     />
                   </div>
                   <div className="text-sm">
                     <label htmlFor="terms_accepted_renewal" className="font-medium text-gray-700 dark:text-gray-300">
-                      I agree to the <Link to="/seller-contract" target="_blank" className="text-brand-600 hover:underline">Seller Pro / Business Account Upgrade Agreement</Link>.
+                      I agree to the <Link to="/seller-contract" target="_blank" className="text-brand-500 hover:underline">Seller Pro / Business Account Upgrade Agreement</Link>.
                     </label>
                   </div>
                 </div>
@@ -548,7 +548,7 @@ const SellerUpgradePage: React.FC = () => {
                 <button 
                   type="submit"
                   disabled={submittingPayment || !activeRenewalTier}
-                  className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold uppercase tracking-wider transition shadow-lg shadow-brand-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 bg-brand-500 hover:bg-brand-500 text-white rounded-xl text-sm font-bold uppercase tracking-wider transition shadow-lg shadow-brand-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submittingPayment ? 'Submitting Payment Proof...' : 'Submit Renewal Payment'}
                 </button>
@@ -558,7 +558,7 @@ const SellerUpgradePage: React.FC = () => {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white border-b dark:border-neutral-800 pb-3">
-              {t('upgrade_to', 'Upgrade to')} <span className="capitalize text-brand-600">{(selectedTier || '').replace('_', ' ')}</span>
+              {t('upgrade_to', 'Upgrade to')} <span className="capitalize text-brand-500">{(selectedTier || '').replace('_', ' ')}</span>
             </h3>
 
             {/* Business Name */}
@@ -658,14 +658,14 @@ const SellerUpgradePage: React.FC = () => {
                   name="terms_accepted"
                   type="checkbox"
                   required
-                  className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-600 dark:border-neutral-700 dark:bg-neutral-900"
+                  className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500 dark:border-neutral-700 dark:bg-neutral-900"
                   checked={termsAccepted}
                   onChange={(e) => setTermsAccepted(e.target.checked)}
                 />
               </div>
               <div className="text-sm">
                 <label htmlFor="terms_accepted_app" className="font-medium text-gray-700 dark:text-gray-300">
-                  I agree to the <Link to="/seller-contract" target="_blank" className="text-brand-600 hover:underline">Seller Pro / Business Account Upgrade Agreement</Link>.
+                  I agree to the <Link to="/seller-contract" target="_blank" className="text-brand-500 hover:underline">Seller Pro / Business Account Upgrade Agreement</Link>.
                 </label>
               </div>
             </div>
@@ -687,7 +687,7 @@ const SellerUpgradePage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto pt-8">
           {siteSettings.support_phone && (
             <a href={`tel:${siteSettings.support_phone}`} className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-brand-100 dark:bg-brand-900/30 text-brand-600 flex items-center justify-center rounded-full">
+              <div className="w-12 h-12   text-brand-500 flex items-center justify-center rounded-full">
                 <Phone size={24} />
               </div>
               <h3 className="font-bold text-gray-900 dark:text-white">Call Us</h3>
@@ -696,7 +696,7 @@ const SellerUpgradePage: React.FC = () => {
           )}
           {siteSettings.whatsapp_number && (
             <a href={`https://wa.me/${siteSettings.whatsapp_number.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center rounded-full">
+              <div className="w-12 h-12   text-green-500 flex items-center justify-center rounded-full">
                 <MessageCircle size={24} />
               </div>
               <h3 className="font-bold text-gray-900 dark:text-white">WhatsApp</h3>
@@ -705,7 +705,7 @@ const SellerUpgradePage: React.FC = () => {
           )}
           {siteSettings.support_email && (
             <a href={`mailto:${siteSettings.support_email}`} className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center rounded-full">
+              <div className="w-12 h-12   text-blue-500 flex items-center justify-center rounded-full">
                 <Mail size={24} />
               </div>
               <h3 className="font-bold text-gray-900 dark:text-white">Email Us</h3>

@@ -90,14 +90,14 @@ interface AdminDashboardData {
 
 // ============ Helpers ============
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  in_progress: 'bg-brand-100 text-brand-800 dark:bg-brand-900/30 dark:text-brand-400',
-  completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  pending: ' text-yellow-500  dark:text-yellow-500',
+  in_progress: ' text-brand-500  dark:text-brand-500',
+  completed: ' text-green-500  dark:text-green-500',
   cancelled: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
-  approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  staff_promoted: 'bg-green-100 text-green-800',
-  staff_demoted: 'bg-red-100 text-red-800',
+  approved: ' text-green-500  dark:text-green-500',
+  rejected: ' text-red-500  dark:text-red-500',
+  staff_promoted: ' text-green-500',
+  staff_demoted: ' text-red-500',
 };
 
 const priorityColors: Record<string, string> = {
@@ -231,7 +231,7 @@ const AdminOverview: React.FC = () => {
   useEffect(() => { fetchData(); }, []);
 
   if (loading || !data) {
-    return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
+    return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500"></div></div>;
   }
 
   const kpis = [
@@ -247,7 +247,7 @@ const AdminOverview: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Admin Staff Control</h2>
-         <span className="text-[10px] font-black text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-1 rounded">Superuser Access</span>
+         <span className="text-[10px] font-black text-brand-500   px-2 py-1 rounded">Superuser Access</span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -295,7 +295,7 @@ const AdminOverview: React.FC = () => {
                     <div key={i}>
                         <div className="flex justify-between items-end mb-2">
                             <span className="text-sm font-bold text-gray-700 dark:text-white">{dept.department || 'Unassigned'}</span>
-                            <span className="text-xs font-black text-brand-600">{dept.count} members</span>
+                            <span className="text-xs font-black text-brand-500">{dept.count} members</span>
                         </div>
                         <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div className="h-full bg-brand-500 transition-all duration-1000" style={{ width: `${(dept.count / (data.counts.total_staff || 1)) * 100}%` }} />
@@ -393,7 +393,7 @@ const PlatformUserExplorer: React.FC = () => {
     return matchesSearch;
   });
 
-  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500"></div></div>;
 
   return (
     <div className="space-y-6">
@@ -430,23 +430,23 @@ const PlatformUserExplorer: React.FC = () => {
               <tr key={u.id} className="hover:bg-gray-50/30 transition">
                 <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">@{u.username}</td>
                 <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">{u.email}</td>
-                <td className="px-6 py-4 text-xs text-brand-600 font-bold uppercase">{u.tier}</td>
+                <td className="px-6 py-4 text-xs text-brand-500 font-bold uppercase">{u.tier}</td>
                 <td className="px-6 py-4">
-                  <Badge text={u.is_active ? 'Active' : 'Banned'} className={u.is_active ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-50 text-red-700'} />
+                  <Badge text={u.is_active ? 'Active' : 'Banned'} className={u.is_active ? ' text-green-500  dark:text-green-500' : ' text-red-500'} />
                 </td>
                 <td className="px-6 py-4">
-                  <Badge text={u.is_verified ? 'Verified' : 'Unverified'} className={u.is_verified ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-50 text-gray-500'} />
+                  <Badge text={u.is_verified ? 'Verified' : 'Unverified'} className={u.is_verified ? ' text-green-500  dark:text-green-500' : 'bg-gray-50 text-gray-500'} />
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
-                    {u.is_superuser && <Badge text="Super" className="bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400" />}
-                    {u.is_staff && <Badge text="Staff" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" />}
+                    {u.is_superuser && <Badge text="Super" className=" text-brand-500  dark:text-brand-500" />}
+                    {u.is_staff && <Badge text="Staff" className=" text-blue-500  dark:text-blue-500" />}
                     {u.is_inspector && <Badge text={`Inspector (${u.inspector_level})`} className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" />}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex justify-end gap-1.5">
-                    <button onClick={() => handleToggleActive(u.id)} className={`px-2.5 py-1 text-[10px] font-bold rounded ${u.is_active ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/10' : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/10'}`} title="Toggle Ban">
+                    <button onClick={() => handleToggleActive(u.id)} className={`px-2.5 py-1 text-[10px] font-bold rounded ${u.is_active ? ' text-red-500  ' : ' text-green-500  '}`} title="Toggle Ban">
                       {u.is_active ? 'Ban' : 'Unban'}
                     </button>
                     <button onClick={() => handleToggleVerified(u.id)} className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-650 text-[10px] font-bold rounded" title="Toggle Verification">
@@ -455,7 +455,7 @@ const PlatformUserExplorer: React.FC = () => {
                     <button onClick={() => { setInspectorUser(u); setShowInspectorModal(true); }} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[10px] font-bold rounded dark:bg-emerald-950/20 dark:text-emerald-400" title="Promote Inspector">
                       +Inspect
                     </button>
-                    <button onClick={() => { setRoleUser(u); setIsStaffRole(u.is_staff); setIsSuperRole(u.is_superuser); setShowRoleModal(true); }} className="px-2.5 py-1 bg-brand-50 text-brand-700 hover:bg-brand-100 text-[10px] font-bold rounded dark:bg-brand-950/20 dark:text-brand-400" title="Change Roles">
+                    <button onClick={() => { setRoleUser(u); setIsStaffRole(u.is_staff); setIsSuperRole(u.is_superuser); setShowRoleModal(true); }} className="px-2.5 py-1  text-brand-500  text-[10px] font-bold rounded  dark:text-brand-500" title="Change Roles">
                       Role
                     </button>
                   </div>
@@ -507,14 +507,14 @@ const PlatformUserExplorer: React.FC = () => {
                   <div className="font-bold text-gray-900 dark:text-white text-sm">Staff Privileges</div>
                   <div className="text-xs text-gray-500">Access to C&C Terminal dashboard</div>
                 </div>
-                <input type="checkbox" checked={isStaffRole} onChange={e => setIsStaffRole(e.target.checked)} className="rounded text-brand-600 focus:ring-gray-900 dark:focus:ring-white h-5 w-5" />
+                <input type="checkbox" checked={isStaffRole} onChange={e => setIsStaffRole(e.target.checked)} className="rounded text-brand-500 focus:ring-gray-900 dark:focus:ring-white h-5 w-5" />
               </label>
-              <label className="flex items-center justify-between p-3 border border-red-200 dark:border-red-900/30 rounded-card cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/10">
+              <label className="flex items-center justify-between p-3 border border-red-500 dark:border-red-500/30 rounded-card cursor-pointer  ">
                 <div>
-                  <div className="font-bold text-red-700 dark:text-red-400 text-sm">Superuser Privileges</div>
+                  <div className="font-bold text-red-500 dark:text-red-500 text-sm">Superuser Privileges</div>
                   <div className="text-[10px] text-red-500">Full system access (Danger)</div>
                 </div>
-                <input type="checkbox" checked={isSuperRole} onChange={e => setIsSuperRole(e.target.checked)} className="rounded text-red-600 focus:ring-red-500 h-5 w-5" />
+                <input type="checkbox" checked={isSuperRole} onChange={e => setIsSuperRole(e.target.checked)} className="rounded text-red-500 focus:ring-red-500 h-5 w-5" />
               </label>
               <button onClick={submitRoleChange} className="bg-gray-900 hover:bg-black dark:bg-gray-700 dark:hover:bg-gray-600 text-white w-full py-2 rounded-lg text-sm font-bold transition">
                 Save Roles
@@ -572,7 +572,7 @@ const EmployeeManager: React.FC = () => {
         }
     };
 
-    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
+    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500"></div></div>;
 
     return (
         <div className="space-y-6">
@@ -596,8 +596,8 @@ const EmployeeManager: React.FC = () => {
                                     </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate">{member.email}</p>
                                     <div className="flex items-center gap-2 mt-2">
-                                        <Badge text={member.department || 'GENERAL'} className="bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400" />
-                                        <Badge text={member.is_active ? 'Active' : 'Inactive'} className={member.is_active ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-50 text-red-700'} />
+                                        <Badge text={member.department || 'GENERAL'} className=" text-brand-500  dark:text-brand-500" />
+                                        <Badge text={member.is_active ? 'Active' : 'Inactive'} className={member.is_active ? ' text-green-500  dark:text-green-500' : ' text-red-500'} />
                                     </div>
                                 </div>
                             </div>
@@ -610,18 +610,18 @@ const EmployeeManager: React.FC = () => {
                         <div className="mt-6 pt-5 border-t border-gray-50 dark:border-gray-700 flex items-center justify-between">
                              <div className="flex gap-2">
                                  <button onClick={() => handleAction(member.profile_id, member.is_active ? 'demote' : 'promote')}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tighter transition ${member.is_active ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'}`}>
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tighter transition ${member.is_active ? 'text-red-500  ' : 'text-green-500  '}`}>
                                     {member.is_active ? <><UserMinus size={14} /> Demote</> : <><UserPlus size={14} /> Reactivate</>}
                                  </button>
                                  <button onClick={() => { setDeptStaffer(member); setSelectedDept(member.department || ''); setShowDeptModal(true); }}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tighter transition text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tighter transition text-blue-500  ">
                                     <Building2 size={14} /> Dept
                                  </button>
                                  <Link to={`/staff-admin/tasks?assigned_to=${member.id}`} className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
                                      <Briefcase size={16} />
                                  </Link>
                              </div>
-                             <Link to="/staff-admin/permissions" className="text-[10px] font-black text-brand-600 hover:underline hover:text-brand-700 uppercase tracking-widest">
+                             <Link to="/staff-admin/permissions" className="text-[10px] font-black text-brand-500 hover:underline hover:text-brand-500 uppercase tracking-widest">
                                  Permissions Matrix
                              </Link>
                         </div>
@@ -718,12 +718,12 @@ const TaskBoard: React.FC = () => {
   };
 
   const columns = [
-    { key: 'pending', label: 'Pending', icon: Clock, color: 'border-yellow-400' },
-    { key: 'in_progress', label: 'In Progress', icon: ClipboardList, color: 'border-brand-400' },
-    { key: 'completed', label: 'Completed', icon: CheckCircle2, color: 'border-green-400' },
+    { key: 'pending', label: 'Pending', icon: Clock, color: 'border-yellow-500' },
+    { key: 'in_progress', label: 'In Progress', icon: ClipboardList, color: 'border-brand-500' },
+    { key: 'completed', label: 'Completed', icon: CheckCircle2, color: 'border-green-500' },
   ];
 
-  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500"></div></div>;
 
   return (
     <div className="space-y-6">
@@ -738,7 +738,7 @@ const TaskBoard: React.FC = () => {
         </div>
 
         {showCreate && (
-            <form onSubmit={handleCreateTask} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-gray-150 dark:border-gray-700 p-6 border-brand-200 dark:border-brand-900/30 animate-slide-up space-y-4 shadow-sm">
+            <form onSubmit={handleCreateTask} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-gray-150 dark:border-gray-700 p-6 border-brand-500 dark:border-brand-500/30 animate-slide-up space-y-4 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} placeholder="Task Title" className="input text-sm" required />
                     <select value={newTask.category} onChange={e => setNewTask({...newTask, category: e.target.value})} className="input text-sm" required>
@@ -789,7 +789,7 @@ const TaskBoard: React.FC = () => {
                                     <div className="mt-4 pt-3 border-t border-gray-50 dark:border-gray-700 flex flex-col gap-2 relative">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-lg bg-brand-600 flex items-center justify-center text-[10px] text-white font-black">
+                                                <div className="w-6 h-6 rounded-lg bg-brand-500 flex items-center justify-center text-[10px] text-white font-black">
                                                     {t.assigned_to_username?.substring(0, 1) || '?'}
                                                 </div>
                                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter truncate max-w-[80px]">{t.assigned_to_username || 'UNASSIGNED'}</span>
@@ -802,7 +802,7 @@ const TaskBoard: React.FC = () => {
                                                         {t.status === 'pending' && (
                                                             <button 
                                                                 onClick={() => handleUpdateStatus(t.id, 'in_progress')}
-                                                                className="px-2 py-1 bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400 rounded text-[9px] font-black uppercase tracking-tighter hover:bg-brand-100 transition"
+                                                                className="px-2 py-1  text-brand-500  dark:text-brand-500 rounded text-[9px] font-black uppercase tracking-tighter  transition"
                                                             >
                                                                 Acknowledge
                                                             </button>
@@ -810,7 +810,7 @@ const TaskBoard: React.FC = () => {
                                                         {t.status === 'in_progress' && (
                                                             <button 
                                                                 onClick={() => handleUpdateStatus(t.id, 'completed')}
-                                                                className="px-2 py-1 bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded text-[9px] font-black uppercase tracking-tighter hover:bg-green-100 transition"
+                                                                className="px-2 py-1  text-green-500  dark:text-green-500 rounded text-[9px] font-black uppercase tracking-tighter  transition"
                                                             >
                                                                 Complete
                                                             </button>
@@ -821,7 +821,7 @@ const TaskBoard: React.FC = () => {
                                                 {localStorage.getItem('is_superuser') === 'true' && t.status !== 'completed' && t.status !== 'cancelled' && (
                                                     <button 
                                                         onClick={() => handleUpdateStatus(t.id, 'cancelled')}
-                                                        className="p-1 text-red-300 hover:text-red-500 transition"
+                                                        className="p-1 text-red-500 hover:text-red-500 transition"
                                                         title="Cancel Task"
                                                     >
                                                         <XCircle size={14} />
@@ -842,7 +842,7 @@ const TaskBoard: React.FC = () => {
                                                         <option key={s.id} value={s.id}>{s.username}</option>
                                                     ))}
                                                 </select>
-                                                <div className="p-1 px-2 text-[10px] font-black text-brand-600 bg-brand-50 dark:bg-brand-900/20 rounded uppercase group-hover/reassign:bg-brand-100 transition-colors text-center">
+                                                <div className="p-1 px-2 text-[10px] font-black text-brand-500   rounded uppercase group-hover/reassign: transition-colors text-center">
                                                    Re-Assign
                                                 </div>
                                             </div>
@@ -914,7 +914,7 @@ const PermissionMatrix: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500"></div></div>;
 
   return (
     <div className="space-y-6">
@@ -955,7 +955,7 @@ const PermissionMatrix: React.FC = () => {
                         type="checkbox" 
                         checked={hasPerm} 
                         onChange={() => handleToggle(member.id, p.key)}
-                        className="w-4 h-4 rounded text-brand-600 focus:ring-gray-900 dark:focus:ring-white border-gray-300 dark:border-gray-600 cursor-pointer"
+                        className="w-4 h-4 rounded text-brand-500 focus:ring-gray-900 dark:focus:ring-white border-gray-300 dark:border-gray-600 cursor-pointer"
                       />
                     </td>
                   );
@@ -983,14 +983,14 @@ const AuditLogViewer: React.FC = () => {
             .finally(() => setLoading(false));
     }, []);
 
-    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div></div>;
+    if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500"></div></div>;
 
     return (
         <div className="space-y-6 relative flex flex-col xl:flex-row gap-6">
             <div className="flex-1 space-y-6">
                 <div className="flex justify-between items-center">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Security Audit Trail</h2>
-                    <div className="flex items-center gap-2 p-2 bg-brand-50 dark:bg-brand-900/10 rounded-lg text-brand-700 dark:text-brand-300">
+                    <div className="flex items-center gap-2 p-2   rounded-lg text-brand-500 dark:text-brand-500">
                          <Shield size={16} />
                          <span className="text-[10px] font-black uppercase tracking-widest">Read Only Immutable Log</span>
                     </div>
@@ -999,7 +999,7 @@ const AuditLogViewer: React.FC = () => {
                 <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm overflow-hidden shadow-sm">
                     <div className="divide-y divide-gray-50 dark:divide-gray-700">
                         {logs.map(log => (
-                            <div key={log.id} onClick={() => setSelectedLog(log)} className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition cursor-pointer ${selectedLog?.id === log.id ? 'bg-brand-50/30 dark:bg-brand-950/10 border-l-4 border-brand-600' : ''}`}>
+                            <div key={log.id} onClick={() => setSelectedLog(log)} className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition cursor-pointer ${selectedLog?.id === log.id ? '  border-l-4 border-brand-500' : ''}`}>
                                 <div className="flex items-start gap-4">
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${statusColors[log.action] || 'bg-gray-100 text-gray-500'}`}>
                                         <Clock size={14} />
@@ -1007,7 +1007,7 @@ const AuditLogViewer: React.FC = () => {
                                     <div>
                                         <p className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{log.username || 'System'} → {log.action}</p>
                                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{log.description}</p>
-                                        {log.target_username && <p className="text-[10px] font-bold text-brand-600 mt-1 uppercase font-mono">Target: @{log.target_username}</p>}
+                                        {log.target_username && <p className="text-[10px] font-bold text-brand-500 mt-1 uppercase font-mono">Target: @{log.target_username}</p>}
                                     </div>
                                 </div>
                                 <div className="text-right">
@@ -1094,7 +1094,7 @@ const StaffAdminLayout: React.FC = () => {
                 </button>
 
                 <div className={`px-3 py-2 mb-1 flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0 border-none' : 'opacity-100'}`}>
-                    <div className="w-2 h-2 rounded-full bg-brand-600 animate-pulse" />
+                    <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" />
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">Admin Terminal</h3>
                 </div>
                 
@@ -1110,7 +1110,7 @@ const StaffAdminLayout: React.FC = () => {
                           title={isSidebarCollapsed ? item.label : undefined}
                           className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-lg text-sm transition group ${
                           isActive
-                              ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                              ? '  text-brand-500 dark:text-brand-500 font-medium'
                               : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                           }`}
                       >
@@ -1122,7 +1122,7 @@ const StaffAdminLayout: React.FC = () => {
                 </div>
             </div>
             
-            <div className={`bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-card p-4 border-0 shadow-sm transition-opacity duration-300 ${isSidebarCollapsed ? 'hidden' : 'block'}`}>
+            <div className={` bg-brand-500  text-white rounded-card p-4 border-0 shadow-sm transition-opacity duration-300 ${isSidebarCollapsed ? 'hidden' : 'block'}`}>
                 <Shield size={20} className="mb-3 opacity-50" />
                 <h4 className="text-xs font-black uppercase tracking-widest mb-1">Admin Mode</h4>
                 <p className="text-[10px] text-white/70 leading-relaxed font-medium">You have unrestricted access to all operations.</p>

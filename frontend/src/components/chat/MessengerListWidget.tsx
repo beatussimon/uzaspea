@@ -56,11 +56,11 @@ export const MessengerListWidget: React.FC = () => {
 
   const getGradient = (name: string) => {
     const gradients = [
-      'from-amber-500 to-amber-600',
-      'from-blue-500 to-indigo-600',
-      'from-emerald-500 to-teal-600',
-      'from-purple-500 to-pink-600',
-      'from-rose-500 to-red-600',
+      'from-amber-500 ',
+      'bg-blue-500 ',
+      'from-emerald-500 ',
+      'bg-purple-500 ',
+      'from-rose-500 ',
     ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -93,7 +93,7 @@ export const MessengerListWidget: React.FC = () => {
           onClick={() => setViewMode('main')}
           className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
             viewMode === 'main'
-              ? 'bg-white dark:bg-black text-brand-600 dark:text-brand-400 shadow-sm'
+              ? 'bg-white dark:bg-black text-brand-500 dark:text-brand-500 shadow-sm'
               : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
@@ -103,7 +103,7 @@ export const MessengerListWidget: React.FC = () => {
           onClick={() => setViewMode('sokoni')}
           className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             viewMode === 'sokoni'
-              ? 'bg-white dark:bg-black text-brand-600 dark:text-brand-400 shadow-sm'
+              ? 'bg-white dark:bg-black text-brand-500 dark:text-brand-500 shadow-sm'
               : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
@@ -161,7 +161,7 @@ export const MessengerListWidget: React.FC = () => {
                 }`}
               >
                 <div className="relative shrink-0">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(otherUser)} shadow-sm`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(otherUser)} shadow-sm`}>
                     {otherUser.substring(0, 2).toUpperCase()}
                   </div>
                   {c.is_online && (
@@ -185,7 +185,7 @@ export const MessengerListWidget: React.FC = () => {
                   </div>
 
                   {c.product_name && (
-                    <p className="text-[10px] text-brand-600 dark:text-brand-400 font-bold truncate">
+                    <p className="text-[10px] text-brand-500 dark:text-brand-500 font-bold truncate">
                       Item: {c.product_name}
                     </p>
                   )}

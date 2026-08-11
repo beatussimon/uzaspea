@@ -236,7 +236,7 @@ const ProductRequestsBoard: React.FC = () => {
       return (
         <div className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
           <p className="font-bold text-gray-900 dark:text-white mb-1">{payload[0].payload.fullName}</p>
-          <p className="text-brand-600 dark:text-brand-400 font-semibold">{payload[0].value} Votes</p>
+          <p className="text-brand-500 dark:text-brand-500 font-semibold">{payload[0].value} Votes</p>
         </div>
       );
     }
@@ -288,7 +288,7 @@ const ProductRequestsBoard: React.FC = () => {
           {/* KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition">
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl">
+              <div className="p-3   text-blue-500 dark:text-blue-500 rounded-xl">
                 <Package size={24} />
               </div>
               <div>
@@ -298,7 +298,7 @@ const ProductRequestsBoard: React.FC = () => {
             </div>
             
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition">
-              <div className="p-3 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 rounded-xl">
+              <div className="p-3   text-brand-500 dark:text-brand-500 rounded-xl">
                 <Users size={24} />
               </div>
               <div>
@@ -336,12 +336,12 @@ const ProductRequestsBoard: React.FC = () => {
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition">
-              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl">
+              <div className="p-3   text-purple-500 dark:text-purple-500 rounded-xl">
                 <TrendingUp size={24} />
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="text-sm text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">Potential Profit</p>
-                <p className="text-lg font-black text-purple-600 dark:text-purple-400 mt-1 truncate">
+                <p className="text-lg font-black text-purple-500 dark:text-purple-500 mt-1 truncate">
                   {formatCompactCurrency(potentialProfit)}
                 </p>
                 <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">From Costs</p>
@@ -431,13 +431,13 @@ const ProductRequestsBoard: React.FC = () => {
                               {req.buying_price && (
                                 <>
                                   <span className="text-gray-400">Buy:</span>
-                                  <span className="font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap">{formatCompactCurrency(req.buying_price)}</span>
+                                  <span className="font-medium text-blue-500 dark:text-blue-500 whitespace-nowrap">{formatCompactCurrency(req.buying_price)}</span>
                                 </>
                               )}
                               {req.price && (
                                 <>
                                   <span className="text-gray-400">Sell:</span>
-                                  <span className="font-medium text-brand-600 dark:text-brand-400 whitespace-nowrap">{formatCompactCurrency(req.price)}</span>
+                                  <span className="font-medium text-brand-500 dark:text-brand-500 whitespace-nowrap">{formatCompactCurrency(req.price)}</span>
                                 </>
                               )}
                             </div>
@@ -446,7 +446,7 @@ const ProductRequestsBoard: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-2 py-4 text-center align-middle">
-                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full bg-brand-100 text-brand-800 dark:bg-brand-900/30 dark:text-brand-300 font-bold">
+                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full  text-brand-500  dark:text-brand-500 font-bold">
                           {req.request_count}
                         </span>
                       </td>
@@ -592,7 +592,7 @@ const ProductRequestsBoard: React.FC = () => {
                 id="reqQuote"
                 checked={newReqRequiresQuote}
                 onChange={(e) => setNewReqRequiresQuote(e.target.checked)}
-                className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                className="w-4 h-4 text-brand-500 border-gray-300 rounded focus:ring-brand-500"
               />
               <label htmlFor="reqQuote" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Requires Quote
@@ -622,7 +622,7 @@ const ProductRequestsBoard: React.FC = () => {
               accept="image/*"
               ref={fileInputRef}
               onChange={(e) => setNewReqImage(e.target.files?.[0] || null)}
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file: file:text-brand-500 hover:file:"
             />
           </div>
 
@@ -684,7 +684,7 @@ const ProductRequestsBoard: React.FC = () => {
             </tr>
             <tr className="font-black border-t border-gray-200">
               <td colSpan={4} className="py-2 px-2 text-right">POTENTIAL PROFIT:</td>
-              <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-700">
+              <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-500">
                 {potentialProfit.toLocaleString()} TZS
               </td>
             </tr>

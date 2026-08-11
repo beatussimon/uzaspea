@@ -187,11 +187,11 @@ export const DesktopChatWidget: React.FC = () => {
 
   const getGradient = (username: string) => {
     const colors = [
-      'from-blue-500 to-indigo-600',
-      'from-emerald-500 to-teal-600',
-      'from-purple-500 to-pink-600',
-      'from-rose-500 to-orange-600',
-      'from-amber-500 to-yellow-600',
+      'bg-blue-500 ',
+      'from-emerald-500 ',
+      'bg-purple-500 ',
+      'from-rose-500 ',
+      'from-amber-500 ',
     ];
     let hash = 0;
     for (let i = 0; i < username.length; i++) {
@@ -267,7 +267,7 @@ export const DesktopChatWidget: React.FC = () => {
               title={`Chat with ${personName}`}
             >
               <div className="relative shrink-0">
-                <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(personName)} shadow-md`}>
+                <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(personName)} shadow-md`}>
                   {personName.substring(0, 2).toUpperCase()}
                 </div>
                 {conv.is_online && (
@@ -308,7 +308,7 @@ export const DesktopChatWidget: React.FC = () => {
               className="group mb-2 px-3.5 py-2 bg-white/95 dark:bg-black/95 border border-gray-200 dark:border-neutral-800 rounded-full shadow-card-hover flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-900 transition-all active:scale-95 border-brand-500/20"
             >
               <div className="relative shrink-0">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(otherUsername || 'User')} shadow-sm`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(otherUsername || 'User')} shadow-sm`}>
                   {otherUsername ? otherUsername.substring(0, 2).toUpperCase() : <MessageSquare size={14} />}
                 </div>
                 {activeConv?.is_online && (
@@ -327,7 +327,7 @@ export const DesktopChatWidget: React.FC = () => {
 
               <button 
                 onClick={(e) => { e.stopPropagation(); closeDesktopChat(); }}
-                className="p-1 rounded-full text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-gray-200 dark:hover:bg-neutral-800 transition-colors ml-1"
+                className="p-1 rounded-full text-gray-400 hover:text-red-500 dark:hover:text-red-500 hover:bg-gray-200 dark:hover:bg-neutral-800 transition-colors ml-1"
                 title="Close chat"
               >
                 <X size={13} />
@@ -363,7 +363,7 @@ export const DesktopChatWidget: React.FC = () => {
                     onClick={() => navigate(`/${otherUsername}`)}
                   >
                     <div className="relative shrink-0">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(otherUsername)}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(otherUsername)}`}>
                         {otherUsername.substring(0, 2).toUpperCase()}
                       </div>
                       {activeConv.is_online && (
@@ -479,7 +479,7 @@ export const DesktopChatWidget: React.FC = () => {
                         className="flex items-center gap-3 p-2.5 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition-colors"
                       >
                         <div className="relative shrink-0">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(otherUser)}`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(otherUser)}`}>
                             {initials}
                           </div>
                           {conv.is_online && (
@@ -519,7 +519,7 @@ export const DesktopChatWidget: React.FC = () => {
               <div className="flex-1 flex flex-col overflow-hidden relative">
                 {/* Product Reference Banner */}
                 {activeConv?.product_name && (
-                  <div className="px-3 py-1.5 bg-brand-50/40 dark:bg-brand-950/10 border-b border-gray-100 dark:border-neutral-900 flex items-center justify-between text-[11px] shrink-0 font-medium">
+                  <div className="px-3 py-1.5   border-b border-gray-100 dark:border-neutral-900 flex items-center justify-between text-[11px] shrink-0 font-medium">
                     <span className="text-gray-600 dark:text-gray-300 truncate">
                       Re: <strong className="text-brand-500">{activeConv.product_name}</strong>
                     </span>

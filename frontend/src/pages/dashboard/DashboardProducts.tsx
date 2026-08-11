@@ -50,8 +50,8 @@ const ImagePickerButton: React.FC<ImagePickerButtonProps> = ({
         onClick={() => (mobile ? setOpen(true) : galleryRef.current?.click())}
         className={
           compact
-            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-brand-300 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10 text-brand-700 dark:text-brand-400 text-xs font-semibold hover:bg-brand-100 dark:hover:bg-brand-900/20 transition-colors'
-            : 'flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-brand-300 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10 text-brand-700 dark:text-brand-400 font-semibold text-sm hover:bg-brand-100 dark:hover:bg-brand-900/20 transition-colors w-full justify-center'
+            ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-brand-500 dark:border-brand-500   text-brand-500 dark:text-brand-500 text-xs font-semibold   transition-colors'
+            : 'flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-brand-500 dark:border-brand-500   text-brand-500 dark:text-brand-500 font-semibold text-sm   transition-colors w-full justify-center'
         }
       >
         <svg className={compact ? 'w-3.5 h-3.5' : 'w-5 h-5'} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -76,10 +76,10 @@ const ImagePickerButton: React.FC<ImagePickerButtonProps> = ({
               <button
                 type="button"
                 onClick={() => { setOpen(false); cameraRef.current?.click(); }}
-                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-brand-50 dark:hover:bg-brand-900/20 hover:border-brand-300 dark:hover:border-brand-700 transition-all group"
+                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800   hover:border-brand-500 dark:hover:border-brand-500 transition-all group"
               >
-                <div className="w-12 h-12 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <svg className="w-6 h-6 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <div className="w-12 h-12 rounded-full   flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-brand-500 dark:text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
@@ -90,10 +90,10 @@ const ImagePickerButton: React.FC<ImagePickerButtonProps> = ({
               <button
                 type="button"
                 onClick={() => { setOpen(false); galleryRef.current?.click(); }}
-                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:bg-brand-50 dark:hover:bg-brand-900/20 hover:border-brand-300 dark:hover:border-brand-700 transition-all group"
+                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800   hover:border-brand-500 dark:hover:border-brand-500 transition-all group"
               >
-                <div className="w-12 h-12 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <svg className="w-6 h-6 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <div className="w-12 h-12 rounded-full   flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-brand-500 dark:text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
@@ -581,7 +581,7 @@ const DashboardProducts: React.FC = () => {
               type="file"
               accept=".csv"
               onChange={(e) => setBatchFile(e.target.files ? e.target.files[0] : null)}
-              className="w-full mb-6 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+              className="w-full mb-6 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file: file:text-brand-500 hover:file:"
             />
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={() => setShowBatchModal(false)}>Cancel</Button>
@@ -594,16 +594,16 @@ const DashboardProducts: React.FC = () => {
       )}
 
       {user?.tier === 'customer' && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-lg">
+        <div className="  border-l-4 border-yellow-500 p-4 mb-6 rounded-r-lg">
           <div className="flex">
             <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <svg className="h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm text-yellow-700 dark:text-yellow-200">
-                Your seller plan has expired. Your products are currently hidden from the public. Please <a href="/subscription" className="font-medium underline text-yellow-700 dark:text-yellow-200 hover:text-yellow-600 dark:hover:text-yellow-100">renew your plan</a> to continue selling.
+              <p className="text-sm text-yellow-500 dark:text-yellow-500">
+                Your seller plan has expired. Your products are currently hidden from the public. Please <a href="/subscription" className="font-medium underline text-yellow-500 dark:text-yellow-500 hover:text-yellow-500 dark:hover:text-yellow-500">renew your plan</a> to continue selling.
               </p>
             </div>
           </div>
@@ -779,9 +779,9 @@ const DashboardProducts: React.FC = () => {
             {submitting && uploadProgress !== null && (
               <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center space-y-5">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-brand-50 dark:bg-brand-900/30 flex items-center justify-center">
+                  <div className="w-16 h-16 mx-auto rounded-full   flex items-center justify-center">
                     {uploadProgress < 100 ? (
-                      <svg className="w-8 h-8 text-brand-600 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      <svg className="w-8 h-8 text-brand-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                     ) : (
                       <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
                     )}
@@ -812,8 +812,8 @@ const DashboardProducts: React.FC = () => {
                 {[1, 2].map(step => (
                   <React.Fragment key={step}>
                     <button type="button" onClick={() => { if (step < wizardStep || (step === 2 && canProceedStep1)) setWizardStep(step); }}
-                      className={`flex items-center gap-1.5 text-xs font-bold transition-all ${wizardStep === step ? 'text-brand-600 dark:text-brand-400' : wizardStep > step ? 'text-emerald-600 dark:text-emerald-400 cursor-pointer' : 'text-gray-400'}`}>
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black ${wizardStep === step ? 'bg-brand-600 text-white' : wizardStep > step ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
+                      className={`flex items-center gap-1.5 text-xs font-bold transition-all ${wizardStep === step ? 'text-brand-500 dark:text-brand-500' : wizardStep > step ? 'text-emerald-600 dark:text-emerald-400 cursor-pointer' : 'text-gray-400'}`}>
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black ${wizardStep === step ? 'bg-brand-500 text-white' : wizardStep > step ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
                         {wizardStep > step ? '✓' : step}
                       </span>
                       {step === 1 ? 'Photos' : 'Details'}
@@ -842,11 +842,11 @@ const DashboardProducts: React.FC = () => {
                   )}
 
                   <div ref={dropRef} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-                    className={`rounded-xl border-2 border-dashed transition-all duration-200 ${dragOver ? 'border-brand-500 bg-brand-50/80 dark:bg-brand-900/20 scale-[1.01]' : 'border-gray-300 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-900/30 hover:border-brand-400'} ${imagePreviews.length > 0 ? 'p-4' : 'p-8'}`}>
+                    className={`rounded-xl border-2 border-dashed transition-all duration-200 ${dragOver ? 'border-brand-500   scale-[1.01]' : 'border-gray-300 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-900/30 hover:border-brand-500'} ${imagePreviews.length > 0 ? 'p-4' : 'p-8'}`}>
                     {imagePreviews.length === 0 ? (
                       <div className="text-center">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
-                          <svg className="w-8 h-8 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl   flex items-center justify-center">
+                          <svg className="w-8 h-8 text-brand-500 dark:text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
@@ -862,7 +862,7 @@ const DashboardProducts: React.FC = () => {
                             <div key={p.url} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 group">
                               <img src={p.url} alt="Preview" className="w-full h-full object-cover" />
                               <button type="button" onClick={() => handleRemoveImage(idx)}
-                                className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-red-600 text-white rounded-full transition opacity-0 group-hover:opacity-100" title="Remove">
+                                className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-red-500 text-white rounded-full transition opacity-0 group-hover:opacity-100" title="Remove">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                               </button>
                             </div>
@@ -879,7 +879,7 @@ const DashboardProducts: React.FC = () => {
                   <div className="flex gap-3 pt-1">
                     <button type="button" onClick={cancelForm} className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm">Cancel</button>
                     <button type="button" onClick={() => setWizardStep(2)} disabled={!canProceedStep1 && !editingId}
-                      className="flex-[2] py-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-500 text-white font-bold rounded-lg transition text-sm flex items-center justify-center gap-2">
+                      className="flex-[2] py-2.5 bg-brand-500 hover:bg-brand-500 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-500 text-white font-bold rounded-lg transition text-sm flex items-center justify-center gap-2">
                       Next: Details <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                     </button>
                   </div>
@@ -940,7 +940,7 @@ const DashboardProducts: React.FC = () => {
                   </button>
 
                   {showAdvanced && (
-                    <div className="space-y-4 pl-1 border-l-2 border-brand-200 dark:border-brand-800 ml-1">
+                    <div className="space-y-4 pl-1 border-l-2 border-brand-500 dark:border-brand-500 ml-1">
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pl-3">
                         <div><label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">SKU</label>
                           <input name="sku" value={form.sku} onChange={handleChange} placeholder="Optional" className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none" /></div>
@@ -968,11 +968,11 @@ const DashboardProducts: React.FC = () => {
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3 pl-3">
                         <label className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer flex-1">
-                          <input type="checkbox" checked={form.is_available} onChange={(e) => setForm({...form, is_available: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-brand-600" />
+                          <input type="checkbox" checked={form.is_available} onChange={(e) => setForm({...form, is_available: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-brand-500" />
                           <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Available</span>
                         </label>
                         <label className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer flex-1">
-                          <input type="checkbox" checked={form.requires_quote} onChange={(e) => setForm({...form, requires_quote: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-brand-600" />
+                          <input type="checkbox" checked={form.requires_quote} onChange={(e) => setForm({...form, requires_quote: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-brand-500" />
                           <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Requires Quote</span>
                         </label>
                       </div>
@@ -986,7 +986,7 @@ const DashboardProducts: React.FC = () => {
                             <button type="button" onClick={() => setPriceTiers(priceTiers.filter((_,i)=>i!==idx))} className="text-red-500 font-bold px-1.5 text-sm">✕</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => setPriceTiers([...priceTiers,{min_quantity:'',max_quantity:'',unit_price:''}])} className="text-xs text-brand-600 font-bold">+ Add Tier</button>
+                        <button type="button" onClick={() => setPriceTiers([...priceTiers,{min_quantity:'',max_quantity:'',unit_price:''}])} className="text-xs text-brand-500 font-bold">+ Add Tier</button>
                       </div>
                       <div className="pl-3">
                         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -997,12 +997,12 @@ const DashboardProducts: React.FC = () => {
                                 <input autoFocus placeholder="e.g. Size" value={customColumnName} onChange={e => setCustomColumnName(e.target.value)}
                                   onKeyDown={e => { if (e.key==='Enter'&&customColumnName.trim()) { setVariationColumns([...variationColumns,customColumnName.trim()]); setNewVariants(prev=>prev.map(v=>({...v,fields:{...v.fields,[customColumnName.trim()]:''}})));setCustomColumnName('');setShowCustomColumnInput(false);} else if (e.key==='Escape') setShowCustomColumnInput(false); }}
                                   className="text-xs p-1.5 border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 dark:text-white outline-none w-20" />
-                                <button type="button" onClick={() => { if(customColumnName.trim()){setVariationColumns([...variationColumns,customColumnName.trim()]);setNewVariants(prev=>prev.map(v=>({...v,fields:{...v.fields,[customColumnName.trim()]:''}})));setCustomColumnName('');} setShowCustomColumnInput(false); }} className="text-[10px] font-bold text-white bg-brand-600 px-2 py-1 rounded">Add</button>
+                                <button type="button" onClick={() => { if(customColumnName.trim()){setVariationColumns([...variationColumns,customColumnName.trim()]);setNewVariants(prev=>prev.map(v=>({...v,fields:{...v.fields,[customColumnName.trim()]:''}})));setCustomColumnName('');} setShowCustomColumnInput(false); }} className="text-[10px] font-bold text-white bg-brand-500 px-2 py-1 rounded">Add</button>
                               </div>
                             ) : (
                               <button type="button" onClick={() => setShowCustomColumnInput(true)} className="text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded flex items-center gap-1"><Plus size={10}/> Column</button>
                             )}
-                            <button type="button" onClick={() => setNewVariants([...newVariants,{fields:{},price_adj_sign:'+',price_adjustment:'0',stock:'0'}])} className="text-[10px] font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-1 rounded flex items-center gap-1"><Plus size={10}/> Option</button>
+                            <button type="button" onClick={() => setNewVariants([...newVariants,{fields:{},price_adj_sign:'+',price_adjustment:'0',stock:'0'}])} className="text-[10px] font-bold text-brand-500   px-2 py-1 rounded flex items-center gap-1"><Plus size={10}/> Option</button>
                           </div>
                         </div>
                         {variationColumns.length > 0 && (
@@ -1033,7 +1033,7 @@ const DashboardProducts: React.FC = () => {
                                 </div>
                               </div>
                               <button type="button" onClick={()=>{const nv=[...newVariants];const removed=nv.splice(i,1)[0];setNewVariants(nv);if(removed.id)setDeletedVariantIds(prev=>[...prev,removed.id]);}}
-                                className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded p-1 self-end mb-0.5">
+                                className="text-red-500   rounded p-1 self-end mb-0.5">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                               </button>
                             </div>
@@ -1050,7 +1050,7 @@ const DashboardProducts: React.FC = () => {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg> Back
                     </button>
                     <button type="submit" disabled={submitting || !canSubmit}
-                      className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-500 text-white font-bold rounded-lg transition text-sm">
+                      className="flex-1 py-2.5 bg-brand-500 hover:bg-brand-500 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-500 text-white font-bold rounded-lg transition text-sm">
                       {editingId ? 'Update Product' : 'Create Product'}
                     </button>
                   </div>
@@ -1083,14 +1083,14 @@ const DashboardProducts: React.FC = () => {
                 <div className="flex items-center gap-2 mb-1">
                   <h4 className="font-medium text-gray-900 dark:text-white truncate">{product.name}</h4>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    product.stock === 0 ? 'bg-red-100 text-red-700' : 
-                    product.stock <= 3 ? 'bg-yellow-100 text-yellow-700' : 
-                    'bg-green-100 text-green-700'
+                    product.stock === 0 ? ' text-red-500' : 
+                    product.stock <= 3 ? ' text-yellow-500' : 
+                    ' text-green-500'
                   }`}>
                     {product.stock === 0 ? 'Out of Stock' : product.stock <= 3 ? 'Low Stock' : 'In Stock'}
                   </span>
                 </div>
-                <p className="text-sm text-brand-600 dark:text-brand-400 font-bold mb-1 flex items-center gap-2">
+                <p className="text-sm text-brand-500 dark:text-brand-500 font-bold mb-1 flex items-center gap-2">
                   <span>TSh {parseInt(product.price).toLocaleString()}</span>
                   {product.buying_price && (
                     <span className="text-xs text-gray-500 font-normal ml-2">Cost: TSh {parseInt(product.buying_price).toLocaleString()}</span>
@@ -1109,15 +1109,15 @@ const DashboardProducts: React.FC = () => {
                         className="w-16 px-1.5 py-0.5 border rounded text-gray-900 dark:text-white dark:bg-gray-700" 
                         autoFocus
                       />
-                      <button onClick={() => handleQuickStockUpdate(product.id)} className="text-green-600 hover:text-green-700 px-1 font-bold">✓</button>
-                      <button onClick={() => setEditingStockId(null)} className="text-red-500 hover:text-red-600 px-1 font-bold">✕</button>
+                      <button onClick={() => handleQuickStockUpdate(product.id)} className="text-green-500 hover:text-green-500 px-1 font-bold">✓</button>
+                      <button onClick={() => setEditingStockId(null)} className="text-red-500 hover:text-red-500 px-1 font-bold">✕</button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1 group">
                       <span>Stock: {product.stock}</span>
                       <button 
                         onClick={() => { setEditingStockId(product.id); setQuickStockValue(String(product.stock)); }}
-                        className="opacity-0 group-hover:opacity-100 text-brand-500 hover:text-brand-700 ml-1 transition"
+                        className="opacity-0 group-hover:opacity-100 text-brand-500 hover:text-brand-500 ml-1 transition"
                         title="Quick Edit Stock"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
@@ -1138,11 +1138,11 @@ const DashboardProducts: React.FC = () => {
                   Edit
                 </button>
                 <button onClick={() => setVariantProductId(product.id.toString())}
-                  className="px-3 py-1.5 text-xs text-center border border-brand-300 dark:border-brand-600 text-brand-600 dark:text-brand-400 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition">
+                  className="px-3 py-1.5 text-xs text-center border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500 rounded-lg   transition">
                   Variants
                 </button>
                 <button onClick={() => handleDelete(product.slug)}
-                  className="px-3 py-1.5 text-xs text-center border border-red-300 text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+                  className="px-3 py-1.5 text-xs text-center border border-red-500 text-red-500 rounded-lg   transition">
                   Delete
                 </button>
               </div>

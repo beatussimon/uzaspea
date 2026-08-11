@@ -213,7 +213,7 @@ const DashboardOrders: React.FC = () => {
       <div className="flex gap-1 flex-wrap mb-4 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
         {filterTabs.map(s => (
           <button key={s} onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1.5 text-[10px] sm:text-xs rounded-lg font-bold transition uppercase tracking-wider ${filterStatus === s ? 'bg-brand-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+            className={`px-3 py-1.5 text-[10px] sm:text-xs rounded-lg font-bold transition uppercase tracking-wider ${filterStatus === s ? 'bg-brand-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
             {s ? (ORDER_STATUS_CFG[s]?.label || s) : 'All Orders'}
           </button>
         ))}
@@ -222,10 +222,10 @@ const DashboardOrders: React.FC = () => {
       {/* Status Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[
-              { id: 'PENDING_VERIFICATION', label: 'Payments to Verify', icon: ShieldAlert, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/10' },
-              { id: 'PAID', label: 'Ready to Process', icon: Package, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/10' },
-              { id: 'PROCESSING', label: 'In Processing', icon: Clock, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/10' },
-              { id: 'SHIPPED', label: 'Active Shipments', icon: Truck, color: 'text-brand-600', bg: 'bg-brand-50 dark:bg-brand-900/10' },
+              { id: 'PENDING_VERIFICATION', label: 'Payments to Verify', icon: ShieldAlert, color: 'text-orange-500', bg: ' ' },
+              { id: 'PAID', label: 'Ready to Process', icon: Package, color: 'text-green-500', bg: ' ' },
+              { id: 'PROCESSING', label: 'In Processing', icon: Clock, color: 'text-brand-500', bg: ' ' },
+              { id: 'SHIPPED', label: 'Active Shipments', icon: Truck, color: 'text-brand-500', bg: ' ' },
           ].map((stat) => {
               const count = stat.id === 'PENDING_VERIFICATION' 
                 ? orders.filter(o => o.status === 'PENDING_VERIFICATION' || o.status === 'PENDING_DELIVERY_VERIFICATION').length
@@ -285,7 +285,7 @@ const DashboardOrders: React.FC = () => {
                         )}
                     </div>
                     {order.items?.length > 1 && (
-                        <div className="absolute -bottom-1 -right-1 bg-brand-600 text-white text-[10px] font-black w-5 h-5 rounded-lg flex items-center justify-center shadow-lg border-2 border-white dark:border-gray-800">
+                        <div className="absolute -bottom-1 -right-1 bg-brand-500 text-white text-[10px] font-black w-5 h-5 rounded-lg flex items-center justify-center shadow-lg border-2 border-white dark:border-gray-800">
                             +{order.items.length - 1}
                         </div>
                     )}
@@ -294,11 +294,11 @@ const DashboardOrders: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                         {order.delivery_info?.is_pos && (
-                          <span className="text-[10px] font-black text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/40 border border-purple-200 dark:border-purple-800 px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1 shadow-xs">
+                          <span className="text-[10px] font-black text-purple-500 dark:text-purple-500   border border-purple-500 dark:border-purple-500 px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1 shadow-xs">
                             <Receipt size={11} /> POS
                           </span>
                         )}
-                        <span className="text-[10px] font-black text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded uppercase tracking-widest">Order #{order.id}</span>
+                        <span className="text-[10px] font-black text-brand-500   px-2 py-0.5 rounded uppercase tracking-widest">Order #{order.id}</span>
                         <span className="text-[10px] font-bold text-gray-400 capitalize">{fmtOrderDate(order.order_date)}</span>
                     </div>
                     <h4 className="text-base font-black text-gray-900 dark:text-white truncate">
@@ -306,7 +306,7 @@ const DashboardOrders: React.FC = () => {
                     </h4>
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                       {order.delivery_info?.is_pos ? (
-                        <>Customer: <span className="font-bold text-purple-700 dark:text-purple-300">{order.delivery_info?.customer_name || 'Walk-in Customer'}</span></>
+                        <>Customer: <span className="font-bold text-purple-500 dark:text-purple-500">{order.delivery_info?.customer_name || 'Walk-in Customer'}</span></>
                       ) : (
                         <>Customer: <span className="font-bold text-gray-700 dark:text-gray-300">@{order.buyer}</span></>
                       )}
@@ -329,7 +329,7 @@ const DashboardOrders: React.FC = () => {
                         <Link 
                             to={`/${order.buyer}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
+                            className="p-2 text-gray-400 hover:text-brand-500   rounded-lg transition"
                             title="Contact Customer"
                         >
                             <MessageSquare size={18} />
@@ -347,19 +347,19 @@ const DashboardOrders: React.FC = () => {
 
                     {/* Payment Verification Block */}
                     {hasPendingPayment && order.payments?.length > 0 && (
-                      <div className="px-6 py-6 bg-brand-50/50 dark:bg-brand-900/10 border-b border-brand-100 dark:border-brand-900/20">
+                      <div className="px-6 py-6   border-b border-brand-500 dark:border-brand-500/20">
                           <div className="flex items-center gap-2 mb-4">
-                              <ShieldCheck className="text-brand-600" size={20} />
+                              <ShieldCheck className="text-brand-500" size={20} />
                               <h4 className="font-black text-gray-900 dark:text-white text-sm uppercase tracking-wider">Payment Verification Needed</h4>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div className="space-y-4">
                                   {order.payments.filter((p:any) => p.status === 'PENDING_VERIFICATION').map((p:any) => (
-                                      <div key={p.id} className="card p-4 space-y-3 bg-white/70 dark:bg-gray-800/70 border-brand-200">
+                                      <div key={p.id} className="card p-4 space-y-3 bg-white/70 dark:bg-gray-800/70 border-brand-500">
                                           <div className="flex justify-between text-xs">
                                               <span className="text-gray-500 font-bold uppercase">Transaction ID</span>
-                                              <span className="font-black text-brand-700 dark:text-brand-400 select-all">{p.transaction_id || 'N/A'}</span>
+                                              <span className="font-black text-brand-500 dark:text-brand-500 select-all">{p.transaction_id || 'N/A'}</span>
                                           </div>
                                           <div className="flex justify-between text-xs">
                                               <span className="text-gray-500 font-bold uppercase">Amount</span>
@@ -383,7 +383,7 @@ const DashboardOrders: React.FC = () => {
                                   ))}
                               </div>
                               
-                              <div className="bg-white/50 dark:bg-gray-800/50 p-5 rounded-2xl border border-brand-100/50 dark:border-brand-900/20 flex flex-col justify-center gap-3">
+                              <div className="bg-white/50 dark:bg-gray-800/50 p-5 rounded-2xl border border-brand-500/50 dark:border-brand-500/20 flex flex-col justify-center gap-3">
                                   <p className="text-xs text-gray-600 dark:text-gray-400 italic">
                                      {isDeliveryPayment 
                                         ? "Review the delivery fee transaction above. Once confirmed, assign the order to transport."
@@ -399,7 +399,7 @@ const DashboardOrders: React.FC = () => {
                                       </button>
                                       <button 
                                           onClick={() => handleAdvance(order.id, 'AWAITING_PAYMENT', 'Payment rejected. Incorrect transaction ID or proof.')}
-                                          className="flex-1 btn-ghost py-2.5 border-red-100 text-red-500 hover:bg-red-50 text-[11px] font-bold uppercase tracking-widest"
+                                          className="flex-1 btn-ghost py-2.5 border-red-500 text-red-500  text-[11px] font-bold uppercase tracking-widest"
                                       >
                                           Reject
                                       </button>
@@ -423,7 +423,7 @@ const DashboardOrders: React.FC = () => {
                                     <div className="flex-1 min-w-0">
                                     <p className="text-sm font-black text-gray-900 dark:text-white truncate">
                                         {item.product_name}
-                                        {item.variant_name && <span className="ml-2 text-[10px] uppercase font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded tracking-wider align-middle">{item.variant_name}</span>}
+                                        {item.variant_name && <span className="ml-2 text-[10px] uppercase font-bold text-brand-500   px-2 py-0.5 rounded tracking-wider align-middle">{item.variant_name}</span>}
                                     </p>
                                     <p className="text-xs text-gray-500 font-bold mt-0.5">Qty: {item.quantity} × TSh {(item.price || 0).toLocaleString()}</p>
                                     </div>
@@ -432,9 +432,9 @@ const DashboardOrders: React.FC = () => {
                                 ))}
                             </div>
                             {order.promo_code_code && (
-                              <div className="mt-4 p-3.5 bg-green-50/50 dark:bg-green-950/10 border border-green-100/50 dark:border-green-900/30 rounded-xl flex items-center justify-between text-xs">
+                              <div className="mt-4 p-3.5   border border-green-500/50 dark:border-green-500/30 rounded-xl flex items-center justify-between text-xs">
                                 <div className="space-y-0.5">
-                                  <p className="font-bold text-green-700 dark:text-green-400">Promo Applied: {order.promo_code_code}</p>
+                                  <p className="font-bold text-green-500 dark:text-green-500">Promo Applied: {order.promo_code_code}</p>
                                   <p className="text-[10px] text-gray-500">Discount type: {order.promo_code_details?.discount_type === 'percentage' ? 'Percentage' : 'Fixed Amount'}</p>
                                 </div>
                                 <span className="font-bold text-gray-700 dark:text-gray-300">
@@ -449,10 +449,10 @@ const DashboardOrders: React.FC = () => {
                           <div className="lg:col-span-2 p-6 bg-gray-50/50 dark:bg-gray-800/10 flex flex-col justify-between">
                             <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5">Order History</p>
-                                <div className="space-y-4 pt-1 relative pl-4 border-l-2 border-brand-100 dark:border-brand-900/30">
+                                <div className="space-y-4 pt-1 relative pl-4 border-l-2 border-brand-500 dark:border-brand-500/30">
                                     {[...(order.timeline || [])].reverse().slice(0, 3).map((ev: any, i: number) => (
                                         <div key={i} className="relative">
-                                            <div className="absolute -left-[21.5px] w-2.5 h-2.5 rounded-full bg-brand-400 border-2 border-white dark:border-gray-800 shadow-sm" />
+                                            <div className="absolute -left-[21.5px] w-2.5 h-2.5 rounded-full bg-brand-500 border-2 border-white dark:border-gray-800 shadow-sm" />
                                             <div className="ml-3">
                                                 <p className="text-xs font-black text-gray-800 dark:text-gray-200 uppercase tracking-tighter">{ORDER_STATUS_CFG[ev.status]?.label || ev.status}</p>
                                                 <p className="text-[10px] text-gray-400 mt-0.5 font-bold uppercase">{fmtOrderDate(ev.created_at)}</p>
@@ -480,7 +480,7 @@ const DashboardOrders: React.FC = () => {
                                                 handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
                                             }}
                                             disabled={advancing === order.id}
-                                            className="flex-[3] btn-primary py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-sm font-black uppercase tracking-widest shadow-xl shadow-brand-600/20 flex items-center justify-center gap-3 group ring-offset-2 focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white"
+                                            className="flex-[3] btn-primary py-4 bg-brand-500 hover:bg-brand-500 disabled:bg-brand-500 text-sm font-black uppercase tracking-widest shadow-xl shadow-brand-600/20 flex items-center justify-center gap-3 group ring-offset-2 focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white"
                                         >
                                             {advancing === order.id ? (
                                                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
@@ -522,7 +522,7 @@ const DashboardOrders: React.FC = () => {
                                         <button 
                                             onClick={() => handleCancel(order.id)}
                                             disabled={advancing === order.id}
-                                            className="flex-1 btn-secondary py-4 text-red-600 hover:text-red-700 hover:bg-red-50 text-sm font-black uppercase tracking-widest border-2 border-red-100 hover:border-red-200 transition-all flex items-center justify-center gap-2"
+                                            className="flex-1 btn-secondary py-4 text-red-500 hover:text-red-500  text-sm font-black uppercase tracking-widest border-2 border-red-500 hover:border-red-500 transition-all flex items-center justify-center gap-2"
                                         >
                                             <XCircle size={18} />
                                             Cancel
@@ -531,7 +531,7 @@ const DashboardOrders: React.FC = () => {
                                 </div>
                                 
                                 {order.status === 'SHIPPED_TO_WAREHOUSE' && (
-                                  <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-6 bg-brand-50/50 dark:bg-brand-900/10 p-4 rounded-xl border border-brand-100 dark:border-brand-900/20">
+                                  <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-6   p-4 rounded-xl border border-brand-500 dark:border-brand-500/20">
                                     <div className="flex-1">
                                       <p className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest mb-1">Origin Drop-off Tag</p>
                                       <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -545,7 +545,7 @@ const DashboardOrders: React.FC = () => {
                                 )}
 
                                 {order.fulfillment_type !== 'DIRECT_DELIVERY' && ['RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'].includes(order.status) && (
-                                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 p-3 bg-brand-50/50 dark:bg-brand-950/20 border border-brand-100/50 dark:border-brand-900/30 rounded-xl">
+                                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 p-3   border border-brand-500/50 dark:border-brand-500/30 rounded-xl">
                                         <Truck size={14} className="text-brand-500 shrink-0" />
                                         <span>SokoniMax logistics is handling this delivery — no action required from you.</span>
                                     </div>
@@ -557,7 +557,7 @@ const DashboardOrders: React.FC = () => {
                                             Last Activity: {fmtOrderDate(order.order_date)}
                                         </p>
                                     </div>
-                                    <Link to={`/${order.buyer}`} className="text-[10px] font-black text-brand-600 uppercase tracking-widest hover:underline flex items-center gap-1">
+                                    <Link to={`/${order.buyer}`} className="text-[10px] font-black text-brand-500 uppercase tracking-widest hover:underline flex items-center gap-1">
                                         <MessageSquare size={12} />
                                         Contact Buyer
                                     </Link>

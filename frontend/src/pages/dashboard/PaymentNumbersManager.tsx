@@ -55,7 +55,7 @@ const PaymentNumbersManager: React.FC = () => {
                     onChange={e => setForm({...form, number: e.target.value})} className="input text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 w-full p-3 border dark:border-gray-600 rounded-lg" />
                 <input placeholder="Account Name (shown to buyer)" value={form.name}
                     onChange={e => setForm({...form, name: e.target.value})} className="input text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 w-full p-3 border dark:border-gray-600 rounded-lg" />
-                <button onClick={handleSave} className="btn-primary w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg transition">
+                <button onClick={handleSave} className="btn-primary w-full py-3 bg-brand-500 hover:bg-brand-500 text-white font-semibold rounded-lg transition">
                     {editingId ? 'Update' : 'Add Number'}
                 </button>
             </div>
@@ -80,7 +80,7 @@ const PaymentNumbersManager: React.FC = () => {
                         <div className="flex gap-2">
                             <button onClick={() => { setEditingId(lipa.id); setForm({network: lipa.network, number: lipa.number, name: lipa.name}); }}
                                 className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition">Edit</button>
-                            <button onClick={() => handleDelete(lipa.id)} className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-xs hover:bg-red-200 dark:hover:bg-red-900/50 transition">Remove</button>
+                            <button onClick={() => handleDelete(lipa.id)} className="px-3 py-1   text-red-500 dark:text-red-500 rounded text-xs   transition">Remove</button>
                         </div>
                     </div>
                 ))}

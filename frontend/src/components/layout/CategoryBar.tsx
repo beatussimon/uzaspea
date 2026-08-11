@@ -198,7 +198,7 @@ const CategoryBar: React.FC = () => {
                       decoding="async"
                     />
                   </div>
-                  <span className={`text-xs md:text-sm font-bold text-center max-w-[5.5rem] md:max-w-[8.5rem] leading-tight line-clamp-2 ${isActive ? 'text-brand-600 dark:text-brand-400 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>
+                  <span className={`text-xs md:text-sm font-bold text-center max-w-[5.5rem] md:max-w-[8.5rem] leading-tight line-clamp-2 ${isActive ? 'text-brand-500 dark:text-brand-500 font-extrabold' : 'text-gray-700 dark:text-gray-300'}`}>
                     {cat.name}
                   </span>
                 </div>

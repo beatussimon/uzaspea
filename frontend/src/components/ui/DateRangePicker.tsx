@@ -87,7 +87,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChang
                 <button
                   key={i}
                   onClick={() => handlePresetClick(preset)}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors ${value.label === preset.label ? 'text-brand-600 dark:text-brand-400 font-bold bg-brand-50/50 dark:bg-brand-900/10' : 'text-gray-700 dark:text-gray-300'}`}
+                  className={`w-full text-left px-4 py-2 text-sm   transition-colors ${value.label === preset.label ? 'text-brand-500 dark:text-brand-500 font-bold  ' : 'text-gray-700 dark:text-gray-300'}`}
                 >
                   {preset.label}
                 </button>
@@ -135,7 +135,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChang
                 <button 
                   onClick={applyCustomRange}
                   disabled={!customStart || !customEnd}
-                  className="flex-1 px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-3 py-2 bg-brand-500 hover:bg-brand-500 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Apply
                 </button>

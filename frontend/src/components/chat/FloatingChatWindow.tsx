@@ -183,11 +183,11 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
 
   const getGradient = (name: string) => {
     const gradients = [
-      'from-amber-500 to-amber-600',
-      'from-blue-500 to-indigo-600',
-      'from-emerald-500 to-teal-600',
-      'from-purple-500 to-pink-600',
-      'from-rose-500 to-red-600',
+      'from-amber-500 ',
+      'bg-blue-500 ',
+      'from-emerald-500 ',
+      'bg-purple-500 ',
+      'from-rose-500 ',
     ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -226,7 +226,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
       <div className="px-3.5 py-2.5 bg-surface-muted/90 dark:bg-neutral-900/90 border-b border-gray-200/60 dark:border-neutral-800/60 flex items-center justify-between shrink-0 select-none">
         <div className="flex items-center gap-2 min-w-0">
           <div className="relative shrink-0">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs bg-gradient-to-br ${getGradient(otherUsername)} shadow-sm`}>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(otherUsername)} shadow-sm`}>
               {otherUsername.substring(0, 2).toUpperCase()}
             </div>
             {activeConv?.is_online && (
@@ -263,7 +263,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
           </button>
           <button
             onClick={() => closeChatWindow(convId)}
-            className="p-1 rounded-full text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-gray-200 dark:hover:bg-neutral-800 transition-colors"
+            className="p-1 rounded-full text-gray-400 hover:text-red-500 dark:hover:text-red-500 hover:bg-gray-200 dark:hover:bg-neutral-800 transition-colors"
             title="Close"
           >
             <X size={14} />
@@ -283,7 +283,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
           {activeConv.product && (
             <button
               onClick={() => navigate(`/product/${activeConv.product}`)}
-              className="text-[10px] text-brand-600 dark:text-brand-400 font-bold hover:underline shrink-0 ml-2"
+              className="text-[10px] text-brand-500 dark:text-brand-500 font-bold hover:underline shrink-0 ml-2"
             >
               View
             </button>
@@ -302,7 +302,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
           </div>
         ) : currentMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base bg-gradient-to-br ${getGradient(otherUsername)} mb-2 shadow-md`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base  ${getGradient(otherUsername)} mb-2 shadow-md`}>
               {otherUsername.substring(0, 2).toUpperCase()}
             </div>
             <p className="text-xs font-bold text-gray-900 dark:text-white">Say Hello to {otherUsername}!</p>
@@ -329,16 +329,16 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
                   >
                     {isFirstUnread && (
                       <div className="w-full flex items-center justify-center my-3 relative">
-                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-brand-500/30 dark:border-brand-400/20"></div></div>
-                        <span className="relative bg-white dark:bg-black px-2 text-[10px] font-bold text-brand-500 dark:text-brand-400 uppercase tracking-wider select-none">New Messages</span>
+                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-brand-500/30 dark:border-brand-500/20"></div></div>
+                        <span className="relative bg-white dark:bg-black px-2 text-[10px] font-bold text-brand-500 dark:text-brand-500 uppercase tracking-wider select-none">New Messages</span>
                       </div>
                     )}
                     <div
                       className={`max-w-[82%] px-3 py-2 rounded-2xl text-xs leading-relaxed break-words shadow-sm ${
                         isMe
-                          ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-br-xs font-sans'
+                          ? ' bg-brand-500  text-white rounded-br-xs font-sans'
                           : isUnread
-                            ? 'bg-brand-50/50 dark:bg-brand-900/10 text-gray-900 dark:text-gray-100 border border-brand-200/50 dark:border-brand-800/30 rounded-bl-xs font-sans'
+                            ? '  text-gray-900 dark:text-gray-100 border border-brand-500/50 dark:border-brand-500/30 rounded-bl-xs font-sans'
                             : 'bg-surface-muted dark:bg-neutral-900 text-gray-900 dark:text-gray-100 rounded-bl-xs border border-gray-200/50 dark:border-neutral-800/50 font-sans'
                       }`}
                     >

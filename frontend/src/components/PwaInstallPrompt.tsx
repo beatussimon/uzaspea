@@ -98,7 +98,7 @@ export const PwaInstallPrompt = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={handleInstallClick}
-              className="flex-1 bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold py-2 px-4 rounded-full transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-brand-500/20"
+              className="flex-1 bg-brand-500 hover:bg-brand-500 text-white text-xs font-bold py-2 px-4 rounded-full transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-brand-500/20"
             >
               <Download size={14} />
               {t('install_now', 'Install Now')}

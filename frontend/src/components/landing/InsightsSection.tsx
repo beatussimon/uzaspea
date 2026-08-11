@@ -73,7 +73,7 @@ const InsightsSection: React.FC<InsightsSectionProps> = ({
     <div className="relative w-full h-full bg-transparent transition-colors duration-300 overflow-hidden flex flex-col justify-center">
       {/* Subtle Dynamic Background Accent */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[30%] left-[30%] w-[40%] h-[40%] rounded-full bg-blue-500/5 dark:bg-blue-500/10 blur-[150px]" />
+        <div className="absolute top-[30%] left-[30%] w-[40%] h-[40%] rounded-full   blur-[150px]" />
       </div>
 
       <AnimatePresence>
@@ -88,7 +88,7 @@ const InsightsSection: React.FC<InsightsSectionProps> = ({
             {/* Standardized Header */}
             <motion.div variants={itemVariants} className="text-center mb-8 flex-shrink-0">
               <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900 dark:text-white flex items-center justify-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <div className="w-8 h-8 rounded-full   flex items-center justify-center text-blue-500 dark:text-blue-500">
                   <Activity className="w-4.5 h-4.5" />
                 </div>
                 {t('platform_insights', 'PLATFORM INSIGHTS')}
@@ -101,8 +101,8 @@ const InsightsSection: React.FC<InsightsSectionProps> = ({
             {/* Stats Grid */}
             <div className="w-full max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 mb-8">
               {[
-                { label: 'Active Users', value: displayStats.active_users, icon: <Users className="w-5 h-5" />, color: 'bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400' },
-                { label: 'Products Sold', value: displayStats.products_sold, icon: <ShoppingBag className="w-5 h-5" />, color: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400' },
+                { label: 'Active Users', value: displayStats.active_users, icon: <Users className="w-5 h-5" />, color: '  text-blue-500 dark:text-blue-500' },
+                { label: 'Products Sold', value: displayStats.products_sold, icon: <ShoppingBag className="w-5 h-5" />, color: '  text-indigo-500 dark:text-indigo-500' },
                 { label: 'Weekly Visits', value: displayStats.weekly_visits, icon: <TrendingUp className="w-5 h-5" />, color: 'bg-violet-100 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400' },
                 { label: 'Hot Categories', value: displayStats.hot_categories, icon: <Activity className="w-5 h-5" />, color: 'bg-fuchsia-100 dark:bg-fuchsia-950/50 text-fuchsia-600 dark:text-fuchsia-400' },
               ].map((stat, i) => (
