@@ -12,7 +12,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useMessages } from '../context/MessageContext';
-import api from '../api';
+import api, { API_BASE_URL } from '../api';
 
 const MobileBottomNav = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -176,115 +176,86 @@ const MobileBottomNav = () => {
       <div className={`lg:hidden fixed inset-x-0 bottom-0 z-[80] transition-transform duration-300 transform ${isMenuOpen ? 'translate-y-0' : 'translate-y-full'} print-hide`}>
         <div className="bg-white dark:bg-gray-900 rounded-t-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col pb-safe">
           {/* Header Handle */}
-          <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mt-3 mb-1" />
-          
-          <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border dark:border-surface-dark-border">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('main_menu')}</h2>
-            <button 
-              onClick={() => setIsMenuOpen(false)}
-              className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500"
-            >
-              <X size={20} />
-            </button>
-          </div>
+          <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mt-2 mb-1" />
 
           <div className="flex-1 overflow-y-auto no-scrollbar pb-10">
             {/* User Profile Summary */}
             {isAuthenticated ? (
-              <div className="p-6 flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-brand-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                  {username.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold text-gray-900 dark:text-white">{username}</span>
-                    <VerifiedBadge tier={userTier} isVerified={isVerified} className="w-5 h-5" />
+              <Link to={`/${username}`} onClick={() => setIsMenuOpen(false)} className="block px-5 pb-4 pt-2 border-b border-gray-100 dark:border-neutral-900 hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition-colors group">
+                <div className="flex items-center gap-3.5">
+                  {user?.profile_picture ? (
+                    <img src={user.profile_picture.startsWith('http') ? user.profile_picture : `${API_BASE_URL}${user.profile_picture}`} alt={username} className="w-12 h-12 rounded-full object-cover shadow-sm" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-brand-500 flex items-center justify-center text-white text-xl font-bold shadow-sm">
+                      {username.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-brand-500 transition-colors">{username}</span>
+                      <VerifiedBadge tier={userTier} isVerified={isVerified} className="w-4 h-4" />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize font-medium mt-0.5">{userTier} {t('member')}</p>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{userTier} {t('member')}</p>
                 </div>
-              </div>
+              </Link>
             ) : (
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('welcome_to')}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('login_or_create')}</p>
-                <div className="flex gap-3">
-                  <Link to="/login" onClick={() => setIsMenuOpen(false)} className="flex-1 btn-primary py-2 text-center text-sm font-bold bg-brand-500 hover:bg-brand-500 text-white rounded-lg">{t('login')}</Link>
-                  <Link to="/register" onClick={() => setIsMenuOpen(false)} className="flex-1 py-2 text-center text-sm font-bold border-2 border-brand-500 text-brand-500 rounded-lg">{t('register')}</Link>
+              <div className="p-5 border-b border-gray-100 dark:border-neutral-900">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1.5">{t('welcome_to')}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{t('login_or_create')}</p>
+                <div className="flex gap-2">
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)} className="flex-1 btn-primary py-2 text-center text-sm font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors">{t('login')}</Link>
+                  <Link to="/register" onClick={() => setIsMenuOpen(false)} className="flex-1 py-2 text-center text-sm font-bold border border-brand-500 text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition-colors">{t('register')}</Link>
                 </div>
               </div>
             )}
 
             {/* Link Groups */}
-            <div className="px-4 space-y-6 mt-2">
+            <div className="px-3 py-2">
               {isAuthenticated && (
                 <>
                   {/* Personal Portal */}
-                  <div>
-                    <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t('personal_portal')}</p>
-                    <div className="grid grid-cols-1 gap-2">
-                      <Link to={`/${username}`} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
-                        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                          <User size={20} className="text-brand-500" />
-                          <span className="font-medium">{t('my_profile')}</span>
-                        </div>
-                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
+                  <div className="mb-2">
+                    <p className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('personal_portal')}</p>
+                    <div className="space-y-0.5">
+                      <Link to="/orders" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
+                        <ShoppingBag size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                        <span className="text-sm font-medium">{t('my_orders')}</span>
                       </Link>
-                      <Link to="/orders" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
-                        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                          <ShoppingBag size={20} className="text-brand-500" />
-                          <span className="font-medium">{t('my_orders')}</span>
-                        </div>
-                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
-                      </Link>
-                      <Link to="/teams" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
-                        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                          <Shield size={20} className="text-brand-500" />
-                          <span className="font-medium">Teams</span>
-                        </div>
-                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
+                      <Link to="/teams" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
+                        <Shield size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                        <span className="text-sm font-medium">Teams</span>
                       </Link>
                       {(isSeller || isInspector) && (
-                        <Link to="/inspections" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
-                          <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                            <ClipboardList size={20} className="text-brand-500" />
-                            <span className="font-medium">{t('my_inspections')}</span>
-                          </div>
-                          <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
+                        <Link to="/inspections" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
+                          <ClipboardList size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                          <span className="text-sm font-medium">{t('my_inspections')}</span>
                         </Link>
                       )}
                     </div>
                   </div>
 
-                  {/* Sell & Grow (Conditional dashboard links vs upgrade callout) */}
-                  <div>
+                  {/* Sell & Grow */}
+                  <div className="mb-2 border-t border-gray-100 dark:border-neutral-900 pt-2 mt-2">
                     {isSeller ? (
                       <>
-                        <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t('sell_and_grow')}</p>
-                        <div className="grid grid-cols-1 gap-2">
-                          <Link to="/dashboard" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
-                            <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                              <LayoutDashboard size={20} className="text-brand-500" />
-                              <span className="font-medium">{t('seller_dashboard')}</span>
-                            </div>
-                            <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
+                        <p className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('sell_and_grow')}</p>
+                        <div className="space-y-0.5">
+                          <Link to="/dashboard" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
+                            <LayoutDashboard size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                            <span className="text-sm font-medium">{t('seller_dashboard')}</span>
                           </Link>
-                          <Link to="/dashboard/products#new" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
-                            <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                              <Package size={20} className="text-brand-500" />
-                              <span className="font-medium">{t('add_new_product')}</span>
-                            </div>
-                            <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
+                          <Link to="/dashboard/products#new" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
+                            <Package size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                            <span className="text-sm font-medium">{t('add_new_product')}</span>
                           </Link>
                         </div>
                       </>
                     ) : (
-                      <div className="grid grid-cols-1 gap-2">
-                        <Link to="/upgrade" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
-                          <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                            <PlusCircle size={20} className="text-brand-500" />
-                            <span className="font-medium">{t('become_a_seller')}</span>
-                          </div>
-                          <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
+                      <div className="px-2 py-1">
+                        <Link to="/upgrade" className="flex items-center justify-center gap-2 px-3 py-3 rounded-lg bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-900/40 transition-colors group" onClick={() => setIsMenuOpen(false)}>
+                          <PlusCircle size={20} className="group-hover:scale-110 transition-transform" />
+                          <span className="font-semibold text-sm">{t('become_a_seller')}</span>
                         </Link>
                       </div>
                     )}
@@ -292,34 +263,25 @@ const MobileBottomNav = () => {
 
               {/* Management Group */}
               {(isStaff || isInspector) && (
-                <div>
-                  <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t('management')}</p>
-                  <div className="grid grid-cols-1 gap-2">
+                <div className="mb-2 border-t border-gray-100 dark:border-neutral-900 pt-2 mt-2">
+                  <p className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('management')}</p>
+                  <div className="space-y-0.5">
                     {isSuperuser && (
-                      <Link to="/staff-admin" className="flex items-center justify-between p-3 rounded-btn     group transition-colors">
-                        <div className="flex items-center gap-4 text-brand-500 dark:text-brand-500">
-                          <ShieldCheck size={20} />
-                          <span className="font-bold">{t('staff_admin_panel')}</span>
-                        </div>
-                        <ChevronRight size={18} className="text-brand-500" />
+                      <Link to="/staff-admin" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-brand-600 dark:text-brand-400 transition-colors group" onClick={() => setIsMenuOpen(false)}>
+                        <ShieldCheck size={20} />
+                        <span className="text-sm font-semibold">{t('staff_admin_panel')}</span>
                       </Link>
                     )}
                     {(isStaff || isSuperuser) && (
-                      <Link to="/staff" className="flex items-center justify-between p-3 rounded-btn     group transition-colors">
-                        <div className="flex items-center gap-4 text-brand-500 dark:text-brand-500">
-                          <LayoutDashboard size={20} />
-                          <span className="font-bold">{t('staff_dashboard')}</span>
-                        </div>
-                        <ChevronRight size={18} className="text-brand-500" />
+                      <Link to="/staff" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-brand-600 dark:text-brand-400 transition-colors group" onClick={() => setIsMenuOpen(false)}>
+                        <LayoutDashboard size={20} />
+                        <span className="text-sm font-semibold">{t('staff_dashboard')}</span>
                       </Link>
                     )}
                     {isInspector && (
-                      <Link to="/inspector/jobs" className="flex items-center justify-between p-3 rounded-btn bg-gray-50 dark:bg-gray-800/50   group transition-colors">
-                        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-300">
-                          <Shield size={20} className="text-brand-500" />
-                          <span className="font-medium">{t('inspector_job_list')}</span>
-                        </div>
-                        <ChevronRight size={18} className="text-gray-300 group-hover:text-brand-500 transition-colors" />
+                      <Link to="/inspector/jobs" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
+                        <Shield size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                        <span className="text-sm font-medium">{t('inspector_job_list')}</span>
                       </Link>
                     )}
                   </div>
@@ -329,30 +291,32 @@ const MobileBottomNav = () => {
           )}
 
           {/* System/Other */}
-              <div>
-                <p className="px-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{t('system')}</p>
-                <div className="grid grid-cols-1 gap-2 text-sm">
-                  <button onClick={toggleTheme} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors text-left w-full">
-                    {isDark ? <Sun size={20} /> : <Moon size={20} />}
-                    <span>{isDark ? t('light_mode') : t('dark_mode')}</span>
+              <div className="border-t border-gray-100 dark:border-neutral-900 pt-2 mt-2">
+                <p className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('system')}</p>
+                <div className="space-y-0.5">
+                  <button onClick={toggleTheme} className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-lg transition-colors group text-gray-700 dark:text-gray-300 text-left">
+                    <div className="flex items-center gap-3">
+                      {isDark ? <Sun size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" /> : <Moon size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />}
+                      <span className="text-sm font-medium">{isDark ? t('light_mode') : t('dark_mode')}</span>
+                    </div>
                   </button>
                   <button onClick={() => {
                     const currentLang = i18n.language?.split('-')[0] || 'en';
                     i18n.changeLanguage(currentLang === 'sw' ? 'en' : 'sw');
-                  }} className="flex items-center justify-between p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors w-full">
-                    <div className="flex items-center gap-4">
-                      <Globe size={20} />
-                      <span>{i18n.language?.split('-')[0] === 'sw' ? 'Kiswahili' : 'English'}</span>
+                  }} className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-lg transition-colors group text-gray-700 dark:text-gray-300 text-left">
+                    <div className="flex items-center gap-3">
+                      <Globe size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                      <span className="text-sm font-medium">{i18n.language?.split('-')[0] === 'sw' ? 'Kiswahili' : 'English'}</span>
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Switch</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">Switch</span>
                   </button>
-                  <Link to="/dashboard/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors">
-                    <Settings size={20} />
-                    <span>{t('settings')}</span>
+                  <Link to="/dashboard/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-lg transition-colors group text-gray-700 dark:text-gray-300">
+                    <Settings size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                    <span className="text-sm font-medium">{t('settings')}</span>
                   </Link>
-                  <Link to="/help" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-btn transition-colors">
-                    <HelpCircle size={20} />
-                    <span>{t('help')}</span>
+                  <Link to="/help" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-lg transition-colors group text-gray-700 dark:text-gray-300">
+                    <HelpCircle size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                    <span className="text-sm font-medium">{t('help')}</span>
                   </Link>
                 </div>
               </div>
@@ -360,13 +324,13 @@ const MobileBottomNav = () => {
 
             {/* Logout Button */}
             {isAuthenticated && (
-              <div className="px-6 mt-8 mb-4">
+              <div className="px-4 mt-4 mb-4">
                 <button 
                   onClick={() => { logout(); sessionStorage.clear(); setIsMenuOpen(false); navigate('/'); }}
-                  className="w-full flex items-center justify-center gap-3 p-4 rounded-btn border-2 border-red-500 dark:border-red-500/30 text-red-500 font-bold active: dark:active: transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-500 font-semibold transition-colors"
                   >
                   <LogOut size={20} />
-                  {t('sign_out_from')}
+                  {t('sign_out')}
                 </button>
               </div>
             )}
