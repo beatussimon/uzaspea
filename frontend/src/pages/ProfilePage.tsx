@@ -292,7 +292,6 @@ const ProfilePage: React.FC = () => {
                   <span className="flex items-center gap-1.5"><Settings size={13} className="text-gray-400 dark:text-gray-500" /> {t('edit_profile')}</span>
                 </button>
               ) : currentUser ? (
-                <div className="flex flex-wrap items-center gap-2">
                   <button 
                     onClick={handleFollow} 
                     className={`px-6 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95 ${
@@ -303,40 +302,6 @@ const ProfilePage: React.FC = () => {
                   >
                     {followStatus.following ? t('following') : t('follow')}
                   </button>
-                  {profile?.phone_number && (
-                    <a 
-                      href={`tel:${profile.phone_number}`}
-                      className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500     transition active:scale-95 flex items-center gap-1.5"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                      {t('call')}
-                    </a>
-                  )}
-                  <button 
-                    onClick={() => {
-                      if (window.innerWidth >= 768) {
-                        const existing = conversations.find(c => 
-                          c.buyer_username.toLowerCase() === (username || '').toLowerCase() || 
-                          c.seller_username.toLowerCase() === (username || '').toLowerCase()
-                        );
-                        openDesktopChat(existing ? existing.id : null);
-                      } else {
-                        window.location.href = `/messages?user=${username}`;
-                      }
-                    }}
-                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-                    {t('message')}
-                  </button>
-                  <button
-                    onClick={() => setIsRequestModalOpen(true)}
-                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500     transition active:scale-95 flex items-center gap-1.5"
-                  >
-                    <Plus size={14} />
-                    {t('request_product', 'Request Product')}
-                  </button>
-                </div>
               ) : null}
             </div>
           </div>
@@ -362,6 +327,47 @@ const ProfilePage: React.FC = () => {
               <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('following_count')}</span>
             </div>
           </div>
+
+          {/* Row 1.5: Secondary Action Buttons */}
+          {!isOwner && currentUser && (
+            <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start">
+                  {followStatus.following && profile?.phone_number && (
+                    <a 
+                      href={`tel:${profile.phone_number}`}
+                      className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500     transition active:scale-95 flex items-center gap-1.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                      {t('call')}
+                    </a>
+                  )}
+                  {followStatus.following && (
+                  <button 
+                    onClick={() => {
+                      if (window.innerWidth >= 768) {
+                        const existing = conversations.find(c => 
+                          c.buyer_username.toLowerCase() === (username || '').toLowerCase() || 
+                          c.seller_username.toLowerCase() === (username || '').toLowerCase()
+                        );
+                        openDesktopChat(existing ? existing.id : null);
+                      } else {
+                        window.location.href = `/messages?user=${username}`;
+                      }
+                    }}
+                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                    {t('message')}
+                  </button>
+                  )}
+                  <button
+                    onClick={() => setIsRequestModalOpen(true)}
+                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500     transition active:scale-95 flex items-center gap-1.5"
+                  >
+                    <Plus size={14} />
+                    {t('request_product', 'Request Product')}
+                  </button>
+            </div>
+          )}
 
           {/* Row 3: Bio & Meta Details */}
           <div className="space-y-2 text-sm text-gray-800 dark:text-neutral-200">
