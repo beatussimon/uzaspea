@@ -82,10 +82,8 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
 
   const isPickup = order.shipping_method === 'PICKUP';
   const shippingFee = parseInt(order.shipping_fee || '0');
-  const estShippingFee = parseInt(order.delivery_info?.estimated_shipping_fee || '0');
-
-  // Subtotal without shipping
-  const subtotal = order.items?.reduce((acc: number, item: any) => acc + (parseFloat(item.price) * (item.quantity || 1)), 0) || 0;
+  const totalAmount = parseInt(order.total_amount || '0');
+  const displaySubtotal = totalAmount - shippingFee;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 print:p-0 print:bg-white print:block">
@@ -155,7 +153,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
               {(order.items || []).map((item: any, i: number) => {
                 const price = parseFloat(item.price) || 0;
                 const qty = parseInt(item.quantity) || 1;
-                const total = price * qty;
+                const itemSubtotal = parseFloat(item.subtotal) || (price * qty);
                 const name = item.product_name || `Product #${item.product_id || i + 1}`;
                 const variantName = item.variant_name;
 
@@ -164,9 +162,9 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
                     <div className="font-bold whitespace-normal leading-tight">{name}</div>
                     {variantName && <div className="text-[10px] text-gray-600">[{variantName}]</div>}
                     <div className="flex justify-between items-center mt-1 text-[11px]">
-                      <span className="flex-1 text-gray-500 text-[10px]">@{price.toLocaleString()}/=</span>
-                      <span className="w-10 text-center font-bold text-gray-800 dark:text-gray-200">{qty}</span>
-                      <span className="w-16 text-right font-bold">{total.toLocaleString()}/=</span>
+                      <span className="flex-1 text-gray-500 text-[10px]">{price > 0 ? `@${price.toLocaleString()}/=` : 'TBD'}</span>
+                      <span className="w-10 text-center font-bold text-gray-800">{qty}</span>
+                      <span className="w-16 text-right font-bold">{itemSubtotal > 0 ? `${itemSubtotal.toLocaleString()}/=` : 'TBD'}</span>
                     </div>
                   </div>
                 );
@@ -175,37 +173,24 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
             
             <div className="text-xs font-bold flex justify-between mb-1 text-gray-600">
               <span>SUBTOTAL</span>
-              <span>{Math.round(subtotal).toLocaleString()}/=</span>
+              <span>{Math.round(displaySubtotal).toLocaleString()}/=</span>
             </div>
 
-            {!isPickup && (
-              <div className="text-xs font-bold flex justify-between mb-1 text-gray-600">
-                <span>DELIVERY FEE</span>
-                <span>
-                  {shippingFee > 0 
-                    ? `${shippingFee.toLocaleString()}/=`
-                    : estShippingFee > 0 
-                      ? `${estShippingFee.toLocaleString()}/= (est)`
-                      : 'Pending'}
-                </span>
-              </div>
-            )}
-            
-            <div className="text-sm font-black flex justify-between mb-2 pt-1 border-t border-dashed border-gray-400">
-              <span>TOTAL TSH</span>
+            <div className="text-xs font-bold flex justify-between mb-1 text-gray-600">
+              <span>DELIVERY FEE</span>
               <span>
-                {(() => {
-                  const finalTotal = subtotal + (shippingFee > 0 ? shippingFee : (estShippingFee > 0 && !isPickup ? estShippingFee : 0));
-                  return Math.round(finalTotal).toLocaleString() + '/=';
-                })()}
+                {shippingFee > 0 
+                  ? `${shippingFee.toLocaleString()}/=`
+                  : ['COMPLETED', 'DELIVERED', 'OUT_FOR_DELIVERY', 'READY_FOR_PICKUP', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'SHIPPED', 'ASSIGNED_TRANSPORT'].includes(order.status)
+                    ? 'FREE'
+                    : 'TBD'}
               </span>
             </div>
             
-            {!isPickup && (shippingFee === 0 || estShippingFee > 0) && (
-              <div className="text-[9px] text-gray-500 italic text-center mb-2 leading-tight">
-                * The full delivery price will be provided by the seller or logistics team.
-              </div>
-            )}
+            <div className="text-sm font-black flex justify-between mb-2 pt-1 border-t border-dashed border-gray-400">
+              <span>TOTAL TSH</span>
+              <span>{Math.round(totalAmount).toLocaleString()}/=</span>
+            </div>
             
             <div className="border-t border-dashed border-gray-400 mt-3 pt-4 text-center">
               <p className="text-[10px] font-bold mb-3">Scan to view your order!</p>
