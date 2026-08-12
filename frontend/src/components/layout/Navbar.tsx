@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useMessages } from '../../context/MessageContext';
 import { useSearch } from '../../context/SearchContext';
+import { API_BASE_URL } from '../../api';
 
 const Navbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -179,11 +180,11 @@ const Navbar = () => {
 
         {/* ---- Left Navigation Links ---- */}
         <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center justify-start pl-8 md:pl-12 gap-6">
-          {/* Sell button (Only visible to verified sellers) */}
+          {/* Sell button (Only visible to verified sellers on desktop) */}
           {isAuthenticated && isSeller && (
             <Link 
               to="/dashboard/products#new" 
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 shadow-sm ${
+              className={`hidden md:flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 shadow-sm ${
                 useLightStyle
                   ? 'bg-white text-gray-900 hover:bg-gray-100'
                   : 'bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900'
@@ -316,96 +317,86 @@ const Navbar = () => {
                       : (useLightStyle ? 'hover:bg-white/10' : 'hover:bg-gray-100 dark:hover:bg-neutral-900')
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-inner transition-colors ${
-                    useLightStyle 
-                      ? 'bg-white/20 text-white hover:bg-white/30' 
-                      : 'bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900'
-                  }`}>
-                    {username.charAt(0).toUpperCase()}
-                  </div>
+                  {user?.profile_picture ? (
+                    <img src={user.profile_picture.startsWith('http') ? user.profile_picture : `${API_BASE_URL}${user.profile_picture}`} alt={username} className="w-8 h-8 rounded-full object-cover shadow-inner" />
+                  ) : (
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-inner transition-colors ${
+                      useLightStyle 
+                        ? 'bg-white/20 text-white hover:bg-white/30' 
+                        : 'bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900'
+                    }`}>
+                      {username.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <ChevronDown size={14} className={useLightStyle ? 'text-white/80 mr-0.5' : 'text-gray-400 dark:text-gray-500 mr-0.5'} />
                   <span className={tooltipClass}>{t('profile', 'Profile')}</span>
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute top-[calc(100%+8px)] right-0 w-72 bg-white dark:bg-black rounded-card shadow-card-hover border border-gray-100 dark:border-neutral-900 z-50 animate-scale-in overflow-hidden">
+                  <div className="absolute top-[calc(100%+8px)] right-0 w-72 bg-white dark:bg-black rounded-xl shadow-card-hover border border-gray-100 dark:border-neutral-900 z-50 animate-scale-in overflow-hidden">
                     {/* Account Header */}
-                    <div className="p-4 bg-gray-50/50 dark:bg-neutral-950/50 border-b border-gray-100 dark:border-neutral-900">
+                    <Link to={`/${username}`} onClick={() => setProfileOpen(false)} className="block p-4 bg-gray-50/50 dark:bg-neutral-950/50 border-b border-gray-100 dark:border-neutral-900 hover:bg-gray-100 dark:hover:bg-neutral-900 transition-colors group">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-lg shadow-md ring-2 ring-white dark:ring-neutral-950">
-                          {username.charAt(0).toUpperCase()}
-                        </div>
+                        {user?.profile_picture ? (
+                          <img src={user.profile_picture.startsWith('http') ? user.profile_picture : `${API_BASE_URL}${user.profile_picture}`} alt={username} className="w-10 h-10 rounded-full object-cover shadow-sm" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                            {username.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-none">{username}</p>
+                            <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-none group-hover:text-brand-500 transition-colors">{username}</p>
                             <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
                           </div>
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate font-semibold capitalize">{userTier} {t('member')}</p>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 truncate font-medium capitalize">{userTier} {t('member')}</p>
                         </div>
                       </div>
-                    </div>
+                    </Link>
 
-                    <div className="max-h-[400px] overflow-y-auto no-scrollbar py-2 px-1.5">
+                    <div className="max-h-[380px] overflow-y-auto no-scrollbar py-2 px-1.5">
                       {/* Personal Portal */}
-                      <div className="mb-2">
-                        <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">{t('personal_portal')}</p>
-                        <div className="grid grid-cols-1 gap-0.5">
-                          <Link to={`/${username}`} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === `/${username}` ? 'text-brand-500  font-bold' : 'text-gray-700 dark:text-gray-300  hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === `/${username}` ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                              <User size={14} />
-                            </div>
-                            <span className="font-medium">{t('my_profile')}</span>
+                      <div className="mb-1">
+                        <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('personal_portal')}</p>
+                        <div className="space-y-0.5">
+                          <Link to="/orders" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                            <ShoppingBag size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                            <span className="text-sm font-medium">{t('my_orders')}</span>
                           </Link>
-                          <Link to="/orders" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/orders' ? 'text-brand-500  font-bold' : 'text-gray-700 dark:text-gray-300  hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/orders' ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                              <ShoppingBag size={14} />
-                            </div>
-                            <span className="font-medium">{t('my_orders')}</span>
-                          </Link>
-                          <Link to="/teams" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/teams' ? 'text-brand-500  font-bold' : 'text-gray-700 dark:text-gray-300  hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/teams' ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                              <Shield size={14} />
-                            </div>
-                            <span className="font-medium">Teams</span>
+                          <Link to="/teams" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                            <Shield size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                            <span className="text-sm font-medium">Teams</span>
                           </Link>
                           {(isSeller || isInspector) && (
-                            <Link to="/inspections" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/inspections' ? 'text-brand-500  font-bold' : 'text-gray-700 dark:text-gray-300  hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/inspections' ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                                <ClipboardList size={14} />
-                              </div>
-                              <span className="font-medium">{t('my_inspections')}</span>
+                            <Link to="/inspections" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                              <ClipboardList size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                              <span className="text-sm font-medium">{t('my_inspections')}</span>
                             </Link>
                           )}
                         </div>
                       </div>
 
-                      {/* Sell & Grow (Conditional dashboard links vs upgrade callout) */}
-                      <div className="mb-2 pt-2 border-t border-gray-100 dark:border-neutral-900">
+                      {/* Sell & Grow */}
+                      <div className="mb-1 border-t border-gray-100 dark:border-neutral-900 pt-1 mt-1">
                         {isSeller ? (
                           <>
-                            <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">{t('sell_and_grow')}</p>
-                            <div className="grid grid-cols-1 gap-0.5">
-                              <Link to="/dashboard" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard' ? 'text-brand-500  font-bold' : 'text-gray-700 dark:text-gray-300  hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard' ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                                  <LayoutDashboard size={14} />
-                                </div>
-                                <span className="font-medium">{t('seller_dashboard')}</span>
+                            <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('sell_and_grow')}</p>
+                            <div className="space-y-0.5">
+                              <Link to="/dashboard" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                                <LayoutDashboard size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                                <span className="text-sm font-medium">{t('seller_dashboard')}</span>
                               </Link>
-                              <Link to="/dashboard/products#new" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/products' ? 'text-brand-500  font-bold' : 'text-gray-700 dark:text-gray-300  hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/products' ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                                  <PlusCircle size={14} />
-                                </div>
-                                <span className="font-medium">{t('add_new_product')}</span>
+                              <Link to="/dashboard/products#new" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                                <PlusCircle size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                                <span className="text-sm font-medium">{t('add_new_product')}</span>
                               </Link>
                             </div>
                           </>
                         ) : (
-                          <div className="grid grid-cols-1 gap-0.5">
-                            <Link to="/upgrade" className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group text-gray-700 dark:text-gray-300  hover:text-brand-500" onClick={() => setProfileOpen(false)}>
-                              <div className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors  text-brand-500 group-hover:bg-brand-500 group-hover:text-white">
-                                <PlusCircle size={14} />
-                              </div>
-                              <span className="font-medium">{t('become_a_seller')}</span>
+                          <div className="px-1.5 py-1">
+                            <Link to="/upgrade" className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-brand-50 dark:bg-brand-900/20 hover:bg-brand-100 dark:hover:bg-brand-900/40 text-brand-600 dark:text-brand-400 transition-colors group" onClick={() => setProfileOpen(false)}>
+                              <PlusCircle size={16} className="group-hover:scale-110 transition-transform" />
+                              <span className="font-semibold text-sm">{t('become_a_seller')}</span>
                             </Link>
                           </div>
                         )}
@@ -413,31 +404,25 @@ const Navbar = () => {
 
                       {/* Management Group */}
                       {(isStaff || isInspector) && (
-                        <div className="mb-2 pt-2 border-t border-gray-100 dark:border-neutral-900">
-                          <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">{t('management')}</p>
-                          <div className="grid grid-cols-1 gap-0.5">
+                        <div className="mb-1 border-t border-gray-100 dark:border-neutral-900 pt-1 mt-1">
+                          <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('management')}</p>
+                          <div className="space-y-0.5">
                             {isSuperuser && (
-                              <Link to="/staff-admin" className={`flex items-center gap-2.5 px-3 py-2 text-sm font-bold rounded-btn transition-all group ${location.pathname === '/staff-admin' ? 'text-brand-500 ' : 'text-brand-500 '}`} onClick={() => setProfileOpen(false)}>
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/staff-admin' ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                                  <ShieldCheck size={14} />
-                                </div>
-                                {t('admin_panel')}
+                              <Link to="/staff-admin" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-brand-600 dark:text-brand-400 transition-colors group" onClick={() => setProfileOpen(false)}>
+                                <ShieldCheck size={16} />
+                                <span className="text-sm font-semibold">{t('admin_panel')}</span>
                               </Link>
                             )}
                             {(isStaff || isSuperuser) && (
-                              <Link to="/staff" className={`flex items-center gap-2.5 px-3 py-2 text-sm font-bold rounded-btn transition-all group ${location.pathname === '/staff' ? 'text-brand-500 ' : 'text-brand-500 '}`} onClick={() => setProfileOpen(false)}>
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/staff' ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                                  <LayoutDashboard size={14} />
-                                </div>
-                                {t('staff_dashboard')}
+                              <Link to="/staff" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-brand-600 dark:text-brand-400 transition-colors group" onClick={() => setProfileOpen(false)}>
+                                <LayoutDashboard size={16} />
+                                <span className="text-sm font-semibold">{t('staff_dashboard')}</span>
                               </Link>
                             )}
                             {isInspector && (
-                              <Link to="/inspector/jobs" className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/inspector/jobs' ? 'text-brand-500  font-bold' : 'text-gray-700 dark:text-gray-300  hover:text-brand-500'}`} onClick={() => setProfileOpen(false)}>
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/inspector/jobs' ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                                  <Shield size={14} />
-                                </div>
-                                <span className="font-medium">{t('inspector_portal')}</span>
+                              <Link to="/inspector/jobs" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                                <Shield size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                                <span className="text-sm font-medium">{t('inspector_portal')}</span>
                               </Link>
                             )}
                           </div>
@@ -445,31 +430,27 @@ const Navbar = () => {
                       )}
 
                       {/* Support Group */}
-                      <div className="pt-2 border-t border-gray-100 dark:border-neutral-900">
-                        <p className="px-3 py-1 text-[10px] font-bold text-brand-500 mb-1">{t('system')}</p>
-                        <div className="grid grid-cols-1 gap-0.5">
-                          <Link to="/dashboard/settings" onClick={() => setProfileOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/settings' ? 'text-brand-500  font-bold' : 'text-gray-700 dark:text-gray-300  hover:text-brand-500'}`}>
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/settings' ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                              <Settings size={14} />
-                            </div>
-                            <span className="font-medium">{t('settings')}</span>
+                      <div className="border-t border-gray-100 dark:border-neutral-900 pt-1 mt-1">
+                        <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('system')}</p>
+                        <div className="space-y-0.5">
+                          <Link to="/dashboard/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
+                            <Settings size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                            <span className="text-sm font-medium">{t('settings')}</span>
                           </Link>
-                          <Link to="/dashboard/help-center" onClick={() => setProfileOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-btn transition-all group ${location.pathname === '/dashboard/help-center' ? 'text-brand-500  font-bold' : 'text-gray-700 dark:text-gray-300  hover:text-brand-500'}`}>
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${location.pathname === '/dashboard/help-center' ? 'bg-brand-500 text-white' : ' text-brand-500 group-hover:bg-brand-500 group-hover:text-white'}`}>
-                              <HelpCircle size={14} />
-                            </div>
-                            <span className="font-medium">{t('support')}</span>
+                          <Link to="/dashboard/help-center" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
+                            <HelpCircle size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                            <span className="text-sm font-medium">{t('support')}</span>
                           </Link>
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-2.5 bg-gray-50/50 dark:bg-neutral-950/50 border-t border-gray-100 dark:border-neutral-900">
+                    <div className="p-2 border-t border-gray-100 dark:border-neutral-900 bg-gray-50/50 dark:bg-neutral-950/50">
                       <button 
                         onClick={() => { logout(); sessionStorage.clear(); setProfileOpen(false); navigate('/'); }}
-                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-red-500  rounded-btn transition-all active:scale-95 border border-red-500/10"
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"
                       >
-                        <LogOut size={14} /> {t('sign_out')}
+                        <LogOut size={16} /> {t('sign_out')}
                       </button>
                     </div>
                   </div>

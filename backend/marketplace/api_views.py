@@ -1555,10 +1555,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             data['is_verified'] = self.user.profile.is_verified
             data['tier'] = self.user.profile.tier
             data['terms_accepted'] = self.user.profile.terms_accepted
+            data['profile_picture'] = self.user.profile.profile_picture.url if self.user.profile.profile_picture else None
         except (UserProfile.DoesNotExist, AttributeError):
             data['is_verified'] = False
             data['tier'] = 'customer'
             data['terms_accepted'] = False
+            data['profile_picture'] = None
         
         data['is_inspector'] = hasattr(self.user, 'inspector_profile')
         data['inspector_level'] = (
@@ -1592,10 +1594,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             token['is_verified'] = user.profile.is_verified
             token['tier'] = user.profile.tier
             token['terms_accepted'] = user.profile.terms_accepted
+            token['profile_picture'] = user.profile.profile_picture.url if user.profile.profile_picture else None
         except Exception:
             token['is_verified'] = False
             token['tier'] = 'customer'
             token['terms_accepted'] = False
+            token['profile_picture'] = None
             
         token['is_inspector'] = hasattr(user, 'inspector_profile')
         token['inspector_level'] = (

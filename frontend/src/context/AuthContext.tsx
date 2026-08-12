@@ -17,6 +17,7 @@ interface User {
   is_team_member?: boolean;
   team_permissions?: Record<string, boolean>;
   terms_accepted?: boolean;
+  profile_picture?: string | null;
 }
 
 interface AuthContextType {
@@ -61,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_team_member: payload.is_team_member === true || payload.is_team_member === 'true',
           team_permissions: typeof payload.team_permissions === 'string' ? JSON.parse(payload.team_permissions) : (payload.team_permissions || {}),
           terms_accepted: payload.terms_accepted === true || payload.terms_accepted === 'true' || localStorage.getItem('terms_accepted') === 'true',
+          profile_picture: payload.profile_picture || localStorage.getItem('profile_picture') || null,
         });
       } else {
         logout();
@@ -89,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('is_team_member', String(payload.is_team_member || false));
       localStorage.setItem('team_permissions', JSON.stringify(payload.team_permissions || {}));
       localStorage.setItem('terms_accepted', String(payload.terms_accepted || false));
+      if (payload.profile_picture) localStorage.setItem('profile_picture', payload.profile_picture);
     } else {
       localStorage.setItem('user_id', String(userData.user_id));
       localStorage.setItem('username', userData.username);
@@ -103,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('is_team_member', String(userData.is_team_member || false));
       localStorage.setItem('team_permissions', JSON.stringify(userData.team_permissions || {}));
       localStorage.setItem('terms_accepted', String(userData.terms_accepted || false));
+      if (userData.profile_picture) localStorage.setItem('profile_picture', userData.profile_picture);
     }
     
     setIsAuthenticated(true);
