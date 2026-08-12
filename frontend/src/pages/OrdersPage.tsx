@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck, Shield, Receipt, Star } from 'lucide-react';
+import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck, Shield, Receipt, Star, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
@@ -17,10 +17,12 @@ import { StatusBadge } from '../components/ui/StatusBadge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 const OrdersPage: React.FC = () => {
+  const { user } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { showConfirm, showPrompt } = useDialog();
@@ -113,14 +115,7 @@ const OrdersPage: React.FC = () => {
       if (order.status === 'AWAITING_DELIVERY_PAYMENT') {
         fetchSystemLipa();
       }
-      // Auto-popup review if completed/delivered and not reviewed
-      if (['COMPLETED', 'DELIVERED'].includes(order.status)) {
-        const unreviewedItem = order.items?.find((i: any) => !i.has_review);
-        if (unreviewedItem) {
-          setReviewOrderId(order.id);
-          setReviewProduct(unreviewedItem);
-        }
-      }
+
     }
   };
 
@@ -708,300 +703,169 @@ const OrdersPage: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Live Tracking Button */}
-                    {(() => {
-                      const shipment = shipmentsMap[order.id] || (order.shipments && order.shipments.length > 0 ? order.shipments[0] : null);
-                      if (!shipment) return null;
-                      return (
-                        <div className="px-6 py-4 bg-amber-500/5 dark:bg-amber-500/10 border-b border-gray-100 dark:border-gray-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
-                          <div>
-                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Live Delivery Tracking</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {shipment.driver_username ? `Driver Assigned: @${shipment.driver_username}. ` : 'No driver assigned yet. '}
-                              This order has a vehicle transport shipment.
-                            </p>
-                          </div>
-                          {['ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'SHIPPED'].includes(order.status) && (
-                            <Link 
-                              to={`/shipments/${shipment.id}/track`}
-                              className="btn-primary py-2 px-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
-                            >
-                              <Truck size={14} />
-                              Live Tracking Map
-                            </Link>
-                          )}
-                        </div>
-                      );
-                    })()}
 
-                    {/* Progress Tracker */}
-                    {currentStepIdx >= 0 && (
-                      <div className="px-6 py-10 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
-                        <div className="flex items-center justify-between mb-8">
+
+                    <div className="p-4 sm:p-5 lg:p-6 flex flex-col lg:flex-row items-stretch">
+                      
+                      {/* Left Side: Codes & Items */}
+                      <div className="flex-1 min-w-0 flex flex-col mb-6 lg:mb-0 lg:pr-6">
+
+
+                        
+                        {/* Soft Banner for Codes */}
+                        {(order.delivery_code || pickupCodesMap[order.id]) && ['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(order.status) && (
+                          <div className="bg-brand-50/50 dark:bg-brand-900/10 rounded-xl border border-brand-100 dark:border-brand-900/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
-                                <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-1">Journey of Your Package</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Follow your item every step of the way.</p>
+                                <p className="text-xs font-bold text-brand-900 dark:text-brand-100 uppercase tracking-wider mb-0.5">{order.shipping_method === 'PICKUP' ? 'Warehouse Code' : 'Delivery Code'}</p>
+                                <p className="text-[11px] text-brand-700/80 dark:text-brand-300/80">Show this to the agent to collect your items.</p>
                             </div>
-                        </div>
-                        <div className="overflow-x-auto overflow-y-hidden no-scrollbar pb-6">
-                          <div className="flex items-start justify-between relative px-4 min-w-max gap-12">
-                            {/* Track Wrapper */}
-                            <div className="absolute top-[22px] left-[60px] right-[60px] h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                              <motion.div 
-                                initial={{ width: 0 }}
-                                animate={{ width: `${(currentStepIdx / (trackingSteps.length - 1)) * 100}%` }}
-                                transition={{ duration: 1, ease: 'easeOut' }}
-                                className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-green-500 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]" 
-                              />
+                            <div className="flex items-center gap-4">
+                              <span className="font-mono font-black text-2xl tracking-[0.2em] text-brand-600 dark:text-brand-400 bg-white/50 dark:bg-black/20 px-4 py-1.5 rounded-lg shadow-sm">
+                                {order.shipping_method === 'PICKUP' ? pickupCodesMap[order.id] || "..." : order.delivery_code}
+                              </span>
+                              {order.shipping_method === 'PICKUP' && (
+                                 <QRCodeSVG value={order.id.toString()} size={40} bgColor="transparent" fgColor="currentColor" className="text-brand-900 dark:text-brand-100 shrink-0" />
+                              )}
                             </div>
-                            {trackingSteps.map((step, i) => {
-                              const done = i < currentStepIdx;
-                              const active = i === currentStepIdx;
-                              const StepIcon = STATUS_CONFIG[step]?.icon || Package;
-                              
-                              return (
-                                <div key={step} className="relative z-10 flex flex-col items-center w-28 group">
-                                  {active && (
-                                    <motion.div 
-                                      animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
-                                      transition={{ repeat: Infinity, duration: 2 }}
-                                      className={`absolute top-0 w-12 h-12 rounded-full blur-md ${STATUS_CONFIG[step]?.solidBg || 'bg-brand-500'}`}
-                                    />
-                                  )}
-                                  <motion.div 
-                                    whileHover={{ scale: 1.1 }}
-                                    className={`relative w-12 h-12 rounded-2xl flex items-center justify-center transition-colors duration-500 shadow-sm ${
-                                      done ? `${STATUS_CONFIG[step]?.solidBg || 'bg-brand-600'} text-white shadow-${(STATUS_CONFIG[step]?.color || 'text-brand-500').split('-')[1]}-500/30` : 
-                                      active ? `bg-white dark:bg-gray-800 border-2 border-${(STATUS_CONFIG[step]?.color || 'text-brand-500').split('-')[1]}-500 ${STATUS_CONFIG[step]?.color || 'text-brand-600'} shadow-lg shadow-${(STATUS_CONFIG[step]?.color || 'text-brand-500').split('-')[1]}-500/20` : 
-                                      'bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-400'
-                                    }`}
-                                  >
-                                    <StepIcon size={20} strokeWidth={active ? 2.5 : 2} />
-                                    {done && (
-                                        <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-900 rounded-full p-0.5">
-                                            <CheckCircle2 size={12} className={STATUS_CONFIG[step]?.color || 'text-brand-600'} />
-                                        </div>
-                                    )}
-                                  </motion.div>
-                                  <div className="mt-4 text-center">
-                                    <span className={`block text-[11px] font-black uppercase tracking-wider mb-1 transition-colors ${
-                                      active ? STATUS_CONFIG[step]?.color || 'text-brand-600' : 
-                                      done ? 'text-gray-900 dark:text-gray-200' : 
-                                      'text-gray-400 dark:text-gray-500'
-                                    }`}>
-                                      {STATUS_CONFIG[step]?.label || step}
-                                    </span>
-                                    <span className={`block text-[10px] font-medium leading-tight px-1 ${active ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}>
-                                        {active ? 'Happening now' : done ? 'Completed' : 'Upcoming'}
-                                    </span>
+                          </div>
+                        )}
+
+                        {/* Order Items (Clean List) */}
+                        <div className="mt-2">
+                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 pl-1">Order Items</h4>
+                            <div className="flex flex-col">
+                              {order.items?.map((item: any, idx: number) => {
+                                const isLast = idx === order.items.length - 1;
+                                return (
+                                <div key={item.id} className={`py-2 flex gap-4 ${isLast ? '' : 'border-b border-gray-200 dark:border-gray-700'}`}>
+                                  <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-xs text-gray-600 dark:text-gray-400 font-bold shrink-0">{item.quantity}×</div>
+                                  <div className="min-w-0 flex-1 pt-0.5">
+                                      <Link to={`/product/${item.product_slug || item.slug || item.product}`} onClick={(e) => e.stopPropagation()} className="group flex items-center gap-1.5 w-fit max-w-full">
+                                        <h5 className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                                          {item.product_name || item.name}
+                                        </h5>
+                                        <ExternalLink size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                      </Link>
+                                      {item.variant_name && (
+                                        <span className="inline-block px-1.5 py-0.5 mt-0.5 text-[10px] font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 rounded uppercase tracking-wider">
+                                          {item.variant_name}
+                                        </span>
+                                      )}
+                                      <div className="flex items-center gap-2 mt-1.5">
+                                        {item.has_review && item.review ? (
+                                          <div className="flex items-center gap-2 mt-0.5">
+                                            <div className="flex items-center gap-0.5 shrink-0">
+                                              {[...Array(5)].map((_, i) => (
+                                                <Star key={i} size={10} className={i < item.review.rating ? "text-amber-400 fill-amber-400" : "text-gray-300 dark:text-gray-600"} />
+                                              ))}
+                                            </div>
+                                            {item.review.comment && <span className="text-[11px] text-gray-500 dark:text-gray-400 italic truncate max-w-[100px] sm:max-w-[150px]">"{item.review.comment}"</span>}
+                                          </div>
+                                        ) : (
+                                          <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                                              {Number(item.price) > 0 ? `TSh ${parseInt(item.price).toLocaleString()} each` : 'TBD'}
+                                          </span>
+                                        )}
+                                      </div>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1.5 shrink-0 pt-0.5">
+                                      <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                        {Number(item.subtotal) > 0 ? `TSh ${parseInt(item.subtotal).toLocaleString()}` : 'TBD'}
+                                      </span>
+                                      {['COMPLETED', 'DELIVERED'].includes(order.status) && !item.has_review && (
+                                        item.seller_username === user?.username ? (
+                                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 px-2 py-1 bg-gray-50 dark:bg-gray-800/50 rounded flex items-center gap-1">
+                                            Your Product
+                                          </span>
+                                        ) : (
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); setReviewOrderId(order.id); setReviewProduct(item); }}
+                                            className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-900/20 px-2 py-1 rounded transition flex items-center gap-1"
+                                          >
+                                            <Star size={12} className="text-brand-500" /> Review
+                                          </button>
+                                        )
+                                      )}
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Delivery Code */}
-                    {order.delivery_code && ['ARRIVED_AT_REGIONAL_WAREHOUSE', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(order.status) && (
-                      <div className="px-6 py-5 bg-brand-50/50 dark:bg-brand-900/10 border-b border-brand-100 dark:border-brand-900/20">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div>
-                            <p className="text-sm font-black text-brand-900 dark:text-brand-100 uppercase tracking-wider mb-1">Your Delivery Code</p>
-                            <p className="text-xs text-brand-700 dark:text-brand-300 font-medium max-w-sm">
-                              Please provide this 6-digit code to the deliverer or seller when you receive your items to finalize the delivery.
-                            </p>
-                          </div>
-                          <div className="bg-white dark:bg-gray-800 border-2 border-brand-200 dark:border-brand-800 rounded-xl px-6 py-3 shadow-inner text-center sm:text-left">
-                            <span className="font-mono font-black text-2xl tracking-[0.2em] text-brand-600 dark:text-brand-400">
-                              {order.delivery_code}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Warehouse Pickup Code */}
-                    {['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED', 'COMPLETED'].includes(order.status) && order.shipping_method === 'PICKUP' && (
-                      <div className="px-6 py-5 bg-amber-50/50 dark:bg-amber-900/10 border-b border-amber-100 dark:border-amber-900/20 animate-pulse-subtle">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div>
-                            <p className="text-sm font-black text-amber-900 dark:text-amber-100 uppercase tracking-wider mb-1">Your Warehouse Pickup Code</p>
-                            <p className="text-xs text-amber-700 dark:text-amber-300 font-medium max-w-sm font-semibold">
-                              This order is ready for pickup at the warehouse. Please provide this code to the warehouse agent to collect your items.
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="bg-white dark:bg-gray-800 border-2 border-amber-200 dark:border-amber-800 rounded-xl px-6 py-3 shadow-md text-center">
-                              <span className="font-mono font-black text-2xl tracking-[0.2em] text-amber-600 dark:text-amber-400">
-                                {pickupCodesMap[order.id] || "Loading..."}
-                              </span>
-                            </div>
-                            <div className="p-2 bg-white dark:bg-neutral-800 rounded-2xl shadow-lg shrink-0">
-                              <QRCodeSVG value={order.id.toString()} size={80} bgColor="transparent" fgColor="currentColor" className="text-gray-900 dark:text-white" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Items Section */}
-                    <div className="px-6 py-5">
-                      <div className="flex items-center justify-between mb-4">
-                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Order Details</p>
-                        {order.status === 'COMPLETED' && (
-                          <span className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full font-bold uppercase">Finalized</span>
-                        )}
-                      </div>
-                      <div className="space-y-4">
-                        {order.items?.map((item: any) => (
-                          <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700/50 shadow-sm">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs text-gray-500 font-bold border border-gray-200 dark:border-gray-600">{item.quantity}×</div>
-                              <div className="min-w-0">
-                                <span className="text-sm font-bold text-gray-900 dark:text-white block truncate">
-                                  {item.product_name}
-                                  {item.variant_name && <span className="ml-2 text-[10px] uppercase font-bold text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded tracking-wider align-middle">{item.variant_name}</span>}
-                                </span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Unit Price: TSh {parseInt(item.price).toLocaleString()}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-50 dark:border-gray-700">
-                                <span className="font-bold text-gray-900 dark:text-white">TSh {parseInt(item.subtotal).toLocaleString()}</span>
-                                 {['COMPLETED', 'DELIVERED'].includes(order.status) && !item.has_review && (
-                                  <button 
-                                    onClick={() => { setReviewOrderId(order.id); setReviewProduct(item); }}
-                                    className="p-2 text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
-                                    title="Leave a Review"
-                                  >
-                                    <MessageSquare size={18} />
-                                  </button>
-                                )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Timeline & Feedback */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-gray-100 dark:bg-gray-700 border-t border-gray-100 dark:border-gray-700">
-                        {/* Timeline */}
-                        <div className="bg-gray-50/50 dark:bg-gray-800/50 px-6 py-5">
-                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Activity Log</p>
-                            <div className="space-y-4 relative pl-4 border-l-2 border-gray-200 dark:border-gray-700 py-1">
-                            {order.timeline_events?.slice().reverse().map((ev: any, i: number) => (
-                                <div key={i} className="relative">
-                                <div className="absolute -left-[21.5px] w-3 h-3 rounded-full bg-brand-500 border-2 border-white dark:border-gray-800 shadow-sm" />
-                                <div className="ml-3">
-                                    <p className="text-sm font-bold text-gray-900 dark:text-white">{STATUS_CONFIG[ev.status]?.label || ev.status}</p>
-                                    {ev.notes && <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mt-1">{ev.notes}</p>}
-                                    <p className="text-[10px] text-gray-400 mt-1 font-medium">{fmtDate(ev.created_at)}</p>
-                                </div>
-                                </div>
-                            ))}
-                            </div>
-                        </div>
-                        
-                        {/* Summary */}
-                        <div className="bg-gray-50/50 dark:bg-gray-800/50 px-6 py-5 flex flex-col justify-between">
-                            <div>
-                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Payment Summary</p>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500">Subtotal</span>
-                                        {/* FIX L-14: subtotal = total minus shipping */}
-                                        <span className="text-gray-900 dark:text-white font-medium">TSh {(parseInt(order.total_amount || 0) - parseInt(order.shipping_fee || 0)).toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm items-center">
-                                        <span className="text-gray-500">Delivery Fee</span>
-                                        {order.shipping_method === 'PICKUP' ? (
-                                            <span className="text-green-600 font-medium">FREE</span>
-                                        ) : Number(order.shipping_fee) > 0 ? (
-                                            <span className="text-gray-900 dark:text-white font-medium">
-                                                TSh {parseInt(order.shipping_fee).toLocaleString()}
-                                            </span>
-                                        ) : (
-                                            <div className="text-right">
-                                                <span className="text-amber-600 dark:text-amber-400 font-medium">
-                                                    {order.delivery_info?.estimated_shipping_fee > 0
-                                                        ? `Est. TSh ${parseInt(order.delivery_info.estimated_shipping_fee).toLocaleString()}`
-                                                        : 'TBD (Confirming)'}
-                                                </span>
-                                                {order.delivery_info?.estimated_shipping_fee > 0 && (
-                                                    <span className="text-[10px] text-gray-400 block font-normal">
-                                                        {order.delivery_info?.is_historical_estimate
-                                                            ? '(Based on warehouse route history)'
-                                                            : '(Initial Estimate)'}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <hr className="border-gray-200 dark:border-gray-700" />
-                                    <div className="flex justify-between text-base">
-                                        <span className="font-bold text-gray-900 dark:text-white">Total Amount</span>
-                                        <span className="font-black text-brand-600 dark:text-brand-400">TSh {parseInt(order.total_amount).toLocaleString()}</span>
-                                    </div>
-                                </div>
+                              )})}
                             </div>
                             
-                            <div className="mt-4 p-3 bg-brand-50 dark:bg-brand-900/10 rounded-lg border border-brand-100 dark:border-brand-900/20 text-center relative group/footer flex flex-col items-center justify-center">
-                                <p className="text-xs text-brand-800 dark:text-brand-300 font-medium italic">
-                                   "Thank you for choosing SokoniMax! Your satisfaction is our top priority."
-                                </p>
-                                
-                                <div className="flex flex-col gap-2 mt-3 w-full">
-                                    {['COMPLETED', 'DELIVERED'].includes(order.status) && order.items?.some((i: any) => !i.has_review) && (
-                                        <button 
-                                          onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            const unreviewedItem = order.items?.find((i: any) => !i.has_review);
-                                            if (unreviewedItem) {
-                                              setReviewOrderId(order.id);
-                                              setReviewProduct(unreviewedItem);
-                                            }
-                                          }}
-                                          className="btn-primary w-full py-2 text-xs font-bold bg-yellow-500 hover:bg-yellow-600 border-none text-white shadow-md animate-pulse-subtle flex items-center justify-center gap-2 rounded-lg"
-                                        >
-                                            <Star size={16} className="fill-white" /> Leave a Review
-                                        </button>
-                                    )}
-                                    <div className="flex gap-2 w-full">
-                                        <button 
-                                          onClick={(e) => { e.stopPropagation(); setReceiptOrder(order); }}
-                                          className="btn-secondary flex-1 py-1 text-[10px] bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-1 border-gray-200 dark:border-gray-700 shadow-sm transition"
-                                        >
-                                            <Receipt size={14} /> View Receipt
-                                        </button>
-                                        {['AWAITING_PAYMENT', 'PENDING_VERIFICATION'].includes(order.status) && (
-                                            <button 
-                                              onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }}
-                                              className="btn-secondary flex-1 py-1 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50"
-                                            >
-                                                Cancel Order
-                                            </button>
-                                        )}
-                                        {order.status === 'DELIVERED' && (
-                                            <button 
-                                              onClick={(e) => { e.stopPropagation(); handleReceived(order.id); }}
-                                              className="btn-primary flex-1 py-1 text-[10px] bg-green-600 hover:bg-green-700"
-                                            >
-                                                Confirm Receipt
-                                            </button>
-                                        )}
-                                        {order.status === 'DELIVERED' && !order.dispute && (
-                                            <button 
-                                              onClick={(e) => { e.stopPropagation(); setOpenDisputeId(order.id); }}
-                                              className="btn-secondary flex-1 py-1 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                            >
-                                                Open Dispute
-                                            </button>
-                                        )}
-                                    </div>
+                            {/* Receipt Summary Footer */}
+                            <div className="mt-1 pt-3 border-t border-gray-200 dark:border-gray-700">
+                              <div className="flex justify-end">
+                                <div className="w-full sm:w-72 space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                      <span className="text-gray-500">Subtotal</span>
+                                      <span className="text-gray-900 dark:text-white font-medium">TSh {(parseInt(order.total_amount || 0) - parseInt(order.shipping_fee || 0)).toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm items-center">
+                                      <span className="text-gray-500">Delivery</span>
+                                      {Number(order.shipping_fee) > 0 ? (
+                                          <span className="text-gray-900 dark:text-white font-medium">
+                                              TSh {parseInt(order.shipping_fee).toLocaleString()}
+                                          </span>
+                                      ) : ['COMPLETED', 'DELIVERED', 'OUT_FOR_DELIVERY', 'READY_FOR_PICKUP', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'SHIPPED', 'ASSIGNED_TRANSPORT'].includes(order.status) ? (
+                                          <span className="text-green-600 font-medium">FREE</span>
+                                      ) : (
+                                          <span className="text-amber-600 dark:text-amber-400 font-medium text-xs">TBD</span>
+                                      )}
+                                  </div>
+                                  <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-baseline">
+                                      <span className="text-sm font-bold text-gray-900 dark:text-white">Total</span>
+                                      <span className="text-lg font-black text-gray-900 dark:text-white">TSh {parseInt(order.total_amount).toLocaleString()}</span>
+                                  </div>
                                 </div>
+                              </div>
                             </div>
+
                         </div>
+                      </div>
+
+                      {/* Right Side: Timeline & Actions */}
+                      <div className="w-full lg:w-72 shrink-0 flex flex-col pt-6 lg:pt-0 border-t border-gray-200 dark:border-gray-700 lg:border-t-0 lg:border-l lg:pl-6">
+                        
+                        {/* Enhanced Vertical Timeline */}
+                        <div className="flex-1 flex flex-col min-h-[160px] lg:min-h-0 relative">
+                          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 shrink-0">Timeline</h4>
+                          <div className="max-h-[160px] lg:max-h-none lg:absolute lg:top-8 lg:bottom-0 lg:left-0 lg:right-0 overflow-y-auto pr-2 -mr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+                            <div className="space-y-4 relative pl-3.5 border-l-2 border-gray-200 dark:border-gray-700 ml-1.5 py-1">
+                              {order.timeline_events?.slice().reverse().map((ev: any, i: number) => {
+                                const isLatest = i === 0;
+                                return (
+                                <div key={i} className="relative">
+                                  <div className={`absolute -left-[19.5px] w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-900 ${isLatest ? 'bg-brand-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-gray-300 dark:bg-gray-700'}`} />
+                                  <div className={`ml-4 ${isLatest ? 'opacity-100' : 'opacity-60 hover:opacity-100 transition-opacity'}`}>
+                                      <p className={`text-xs font-bold ${isLatest ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>{STATUS_CONFIG[ev.status]?.label || ev.status}</p>
+                                      {isLatest && ev.notes && <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{ev.notes}</p>}
+                                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{fmtDate(ev.created_at)}</p>
+                                  </div>
+                                </div>
+                            )})}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Actions (Bottom Right) */}
+                        <div className="pt-4 mt-auto flex justify-end gap-2 shrink-0">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setReceiptOrder(order); }}
+                              className="btn-secondary py-1.5 px-3 text-xs bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+                            >
+                                <Receipt size={12} className="inline mr-1" /> Receipt
+                            </button>
+                            {['AWAITING_PAYMENT', 'PENDING_VERIFICATION'].includes(order.status) && (
+                                <button onClick={(e) => { e.stopPropagation(); handleCancel(order.id); }} className="btn-secondary py-1.5 px-3 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 border-red-100 dark:border-red-900/20">Cancel</button>
+                            )}
+                            {order.status === 'DELIVERED' && (
+                                <button onClick={(e) => { e.stopPropagation(); handleReceived(order.id); }} className="btn-primary py-1.5 px-3 text-xs bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-black dark:hover:bg-gray-100">Confirm</button>
+                            )}
+                            {order.status === 'DELIVERED' && !order.dispute && (
+                                <button onClick={(e) => { e.stopPropagation(); setOpenDisputeId(order.id); }} className="btn-secondary py-1.5 px-3 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 border-red-100 dark:border-red-900/20">Dispute</button>
+                            )}
+                        </div>
+
+                      </div>
                     </div>
                   </div>
                 )}
