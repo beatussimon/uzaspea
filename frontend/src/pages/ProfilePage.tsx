@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Settings, MapPin, Camera, 
-  Star, ShoppingBag, Globe, Info,
+  Star, ShoppingBag, Info,
   CheckCircle, Plus, Package
 } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
+import SocialLinks from '../components/SocialLinks';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import ProductRequestModal from '../components/ProductRequestModal';
@@ -59,7 +60,13 @@ const ProfilePage: React.FC = () => {
           location: res.data.location || '',
           phone_number: res.data.phone_number || '',
           website: res.data.website || '',
-          instagram_username: res.data.instagram_username || ''
+          instagram_username: res.data.instagram_username || '',
+          whatsapp_number: res.data.whatsapp_number || '',
+          facebook_url: res.data.facebook_url || '',
+          tiktok_username: res.data.tiktok_username || '',
+          twitter_username: res.data.twitter_username || '',
+          youtube_url: res.data.youtube_url || '',
+          linkedin_url: res.data.linkedin_url || '',
         });
       })
       .catch(() => setProfile(null))
@@ -394,32 +401,7 @@ const ProfilePage: React.FC = () => {
                   <span>{profile.location}</span>
                 </div>
               )}
-              {profile.website && (
-                <a 
-                  href={profile.website} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="flex items-center gap-1.5 text-brand-500 dark:text-brand-500 hover:underline"
-                >
-                  <Globe size={13} />
-                  <span className="truncate">{profile.website.replace(/^https?:\/\//, '')}</span>
-                </a>
-              )}
-              {profile.instagram_username && (
-                <a 
-                  href={`https://instagram.com/${profile.instagram_username.replace('@', '')}`}
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="flex items-center gap-1.5 hover:text-brand-500 transition"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                  </svg>
-                  <span>@{profile.instagram_username.replace('@', '')}</span>
-                </a>
-              )}
+              <SocialLinks profile={profile} iconSize={16} />
             </div>
           </div>
 
@@ -676,6 +658,53 @@ const ProfilePage: React.FC = () => {
               onChange={(e) => setEditForm({...editForm, instagram_username: e.target.value})}
               placeholder="@username"
             />
+          </div>
+
+          {/* Social Media Links */}
+          <div className="pt-4">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('social_media_links', 'Social Media Links')}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                label={t('whatsapp_number', 'WhatsApp Number')}
+                type="tel"
+                value={editForm.whatsapp_number}
+                onChange={(e) => setEditForm({...editForm, whatsapp_number: e.target.value})}
+                placeholder="+255712345678"
+              />
+              <FormField
+                label={t('facebook_url', 'Facebook URL')}
+                type="url"
+                value={editForm.facebook_url}
+                onChange={(e) => setEditForm({...editForm, facebook_url: e.target.value})}
+                placeholder="https://facebook.com/..."
+              />
+              <FormField
+                label={t('tiktok_username', 'TikTok Username')}
+                value={editForm.tiktok_username}
+                onChange={(e) => setEditForm({...editForm, tiktok_username: e.target.value})}
+                placeholder="@username"
+              />
+              <FormField
+                label={t('twitter_username', 'X (Twitter) Username')}
+                value={editForm.twitter_username}
+                onChange={(e) => setEditForm({...editForm, twitter_username: e.target.value})}
+                placeholder="@username"
+              />
+              <FormField
+                label={t('youtube_url', 'YouTube Channel URL')}
+                type="url"
+                value={editForm.youtube_url}
+                onChange={(e) => setEditForm({...editForm, youtube_url: e.target.value})}
+                placeholder="https://youtube.com/..."
+              />
+              <FormField
+                label={t('linkedin_url', 'LinkedIn URL')}
+                type="url"
+                value={editForm.linkedin_url}
+                onChange={(e) => setEditForm({...editForm, linkedin_url: e.target.value})}
+                placeholder="https://linkedin.com/in/..."
+              />
+            </div>
           </div>
 
           <div className="flex gap-4 pt-6 border-t border-surface-border dark:border-surface-dark-border mt-6">

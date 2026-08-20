@@ -1,0 +1,59 @@
+uzaspea-celery-worker  |  
+uzaspea-celery-worker  |  -------------- celery@77cc3a56413c v5.6.3 (recovery)
+uzaspea-celery-worker  | --- ***** ----- 
+uzaspea-celery-worker  | -- ******* ---- Linux-6.17.0-1010-aws-x86_64-with-glibc2.41 2026-08-08 15:51:52
+uzaspea-celery-worker  | - *** --- * --- 
+uzaspea-celery-worker  | - ** ---------- [config]
+uzaspea-celery-worker  | - ** ---------- .> app:         uzachuo:0x7b4a59d32a10
+uzaspea-celery-worker  | - ** ---------- .> transport:   redis://:**@13.235.198.184:6379/0
+uzaspea-celery-worker  | - ** ---------- .> results:     redis://:**@13.235.198.184:6379/0
+uzaspea-celery-worker  | - *** --- * --- .> concurrency: 1 (prefork)
+uzaspea-celery-worker  | -- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+uzaspea-celery-worker  | --- ***** ----- 
+uzaspea-celery-worker  |  -------------- [queues]
+uzaspea-celery-worker  |                 .> celery           exchange=celery(direct) key=celery
+uzaspea-celery-worker  |                 
+uzaspea-celery-worker  | 
+uzaspea-backend        | Operations to perform:
+uzaspea-backend        |   Apply all migrations: admin, auth, billing, contenttypes, inspections, locations, logistics, marketplace, sessions, staff, warehouses
+uzaspea-backend        | Running migrations:
+uzaspea-backend        |   No migrations to apply.
+uzaspea-backend        | 
+uzaspea-backend        | 0 static files copied to '/app/staticfiles', 186 unmodified, 461 post-processed.
+uzaspea-backend        | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+uzaspea-backend        | INFO:     Started parent process [15]
+uzaspea-backend        | INFO:     Started server process [17]
+uzaspea-backend        | INFO:     Waiting for application startup.
+uzaspea-backend        | INFO:     Started server process [18]
+uzaspea-backend        | INFO:     Waiting for application startup.
+uzaspea-backend        | INFO:     ASGI 'lifespan' protocol appears unsupported.
+uzaspea-backend        | INFO:     Application startup complete.
+uzaspea-backend        | INFO:     ASGI 'lifespan' protocol appears unsupported.
+uzaspea-backend        | INFO:     Application startup complete.
+uzaspea-backend        | INFO:     127.0.0.1:47688 - "GET /api/products/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     127.0.0.1:43438 - "GET /api/products/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     127.0.0.1:55880 - "GET /api/products/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     127.0.0.1:42906 - "GET /api/products/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     127.0.0.1:60616 - "GET /api/products/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     127.0.0.1:59328 - "GET /api/products/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     127.0.0.1:34964 - "GET /api/products/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     127.0.0.1:37178 - "GET /api/products/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44278 - "GET /api/push/vapid-key/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44228 - "GET /api/categories/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44264 - "GET /api/sponsored/?page=1&page_size=12&public=true HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44274 - "GET /api/products/?saved=true&limit=1 HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44254 - "GET /api/conversations/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44244 - "GET /api/products/?page=1&page_size=12 HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44244 - "POST /api/push/subscribe/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44244 - "GET /api/categories/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44254 - "GET /api/categories/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44244 - "GET /api/products/?page=2&page_size=12 HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44214 - "GET /api/notifications/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     ('172.18.0.4', 44288) - "WebSocket /ws/chat/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg2MjA2MTQyLCJpYXQiOjE3ODYxOTg5NDIsImp0aSI6IjllM2FlYzZkOWM4MTQ5MDRhMGFlN2MxMDk4ZDdlOTU5IiwidXNlcl9pZCI6MywidXNlcm5hbWUiOiJtYXN0ZXJnZW51aW5lcGFydHMiLCJmaXJzdF9uYW1lIjoiTWFzdGVyICIsImxhc3RfbmFtZSI6IkdlbnVpbmUgUGFydHMgIiwiaXNfc3RhZmYiOmZhbHNlLCJpc19zdXBlcnVzZXIiOmZhbHNlLCJpc192ZXJpZmllZCI6dHJ1ZSwidGllciI6ImJ1c2luZXNzIiwidGVybXNfYWNjZXB0ZWQiOnRydWUsImlzX2luc3BlY3RvciI6ZmFsc2UsImluc3BlY3Rvcl9sZXZlbCI6bnVsbCwiaXNfdGVhbV9tZW1iZXIiOmZhbHNlLCJ0ZWFtX3Blcm1pc3Npb25zIjp7fSwic3Vic2NyaXB0aW9uX2FjdGl2ZSI6dHJ1ZSwic3Vic2NyaXB0aW9uX2VuZF9kYXRlIjoiMjAyNi0wOC0yOVQxNDoxMDowOC43OTMwNTMrMDA6MDAifQ.swF7V3nDMnPsS_2aauDpMmaULLNLTQOZggTwRqsbJ0o" [accepted]
+uzaspea-backend        | INFO:     connection open
+uzaspea-backend        | INFO:     172.18.0.4:44244 - "GET /api/products/?page=2&page_size=12 HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44244 - "GET /api/notifications/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44214 - "GET /api/notifications/unread_count/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     172.18.0.4:44214 - "GET /api/notifications/unread_count/ HTTP/1.1" 200 OK
+uzaspea-backend        | INFO:     connection closed
+uzaspea-backend        | INFO:     127.0.0.1:55932 - "GET /api/products/ HTTP/1.1" 200 OK

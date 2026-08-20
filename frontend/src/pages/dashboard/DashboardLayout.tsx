@@ -143,7 +143,7 @@ const DashboardLayout: React.FC = () => {
       </aside>
 
       {/* Content */}
-      <main className="flex-1 animate-fade-in">
+      <main className="flex-1 min-w-0 animate-fade-in">
         <Suspense fallback={<div className="p-8 text-center text-sm text-gray-500 animate-pulse">Loading Help Center...</div>}>
           <Routes>
             <Route index element={<DashboardOverview />} />

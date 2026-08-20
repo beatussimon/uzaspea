@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Moon, Sun, Shield, User, Settings, ShoppingBag, 
+  Moon, Sun, Shield, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, HelpCircle, 
   ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Globe, Heart, Search
 } from 'lucide-react';

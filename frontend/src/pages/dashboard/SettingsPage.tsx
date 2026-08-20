@@ -13,7 +13,7 @@ const CITIES_COORDS: Record<string, { lat: number; lng: number }> = {
 
 const SettingsPage: React.FC = () => {
     const [profile, setProfile] = useState<any>({});
-    const [form, setForm] = useState({ bio: '', phone_number: '', location: '', website: '', instagram_username: '', latitude: '', longitude: '' });
+    const [form, setForm] = useState({ bio: '', phone_number: '', location: '', website: '', instagram_username: '', whatsapp_number: '', facebook_url: '', tiktok_username: '', twitter_username: '', youtube_url: '', linkedin_url: '', latitude: '', longitude: '' });
     const [passwords, setPasswords] = useState({ old: '', new1: '', new2: '' });
     const [saving, setSaving] = useState(false);
 
@@ -106,6 +106,12 @@ const SettingsPage: React.FC = () => {
                     location: r.data.location || '',
                     website: r.data.website || '',
                     instagram_username: r.data.instagram_username || '',
+                    whatsapp_number: r.data.whatsapp_number || '',
+                    facebook_url: r.data.facebook_url || '',
+                    tiktok_username: r.data.tiktok_username || '',
+                    twitter_username: r.data.twitter_username || '',
+                    youtube_url: r.data.youtube_url || '',
+                    linkedin_url: r.data.linkedin_url || '',
                     latitude: r.data.latitude || '',
                     longitude: r.data.longitude || '',
                 });
@@ -161,6 +167,26 @@ const SettingsPage: React.FC = () => {
                         )}
                     </div>
                 ))}
+
+                {/* Social Media Links */}
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Social Media Links</h4>
+                    {[
+                        { key: 'whatsapp_number', label: 'WhatsApp Number', type: 'tel', placeholder: '+255712345678' },
+                        { key: 'facebook_url', label: 'Facebook URL', type: 'url', placeholder: 'https://facebook.com/...' },
+                        { key: 'tiktok_username', label: 'TikTok Username', type: 'text', placeholder: '@username' },
+                        { key: 'twitter_username', label: 'X (Twitter) Username', type: 'text', placeholder: '@username' },
+                        { key: 'youtube_url', label: 'YouTube Channel URL', type: 'url', placeholder: 'https://youtube.com/...' },
+                        { key: 'linkedin_url', label: 'LinkedIn URL', type: 'url', placeholder: 'https://linkedin.com/in/...' },
+                    ].map(field => (
+                        <div key={field.key} className="mb-3">
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{field.label}</label>
+                            <input type={field.type} value={(form as any)[field.key]} onChange={e => setForm({...form, [field.key]: e.target.value})}
+                                className="input" placeholder={field.placeholder} />
+                        </div>
+                    ))}
+                </div>
+
                 <button onClick={handleProfileSave} disabled={saving} className="btn-primary">
                     {saving ? 'Saving...' : 'Save Profile'}
                 </button>

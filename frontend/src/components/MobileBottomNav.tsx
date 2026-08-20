@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Home, PlusCircle, ShoppingBag, User, X, 
+  Home, PlusCircle, ShoppingBag, 
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
-  Shield, Settings, HelpCircle, LogOut, ChevronRight, Menu, ShoppingCart, Moon, Sun, Globe, MessageSquare, Heart
+  Shield, Settings, HelpCircle, LogOut, Menu, ShoppingCart, Moon, Sun, Globe, MessageSquare, Heart
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';

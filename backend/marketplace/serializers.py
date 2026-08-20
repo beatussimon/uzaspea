@@ -428,7 +428,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'shipping_method', 'fulfillment_type', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
             'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout',
-            'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount', 'promo_code_details'
+            'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount', 'promo_code_details',
+            'negotiation_data'
         ]
         read_only_fields = ['user', 'total_amount']
 
@@ -871,6 +872,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['id', 'user', 'user_id', 'username', 'first_name', 'last_name', 'is_verified', 'phone_number', 'instagram_username',
+                  'whatsapp_number', 'facebook_url', 'tiktok_username', 'twitter_username', 'youtube_url', 'linkedin_url',
                   'website', 'bio', 'tier', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
                   'preferred_currency', 'seller_rating', 'store_images', 'is_location_verified', 'is_following']
         read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified']  # FIX: S-07 — only staff should set these

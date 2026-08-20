@@ -457,6 +457,7 @@ class Order(models.Model):
         ('CHECKOUT', 'Checkout'),
         ('REQUESTED_INVOICE', 'Requested Invoice'),
         ('INVOICE_GENERATED', 'Invoice Generated'),
+        ('BUYER_COUNTERED', 'Buyer Countered'),
         ('AWAITING_PAYMENT', 'Awaiting Payment'),
         ('PENDING_VERIFICATION', 'Pending Verification'),
         ('PAID', 'Paid'),
@@ -500,6 +501,7 @@ class Order(models.Model):
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     platform_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     delivery_info = models.JSONField(null=True, blank=True, default=dict)  # FIX: L-02 — store buyer's name/phone/address
+    negotiation_data = models.JSONField(null=True, blank=True, default=dict) # Stores buyer's proposed prices and notes
     delivery_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     delivery_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
@@ -591,6 +593,16 @@ class UserProfile(models.Model):
     is_verified = models.BooleanField(default=False, db_index=True)
     phone_number = models.CharField(max_length=20, blank=True, validators=[RegexValidator(r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")])
     instagram_username = models.CharField(max_length=30, blank=True)
+    whatsapp_number = models.CharField(
+        max_length=20, blank=True,
+        validators=[RegexValidator(r'^\+?\d{9,15}$', message="WhatsApp number format: '+255712345678'. Up to 15 digits allowed.")],
+        help_text="WhatsApp number with country code, e.g. +255712345678"
+    )
+    facebook_url = models.URLField(blank=True, help_text="Full Facebook profile or page URL")
+    tiktok_username = models.CharField(max_length=50, blank=True, help_text="TikTok username without @")
+    twitter_username = models.CharField(max_length=50, blank=True, help_text="Twitter/X username without @")
+    youtube_url = models.URLField(blank=True, help_text="Full YouTube channel URL")
+    linkedin_url = models.URLField(blank=True, help_text="Full LinkedIn profile URL")
     website = models.URLField(blank=True)
     bio = models.TextField(blank=True, null=True)
     tier = models.CharField(

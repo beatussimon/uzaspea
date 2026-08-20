@@ -3,11 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { Package, ChevronDown, ChevronUp, CheckCircle2, CreditCard, Upload, MessageSquare, Smartphone, Truck, Shield, Receipt, Star, ExternalLink } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../hooks/useOrderTracking';
 
-import { ORDER_STATUS_CONFIG as STATUS_CONFIG, TRACKING_STEPS, DIRECT_TRACKING_STEPS } from '../constants/orderStatus';
+import { ORDER_STATUS_CONFIG as STATUS_CONFIG } from '../constants/orderStatus';
 import ReviewModal from '../components/orders/ReviewModal';
 import DisputeModal from '../components/orders/DisputeModal';
 import ReceiptModal from '../components/orders/ReceiptModal';
@@ -50,7 +50,11 @@ const OrdersPage: React.FC = () => {
   const [openDisputeId, setOpenDisputeId] = useState<number | null>(null);
 
   // Receipt State
+  const [, setBargainOrderId] = useState<number | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
+
+  // Bargain State
+
 
   // Seller & System Lipa Numbers State
   const [sellerLipa, setSellerLipa] = useState<Record<number, any[]>>({});
@@ -371,43 +375,13 @@ const OrdersPage: React.FC = () => {
         <div className="space-y-4">
           {filtered.map((order: any) => {
             const isExpanded = expandedId === order.id;
-            const isDirectDelivery = order.fulfillment_type === 'DIRECT_DELIVERY';
-            const isActuallyWarehouse = !isDirectDelivery && (['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP'].includes(order.status) || order.timeline_events?.some((ev: any) => ['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE'].includes(ev.status)));
 
-            let trackingSteps = TRACKING_STEPS;
-            if (isDirectDelivery) {
-                trackingSteps = DIRECT_TRACKING_STEPS;
-            } else if (order.has_vehicles && !isActuallyWarehouse) {
-                trackingSteps = ['PAID', 'PROCESSING', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'];
-            }
+
+
+
             
-            const getEffectiveTrackingStatus = (st: string) => {
-              if (trackingSteps.includes(st)) return st;
 
-              // Pre-payment statuses: don't map to PAID (not paid yet!)
-              const prePaymentStates = ['CART', 'CHECKOUT', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION'];
 
-              if (isDirectDelivery) {
-                  // Direct tracking starts at PAID; pre-payment shows step before first
-                  if (prePaymentStates.includes(st)) return 'PAID'; // will be shown as "not yet reached"
-                  return 'PAID';
-              }
-
-              if (order.has_vehicles && !isActuallyWarehouse) {
-                 if (prePaymentStates.includes(st)) return 'PAID';
-                 if (['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT'].includes(st)) return 'PROCESSING';
-                 if (st === 'ARRIVED_AT_REGIONAL_WAREHOUSE' || st === 'READY_FOR_VEHICLE_HANDOVER' || st === 'READY_FOR_PICKUP') return 'SHIPPED';
-                 return 'PAID';
-              }
-
-              // Standard platform route
-              if (prePaymentStates.includes(st)) return 'PAID'; // before payment
-              if (st === 'ASSIGNED_TRANSPORT') return 'RECEIVED_AT_WAREHOUSE';
-              if (st === 'AWAITING_DELIVERY_PAYMENT' || st === 'PENDING_DELIVERY_VERIFICATION') return 'RECEIVED_AT_WAREHOUSE';
-              if (st === 'READY_FOR_VEHICLE_HANDOVER') return 'ARRIVED_AT_REGIONAL_WAREHOUSE';
-              return 'PAID';
-            };
-            const currentStepIdx = trackingSteps.indexOf(getEffectiveTrackingStatus(order.status));
 
             return (
               <div id={`order-${order.id}`} key={order.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-shadow">
@@ -483,35 +457,123 @@ const OrdersPage: React.FC = () => {
                   <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-900/10">
                     
                     
-                    {/* Invoice Confirmation */}
+                    {/* Invoice Review & Bargain */}
                     {order.status === 'INVOICE_GENERATED' && (
                       <div className="px-6 py-6 bg-blue-50/50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-900/20">
                         <div className="flex items-start gap-4">
                           <Receipt className="text-blue-600 shrink-0 mt-1" size={24} />
                           <div className="flex-1">
-                            <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-2">Invoice Ready for Review</h4>
+                            <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-1">Invoice Ready for Review</h4>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                              The seller has reviewed your quote request and generated an invoice with final prices. 
-                              Please review the total amount (TSh {parseInt(order.total_amount || 0).toLocaleString()}) and accept to proceed to payment.
+                              The seller has reviewed your request and generated an invoice. 
+                              Total: <span className="font-black text-gray-900 dark:text-white">TSh {parseInt(order.total_amount || 0).toLocaleString()}</span>.
+                              You can accept the invoice or propose different prices.
                             </p>
-                            <button 
-                              disabled={advancing === order.id}
-                              onClick={async () => {
-                                setAdvancing(order.id);
-                                try {
-                                  await api.post(`/api/orders/${order.id}/confirm-invoice/`);
-                                  toast.success('Invoice accepted! Proceeding to payment.');
-                                  fetchOrders(1, true);
-                                } catch (e) {
-                                  toast.error('Failed to accept invoice.');
-                                } finally {
-                                  setAdvancing(null);
-                                }
-                              }}
-                              className="btn-primary py-2 px-6"
-                            >
-                              {advancing === order.id ? 'Accepting...' : 'Accept Invoice & Pay'}
-                            </button>
+                            
+                            <div className="flex flex-wrap gap-3">
+                              {/* Accept Invoice */}
+                              <button 
+                                disabled={advancing === order.id}
+                                onClick={async () => {
+                                  setAdvancing(order.id);
+                                  try {
+                                    await api.post(`/api/orders/${order.id}/confirm-invoice/`);
+                                    toast.success('Invoice accepted! Proceeding to payment.');
+                                    fetchOrders(1, true);
+                                  } catch (e) {
+                                    toast.error('Failed to accept invoice.');
+                                  } finally {
+                                    setAdvancing(null);
+                                  }
+                                }}
+                                className="btn-primary py-2.5 px-6 text-sm font-bold"
+                              >
+                                {advancing === order.id ? 'Accepting...' : 'Accept Invoice & Pay'}
+                              </button>
+                              
+                              {/* Bargain Price */}
+                              <button
+                                onClick={() => setBargainOrderId(order.id)}
+                                className="px-6 py-2.5 rounded-xl border-2 border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-sm font-bold transition-all flex items-center gap-2"
+                              >
+                                <MessageSquare size={16} />
+                                Bargain Price
+                              </button>
+                              
+                              {/* Print Invoice */}
+                              <button
+                                onClick={() => {
+                                  const printWindow = window.open('', '_blank');
+                                  if (!printWindow) return;
+                                  const itemsHtml = (order.items || []).map((item: any) => `
+                                    <tr>
+                                      <td style="padding:8px 12px;border-bottom:1px solid #eee;">${item.product_name}${item.variant_name ? ` (${item.variant_name})` : ''}</td>
+                                      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td>
+                                      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;">TSh ${(item.price || 0).toLocaleString()}</td>
+                                      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;">TSh ${(item.subtotal || 0).toLocaleString()}</td>
+                                    </tr>
+                                  `).join('');
+                                  printWindow.document.write(`
+                                    <html><head><title>Invoice #${order.id}</title>
+                                    <style>
+                                      body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; }
+                                      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #000; }
+                                      .header h1 { font-size: 28px; margin: 0; letter-spacing: -1px; }
+                                      .header .meta { text-align: right; font-size: 13px; color: #666; }
+                                      .header .meta strong { color: #000; display: block; font-size: 15px; }
+                                      table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                                      th { background: #f5f5f5; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; border-bottom: 2px solid #ddd; }
+                                      th:nth-child(2), th:nth-child(3), th:nth-child(4) { text-align: right; }
+                                      th:nth-child(2) { text-align: center; }
+                                      .totals { margin-top: 20px; margin-left: auto; width: 300px; }
+                                      .totals div { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+                                      .totals .total { font-size: 20px; font-weight: 900; border-top: 3px solid #000; padding-top: 12px; margin-top: 8px; }
+                                      .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center; }
+                                      @media print { body { margin: 0; } }
+                                    </style></head><body>
+                                    <div class="header">
+                                      <div><h1>INVOICE</h1><p style="margin:4px 0 0;color:#666;font-size:13px;">Order #${order.id}</p></div>
+                                      <div class="meta"><strong>SokoniMax</strong>${fmtDate(order.order_date)}<br/>Status: ${STATUS_CONFIG[order.status]?.label || order.status}</div>
+                                    </div>
+                                    <table><thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead><tbody>${itemsHtml}</tbody></table>
+                                    <div class="totals">
+                                      <div><span>Subtotal</span><span>TSh ${(parseFloat(order.total_amount || 0) - parseFloat(order.shipping_fee || 0)).toLocaleString()}</span></div>
+                                      ${order.promo_code_code ? `<div style="color:green;"><span>Discount (${order.promo_code_code})</span><span>-TSh ${parseInt(order.discount_amount || 0).toLocaleString()}</span></div>` : ''}
+                                      <div><span>Delivery Fee</span><span>${Number(order.shipping_fee) > 0 ? 'TSh ' + Number(order.shipping_fee).toLocaleString() : 'TBD'}</span></div>
+                                      <div class="total"><span>Total</span><span>TSh ${parseInt(order.total_amount).toLocaleString()}</span></div>
+                                    </div>
+                                    <div class="footer">This invoice was generated by SokoniMax. Thank you for your business.</div>
+                                    </body></html>
+                                  `);
+                                  printWindow.document.close();
+                                  setTimeout(() => printWindow.print(), 300);
+                                }}
+                                className="px-6 py-2.5 rounded-xl border-2 border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-bold transition-all flex items-center gap-2"
+                              >
+                                <Receipt size={16} />
+                                Print Invoice
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Buyer Counter Offer Pending */}
+                    {order.status === 'BUYER_COUNTERED' && (
+                      <div className="px-6 py-6 bg-purple-50/50 dark:bg-purple-900/10 border-b border-purple-100 dark:border-purple-900/20">
+                        <div className="flex items-start gap-4">
+                          <MessageSquare className="text-purple-500 shrink-0 mt-1" size={24} />
+                          <div className="flex-1">
+                            <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-1">Counter Offer Sent</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                              Your counter-offer has been sent to the seller. They will review your proposed prices and respond with a final invoice.
+                            </p>
+                            {order.negotiation_data?.note && (
+                              <div className="bg-purple-100/50 dark:bg-purple-900/20 rounded-xl p-3 text-sm text-purple-700 dark:text-purple-300 italic border border-purple-200 dark:border-purple-800">
+                                "{order.negotiation_data.note}"
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

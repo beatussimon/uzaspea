@@ -1,10 +1,11 @@
-import { Package, Clock, CheckCircle2, Truck, XCircle, CreditCard, MapPin, ShieldAlert, Archive, Clipboard, Banknote, CheckCircle, Receipt } from 'lucide-react';
+import { Package, Clock, CheckCircle2, Truck, XCircle, CreditCard, MapPin, ShieldAlert, Archive, Clipboard, Banknote, CheckCircle, Receipt, MessageSquare } from 'lucide-react';
 
 export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; solidBg: string; icon: any }> = {
   CART: { label: 'Cart', color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-700', solidBg: 'bg-gray-600', icon: Package },
   CHECKOUT: { label: 'Checkout', color: 'text-brand-500', bg: ' ', solidBg: 'bg-brand-500', icon: Package },
   REQUESTED_INVOICE: { label: 'Quote Requested', color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30', solidBg: 'bg-amber-600', icon: Receipt },
   INVOICE_GENERATED: { label: 'Invoice Ready', color: 'text-blue-500', bg: ' ', solidBg: 'bg-blue-500', icon: Receipt },
+  BUYER_COUNTERED: { label: 'Counter Offer Sent', color: 'text-purple-500', bg: 'bg-purple-100 dark:bg-purple-900/30', solidBg: 'bg-purple-500', icon: MessageSquare },
   AWAITING_PAYMENT: { label: 'Awaiting Payment', color: 'text-yellow-500', bg: ' ', solidBg: 'bg-yellow-500', icon: CreditCard },
   PENDING_VERIFICATION: { label: 'Verifying Payment', color: 'text-orange-500', bg: ' ', solidBg: 'bg-orange-500', icon: Clock },
   PAID: { label: 'Paid', color: 'text-green-500', bg: ' ', solidBg: 'bg-green-500', icon: CheckCircle2 },
@@ -132,5 +133,6 @@ export const SHORT_STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'Completed', 
   CANCELLED: 'Cancelled', 
   FAILED_DELIVERY: 'Failed',
-  DISPUTED: 'Disputed'
+  DISPUTED: 'Disputed',
+  BUYER_COUNTERED: 'Counter Offer'
 };
