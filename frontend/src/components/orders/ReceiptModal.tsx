@@ -80,7 +80,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
     printWindow.document.close();
   };
 
-  const isPickup = order.shipping_method === 'PICKUP';
+
   const shippingFee = parseInt(order.shipping_fee || '0');
   const totalAmount = parseInt(order.total_amount || '0');
   const displaySubtotal = totalAmount - shippingFee;

@@ -15,7 +15,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 // ============ Incoming Orders (Seller) ============
 const fmtOrderDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-const getStatusExplanation = (status: string, fulfillmentType?: string) => {
+export const getStatusExplanation = (status: string, fulfillmentType?: string) => {
   const isDirect = fulfillmentType === 'DIRECT_DELIVERY';
   switch (status) {
     case 'PENDING_VERIFICATION':
@@ -203,17 +203,17 @@ const DashboardOrders: React.FC = () => {
   const filterTabs = ['', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'AWAITING_DELIVERY_PAYMENT', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'DELIVERED', 'FAILED_DELIVERY', 'COMPLETED', 'CANCELLED'];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full min-w-0">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Incoming Orders</h2>
         <span className="text-[10px] font-bold bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded shadow-sm uppercase tracking-widest text-gray-500">Live View</span>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-1 flex-wrap mb-4 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+      <div className="flex gap-1 overflow-x-auto mb-4 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm [&::-webkit-scrollbar]:hidden w-full">
         {filterTabs.map(s => (
           <button key={s} onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1.5 text-[10px] sm:text-xs rounded-lg font-bold transition uppercase tracking-wider ${filterStatus === s ? 'bg-brand-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+            className={`shrink-0 px-3 py-1.5 text-[10px] sm:text-xs rounded-lg font-bold transition uppercase tracking-wider ${filterStatus === s ? 'bg-brand-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
             {s ? (ORDER_STATUS_CFG[s]?.label || s) : 'All Orders'}
           </button>
         ))}
@@ -410,62 +410,99 @@ const DashboardOrders: React.FC = () => {
                     )}
 
                     {/* Order Content */}
-                    <div className="grid grid-cols-1 lg:grid-cols-5 divide-y lg:divide-y-0 lg:divide-x divide-gray-100 dark:divide-gray-700">
+                    <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-gray-100 dark:divide-gray-800">
                         {/* Left: Items (Cols 3 or 5 for POS) */}
-                        <div className={`p-6 ${order.delivery_info?.is_pos ? 'lg:col-span-5' : 'lg:col-span-3'}`}>
+                        <div className={`p-6 ${order.delivery_info?.is_pos ? 'w-full' : 'w-full lg:w-[60%]'}`}>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5">Package Contents</p>
-                            <div className="space-y-3">
+                            <div className="space-y-1">
                                 {order.items?.map((item: any) => (
-                                <div key={item.id} className="flex items-center gap-4 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-50 dark:border-gray-700 shadow-sm transition hover:shadow-md">
+                                <div key={item.id} className="flex items-center gap-4 py-2 border-b border-gray-50 dark:border-gray-800/50 last:border-0 group">
                                     {item.product_image && (
-                                    <img src={item.product_image} alt="" className="w-12 h-12 rounded-lg object-cover border border-gray-100 dark:border-gray-600 shadow-inner" onError={(e: any) => e.target.style.display = 'none'} />
+                                    <img src={item.product_image} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100 dark:bg-gray-800" onError={(e: any) => e.target.style.display = 'none'} />
                                     )}
                                     <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-black text-gray-900 dark:text-white truncate">
-                                        {item.product_name}
-                                        {item.variant_name && <span className="ml-2 text-[10px] uppercase font-bold text-brand-500   px-2 py-0.5 rounded tracking-wider align-middle">{item.variant_name}</span>}
-                                    </p>
-                                    <p className="text-xs text-gray-500 font-bold mt-0.5">Qty: {item.quantity} × TSh {(item.price || 0).toLocaleString()}</p>
+                                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                          {item.product_name}
+                                          {item.variant_name && <span className="ml-2 text-[10px] uppercase font-bold text-brand-500 bg-brand-50 dark:bg-brand-500/10 px-2 py-0.5 rounded tracking-wider">{item.variant_name}</span>}
+                                      </p>
+                                      <p className="text-xs text-gray-500 font-medium mt-0.5">Qty: {item.quantity} × TSh {(item.price || 0).toLocaleString()}</p>
                                     </div>
                                     <p className="text-sm font-black text-gray-900 dark:text-white">TSh {(item.subtotal || 0).toLocaleString()}</p>
                                 </div>
                                 ))}
                             </div>
-                            {order.promo_code_code && (
-                              <div className="mt-4 p-3.5   border border-green-500/50 dark:border-green-500/30 rounded-xl flex items-center justify-between text-xs">
-                                <div className="space-y-0.5">
-                                  <p className="font-bold text-green-500 dark:text-green-500">Promo Applied: {order.promo_code_code}</p>
-                                  <p className="text-[10px] text-gray-500">Discount type: {order.promo_code_details?.discount_type === 'percentage' ? 'Percentage' : 'Fixed Amount'}</p>
-                                </div>
-                                <span className="font-bold text-gray-700 dark:text-gray-300">
-                                  {order.promo_code_details?.discount_type === 'percentage' ? `${parseInt(order.promo_code_details.value)}%` : `TSh ${parseInt(order.promo_code_details.value).toLocaleString()}`} off (-TSh {parseInt(order.discount_amount || 0).toLocaleString()})
-                                </span>
-                              </div>
-                            )}
-                        </div>
 
-                        {/* Right: Timeline & Actions (Cols 2) */}
-                        {!order.delivery_info?.is_pos && (
-                          <div className="lg:col-span-2 p-6 bg-gray-50/50 dark:bg-gray-800/10 flex flex-col justify-between">
-                            <div>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5">Order History</p>
-                                <div className="space-y-4 pt-1 relative pl-4 border-l-2 border-brand-500 dark:border-brand-500/30">
-                                    {[...(order.timeline || [])].reverse().slice(0, 3).map((ev: any, i: number) => (
-                                        <div key={i} className="relative">
-                                            <div className="absolute -left-[21.5px] w-2.5 h-2.5 rounded-full bg-brand-500 border-2 border-white dark:border-gray-800 shadow-sm" />
-                                            <div className="ml-3">
-                                                <p className="text-xs font-black text-gray-800 dark:text-gray-200 uppercase tracking-tighter">{ORDER_STATUS_CFG[ev.status]?.label || ev.status}</p>
-                                                <p className="text-[10px] text-gray-400 mt-0.5 font-bold uppercase">{fmtOrderDate(ev.created_at)}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {order.timeline?.length > 3 && <p className="text-[10px] text-brand-500 font-bold px-2">+ {order.timeline.length - 3} more events</p>}
+                            {/* Receipt Math Section */}
+                            <div className="mt-6 pt-4 border-t border-dashed border-gray-200 dark:border-gray-700 space-y-2">
+                                <div className="flex justify-between text-xs font-bold text-gray-500 dark:text-gray-400">
+                                  <span>Subtotal</span>
+                                  <span>TSh {(parseFloat(order.total_amount || 0) - parseFloat(order.shipping_fee || 0)).toLocaleString()}</span>
+                                </div>
+                                
+                                {order.promo_code_code && (
+                                  <div className="flex justify-between text-xs font-bold text-green-500">
+                                    <span>Discount ({order.promo_code_code})</span>
+                                    <span>-TSh {parseInt(order.discount_amount || 0).toLocaleString()}</span>
+                                  </div>
+                                )}
+                                
+                                <div className="flex justify-between text-xs font-bold text-gray-500 dark:text-gray-400">
+                                  <span>Delivery Fee</span>
+                                  <span>
+                                    {Number(order.shipping_fee) > 0 
+                                      ? `TSh ${Number(order.shipping_fee).toLocaleString()}` 
+                                      : ['COMPLETED', 'DELIVERED', 'OUT_FOR_DELIVERY', 'READY_FOR_PICKUP', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'SHIPPED', 'ASSIGNED_TRANSPORT'].includes(order.status)
+                                        ? 'FREE'
+                                        : 'TBD'}
+                                  </span>
+                                </div>
+                                
+                                <div className="flex justify-between text-lg font-black text-gray-900 dark:text-white pt-2 border-t border-gray-100 dark:border-gray-800 mt-2">
+                                  <span>Total</span>
+                                  <span>TSh {parseInt(order.total_amount).toLocaleString()}</span>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Action Button */}
-                            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
+                        {/* Right: Timeline & Actions */}
+                        {!order.delivery_info?.is_pos && (
+                          <div className="w-full lg:w-[40%] p-6 bg-gray-50/50 dark:bg-gray-800/10 flex flex-col justify-between">
+                            
+                            {/* Enhanced Vertical Timeline */}
+                            <div className="flex-1 flex flex-col min-h-[160px] lg:min-h-0 relative">
+                              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 shrink-0">Order History</h4>
+                              <div className="max-h-[160px] lg:max-h-none lg:absolute lg:top-8 lg:bottom-0 lg:left-0 lg:right-0 overflow-y-auto pr-2 -mr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+                                <div className="space-y-4 pt-1 relative pl-4 border-l-2 border-brand-500/20 dark:border-brand-500/30">
+                                    {[...(order.timeline || [])].reverse().map((ev: any, i: number) => {
+                                        const isLatest = i === 0;
+                                        return (
+                                          <div key={i} className="relative">
+                                              <div className={`absolute -left-[21.5px] w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-800 shadow-sm ${isLatest ? 'bg-brand-500 ring-4 ring-brand-500/20' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                                              <div className="ml-3">
+                                                  <p className={`text-xs font-black uppercase tracking-tighter ${isLatest ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{ORDER_STATUS_CFG[ev.status]?.label || ev.status}</p>
+                                                  <p className="text-[10px] text-gray-400 mt-0.5 font-bold uppercase">{fmtOrderDate(ev.created_at)}</p>
+                                              </div>
+                                          </div>
+                                        );
+                                    })}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Action Buttons (Docked to bottom right) */}
+                            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 shrink-0">
                                 <div className="flex flex-col sm:flex-row gap-3">
+                                    {['AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'PROCESSING'].includes(order.status) && (
+                                        <button 
+                                            onClick={() => handleCancel(order.id)}
+                                            disabled={advancing === order.id}
+                                            className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-500 hover:text-red-500 text-xs font-black uppercase tracking-widest transition-all shrink-0 flex items-center justify-center gap-2"
+                                        >
+                                            <XCircle size={16} />
+                                            Cancel
+                                        </button>
+                                    )}
+
                                     {nextStatus ? (
                                         <button
                                             onClick={() => {
@@ -473,91 +510,69 @@ const DashboardOrders: React.FC = () => {
                                                 if (nextStatus === 'SHIPPED') {
                                                   promptNotes = prompt('Enter tracking number or courier info:') || "";
                                                 } else if (nextStatus === 'SHIPPED_TO_WAREHOUSE') {
-                                                  // HIGH-7: Only show warehouse modal for platform-routed orders
                                                   setShipModalOpen(order.id);
                                                   return;
                                                 }
                                                 handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
                                             }}
                                             disabled={advancing === order.id}
-                                            className="flex-[3] btn-primary py-4 bg-brand-500 hover:bg-brand-500 disabled:bg-brand-500 text-sm font-black uppercase tracking-widest shadow-xl shadow-brand-600/20 flex items-center justify-center gap-3 group ring-offset-2 focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white"
+                                            className="flex-1 px-4 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:bg-brand-400 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20"
                                         >
                                             {advancing === order.id ? (
-                                                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                                                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
                                             ) : (
                                                 <>
                                                   {nextStatus === 'SELLER_CONFIRMED' && 'Confirm Order'}
                                                   {nextStatus === 'PREPARING' && 'Start Preparing'}
                                                   {nextStatus === 'PACKAGING' && 'Package Order'}
-                                                  {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to SokoniMax Warehouse'}
-                                                  {nextStatus === 'PROCESSING' && 'Accept & Process Order'}
-                                                  {nextStatus === 'SHIPPED' && 'Mark as Shipped'}
+                                                  {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to Warehouse'}
+                                                  {nextStatus === 'PROCESSING' && 'Process Order'}
+                                                  {nextStatus === 'SHIPPED' && 'Mark Shipped'}
                                                   {nextStatus === 'DELIVERED' && 'Confirm Delivery'}
-                                                  {nextStatus === 'COMPLETED' && 'Finalize Transaction'}
-                                                  {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && `Advance to ${nextStatus}`}
-                                                  <ShieldCheck size={20} className="transition-transform group-hover:scale-125" />
+                                                  {nextStatus === 'COMPLETED' && 'Finalize'}
+                                                  {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && `Advance`}
+                                                  <ShieldCheck size={16} />
                                                 </>
                                             )}
                                         </button>
                                     ) : order.status === 'AWAITING_PAYMENT' ? (
-                                        <div className="flex-[3] bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 p-4 rounded-xl text-center flex items-center justify-center flex-col gap-2">
-                                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 leading-relaxed">
-                                                Awaiting customer payment before processing can begin.
-                                            </p>
-                                            {order.buyer_contact?.name && (
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    Buyer Contact: {order.buyer_contact.name} ({order.buyer_contact.phone})
-                                                </p>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex-[3] bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 p-4 rounded-xl text-center flex items-center justify-center">
-                                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 leading-relaxed">
-                                                {getStatusExplanation(order.status, order.fulfillment_type) || "No actions required at this stage."}
+                                        <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 flex items-center justify-center">
+                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                                                Awaiting Payment
                                             </p>
                                         </div>
-                                    )}
-                                    
-                                    {['AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'PROCESSING'].includes(order.status) && (
-                                        <button 
-                                            onClick={() => handleCancel(order.id)}
-                                            disabled={advancing === order.id}
-                                            className="flex-1 btn-secondary py-4 text-red-500 hover:text-red-500  text-sm font-black uppercase tracking-widest border-2 border-red-500 hover:border-red-500 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <XCircle size={18} />
-                                            Cancel
-                                        </button>
-                                    )}
+                                    ) : null}
                                 </div>
                                 
                                 {order.status === 'SHIPPED_TO_WAREHOUSE' && (
-                                  <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-6   p-4 rounded-xl border border-brand-500 dark:border-brand-500/20">
+                                  <div className="mt-4 flex items-center justify-between gap-4 p-4 rounded-xl border border-brand-500/30 bg-brand-50/50 dark:bg-brand-500/5">
                                     <div className="flex-1">
-                                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest mb-1">Origin Drop-off Tag</p>
-                                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        Present this QR Code to the warehouse staff upon arrival. 
+                                      <p className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-0.5">Drop-off Tag</p>
+                                      <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                                        Show this QR Code at the warehouse.
                                       </p>
                                     </div>
-                                    <div className="p-3 bg-white dark:bg-neutral-800 rounded-2xl shadow-lg border-2 border-brand-500/30 shrink-0">
-                                      <QRCodeSVG value={order.id.toString()} size={80} bgColor="transparent" fgColor="currentColor" className="text-gray-900 dark:text-white" />
+                                    <div className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 shrink-0">
+                                      <QRCodeSVG value={order.id.toString()} size={60} bgColor="transparent" fgColor="#000" />
                                     </div>
                                   </div>
                                 )}
 
                                 {order.fulfillment_type !== 'DIRECT_DELIVERY' && ['RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'].includes(order.status) && (
-                                    <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 p-3   border border-brand-500/50 dark:border-brand-500/30 rounded-xl">
+                                    <div className="mt-4 text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-xl">
                                         <Truck size={14} className="text-brand-500 shrink-0" />
-                                        <span>SokoniMax logistics is handling this delivery — no action required from you.</span>
+                                        <span>Logistics handling delivery.</span>
                                     </div>
                                 )}
-                                <div className="mt-4 flex items-center justify-center gap-4">
-                                    <div className="flex items-center gap-2 text-gray-400">
+                                
+                                <div className="mt-4 flex items-center justify-center gap-4 border-t border-gray-100 dark:border-gray-800 pt-4">
+                                    <div className="flex items-center gap-1.5 text-gray-400">
                                         <Clock size={12} />
-                                        <p className="text-[10px] font-bold uppercase tracking-widest">
+                                        <p className="text-[9px] font-black uppercase tracking-[0.1em]">
                                             Last Activity: {fmtOrderDate(order.order_date)}
                                         </p>
                                     </div>
-                                    <Link to={`/${order.buyer}`} className="text-[10px] font-black text-brand-500 uppercase tracking-widest hover:underline flex items-center gap-1">
+                                    <Link to={`/${order.buyer}`} className="text-[9px] font-black text-brand-500 uppercase tracking-[0.1em] hover:underline flex items-center gap-1">
                                         <MessageSquare size={12} />
                                         Contact Buyer
                                     </Link>
