@@ -15,7 +15,8 @@ from .models import (
     Payment, TrackingEvent, UserProfile, Like, ProductImage,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, DeliveryZone, SiteSettings, push_notification, ProductVariant,
-    MobileNetwork
+    MobileNetwork, VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
+    Brand, ReferenceProduct
 )
 from .serializers import (
     ProductSerializer, CategorySerializer, ProductReviewSerializer, 
@@ -23,7 +24,8 @@ from .serializers import (
     NotificationSerializer, ConversationSerializer, MessageSerializer,
     SavedSearchSerializer, PriceAlertSerializer, DisputeSerializer,
     SiteSettingsSerializer, DeliveryZoneSerializer, ProductVariantSerializer,
-    MobileNetworkSerializer
+    MobileNetworkSerializer, VehicleMakeSerializer, VehicleModelSerializer, VehicleSerializer,
+    BrandSerializer, ReferenceProductSerializer
 )
 
 from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove, has_staff_permission
@@ -104,7 +106,7 @@ def reverse_geocode(request):
 
 @method_decorator(vary_on_headers('Authorization', 'Cookie'), name='list')
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all().prefetch_related('images', 'likes')
+    queryset = Product.objects.all().prefetch_related('images', 'likes', 'fitments')
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
@@ -179,7 +181,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         ).select_related(
             'seller', 'seller__profile', 'category'
         ).prefetch_related(
-            'images', 'inspections', 'inspections__report'
+            'images', 'inspections', 'inspections__report', 'fitments'
         )
         
         # FIX: Ensure detail actions (delete/edit) don't get blocked by list filters
@@ -240,6 +242,20 @@ class ProductViewSet(viewsets.ModelViewSet):
             except Category.DoesNotExist:
                 queryset = queryset.filter(category__slug=category_slug)
 
+        brand_slug = self.request.query_params.get('brand', None)
+        if brand_slug:
+            queryset = queryset.filter(brand__slug=brand_slug)
+            
+        ref_slug = self.request.query_params.get('reference_product', None)
+        if ref_slug:
+            queryset = queryset.filter(reference_product__slug=ref_slug)
+
+        # Dynamic Spec Filtering
+        reserved_params = {'category', 'q', 'min_price', 'max_price', 'condition', 'sort_by', 'seller', 'lat', 'lng', 'radius', 'brand', 'reference_product', 'mine', 'following', 'saved', 'saved_time', 'view', 'page', 'page_size'}
+        for key, value in self.request.query_params.items():
+            if key not in reserved_params and value:
+                queryset = queryset.filter(structured_specs__contains={key: value})
+
         if query:
             from django.db import connection
             if connection.vendor == 'postgresql':
@@ -271,6 +287,17 @@ class ProductViewSet(viewsets.ModelViewSet):
                 pass
         if condition:
             queryset = queryset.filter(condition=condition)
+
+        # Vehicle Fitment & Specifications Filter
+        vehicle_id = self.request.query_params.get('vehicle_id')
+        if vehicle_id:
+            queryset = queryset.filter(fitments__vehicle_id=vehicle_id).distinct()
+            
+        oem_part_number = self.request.query_params.get('oem_part_number')
+        if oem_part_number:
+            # PostgreSQL specific JSONB query for partial or exact match
+            queryset = queryset.filter(specifications__oem_part_number__iexact=oem_part_number)
+
 
         # Phase 3: Spatial Awareness - Haversine Proximity Sorting
         if lat and lng:
@@ -800,6 +827,37 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
             # Cache for 2 hours; invalidate externally when categories change
             cache.set(cache_key, data, 60 * 60 * 2)
         return Response(data)
+
+    @action(detail=False, methods=['get'], url_path=r'(?P<slug>[^/.]+)/spec-schema')
+    def spec_schema(self, request, slug=None):
+        from django.shortcuts import get_object_or_404
+        from marketplace.models import Category
+        category = get_object_or_404(Category, slug=slug)
+        schema = []
+        ancestors = category.get_ancestors(include_self=True)
+        for anc in ancestors:
+            if anc.spec_schema:
+                schema.extend(anc.spec_schema)
+        
+        merged = {}
+        for item in schema:
+            merged[item['key']] = item
+        return Response(list(merged.values()))
+
+    @action(detail=False, methods=['get'], url_path=r'(?P<slug>[^/.]+)/brands')
+    def brands(self, request, slug=None):
+        from django.shortcuts import get_object_or_404
+        from marketplace.models import Category, Brand
+        from marketplace.serializers import BrandSerializer
+        category = get_object_or_404(Category, slug=slug)
+        descendants = category.get_descendants(include_self=True)
+        brands = Brand.objects.filter(reference_products__category__in=descendants, is_active=True).distinct()
+        return Response(BrandSerializer(brands, many=True).data)
+
+    @action(detail=False, methods=['get'], url_path=r'(?P<slug>[^/.]+)/filters')
+    def filters(self, request, slug=None):
+        # Placeholder for faceted counts if needed later
+        return Response({})
 
 class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
@@ -3010,3 +3068,44 @@ class SellerAnalyticsView(APIView):
         cache.set(cache_key, response_data, timeout=60)
         return Response(response_data)
 
+
+class VehicleMakeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = VehicleMake.objects.all()
+    serializer_class = VehicleMakeSerializer
+    permission_classes = [permissions.AllowAny]
+
+class VehicleModelViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = VehicleModelSerializer
+    permission_classes = [permissions.AllowAny]
+    def get_queryset(self):
+        qs = VehicleModel.objects.select_related('make').all()
+        make_id = self.request.query_params.get('make_id')
+        if make_id:
+            qs = qs.filter(make_id=make_id)
+        return qs
+
+class VehicleViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = VehicleSerializer
+    permission_classes = [permissions.AllowAny]
+    def get_queryset(self):
+        qs = Vehicle.objects.select_related('make', 'model').all()
+        make_id = self.request.query_params.get('make_id')
+        model_id = self.request.query_params.get('model_id')
+        year = self.request.query_params.get('year')
+        if make_id: qs = qs.filter(make_id=make_id)
+        if model_id: qs = qs.filter(model_id=model_id)
+        if year: qs = qs.filter(year=year)
+        return qs
+
+class BrandViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Brand.objects.filter(is_active=True)
+    serializer_class = BrandSerializer
+    permission_classes = [permissions.AllowAny]
+    search_fields = ['name']
+
+class ReferenceProductViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ReferenceProduct.objects.select_related('brand', 'category').all()
+    serializer_class = ReferenceProductSerializer
+    permission_classes = [permissions.AllowAny]
+    filterset_fields = ['brand', 'category']
+    search_fields = ['name', 'brand__name']

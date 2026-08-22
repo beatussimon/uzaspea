@@ -8,6 +8,7 @@ import { timeAgo } from '../../utils/timeAgo';
 import { useDialog } from '../../components/ui/Dialogs';
 import ProductVariantsModal from './ProductVariantsModal';
 import { useTranslation } from 'react-i18next';
+import VehicleSelector from '../../components/VehicleSelector';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -142,8 +143,15 @@ const DashboardProducts: React.FC = () => {
   const [quickStockValue, setQuickStockValue] = useState<string>('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+  const [form, setForm] = useState({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1', brand: '', reference_product: '', structured_specs: {} as Record<string, any> });
+  const [vehicleIds, setVehicleIds] = useState<string[]>([]);
+  const [oemPartNumber, setOemPartNumber] = useState<string>('');
   const [priceTiers, setPriceTiers] = useState<any[]>([]);
+
+  // Dynamic Specs
+  const [specSchema, setSpecSchema] = useState<any[]>([]);
+  const [categoryBrands, setCategoryBrands] = useState<any[]>([]);
+  const [referenceProducts, setReferenceProducts] = useState<any[]>([]);
   
   // Search and Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -226,6 +234,32 @@ const DashboardProducts: React.FC = () => {
       }
     }
   }, [form.category, editingId, flatCategories]);
+
+  // Fetch Dynamic Schema and Brands when Category changes
+  useEffect(() => {
+    if (form.category) {
+      const selectedCat = flatCategories.find(c => String(c.id) === String(form.category));
+      if (selectedCat && selectedCat.slug) {
+        api.get(`/api/categories/${selectedCat.slug}/spec-schema/`).then(res => setSpecSchema(res.data)).catch(() => setSpecSchema([]));
+        api.get(`/api/categories/${selectedCat.slug}/brands/`).then(res => setCategoryBrands(res.data)).catch(() => setCategoryBrands([]));
+      }
+    } else {
+      setSpecSchema([]);
+      setCategoryBrands([]);
+      setReferenceProducts([]);
+    }
+  }, [form.category, flatCategories]);
+
+  // Fetch Reference Products when Brand or Category changes
+  useEffect(() => {
+    if (form.category && form.brand) {
+      const selectedCat = flatCategories.find(c => String(c.id) === String(form.category));
+      const catSlug = selectedCat?.slug || '';
+      api.get(`/api/reference-products/?category=${catSlug}&brand=${form.brand}`).then(res => setReferenceProducts(res.data.results || res.data)).catch(() => setReferenceProducts([]));
+    } else {
+      setReferenceProducts([]);
+    }
+  }, [form.category, form.brand, flatCategories]);
 
   // Infinite Scroll state
   const [, setPage] = useState(1);
@@ -418,10 +452,16 @@ const DashboardProducts: React.FC = () => {
       requires_quote: product.requires_quote || false,
       unit_of_measure: product.unit_of_measure || 'piece',
       minimum_order_quantity: product.minimum_order_quantity || '1',
+      brand: product.brand_details?.slug || '',
+      reference_product: product.reference_product_details?.slug || '',
+      structured_specs: product.structured_specs || {},
     });
     setPriceTiers(product.price_tiers || []);
     setEditingId(product.slug);
     setEditingProductId(product.id);
+    setVehicleIds(product.vehicle_ids ? product.vehicle_ids.map(String) : []);
+    setOemPartNumber(product.oem_part_number || '');
+
     setExistingImages(product.images || []);
     setNewVariants([]);
     setShowForm(true);
@@ -635,6 +675,14 @@ const DashboardProducts: React.FC = () => {
             if (form.sale_price) fd.append('sale_price', form.sale_price);
             fd.append('stock', form.stock);
             fd.append('category', form.category);
+            
+            // Append Vehicle Fitment data
+            if (vehicleIds.length > 0) {
+              vehicleIds.forEach(vid => fd.append('vehicle_ids', vid));
+            }
+            if (oemPartNumber) {
+              fd.append('oem_part_number', oemPartNumber);
+            }
             fd.append('condition', form.condition);
             fd.append('is_available', String(form.is_available));
             fd.append('requires_quote', String(form.requires_quote));
@@ -642,6 +690,13 @@ const DashboardProducts: React.FC = () => {
             fd.append('minimum_order_quantity', form.minimum_order_quantity);
             if (fulfillRequestId) fd.append('fulfill_request_id', String(fulfillRequestId));
             if (priceTiers.length > 0) fd.append('price_tiers', JSON.stringify(priceTiers));
+            
+            if (form.brand) fd.append('brand', form.brand);
+            if (form.reference_product) fd.append('reference_product', form.reference_product);
+            if (Object.keys(form.structured_specs).length > 0) {
+              fd.append('structured_specs', JSON.stringify(form.structured_specs));
+            }
+            
             if (locData.latitude) fd.append('latitude', locData.latitude);
             if (locData.longitude) fd.append('longitude', locData.longitude);
             if (locData.location_name) fd.append('location_name', locData.location_name);
@@ -891,11 +946,6 @@ const DashboardProducts: React.FC = () => {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Product Name *</label>
-                      <input name="name" value={form.name} onChange={handleChange} placeholder="e.g. iPhone 15 Pro Max" required
-                        className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition" />
-                    </div>
-                    <div>
                       <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Category *</label>
                       <select name="category" value={form.category} onChange={handleChange} required
                         className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition">
@@ -904,7 +954,118 @@ const DashboardProducts: React.FC = () => {
                       </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  
+                  {/* DYNAMIC VEHICLE FITMENT SECTION */}
+                  {(() => {
+                    const selectedCat = flatCategories.find(c => String(c.id) === String(form.category));
+                    const isAuto = selectedCat && (selectedCat.slug.includes('vehicle') || selectedCat.slug.includes('part') || selectedCat.slug.includes('auto') || selectedCat.slug.includes('car'));
+                    if (!isAuto) return null;
+                    return (
+                      <div className="mt-4 p-4 rounded-xl border border-brand-500/30 bg-brand-500/5">
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                          Vehicle Fitment (Optional)
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Select Compatible Vehicle</label>
+                            <VehicleSelector onVehicleSelect={(v) => {
+                               if (v && !vehicleIds.includes(v)) setVehicleIds([...vehicleIds, v]);
+                            }} />
+                            {vehicleIds.length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {vehicleIds.map(vid => (
+                                  <span key={vid} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-500/20 text-brand-600 text-xs font-bold">
+                                    Vehicle ID: {vid}
+                                    <button type="button" onClick={() => setVehicleIds(vehicleIds.filter(id => id !== vid))} className="hover:text-brand-800">&times;</button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">OEM Part Number</label>
+                            <input type="text" value={oemPartNumber} onChange={(e) => setOemPartNumber(e.target.value)} placeholder="e.g. 17801-0T020"
+                              className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition" />
+                            <p className="text-[10px] text-gray-400 mt-1 uppercase">Helps buyers find exact matches</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* DYNAMIC PRODUCT SPECIFICATIONS */}
+                  {specSchema.length > 0 && (
+                    <div className="mt-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                        Product Specifications
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Brand & Reference Product */}
+                        {categoryBrands.length > 0 && (
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Brand</label>
+                            <select value={form.brand} onChange={e => {
+                               setForm(prev => ({ ...prev, brand: e.target.value, reference_product: '' }));
+                            }} className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition">
+                              <option value="">Select Brand...</option>
+                              {categoryBrands.map(b => <option key={b.slug} value={b.slug}>{b.name}</option>)}
+                            </select>
+                          </div>
+                        )}
+                        {form.brand && referenceProducts.length > 0 && (
+                          <div>
+                            <label className="block text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2">Match Reference Product</label>
+                            <select value={form.reference_product} onChange={e => {
+                               const refSlug = e.target.value;
+                               const ref = referenceProducts.find(r => r.slug === refSlug);
+                               setForm(prev => ({ 
+                                 ...prev, 
+                                 reference_product: refSlug,
+                                 structured_specs: ref ? { ...prev.structured_specs, ...ref.specifications } : prev.structured_specs
+                               }));
+                            }} className="w-full p-2.5 text-sm border border-emerald-300 dark:border-emerald-700/50 rounded-lg bg-emerald-50 dark:bg-emerald-900/10 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                              <option value="">(Optional) Select Exact Model...</option>
+                              {referenceProducts.map(r => <option key={r.slug} value={r.slug}>{r.model_name} {r.variant_name}</option>)}
+                            </select>
+                            <p className="text-[10px] text-emerald-600/70 mt-1 uppercase">Auto-fills verified specifications</p>
+                          </div>
+                        )}
+                        {/* Render Schema Fields */}
+                        {specSchema.map((spec: any) => {
+                          if (spec.key === 'brand') return null; // handled above
+                          return (
+                            <div key={spec.key}>
+                              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                                {spec.label} {spec.required && '*'}
+                              </label>
+                              {spec.type === 'select' && spec.options ? (
+                                <select 
+                                  required={spec.required}
+                                  value={form.structured_specs[spec.key] || ''} 
+                                  onChange={e => setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: e.target.value } }))}
+                                  className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none"
+                                >
+                                  <option value="">Select {spec.label}</option>
+                                  {spec.options.map((opt: string) => <option key={opt} value={opt}>{opt}{spec.unit ? ` ${spec.unit}` : ''}</option>)}
+                                </select>
+                              ) : (
+                                <input 
+                                  type={spec.type === 'number' ? 'number' : 'text'} 
+                                  required={spec.required}
+                                  placeholder={`Enter ${spec.label}`}
+                                  value={form.structured_specs[spec.key] || ''}
+                                  onChange={e => setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: e.target.value } }))}
+                                  className="w-full p-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none"
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Price *</label>
                       <input name="price" value={form.price} onChange={handleChange} placeholder="0" type="number" required

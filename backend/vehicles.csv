@@ -1,0 +1,21 @@
+make,model,year,trim,engine,drivetrain,transmission,body_style,region
+Toyota,Corolla,2023,LE,1.8L 4-Cyl,FWD,CVT,Sedan,US
+Toyota,Corolla,2023,SE,2.0L 4-Cyl,FWD,CVT,Sedan,US
+Toyota,Corolla,2022,LE,1.8L 4-Cyl,FWD,CVT,Sedan,US
+Toyota,Camry,2023,XSE,2.5L 4-Cyl,FWD,8-Speed Auto,Sedan,US
+Toyota,Camry,2022,SE,2.5L 4-Cyl,FWD,8-Speed Auto,Sedan,US
+Toyota,RAV4,2023,XLE Premium,2.5L 4-Cyl,AWD,8-Speed Auto,SUV,US
+Honda,Civic,2023,Sport,2.0L 4-Cyl,FWD,CVT,Sedan,US
+Honda,Civic,2022,LX,2.0L 4-Cyl,FWD,CVT,Sedan,US
+Honda,CR-V,2023,EX-L,1.5L Turbo,AWD,CVT,SUV,US
+Honda,Accord,2023,EX,1.5L Turbo,FWD,CVT,Sedan,US
+Ford,F-150,2023,XLT,3.5L V6 EcoBoost,4WD,10-Speed Auto,Truck,US
+Ford,F-150,2022,Lariat,5.0L V8,4WD,10-Speed Auto,Truck,US
+Ford,Mustang,2023,GT Premium,5.0L V8,RWD,6-Speed Manual,Coupe,US
+BMW,3 Series,2023,330i,2.0L Turbo 4-Cyl,RWD,8-Speed Auto,Sedan,US
+BMW,X5,2023,xDrive40i,3.0L Turbo 6-Cyl,AWD,8-Speed Auto,SUV,US
+Mercedes-Benz,C-Class,2023,C300,2.0L Turbo 4-Cyl,RWD,9-Speed Auto,Sedan,US
+Nissan,Altima,2023,SV,2.5L 4-Cyl,FWD,CVT,Sedan,US
+Nissan,Rogue,2023,SL,1.5L Turbo 3-Cyl,AWD,CVT,SUV,US
+Chevrolet,Silverado 1500,2023,LT,5.3L V8,4WD,10-Speed Auto,Truck,US
+Subaru,Outback,2023,Premium,2.5L 4-Cyl,AWD,CVT,Wagon,US

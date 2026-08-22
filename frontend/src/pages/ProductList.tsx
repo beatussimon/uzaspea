@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
@@ -39,6 +39,9 @@ const ProductList = () => {
   const sortBy = searchParams.get('sort_by') || '';
   const saved = searchParams.get('saved') === 'true';
   const savedTime = searchParams.get('saved_time') || '';
+  const sellerFilter = searchParams.get('seller') || '';
+  const vehicleId = searchParams.get('vehicle_id') || '';
+  const oemPartNumber = searchParams.get('oem_part_number') || '';
 
   const updateFilters = (updates: Record<string, string>) => {
     setSearchParams(prev => {
@@ -62,6 +65,7 @@ const ProductList = () => {
     if (urlQuery) params.q = urlQuery;
     if (saved) params.saved = 'true';
     if (savedTime) params.saved_time = savedTime;
+    if (sellerFilter) params.seller = sellerFilter;
     return params;
   })();
 
@@ -134,18 +138,17 @@ const ProductList = () => {
   const buildParams = useCallback(
     (p: number) => {
       const params: Record<string, string> = { page: String(p), page_size: '12' };
-      const cat = selectedSubcategory || selectedCategory;
+      const cat = searchParams.get('subcategory') || searchParams.get('category');
       if (cat) params.category = cat;
-      if (minPrice) params.min_price = minPrice;
-      if (maxPrice) params.max_price = maxPrice;
-      if (condition) params.condition = condition;
-      if (sortBy) params.sort_by = sortBy;
-      if (urlQuery) params.q = urlQuery;
-      if (saved) params.saved = 'true';
-      if (savedTime) params.saved_time = savedTime;
+      
+      searchParams.forEach((value, key) => {
+        if (!['page', 'page_size', 'category', 'subcategory'].includes(key) && value) {
+          params[key] = value;
+        }
+      });
       return params;
     },
-    [selectedCategory, selectedSubcategory, minPrice, maxPrice, condition, sortBy, urlQuery, saved, savedTime]
+    [searchParams]
   );
 
   const fetchProducts = useCallback(
@@ -279,7 +282,7 @@ const ProductList = () => {
   useEffect(() => { 
     setPage(1); 
     fetchProducts(1, true); 
-  }, [selectedCategory, selectedSubcategory, condition, sortBy, urlQuery, minPrice, maxPrice, saved, savedTime]);
+  }, [searchParams]);
 
   useEffect(() => {
     localStorage.setItem('viewMode', viewMode);
@@ -422,6 +425,15 @@ const ProductList = () => {
       onRemove: () => { updateFilters({ saved_time: '' }); },
     });
   }
+  if (sellerFilter) {
+    activePills.push({
+      id: 'seller',
+      label: 'Store',
+      value: `@${sellerFilter}`,
+      type: 'seller',
+      onRemove: () => { updateFilters({ seller: '' }); },
+    });
+  }
 
   // Interleave sponsored items natively inside CSS grid
   const buildGridEntries = (regular: any[], promoted: any[]): GridEntry[] => {
@@ -506,6 +518,26 @@ const ProductList = () => {
           </div>
         )}
 
+        {/* Seller Store Banner */}
+        {sellerFilter && (
+          <div className="flex items-center gap-3 px-4 md:px-0 py-3 mb-2">
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-brand-500/5 dark:bg-brand-500/10 border border-brand-500/15 dark:border-brand-500/20 flex-1">
+              <div className="w-7 h-7 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-500 text-xs font-bold uppercase">
+                {sellerFilter.charAt(0)}
+              </div>
+              <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                Results in <Link to={`/${sellerFilter}`} className="font-bold text-brand-500 hover:underline">@{sellerFilter}</Link>'s store
+              </span>
+              <button
+                onClick={() => updateFilters({ seller: '' })}
+                className="ml-auto text-xs font-bold text-neutral-400 hover:text-brand-500 transition-colors"
+              >
+                Show all
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Active Filter Pills */}
         {activePills.length > 0 && (
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pb-2 mb-2 animate-fade-in px-4 md:px-0">
@@ -540,7 +572,7 @@ const ProductList = () => {
             {activePills.length > 1 && (
               <button
                 onClick={() => {
-                  updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved: '', saved_time: '' });
+                  updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved: '', saved_time: '', seller: '' });
                 }}
                 className="text-xs font-bold text-gray-400 hover:text-brand-500 transition-colors ml-1 uppercase tracking-tighter"
               >
@@ -592,7 +624,7 @@ const ProductList = () => {
               <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
                 <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
-                <button onClick={() => { updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved_time: '' }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
+                <button onClick={() => { updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved_time: '', seller: '' }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
               </div>
             ) : (
               gridEntries.map((entry, idx) => {

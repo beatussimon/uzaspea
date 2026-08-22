@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Clock, ArrowRight, Loader2, Tag, Filter } from 'lucide-react';
+import { Search, X, Clock, ArrowRight, Loader2, Tag, Filter, ShoppingCart } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSearch } from '../context/SearchContext';
+import { useCart } from '../context/CartContext';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import SafeImage from './SafeImage';
+import VehicleSelector from './VehicleSelector';
 
 const GlobalSearchModal: React.FC = () => {
-  const { isSearchOpen, closeSearch } = useSearch();
+  const { isSearchOpen, sellerScope, closeSearch, openSearch } = useSearch();
+  const { addToCart } = useCart();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -17,6 +20,7 @@ const GlobalSearchModal: React.FC = () => {
   const [query, setQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   
   // Filters State
@@ -27,6 +31,13 @@ const GlobalSearchModal: React.FC = () => {
   const [maxPrice, setMaxPrice] = useState('');
   const [condition, setCondition] = useState('');
   const [sortBy, setSortBy] = useState('');
+  const [vehicleId, setVehicleId] = useState('');
+  const [oemPartNumber, setOemPartNumber] = useState('');
+  
+  // Dynamic Specs
+  const [specSchema, setSpecSchema] = useState<any[]>([]);
+  const [specFilters, setSpecFilters] = useState<Record<string, string>>({});
+  
   const urlView = searchParams.get('view');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
     if (urlView === 'grid' || urlView === 'list') return urlView;
@@ -60,6 +71,17 @@ const GlobalSearchModal: React.FC = () => {
       .then((r: any) => setCategories(r.data.results || r.data))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (category) {
+      api.get(`/api/categories/${category}/spec-schema/`)
+        .then((r: any) => setSpecSchema(r.data))
+        .catch(() => setSpecSchema([]));
+    } else {
+      setSpecSchema([]);
+      setSpecFilters({});
+    }
+  }, [category]);
 
   const rootCategories = useMemo(() => {
     return categories.filter((c: any) => !c.parent);
@@ -103,15 +125,18 @@ const GlobalSearchModal: React.FC = () => {
       .sort((a, b) => (b.product_count || b.annotated_product_count || 0) - (a.product_count || a.annotated_product_count || 0));
   }, [categories]);
 
-  // Load recent searches
+  // Load recent searches (scoped per seller when applicable)
+  const recentSearchesKey = sellerScope ? `recentSearches_@${sellerScope.username}` : 'recentSearches';
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('recentSearches');
+      const stored = localStorage.getItem(recentSearchesKey);
       if (stored) {
         setRecentSearches(JSON.parse(stored));
+      } else {
+        setRecentSearches([]);
       }
     } catch (e) {}
-  }, []);
+  }, [recentSearchesKey]);
 
 
 
@@ -154,33 +179,43 @@ const GlobalSearchModal: React.FC = () => {
   // Debounced API call for predictive search
   useEffect(() => {
     const q = query.trim();
-    if (!q && !category && !minPrice && !maxPrice && !condition) {
+    if (!q && !category && !minPrice && !maxPrice && !condition && !vehicleId && !oemPartNumber) {
       setSuggestions([]);
+      setTotalCount(null);
       setIsSearching(false);
       return;
     }
 
     setIsSearching(true);
     const timer = setTimeout(() => {
-      Promise.all([
-        api.get('/api/profiles/', { params: { q, page_size: 3 } }).catch(() => ({ data: { results: [] } })),
-        api.get('/api/products/', { 
-          params: { q, category, min_price: minPrice, max_price: maxPrice, condition, sort_by: sortBy, page_size: 4 } 
-        }).catch(() => ({ data: { results: [] } }))
-      ]).then(([profileRes, productRes]) => {
-        const profiles = (profileRes.data.results || profileRes.data || []).map((p: any) => ({ ...p, type: 'account' }));
+      const productParams: any = { q, category, min_price: minPrice, max_price: maxPrice, condition, sort_by: sortBy, vehicle_id: vehicleId, oem_part_number: oemPartNumber, page_size: 4 };
+      if (sellerScope) productParams.seller = sellerScope.username;
+
+      const promises: Promise<any>[] = [];
+      if (!sellerScope && !vehicleId && !oemPartNumber) { // don't search profiles if looking for car parts
+        promises.push(api.get('/api/profiles/', { params: { q, page_size: 3 } }).catch(() => ({ data: { results: [] } })));
+      } else {
+        promises.push(Promise.resolve({ data: { results: [] } }));
+      }
+      promises.push(
+        api.get('/api/products/', { params: productParams }).catch(() => ({ data: { results: [] } }))
+      );
+
+      Promise.all(promises).then(([profileRes, productRes]) => {
+        const profiles = sellerScope ? [] : (profileRes.data.results || profileRes.data || []).map((p: any) => ({ ...p, type: 'account' }));
         const products = (productRes.data.results || []).map((p: any) => ({ ...p, type: 'product' }));
         const sortedProducts = [...products].sort((a: any, b: any) => (b.is_sponsored ? 1 : 0) - (a.is_sponsored ? 1 : 0));
         
         setSuggestions([...profiles, ...sortedProducts]);
+        setTotalCount(productRes.data.count ?? (products.length > 0 ? products.length : 0));
         setIsSearching(false);
       });
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, category, minPrice, maxPrice, condition, sortBy]);
+  }, [query, category, minPrice, maxPrice, condition, sortBy, sellerScope, vehicleId, oemPartNumber]);
 
-  const buildQueryString = (overrides?: { category?: string; query?: string }) => {
+  const buildQueryString = (overrides?: { category?: string; query?: string; clearSeller?: boolean }) => {
     const params = new URLSearchParams();
     const q = overrides?.query !== undefined ? overrides.query : query;
     const cat = overrides?.category !== undefined ? overrides.category : category;
@@ -191,7 +226,13 @@ const GlobalSearchModal: React.FC = () => {
     if (maxPrice) params.set('max_price', maxPrice);
     if (condition) params.set('condition', condition);
     if (sortBy) params.set('sort_by', sortBy);
+    if (vehicleId) params.set('vehicle_id', vehicleId);
+    if (oemPartNumber) params.set('oem_part_number', oemPartNumber);
     if (viewMode !== 'grid') params.set('view', viewMode);
+    if (sellerScope && !overrides?.clearSeller) params.set('seller', sellerScope.username);
+    Object.entries(specFilters).forEach(([k, v]) => {
+      if (v) params.set(k, v);
+    });
     return params.toString();
   };
 
@@ -200,13 +241,13 @@ const GlobalSearchModal: React.FC = () => {
     const finalQuery = overrides?.query !== undefined ? overrides.query.trim() : query.trim();
     const finalCat = overrides?.category !== undefined ? overrides.category : category;
     
-    if (!finalQuery && !finalCat && !minPrice && !maxPrice && !condition) return;
+    if (!finalQuery && !finalCat && !minPrice && !maxPrice && !condition && !vehicleId && !oemPartNumber && Object.keys(specFilters).length === 0) return;
     
     // Save to recent searches
     if (finalQuery) {
       const newSearches = [finalQuery, ...recentSearches.filter(s => s !== finalQuery)].slice(0, 5);
       setRecentSearches(newSearches);
-      localStorage.setItem('recentSearches', JSON.stringify(newSearches));
+      localStorage.setItem(recentSearchesKey, JSON.stringify(newSearches));
     }
 
     if (suggestions.length > 0 && suggestions[0].type === 'account') {
@@ -226,6 +267,9 @@ const GlobalSearchModal: React.FC = () => {
     setMaxPrice('');
     setCondition('');
     setSortBy('');
+    setVehicleId('');
+    setOemPartNumber('');
+    setSpecFilters({});
   };
 
   const handleSuggestionClick = (item: any) => {
@@ -240,7 +284,7 @@ const GlobalSearchModal: React.FC = () => {
     });
   };
 
-  const activeFilterCount = [category, minPrice, maxPrice, condition, sortBy].filter(Boolean).length;
+  const activeFilterCount = [category, minPrice, maxPrice, condition, sortBy, vehicleId, oemPartNumber].filter(Boolean).length;
 
   return (
     <AnimatePresence>
@@ -305,6 +349,24 @@ const GlobalSearchModal: React.FC = () => {
                     </motion.div>
                   )}
                 </div>
+
+                {/* Auto Parts / Vehicle Filters */}
+                {(activeRootCategory?.slug?.includes('vehicle') || activeRootCategory?.slug?.includes('part') || activeRootCategory?.slug?.includes('auto')) && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                    <VehicleSelector onVehicleSelect={setVehicleId} selectedVehicleId={vehicleId} />
+                    
+                    <div className="mt-4 mb-2">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">OEM Part Number</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 04465-42180" 
+                        value={oemPartNumber} 
+                        onChange={(e) => setOemPartNumber(e.target.value)} 
+                        className="w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow" 
+                      />
+                    </div>
+                  </motion.div>
+                )}
                 
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">Price Range</label>
@@ -369,7 +431,7 @@ const GlobalSearchModal: React.FC = () => {
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder={t('search_placeholder', 'Search products, categories, or brands...')}
+                    placeholder={sellerScope ? `Search @${sellerScope.username}'s products...` : t('search_placeholder', 'Search products, categories, or brands...')}
                     className="w-full h-20 pl-16 pr-[120px] sm:pr-24 bg-transparent text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-300 dark:placeholder:text-neutral-700 focus:outline-none"
                   />
                   
@@ -390,6 +452,28 @@ const GlobalSearchModal: React.FC = () => {
                   </div>
                 </form>
               </div>
+
+              {/* Seller Scope Banner */}
+              {sellerScope && (
+                <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-brand-500/5 dark:bg-brand-500/10 border-b border-brand-500/10 dark:border-brand-500/20">
+                  {sellerScope.avatar ? (
+                    <img src={sellerScope.avatar} alt={sellerScope.username} className="w-6 h-6 rounded-full object-cover ring-2 ring-brand-500/20" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-500 text-xs font-bold uppercase">
+                      {sellerScope.username.charAt(0)}
+                    </div>
+                  )}
+                  <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    Searching in <span className="font-bold text-brand-500">@{sellerScope.username}</span>'s store
+                  </span>
+                  <button
+                    onClick={() => openSearch()}
+                    className="ml-auto text-xs font-bold text-brand-500 hover:underline transition-colors whitespace-nowrap"
+                  >
+                    Search entire marketplace →
+                  </button>
+                </div>
+              )}
 
               {/* Mobile Filters Dropdown */}
               <AnimatePresence>
@@ -419,6 +503,21 @@ const GlobalSearchModal: React.FC = () => {
                         )}
                       </div>
 
+                      {/* Auto Parts / Vehicle Filters (Mobile) */}
+                      {(activeRootCategory?.slug?.includes('vehicle') || activeRootCategory?.slug?.includes('part') || activeRootCategory?.slug?.includes('auto')) && (
+                        <div className="space-y-3 pt-2">
+                          <VehicleSelector onVehicleSelect={setVehicleId} selectedVehicleId={vehicleId} />
+                          <input 
+                            type="text" 
+                            placeholder="OEM Part Number (e.g. 04465-42180)" 
+                            value={oemPartNumber} 
+                            onChange={(e) => setOemPartNumber(e.target.value)} 
+                            className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none focus:border-neutral-900 dark:focus:border-neutral-300" 
+                          />
+                        </div>
+                      )}
+
+
                       <div className="flex items-center gap-2">
                         <input type="number" placeholder="Min Price" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none" />
                         <span className="text-neutral-400">-</span>
@@ -437,6 +536,36 @@ const GlobalSearchModal: React.FC = () => {
                           <option value="price_desc">Price High</option>
                         </select>
                       </div>
+                      
+                      {specSchema && specSchema.length > 0 && (
+                        <div className="space-y-2 pt-2 border-t border-neutral-200 dark:border-neutral-800">
+                          <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">Specifications</span>
+                          <div className="grid grid-cols-2 gap-2">
+                            {specSchema.filter(s => s.filterable !== false).map((spec: any) => (
+                              <div key={spec.key}>
+                                {spec.type === 'select' && spec.options ? (
+                                  <select 
+                                    value={specFilters[spec.key] || ''} 
+                                    onChange={(e) => setSpecFilters(prev => ({...prev, [spec.key]: e.target.value}))}
+                                    className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none"
+                                  >
+                                    <option value="">Any {spec.label}</option>
+                                    {spec.options.map((opt: string) => <option key={opt} value={opt}>{opt}{spec.unit ? ` ${spec.unit}` : ''}</option>)}
+                                  </select>
+                                ) : (
+                                  <input 
+                                    type={spec.type === 'number' ? 'number' : 'text'} 
+                                    placeholder={spec.label}
+                                    value={specFilters[spec.key] || ''}
+                                    onChange={(e) => setSpecFilters(prev => ({...prev, [spec.key]: e.target.value}))}
+                                    className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none"
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-700 rounded-xl p-1 flex shadow-sm w-full mt-2">
                         <button 
@@ -514,14 +643,18 @@ const GlobalSearchModal: React.FC = () => {
                     ) : suggestions.length > 0 ? (
                       <div>
                         <div className="flex items-center justify-between px-3 mb-2">
-                          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Preview Results</h3>
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                            Preview Results {totalCount !== null ? `(${totalCount.toLocaleString()} matching)` : ''}
+                          </h3>
                         </div>
                         <div className="space-y-1">
                           {suggestions.map(item => (
-                            <button
+                            <div
+                              role="button"
+                              tabIndex={0}
                               key={`${item.type}-${item.id}`}
                               onClick={() => handleSuggestionClick(item)}
-                              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-colors text-left group"
+                              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-colors text-left group cursor-pointer"
                             >
                               <div className={`w-12 h-12 overflow-hidden shrink-0 flex items-center justify-center ${item.type === 'account' ? 'rounded-full ring-2 ring-transparent group-hover:ring-brand-500/20 transition-all' : 'rounded-lg'} bg-neutral-200 dark:bg-neutral-800`}>
                                 {item.type === 'account' ? (
@@ -577,11 +710,24 @@ const GlobalSearchModal: React.FC = () => {
                                 )}
                               </div>
                               {item.type === 'product' && (
-                                <div className="shrink-0 text-right pr-2">
-                                  <p className="font-bold text-sm text-brand-500 dark:text-brand-500">
-                                    {item.price ? item.price.toLocaleString() : 'Negotiable'}
-                                    {item.price && <span className="text-[10px] ml-1">TZS</span>}
-                                  </p>
+                                <div className="shrink-0 flex items-center gap-3 pr-2">
+                                  <div className="text-right">
+                                    <p className="font-bold text-sm text-brand-500 dark:text-brand-500">
+                                      {item.price ? item.price.toLocaleString() : 'Negotiable'}
+                                      {item.price && <span className="text-[10px] ml-1">TZS</span>}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      addToCart(item);
+                                    }}
+                                    className="p-2 rounded-full bg-brand-500/10 text-brand-500 hover:bg-brand-500/20 transition-colors"
+                                    aria-label="Add to cart"
+                                    title="Add to cart"
+                                  >
+                                    <ShoppingCart className="w-4 h-4" />
+                                  </button>
                                 </div>
                               )}
                               {item.type === 'account' && (
@@ -591,7 +737,7 @@ const GlobalSearchModal: React.FC = () => {
                                   </span>
                                 </div>
                               )}
-                            </button>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -602,8 +748,19 @@ const GlobalSearchModal: React.FC = () => {
                         </div>
                         <p className="font-bold text-neutral-900 dark:text-white">No products found</p>
                         <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 max-w-[250px]">
-                          Try adjusting your filters or search keywords to find what you're looking for.
+                          {sellerScope 
+                            ? `No results in @${sellerScope.username}'s store.`
+                            : 'Try adjusting your filters or search keywords to find what you\'re looking for.'
+                          }
                         </p>
+                        {sellerScope && (
+                          <button
+                            onClick={() => openSearch()}
+                            className="mt-3 px-4 py-2 rounded-xl bg-brand-500/10 text-brand-500 font-bold text-sm hover:bg-brand-500/20 transition-colors"
+                          >
+                            Search entire marketplace
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -617,7 +774,11 @@ const GlobalSearchModal: React.FC = () => {
                   className="w-full p-4  bg-brand-500  text-neutral-950 rounded-xl font-black text-base shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
                 >
                   <Search className="w-5 h-5" />
-                  Show Results {activeFilterCount > 0 ? `(${activeFilterCount} Filters)` : ''}
+                  {sellerScope 
+                    ? `Search @${sellerScope.username}'s Store` 
+                    : totalCount !== null 
+                      ? (totalCount > 0 ? `Show ${totalCount.toLocaleString()} Results` : 'No Results Found') 
+                      : 'Show Results'} {activeFilterCount > 0 ? `(${activeFilterCount} Filters)` : ''}
                 </button>
               </div>
 

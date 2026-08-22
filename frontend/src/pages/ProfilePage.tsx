@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Settings, MapPin, Camera, 
   Star, ShoppingBag, Info,
-  CheckCircle, Plus, Package
+  CheckCircle, Plus, Package, Search
 } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
@@ -17,12 +17,14 @@ import SocialLinks from '../components/SocialLinks';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import ProductRequestModal from '../components/ProductRequestModal';
+import { useSearch } from '../context/SearchContext';
 import { useMessages } from '../context/MessageContext';
 
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
   const { username } = useParams<{ username: string }>();
   const { conversations, openDesktopChat } = useMessages();
+  const { openSearchForSeller } = useSearch();
   const [profile, setProfile] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [productRequests, setProductRequests] = useState<any[]>([]);
@@ -45,10 +47,42 @@ const ProfilePage: React.FC = () => {
   const [followListLoading, setFollowListLoading] = useState(false);
 
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   // Authenticated context
   const currentUser = localStorage.getItem('username');
   const isOwner = currentUser === username;
+
+  // Extract unique categories from seller's products for quick-filter pills
+  const sellerCategories = useMemo(() => {
+    const catMap = new Map<string, { name: string; slug: string; count: number }>();
+    products.forEach((p: any) => {
+      const slug = p.category_slug || p.category?.slug || '';
+      const name = p.category_name || p.category?.name || '';
+      if (slug && name) {
+        const existing = catMap.get(slug);
+        catMap.set(slug, { name, slug, count: (existing?.count || 0) + 1 });
+      }
+    });
+    return Array.from(catMap.values()).sort((a, b) => b.count - a.count);
+  }, [products]);
+
+  // Filter products by selected category
+  const filteredProducts = useMemo(() => {
+    if (categoryFilter === 'all') return products;
+    return products.filter((p: any) => {
+      const slug = p.category_slug || p.category?.slug || '';
+      return slug === categoryFilter;
+    });
+  }, [products, categoryFilter]);
+
+  const handleOpenStoreSearch = () => {
+    openSearchForSeller({
+      username: username || '',
+      displayName: profile?.display_name || profile?.username || username || '',
+      avatar: profile?.profile_picture || '',
+    });
+  };
 
   const fetchProfile = () => {
     setLoading(true);
@@ -436,11 +470,62 @@ const ProfilePage: React.FC = () => {
             <Info size={14} />
             <span>{t('about_shop')}</span>
           </button>
+          <button
+            onClick={handleOpenStoreSearch}
+            className="flex items-center gap-2 pt-4 pb-1 text-xs font-bold uppercase tracking-wider transition-colors duration-200 border-t -mt-px border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            title="Search this store"
+          >
+            <Search size={14} />
+            <span>Search</span>
+          </button>
         </div>
 
         {/* Tab content renders */}
         {activeTab === 'listings' ? (
           <div className="pt-2">
+
+            {/* Store Search Bar & Category Quick Filters */}
+            {products.length >= 5 && (
+              <div className="mb-6 px-4 sm:px-0 space-y-3">
+                {/* Inline search trigger */}
+                <button
+                  onClick={handleOpenStoreSearch}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-100 dark:bg-neutral-800/60 border border-gray-200/50 dark:border-neutral-700/30 text-gray-400 dark:text-neutral-500 hover:border-brand-500/30 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all group cursor-pointer"
+                >
+                  <Search size={18} className="text-gray-400 dark:text-neutral-500 group-hover:text-brand-500 transition-colors" />
+                  <span className="text-sm font-medium">Search @{username}'s products...</span>
+                </button>
+
+                {/* Category quick-filter pills */}
+                {sellerCategories.length > 1 && (
+                  <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
+                    <button
+                      onClick={() => setCategoryFilter('all')}
+                      className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        categoryFilter === 'all'
+                          ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
+                          : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
+                      }`}
+                    >
+                      All <span className="opacity-60 ml-1">{products.length}</span>
+                    </button>
+                    {sellerCategories.map((cat) => (
+                      <button
+                        key={cat.slug}
+                        onClick={() => setCategoryFilter(cat.slug)}
+                        className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                          categoryFilter === cat.slug
+                            ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
+                            : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
+                        }`}
+                      >
+                        {cat.name} <span className="opacity-60 ml-1">{cat.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             
             {/* Requested Products Section */}
             {productRequests.length > 0 && (
@@ -509,9 +594,15 @@ const ProfilePage: React.FC = () => {
                 icon={ShoppingBag}
                 title={t('no_active_products')}
               />
+            ) : filteredProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Search size={40} className="text-gray-300 dark:text-neutral-700 mb-3" />
+                <p className="font-bold text-gray-900 dark:text-white">No products in this category</p>
+                <button onClick={() => setCategoryFilter('all')} className="mt-2 text-sm text-brand-500 font-semibold hover:underline">Show all products</button>
+              </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 items-stretch p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
-                {products.map((p) => (
+                {filteredProducts.map((p) => (
                   <div key={p.id} className="flex flex-col">
                     <ProductCard product={p} />
                   </div>
