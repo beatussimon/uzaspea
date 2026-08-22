@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, MapPin, Clock, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
@@ -664,6 +664,16 @@ const ProductDetailPage: React.FC = () => {
               {product.name}
             </h1>
             
+            {/* Reference Badge */}
+            {product.reference_product_details && (
+               <div className="flex items-center gap-2 mt-2 mb-1">
+                 <div className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black px-2 py-1.5 rounded flex items-center gap-1.5 uppercase tracking-wider border border-emerald-200 dark:border-emerald-800/50">
+                   <ShieldCheck size={14} />
+                   Verified {product.reference_product_details.brand_details?.name || product.brand_details?.name} {product.reference_product_details.model_name} {product.reference_product_details.variant_name}
+                 </div>
+               </div>
+            )}
+
             {/* Price below title */}
             <div className="flex items-center gap-3 flex-wrap mt-1">
               <span className="text-[26px] font-black text-gray-900 dark:text-white tracking-tight">
@@ -863,6 +873,25 @@ const ProductDetailPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Specifications */}
+          {product.structured_specs && Object.keys(product.structured_specs).length > 0 && (
+            <div>
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Specifications</h3>
+              <div className="bg-gray-50 dark:bg-[#242526] rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
+                {Object.entries(product.structured_specs).map(([key, value], idx) => (
+                  <div key={key} className={`flex items-center justify-between p-3.5 ${idx !== 0 ? 'border-t border-gray-200 dark:border-neutral-800' : ''}`}>
+                    <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 capitalize">
+                      {key.replace(/_/g, ' ')}
+                    </span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white text-right max-w-[60%]">
+                      {Array.isArray(value) ? value.join(', ') : String(value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           <div>

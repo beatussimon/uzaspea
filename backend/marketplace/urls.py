@@ -13,13 +13,20 @@ from .api_views import (
     MobileNetworkViewSet, TrendingAnalyticsView, reverse_geocode,
     SubscriptionTierViewSet, UserPaymentConfirmationViewSet, SellerApplicationViewSet,
     TeamMemberViewSet, UserSubscriptionViewSet, TeamRolePresetsView, PromoCodeViewSet,
-    ProductRequestViewSet, SellerAnalyticsView
+    ProductRequestViewSet, SellerAnalyticsView,
+    VehicleMakeViewSet, VehicleModelViewSet, VehicleViewSet,
+    BrandViewSet, ReferenceProductViewSet
 )
 
 router = DefaultRouter()
 router.register(r'products', ProductViewSet, basename='product')
 router.register(r'product-requests', ProductRequestViewSet, basename='product-request')
 router.register(r'categories', CategoryViewSet, basename='category')
+router.register(r'vehicle-makes', VehicleMakeViewSet, basename='vehicle-make')
+router.register(r'vehicle-models', VehicleModelViewSet, basename='vehicle-model')
+router.register(r'vehicles', VehicleViewSet, basename='vehicle')
+router.register(r'brands', BrandViewSet, basename='brand')
+router.register(r'reference-products', ReferenceProductViewSet, basename='reference-product')
 router.register(r'reviews', ReviewViewSet, basename='review')
 router.register(r'comments', CommentViewSet, basename='comment')
 router.register(r'orders', OrderViewSet, basename='order')

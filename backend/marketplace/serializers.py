@@ -8,8 +8,11 @@ from .models import (
     ProductImage, Like, LipaNumber, FAQ, SupportTicket,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork, SellerApplication,
-    TeamMember, StoreImage, ProductPriceTier, ProductRequest
+    TeamMember, StoreImage, ProductPriceTier, ProductRequest,
+    VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
+    Brand, ReferenceProduct
 )
+
 
 class ProductRequestSerializer(serializers.ModelSerializer):
     seller_username = serializers.CharField(source='seller.username', read_only=True)
@@ -88,7 +91,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'parent', 'children', 'image', 'product_count', 'total_sales', 'total_saves']
+        fields = ['id', 'name', 'slug', 'description', 'parent', 'children', 'image', 'product_count', 'total_sales', 'total_saves', 'spec_schema', 'is_leaf']
 
     def get_children(self, obj):
         depth = self.context.get('_cat_depth', 0)  # FIX C-17: depth guard
@@ -137,6 +140,18 @@ class ProductPriceTierSerializer(serializers.ModelSerializer):
         fields = ['id', 'min_quantity', 'max_quantity', 'unit_price']
 
 
+class BrandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Brand
+        fields = ['id', 'name', 'slug', 'logo', 'is_active']
+
+class ReferenceProductSerializer(serializers.ModelSerializer):
+    brand_name = serializers.CharField(source='brand.name', read_only=True)
+    
+    class Meta:
+        model = ReferenceProduct
+        fields = ['id', 'name', 'slug', 'brand', 'brand_name', 'category', 'image', 'structured_specs']
+
 class ProductSerializer(serializers.ModelSerializer):
     seller_username = serializers.CharField(source='seller.username', read_only=True)
     price_tiers = ProductPriceTierSerializer(many=True, read_only=True)
@@ -144,6 +159,11 @@ class ProductSerializer(serializers.ModelSerializer):
     seller_verified = serializers.SerializerMethodField()
     seller_profile_picture = serializers.SerializerMethodField()
     seller_full_name = serializers.SerializerMethodField()
+    vehicle_ids = serializers.SerializerMethodField(read_only=True)
+    oem_part_number = serializers.SerializerMethodField(read_only=True)
+
+    vehicle_ids = serializers.ListField(child=serializers.IntegerField(), required=False, write_only=True)
+
     avg_rating = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
     weekly_sales = serializers.SerializerMethodField()
@@ -151,6 +171,9 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     category_slug = serializers.CharField(source='category.slug', read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
+
+    brand_details = BrandSerializer(source='brand', read_only=True)
+    reference_product_details = ReferenceProductSerializer(source='reference_product', read_only=True)
 
     has_inspection = serializers.SerializerMethodField()  # FIX B-19
     inspection_verdict = serializers.SerializerMethodField()  # FIX B-19
@@ -171,9 +194,10 @@ class ProductSerializer(serializers.ModelSerializer):
                   'unit_of_measure', 'minimum_order_quantity', 'price_tiers',
                   'category', 'category_name', 'category_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',
-                  'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified',
+                  'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified', 'vehicle_ids', 'oem_part_number',
                   'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude',
-                  'weight_kg', 'size', 'can_review', 'is_sponsored']
+                  'weight_kg', 'size', 'can_review', 'is_sponsored', 'specifications',
+                  'brand', 'reference_product', 'structured_specs', 'brand_details', 'reference_product_details']
         read_only_fields = ['seller', 'slug']
 
     def get_inspections(self, obj):
@@ -210,7 +234,32 @@ class ProductSerializer(serializers.ModelSerializer):
         import json
         request = self.context.get('request')
         price_tiers_data = request.data.get('price_tiers')
+        vehicle_ids = request.data.getlist('vehicle_ids') if hasattr(request.data, 'getlist') else request.data.get('vehicle_ids', [])
+        
+        # In multipart/form-data, an array might come as 'vehicle_ids', 'vehicle_ids[]', or a comma-separated string
+        if not isinstance(vehicle_ids, list):
+            vehicle_ids = [vehicle_ids]
+            
+        oem_part_number = request.data.get('oem_part_number', None)
+        
+        if oem_part_number:
+            specs = validated_data.get('specifications', {})
+            if not isinstance(specs, dict):
+                specs = {}
+            specs['oem_part_number'] = oem_part_number
+            validated_data['specifications'] = specs
+
         product = super().create(validated_data)
+        if vehicle_ids:
+            from .models import ProductVehicleFitment, Vehicle
+            for vid in vehicle_ids:
+                try:
+                    if str(vid).isdigit():
+                        vehicle = Vehicle.objects.get(id=int(vid))
+                        ProductVehicleFitment.objects.create(product=product, vehicle=vehicle)
+                except Exception:
+                    pass
+
         if price_tiers_data:
             try:
                 tiers = json.loads(price_tiers_data)
@@ -224,7 +273,31 @@ class ProductSerializer(serializers.ModelSerializer):
         import json
         request = self.context.get('request')
         price_tiers_data = request.data.get('price_tiers')
+        vehicle_ids = request.data.getlist('vehicle_ids') if hasattr(request.data, 'getlist') else request.data.get('vehicle_ids', None)
+        oem_part_number = request.data.get('oem_part_number', None)
+        
+        if vehicle_ids is not None and not isinstance(vehicle_ids, list):
+            vehicle_ids = [vehicle_ids]
+            
+        if oem_part_number is not None:
+            specs = validated_data.get('specifications', instance.specifications or {})
+            if not isinstance(specs, dict):
+                specs = {}
+            specs['oem_part_number'] = oem_part_number
+            validated_data['specifications'] = specs
+
         instance = super().update(instance, validated_data)
+        if vehicle_ids is not None:
+            from .models import ProductVehicleFitment, Vehicle
+            ProductVehicleFitment.objects.filter(product=instance).delete()
+            for vid in vehicle_ids:
+                try:
+                    if str(vid).isdigit():
+                        vehicle = Vehicle.objects.get(id=int(vid))
+                        ProductVehicleFitment.objects.create(product=instance, vehicle=vehicle)
+                except Exception:
+                    pass
+
         if price_tiers_data is not None:
             try:
                 tiers = json.loads(price_tiers_data)
@@ -257,8 +330,16 @@ class ProductSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'weekly_sales'):
             return obj.weekly_sales
         return getattr(obj, 'sales_count', 0)
+    def get_vehicle_ids(self, obj):
+        return [fitment.vehicle_id for fitment in obj.fitments.all()]
+
+    def get_oem_part_number(self, obj):
+        if obj.specifications and isinstance(obj.specifications, dict):
+            return obj.specifications.get('oem_part_number', '')
+        return ''
 
     def get_seller_tier(self, obj):
+
         try:
             return obj.seller.profile.tier
         except UserProfile.DoesNotExist:
@@ -1202,3 +1283,25 @@ class TeamMemberSerializer(serializers.ModelSerializer):
             action='invited', detail={'permissions': permissions, 'role_preset': role_preset}
         )
         return member
+
+class VehicleMakeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehicleMake
+        fields = ['id', 'name', 'slug']
+
+class VehicleModelSerializer(serializers.ModelSerializer):
+    make_name = serializers.CharField(source='make.name', read_only=True)
+    class Meta:
+        model = VehicleModel
+        fields = ['id', 'make', 'make_name', 'name', 'slug']
+
+class VehicleSerializer(serializers.ModelSerializer):
+    make_name = serializers.CharField(source='make.name', read_only=True)
+    model_name = serializers.CharField(source='model.name', read_only=True)
+    class Meta:
+        model = Vehicle
+        fields = [
+            'id', 'make', 'make_name', 'model', 'model_name', 'year',
+            'trim', 'engine', 'drivetrain', 'transmission', 'body_style',
+            'region', 'created_at'
+        ]

@@ -128,6 +128,82 @@ class PaymentConfirmation(models.Model):
         return f"{self.user.username} - {self.tier.name} ({self.status})"
 
 
+class Brand(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(unique=True, blank=True)
+    logo = models.ImageField(upload_to='brands/', blank=True, null=True, validators=[validate_image])
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+            base = slugify(self.name) or "brand"
+            self.slug = base
+
+        from django.db import IntegrityError, transaction
+        try:
+            with transaction.atomic():
+                super().save(*args, **kwargs)
+        except IntegrityError:
+            from django.utils.text import slugify
+            base = slugify(self.name) or "brand"
+            n = 1
+            while True:
+                self.slug = f'{base}-{n}'
+                try:
+                    with transaction.atomic():
+                        super().save(*args, **kwargs)
+                    break
+                except IntegrityError:
+                    n += 1
+
+    def __str__(self):
+        return self.name
+
+
+class ReferenceProduct(models.Model):
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True, blank=True)
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='reference_products')
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='reference_products')
+    
+    image = models.ImageField(upload_to='reference_products/', blank=True, null=True, validators=[validate_image])
+    structured_specs = models.JSONField(default=dict, blank=True, help_text="Definitive specs for this model")
+    
+    class Meta:
+        ordering = ['name']
+        unique_together = ('brand', 'name')
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+            base = slugify(f"{self.brand.name} {self.name}") or "ref-product"
+            self.slug = base
+
+        from django.db import IntegrityError, transaction
+        try:
+            with transaction.atomic():
+                super().save(*args, **kwargs)
+        except IntegrityError:
+            from django.utils.text import slugify
+            base = slugify(f"{self.brand.name} {self.name}") or "ref-product"
+            n = 1
+            while True:
+                self.slug = f'{base}-{n}'
+                try:
+                    with transaction.atomic():
+                        super().save(*args, **kwargs)
+                    break
+                except IntegrityError:
+                    n += 1
+
+    def __str__(self):
+        return f"{self.brand.name} {self.name}"
+
+
 class Category(models.Model):
     def get_descendants(self, include_self=False):
         """Efficient BFS using only O(depth) queries instead of O(nodes) queries."""  # FIX: C-08
@@ -152,6 +228,8 @@ class Category(models.Model):
         null=True,
         help_text="Recommended: Square image (1:1 aspect ratio) with centered subject (e.g., 400x400px). Rectangular images will be cropped to center in circular displays."
     )
+    spec_schema = models.JSONField(default=list, blank=True, help_text="List of dicts defining specs for this category")
+    is_leaf = models.BooleanField(default=False, help_text="True if this is an end-node category")
 
     class Meta:
         verbose_name_plural = "Categories"
@@ -238,10 +316,17 @@ class Product(models.Model):
             ('small', 'Small'),
             ('medium', 'Medium'),
             ('large', 'Large'),
-            ('oversized', 'Oversized'),
         ],
         default='small'
     )
+    
+    # Dynamic Attributes / Extended Specs
+    specifications = models.JSONField(default=dict, blank=True, help_text="Category-specific attributes (e.g. oem_part_number, placement, brand)")
+    
+    # Reference Catalog Integration
+    brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
+    reference_product = models.ForeignKey('ReferenceProduct', on_delete=models.SET_NULL, null=True, blank=True, related_name='instances')
+    structured_specs = models.JSONField(default=dict, blank=True, help_text="Specs matching the category's spec_schema")
 
     class Meta:
         ordering = ['-created_at']
@@ -1444,3 +1529,94 @@ class ProductRequest(models.Model):
 
     def __str__(self):
         return f"{self.name} requested {self.request_count} times for {self.seller.username}"
+
+
+# ==============================================================================
+# VEHICLE TAXONOMY & FITMENT MODELS (AUTO PARTS)
+# ==============================================================================
+
+class VehicleMake(models.Model):
+    name = models.CharField(max_length=100, unique=True, db_index=True)
+    slug = models.SlugField(unique=True, blank=True)
+    
+    class Meta:
+        ordering = ['name']
+        
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+class VehicleModel(models.Model):
+    make = models.ForeignKey(VehicleMake, on_delete=models.CASCADE, related_name='models')
+    name = models.CharField(max_length=100, db_index=True)
+    slug = models.SlugField(blank=True)
+
+    class Meta:
+        ordering = ['name']
+        unique_together = ('make', 'name')
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.make.name} {self.name}"
+
+class Vehicle(models.Model):
+    """
+    Master Vehicle Configuration Table.
+    Every unique combination of Make, Model, Year, Trim, Engine, etc.
+    """
+    make = models.ForeignKey(VehicleMake, on_delete=models.CASCADE, related_name='vehicles')
+    model = models.ForeignKey(VehicleModel, on_delete=models.CASCADE, related_name='vehicles')
+    year = models.PositiveIntegerField(db_index=True)
+    
+    # Extended dimensions
+    trim = models.CharField(max_length=100, blank=True, null=True)
+    engine = models.CharField(max_length=150, blank=True, null=True, help_text="e.g. 2.5L 4-Cyl, 3.0L V6 Turbo")
+    drivetrain = models.CharField(max_length=50, blank=True, null=True, help_text="e.g. FWD, AWD, RWD")
+    transmission = models.CharField(max_length=100, blank=True, null=True, help_text="e.g. 6-Speed Automatic")
+    body_style = models.CharField(max_length=100, blank=True, null=True, help_text="e.g. Sedan, SUV, Crew Cab")
+    region = models.CharField(max_length=50, default='US', help_text="Market spec (US, EU, JDM, GCC)")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['make', 'model', '-year', 'trim']
+        indexes = [
+            models.Index(fields=['make', 'model', 'year']),
+        ]
+
+    def __str__(self):
+        desc = f"{self.year} {self.make.name} {self.model.name}"
+        if self.trim: desc += f" {self.trim}"
+        if self.engine: desc += f" ({self.engine})"
+        return desc
+
+
+class ProductVehicleFitment(models.Model):
+    """
+    Many-to-Many mapping linking a specific product to specific vehicle configurations.
+    """
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='fitments')
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='fitments')
+    
+    # Fitment specific constraints
+    fitment_notes = models.CharField(max_length=255, blank=True, null=True, help_text="e.g., Fits AWD models only")
+    is_verified = models.BooleanField(default=True, help_text="Verified fitment vs user-submitted")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('product', 'vehicle')
+        indexes = [
+            models.Index(fields=['product']),
+            models.Index(fields=['vehicle']),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} fits {self.vehicle}"

@@ -206,6 +206,40 @@ const CategoryBar: React.FC = () => {
             })
           )}
         </div>
+        
+        {/* SUB-CATEGORY PILLS */}
+        {selectedCategory && (() => {
+          const activeCat = topCategories.find(c => c.slug === selectedCategory);
+          if (activeCat && activeCat.children && activeCat.children.length > 0) {
+            const subCategoryParam = searchParams.get('subcategory') || '';
+            return (
+              <div className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar py-2.5 px-4 border-t border-gray-150 dark:border-neutral-900 w-full scroll-smooth bg-gray-50/50 dark:bg-black/50">
+                <button
+                  onClick={() => handleCategoryClick(activeCat.slug)}
+                  className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all border shrink-0 ${!subCategoryParam ? 'bg-brand-500 text-white border-brand-500 shadow-md' : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}
+                >
+                  All {activeCat.name}
+                </button>
+                {activeCat.children.map((sub: any) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => {
+                      setSearchParams(prev => {
+                        const p = new URLSearchParams(prev);
+                        p.set('subcategory', sub.slug);
+                        return p;
+                      });
+                    }}
+                    className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all border shrink-0 ${subCategoryParam === sub.slug ? 'bg-brand-500 text-white border-brand-500 shadow-md' : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}
+                  >
+                    {sub.name} {sub.product_count > 0 && <span className="ml-1 opacity-70">({sub.product_count})</span>}
+                  </button>
+                ))}
+              </div>
+            );
+          }
+          return null;
+        })()}
       </div>
     );
   }

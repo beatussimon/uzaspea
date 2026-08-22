@@ -348,3 +348,28 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_filter = ['tier', 'is_verified', 'is_location_verified']
     search_fields = ['user__username', 'phone_number', 'location']
     readonly_fields = ['user']
+# --- Vehicle Taxonomy ---
+from .models import VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment
+
+@admin.register(VehicleMake)
+class VehicleMakeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slug')
+    search_fields = ('name',)
+
+@admin.register(VehicleModel)
+class VehicleModelAdmin(admin.ModelAdmin):
+    list_display = ('name', 'make', 'slug')
+    search_fields = ('name', 'make__name')
+    list_filter = ('make',)
+
+@admin.register(Vehicle)
+class VehicleAdmin(admin.ModelAdmin):
+    list_display = ('year', 'make', 'model', 'trim', 'engine', 'region')
+    search_fields = ('make__name', 'model__name', 'year', 'trim', 'engine')
+    list_filter = ('make', 'year', 'region')
+
+@admin.register(ProductVehicleFitment)
+class ProductVehicleFitmentAdmin(admin.ModelAdmin):
+    list_display = ('product', 'vehicle', 'is_verified')
+    search_fields = ('product__name', 'vehicle__make__name', 'vehicle__model__name')
+    list_filter = ('is_verified',)
