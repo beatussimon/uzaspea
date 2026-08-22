@@ -251,9 +251,15 @@ class ProductViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(reference_product__slug=ref_slug)
 
         # Dynamic Spec Filtering
-        reserved_params = {'category', 'q', 'min_price', 'max_price', 'condition', 'sort_by', 'seller', 'lat', 'lng', 'radius', 'brand', 'reference_product', 'mine', 'following', 'saved', 'saved_time', 'view', 'page', 'page_size'}
+        reserved_params = {
+            'category', 'q', 'min_price', 'max_price', 'condition', 'sort_by', 
+            'seller', 'lat', 'lng', 'radius', 'brand', 'reference_product', 
+            'mine', 'following', 'saved', 'saved_time', 'view', 'page', 'page_size',
+            'limit', 'offset', 'cursor', 'ordering', 'format', 'search', 'vehicle_id',
+            'oem_part_number', 'highlight', 't', '_', 'expand'
+        }
         for key, value in self.request.query_params.items():
-            if key not in reserved_params and value:
+            if key not in reserved_params and value and not key.startswith('_'):
                 queryset = queryset.filter(structured_specs__contains={key: value})
 
         if query:
