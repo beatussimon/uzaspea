@@ -243,8 +243,21 @@ const DashboardProducts: React.FC = () => {
     if (form.category) {
       const selectedCat = flatCategories.find(c => String(c.id) === String(form.category));
       if (selectedCat && selectedCat.slug) {
-        api.get(`/api/categories/${selectedCat.slug}/spec-schema/`).then(res => setSpecSchema(res.data)).catch(() => setSpecSchema([]));
-        api.get(`/api/categories/${selectedCat.slug}/brands/`).then(res => setCategoryBrands(res.data)).catch(() => setCategoryBrands([]));
+        api.get(`/api/categories/${selectedCat.slug}/spec-schema/`)
+          .then(res => setSpecSchema(res.data))
+          .catch(() => setSpecSchema([]));
+
+        api.get(`/api/categories/${selectedCat.slug}/brands/`)
+          .then(res => {
+            if (Array.isArray(res.data) && res.data.length > 0) {
+              setCategoryBrands(res.data);
+            } else {
+              api.get('/api/brands/').then(bRes => setCategoryBrands(bRes.data.results || bRes.data || [])).catch(() => setCategoryBrands([]));
+            }
+          })
+          .catch(() => {
+            api.get('/api/brands/').then(bRes => setCategoryBrands(bRes.data.results || bRes.data || [])).catch(() => setCategoryBrands([]));
+          });
       }
     } else {
       setSpecSchema([]);
@@ -258,7 +271,9 @@ const DashboardProducts: React.FC = () => {
     if (form.category && form.brand) {
       const selectedCat = flatCategories.find(c => String(c.id) === String(form.category));
       const catSlug = selectedCat?.slug || '';
-      api.get(`/api/reference-products/?category=${catSlug}&brand=${form.brand}`).then(res => setReferenceProducts(res.data.results || res.data)).catch(() => setReferenceProducts([]));
+      api.get(`/api/reference-products/?category=${catSlug}&brand=${form.brand}`)
+        .then(res => setReferenceProducts(res.data.results || res.data || []))
+        .catch(() => setReferenceProducts([]));
     } else {
       setReferenceProducts([]);
     }
@@ -955,12 +970,19 @@ const DashboardProducts: React.FC = () => {
                     </select>
                   </div>
 
-                  {/* Brand & Reference Product (if available) */}
-                  {categoryBrands.length > 0 && (
+                  {/* Brand & Reference Product (Catalog Matcher) */}
+                  {form.category && categoryBrands.length > 0 && (
                     <div className="p-4 rounded-lg bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 space-y-3">
-                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
-                        Master Catalog Match (Optional)
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                          Brand & Model Catalog Match
+                        </p>
+                        {form.reference_product && (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                            Specs Auto-Synced
+                          </span>
+                        )}
+                      </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
@@ -974,7 +996,7 @@ const DashboardProducts: React.FC = () => {
                             }} 
                             className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
                           >
-                            <option value="">Select Brand...</option>
+                            <option value="">Select Brand ({categoryBrands.length} available)...</option>
                             {categoryBrands.map(b => <option key={b.slug} value={b.slug}>{b.name}</option>)}
                           </select>
                         </div>
@@ -982,7 +1004,7 @@ const DashboardProducts: React.FC = () => {
                         {form.brand && (
                           <div>
                             <label className="block text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mb-1">
-                              Model Variant
+                              Model / Variant
                             </label>
                             <select 
                               value={form.reference_product} 
@@ -990,31 +1012,59 @@ const DashboardProducts: React.FC = () => {
                                 const refSlug = e.target.value;
                                 const ref = referenceProducts.find(r => r.slug === refSlug);
                                 setForm(prev => {
-                                  const updatedSpecs = ref ? { ...prev.structured_specs, ...ref.specifications } : prev.structured_specs;
-                                  const autoTitle = ref && !prev.name.trim() ? `${ref.brand_details?.name || ''} ${ref.model_name} ${ref.variant_name || ''}`.trim() : prev.name;
+                                  const updatedSpecs = ref && ref.structured_specs ? { ...prev.structured_specs, ...ref.structured_specs } : prev.structured_specs;
+                                  const brandObj = categoryBrands.find(b => b.slug === form.brand);
+                                  const brandPrefix = brandObj?.name || ref?.brand_name || '';
+                                  const autoTitle = ref && (!prev.name.trim() || prev.name === 'Untitled')
+                                    ? `${brandPrefix ? brandPrefix + ' ' : ''}${ref.name}`.trim()
+                                    : (ref && !prev.name ? ref.name : prev.name);
                                   return {
                                     ...prev,
                                     reference_product: refSlug,
-                                    name: autoTitle,
+                                    name: autoTitle || prev.name,
                                     structured_specs: updatedSpecs,
                                   };
                                 });
                                 if (ref) {
-                                  toast.success(`Matched ${ref.model_name}`);
+                                  toast.success(`Matched ${ref.name}`);
                                 }
                               }} 
                               className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
                             >
-                              <option value="">Select Model ({referenceProducts.length} available)...</option>
+                              <option value="">
+                                {referenceProducts.length > 0 
+                                  ? `Select Model (${referenceProducts.length} available)...` 
+                                  : 'No pre-set models for this brand — manual entry'}
+                              </option>
                               {referenceProducts.map(r => (
                                 <option key={r.slug} value={r.slug}>
-                                  {r.model_name} {r.variant_name ? `(${r.variant_name})` : ''}
+                                  {r.name}
                                 </option>
                               ))}
                             </select>
                           </div>
                         )}
                       </div>
+
+                      {/* Selected Reference Product Summary Pills */}
+                      {form.reference_product && (() => {
+                        const matched = referenceProducts.find(r => r.slug === form.reference_product);
+                        if (!matched || !matched.structured_specs) return null;
+                        const specEntries = Object.entries(matched.structured_specs).filter(([, v]) => !!v);
+                        if (specEntries.length === 0) return null;
+                        return (
+                          <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800/80">
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-neutral-400 mb-1.5">Pre-populated Specifications:</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {specEntries.map(([k, v]) => (
+                                <span key={k} className="text-[11px] px-2 py-0.5 rounded bg-neutral-200/70 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 font-medium">
+                                  <span className="text-neutral-500 dark:text-neutral-400 capitalize">{k.replace('_', ' ')}:</span> {String(v)}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 

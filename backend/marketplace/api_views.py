@@ -866,6 +866,11 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
         category = get_object_or_404(Category, slug=slug)
         descendants = category.get_descendants(include_self=True)
         brands = Brand.objects.filter(reference_products__category__in=descendants, is_active=True).distinct()
+        if not brands.exists():
+            ancestors = category.get_ancestors(include_self=False)
+            brands = Brand.objects.filter(reference_products__category__in=ancestors, is_active=True).distinct()
+        if not brands.exists():
+            brands = Brand.objects.filter(is_active=True)
         return Response(BrandSerializer(brands, many=True).data)
 
     @action(detail=False, methods=['get'], url_path=r'(?P<slug>[^/.]+)/filters')
@@ -3121,5 +3126,31 @@ class ReferenceProductViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ReferenceProduct.objects.select_related('brand', 'category').all()
     serializer_class = ReferenceProductSerializer
     permission_classes = [permissions.AllowAny]
-    filterset_fields = ['brand', 'category']
     search_fields = ['name', 'brand__name']
+
+    def get_queryset(self):
+        qs = ReferenceProduct.objects.select_related('brand', 'category').all()
+        category_param = self.request.query_params.get('category')
+        if category_param:
+            from marketplace.models import Category
+            if category_param.isdigit():
+                try:
+                    cat = Category.objects.get(id=int(category_param))
+                    qs = qs.filter(category__in=cat.get_descendants(include_self=True))
+                except Category.DoesNotExist:
+                    qs = qs.filter(category_id=int(category_param))
+            else:
+                try:
+                    cat = Category.objects.get(slug=category_param)
+                    qs = qs.filter(category__in=cat.get_descendants(include_self=True))
+                except Category.DoesNotExist:
+                    qs = qs.filter(category__slug=category_param)
+
+        brand_param = self.request.query_params.get('brand')
+        if brand_param:
+            if brand_param.isdigit():
+                qs = qs.filter(brand_id=int(brand_param))
+            else:
+                qs = qs.filter(brand__slug=brand_param)
+
+        return qs
