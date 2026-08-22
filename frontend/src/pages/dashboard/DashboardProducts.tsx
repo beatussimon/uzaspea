@@ -4,8 +4,7 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
   Package, Plus, Printer, Image as ImageIcon, Camera, DollarSign, 
-  CheckCircle2, Sliders, Sparkles, ShieldCheck, Trash2, MapPin, 
-  Eye, ArrowRight, ArrowLeft, Check, Tag, Info, Star, Car, CheckCircle
+  CheckCircle2, Sliders, Trash2, MapPin, ArrowRight, ArrowLeft, Check, Tag
 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
@@ -849,61 +848,57 @@ const DashboardProducts: React.FC = () => {
         };
 
         return (
-          <form onSubmit={handleSubmitWithProgress} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-6 shadow-lg overflow-hidden">
+          <form onSubmit={handleSubmitWithProgress} className="card mb-6 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] rounded-xl shadow-sm overflow-hidden">
 
             {/* ─── UPLOAD PROGRESS OVERLAY ─── */}
             {submitting && uploadProgress !== null && (
-              <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
-                <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center space-y-5">
-                  <div className="w-16 h-16 mx-auto rounded-full   flex items-center justify-center">
+              <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
+                <div className="bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center space-y-4">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-brand-500/10 flex items-center justify-center">
                     {uploadProgress < 100 ? (
-                      <svg className="w-8 h-8 text-brand-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      <svg className="w-6 h-6 text-brand-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                     ) : (
-                      <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                      <Check className="w-6 h-6 text-emerald-500" strokeWidth={3} />
                     )}
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{uploadStatus}</p>
-                    <p className="text-sm text-gray-500 mt-1">{uploadProgress}%</p>
+                    <p className="text-sm font-bold text-neutral-900 dark:text-neutral-100">{uploadStatus}</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">{uploadProgress}%</p>
                   </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%`, background: uploadProgress >= 100 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #f59e0b, #f97316)' }} />
+                  <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2 overflow-hidden">
+                    <div className="h-full bg-brand-500 rounded-full transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
                   </div>
                 </div>
               </div>
             )}
 
-            {/* ─── STEP INDICATOR HEADER ─── */}
-            <div className="bg-gradient-to-r from-gray-50 to-gray-100/60 dark:from-gray-800 dark:to-gray-900/60 p-5 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                <div>
-                  <span className="text-[11px] font-extrabold uppercase tracking-widest text-brand-600 dark:text-brand-400">
-                    Step {wizardStep} of 5 • {WIZARD_STEPS[wizardStep - 1]?.title}
-                  </span>
-                  <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-                    {editingId ? 'Edit Product Listing' : 'Create New Product Listing'}
-                    {selectedCat && (
-                      <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20">
-                        {selectedCat.name.replace(/^[\s›]+/, '')}
-                      </span>
-                    )}
+            {/* ─── STEPPER HEADER ─── */}
+            <div className="bg-neutral-50/80 dark:bg-[#111111] px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+                    {editingId ? 'Edit Product' : 'New Product Listing'}
                   </h3>
+                  {selectedCat && (
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+                      {selectedCat.name.replace(/^[\s›]+/, '')}
+                    </span>
+                  )}
                 </div>
                 {!editingId && locData.latitude && (
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                    <MapPin size={13} className="text-emerald-500" />
+                  <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium flex items-center gap-1">
+                    <MapPin size={12} className="text-brand-500" />
                     {locData.location_name || 'Location captured'}
                   </span>
                 )}
               </div>
 
-              {/* Stepper Progress Bar */}
-              <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+              {/* Stepper Steps */}
+              <div className="grid grid-cols-5 gap-1.5">
                 {WIZARD_STEPS.map((s) => {
                   const isCompleted = wizardStep > s.id;
                   const isActive = wizardStep === s.id;
                   const canClick = isCompleted || Boolean(editingId) || (s.id === 1) || (s.id === 2 && canProceedStep1) || (s.id === 3 && canProceedStep1 && canProceedStep2) || (s.id === 4 && canProceedStep1 && canProceedStep2 && canProceedStep3) || (s.id === 5 && canProceedStep1 && canProceedStep2 && canProceedStep3 && canProceedStep4);
-                  const StepIcon = s.icon;
                   
                   return (
                     <button
@@ -911,34 +906,24 @@ const DashboardProducts: React.FC = () => {
                       type="button"
                       disabled={!canClick}
                       onClick={() => { if (canClick) setWizardStep(s.id); }}
-                      className={`group flex flex-col items-center sm:items-start p-2 sm:p-2.5 rounded-xl text-left transition-all relative ${
+                      className={`flex items-center gap-2 p-2 rounded-lg text-left transition-all ${
                         isActive 
-                          ? 'bg-white dark:bg-gray-800 shadow-sm border border-brand-500/50 dark:border-brand-500/50 ring-2 ring-brand-500/20' 
+                          ? 'bg-white dark:bg-[#181818] text-neutral-900 dark:text-white border border-neutral-300 dark:border-neutral-700 shadow-sm' 
                           : isCompleted 
-                            ? 'hover:bg-white/70 dark:hover:bg-gray-800/70 cursor-pointer bg-white/40 dark:bg-gray-800/40' 
-                            : 'opacity-40 cursor-not-allowed bg-transparent'
+                            ? 'text-neutral-700 dark:text-neutral-300 hover:bg-white/60 dark:hover:bg-neutral-800 cursor-pointer' 
+                            : 'text-neutral-400 dark:text-neutral-600 opacity-50 cursor-not-allowed'
                       }`}
                     >
-                      <div className="flex items-center gap-2 w-full">
-                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-all ${
-                          isCompleted 
-                            ? 'bg-emerald-500 text-white shadow-sm' 
-                            : isActive 
-                              ? 'bg-brand-500 text-white shadow-md ring-2 ring-brand-300' 
-                              : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                        }`}>
-                          {isCompleted ? <Check size={14} strokeWidth={3} /> : <StepIcon size={13} />}
-                        </span>
-                        <div className="hidden sm:block min-w-0 flex-1">
-                          <p className={`text-xs font-black truncate leading-tight ${isActive ? 'text-brand-600 dark:text-brand-400' : isCompleted ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
-                            {s.shortTitle}
-                          </p>
-                          <p className="text-[10px] text-gray-400 truncate hidden md:block">{s.desc}</p>
-                        </div>
-                      </div>
-                      <div className={`w-full h-1 rounded-full mt-2 transition-all ${
-                        isCompleted ? 'bg-emerald-500' : isActive ? 'bg-brand-500' : 'bg-gray-200 dark:bg-gray-700'
-                      }`} />
+                      <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-black shrink-0 ${
+                        isCompleted 
+                          ? 'bg-emerald-500 text-white' 
+                          : isActive 
+                            ? 'bg-brand-500 text-black' 
+                            : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
+                      }`}>
+                        {isCompleted ? '✓' : s.id}
+                      </span>
+                      <span className="text-xs font-bold truncate hidden sm:inline">{s.shortTitle}</span>
                     </button>
                   );
                 })}
@@ -946,77 +931,58 @@ const DashboardProducts: React.FC = () => {
             </div>
 
             <div className="p-5 sm:p-6">
-              {/* ═══════════════════════════════════════════════════════════ */}
-              {/* ═══ STEP 1: CATEGORY & IDENTITY                         ═══ */}
-              {/* ═══════════════════════════════════════════════════════════ */}
+              {/* ═══ STEP 1: CATEGORY & IDENTITY ═══ */}
               {wizardStep === 1 && (
-                <div className="space-y-6">
-                  {/* Category Selection */}
-                  <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        1. Select Marketplace Category *
-                      </label>
-                      {selectedCat && (
-                        <span className="text-xs text-brand-600 dark:text-brand-400 font-bold">
-                          Selected: {selectedCat.name.replace(/^[\s›]+/, '')}
-                        </span>
-                      )}
-                    </div>
+                <div className="space-y-5">
+                  {/* Category */}
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
+                      Category <span className="text-brand-500">*</span>
+                    </label>
                     <select 
                       name="category" 
                       value={form.category} 
                       onChange={handleChange} 
                       required
-                      className="w-full p-3 text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition shadow-sm"
+                      className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors"
                     >
-                      <option value="">Choose a Category...</option>
+                      <option value="">Select Category...</option>
                       {flatCategories.map((cat: any) => (
-                        <option key={cat.id} value={cat.id} className={cat.depth === 0 ? 'font-bold bg-gray-100 dark:bg-gray-900' : ''}>
+                        <option key={cat.id} value={cat.id} className={cat.depth === 0 ? 'font-bold bg-neutral-100 dark:bg-neutral-900' : ''}>
                           {cat.name}
                         </option>
                       ))}
                     </select>
-                    <p className="text-[11px] text-gray-400 mt-1.5 flex items-center gap-1">
-                      <Info size={12} />
-                      The category determines the technical specifications schema, vehicle fitment filters, and master reference models available in subsequent steps.
-                    </p>
                   </div>
 
-                  {/* Brand & Reference Product Matcher */}
+                  {/* Brand & Reference Product (if available) */}
                   {categoryBrands.length > 0 && (
-                    <div className="p-4 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 space-y-4">
-                      <div>
-                        <h4 className="text-sm font-black text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
-                          <Sparkles size={16} className="text-emerald-500" />
-                          Verified Reference Catalog Matcher (2010–2026)
-                        </h4>
-                        <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80">
-                          Match your listing with our verified master catalog to get a "Verified Product" badge and auto-fill accurate specifications.
-                        </p>
-                      </div>
+                    <div className="p-4 rounded-lg bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 space-y-3">
+                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                        Master Catalog Match (Optional)
+                      </p>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                            Manufacturer / Brand
+                          <label className="block text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mb-1">
+                            Brand
                           </label>
                           <select 
                             value={form.brand} 
                             onChange={e => {
                               setForm(prev => ({ ...prev, brand: e.target.value, reference_product: '' }));
                             }} 
-                            className="w-full p-2.5 text-sm border border-emerald-300 dark:border-emerald-700 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
+                            className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
                           >
-                            <option value="">Select Brand (Optional)...</option>
+                            <option value="">Select Brand...</option>
                             {categoryBrands.map(b => <option key={b.slug} value={b.slug}>{b.name}</option>)}
                           </select>
                         </div>
 
                         {form.brand && (
                           <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                              Exact Reference Model Variant
+                            <label className="block text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mb-1">
+                              Model Variant
                             </label>
                             <select 
                               value={form.reference_product} 
@@ -1034,12 +1000,12 @@ const DashboardProducts: React.FC = () => {
                                   };
                                 });
                                 if (ref) {
-                                  toast.success(`Matched ${ref.model_name}! Specifications auto-filled.`);
+                                  toast.success(`Matched ${ref.model_name}`);
                                 }
                               }} 
-                              className="w-full p-2.5 text-sm border border-emerald-400 dark:border-emerald-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm font-medium"
+                              className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
                             >
-                              <option value="">Select Exact Model ({referenceProducts.length} available)...</option>
+                              <option value="">Select Model ({referenceProducts.length} available)...</option>
                               {referenceProducts.map(r => (
                                 <option key={r.slug} value={r.slug}>
                                   {r.model_name} {r.variant_name ? `(${r.variant_name})` : ''}
@@ -1052,36 +1018,36 @@ const DashboardProducts: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Product Title / Name */}
+                  {/* Title */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        2. Product Title / Name *
+                      <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                        Product Title <span className="text-brand-500">*</span>
                       </label>
-                      <span className="text-[11px] text-gray-400 font-semibold">{form.name.length}/120</span>
+                      <span className="text-[11px] text-neutral-400">{form.name.length}/120</span>
                     </div>
                     <input 
                       name="name" 
                       value={form.name} 
                       onChange={handleChange} 
-                      placeholder="e.g. Samsung Galaxy S24 Ultra 512GB Titanium Black, or Toyota RAV4 2018 White" 
+                      placeholder="e.g. Toyota RAV4 2018 White or iPhone 15 Pro Max 256GB" 
                       maxLength={120}
                       required 
-                      className="w-full p-3 text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition shadow-sm" 
+                      className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors" 
                     />
                   </div>
 
-                  {/* Condition Selector */}
+                  {/* Condition */}
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
-                      3. Item Condition *
+                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
+                      Condition <span className="text-brand-500">*</span>
                     </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
-                        { value: 'New', label: 'Brand New', desc: 'Unopened, original retail packaging' },
-                        { value: 'Used', label: 'Used / Pre-owned', desc: 'Fully functional with normal signs of use' },
-                        { value: 'Refurbished', label: 'Refurbished', desc: 'Restored, inspected & certified' },
-                        { value: 'Like_New', label: 'Like New', desc: 'Flawless condition, zero wear' }
+                        { value: 'New', label: 'Brand New' },
+                        { value: 'Used', label: 'Used / Pre-owned' },
+                        { value: 'Refurbished', label: 'Refurbished' },
+                        { value: 'Like_New', label: 'Like New' }
                       ].map(c => {
                         const isSelected = form.condition === c.value || (c.value === 'Used' && form.condition.toLowerCase().includes('used') && form.condition !== 'Like_New');
                         return (
@@ -1089,43 +1055,39 @@ const DashboardProducts: React.FC = () => {
                             key={c.value}
                             type="button"
                             onClick={() => setForm(prev => ({ ...prev, condition: c.value }))}
-                            className={`p-3 rounded-xl border text-left transition-all ${
+                            className={`py-2 px-3 text-xs font-bold rounded-lg border transition-all text-center ${
                               isSelected
-                                ? 'border-brand-500 bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 ring-2 ring-brand-500/20'
-                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 text-gray-700 dark:text-gray-300'
+                                ? 'bg-neutral-900 text-white dark:bg-white dark:text-black border-neutral-900 dark:border-white shadow-sm'
+                                : 'bg-white dark:bg-[#111] text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-700'
                             }`}
                           >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-black">{c.label}</span>
-                              {isSelected && <Check size={14} className="text-brand-500" />}
-                            </div>
-                            <p className="text-[10px] text-gray-400 line-clamp-2 leading-tight">{c.desc}</p>
+                            {c.label}
                           </button>
                         );
                       })}
                     </div>
                   </div>
 
-                  {/* SKU (Optional) */}
-                  <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                      SKU / Merchant Inventory Code (Optional)
+                  {/* SKU */}
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
+                      SKU (Optional)
                     </label>
                     <input 
                       name="sku" 
                       value={form.sku} 
                       onChange={handleChange} 
-                      placeholder="e.g. PRD-2026-001" 
-                      className="w-full sm:w-1/2 p-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white outline-none" 
+                      placeholder="e.g. PRD-001" 
+                      className="w-full sm:w-1/2 px-3.5 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
                     />
                   </div>
 
                   {/* Step 1 Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
                     <button 
                       type="button" 
                       onClick={cancelForm} 
-                      className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm"
+                      className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition"
                     >
                       Cancel
                     </button>
@@ -1133,35 +1095,30 @@ const DashboardProducts: React.FC = () => {
                       type="button" 
                       disabled={!canProceedStep1} 
                       onClick={() => setWizardStep(2)}
-                      className="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-400 text-white font-bold rounded-xl transition text-sm flex items-center gap-2 shadow-md"
+                      className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
                     >
-                      Next: Upload Photos <ArrowRight size={16} />
+                      Next: Photos <ArrowRight size={14} />
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* ═══════════════════════════════════════════════════════════ */}
-              {/* ═══ STEP 2: PHOTOS & MEDIA                              ═══ */}
-              {/* ═══════════════════════════════════════════════════════════ */}
+              {/* ═══ STEP 2: PHOTOS & MEDIA ═══ */}
               {wizardStep === 2 && (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   <div>
-                    <h4 className="text-base font-black text-gray-900 dark:text-white mb-1">
-                      Product Photos & Imagery
-                    </h4>
-                    <p className="text-xs text-gray-500">
-                      Upload high-resolution photos. The first image will be your main marketplace thumbnail.
-                    </p>
+                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1">
+                      Product Photos <span className="text-brand-500">*</span>
+                    </label>
+                    <p className="text-xs text-neutral-500">Upload images for your listing. The first image will be used as the cover photo.</p>
                   </div>
 
-                  {/* Existing Images when editing */}
                   {existingImages.length > 0 && (
                     <div>
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Current Active Images</p>
-                      <div className="flex gap-2.5 overflow-x-auto pb-2">
+                      <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">Existing Images</p>
+                      <div className="flex gap-2 overflow-x-auto pb-2">
                         {existingImages.map((img: any) => (
-                          <div key={img.id} className="w-24 h-24 shrink-0 rounded-xl overflow-hidden border-2 border-emerald-400 relative group">
+                          <div key={img.id} className="w-20 h-20 shrink-0 rounded-lg overflow-hidden border border-neutral-300 dark:border-neutral-700">
                             <SafeImage src={img.image} alt="Product" category={selectedCat?.name || ''} className="w-full h-full object-cover" />
                           </div>
                         ))}
@@ -1169,201 +1126,161 @@ const DashboardProducts: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Drag and Drop Zone */}
+                  {/* Dropzone */}
                   <div 
                     ref={dropRef} 
                     onDragOver={handleDragOver} 
                     onDragLeave={handleDragLeave} 
                     onDrop={handleDrop}
-                    className={`rounded-2xl border-2 border-dashed transition-all duration-200 ${
+                    className={`rounded-xl border-2 border-dashed transition-all ${
                       dragOver 
-                        ? 'border-brand-500 bg-brand-50/20 dark:bg-brand-950/20 scale-[1.01]' 
-                        : 'border-gray-300 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 hover:border-brand-500'
-                    } ${imagePreviews.length > 0 ? 'p-4' : 'p-8 sm:p-10'}`}
+                        ? 'border-brand-500 bg-brand-500/5' 
+                        : 'border-neutral-300 dark:border-neutral-800 bg-neutral-50/50 dark:bg-[#0d0d0d] hover:border-neutral-400 dark:hover:border-neutral-700'
+                    } ${imagePreviews.length > 0 ? 'p-4' : 'p-8 text-center'}`}
                   >
                     {imagePreviews.length === 0 ? (
-                      <div className="text-center max-w-sm mx-auto">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800/40 flex items-center justify-center text-brand-500">
-                          <Camera size={30} strokeWidth={1.5} />
+                      <div className="max-w-xs mx-auto space-y-3">
+                        <div className="w-12 h-12 mx-auto rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-neutral-500">
+                          <Camera size={22} />
                         </div>
-                        <p className="text-base font-black text-gray-900 dark:text-white mb-1">
-                          {dragOver ? 'Drop photos here!' : 'Add High-Quality Product Photos'}
-                        </p>
-                        <p className="text-xs text-gray-500 mb-5">
-                          Drag and drop images, choose from gallery, or snap with your camera on mobile devices.
-                        </p>
+                        <div>
+                          <p className="text-sm font-bold text-neutral-900 dark:text-white">Drag photos here or browse</p>
+                          <p className="text-xs text-neutral-500 mt-0.5">Supports PNG, JPG, WebP</p>
+                        </div>
                         <ImagePickerButton label="Choose Photos" multiple onChange={handleImageChange} />
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                           {imagePreviews.map((p, idx) => (
-                            <div key={p.url} className="relative aspect-square rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700 group shadow-sm">
+                            <div key={p.url} className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 group">
                               <img src={p.url} alt="Preview" className="w-full h-full object-cover" />
                               
-                              {/* Primary badge for image 0 */}
                               {idx === 0 && (
-                                <span className="absolute top-2 left-2 bg-amber-500 text-black text-[9px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1 uppercase tracking-wider">
-                                  <Star size={10} fill="currentColor" /> Cover
+                                <span className="absolute top-1.5 left-1.5 bg-black/80 text-brand-500 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                  Cover
                                 </span>
                               )}
 
-                              {/* Aspect ratio helper */}
-                              <span className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-                                {p.aspectStatus}
-                              </span>
-
-                              {/* Delete button */}
                               <button 
                                 type="button" 
                                 onClick={() => handleRemoveImage(idx)}
-                                className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-red-500 text-white rounded-full transition opacity-0 group-hover:opacity-100 shadow-md" 
-                                title="Remove photo"
+                                className="absolute top-1.5 right-1.5 p-1 bg-black/70 hover:bg-red-600 text-white rounded transition opacity-0 group-hover:opacity-100" 
+                                title="Remove"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={12} />
                               </button>
                             </div>
                           ))}
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                          <ImagePickerButton label="Add More Photos" compact multiple onChange={handleImageChange} />
-                          <span className="text-xs text-gray-500 font-bold">
-                            {imagePreviews.length} photo{imagePreviews.length !== 1 ? 's' : ''} uploaded
+                        <div className="flex items-center justify-between pt-2 border-t border-neutral-200 dark:border-neutral-800">
+                          <ImagePickerButton label="Add More" compact multiple onChange={handleImageChange} />
+                          <span className="text-xs text-neutral-500 font-medium">
+                            {imagePreviews.length} photo{imagePreviews.length !== 1 ? 's' : ''} selected
                           </span>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Photo Guidelines Tip Banner */}
-                  <div className="p-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/40 flex items-start gap-2.5">
-                    <Info size={16} className="text-blue-500 shrink-0 mt-0.5" />
-                    <div className="text-xs text-blue-900 dark:text-blue-300 space-y-0.5">
-                      <p className="font-bold">Tips for Faster Sales:</p>
-                      <p className="text-blue-700/90 dark:text-blue-400/90">
-                        Use natural lighting, capture all angles (front, back, sides, model label/spec plate), and avoid heavy filters.
-                      </p>
-                    </div>
-                  </div>
-
                   {/* Step 2 Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
                     <button 
                       type="button" 
                       onClick={() => setWizardStep(1)} 
-                      className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm flex items-center gap-1.5"
+                      className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
                     >
-                      <ArrowLeft size={16} /> Back: Identity
+                      <ArrowLeft size={14} /> Back
                     </button>
                     <button 
                       type="button" 
                       disabled={!canProceedStep2} 
                       onClick={() => setWizardStep(3)}
-                      className="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-400 text-white font-bold rounded-xl transition text-sm flex items-center gap-2 shadow-md"
+                      className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
                     >
-                      Next: Specifications <ArrowRight size={16} />
+                      Next: Specifications <ArrowRight size={14} />
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* ═══════════════════════════════════════════════════════════ */}
-              {/* ═══ STEP 3: SPECIFICATIONS & FITMENT (ADAPTIVE)         ═══ */}
-              {/* ═══════════════════════════════════════════════════════════ */}
+              {/* ═══ STEP 3: SPECIFICATIONS & FITMENT ═══ */}
               {wizardStep === 3 && (
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-base font-black text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-                      {isAuto ? <Car size={18} className="text-brand-500" /> : <Sliders size={18} className="text-brand-500" />}
-                      {isAuto ? 'Vehicle Fitment & Compatibility' : specSchema.length > 0 ? `Technical Specifications (${selectedCat?.name || 'Category'})` : 'Product Details & Description'}
-                    </h4>
-                    <p className="text-xs text-gray-500">
-                      {isAuto 
-                        ? 'Specify compatible vehicle makes and OEM part numbers so buyers can find exact matches.' 
-                        : specSchema.length > 0 
-                          ? 'Fill in structured specifications to enable progressive search filtering.' 
-                          : 'Provide descriptive details for your listing.'}
-                    </p>
-                  </div>
-
-                  {/* DYNAMIC VEHICLE FITMENT SECTION */}
+                <div className="space-y-5">
+                  {/* Vehicle Fitment if Auto */}
                   {isAuto && (
-                    <div className="p-4 rounded-xl border border-brand-500/30 bg-brand-500/5 space-y-4">
-                      <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                        Compatible Vehicle Fitment
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
+                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                        Vehicle Fitment (Optional)
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
-                            Select Compatible Vehicle (Make / Model / Year)
+                          <label className="block text-[11px] font-semibold text-neutral-500 mb-1">
+                            Compatible Vehicle
                           </label>
                           <VehicleSelector onVehicleSelect={(v) => {
                             if (v && !vehicleIds.includes(v)) setVehicleIds([...vehicleIds, v]);
                           }} />
                           {vehicleIds.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-2">
+                            <div className="mt-2 flex flex-wrap gap-1.5">
                               {vehicleIds.map(vid => (
-                                <span key={vid} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-500/20 text-brand-700 dark:text-brand-300 text-xs font-bold border border-brand-500/30">
-                                  Vehicle ID: {vid}
-                                  <button type="button" onClick={() => setVehicleIds(vehicleIds.filter(id => id !== vid))} className="hover:text-red-500 text-sm">&times;</button>
+                                <span key={vid} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-xs font-semibold">
+                                  ID: {vid}
+                                  <button type="button" onClick={() => setVehicleIds(vehicleIds.filter(id => id !== vid))} className="hover:text-red-500 ml-1">&times;</button>
                                 </span>
                               ))}
                             </div>
                           )}
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
+                          <label className="block text-[11px] font-semibold text-neutral-500 mb-1">
                             OEM Part Number
                           </label>
                           <input 
                             type="text" 
                             value={oemPartNumber} 
                             onChange={(e) => setOemPartNumber(e.target.value)} 
-                            placeholder="e.g. 04465-42180 or 17801-0T020"
-                            className="w-full p-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition" 
+                            placeholder="e.g. 04465-42180"
+                            className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
                           />
-                          <p className="text-[10px] text-gray-400 mt-1 uppercase">Helps auto buyers match exact parts</p>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* DYNAMIC PRODUCT SPECIFICATIONS (SCHEMA DRIVEN) */}
+                  {/* Schema Specs */}
                   {specSchema.length > 0 && (
-                    <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 space-y-4">
+                    <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                          <Sliders size={14} className="text-brand-500" />
-                          Category Specific Attributes
-                        </h4>
+                        <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                          Technical Specifications
+                        </p>
                         {form.reference_product && (
-                          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                            <ShieldCheck size={12} /> Auto-filled from Reference Catalog
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                            Verified Master Data
                           </span>
                         )}
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         {specSchema.map((spec: any) => {
-                          if (spec.key === 'brand') return null; // handled in step 1
+                          if (spec.key === 'brand') return null;
                           return (
-                            <div key={spec.key} className="space-y-1">
-                              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                {spec.label} {spec.required && <span className="text-red-500">*</span>}
+                            <div key={spec.key}>
+                              <label className="block text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 mb-1">
+                                {spec.label} {spec.required && <span className="text-brand-500">*</span>}
                               </label>
                               {spec.type === 'select' && spec.options ? (
                                 <select 
                                   required={spec.required}
                                   value={form.structured_specs[spec.key] || ''} 
                                   onChange={e => setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: e.target.value } }))}
-                                  className="w-full p-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 font-medium"
+                                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
                                 >
                                   <option value="">Select {spec.label}...</option>
                                   {spec.options.map((opt: string) => (
-                                    <option key={opt} value={opt}>
-                                      {opt}{spec.unit ? ` ${spec.unit}` : ''}
-                                    </option>
+                                    <option key={opt} value={opt}>{opt}{spec.unit ? ` ${spec.unit}` : ''}</option>
                                   ))}
                                 </select>
                               ) : (
@@ -1374,10 +1291,10 @@ const DashboardProducts: React.FC = () => {
                                     placeholder={`Enter ${spec.label}`}
                                     value={form.structured_specs[spec.key] || ''}
                                     onChange={e => setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: e.target.value } }))}
-                                    className="w-full p-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 font-medium"
+                                    className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
                                   />
                                   {spec.unit && (
-                                    <span className="absolute right-3 text-xs text-gray-400 font-bold pointer-events-none">
+                                    <span className="absolute right-3 text-xs text-neutral-400 pointer-events-none">
                                       {spec.unit}
                                     </span>
                                   )}
@@ -1390,153 +1307,121 @@ const DashboardProducts: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Product Description */}
+                  {/* Description */}
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        Full Product Description *
-                      </label>
-                      <span className="text-[11px] text-gray-400 font-semibold">{form.description.length} characters</span>
-                    </div>
+                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
+                      Description <span className="text-brand-500">*</span>
+                    </label>
                     <textarea 
                       name="description" 
                       value={form.description} 
                       onChange={handleChange} 
-                      placeholder={
-                        isAuto 
-                          ? "Detail the vehicle/part condition, mileage, transmission, service history, and fitment details..."
-                          : "Describe features, condition, warranty, accessories included, packaging, and usage instructions..."
-                      }
+                      placeholder="Provide full description of the item, features, warranty, condition..."
                       required 
                       rows={5}
-                      className="w-full p-3 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white resize-none focus:ring-2 focus:ring-brand-500 outline-none transition shadow-sm leading-relaxed" 
+                      className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 resize-none outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500" 
                     />
                   </div>
 
                   {/* Step 3 Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
                     <button 
                       type="button" 
                       onClick={() => setWizardStep(2)} 
-                      className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm flex items-center gap-1.5"
+                      className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
                     >
-                      <ArrowLeft size={16} /> Back: Photos
+                      <ArrowLeft size={14} /> Back
                     </button>
                     <button 
                       type="button" 
                       disabled={!canProceedStep3} 
                       onClick={() => setWizardStep(4)}
-                      className="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-400 text-white font-bold rounded-xl transition text-sm flex items-center gap-2 shadow-md"
+                      className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
                     >
-                      Next: Pricing & Inventory <ArrowRight size={16} />
+                      Next: Pricing & Stock <ArrowRight size={14} />
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* ═══════════════════════════════════════════════════════════ */}
-              {/* ═══ STEP 4: PRICING, INVENTORY & VARIATIONS             ═══ */}
-              {/* ═══════════════════════════════════════════════════════════ */}
+              {/* ═══ STEP 4: PRICING & INVENTORY ═══ */}
               {wizardStep === 4 && (
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-base font-black text-gray-900 dark:text-white mb-1">
-                      Pricing, Units & Inventory
-                    </h4>
-                    <p className="text-xs text-gray-500">
-                      Set competitive pricing in Tanzanian Shillings (TZS), configure stock levels, and set volume tiers.
-                    </p>
-                  </div>
-
-                  {/* Pricing Matrix */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
+                <div className="space-y-5">
+                  {/* Prices */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                        Regular Price (TZS) *
+                      <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
+                        Price (TZS) <span className="text-brand-500">*</span>
                       </label>
-                      <div className="relative flex items-center">
-                        <span className="absolute left-3 text-xs font-bold text-gray-400">TSh</span>
-                        <input 
-                          name="price" 
-                          value={form.price} 
-                          onChange={handleChange} 
-                          placeholder="50,000" 
-                          type="number" 
-                          min="0"
-                          required
-                          className="w-full pl-12 pr-3 py-2.5 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none shadow-sm" 
-                        />
-                      </div>
+                      <input 
+                        name="price" 
+                        value={form.price} 
+                        onChange={handleChange} 
+                        placeholder="0" 
+                        type="number" 
+                        min="0"
+                        required
+                        className="w-full px-3.5 py-2 text-sm font-bold border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
+                      />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                        Sale / Promotional Price (Optional)
+                      <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
+                        Sale Price (Optional)
                       </label>
-                      <div className="relative flex items-center">
-                        <span className="absolute left-3 text-xs font-bold text-gray-400">TSh</span>
-                        <input 
-                          name="sale_price" 
-                          value={form.sale_price} 
-                          onChange={handleChange} 
-                          placeholder="45,000" 
-                          type="number" 
-                          min="0"
-                          className="w-full pl-12 pr-3 py-2.5 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none shadow-sm" 
-                        />
-                      </div>
-                      {form.price && form.sale_price && Number(form.sale_price) < Number(form.price) && (
-                        <p className="text-[10px] text-emerald-600 font-bold mt-1">
-                          Save {Math.round(((Number(form.price) - Number(form.sale_price)) / Number(form.price)) * 100)}% off!
-                        </p>
-                      )}
+                      <input 
+                        name="sale_price" 
+                        value={form.sale_price} 
+                        onChange={handleChange} 
+                        placeholder="0" 
+                        type="number" 
+                        min="0"
+                        className="w-full px-3.5 py-2 text-sm font-bold border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
+                      />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                        Cost / Buying Price (Private Note)
+                      <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
+                        Cost / Buying Price
                       </label>
-                      <div className="relative flex items-center">
-                        <span className="absolute left-3 text-xs font-bold text-gray-400">TSh</span>
-                        <input 
-                          name="buying_price" 
-                          value={form.buying_price} 
-                          onChange={handleChange} 
-                          placeholder="30,000" 
-                          type="number" 
-                          min="0"
-                          className="w-full pl-12 pr-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white outline-none" 
-                        />
-                      </div>
+                      <input 
+                        name="buying_price" 
+                        value={form.buying_price} 
+                        onChange={handleChange} 
+                        placeholder="0" 
+                        type="number" 
+                        min="0"
+                        className="w-full px-3.5 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
+                      />
                     </div>
                   </div>
 
-                  {/* Stock, Units & MOQ */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Stock, Unit, MOQ */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                        Stock Quantity *
+                      <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
+                        Stock Quantity <span className="text-brand-500">*</span>
                       </label>
                       <input 
                         name="stock" 
                         value={form.stock} 
                         onChange={handleChange} 
-                        placeholder="10" 
+                        placeholder="0" 
                         type="number" 
                         min="0"
                         required
-                        className="w-full p-2.5 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none shadow-sm" 
+                        className="w-full px-3.5 py-2 text-sm font-bold border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
+                      <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
                         Unit of Measure
                       </label>
                       <select 
                         value={['piece','kg','ton','liter','box','dozen','pair','meter'].includes(form.unit_of_measure) ? form.unit_of_measure : 'custom'}
                         onChange={(e) => setForm({...form, unit_of_measure: e.target.value === 'custom' ? '' : e.target.value})}
-                        className="w-full p-2.5 text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 shadow-sm"
+                        className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
                       >
                         <option value="piece">Piece(s)</option>
                         <option value="kg">Kilogram (kg)</option>
@@ -1546,7 +1431,7 @@ const DashboardProducts: React.FC = () => {
                         <option value="dozen">Dozen</option>
                         <option value="pair">Pair(s)</option>
                         <option value="meter">Meter(s)</option>
-                        <option value="custom">Custom Unit...</option>
+                        <option value="custom">Custom...</option>
                       </select>
                       {!['piece','kg','ton','liter','box','dozen','pair','meter'].includes(form.unit_of_measure) && (
                         <input 
@@ -1554,16 +1439,16 @@ const DashboardProducts: React.FC = () => {
                           name="unit_of_measure" 
                           value={form.unit_of_measure} 
                           onChange={handleChange} 
-                          placeholder="e.g. Gallon, Pack, Set" 
+                          placeholder="e.g. Gallon, Pack" 
                           required 
-                          className="w-full mt-2 p-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white outline-none" 
+                          className="w-full mt-2 px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none" 
                         />
                       )}
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                        Min. Order Quantity (MOQ)
+                      <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
+                        Min Order Qty (MOQ)
                       </label>
                       <input 
                         name="minimum_order_quantity" 
@@ -1573,26 +1458,23 @@ const DashboardProducts: React.FC = () => {
                         type="number" 
                         min="1"
                         step="1"
-                        className="w-full p-2.5 text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 shadow-sm" 
+                        className="w-full px-3.5 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
                       />
                     </div>
                   </div>
 
-                  {/* Volume Discounts Accordion */}
-                  <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40 space-y-3">
+                  {/* Volume Tiers */}
+                  <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">
-                          Wholesale / Volume Discount Tiers
-                        </h4>
-                        <p className="text-[11px] text-gray-500">Reward bulk buyers with automated tiered pricing.</p>
-                      </div>
+                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                        Volume Pricing Tiers
+                      </p>
                       <button 
                         type="button" 
                         onClick={() => setPriceTiers([...priceTiers, { min_quantity: '', max_quantity: '', unit_price: '' }])}
-                        className="px-2.5 py-1 text-xs font-bold text-brand-600 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg border border-brand-500/20 flex items-center gap-1"
+                        className="text-xs font-bold text-brand-500 hover:text-brand-400"
                       >
-                        <Plus size={12} /> Add Tier
+                        + Add Tier
                       </button>
                     </div>
 
@@ -1605,15 +1487,15 @@ const DashboardProducts: React.FC = () => {
                           required 
                           value={tier.min_quantity} 
                           onChange={e => { const t=[...priceTiers]; t[idx].min_quantity=e.target.value; setPriceTiers(t); }} 
-                          className="w-1/3 p-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white font-medium" 
+                          className="w-1/3 px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none" 
                         />
                         <input 
                           type="number" 
                           step="1" 
-                          placeholder="Max Qty (Optional)" 
+                          placeholder="Max Qty" 
                           value={tier.max_quantity || ''} 
                           onChange={e => { const t=[...priceTiers]; t[idx].max_quantity=e.target.value; setPriceTiers(t); }} 
-                          className="w-1/3 p-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white font-medium" 
+                          className="w-1/3 px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none" 
                         />
                         <input 
                           type="number" 
@@ -1621,12 +1503,12 @@ const DashboardProducts: React.FC = () => {
                           required 
                           value={tier.unit_price} 
                           onChange={e => { const t=[...priceTiers]; t[idx].unit_price=e.target.value; setPriceTiers(t); }} 
-                          className="w-1/3 p-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white font-bold" 
+                          className="w-1/3 px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none font-bold" 
                         />
                         <button 
                           type="button" 
                           onClick={() => setPriceTiers(priceTiers.filter((_, i) => i !== idx))} 
-                          className="text-red-500 hover:text-red-700 font-bold px-2 py-1"
+                          className="text-neutral-400 hover:text-red-500 font-bold px-1"
                         >
                           ✕
                         </button>
@@ -1634,18 +1516,15 @@ const DashboardProducts: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Product Variations */}
-                  <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40 space-y-3">
+                  {/* Variations */}
+                  <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">
-                          Product Variants (Colors, Sizes, Options)
-                        </h4>
-                        <p className="text-[11px] text-gray-500">Add options with distinct inventory and price adjustments.</p>
-                      </div>
+                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                        Product Variants
+                      </p>
                       <div className="flex gap-2">
                         {showCustomColumnInput ? (
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1">
                             <input 
                               autoFocus 
                               placeholder="e.g. Size" 
@@ -1659,7 +1538,7 @@ const DashboardProducts: React.FC = () => {
                                   setShowCustomColumnInput(false);
                                 } else if (e.key==='Escape') setShowCustomColumnInput(false); 
                               }}
-                              className="text-xs p-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-white outline-none w-24 font-bold" 
+                              className="text-xs px-2 py-1 border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none w-20" 
                             />
                             <button 
                               type="button" 
@@ -1671,7 +1550,7 @@ const DashboardProducts: React.FC = () => {
                                 } 
                                 setShowCustomColumnInput(false); 
                               }} 
-                              className="text-[10px] font-bold text-white bg-brand-500 px-2 py-1.5 rounded-lg"
+                              className="text-[10px] font-bold text-black bg-brand-500 px-2 py-1 rounded"
                             >
                               Add
                             </button>
@@ -1680,17 +1559,17 @@ const DashboardProducts: React.FC = () => {
                           <button 
                             type="button" 
                             onClick={() => setShowCustomColumnInput(true)} 
-                            className="text-[11px] font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-2.5 py-1 rounded-lg flex items-center gap-1"
+                            className="text-xs font-bold text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
                           >
-                            <Plus size={11} /> Column
+                            + Add Attribute
                           </button>
                         )}
                         <button 
                           type="button" 
                           onClick={() => setNewVariants([...newVariants, { fields: {}, price_adj_sign: '+', price_adjustment: '0', stock: '0' }])} 
-                          className="text-[11px] font-bold text-brand-600 bg-brand-500/10 border border-brand-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1"
+                          className="text-xs font-bold text-brand-500 hover:text-brand-400"
                         >
-                          <Plus size={11} /> Variant
+                          + Add Variant
                         </button>
                       </div>
                     </div>
@@ -1698,20 +1577,20 @@ const DashboardProducts: React.FC = () => {
                     {variationColumns.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {variationColumns.map((col, idx) => (
-                          <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-[10px] font-bold text-gray-700 dark:text-gray-300">
+                          <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-[11px] font-semibold text-neutral-800 dark:text-neutral-200">
                             {col} 
-                            <button type="button" onClick={() => setVariationColumns(variationColumns.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500">✕</button>
+                            <button type="button" onClick={() => setVariationColumns(variationColumns.filter((_, i) => i !== idx))} className="text-neutral-400 hover:text-red-500">✕</button>
                           </span>
                         ))}
                       </div>
                     )}
 
                     {newVariants.map((v, i) => (
-                      <div key={i} className="p-3 bg-white dark:bg-gray-700/60 rounded-xl border border-gray-200 dark:border-gray-600">
+                      <div key={i} className="p-2.5 bg-white dark:bg-[#161616] rounded-lg border border-neutral-200 dark:border-neutral-800">
                         <div className="flex flex-wrap gap-2 items-end">
                           {variationColumns.map((col, colIdx) => (
                             <div key={colIdx} className="w-24 shrink-0">
-                              <label className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5 truncate">{col}</label>
+                              <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-0.5 truncate">{col}</label>
                               <input 
                                 placeholder="Value" 
                                 value={v.fields?.[col] || ''} 
@@ -1721,27 +1600,27 @@ const DashboardProducts: React.FC = () => {
                                   nv[i].fields[col] = e.target.value;
                                   setNewVariants(nv);
                                 }}
-                                className="w-full p-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-white outline-none font-medium" 
+                                className="w-full px-2 py-1 text-xs border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none" 
                               />
                             </div>
                           ))}
                           <div className="w-16 shrink-0">
-                            <label className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Stock</label>
+                            <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-0.5">Stock</label>
                             <input 
                               placeholder="0" 
                               type="number" 
                               value={v.stock} 
                               onChange={e => { const nv = [...newVariants]; nv[i].stock = e.target.value; setNewVariants(nv); }} 
-                              className="w-full p-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-white outline-none font-medium" 
+                              className="w-full px-2 py-1 text-xs border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none" 
                             />
                           </div>
-                          <div className="w-28 shrink-0">
-                            <label className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Price Adj.</label>
-                            <div className="flex border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                          <div className="w-24 shrink-0">
+                            <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-0.5">Price Adj.</label>
+                            <div className="flex border border-neutral-300 dark:border-neutral-700 rounded overflow-hidden">
                               <select 
                                 value={v.price_adj_sign} 
                                 onChange={e => { const nv = [...newVariants]; nv[i].price_adj_sign = e.target.value; setNewVariants(nv); }} 
-                                className="bg-gray-100 dark:bg-gray-800 text-xs px-1.5 py-1.5 outline-none border-r border-gray-200 dark:border-gray-600 font-bold"
+                                className="bg-neutral-100 dark:bg-neutral-800 text-xs px-1 py-1 outline-none border-r border-neutral-300 dark:border-neutral-700 font-bold"
                               >
                                 <option value="+">+</option><option value="-">-</option>
                               </select>
@@ -1750,7 +1629,7 @@ const DashboardProducts: React.FC = () => {
                                 type="number" 
                                 value={v.price_adjustment} 
                                 onChange={e => { const nv = [...newVariants]; nv[i].price_adjustment = e.target.value; setNewVariants(nv); }} 
-                                className="w-full p-1.5 text-xs bg-transparent dark:text-white outline-none font-medium" 
+                                className="w-full px-1.5 py-1 text-xs bg-transparent dark:text-white outline-none" 
                               />
                             </div>
                           </div>
@@ -1762,9 +1641,9 @@ const DashboardProducts: React.FC = () => {
                               setNewVariants(nv);
                               if (removed.id) setDeletedVariantIds(prev => [...prev, removed.id]);
                             }}
-                            className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 p-1.5 rounded-lg mb-0.5"
+                            className="text-neutral-400 hover:text-red-500 p-1 mb-0.5"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </div>
@@ -1772,172 +1651,113 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {/* Step 4 Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
                     <button 
                       type="button" 
                       onClick={() => setWizardStep(3)} 
-                      className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm flex items-center gap-1.5"
+                      className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
                     >
-                      <ArrowLeft size={16} /> Back: Specifications
+                      <ArrowLeft size={14} /> Back
                     </button>
                     <button 
                       type="button" 
                       disabled={!canProceedStep4} 
                       onClick={() => setWizardStep(5)}
-                      className="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:bg-gray-300 disabled:dark:bg-gray-700 disabled:text-gray-400 text-white font-bold rounded-xl transition text-sm flex items-center gap-2 shadow-md"
+                      className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
                     >
-                      Next: Final Review <ArrowRight size={16} />
+                      Next: Review <ArrowRight size={14} />
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* ═══════════════════════════════════════════════════════════ */}
-              {/* ═══ STEP 5: REVIEW, LOCATION & PUBLISH                  ═══ */}
-              {/* ═══════════════════════════════════════════════════════════ */}
+              {/* ═══ STEP 5: REVIEW & PUBLISH ═══ */}
               {wizardStep === 5 && (
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-base font-black text-gray-900 dark:text-white mb-1">
-                      Final Review & Launch
-                    </h4>
-                    <p className="text-xs text-gray-500">
-                      Verify your product details below. Once published, your listing will be immediately discoverable across the marketplace.
-                    </p>
-                  </div>
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Summary */}
+                    <div className="p-4 rounded-lg bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 space-y-3">
+                      <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                        Listing Summary
+                      </p>
 
-                  {/* Live Preview Card & Settings Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Live Marketplace Card Preview */}
-                    <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 space-y-3">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-600 dark:text-brand-400 flex items-center gap-1">
-                        <Eye size={12} /> Live Buyer Card Preview
-                      </span>
-
-                      <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-md">
-                        <div className="aspect-[4/3] bg-neutral-900 relative">
+                      <div className="flex gap-3">
+                        <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                           {imagePreviews.length > 0 ? (
                             <img src={imagePreviews[0].url} alt="Cover" className="w-full h-full object-cover" />
                           ) : existingImages.length > 0 ? (
                             <SafeImage src={existingImages[0].image} alt="Cover" category={selectedCat?.name || ''} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-500">
-                              <ImageIcon size={36} />
+                            <div className="w-full h-full flex items-center justify-center text-neutral-500">
+                              <ImageIcon size={24} />
                             </div>
                           )}
-                          <span className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                            {form.condition}
-                          </span>
                         </div>
-
-                        <div className="p-4 space-y-2">
-                          {form.reference_product && (
-                            <div className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 uppercase tracking-wider">
-                              <ShieldCheck size={11} /> Verified Catalog Item
-                            </div>
-                          )}
-                          <h4 className="text-base font-black text-gray-900 dark:text-white line-clamp-2 leading-tight">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="text-sm font-bold text-neutral-900 dark:text-white truncate">
                             {form.name || 'Untitled Listing'}
-                          </h4>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-lg font-black text-brand-600 dark:text-brand-400">
-                              {form.requires_quote 
-                                ? 'Price on Request' 
-                                : `TSh ${parseInt(form.sale_price || form.price || '0').toLocaleString()}`}
-                            </span>
-                            {form.sale_price && (
-                              <span className="text-xs text-gray-400 line-through">
-                                TSh {parseInt(form.price || '0').toLocaleString()}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
-                            {form.description || 'No description provided yet.'}
                           </p>
-                          <div className="pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-[11px] text-gray-400 font-medium">
-                            <span>{form.stock} {form.unit_of_measure}s in stock</span>
-                            <span>{locData.location_name || 'Tanzania'}</span>
-                          </div>
+                          <p className="text-xs font-bold text-brand-500">
+                            {form.requires_quote ? 'Price on Request' : `TZS ${parseInt(form.sale_price || form.price || '0').toLocaleString()}`}
+                          </p>
+                          <p className="text-[11px] text-neutral-500">
+                            {form.stock} {form.unit_of_measure}s in stock • {form.condition}
+                          </p>
                         </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-400 space-y-1">
+                        <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Category:</span> {selectedCat?.name.replace(/^[\s›]+/, '')}</p>
+                        {form.brand && <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Brand:</span> {form.brand}</p>}
+                        {form.reference_product && <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Model:</span> {form.reference_product}</p>}
                       </div>
                     </div>
 
-                    {/* Listing Options & Review Checklist */}
-                    <div className="space-y-4">
-                      {/* Availability & Mode Toggles */}
-                      <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40 space-y-3">
-                        <label className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider block">
-                          Listing Availability Mode
-                        </label>
-                        <div className="space-y-2">
-                          <label className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={form.is_available} 
-                              onChange={(e) => setForm({...form, is_available: e.target.checked})} 
-                              className="w-4 h-4 rounded text-brand-500 focus:ring-brand-500" 
-                            />
-                            <div>
-                              <p className="text-xs font-bold text-gray-900 dark:text-white">Listing is Active & Discoverable</p>
-                              <p className="text-[10px] text-gray-400">Buyers can immediately search and view this listing.</p>
-                            </div>
-                          </label>
-
-                          <label className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={form.requires_quote} 
-                              onChange={(e) => setForm({...form, requires_quote: e.target.checked})} 
-                              className="w-4 h-4 rounded text-brand-500 focus:ring-brand-500" 
-                            />
-                            <div>
-                              <p className="text-xs font-bold text-gray-900 dark:text-white">Requires Quote / Custom Quote</p>
-                              <p className="text-[10px] text-gray-400">Hides fixed price and prompts buyers to request quotation.</p>
-                            </div>
-                          </label>
+                    {/* Options */}
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-[#111111] rounded-lg border border-neutral-200 dark:border-neutral-800 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={form.is_available} 
+                          onChange={(e) => setForm({...form, is_available: e.target.checked})} 
+                          className="w-4 h-4 rounded text-brand-500 focus:ring-brand-500" 
+                        />
+                        <div>
+                          <p className="text-xs font-bold text-neutral-900 dark:text-white">Active Listing</p>
+                          <p className="text-[11px] text-neutral-500">Product will be immediately discoverable in search.</p>
                         </div>
-                      </div>
+                      </label>
 
-                      {/* Ready-to-Publish Verification Checklist */}
-                      <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-2">
-                        <h4 className="text-xs font-black text-emerald-900 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
-                          <CheckCircle size={14} className="text-emerald-500" />
-                          Ready for Marketplace Launch
-                        </h4>
-                        <div className="space-y-1.5 text-xs text-emerald-800 dark:text-emerald-300 font-medium">
-                          <div className="flex items-center gap-2">
-                            <Check size={12} className="text-emerald-500" /> Category: {selectedCat?.name.replace(/^[\s›]+/, '')}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Check size={12} className="text-emerald-500" /> {imagePreviews.length + existingImages.length} High-Res Photos Loaded
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Check size={12} className="text-emerald-500" /> Price: TSh {parseInt(form.sale_price || form.price || '0').toLocaleString()}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Check size={12} className="text-emerald-500" /> Stock: {form.stock} {form.unit_of_measure}s
-                          </div>
+                      <label className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-[#111111] rounded-lg border border-neutral-200 dark:border-neutral-800 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={form.requires_quote} 
+                          onChange={(e) => setForm({...form, requires_quote: e.target.checked})} 
+                          className="w-4 h-4 rounded text-brand-500 focus:ring-brand-500" 
+                        />
+                        <div>
+                          <p className="text-xs font-bold text-neutral-900 dark:text-white">Request for Quote (RFQ)</p>
+                          <p className="text-[11px] text-neutral-500">Buyers must request a custom price quote.</p>
                         </div>
-                      </div>
+                      </label>
                     </div>
                   </div>
 
                   {/* Step 5 Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
                     <button 
                       type="button" 
                       onClick={() => setWizardStep(4)} 
-                      className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition text-sm flex items-center gap-1.5"
+                      className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
                     >
-                      <ArrowLeft size={16} /> Back: Pricing
+                      <ArrowLeft size={14} /> Back
                     </button>
                     <button 
                       type="submit" 
                       disabled={submitting || !canSubmit}
-                      className="px-8 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-gray-300 disabled:to-gray-400 text-black font-extrabold rounded-xl transition text-base flex items-center gap-2 shadow-lg active:scale-98"
+                      className="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-extrabold rounded-lg text-sm transition shadow-sm"
                     >
-                      <Sparkles size={18} />
-                      {submitting ? 'Publishing...' : editingId ? 'Update Product Listing' : 'Publish Product to Marketplace'}
+                      {submitting ? 'Saving...' : editingId ? 'Update Product' : 'Publish Product'}
                     </button>
                   </div>
                 </div>
