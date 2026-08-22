@@ -224,13 +224,13 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"  # For production (collectstatic)
 
-# FIX D-05: WhiteNoise compressed + hashed static files for production
+# FIX D-05: Hashed static files for production (ManifestStaticFilesStorage avoids WSL os.utime permission error)
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage" if not DEBUG else "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
 

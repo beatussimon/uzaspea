@@ -40,8 +40,6 @@ const ProductList = () => {
   const saved = searchParams.get('saved') === 'true';
   const savedTime = searchParams.get('saved_time') || '';
   const sellerFilter = searchParams.get('seller') || '';
-  const vehicleId = searchParams.get('vehicle_id') || '';
-  const oemPartNumber = searchParams.get('oem_part_number') || '';
 
   const updateFilters = (updates: Record<string, string>) => {
     setSearchParams(prev => {
