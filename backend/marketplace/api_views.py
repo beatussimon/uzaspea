@@ -839,6 +839,14 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
             if anc.spec_schema:
                 schema.extend(anc.spec_schema)
         
+        # If parent category has no direct schema, check child categories
+        if not schema:
+            descendants = category.get_descendants(include_self=False)
+            for desc in descendants:
+                if desc.spec_schema:
+                    schema.extend(desc.spec_schema)
+                    break
+        
         merged = {}
         for item in schema:
             merged[item['key']] = item

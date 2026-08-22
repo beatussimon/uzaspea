@@ -269,12 +269,12 @@ class Category(models.Model):
     def get_absolute_url(self):
         return reverse('product_list') + f"?category={self.slug}"
 
-    def get_ancestors(self):  # For breadcrumbs (optional, but good)
+    def get_ancestors(self, include_self=False):  # For breadcrumbs and schema inheritance
         ancestors = []
-        parent = self.parent
-        while parent:
-            ancestors.insert(0, parent)  # Add to the *beginning* of the list
-            parent = parent.parent
+        curr = self if include_self else self.parent
+        while curr:
+            ancestors.insert(0, curr)
+            curr = curr.parent
         return ancestors
 
 

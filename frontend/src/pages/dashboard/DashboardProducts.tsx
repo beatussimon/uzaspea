@@ -143,7 +143,8 @@ const DashboardProducts: React.FC = () => {
   const [quickStockValue, setQuickStockValue] = useState<string>('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1', brand: '', reference_product: '', structured_specs: {} as Record<string, any> });
+  const INITIAL_FORM = { name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1', brand: '', reference_product: '', structured_specs: {} as Record<string, any> };
+  const [form, setForm] = useState(INITIAL_FORM);
   const [vehicleIds, setVehicleIds] = useState<string[]>([]);
   const [oemPartNumber, setOemPartNumber] = useState<string>('');
   const [priceTiers, setPriceTiers] = useState<any[]>([]);
@@ -559,7 +560,7 @@ const DashboardProducts: React.FC = () => {
               setEditingId(null);
               setExistingImages([]);
               setNewVariants([]);
-              setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+              setForm(INITIAL_FORM);
             }}
             disabled={user?.tier === 'customer'}
             variant={showForm ? 'outline' : 'default'}
@@ -790,7 +791,7 @@ const DashboardProducts: React.FC = () => {
             }
 
             setShowForm(false); setEditingId(null); setEditingProductId(null); setFulfillRequestId(null); setWizardStep(1); setShowAdvanced(false);
-            setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+            setForm(INITIAL_FORM);
             imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
             setImagePreviews([]); setImageFiles([]); setExistingImages([]); setNewVariants([]); setDeletedVariantIds([]); setPriceTiers([]);
             fetchProducts(1, true);
@@ -822,7 +823,7 @@ const DashboardProducts: React.FC = () => {
 
         const cancelForm = () => {
           setShowForm(false); setEditingId(null); setEditingProductId(null); setWizardStep(1); setShowAdvanced(false);
-          setForm({ name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1' });
+          setForm(INITIAL_FORM);
           imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
           setImagePreviews([]); setImageFiles([]); setExistingImages([]); setNewVariants([]); setDeletedVariantIds([]);
         };

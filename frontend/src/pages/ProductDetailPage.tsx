@@ -51,6 +51,9 @@ interface ProductData {
   unit_of_measure?: string;
   minimum_order_quantity?: string;
   price_tiers?: { id: number; min_quantity: string; max_quantity: string | null; unit_price: string }[];
+  brand_details?: { id: number; name: string; slug: string; logo?: string };
+  reference_product_details?: { id: number; name: string; slug: string; model_name?: string; variant_name?: string; brand_details?: { name: string; slug: string } };
+  structured_specs?: Record<string, any>;
 }
 
 interface InspectionSummary {
