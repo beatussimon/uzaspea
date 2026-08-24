@@ -56,8 +56,14 @@ ssh -o StrictHostKeyChecking=no -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << EOF
   git reset --hard origin/master
   git clean -fd
   
-  echo "=> Building and restarting App Node containers (Traefik, Backend, Frontend)..."
-  docker compose -f docker-compose.app.yml up -d --build --remove-orphans
+  echo "=> Building backend container..."
+  docker compose -f docker-compose.app.yml build backend
+  
+  echo "=> Building frontend container..."
+  docker compose -f docker-compose.app.yml build frontend
+  
+  echo "=> Restarting App Node containers (Traefik, Backend, Frontend)..."
+  docker compose -f docker-compose.app.yml up -d --remove-orphans
   
   echo "=> Cleaning up old Docker images..."
   docker image prune -f
