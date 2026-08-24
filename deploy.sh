@@ -23,8 +23,11 @@ ssh -o StrictHostKeyChecking=no -i $DATA_SSH_KEY ubuntu@$DATA_INSTANCE << EOF
   git reset --hard origin/master
   git clean -fd
   
-  echo "=> Building and restarting Data Node containers (Postgres, Redis, Celery)..."
-  docker compose -f docker-compose.data.yml up -d --build --remove-orphans
+  echo "=> Building Celery container..."
+  docker compose -f docker-compose.data.yml build celery-worker
+  
+  echo "=> Restarting Data Node containers (Postgres, Redis, Celery)..."
+  docker compose -f docker-compose.data.yml up -d --remove-orphans
 
   echo "=> Securing database ports (DOCKER-USER chain)..."
   sudo iptables -N DOCKER-USER 2>/dev/null || true
