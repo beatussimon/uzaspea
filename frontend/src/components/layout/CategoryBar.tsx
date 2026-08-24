@@ -75,7 +75,35 @@ const CategoryBar: React.FC = () => {
     }
   }, [productSlug]);
 
-  const selectedCategory = searchParams.get('category') || '';
+  const topCategories = useMemo(() => {
+    const getDeepCount = (cat: any): number => {
+      let count = cat.product_count || 0;
+      if (cat.children && Array.isArray(cat.children)) {
+        cat.children.forEach((child: any) => {
+          count += getDeepCount(child);
+        });
+      }
+      return count;
+    };
+
+    return categories
+      .filter((c: any) => !c.parent)
+      .map((c: any) => ({ ...c, total_products: getDeepCount(c) }))
+      .filter((c: any) => c.total_products > 0)
+      .sort((a, b) => b.total_products - a.total_products);
+  }, [categories]);
+
+  const selectedCategoryParam = searchParams.get('category') || '';
+  const selectedSubcategoryParam = searchParams.get('subcategory') || '';
+
+  const activeCategory = useMemo(() => {
+    if (!selectedCategoryParam && !selectedSubcategoryParam) return null;
+    return topCategories.find((c: any) => c.slug === selectedCategoryParam) ||
+      topCategories.find((c: any) => c.children?.some((child: any) => child.slug === (selectedSubcategoryParam || selectedCategoryParam))) ||
+      null;
+  }, [topCategories, selectedCategoryParam, selectedSubcategoryParam]);
+
+  const selectedCategory = activeCategory ? activeCategory.slug : selectedCategoryParam;
 
   // Find product's category and subcategory from the nested categories list
   const { productParentCat, productSubCat } = useMemo(() => {
@@ -104,24 +132,6 @@ const CategoryBar: React.FC = () => {
   // Only show on product catalog and detail pages
   const allowedPaths = ['/products', '/product'];
   const showBar = allowedPaths.some(p => location.pathname.startsWith(p));
-
-  const topCategories = useMemo(() => {
-    const getDeepCount = (cat: any): number => {
-      let count = cat.product_count || 0;
-      if (cat.children && Array.isArray(cat.children)) {
-        cat.children.forEach((child: any) => {
-          count += getDeepCount(child);
-        });
-      }
-      return count;
-    };
-
-    return categories
-      .filter((c: any) => !c.parent)
-      .map((c: any) => ({ ...c, total_products: getDeepCount(c) }))
-      .filter((c: any) => c.total_products > 0)
-      .sort((a, b) => b.total_products - a.total_products);
-  }, [categories]);
 
   if (!showBar) return null;
 
@@ -172,7 +182,7 @@ const CategoryBar: React.FC = () => {
               </div>
             ))
           ) : (
-            topCategories.filter((cat: any) => cat.product_count > 0).map((cat: any) => {
+            topCategories.filter((cat: any) => cat.total_products > 0).map((cat: any) => {
               const isActive = selectedCategory === cat.slug;
               return (
                 <div 
@@ -184,9 +194,9 @@ const CategoryBar: React.FC = () => {
                   onTouchStart={preloadProductList}
                 >
                   <div className={`relative w-20 h-20 md:w-36 md:h-36 rounded-full flex items-center justify-center transition-all duration-200 group-hover:scale-105 overflow-visible border-2 ${isActive ? 'border-brand-500 bg-white dark:bg-neutral-900 shadow-md' : 'border-transparent bg-neutral-100 dark:bg-neutral-800 shadow-sm hover:shadow-md'}`}>
-                    {cat.product_count > 0 && (
+                    {cat.total_products > 0 && (
                       <span className="absolute -top-1.5 -right-1 md:top-0.5 md:right-0.5 bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-[9px] md:text-base font-bold md:font-extrabold px-1.5 py-0.5 md:px-2 rounded-full border md:border-2 border-neutral-200 dark:border-neutral-700 shadow-sm md:shadow-md md:min-w-[40px] md:h-[40px] flex items-center justify-center z-10">
-                        {cat.product_count.toLocaleString()}
+                        {cat.total_products.toLocaleString()}
                       </span>
                     )}
                     <SafeImage
@@ -210,7 +220,8 @@ const CategoryBar: React.FC = () => {
         {/* SUB-CATEGORY PILLS */}
         {selectedCategory && (() => {
           const activeCat = topCategories.find(c => c.slug === selectedCategory);
-          if (activeCat && activeCat.children && activeCat.children.length > 0) {
+          const availableChildren = activeCat?.children?.filter((sub: any) => (sub.product_count || 0) > 0) || [];
+          if (activeCat && availableChildren.length > 0) {
             const subCategoryParam = searchParams.get('subcategory') || '';
             return (
               <div className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar py-2.5 px-4 border-t border-gray-150 dark:border-neutral-900 w-full scroll-smooth bg-gray-50/50 dark:bg-black/50">
@@ -220,7 +231,7 @@ const CategoryBar: React.FC = () => {
                 >
                   All {activeCat.name}
                 </button>
-                {activeCat.children.map((sub: any) => (
+                {availableChildren.map((sub: any) => (
                   <button
                     key={sub.id}
                     onClick={() => {
@@ -247,7 +258,7 @@ const CategoryBar: React.FC = () => {
   // PILLS Layout (displayed on details page, otherwise falls back to all categories if ever rendered elsewhere)
   const pillsToRender = isProductDetailPage 
     ? [productParentCat, productSubCat].filter(Boolean)
-    : topCategories.filter((cat: any) => cat.product_count > 0);
+    : topCategories.filter((cat: any) => cat.total_products > 0);
 
   return (
     <div className="w-full bg-white dark:bg-[#000000] border-b border-gray-150 dark:border-neutral-900 transition-colors duration-300">

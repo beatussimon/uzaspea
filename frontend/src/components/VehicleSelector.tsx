@@ -5,9 +5,17 @@ import { Loader2 } from 'lucide-react';
 interface VehicleSelectorProps {
   onVehicleSelect: (vehicleId: string) => void;
   selectedVehicleId?: string;
+  category?: string;
+  subcategory?: string;
+  mode?: 'filter' | 'manage';
 }
 
-const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onVehicleSelect }) => {
+const VehicleSelector: React.FC<VehicleSelectorProps> = ({ 
+  onVehicleSelect, 
+  category, 
+  subcategory, 
+  mode = 'filter' 
+}) => {
   const [makes, setMakes] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
   const [years, setYears] = useState<any[]>([]);
@@ -20,12 +28,25 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onVehicleSelect }) =>
   const [loadingModels, setLoadingModels] = useState(false);
   const [loadingYears, setLoadingYears] = useState(false);
 
+  const activeCategory = subcategory || category;
+  const baseParams = mode === 'manage' 
+    ? { for_seller: 'true' } 
+    : { has_products: 'true', ...(activeCategory ? { category: activeCategory } : {}) };
+
+  // Reset selections when category changes
+  useEffect(() => {
+    setMakeId('');
+    setModelId('');
+    setYear('');
+    onVehicleSelect('');
+  }, [category, subcategory]);
+
   useEffect(() => {
     setLoadingMakes(true);
-    api.get('/api/vehicle-makes/').then(res => {
+    api.get('/api/vehicle-makes/', { params: baseParams }).then(res => {
       setMakes(res.data.results || res.data || []);
     }).catch(() => {}).finally(() => setLoadingMakes(false));
-  }, []);
+  }, [mode, activeCategory]);
 
   useEffect(() => {
     if (!makeId) {
@@ -34,10 +55,10 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onVehicleSelect }) =>
       return;
     }
     setLoadingModels(true);
-    api.get('/api/vehicle-models/', { params: { make_id: makeId } }).then(res => {
+    api.get('/api/vehicle-models/', { params: { ...baseParams, make_id: makeId } }).then(res => {
       setModels(res.data.results || res.data || []);
     }).catch(() => {}).finally(() => setLoadingModels(false));
-  }, [makeId]);
+  }, [makeId, mode, activeCategory]);
 
   useEffect(() => {
     if (!modelId) {
@@ -46,13 +67,13 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onVehicleSelect }) =>
       return;
     }
     setLoadingYears(true);
-    api.get('/api/vehicles/', { params: { model_id: modelId } }).then(res => {
+    api.get('/api/vehicles/', { params: { ...baseParams, model_id: modelId } }).then(res => {
       // Extract unique years from vehicles
       const vehicles = res.data.results || res.data || [];
       const uniqueYears = Array.from(new Set(vehicles.map((v: any) => v.year))).sort((a: any, b: any) => (b as number) - (a as number));
       setYears(uniqueYears);
     }).catch(() => {}).finally(() => setLoadingYears(false));
-  }, [modelId]);
+  }, [modelId, mode, activeCategory]);
 
   const handleMakeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setMakeId(e.target.value);

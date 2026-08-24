@@ -113,7 +113,7 @@ class CategorySerializer(serializers.ModelSerializer):
         # Always prefer the DB-annotated count to avoid any extra queries
         if hasattr(obj, 'annotated_product_count'):
             return obj.annotated_product_count
-        return obj.products.count()
+        return obj.products.filter(is_available=True, stock__gt=0).count()
 
     def get_total_sales(self, obj):
         return getattr(obj, 'total_sales', 0)
@@ -152,6 +152,70 @@ class ReferenceProductSerializer(serializers.ModelSerializer):
         model = ReferenceProduct
         fields = ['id', 'name', 'slug', 'brand', 'brand_name', 'category', 'image', 'structured_specs']
 
+class FlexibleBrandRelatedField(serializers.PrimaryKeyRelatedField):
+    def to_internal_value(self, data):
+        if not data:
+            return None
+        if isinstance(data, str) and not data.isdigit():
+            from .models import Brand
+            from django.db.models import Q
+            brand = Brand.objects.filter(Q(slug__iexact=data) | Q(name__iexact=data)).first()
+            if brand:
+                return brand
+            raise serializers.ValidationError(f"Brand '{data}' not found.")
+        return super().to_internal_value(data)
+
+class FlexibleReferenceProductRelatedField(serializers.PrimaryKeyRelatedField):
+    def to_internal_value(self, data):
+        if not data:
+            return None
+        if isinstance(data, str) and not data.isdigit():
+            from .models import ReferenceProduct
+            ref = ReferenceProduct.objects.filter(slug__iexact=data).first()
+            if ref:
+                return ref
+            raise serializers.ValidationError(f"Reference product '{data}' not found.")
+        return super().to_internal_value(data)
+
+class SafeJSONField(serializers.Field):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('required', False)
+        kwargs.setdefault('default', dict)
+        kwargs.setdefault('allow_null', True)
+        super().__init__(*args, **kwargs)
+
+    def to_internal_value(self, data):
+        import json
+        if not data:
+            return {}
+        if isinstance(data, dict):
+            return data
+        if isinstance(data, str):
+            data = data.strip()
+            if not data or data in ('null', 'undefined', '{}', '[]', '[object Object]'):
+                return {}
+            try:
+                parsed = json.loads(data)
+                if isinstance(parsed, dict):
+                    return parsed
+                return {}
+            except Exception:
+                return {}
+        return {}
+
+    def to_representation(self, value):
+        import json
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, dict):
+                    return parsed
+            except Exception:
+                pass
+        return {}
+
 class ProductSerializer(serializers.ModelSerializer):
     seller_username = serializers.CharField(source='seller.username', read_only=True)
     price_tiers = ProductPriceTierSerializer(many=True, read_only=True)
@@ -170,7 +234,16 @@ class ProductSerializer(serializers.ModelSerializer):
     is_liked = serializers.SerializerMethodField()
     category_name = serializers.CharField(source='category.name', read_only=True)
     category_slug = serializers.CharField(source='category.slug', read_only=True)
+    category_parent_name = serializers.CharField(source='category.parent.name', read_only=True, default=None)
+    category_parent_slug = serializers.CharField(source='category.parent.slug', read_only=True, default=None)
     images = ProductImageSerializer(many=True, read_only=True)
+
+    brand = FlexibleBrandRelatedField(queryset=Brand.objects.all(), required=False, allow_null=True)
+    reference_product = FlexibleReferenceProductRelatedField(queryset=ReferenceProduct.objects.all(), required=False, allow_null=True)
+    structured_specs = SafeJSONField()
+    specifications = SafeJSONField()
+    unit_of_measure = serializers.CharField(max_length=50, required=False, allow_blank=True, default='piece')
+    is_draft = serializers.BooleanField(required=False, default=False)
 
     brand_details = BrandSerializer(source='brand', read_only=True)
     reference_product_details = ReferenceProductSerializer(source='reference_product', read_only=True)
@@ -190,15 +263,53 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock', 'is_available',
+        fields = ['id', 'name', 'slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock', 'is_available', 'is_draft',
                   'unit_of_measure', 'minimum_order_quantity', 'price_tiers',
-                  'category', 'category_name', 'category_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
+                  'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',
                   'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified', 'vehicle_ids', 'oem_part_number',
                   'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude',
                   'weight_kg', 'size', 'can_review', 'is_sponsored', 'specifications',
                   'brand', 'reference_product', 'structured_specs', 'brand_details', 'reference_product_details']
         read_only_fields = ['seller', 'slug']
+
+    def to_internal_value(self, data):
+        import json
+        mutable_data = data.copy() if hasattr(data, 'copy') else dict(data)
+        
+        # Handle draft defaults for incomplete listings
+        is_draft_val = mutable_data.get('is_draft')
+        is_draft = is_draft_val in [True, 'true', 'True', '1', 1]
+        
+        if is_draft:
+            if not mutable_data.get('name') or not str(mutable_data.get('name')).strip():
+                mutable_data['name'] = 'Untitled Draft'
+            if not mutable_data.get('description') or not str(mutable_data.get('description')).strip():
+                mutable_data['description'] = 'Draft listing'
+            if not mutable_data.get('price') or str(mutable_data.get('price')).strip() == '':
+                mutable_data['price'] = '0.00'
+            if not mutable_data.get('stock') or str(mutable_data.get('stock')).strip() == '':
+                mutable_data['stock'] = '0'
+            if not mutable_data.get('category'):
+                from .models import Category
+                cat = Category.objects.filter(children__isnull=True).first() or Category.objects.first()
+                if cat:
+                    mutable_data['category'] = cat.id
+
+        # Handle JSON strings from multipart/form-data
+        if 'structured_specs' in mutable_data and isinstance(mutable_data['structured_specs'], str):
+            try:
+                mutable_data['structured_specs'] = json.loads(mutable_data['structured_specs'])
+            except Exception:
+                pass
+                
+        if 'specifications' in mutable_data and isinstance(mutable_data['specifications'], str):
+            try:
+                mutable_data['specifications'] = json.loads(mutable_data['specifications'])
+            except Exception:
+                pass
+
+        return super().to_internal_value(mutable_data)
 
     def get_inspections(self, obj):
         # View uses prefetch_related for obj.inspections, avoiding N+1
@@ -233,14 +344,15 @@ class ProductSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         import json
         request = self.context.get('request')
-        price_tiers_data = request.data.get('price_tiers')
-        vehicle_ids = request.data.getlist('vehicle_ids') if hasattr(request.data, 'getlist') else request.data.get('vehicle_ids', [])
+        req_data = request.data if (request and hasattr(request, 'data')) else {}
+        price_tiers_data = req_data.get('price_tiers')
+        vehicle_ids = req_data.getlist('vehicle_ids') if hasattr(req_data, 'getlist') else req_data.get('vehicle_ids', [])
         
         # In multipart/form-data, an array might come as 'vehicle_ids', 'vehicle_ids[]', or a comma-separated string
         if not isinstance(vehicle_ids, list):
-            vehicle_ids = [vehicle_ids]
+            vehicle_ids = [vehicle_ids] if vehicle_ids else []
             
-        oem_part_number = request.data.get('oem_part_number', None)
+        oem_part_number = req_data.get('oem_part_number', None)
         
         if oem_part_number:
             specs = validated_data.get('specifications', {})
@@ -262,7 +374,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
         if price_tiers_data:
             try:
-                tiers = json.loads(price_tiers_data)
+                tiers = json.loads(price_tiers_data) if isinstance(price_tiers_data, str) else price_tiers_data
                 for tier in tiers:
                     ProductPriceTier.objects.create(product=product, **tier)
             except Exception as e:
@@ -272,9 +384,10 @@ class ProductSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         import json
         request = self.context.get('request')
-        price_tiers_data = request.data.get('price_tiers')
-        vehicle_ids = request.data.getlist('vehicle_ids') if hasattr(request.data, 'getlist') else request.data.get('vehicle_ids', None)
-        oem_part_number = request.data.get('oem_part_number', None)
+        req_data = request.data if (request and hasattr(request, 'data')) else {}
+        price_tiers_data = req_data.get('price_tiers')
+        vehicle_ids = req_data.getlist('vehicle_ids') if hasattr(req_data, 'getlist') else req_data.get('vehicle_ids', None)
+        oem_part_number = req_data.get('oem_part_number', None)
         
         if vehicle_ids is not None and not isinstance(vehicle_ids, list):
             vehicle_ids = [vehicle_ids]
@@ -377,19 +490,88 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ProductReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
+    user_full_name = serializers.SerializerMethodField()
+    user_profile_picture = serializers.SerializerMethodField()
+    user_verified = serializers.SerializerMethodField()
+    user_tier = serializers.SerializerMethodField()
+    is_verified_buyer = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
-        fields = ['id', 'product', 'user', 'username', 'order', 'rating', 'comment', 'created_at', 'approved']
+        fields = [
+            'id', 'product', 'user', 'username', 'user_full_name', 
+            'user_profile_picture', 'user_verified', 'user_tier', 
+            'is_verified_buyer', 'order', 'rating', 'comment', 
+            'created_at', 'approved'
+        ]
         read_only_fields = ['user', 'approved']
+
+    def get_user_full_name(self, obj):
+        if obj.user:
+            name = f"{obj.user.first_name} {obj.user.last_name}".strip()
+            return name if name else None
+        return None
+
+    def get_user_profile_picture(self, obj):
+        if hasattr(obj.user, 'profile') and obj.user.profile.profile_picture:
+            try:
+                return obj.user.profile.profile_picture.url
+            except Exception:
+                return None
+        return None
+
+    def get_user_verified(self, obj):
+        if hasattr(obj.user, 'profile'):
+            return getattr(obj.user.profile, 'is_verified', False)
+        return False
+
+    def get_user_tier(self, obj):
+        if hasattr(obj.user, 'profile'):
+            return getattr(obj.user.profile, 'user_tier', 'standard')
+        return 'standard'
+
+    def get_is_verified_buyer(self, obj):
+        return True
 
 class ProductCommentSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
+    user_full_name = serializers.SerializerMethodField()
+    user_profile_picture = serializers.SerializerMethodField()
+    user_verified = serializers.SerializerMethodField()
+    user_tier = serializers.SerializerMethodField()
     
     class Meta:
         model = ProductComment
-        fields = ['id', 'product', 'user', 'username', 'body', 'parent', 'created_at', 'likes_count']
+        fields = [
+            'id', 'product', 'user', 'username', 'user_full_name', 
+            'user_profile_picture', 'user_verified', 'user_tier', 
+            'body', 'parent', 'created_at', 'likes_count'
+        ]
         read_only_fields = ['user', 'likes_count']
+
+    def get_user_full_name(self, obj):
+        if obj.user:
+            name = f"{obj.user.first_name} {obj.user.last_name}".strip()
+            return name if name else None
+        return None
+
+    def get_user_profile_picture(self, obj):
+        if hasattr(obj.user, 'profile') and obj.user.profile.profile_picture:
+            try:
+                return obj.user.profile.profile_picture.url
+            except Exception:
+                return None
+        return None
+
+    def get_user_verified(self, obj):
+        if hasattr(obj.user, 'profile'):
+            return getattr(obj.user.profile, 'is_verified', False)
+        return False
+
+    def get_user_tier(self, obj):
+        if hasattr(obj.user, 'profile'):
+            return getattr(obj.user.profile, 'user_tier', 'standard')
+        return 'standard'
 
 class TrackingEventSerializer(serializers.ModelSerializer):
     class Meta:

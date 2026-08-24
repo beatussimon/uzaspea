@@ -26,6 +26,9 @@ interface ProductData {
   is_available: boolean;
   category: number;
   category_name: string;
+  category_slug?: string;
+  category_parent_name?: string | null;
+  category_parent_slug?: string | null;
   seller: number;
   seller_username: string;
   seller_full_name?: string;
@@ -51,9 +54,11 @@ interface ProductData {
   unit_of_measure?: string;
   minimum_order_quantity?: string;
   price_tiers?: { id: number; min_quantity: string; max_quantity: string | null; unit_price: string }[];
+  brand_name?: string;
   brand_details?: { id: number; name: string; slug: string; logo?: string };
   reference_product_details?: { id: number; name: string; slug: string; model_name?: string; variant_name?: string; brand_details?: { name: string; slug: string } };
   structured_specs?: Record<string, any>;
+  specifications?: Record<string, any>;
 }
 
 interface InspectionSummary {
@@ -667,15 +672,23 @@ const ProductDetailPage: React.FC = () => {
               {product.name}
             </h1>
             
-            {/* Reference Badge */}
-            {product.reference_product_details && (
-               <div className="flex items-center gap-2 mt-2 mb-1">
-                 <div className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black px-2 py-1.5 rounded flex items-center gap-1.5 uppercase tracking-wider border border-emerald-200 dark:border-emerald-800/50">
-                   <ShieldCheck size={14} />
-                   Verified {product.reference_product_details.brand_details?.name || product.brand_details?.name} {product.reference_product_details.model_name} {product.reference_product_details.variant_name}
-                 </div>
-               </div>
-            )}
+            {/* Brand & Reference Badges */}
+            <div className="flex flex-wrap items-center gap-2 mt-2 mb-1">
+              {(product.brand_details || product.brand_name) && (
+                <Link
+                  to={`/products?brand=${product.brand_details?.slug || (product.brand_name || '').toLowerCase().replace(/\s+/g, '-')}`}
+                  className="bg-brand-500/10 hover:bg-brand-500/20 text-brand-600 dark:text-brand-400 text-[11px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 uppercase tracking-wider transition-colors"
+                >
+                  Brand: {product.brand_details?.name || product.brand_name}
+                </Link>
+              )}
+              {product.reference_product_details && (
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1.5 uppercase tracking-wider border border-emerald-200 dark:border-emerald-800/50">
+                  <ShieldCheck size={13} />
+                  Verified {product.reference_product_details.brand_details?.name || product.brand_details?.name} {product.reference_product_details.model_name || ''} {product.reference_product_details.variant_name || ''}
+                </div>
+              )}
+            </div>
 
             {/* Price below title */}
             <div className="flex items-center gap-3 flex-wrap mt-1">
@@ -697,9 +710,22 @@ const ProductDetailPage: React.FC = () => {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+            <div className="flex flex-wrap items-center gap-1.5 mt-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+              {product.category_parent_slug && product.category_parent_slug !== product.category_slug && (
+                <>
+                  <Link 
+                    to={`/products?category=${product.category_parent_slug}`} 
+                    className="font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 hover:text-brand-500 dark:hover:text-brand-500 transition-colors"
+                  >
+                    {product.category_parent_name || product.category_parent_slug}
+                  </Link>
+                  <span className="text-neutral-300 dark:text-neutral-700">/</span>
+                </>
+              )}
               <Link 
-                to={`/?category=${product.category_name}`} 
+                to={product.category_parent_slug && product.category_parent_slug !== product.category_slug
+                  ? `/products?category=${product.category_parent_slug}&subcategory=${product.category_slug || product.category_name}`
+                  : `/products?category=${product.category_slug || product.category_name}`} 
                 className="font-bold uppercase tracking-widest text-brand-500 dark:text-brand-500 hover:text-brand-500 dark:hover:text-brand-500 transition-colors"
               >
                 {product.category_name}
@@ -878,23 +904,32 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Specifications */}
-          {product.structured_specs && Object.keys(product.structured_specs).length > 0 && (
-            <div>
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Specifications</h3>
-              <div className="bg-gray-50 dark:bg-[#242526] rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
-                {Object.entries(product.structured_specs).map(([key, value], idx) => (
-                  <div key={key} className={`flex items-center justify-between p-3.5 ${idx !== 0 ? 'border-t border-gray-200 dark:border-neutral-800' : ''}`}>
-                    <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 capitalize">
-                      {key.replace(/_/g, ' ')}
-                    </span>
-                    <span className="text-sm font-bold text-gray-900 dark:text-white text-right max-w-[60%]">
-                      {Array.isArray(value) ? value.join(', ') : String(value)}
-                    </span>
-                  </div>
-                ))}
+          {(() => {
+            const allSpecs = {
+              ...(product.specifications && typeof product.specifications === 'object' ? product.specifications : {}),
+              ...(product.structured_specs && typeof product.structured_specs === 'object' ? product.structured_specs : {})
+            };
+            const specEntries = Object.entries(allSpecs).filter(([k, v]) => v !== null && v !== undefined && String(v).trim() !== '' && !k.startsWith('_'));
+            if (specEntries.length === 0) return null;
+
+            return (
+              <div>
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Specifications</h3>
+                <div className="bg-gray-50 dark:bg-[#242526] rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
+                  {specEntries.map(([key, value], idx) => (
+                    <div key={key} className={`flex items-center justify-between p-3.5 ${idx !== 0 ? 'border-t border-gray-200 dark:border-neutral-800' : ''}`}>
+                      <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 capitalize">
+                        {key.replace(/_/g, ' ')}
+                      </span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white text-right max-w-[60%]">
+                        {Array.isArray(value) ? value.join(', ') : String(value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Description */}
           <div>

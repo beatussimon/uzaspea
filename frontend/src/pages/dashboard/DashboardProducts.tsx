@@ -4,7 +4,7 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
   Package, Plus, Printer, Image as ImageIcon, Camera, DollarSign, 
-  CheckCircle2, Sliders, Trash2, MapPin, ArrowRight, ArrowLeft, Check, Tag
+  CheckCircle2, Sliders, Trash2, ArrowRight, ArrowLeft, Check, Tag
 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
@@ -146,7 +146,7 @@ const DashboardProducts: React.FC = () => {
   const [quickStockValue, setQuickStockValue] = useState<string>('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
-  const INITIAL_FORM = { name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, requires_quote: false, unit_of_measure: 'piece', minimum_order_quantity: '1', brand: '', reference_product: '', structured_specs: {} as Record<string, any> };
+  const INITIAL_FORM = { name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, is_draft: false, requires_quote: false, unit_of_measure: '', minimum_order_quantity: '1', brand: '', reference_product: '', structured_specs: {} as Record<string, any> };
   const [form, setForm] = useState(INITIAL_FORM);
   const [vehicleIds, setVehicleIds] = useState<string[]>([]);
   const [oemPartNumber, setOemPartNumber] = useState<string>('');
@@ -161,6 +161,7 @@ const DashboardProducts: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterCondition, setFilterCondition] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'drafts'>('all');
   
   // Batch Upload Modal
   const [showBatchModal, setShowBatchModal] = useState(false);
@@ -180,6 +181,7 @@ const DashboardProducts: React.FC = () => {
   const [deletedVariantIds, setDeletedVariantIds] = useState<number[]>([]);
   const location = useLocation();
   const [fulfillRequestId, setFulfillRequestId] = useState<number | null>(null);
+  const [hasCustomUnit, setHasCustomUnit] = useState(false);
 
   // Wizard state — must be at component top level (React Rules of Hooks)
   const [wizardStep, setWizardStep] = useState(1);
@@ -208,19 +210,60 @@ const DashboardProducts: React.FC = () => {
     }
   }, [location]);
 
-  // Flatten the nested category tree from the API into a flat list for the <select> dropdown
+  const [selectedRootCatId, setSelectedRootCatId] = useState<number | null>(null);
+
+  // Flatten the nested category tree from the API into a flat list
   const flatCategories = useMemo(() => {
     const result: any[] = [];
-    for (const cat of categories) {
-      result.push({ id: cat.id, name: cat.name, slug: cat.slug, depth: 0 });
-      if (cat.children?.length) {
-        for (const child of cat.children) {
-          result.push({ id: child.id, name: `  › ${child.name}`, slug: child.slug, depth: 1 });
+    const traverse = (catList: any[], depth = 0, parentObj: any = null) => {
+      for (const cat of catList) {
+        result.push({ 
+          id: cat.id, 
+          name: depth > 0 ? `${'  › '.repeat(depth)}${cat.name}` : cat.name, 
+          rawName: cat.name,
+          slug: cat.slug, 
+          depth, 
+          parent: parentObj,
+          hasChildren: Boolean(cat.children && cat.children.length > 0),
+          children: cat.children || []
+        });
+        if (cat.children?.length) {
+          traverse(cat.children, depth + 1, cat);
+        }
+      }
+    };
+    traverse(categories);
+    return result;
+  }, [categories]);
+
+  const activeSelectedCat = useMemo(() => {
+    return flatCategories.find(c => String(c.id) === String(form.category)) || null;
+  }, [flatCategories, form.category]);
+
+  const currentRootCat = useMemo(() => {
+    if (selectedRootCatId) {
+      return categories.find(c => c.id === selectedRootCatId) || null;
+    }
+    if (activeSelectedCat) {
+      if (activeSelectedCat.depth === 0) {
+        return categories.find(c => c.id === activeSelectedCat.id) || null;
+      }
+      for (const root of categories) {
+        if (root.id === activeSelectedCat.id) return root;
+        const checkKids = (kids: any[]): boolean => {
+          for (const k of kids) {
+            if (k.id === activeSelectedCat.id) return true;
+            if (k.children?.length && checkKids(k.children)) return true;
+          }
+          return false;
+        };
+        if (root.children && checkKids(root.children)) {
+          return root;
         }
       }
     }
-    return result;
-  }, [categories]);
+    return null;
+  }, [categories, selectedRootCatId, activeSelectedCat]);
 
   useEffect(() => {
     if (!editingId && form.category) {
@@ -243,11 +286,11 @@ const DashboardProducts: React.FC = () => {
     if (form.category) {
       const selectedCat = flatCategories.find(c => String(c.id) === String(form.category));
       if (selectedCat && selectedCat.slug) {
-        api.get(`/api/categories/${selectedCat.slug}/spec-schema/`)
+        api.get(`/api/categories/${selectedCat.slug}/spec-schema/?for_seller=true`)
           .then(res => setSpecSchema(res.data))
           .catch(() => setSpecSchema([]));
 
-        api.get(`/api/categories/${selectedCat.slug}/brands/`)
+        api.get(`/api/categories/${selectedCat.slug}/brands/?for_seller=true`)
           .then(res => {
             if (Array.isArray(res.data) && res.data.length > 0) {
               setCategoryBrands(res.data);
@@ -299,6 +342,8 @@ const DashboardProducts: React.FC = () => {
     if (searchQuery) params.append('q', searchQuery);
     if (filterCategory) params.append('category', filterCategory);
     if (filterCondition) params.append('condition', filterCondition);
+    if (filterStatus === 'drafts') params.append('is_draft', 'true');
+    else if (filterStatus === 'published') params.append('is_draft', 'false');
     
     api.get(`/api/products/?${params.toString()}`)
       .then((res) => {
@@ -317,14 +362,14 @@ const DashboardProducts: React.FC = () => {
       })
       .catch(() => setHasMore(false))
       .finally(() => { setLoading(false); setLoadingMore(false); });
-  }, [currentUser, searchQuery, filterCategory, filterCondition]);
+  }, [currentUser, searchQuery, filterCategory, filterCondition, filterStatus]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
       fetchProducts(1, true);
     }, 300);
     return () => clearTimeout(handler);
-  }, [searchQuery, filterCategory, filterCondition, fetchProducts]);
+  }, [searchQuery, filterCategory, filterCondition, filterStatus, fetchProducts]);
 
   useEffect(() => {
     fetchProducts(1, true);
@@ -467,8 +512,9 @@ const DashboardProducts: React.FC = () => {
       category: String(product.category),
       condition: product.condition,
       is_available: product.is_available,
+      is_draft: Boolean(product.is_draft),
       requires_quote: product.requires_quote || false,
-      unit_of_measure: product.unit_of_measure || 'piece',
+      unit_of_measure: product.unit_of_measure || '',
       minimum_order_quantity: product.minimum_order_quantity || '1',
       brand: product.brand_details?.slug || '',
       reference_product: product.reference_product_details?.slug || '',
@@ -479,6 +525,7 @@ const DashboardProducts: React.FC = () => {
     setEditingProductId(product.id);
     setVehicleIds(product.vehicle_ids ? product.vehicle_ids.map(String) : []);
     setOemPartNumber(product.oem_part_number || '');
+    setHasCustomUnit(Boolean(product.unit_of_measure && product.unit_of_measure !== 'piece'));
 
     setExistingImages(product.images || []);
     setNewVariants([]);
@@ -598,6 +645,29 @@ const DashboardProducts: React.FC = () => {
       {/* Search and Filters */}
       {!showForm && (
         <div className="flex flex-col md:flex-row gap-3 mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shrink-0">
+            <button
+              type="button"
+              onClick={() => setFilterStatus('all')}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition ${filterStatus === 'all' ? 'bg-white dark:bg-gray-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterStatus('published')}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition ${filterStatus === 'published' ? 'bg-white dark:bg-gray-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}
+            >
+              Published
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterStatus('drafts')}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition ${filterStatus === 'drafts' ? 'bg-white dark:bg-gray-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}
+            >
+              Drafts
+            </button>
+          </div>
           <input
             type="text"
             placeholder="Search by Name or SKU..."
@@ -693,23 +763,24 @@ const DashboardProducts: React.FC = () => {
           { id: 5, title: 'Review & Publish', shortTitle: 'Publish', icon: CheckCircle2, desc: 'Final review & launch' },
         ];
 
-        // XHR submit with real progress
-        const handleSubmitWithProgress = async (e: React.FormEvent) => {
-          e.preventDefault();
-          if (!canSubmit) { toast.error('Please fill in all required fields'); return; }
+        // XHR submit with real progress & draft support
+        const handleSubmitWithProgress = async (e?: React.FormEvent, asDraft: boolean = false) => {
+          if (e) e.preventDefault();
+          if (!asDraft && !canSubmit) { toast.error('Please fill in all required fields to publish'); return; }
           setSubmitting(true);
           setUploadProgress(0);
-          setUploadStatus('Preparing upload...');
+          setUploadStatus(asDraft ? 'Saving draft...' : 'Preparing upload...');
           try {
             const fd = new FormData();
-            fd.append('name', form.name);
+            const productName = form.name.trim() || (asDraft ? 'Untitled Draft' : '');
+            fd.append('name', productName);
             if (form.sku) fd.append('sku', form.sku);
-            fd.append('description', form.description);
-            fd.append('price', form.price);
+            fd.append('description', form.description.trim() || (asDraft ? 'Draft description' : ''));
+            fd.append('price', form.price !== '' ? form.price : (asDraft ? '0.00' : '0'));
             if (form.buying_price) fd.append('buying_price', form.buying_price);
             if (form.sale_price) fd.append('sale_price', form.sale_price);
-            fd.append('stock', form.stock);
-            fd.append('category', form.category);
+            fd.append('stock', form.stock !== '' ? form.stock : (asDraft ? '0' : '0'));
+            if (form.category) fd.append('category', form.category);
             
             // Append Vehicle Fitment data
             if (vehicleIds.length > 0) {
@@ -718,17 +789,18 @@ const DashboardProducts: React.FC = () => {
             if (oemPartNumber) {
               fd.append('oem_part_number', oemPartNumber);
             }
-            fd.append('condition', form.condition);
-            fd.append('is_available', String(form.is_available));
+            fd.append('condition', form.condition || 'New');
+            fd.append('is_available', asDraft ? 'false' : String(form.is_available));
+            fd.append('is_draft', asDraft ? 'true' : 'false');
             fd.append('requires_quote', String(form.requires_quote));
-            fd.append('unit_of_measure', form.unit_of_measure);
-            fd.append('minimum_order_quantity', form.minimum_order_quantity);
+            fd.append('unit_of_measure', hasCustomUnit && form.unit_of_measure.trim() ? form.unit_of_measure.trim() : 'piece');
+            fd.append('minimum_order_quantity', form.minimum_order_quantity || '1');
             if (fulfillRequestId) fd.append('fulfill_request_id', String(fulfillRequestId));
             if (priceTiers.length > 0) fd.append('price_tiers', JSON.stringify(priceTiers));
             
             if (form.brand) fd.append('brand', form.brand);
             if (form.reference_product) fd.append('reference_product', form.reference_product);
-            if (Object.keys(form.structured_specs).length > 0) {
+            if (form.structured_specs && typeof form.structured_specs === 'object' && Object.keys(form.structured_specs).length > 0) {
               fd.append('structured_specs', JSON.stringify(form.structured_specs));
             }
             
@@ -799,7 +871,7 @@ const DashboardProducts: React.FC = () => {
             setUploadProgress(100);
             setUploadStatus('Done!');
             const baseProductId = editingId ? editingProductId : result.id;
-            toast.success(editingId ? 'Product updated!' : 'Product created!');
+            toast.success(asDraft ? (editingId ? 'Draft updated!' : 'Draft saved!') : (editingId ? 'Product updated!' : 'Product published!'));
 
             if (newVariants.length > 0 && baseProductId) {
               for (const nv of newVariants) {
@@ -825,12 +897,26 @@ const DashboardProducts: React.FC = () => {
             }
 
             setShowForm(false); setEditingId(null); setEditingProductId(null); setFulfillRequestId(null); setWizardStep(1);
+            setHasCustomUnit(false);
             setForm(INITIAL_FORM);
             imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
             setImagePreviews([]); setImageFiles([]); setExistingImages([]); setNewVariants([]); setDeletedVariantIds([]); setPriceTiers([]);
             fetchProducts(1, true);
           } catch (error: any) {
-            toast.error(error?.detail || 'Failed to save product');
+            let errorMsg = 'Failed to save product';
+            if (error?.detail) {
+              errorMsg = error.detail;
+            } else if (typeof error === 'object' && error !== null) {
+              const entries = Object.entries(error)
+                .filter(([k]) => k !== 'status' && k !== 'detail')
+                .map(([field, msgs]) => {
+                  const formattedField = field.replace(/_/g, ' ');
+                  const formattedMsgs = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
+                  return `${formattedField}: ${formattedMsgs}`;
+                });
+              if (entries.length > 0) errorMsg = entries.join(' | ');
+            }
+            toast.error(errorMsg);
           } finally {
             setSubmitting(false); setUploadProgress(null); setUploadStatus('');
           }
@@ -857,6 +943,8 @@ const DashboardProducts: React.FC = () => {
 
         const cancelForm = () => {
           setShowForm(false); setEditingId(null); setEditingProductId(null); setWizardStep(1);
+          setSelectedRootCatId(null);
+          setHasCustomUnit(false);
           setForm(INITIAL_FORM);
           imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
           setImagePreviews([]); setImageFiles([]); setExistingImages([]); setNewVariants([]); setDeletedVariantIds([]);
@@ -887,265 +975,254 @@ const DashboardProducts: React.FC = () => {
               </div>
             )}
 
-            {/* ─── STEPPER HEADER ─── */}
-            <div className="bg-neutral-50/80 dark:bg-[#111111] px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                <div className="flex items-center gap-2.5">
-                  <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+            {/* ─── CLEAN SUBTLE STEPPER HEADER ─── */}
+            <div className="border-b border-neutral-200 dark:border-neutral-800 px-6 py-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                     {editingId ? 'Edit Product' : 'New Product Listing'}
                   </h3>
                   {selectedCat && (
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
-                      {selectedCat.name.replace(/^[\s›]+/, '')}
+                    <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                      • {selectedCat.name.replace(/^[\s›]+/, '')}
                     </span>
                   )}
                 </div>
-                {!editingId && locData.latitude && (
-                  <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium flex items-center gap-1">
-                    <MapPin size={12} className="text-brand-500" />
-                    {locData.location_name || 'Location captured'}
-                  </span>
-                )}
-              </div>
 
-              {/* Stepper Steps */}
-              <div className="grid grid-cols-5 gap-1.5">
-                {WIZARD_STEPS.map((s) => {
-                  const isCompleted = wizardStep > s.id;
-                  const isActive = wizardStep === s.id;
-                  const canClick = isCompleted || Boolean(editingId) || (s.id === 1) || (s.id === 2 && canProceedStep1) || (s.id === 3 && canProceedStep1 && canProceedStep2) || (s.id === 4 && canProceedStep1 && canProceedStep2 && canProceedStep3) || (s.id === 5 && canProceedStep1 && canProceedStep2 && canProceedStep3 && canProceedStep4);
-                  
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      disabled={!canClick}
-                      onClick={() => { if (canClick) setWizardStep(s.id); }}
-                      className={`flex items-center gap-2 p-2 rounded-lg text-left transition-all ${
-                        isActive 
-                          ? 'bg-white dark:bg-[#181818] text-neutral-900 dark:text-white border border-neutral-300 dark:border-neutral-700 shadow-sm' 
-                          : isCompleted 
-                            ? 'text-neutral-700 dark:text-neutral-300 hover:bg-white/60 dark:hover:bg-neutral-800 cursor-pointer' 
-                            : 'text-neutral-400 dark:text-neutral-600 opacity-50 cursor-not-allowed'
-                      }`}
-                    >
-                      <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-black shrink-0 ${
-                        isCompleted 
-                          ? 'bg-emerald-500 text-white' 
-                          : isActive 
-                            ? 'bg-brand-500 text-black' 
-                            : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
-                      }`}>
-                        {isCompleted ? '✓' : s.id}
-                      </span>
-                      <span className="text-xs font-bold truncate hidden sm:inline">{s.shortTitle}</span>
-                    </button>
-                  );
-                })}
+                {/* Subtle Step Navigation */}
+                <div className="flex items-center gap-6 overflow-x-auto">
+                  {WIZARD_STEPS.map((s) => {
+                    const isActive = wizardStep === s.id;
+                    const isCompleted = wizardStep > s.id;
+                    const canClick = isCompleted || Boolean(editingId) || (s.id === 1) || (s.id === 2 && canProceedStep1) || (s.id === 3 && canProceedStep1 && canProceedStep2) || (s.id === 4 && canProceedStep1 && canProceedStep2 && canProceedStep3) || (s.id === 5 && canProceedStep1 && canProceedStep2 && canProceedStep3 && canProceedStep4);
+
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={!canClick}
+                        onClick={() => { if (canClick) setWizardStep(s.id); }}
+                        className={`text-xs transition-colors whitespace-nowrap pb-1 border-b-2 ${
+                          isActive 
+                            ? 'text-brand-500 font-semibold border-brand-500' 
+                            : isCompleted 
+                              ? 'text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white border-transparent cursor-pointer' 
+                              : 'text-neutral-400 dark:text-neutral-600 border-transparent cursor-not-allowed'
+                        }`}
+                      >
+                        {s.shortTitle}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            <div className="p-5 sm:p-6">
-              {/* ═══ STEP 1: CATEGORY & IDENTITY ═══ */}
+            <div className="p-6">
+              {/* ═══ STEP 1: PROGRESSIVE CATEGORY & BASIC INFO ═══ */}
               {wizardStep === 1 && (
-                <div className="space-y-5">
-                  {/* Category */}
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                      Category <span className="text-brand-500">*</span>
-                    </label>
-                    <select 
-                      name="category" 
-                      value={form.category} 
-                      onChange={handleChange} 
-                      required
-                      className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors"
-                    >
-                      <option value="">Select Category...</option>
-                      {flatCategories.map((cat: any) => (
-                        <option key={cat.id} value={cat.id} className={cat.depth === 0 ? 'font-bold bg-neutral-100 dark:bg-neutral-900' : ''}>
-                          {cat.name}
+                <div className="space-y-5 max-w-3xl">
+                  {/* Category & Subcategory Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Category */}
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                        Category <span className="text-brand-500">*</span>
+                      </label>
+                      <select
+                        value={currentRootCat?.id || ''}
+                        onChange={(e) => {
+                          const rootId = Number(e.target.value);
+                          setSelectedRootCatId(rootId || null);
+                          const root = categories.find(c => c.id === rootId);
+                          if (!root) {
+                            setForm(prev => ({ ...prev, category: '', brand: '', reference_product: '' }));
+                          } else if (!root.children || root.children.length === 0) {
+                            setForm(prev => ({ ...prev, category: String(root.id), brand: '', reference_product: '' }));
+                          } else {
+                            setForm(prev => ({ ...prev, category: '', brand: '', reference_product: '' }));
+                          }
+                        }}
+                        required
+                        className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                      >
+                        <option value="">Select Category...</option>
+                        {categories.map((root: any) => (
+                          <option key={root.id} value={root.id}>
+                            {root.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Subcategory */}
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                        Subcategory <span className="text-brand-500">*</span>
+                      </label>
+                      <select
+                        value={form.category}
+                        disabled={!currentRootCat || !currentRootCat.children || currentRootCat.children.length === 0}
+                        onChange={(e) => {
+                          setForm(prev => ({ ...prev, category: e.target.value, brand: '', reference_product: '' }));
+                        }}
+                        required
+                        className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">
+                          {!currentRootCat 
+                            ? 'Select Category first...' 
+                            : currentRootCat.children?.length 
+                              ? 'Select Subcategory...' 
+                              : 'No subcategories'}
                         </option>
-                      ))}
-                    </select>
+                        {currentRootCat?.children?.map((sub: any) => (
+                          <option key={sub.id} value={sub.id}>
+                            {sub.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
-                  {/* Brand & Reference Product (Catalog Matcher) */}
+                  {/* Brand & Model Catalog Matcher (Clean 2-column) */}
                   {form.category && categoryBrands.length > 0 && (
-                    <div className="p-4 rounded-lg bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
-                          Brand & Model Catalog Match
-                        </p>
-                        {form.reference_product && (
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                            Specs Auto-Synced
-                          </span>
-                        )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                          Brand
+                        </label>
+                        <select 
+                          value={form.brand} 
+                          onChange={e => {
+                            setForm(prev => ({ ...prev, brand: e.target.value, reference_product: '' }));
+                          }} 
+                          className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                        >
+                          <option value="">Select Brand (Optional)...</option>
+                          {categoryBrands.map(b => <option key={b.slug} value={b.slug}>{b.name}</option>)}
+                        </select>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {form.brand && (
                         <div>
-                          <label className="block text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mb-1">
-                            Brand
+                          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                            Model / Series
                           </label>
                           <select 
-                            value={form.brand} 
+                            value={form.reference_product} 
                             onChange={e => {
-                              setForm(prev => ({ ...prev, brand: e.target.value, reference_product: '' }));
+                              const refSlug = e.target.value;
+                              const ref = referenceProducts.find(r => r.slug === refSlug);
+                              setForm(prev => {
+                                const updatedSpecs = ref && ref.structured_specs ? { ...prev.structured_specs, ...ref.structured_specs } : prev.structured_specs;
+                                const brandObj = categoryBrands.find(b => b.slug === form.brand);
+                                const brandPrefix = brandObj?.name || ref?.brand_name || '';
+                                const autoTitle = ref && (!prev.name.trim() || prev.name === 'Untitled')
+                                  ? `${brandPrefix ? brandPrefix + ' ' : ''}${ref.name}`.trim()
+                                  : (ref && !prev.name ? ref.name : prev.name);
+                                return {
+                                  ...prev,
+                                  reference_product: refSlug,
+                                  name: autoTitle || prev.name,
+                                  structured_specs: updatedSpecs,
+                                };
+                              });
                             }} 
-                            className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                            className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
                           >
-                            <option value="">Select Brand ({categoryBrands.length} available)...</option>
-                            {categoryBrands.map(b => <option key={b.slug} value={b.slug}>{b.name}</option>)}
+                            <option value="">
+                              {referenceProducts.length > 0 
+                                ? 'Select Model (Optional)...' 
+                                : 'Manual model entry'}
+                            </option>
+                            {referenceProducts.map(r => (
+                              <option key={r.slug} value={r.slug}>
+                                {r.name}
+                              </option>
+                            ))}
                           </select>
                         </div>
-
-                        {form.brand && (
-                          <div>
-                            <label className="block text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mb-1">
-                              Model / Variant
-                            </label>
-                            <select 
-                              value={form.reference_product} 
-                              onChange={e => {
-                                const refSlug = e.target.value;
-                                const ref = referenceProducts.find(r => r.slug === refSlug);
-                                setForm(prev => {
-                                  const updatedSpecs = ref && ref.structured_specs ? { ...prev.structured_specs, ...ref.structured_specs } : prev.structured_specs;
-                                  const brandObj = categoryBrands.find(b => b.slug === form.brand);
-                                  const brandPrefix = brandObj?.name || ref?.brand_name || '';
-                                  const autoTitle = ref && (!prev.name.trim() || prev.name === 'Untitled')
-                                    ? `${brandPrefix ? brandPrefix + ' ' : ''}${ref.name}`.trim()
-                                    : (ref && !prev.name ? ref.name : prev.name);
-                                  return {
-                                    ...prev,
-                                    reference_product: refSlug,
-                                    name: autoTitle || prev.name,
-                                    structured_specs: updatedSpecs,
-                                  };
-                                });
-                                if (ref) {
-                                  toast.success(`Matched ${ref.name}`);
-                                }
-                              }} 
-                              className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
-                            >
-                              <option value="">
-                                {referenceProducts.length > 0 
-                                  ? `Select Model (${referenceProducts.length} available)...` 
-                                  : 'No pre-set models for this brand — manual entry'}
-                              </option>
-                              {referenceProducts.map(r => (
-                                <option key={r.slug} value={r.slug}>
-                                  {r.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Selected Reference Product Summary Pills */}
-                      {form.reference_product && (() => {
-                        const matched = referenceProducts.find(r => r.slug === form.reference_product);
-                        if (!matched || !matched.structured_specs) return null;
-                        const specEntries = Object.entries(matched.structured_specs).filter(([, v]) => !!v);
-                        if (specEntries.length === 0) return null;
-                        return (
-                          <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800/80">
-                            <p className="text-[10px] uppercase font-bold tracking-wider text-neutral-400 mb-1.5">Pre-populated Specifications:</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {specEntries.map(([k, v]) => (
-                                <span key={k} className="text-[11px] px-2 py-0.5 rounded bg-neutral-200/70 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 font-medium">
-                                  <span className="text-neutral-500 dark:text-neutral-400 capitalize">{k.replace('_', ' ')}:</span> {String(v)}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
+                      )}
                     </div>
                   )}
 
-                  {/* Title */}
+                  {/* Product Title */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                      <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300">
                         Product Title <span className="text-brand-500">*</span>
                       </label>
-                      <span className="text-[11px] text-neutral-400">{form.name.length}/120</span>
+                      <span className="text-xs text-neutral-400">{form.name.length}/120</span>
                     </div>
                     <input 
                       name="name" 
                       value={form.name} 
                       onChange={handleChange} 
-                      placeholder="e.g. Toyota RAV4 2018 White or iPhone 15 Pro Max 256GB" 
+                      placeholder="e.g. Toyota RAV4 2018 White or MacBook Pro 14 M3 Pro 512GB" 
                       maxLength={120}
                       required 
-                      className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors" 
+                      className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors" 
                     />
                   </div>
 
-                  {/* Condition */}
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                      Condition <span className="text-brand-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {[
-                        { value: 'New', label: 'Brand New' },
-                        { value: 'Used', label: 'Used / Pre-owned' },
-                        { value: 'Refurbished', label: 'Refurbished' },
-                        { value: 'Like_New', label: 'Like New' }
-                      ].map(c => {
-                        const isSelected = form.condition === c.value || (c.value === 'Used' && form.condition.toLowerCase().includes('used') && form.condition !== 'Like_New');
-                        return (
-                          <button
-                            key={c.value}
-                            type="button"
-                            onClick={() => setForm(prev => ({ ...prev, condition: c.value }))}
-                            className={`py-2 px-3 text-xs font-bold rounded-lg border transition-all text-center ${
-                              isSelected
-                                ? 'bg-neutral-900 text-white dark:bg-white dark:text-black border-neutral-900 dark:border-white shadow-sm'
-                                : 'bg-white dark:bg-[#111] text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-700'
-                            }`}
-                          >
-                            {c.label}
-                          </button>
-                        );
-                      })}
+                  {/* Condition & SKU Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                        Condition <span className="text-brand-500">*</span>
+                      </label>
+                      <select
+                        name="condition"
+                        value={form.condition}
+                        onChange={handleChange}
+                        className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
+                      >
+                        <option value="New">Brand New</option>
+                        <option value="Like_New">Like New</option>
+                        <option value="Refurbished">Refurbished</option>
+                        <option value="Used">Used / Pre-owned</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                        SKU (Optional)
+                      </label>
+                      <input 
+                        name="sku" 
+                        value={form.sku} 
+                        onChange={handleChange} 
+                        placeholder="e.g. PRD-001" 
+                        className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors" 
+                      />
                     </div>
                   </div>
 
-                  {/* SKU */}
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
-                      SKU (Optional)
-                    </label>
-                    <input 
-                      name="sku" 
-                      value={form.sku} 
-                      onChange={handleChange} 
-                      placeholder="e.g. PRD-001" 
-                      className="w-full sm:w-1/2 px-3.5 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
-                    />
-                  </div>
-
                   {/* Step 1 Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                    <button 
-                      type="button" 
-                      onClick={cancelForm} 
-                      className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition"
-                    >
-                      Cancel
-                    </button>
+                  <div className="flex items-center justify-between pt-5 border-t border-neutral-200 dark:border-neutral-800">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        type="button" 
+                        onClick={cancelForm} 
+                        className="px-4 py-2 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="button" 
+                        disabled={submitting} 
+                        onClick={(e) => handleSubmitWithProgress(e, true)}
+                        className="px-3.5 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition"
+                      >
+                        Save as Draft
+                      </button>
+                    </div>
                     <button 
                       type="button" 
                       disabled={!canProceedStep1} 
                       onClick={() => setWizardStep(2)}
-                      className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
+                      className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs transition flex items-center gap-1.5"
                     >
                       Next: Photos <ArrowRight size={14} />
                     </button>
@@ -1236,13 +1313,23 @@ const DashboardProducts: React.FC = () => {
 
                   {/* Step 2 Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                    <button 
-                      type="button" 
-                      onClick={() => setWizardStep(1)} 
-                      className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
-                    >
-                      <ArrowLeft size={14} /> Back
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        type="button" 
+                        onClick={() => setWizardStep(1)} 
+                        className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
+                      >
+                        <ArrowLeft size={14} /> Back
+                      </button>
+                      <button 
+                        type="button" 
+                        disabled={submitting} 
+                        onClick={(e) => handleSubmitWithProgress(e, true)}
+                        className="px-3.5 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition"
+                      >
+                        Save as Draft
+                      </button>
+                    </div>
                     <button 
                       type="button" 
                       disabled={!canProceedStep2} 
@@ -1269,9 +1356,12 @@ const DashboardProducts: React.FC = () => {
                           <label className="block text-[11px] font-semibold text-neutral-500 mb-1">
                             Compatible Vehicle
                           </label>
-                          <VehicleSelector onVehicleSelect={(v) => {
-                            if (v && !vehicleIds.includes(v)) setVehicleIds([...vehicleIds, v]);
-                          }} />
+                          <VehicleSelector 
+                            mode="manage"
+                            onVehicleSelect={(v) => {
+                              if (v && !vehicleIds.includes(v)) setVehicleIds([...vehicleIds, v]);
+                            }} 
+                          />
                           {vehicleIds.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
                               {vehicleIds.map(vid => (
@@ -1375,13 +1465,23 @@ const DashboardProducts: React.FC = () => {
 
                   {/* Step 3 Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                    <button 
-                      type="button" 
-                      onClick={() => setWizardStep(2)} 
-                      className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
-                    >
-                      <ArrowLeft size={14} /> Back
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        type="button" 
+                        onClick={() => setWizardStep(2)} 
+                        className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
+                      >
+                        <ArrowLeft size={14} /> Back
+                      </button>
+                      <button 
+                        type="button" 
+                        disabled={submitting} 
+                        onClick={(e) => handleSubmitWithProgress(e, true)}
+                        className="px-3.5 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition"
+                      >
+                        Save as Draft
+                      </button>
+                    </div>
                     <button 
                       type="button" 
                       disabled={!canProceedStep3} 
@@ -1446,8 +1546,8 @@ const DashboardProducts: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Stock, Unit, MOQ */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Stock Quantity & MOQ */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
                         Stock Quantity <span className="text-brand-500">*</span>
@@ -1466,38 +1566,6 @@ const DashboardProducts: React.FC = () => {
 
                     <div>
                       <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                        Unit of Measure
-                      </label>
-                      <select 
-                        value={['piece','kg','ton','liter','box','dozen','pair','meter'].includes(form.unit_of_measure) ? form.unit_of_measure : 'custom'}
-                        onChange={(e) => setForm({...form, unit_of_measure: e.target.value === 'custom' ? '' : e.target.value})}
-                        className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
-                      >
-                        <option value="piece">Piece(s)</option>
-                        <option value="kg">Kilogram (kg)</option>
-                        <option value="ton">Metric Ton</option>
-                        <option value="liter">Liter(s)</option>
-                        <option value="box">Box / Carton</option>
-                        <option value="dozen">Dozen</option>
-                        <option value="pair">Pair(s)</option>
-                        <option value="meter">Meter(s)</option>
-                        <option value="custom">Custom...</option>
-                      </select>
-                      {!['piece','kg','ton','liter','box','dozen','pair','meter'].includes(form.unit_of_measure) && (
-                        <input 
-                          type="text" 
-                          name="unit_of_measure" 
-                          value={form.unit_of_measure} 
-                          onChange={handleChange} 
-                          placeholder="e.g. Gallon, Pack" 
-                          required 
-                          className="w-full mt-2 px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none" 
-                        />
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
                         Min Order Qty (MOQ)
                       </label>
                       <input 
@@ -1511,6 +1579,59 @@ const DashboardProducts: React.FC = () => {
                         className="w-full px-3.5 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500" 
                       />
                     </div>
+                  </div>
+
+                  {/* Optional Unit of Measure Checkbox & Expanding Section */}
+                  <div className="pt-1">
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-neutral-700 dark:text-neutral-300 select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={hasCustomUnit} 
+                        onChange={(e) => {
+                          setHasCustomUnit(e.target.checked);
+                          if (!e.target.checked) {
+                            setForm(prev => ({ ...prev, unit_of_measure: '' }));
+                          }
+                        }} 
+                        className="w-4 h-4 rounded text-brand-500 focus:ring-brand-500 border-neutral-300 dark:border-neutral-700" 
+                      />
+                      <span>Specify custom unit of measure (e.g. kg, liter, carton, pair)</span>
+                    </label>
+
+                    {hasCustomUnit && (
+                      <div className="mt-3 p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-2">
+                        <label className="block text-[11px] font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider">
+                          Select or Enter Unit
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <select 
+                            value={['piece','kg','ton','liter','box','dozen','pair','meter'].includes(form.unit_of_measure) ? form.unit_of_measure : (form.unit_of_measure ? 'custom' : 'piece')}
+                            onChange={(e) => setForm({...form, unit_of_measure: e.target.value === 'custom' ? 'custom' : e.target.value})}
+                            className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                          >
+                            <option value="piece">Piece(s)</option>
+                            <option value="kg">Kilogram (kg)</option>
+                            <option value="ton">Metric Ton</option>
+                            <option value="liter">Liter(s)</option>
+                            <option value="box">Box / Carton</option>
+                            <option value="dozen">Dozen</option>
+                            <option value="pair">Pair(s)</option>
+                            <option value="meter">Meter(s)</option>
+                            <option value="custom">Custom unit...</option>
+                          </select>
+                          {(!['piece','kg','ton','liter','box','dozen','pair','meter'].includes(form.unit_of_measure) || form.unit_of_measure === 'custom') && (
+                            <input 
+                              type="text" 
+                              name="unit_of_measure" 
+                              value={form.unit_of_measure === 'custom' ? '' : form.unit_of_measure} 
+                              onChange={(e) => setForm({...form, unit_of_measure: e.target.value})} 
+                              placeholder="e.g. Gallon, Pack, Bundle" 
+                              className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none" 
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Volume Tiers */}
@@ -1702,13 +1823,23 @@ const DashboardProducts: React.FC = () => {
 
                   {/* Step 4 Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                    <button 
-                      type="button" 
-                      onClick={() => setWizardStep(3)} 
-                      className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
-                    >
-                      <ArrowLeft size={14} /> Back
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        type="button" 
+                        onClick={() => setWizardStep(3)} 
+                        className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
+                      >
+                        <ArrowLeft size={14} /> Back
+                      </button>
+                      <button 
+                        type="button" 
+                        disabled={submitting} 
+                        onClick={(e) => handleSubmitWithProgress(e, true)}
+                        className="px-3.5 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition"
+                      >
+                        Save as Draft
+                      </button>
+                    </div>
                     <button 
                       type="button" 
                       disabled={!canProceedStep4} 
@@ -1751,7 +1882,7 @@ const DashboardProducts: React.FC = () => {
                             {form.requires_quote ? 'Price on Request' : `TZS ${parseInt(form.sale_price || form.price || '0').toLocaleString()}`}
                           </p>
                           <p className="text-[11px] text-neutral-500">
-                            {form.stock} {form.unit_of_measure}s in stock • {form.condition}
+                            {form.stock} {form.unit_of_measure ? `${form.unit_of_measure}s ` : ''}in stock • {form.condition}
                           </p>
                         </div>
                       </div>
@@ -1795,19 +1926,29 @@ const DashboardProducts: React.FC = () => {
 
                   {/* Step 5 Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
-                    <button 
-                      type="button" 
-                      onClick={() => setWizardStep(4)} 
-                      className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
-                    >
-                      <ArrowLeft size={14} /> Back
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        type="button" 
+                        onClick={() => setWizardStep(4)} 
+                        className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs transition flex items-center gap-1"
+                      >
+                        <ArrowLeft size={14} /> Back
+                      </button>
+                      <button 
+                        type="button" 
+                        disabled={submitting} 
+                        onClick={(e) => handleSubmitWithProgress(e, true)}
+                        className="px-3.5 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition"
+                      >
+                        Save as Draft
+                      </button>
+                    </div>
                     <button 
                       type="submit" 
                       disabled={submitting || !canSubmit}
                       className="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-extrabold rounded-lg text-sm transition shadow-sm"
                     >
-                      {submitting ? 'Saving...' : editingId ? 'Update Product' : 'Publish Product'}
+                      {submitting ? 'Saving...' : editingId ? (form.is_draft ? 'Publish Listing' : 'Update Product') : 'Publish Product'}
                     </button>
                   </div>
                 </div>
@@ -1838,13 +1979,19 @@ const DashboardProducts: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h4 className="font-medium text-gray-900 dark:text-white truncate">{product.name}</h4>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    product.stock === 0 ? ' text-red-500' : 
-                    product.stock <= 3 ? ' text-yellow-500' : 
-                    ' text-green-500'
-                  }`}>
-                    {product.stock === 0 ? 'Out of Stock' : product.stock <= 3 ? 'Low Stock' : 'In Stock'}
-                  </span>
+                  {product.is_draft ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
+                      Draft
+                    </span>
+                  ) : (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      product.stock === 0 ? ' text-red-500' : 
+                      product.stock <= 3 ? ' text-yellow-500' : 
+                      ' text-green-500'
+                    }`}>
+                      {product.stock === 0 ? 'Out of Stock' : product.stock <= 3 ? 'Low Stock' : 'In Stock'}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-brand-500 dark:text-brand-500 font-bold mb-1 flex items-center gap-2">
                   <span>TSh {parseInt(product.price).toLocaleString()}</span>

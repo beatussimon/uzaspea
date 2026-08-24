@@ -37,6 +37,8 @@ const ProductList = () => {
   const maxPrice = searchParams.get('max_price') || '';
   const condition = searchParams.get('condition') || '';
   const sortBy = searchParams.get('sort_by') || '';
+  const vehicleId = searchParams.get('vehicle_id') || '';
+  const oemPartNumber = searchParams.get('oem_part_number') || '';
   const saved = searchParams.get('saved') === 'true';
   const savedTime = searchParams.get('saved_time') || '';
   const sellerFilter = searchParams.get('seller') || '';
@@ -60,6 +62,8 @@ const ProductList = () => {
     if (maxPrice) params.max_price = maxPrice;
     if (condition) params.condition = condition;
     if (sortBy) params.sort_by = sortBy;
+    if (vehicleId) params.vehicle_id = vehicleId;
+    if (oemPartNumber) params.oem_part_number = oemPartNumber;
     if (urlQuery) params.q = urlQuery;
     if (saved) params.saved = 'true';
     if (savedTime) params.saved_time = savedTime;
@@ -340,7 +344,11 @@ const ProductList = () => {
       .filter((c: any) => c.total_products > 0)
       .sort((a, b) => b.total_products - a.total_products);
   }, [categories]);
-  const activeParent = useMemo(() => topCategories.find((c: any) => c.slug === selectedCategory), [topCategories, selectedCategory]);
+  const activeParent = useMemo(() => {
+    if (!selectedCategory && !selectedSubcategory) return null;
+    return topCategories.find((c: any) => c.slug === selectedCategory) || 
+      topCategories.find((c: any) => c.children?.some((child: any) => child.slug === (selectedSubcategory || selectedCategory)));
+  }, [topCategories, selectedCategory, selectedSubcategory]);
   const subcategories = useMemo(() => activeParent?.children || [], [activeParent]);
 
 
@@ -363,10 +371,21 @@ const ProductList = () => {
     });
   }
   if (condition) {
+    const condLower = condition.toLowerCase();
+    const conditionLabel = 
+      condLower === 'new'
+        ? 'New'
+        : condLower.includes('good')
+        ? 'Used - Good'
+        : condLower.includes('fair')
+        ? 'Used - Fair'
+        : condLower.startsWith('used')
+        ? 'Used'
+        : condition;
     activePills.push({
       id: 'condition',
       label: 'Condition',
-      value: condition,
+      value: conditionLabel,
       onRemove: () => { updateFilters({ condition: '' }); },
     });
   }
@@ -398,12 +417,30 @@ const ProductList = () => {
     });
   }
   if (selectedSubcategory) {
-    const subName = subcategories.find((c: any) => c.slug === selectedSubcategory)?.name || selectedSubcategory;
+    const subName = (categories.find((c: any) => c.slug === selectedSubcategory)?.name) || 
+      (subcategories.find((c: any) => c.slug === selectedSubcategory)?.name) || 
+      selectedSubcategory;
     activePills.push({
       id: 'subcategory',
       label: 'Subcategory',
       value: subName,
       onRemove: () => updateFilters({ subcategory: '' }),
+    });
+  }
+  if (vehicleId) {
+    activePills.push({
+      id: 'vehicleId',
+      label: 'Vehicle',
+      value: vehicleId,
+      onRemove: () => updateFilters({ vehicle_id: '' }),
+    });
+  }
+  if (oemPartNumber) {
+    activePills.push({
+      id: 'oemPartNumber',
+      label: 'OEM Part',
+      value: oemPartNumber,
+      onRemove: () => updateFilters({ oem_part_number: '' }),
     });
   }
   if (saved) {
@@ -432,6 +469,36 @@ const ProductList = () => {
       onRemove: () => { updateFilters({ seller: '' }); },
     });
   }
+
+  const brand = searchParams.get('brand') || '';
+  if (brand) {
+    activePills.push({
+      id: 'brand',
+      label: 'Brand',
+      value: brand.charAt(0).toUpperCase() + brand.slice(1),
+      onRemove: () => updateFilters({ brand: '' }),
+    });
+  }
+
+  const reservedKeys = new Set([
+    'category', 'subcategory', 'q', 'min_price', 'max_price', 'condition', 'sort_by', 
+    'seller', 'lat', 'lng', 'radius', 'brand', 'reference_product', 
+    'mine', 'following', 'saved', 'saved_time', 'view', 'page', 'page_size',
+    'limit', 'offset', 'cursor', 'ordering', 'format', 'search', 'vehicle_id',
+    'make_id', 'model_id', 'year', 'oem_part_number', 'highlight', 't', '_', 'expand'
+  ]);
+
+  searchParams.forEach((value, key) => {
+    if (!reservedKeys.has(key) && value && !key.startsWith('_')) {
+      const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      activePills.push({
+        id: `spec_${key}`,
+        label,
+        value,
+        onRemove: () => updateFilters({ [key]: '' }),
+      });
+    }
+  });
 
   // Interleave sponsored items natively inside CSS grid
   const buildGridEntries = (regular: any[], promoted: any[]): GridEntry[] => {
@@ -536,63 +603,72 @@ const ProductList = () => {
           </div>
         )}
 
-        {/* Active Filter Pills */}
-        {activePills.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pb-2 mb-2 animate-fade-in px-4 md:px-0">
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">
-              Active Filters:
-            </span>
-            {activePills.map((pill) => {
-              let pillClasses = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold animate-in zoom-in-95 duration-200 border ";
-              if (pill.id === 'category') {
-                pillClasses += "bg-transparent border-brand-500 text-gray-800 dark:text-gray-200";
-              } else {
-                pillClasses += "bg-gray-100 dark:bg-neutral-800 border-transparent text-gray-800 dark:text-gray-200";
-              }
+        {/* Unified Search Query & Active Filters Row */}
+        {(urlQuery || activePills.length > 0) && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-0 py-2 border-b border-gray-200/60 dark:border-neutral-800/60 pb-3">
+            {/* Left: Search Header & Filter Pills Inline */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {urlQuery ? (
+                <div className="flex items-center gap-2 mr-1">
+                  <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Search:</span>
+                  <h1 className="text-base sm:text-lg font-black text-gray-900 dark:text-white tracking-tight">
+                    Results for <span className="text-brand-600 dark:text-brand-400">"{urlQuery}"</span>
+                  </h1>
+                </div>
+              ) : (
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">
+                  Active Filters:
+                </span>
+              )}
 
-              return (
-              <div
-                key={pill.id}
-                className={pillClasses}
-              >
-                <span className="opacity-60 font-medium">{pill.label}:</span>
-                <span>{pill.value}</span>
-                <button
-                  onClick={pill.onRemove}
-                  className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
-                  aria-label={`Remove ${pill.label} filter`}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-              );
-            })}
-            {activePills.length > 1 && (
+              {/* Filter Pills */}
+              {activePills.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {urlQuery && <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline">|</span>}
+                  {activePills.map((pill) => {
+                    let pillClasses = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold animate-in zoom-in-95 duration-200 border ";
+                    if (pill.id === 'category') {
+                      pillClasses += "bg-transparent border-brand-500 text-gray-800 dark:text-gray-200";
+                    } else {
+                      pillClasses += "bg-gray-100 dark:bg-neutral-800 border-transparent text-gray-800 dark:text-gray-200";
+                    }
+
+                    return (
+                      <div key={pill.id} className={pillClasses}>
+                        <span className="opacity-60 font-medium">{pill.label}:</span>
+                        <span>{pill.value}</span>
+                        <button
+                          onClick={pill.onRemove}
+                          className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
+                          aria-label={`Remove ${pill.label} filter`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Clear Button */}
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved: '', saved_time: '', seller: '' });
+                  setSearchParams(prev => {
+                    const newParams = new URLSearchParams();
+                    const view = prev.get('view');
+                    if (view) newParams.set('view', view);
+                    return newParams;
+                  });
                 }}
-                className="text-xs font-bold text-gray-400 hover:text-brand-500 transition-colors ml-1 uppercase tracking-tighter"
+                className="text-xs font-bold text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-950/30 uppercase tracking-tight"
+                title={urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}
               >
-                Clear All
+                <X size={13} />
+                <span>{urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}</span>
               </button>
-            )}
-          </div>
-        )}
-
-        {/* Subcategory slider */}
-        {subcategories.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 px-4 md:px-0">
-            <button onClick={() => updateFilters({ subcategory: '', saved: '' })}
-              className={`pill text-xs py-1 shrink-0 ${!selectedSubcategory ? 'pill-active' : 'pill-inactive'}`}>
-              All {activeParent?.name} <span className="opacity-60 ml-1">{activeParent?.product_count}</span>
-            </button>
-            {subcategories.map((s: any) => (
-              <button key={s.id} onClick={() => updateFilters({ subcategory: s.slug, saved: '' })}
-                className={`pill text-xs py-1 shrink-0 ${selectedSubcategory === s.slug ? 'pill-active' : 'pill-inactive'}`}>
-                {s.name} <span className="opacity-60 ml-1">{s.product_count}</span>
-              </button>
-            ))}
+            </div>
           </div>
         )}
       </div>
@@ -622,7 +698,7 @@ const ProductList = () => {
               <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
                 <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
-                <button onClick={() => { updateFilters({ min_price: '', max_price: '', condition: '', sort_by: '', category: '', subcategory: '', saved_time: '', seller: '' }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
+                <button onClick={() => { setSearchParams(prev => { const newParams = new URLSearchParams(); const view = prev.get('view'); if (view) newParams.set('view', view); return newParams; }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
               </div>
             ) : (
               gridEntries.map((entry, idx) => {
