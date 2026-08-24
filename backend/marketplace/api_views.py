@@ -189,7 +189,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             return base
 
         user = self.request.user
-        category_slug = self.request.query_params.get('category', None)
+        category_slug = self.request.query_params.get('subcategory') or self.request.query_params.get('category', None)
         query = self.request.query_params.get('q', None)
         min_price = self.request.query_params.get('min_price', None)
         max_price = self.request.query_params.get('max_price', None)
@@ -205,17 +205,22 @@ class ProductViewSet(viewsets.ModelViewSet):
             from uzachuo.permissions import get_effective_sellers
             sellers = get_effective_sellers(user, required_permission='manage_products')
             queryset = base.filter(seller_id__in=sellers)
+            is_draft_param = self.request.query_params.get('is_draft')
+            if is_draft_param == 'true':
+                queryset = queryset.filter(is_draft=True)
+            elif is_draft_param == 'false':
+                queryset = queryset.filter(is_draft=False)
         elif self.request.query_params.get('following') and user.is_authenticated:
             from .models import Follow
             followed = Follow.objects.filter(follower=user).values_list('following__user_id', flat=True)
-            queryset = base.filter(seller_id__in=followed, is_available=True, stock__gt=0)
+            queryset = base.filter(seller_id__in=followed, is_available=True, stock__gt=0, is_draft=False)
         elif user.is_authenticated and user.is_staff:
             queryset = base.all()
         elif seller_param:
-            queryset = base.filter(seller__username=seller_param, is_available=True, stock__gt=0)
+            queryset = base.filter(seller__username=seller_param, is_available=True, stock__gt=0, is_draft=False)
         else:
-            # Public list only shows available and in-stock products for general browsing
-            queryset = base.filter(is_available=True, stock__gt=0)
+            # Public list only shows available and in-stock published products for general browsing
+            queryset = base.filter(is_available=True, stock__gt=0, is_draft=False)
             
         if self.request.query_params.get('saved') == 'true':
             if user.is_authenticated:
@@ -244,7 +249,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         brand_slug = self.request.query_params.get('brand', None)
         if brand_slug:
-            queryset = queryset.filter(brand__slug=brand_slug)
+            queryset = queryset.filter(Q(brand__slug=brand_slug) | Q(brand__name__iexact=brand_slug))
             
         ref_slug = self.request.query_params.get('reference_product', None)
         if ref_slug:
@@ -252,34 +257,40 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         # Dynamic Spec Filtering
         reserved_params = {
-            'category', 'q', 'min_price', 'max_price', 'condition', 'sort_by', 
+            'category', 'subcategory', 'q', 'min_price', 'max_price', 'condition', 'sort_by', 
             'seller', 'lat', 'lng', 'radius', 'brand', 'reference_product', 
             'mine', 'following', 'saved', 'saved_time', 'view', 'page', 'page_size',
             'limit', 'offset', 'cursor', 'ordering', 'format', 'search', 'vehicle_id',
-            'oem_part_number', 'highlight', 't', '_', 'expand'
+            'make_id', 'model_id', 'year', 'oem_part_number', 'highlight', 't', '_', 'expand'
         }
         for key, value in self.request.query_params.items():
             if key not in reserved_params and value and not key.startswith('_'):
-                queryset = queryset.filter(structured_specs__contains={key: value})
+                queryset = queryset.filter(
+                    Q(**{f"structured_specs__{key}__iexact": value}) | 
+                    Q(**{f"specifications__{key}__iexact": value}) |
+                    Q(**{f"structured_specs__{key}": value}) | 
+                    Q(**{f"specifications__{key}": value})
+                )
 
         if query:
             from django.db import connection
             if connection.vendor == 'postgresql':
                 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
-                search_vector = SearchVector('name', weight='A') + SearchVector('description', weight='B') + SearchVector('category__name', weight='C')
+                search_vector = SearchVector('name', weight='A') + SearchVector('sku', weight='A') + SearchVector('description', weight='B') + SearchVector('category__name', weight='C') + SearchVector('brand__name', weight='C')
                 search_query = SearchQuery(query, search_type='websearch')
                 queryset = queryset.annotate(
                     search_rank=SearchRank(search_vector, search_query)
                 ).filter(
                     Q(search_rank__gte=0.01) |
-                    Q(name__icontains=query) | Q(description__icontains=query) | Q(sku__icontains=query)
+                    Q(name__icontains=query) | Q(description__icontains=query) | Q(sku__icontains=query) | Q(brand__name__icontains=query)
                 ).order_by('-search_rank')
             else:
                 queryset = queryset.filter(
                     Q(name__icontains=query) | 
                     Q(description__icontains=query) |
                     Q(category__name__icontains=query) |
-                    Q(sku__icontains=query)
+                    Q(sku__icontains=query) |
+                    Q(brand__name__icontains=query)
                 )
         if min_price:
             try:
@@ -292,12 +303,29 @@ class ProductViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
         if condition:
-            queryset = queryset.filter(condition=condition)
+            cond_lower = condition.strip().lower()
+            if cond_lower.startswith('new'):
+                queryset = queryset.filter(condition__iexact='New')
+            elif cond_lower.startswith('used'):
+                queryset = queryset.filter(condition__iexact='Used')
+            else:
+                queryset = queryset.filter(Q(condition__iexact=condition) | Q(condition__icontains=condition))
 
         # Vehicle Fitment & Specifications Filter
         vehicle_id = self.request.query_params.get('vehicle_id')
+        make_id = self.request.query_params.get('make_id')
+        model_id = self.request.query_params.get('model_id')
+        year = self.request.query_params.get('year')
+
         if vehicle_id:
             queryset = queryset.filter(fitments__vehicle_id=vehicle_id).distinct()
+        elif model_id:
+            if year:
+                queryset = queryset.filter(fitments__vehicle__model_id=model_id, fitments__vehicle__year=year).distinct()
+            else:
+                queryset = queryset.filter(fitments__vehicle__model_id=model_id).distinct()
+        elif make_id:
+            queryset = queryset.filter(fitments__vehicle__make_id=make_id).distinct()
             
         oem_part_number = self.request.query_params.get('oem_part_number')
         if oem_part_number:
@@ -810,12 +838,14 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
             total=Count('id')
         ).values('total')
 
+        active_product_filter = Q(products__is_available=True, products__stock__gt=0)
+
         children_qs = Category.objects.annotate(
-            annotated_product_count=Count('products', distinct=True)
+            annotated_product_count=Count('products', filter=active_product_filter, distinct=True)
         )
         
         return Category.objects.filter(parent__isnull=True).annotate(
-            annotated_product_count=Count('products', distinct=True),
+            annotated_product_count=Count('products', filter=active_product_filter, distinct=True),
             total_sales=Coalesce(Subquery(sales_sq, output_field=DecimalField()), Decimal('0.0')),
             total_saves=Coalesce(Subquery(saves_sq, output_field=IntegerField()), 0)
         ).prefetch_related(
@@ -837,8 +867,10 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'], url_path=r'(?P<slug>[^/.]+)/spec-schema')
     def spec_schema(self, request, slug=None):
         from django.shortcuts import get_object_or_404
-        from marketplace.models import Category
+        from marketplace.models import Category, Product
         category = get_object_or_404(Category, slug=slug)
+        
+        for_seller = request.query_params.get('for_seller') == 'true' or request.query_params.get('all') == 'true'
         schema = []
         ancestors = category.get_ancestors(include_self=True)
         for anc in ancestors:
@@ -855,8 +887,61 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
         
         merged = {}
         for item in schema:
-            merged[item['key']] = item
-        return Response(list(merged.values()))
+            merged[item['key']] = dict(item)
+
+        if for_seller:
+            return Response(list(merged.values()))
+
+        # For buyer filtering: Only include specs and options that exist in active products
+        descendants = category.get_descendants(include_self=True)
+        active_products = Product.objects.filter(
+            category__in=descendants,
+            is_available=True,
+            stock__gt=0
+        )
+
+        active_spec_values = {}
+        for prod in active_products:
+            if prod.structured_specs and isinstance(prod.structured_specs, dict):
+                for k, v in prod.structured_specs.items():
+                    if v is not None and str(v).strip():
+                        active_spec_values.setdefault(k, set()).add(str(v).strip())
+            if prod.specifications and isinstance(prod.specifications, dict):
+                for k, v in prod.specifications.items():
+                    if v is not None and str(v).strip():
+                        active_spec_values.setdefault(k, set()).add(str(v).strip())
+
+        filtered_schema = []
+        for key, spec_item in merged.items():
+            existing_vals = active_spec_values.get(key, set())
+            if not existing_vals:
+                continue
+
+            if 'options' in spec_item and isinstance(spec_item['options'], list):
+                valid_options = [opt for opt in spec_item['options'] if str(opt).strip() in existing_vals]
+                for v in existing_vals:
+                    if v not in valid_options:
+                        valid_options.append(v)
+                spec_item['options'] = valid_options
+            else:
+                spec_item['type'] = 'select'
+                spec_item['options'] = sorted(list(existing_vals))
+            
+            filtered_schema.append(spec_item)
+
+        # Include custom specs from active products
+        for key, vals in active_spec_values.items():
+            if key not in merged and vals and not key.startswith('_'):
+                label = key.replace('_', ' ').title()
+                filtered_schema.append({
+                    'key': key,
+                    'label': label,
+                    'type': 'select',
+                    'options': sorted(list(vals)),
+                    'filterable': True
+                })
+
+        return Response(filtered_schema)
 
     @action(detail=False, methods=['get'], url_path=r'(?P<slug>[^/.]+)/brands')
     def brands(self, request, slug=None):
@@ -865,12 +950,23 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
         from marketplace.serializers import BrandSerializer
         category = get_object_or_404(Category, slug=slug)
         descendants = category.get_descendants(include_self=True)
-        brands = Brand.objects.filter(reference_products__category__in=descendants, is_active=True).distinct()
-        if not brands.exists():
-            ancestors = category.get_ancestors(include_self=False)
-            brands = Brand.objects.filter(reference_products__category__in=ancestors, is_active=True).distinct()
-        if not brands.exists():
-            brands = Brand.objects.filter(is_active=True)
+
+        for_seller = request.query_params.get('for_seller') == 'true' or request.query_params.get('all') == 'true'
+        if not for_seller:
+            brands = Brand.objects.filter(
+                products__category__in=descendants,
+                products__is_available=True,
+                products__stock__gt=0,
+                is_active=True
+            ).distinct().order_by('name')
+        else:
+            brands = Brand.objects.filter(reference_products__category__in=descendants, is_active=True).distinct().order_by('name')
+            if not brands.exists():
+                ancestors = category.get_ancestors(include_self=False)
+                brands = Brand.objects.filter(reference_products__category__in=ancestors, is_active=True).distinct().order_by('name')
+            if not brands.exists():
+                brands = Brand.objects.filter(is_active=True).order_by('name')
+
         return Response(BrandSerializer(brands, many=True).data)
 
     @action(detail=False, methods=['get'], url_path=r'(?P<slug>[^/.]+)/filters')
@@ -2043,7 +2139,7 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
         user = self.request.user
         from django.utils import timezone as tz
         is_public = self.request.query_params.get('public', 'false').lower() == 'true'
-        category_slug = self.request.query_params.get('category', None)
+        category_slug = self.request.query_params.get('subcategory') or self.request.query_params.get('category', None)
         query = self.request.query_params.get('q', None)
 
         if is_public:
@@ -3089,23 +3185,65 @@ class SellerAnalyticsView(APIView):
 
 
 class VehicleMakeViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = VehicleMake.objects.all()
     serializer_class = VehicleMakeSerializer
     permission_classes = [permissions.AllowAny]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = VehicleMake.objects.all()
+        for_seller = self.request.query_params.get('for_seller') == 'true' or self.request.query_params.get('all') == 'true'
+        has_products = self.request.query_params.get('has_products')
+        category_slug = self.request.query_params.get('subcategory') or self.request.query_params.get('category')
+        if not for_seller and (has_products == 'true' or has_products is None):
+            fitment_filter = Q(
+                vehicles__fitments__product__is_available=True,
+                vehicles__fitments__product__stock__gt=0
+            )
+            if category_slug:
+                from marketplace.models import Category
+                try:
+                    cat = Category.objects.get(slug=category_slug)
+                    descendants = cat.get_descendants(include_self=True)
+                    fitment_filter &= Q(vehicles__fitments__product__category__in=descendants)
+                except Category.DoesNotExist:
+                    fitment_filter &= Q(vehicles__fitments__product__category__slug=category_slug)
+            qs = qs.filter(fitment_filter).distinct()
+        return qs.order_by('name')
 
 class VehicleModelViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = VehicleModelSerializer
     permission_classes = [permissions.AllowAny]
+    pagination_class = None
+
     def get_queryset(self):
         qs = VehicleModel.objects.select_related('make').all()
         make_id = self.request.query_params.get('make_id')
         if make_id:
             qs = qs.filter(make_id=make_id)
-        return qs
+        for_seller = self.request.query_params.get('for_seller') == 'true' or self.request.query_params.get('all') == 'true'
+        has_products = self.request.query_params.get('has_products')
+        category_slug = self.request.query_params.get('subcategory') or self.request.query_params.get('category')
+        if not for_seller and (has_products == 'true' or has_products is None):
+            fitment_filter = Q(
+                vehicles__fitments__product__is_available=True,
+                vehicles__fitments__product__stock__gt=0
+            )
+            if category_slug:
+                from marketplace.models import Category
+                try:
+                    cat = Category.objects.get(slug=category_slug)
+                    descendants = cat.get_descendants(include_self=True)
+                    fitment_filter &= Q(vehicles__fitments__product__category__in=descendants)
+                except Category.DoesNotExist:
+                    fitment_filter &= Q(vehicles__fitments__product__category__slug=category_slug)
+            qs = qs.filter(fitment_filter).distinct()
+        return qs.order_by('name')
 
 class VehicleViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = VehicleSerializer
     permission_classes = [permissions.AllowAny]
+    pagination_class = None
+
     def get_queryset(self):
         qs = Vehicle.objects.select_related('make', 'model').all()
         make_id = self.request.query_params.get('make_id')
@@ -3114,13 +3252,51 @@ class VehicleViewSet(viewsets.ReadOnlyModelViewSet):
         if make_id: qs = qs.filter(make_id=make_id)
         if model_id: qs = qs.filter(model_id=model_id)
         if year: qs = qs.filter(year=year)
+        for_seller = self.request.query_params.get('for_seller') == 'true' or self.request.query_params.get('all') == 'true'
+        has_products = self.request.query_params.get('has_products')
+        category_slug = self.request.query_params.get('subcategory') or self.request.query_params.get('category')
+        if not for_seller and (has_products == 'true' or has_products is None):
+            fitment_filter = Q(
+                fitments__product__is_available=True,
+                fitments__product__stock__gt=0
+            )
+            if category_slug:
+                from marketplace.models import Category
+                try:
+                    cat = Category.objects.get(slug=category_slug)
+                    descendants = cat.get_descendants(include_self=True)
+                    fitment_filter &= Q(fitments__product__category__in=descendants)
+                except Category.DoesNotExist:
+                    fitment_filter &= Q(fitments__product__category__slug=category_slug)
+            qs = qs.filter(fitment_filter).distinct()
         return qs
 
 class BrandViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Brand.objects.filter(is_active=True)
     serializer_class = BrandSerializer
     permission_classes = [permissions.AllowAny]
     search_fields = ['name']
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = Brand.objects.filter(is_active=True)
+        for_seller = self.request.query_params.get('for_seller') == 'true' or self.request.query_params.get('all') == 'true'
+        has_products = self.request.query_params.get('has_products')
+        category_slug = self.request.query_params.get('subcategory') or self.request.query_params.get('category')
+        if not for_seller and (has_products == 'true' or has_products is None):
+            prod_filter = Q(
+                products__is_available=True,
+                products__stock__gt=0
+            )
+            if category_slug:
+                from marketplace.models import Category
+                try:
+                    cat = Category.objects.get(slug=category_slug)
+                    descendants = cat.get_descendants(include_self=True)
+                    prod_filter &= Q(products__category__in=descendants)
+                except Category.DoesNotExist:
+                    prod_filter &= Q(products__category__slug=category_slug)
+            qs = qs.filter(prod_filter).distinct()
+        return qs.order_by('name')
 
 class ReferenceProductViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ReferenceProduct.objects.select_related('brand', 'category').all()

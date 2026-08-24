@@ -282,6 +282,8 @@ class Product(models.Model):
     CONDITION_CHOICES = (
         ('New', 'New'),
         ('Used', 'Used'),
+        ('Refurbished', 'Refurbished'),
+        ('Like_New', 'Like New'),
     )
 
     name = models.CharField(max_length=255)
@@ -294,15 +296,17 @@ class Product(models.Model):
     stock = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     unit_of_measure = models.CharField(
         max_length=50,
-        default='piece'
+        default='piece',
+        blank=True
     )
     minimum_order_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))
     is_available = models.BooleanField(default=True)
+    is_draft = models.BooleanField(default=False, db_index=True, help_text="True if listing is saved as draft and not published")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    condition = models.CharField(max_length=4, choices=CONDITION_CHOICES, default='New')
+    condition = models.CharField(max_length=20, choices=CONDITION_CHOICES, default='New')
     requires_quote = models.BooleanField(default=False)
     
     # Location data
@@ -336,6 +340,7 @@ class Product(models.Model):
             models.Index(fields=['seller', '-created_at']),
             models.Index(fields=['is_available', 'stock']),
             models.Index(fields=['condition']),
+            models.Index(fields=['is_draft', 'seller', '-created_at']),
         ]
 
     def save(self, *args, **kwargs):
@@ -343,11 +348,15 @@ class Product(models.Model):
             from django.utils.text import slugify
             base = slugify(self.name) or "product"
             self.slug = base
-        # Auto-set availability based on stock - FIX: M-03
-        if self.stock <= 0:
+        # Handle draft state vs published availability
+        if self.is_draft:
             self.is_available = False
-        elif not self.is_available and self.stock > 0:
-            self.is_available = True
+        else:
+            # Auto-set availability based on stock - FIX: M-03
+            if self.stock <= 0:
+                self.is_available = False
+            elif not self.is_available and self.stock > 0:
+                self.is_available = True
 
         from django.db import IntegrityError, transaction
         try:
@@ -1482,7 +1491,8 @@ from django.dispatch import receiver
 from django.core.cache import cache
 
 def invalidate_category_cache(*args, **kwargs):
-    # Delete both legacy and current cache keys
+    # Delete active and legacy cache keys
+    cache.delete('categories_list_v6')
     cache.delete('categories_list_v2')
     cache.delete('categories_list_v1')
 
@@ -1515,7 +1525,7 @@ class ProductRequest(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='product_requests')
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     buying_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    condition = models.CharField(max_length=4, choices=Product.CONDITION_CHOICES, default='New')
+    condition = models.CharField(max_length=20, choices=Product.CONDITION_CHOICES, default='New')
     requires_quote = models.BooleanField(default=False)
     image = models.ImageField(upload_to='product-requests/', null=True, blank=True)
     is_fulfilled = models.BooleanField(default=False)

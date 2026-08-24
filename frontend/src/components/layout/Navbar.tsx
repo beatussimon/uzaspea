@@ -461,8 +461,8 @@ const Navbar = () => {
                 to="/login" 
                 className={`px-5 py-1.5 active:scale-95 text-sm font-bold rounded-btn transition-all duration-200 ${
                   useLightStyle
-                    ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-md'
-                    : 'bg-brand-500 hover:bg-brand-500 text-white shadow-md shadow-brand-500/10 hover:shadow-brand-500/25'
+                    ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-sm'
+                    : 'bg-brand-500 hover:bg-brand-600 text-neutral-950 font-bold shadow-sm'
                 }`}
               >
                 {t('login')}
