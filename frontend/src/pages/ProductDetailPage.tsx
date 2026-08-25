@@ -523,17 +523,21 @@ const ProductDetailPage: React.FC = () => {
 
       {/* ═══ MOBILE IMAGE GRID (< lg only) ═══ */}
       <div className="block lg:hidden relative w-full bg-neutral-950 shrink-0">
-        {/* Top-left overlay: Close (X) + Logo */}
-        <div className="absolute top-3 left-3 z-40 flex items-center gap-2.5 bg-black/40 backdrop-blur-md px-2 py-1.5 rounded-2xl shadow-lg border border-white/10">
+        {/* Top-left overlay: Two separate floating circles */}
+        <div className="absolute top-3 left-3 z-40 flex items-center gap-2">
           <button
             onPointerDown={(e) => { e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/products'); }}
-            className="w-8 h-8 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded-full transition-all active:scale-95 cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center bg-black/40 hover:bg-black/60 backdrop-blur-md text-white/90 hover:text-white rounded-full transition-all active:scale-95 cursor-pointer border border-white/10 shadow-lg"
             aria-label="Close product view"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
-          <button onClick={() => navigate('/')} className="h-7 flex items-center justify-center transition-all active:scale-95 cursor-pointer pr-1" title="Go to Homepage">
-            <img src="/logo.png" alt="OKO" className="h-full w-auto object-contain drop-shadow-md" />
+          <button 
+            onClick={() => navigate('/')} 
+            className="w-9 h-9 flex items-center justify-center bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full transition-all active:scale-95 cursor-pointer border border-white/10 shadow-lg p-1.5" 
+            title="Go to Homepage"
+          >
+            <img src="/logo.png" alt="OKO" className="w-full h-full object-contain drop-shadow-md" />
           </button>
         </div>
 
@@ -583,17 +587,21 @@ const ProductDetailPage: React.FC = () => {
       {/* ═══ DESKTOP IMAGE STAGE (lg+ only) ═══ */}
       <div className="hidden lg:flex relative lg:w-[58%] xl:w-[62%] lg:h-full bg-neutral-950 overflow-hidden flex-col items-center justify-center select-none group/stage shrink-0">
         
-        {/* 1. TOP-LEFT OVERLAY: Close (X) + OKO Logo */}
-        <div className="absolute top-3.5 left-3.5 z-40 flex items-center gap-3 bg-black/40 backdrop-blur-md px-2 py-1.5 rounded-2xl shadow-lg border border-white/10">
+        {/* 1. TOP-LEFT OVERLAY: Two separate floating circles */}
+        <div className="absolute top-3.5 left-3.5 z-40 flex items-center gap-2">
           <button
             onPointerDown={(e) => { e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/products'); }}
-            className="w-9 h-9 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded-full transition-all active:scale-95 cursor-pointer"
+            className="w-10 h-10 flex items-center justify-center bg-black/40 hover:bg-black/60 backdrop-blur-md text-white/90 hover:text-white rounded-full transition-all active:scale-95 cursor-pointer border border-white/10 shadow-lg"
             title="Close" aria-label="Close product view"
           >
-            <X size={20} />
+            <X size={19} />
           </button>
-          <button onClick={() => navigate('/')} className="h-8 flex items-center justify-center transition-all active:scale-95 cursor-pointer pr-1" title="Go to Homepage">
-            <img src="/logo.png" alt="OKO" className="h-full w-auto object-contain drop-shadow-md" />
+          <button 
+            onClick={() => navigate('/')} 
+            className="w-10 h-10 flex items-center justify-center bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full transition-all active:scale-95 cursor-pointer border border-white/10 shadow-lg p-2" 
+            title="Go to Homepage"
+          >
+            <img src="/logo.png" alt="OKO" className="w-full h-full object-contain drop-shadow-md" />
           </button>
         </div>
 
