@@ -1,17 +1,6 @@
-FROM node:20-slim AS build-stage
-WORKDIR /app
-COPY package*.json ./
-# FIX DEVOPS-19: deterministic installs
-RUN npm ci
-COPY . .
-ARG VITE_API_BASE_URL
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ARG VITE_SITE_URL
-ENV VITE_SITE_URL=$VITE_SITE_URL
-RUN npm run build
-
 FROM nginx:alpine
-COPY --from=build-stage /app/dist /usr/share/nginx/html
+# dist folder must be built locally and rsync'd to the server before running docker build!
+COPY dist /usr/share/nginx/html
 # FIX DEVOPS-11
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Support running Nginx as non-root on port 8080
