@@ -522,98 +522,65 @@ const ProfilePage: React.FC = () => {
         {/* Tab content renders */}
         {activeTab === 'demands' ? (
           <div className="pt-2">
-            {/* Sub-Filters with bottom underline indicator */}
+            {/* Sub-Filters with rounded-full pill buttons matching Listings tab */}
             {productRequests.length > 0 && (
-              <div className="flex items-center justify-between border-b border-gray-200/60 dark:border-neutral-800 pb-0 gap-4 mb-6">
-                <div className="flex items-center gap-4 sm:gap-6 md:gap-8 overflow-x-auto no-scrollbar">
+              <div className="flex items-center justify-between gap-3 mb-6">
+                <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
                   <button
                     onClick={() => setDemandFilter('all')}
-                    className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                    className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
                       demandFilter === 'all'
-                        ? 'text-gray-900 dark:text-white font-bold'
-                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
+                        : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
                     }`}
                   >
-                    <Clock size={12} className="shrink-0" />
-                    <span>All Upcoming</span>
-                    <span className="text-[10px] opacity-60">({productRequests.filter(r => !r.is_fulfilled).length})</span>
-                    {demandFilter === 'all' && (
-                      <motion.div
-                        layoutId="demand-subfilter-indicator"
-                        className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
-                        transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                      />
-                    )}
+                    All Upcoming <span className="opacity-60 ml-1">{productRequests.filter(r => !r.is_fulfilled).length}</span>
                   </button>
 
                   {currentUser && (
                     <>
                       <button
                         onClick={() => setDemandFilter('mine')}
-                        className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                        className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
                           demandFilter === 'mine'
-                            ? 'text-gray-900 dark:text-white font-bold'
-                            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                            ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
+                            : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
                         }`}
                       >
-                        <span>My Requests</span>
-                        <span className="text-[10px] opacity-60">({productRequests.filter(r => r.user_username === currentUser).length})</span>
-                        {demandFilter === 'mine' && (
-                          <motion.div
-                            layoutId="demand-subfilter-indicator"
-                            className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
-                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                          />
-                        )}
+                        My Requests <span className="opacity-60 ml-1">{productRequests.filter(r => r.user_username === currentUser).length}</span>
                       </button>
 
                       <button
                         onClick={() => setDemandFilter('voted')}
-                        className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                        className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
                           demandFilter === 'voted'
-                            ? 'text-gray-900 dark:text-white font-bold'
-                            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                            ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
+                            : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
                         }`}
                       >
-                        <span>Tracked & Voted</span>
-                        <span className="text-[10px] opacity-60">({productRequests.filter(r => r.has_voted).length})</span>
-                        {demandFilter === 'voted' && (
-                          <motion.div
-                            layoutId="demand-subfilter-indicator"
-                            className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
-                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                          />
-                        )}
+                        Tracked & Voted <span className="opacity-60 ml-1">{productRequests.filter(r => r.has_voted).length}</span>
                       </button>
                     </>
                   )}
 
                   <button
                     onClick={() => setDemandFilter('fulfilled')}
-                    className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                    className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
                       demandFilter === 'fulfilled'
-                        ? 'text-gray-900 dark:text-white font-bold'
-                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
+                        : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
                     }`}
                   >
-                    <span>Fulfilled</span>
-                    <span className="text-[10px] opacity-60">({productRequests.filter(r => r.is_fulfilled).length})</span>
-                    {demandFilter === 'fulfilled' && (
-                      <motion.div
-                        layoutId="demand-subfilter-indicator"
-                        className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
-                        transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                      />
-                    )}
+                    Fulfilled <span className="opacity-60 ml-1">{productRequests.filter(r => r.is_fulfilled).length}</span>
                   </button>
                 </div>
 
                 {!isOwner && (
                   <button
                     onClick={() => setIsRequestModalOpen(true)}
-                    className="shrink-0 whitespace-nowrap pb-2.5 text-xs font-bold text-brand-500 hover:text-brand-600 flex items-center gap-1 transition"
+                    className="shrink-0 px-3.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-black text-xs font-bold rounded-full transition inline-flex items-center gap-1 shadow-sm active:scale-95"
                   >
-                    <Plus size={14} /> <span>Request a Product</span>
+                    <Plus size={13} /> <span>Request a Product</span>
                   </button>
                 )}
               </div>
