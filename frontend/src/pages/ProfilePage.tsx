@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
@@ -453,50 +454,71 @@ const ProfilePage: React.FC = () => {
       {/* Navigation Tabs */}
       <div className="space-y-6">
         
-        {/* Centered navigation menu items with underline design */}
-        <div className="flex justify-center gap-12 border-t border-transparent">
+        {/* Centered navigation menu items with bottom underline indicator */}
+        <div className="flex justify-center gap-8 md:gap-12 border-b border-gray-200/60 dark:border-neutral-800 pb-0">
           <button
             onClick={() => setActiveTab('listings')}
-            className={`flex items-center gap-2 pt-4 pb-1 text-xs font-bold uppercase tracking-wider transition-colors duration-200 border-t -mt-px ${
+            className={`relative flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
               activeTab === 'listings' 
-                ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black' 
-                : 'border-transparent text-gray-400 hover:text-gray-600'
+                ? 'text-gray-900 dark:text-white font-bold' 
+                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
             }`}
           >
-            <ShoppingBag size={14} />
+            <ShoppingBag size={15} />
             <span>{t('listings_tab', 'Listings')}</span>
+            {activeTab === 'listings' && (
+              <motion.div
+                layoutId="profile-nav-indicator"
+                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              />
+            )}
           </button>
 
           <button
             onClick={() => setActiveTab('demands')}
-            className={`flex items-center gap-2 pt-4 pb-1 text-xs font-bold uppercase tracking-wider transition-colors duration-200 border-t -mt-px ${
+            className={`relative flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
               activeTab === 'demands' 
-                ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black' 
-                : 'border-transparent text-gray-400 hover:text-gray-600'
+                ? 'text-gray-900 dark:text-white font-bold' 
+                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
             }`}
           >
-            <Clock size={14} />
+            <Clock size={15} />
             <span>{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
+            {activeTab === 'demands' && (
+              <motion.div
+                layoutId="profile-nav-indicator"
+                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              />
+            )}
           </button>
 
           <button
             onClick={() => setActiveTab('about')}
-            className={`flex items-center gap-2 pt-4 pb-1 text-xs font-bold uppercase tracking-wider transition-colors duration-200 border-t -mt-px ${
+            className={`relative flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
               activeTab === 'about' 
-                ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black' 
-                : 'border-transparent text-gray-400 hover:text-gray-600'
+                ? 'text-gray-900 dark:text-white font-bold' 
+                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
             }`}
           >
-            <Info size={14} />
+            <Info size={15} />
             <span>{t('about_shop', 'About')}</span>
+            {activeTab === 'about' && (
+              <motion.div
+                layoutId="profile-nav-indicator"
+                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              />
+            )}
           </button>
 
           <button
             onClick={handleOpenStoreSearch}
-            className="flex items-center gap-2 pt-4 pb-1 text-xs font-bold uppercase tracking-wider transition-colors duration-200 border-t -mt-px border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="relative flex items-center gap-2 pb-3 text-sm font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
             title="Search this store"
           >
-            <Search size={14} />
+            <Search size={15} />
             <span>Search</span>
           </button>
         </div>
@@ -504,68 +526,96 @@ const ProfilePage: React.FC = () => {
         {/* Tab content renders */}
         {activeTab === 'demands' ? (
           <div className="pt-2">
-            {/* Sub-Filters with top-right action */}
+            {/* Sub-Filters with bottom underline indicator */}
             {productRequests.length > 0 && (
-              <div className="flex items-center justify-between border-b border-gray-200 dark:border-neutral-800 pb-0 gap-4 mb-6">
-                <div className="flex items-center gap-8 overflow-x-auto hide-scrollbar">
+              <div className="flex items-center justify-between border-b border-gray-200/60 dark:border-neutral-800 pb-0 gap-4 mb-6">
+                <div className="flex items-center gap-6 md:gap-8 overflow-x-auto hide-scrollbar">
                   <button
                     onClick={() => setDemandFilter('all')}
-                    className={`flex items-center gap-1.5 pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap ${
+                    className={`relative flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap ${
                       demandFilter === 'all'
-                        ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black'
-                        : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                        ? 'text-gray-900 dark:text-white font-bold'
+                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
                     <Clock size={12} />
                     <span>All Upcoming</span>
                     <span className="text-[10px] opacity-60">({productRequests.filter(r => !r.is_fulfilled).length})</span>
+                    {demandFilter === 'all' && (
+                      <motion.div
+                        layoutId="demand-subfilter-indicator"
+                        className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                        transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                      />
+                    )}
                   </button>
 
                   {currentUser && (
                     <>
                       <button
                         onClick={() => setDemandFilter('mine')}
-                        className={`flex items-center gap-1.5 pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap ${
+                        className={`relative flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap ${
                           demandFilter === 'mine'
-                            ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black'
-                            : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                            ? 'text-gray-900 dark:text-white font-bold'
+                            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                         }`}
                       >
                         <span>My Requests</span>
                         <span className="text-[10px] opacity-60">({productRequests.filter(r => r.user_username === currentUser).length})</span>
+                        {demandFilter === 'mine' && (
+                          <motion.div
+                            layoutId="demand-subfilter-indicator"
+                            className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                          />
+                        )}
                       </button>
 
                       <button
                         onClick={() => setDemandFilter('voted')}
-                        className={`flex items-center gap-1.5 pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap ${
+                        className={`relative flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap ${
                           demandFilter === 'voted'
-                            ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black'
-                            : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                            ? 'text-gray-900 dark:text-white font-bold'
+                            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                         }`}
                       >
                         <span>Tracked & Voted</span>
                         <span className="text-[10px] opacity-60">({productRequests.filter(r => r.has_voted).length})</span>
+                        {demandFilter === 'voted' && (
+                          <motion.div
+                            layoutId="demand-subfilter-indicator"
+                            className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                          />
+                        )}
                       </button>
                     </>
                   )}
 
                   <button
                     onClick={() => setDemandFilter('fulfilled')}
-                    className={`flex items-center gap-1.5 pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap ${
+                    className={`relative flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap ${
                       demandFilter === 'fulfilled'
-                        ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black'
-                        : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                        ? 'text-gray-900 dark:text-white font-bold'
+                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
                     <span>Fulfilled</span>
                     <span className="text-[10px] opacity-60">({productRequests.filter(r => r.is_fulfilled).length})</span>
+                    {demandFilter === 'fulfilled' && (
+                      <motion.div
+                        layoutId="demand-subfilter-indicator"
+                        className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                        transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                      />
+                    )}
                   </button>
                 </div>
 
                 {!isOwner && (
                   <button
                     onClick={() => setIsRequestModalOpen(true)}
-                    className="shrink-0 pb-3 text-xs font-bold text-brand-500 hover:text-brand-600 flex items-center gap-1 transition"
+                    className="shrink-0 pb-2.5 text-xs font-bold text-brand-500 hover:text-brand-600 flex items-center gap-1 transition"
                   >
                     <Plus size={14} /> <span>Request a Product</span>
                   </button>
