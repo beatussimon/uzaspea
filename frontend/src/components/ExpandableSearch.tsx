@@ -18,24 +18,48 @@ const ExpandableSearch: React.FC<ExpandableSearchProps> = ({
 }) => {
 
   const [isExpanded, setIsExpanded] = useState(false);
+  const [localValue, setLocalValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleInputChange = (val: string) => {
+    setLocalValue(val);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = window.setTimeout(() => {
+      onChange(val);
+    }, 300);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // If there's text, it should always be expanded
-  const shouldBeExpanded = isExpanded || value.length > 0;
+  const shouldBeExpanded = isExpanded || localValue.length > 0;
 
   // Handle click outside to collapse
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        if (value.length === 0) {
+        if (localValue.length === 0) {
           setIsExpanded(false);
         }
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [value]);
+  }, [localValue]);
 
   const handleExpand = () => {
     setIsExpanded(true);
@@ -47,13 +71,17 @@ const ExpandableSearch: React.FC<ExpandableSearchProps> = ({
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setLocalValue('');
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     onChange('');
     inputRef.current?.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      if (value.length > 0) {
+      if (localValue.length > 0) {
+        setLocalValue('');
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
         onChange('');
       } else {
         setIsExpanded(false);
@@ -85,8 +113,8 @@ const ExpandableSearch: React.FC<ExpandableSearchProps> = ({
         <motion.input
           ref={inputRef}
           type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={localValue}
+          onChange={(e) => handleInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className={`w-full h-full bg-transparent outline-none text-sm pl-9 font-medium text-gray-900 dark:text-white placeholder-gray-400 ${shouldBeExpanded ? 'pr-9' : 'pr-3'}`}
@@ -108,7 +136,7 @@ const ExpandableSearch: React.FC<ExpandableSearchProps> = ({
         )}
 
         <AnimatePresence>
-          {shouldBeExpanded && value.length > 0 && (
+          {shouldBeExpanded && localValue.length > 0 && (
             <motion.button
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}

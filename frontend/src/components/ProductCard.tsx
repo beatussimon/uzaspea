@@ -1,6 +1,6 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Star, Heart, Share2, Shield, MapPin, Clock, Flame, TrendingUp, ShoppingBag } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
@@ -192,10 +192,14 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
 
 const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isTopFold = false, showTrendingMetrics = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean; isTopFold?: boolean; showTrendingMetrics?: boolean | string }) => {
   const { t } = useTranslation();
-  const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const bgState = { state: { backgroundLocation: location, initialProduct: product } };
+  const bgState = useMemo(() => ({
+    state: {
+      backgroundLocation: typeof window !== 'undefined' ? { pathname: window.location.pathname, search: window.location.search } : undefined,
+      initialProduct: product
+    }
+  }), [product]);
   const [liked, setLiked] = React.useState(product?.is_liked || false);
   const [likeCount, setLikeCount] = React.useState(product?.like_count || 0);
 
@@ -206,7 +210,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      navigate('/login?next=' + encodeURIComponent(location.pathname + location.search));
+      navigate('/login?next=' + encodeURIComponent(window.location.pathname + window.location.search));
       return;
     }
 

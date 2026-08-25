@@ -560,7 +560,6 @@ const subscribeToWebPush = async () => {
 
   useEffect(() => {
     let pingInterval: number;
-    let pollInterval: number;
     if (isAuthenticated) {
       connectWS();
       pingInterval = window.setInterval(() => {
@@ -570,15 +569,9 @@ const subscribeToWebPush = async () => {
           } catch (e) {}
         }
       }, 30000); // Send ping every 30 seconds
-
-      // Quietly poll conversations to keep online statuses perfectly accurate
-      pollInterval = window.setInterval(() => {
-        loadConversations(true);
-      }, 30000);
     }
     return () => {
       if (pingInterval) clearInterval(pingInterval);
-      if (pollInterval) clearInterval(pollInterval);
       if (wsRef.current) {
         wsRef.current.onclose = null;
         wsRef.current.onerror = null;

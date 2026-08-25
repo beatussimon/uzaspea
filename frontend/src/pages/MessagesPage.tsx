@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { 
   MessageSquare, Send, ArrowLeft, Search, Smile, 
@@ -15,6 +15,143 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
 import { motion, AnimatePresence } from 'framer-motion';
 
+interface ChatInputConsoleProps {
+  conversationId: number;
+  sendMessage: (convId: number, content: string) => Promise<void>;
+  sendTypingStatus: (convId: number, isTyping: boolean) => void;
+  prefillMessage?: string;
+}
+
+const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🙏'];
+
+const ChatInputConsole: React.FC<ChatInputConsoleProps> = React.memo(({
+  conversationId,
+  sendMessage,
+  sendTypingStatus,
+  prefillMessage
+}) => {
+  const { t } = useTranslation();
+  const [newMessage, setNewMessage] = useState(prefillMessage || '');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const typingTimeoutRef = useRef<number | null>(null);
+  const isLocallyTypingRef = useRef(false);
+
+  useEffect(() => {
+    if (prefillMessage) {
+      setNewMessage(prefillMessage);
+    }
+  }, [prefillMessage]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (isLocallyTypingRef.current) {
+        sendTypingStatus(conversationId, false);
+      }
+    };
+  }, [conversationId, sendTypingStatus]);
+
+  const handleInputChange = (val: string) => {
+    setNewMessage(val);
+    if (!conversationId) return;
+
+    if (val.trim() === '') {
+      if (isLocallyTypingRef.current) {
+        isLocallyTypingRef.current = false;
+        sendTypingStatus(conversationId, false);
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      return;
+    }
+
+    if (!isLocallyTypingRef.current) {
+      isLocallyTypingRef.current = true;
+      sendTypingStatus(conversationId, true);
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = window.setTimeout(() => {
+      isLocallyTypingRef.current = false;
+      sendTypingStatus(conversationId, false);
+    }, 4000);
+  };
+
+  const handleSend = async () => {
+    if (!newMessage.trim() || !conversationId) return;
+    const msgContent = newMessage;
+    setNewMessage('');
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    isLocallyTypingRef.current = false;
+    sendTypingStatus(conversationId, false);
+
+    try {
+      await sendMessage(conversationId, msgContent);
+    } catch (e) {
+      toast.error('Failed to send message');
+    }
+  };
+
+  const sendEmoji = (emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  return (
+    <div className="px-3 md:px-4 py-3 border-t border-gray-200/60 dark:border-neutral-800/50 flex flex-col gap-2 shrink-0 z-10 backdrop-blur-xl bg-white/60 dark:bg-black/30">
+      {showEmojiPicker && (
+        <div className="flex items-center gap-2 p-1.5 bg-gray-100/60 dark:bg-neutral-900/40 rounded-full border border-gray-200/50 dark:border-neutral-800/40 overflow-x-auto">
+          {quickEmojis.map(emoji => (
+            <button
+              key={emoji}
+              onClick={() => sendEmoji(emoji)}
+              className="text-lg hover:scale-125 hover:-translate-y-0.5 active:scale-95 transition-transform p-1 rounded-btn hover:bg-gray-150 dark:hover:bg-neutral-800"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 relative w-full">
+        <div className="flex-1 relative flex items-center">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={e => handleInputChange(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
+            placeholder={t('type_a_message')}
+            className="w-full pr-10 pl-4 py-2.5 text-sm border border-gray-200/60 dark:border-neutral-800/50 rounded-full bg-gray-100/50 dark:bg-neutral-900/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/30 transition-all outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
+          />
+          <button 
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className={`absolute right-3.5 p-1 rounded-full text-gray-400 hover:text-brand-500 transition-colors ${showEmojiPicker ? 'text-brand-500' : ''}`}
+          >
+            <Smile size={16} />
+          </button>
+        </div>
+
+        <Button 
+          onClick={handleSend} 
+          disabled={!newMessage.trim()}
+          size="icon"
+          className="shrink-0"
+        >
+          <Send size={14} />
+        </Button>
+      </div>
+    </div>
+  );
+});
+
 const MessagesPage: React.FC = () => {
   const { t } = useTranslation();
   const { id } = useParams();
@@ -27,7 +164,6 @@ const MessagesPage: React.FC = () => {
   const {
     conversations,
     messages,
-    fetchMessages,
     sendMessage,
     setActiveConversationId,
     loading: contextLoading,
@@ -35,68 +171,15 @@ const MessagesPage: React.FC = () => {
     sendTypingStatus,
   } = useMessages();
 
-  // Do not automatically open floating chat on desktop full page to avoid dual UI
-  useEffect(() => {
-    // Left intentionally blank or redirect logic could go here if we wanted to enforce dock-only
-  }, []);
-
-
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'main' | 'sokoni'>('main');
-  const [newMessage, setNewMessage] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const messageEndRef = useRef<HTMLDivElement>(null);
   const lastConvIdRef = useRef<string | undefined>(undefined);
-  const typingTimeoutRef = useRef<number | null>(null);
-  const [isLocallyTyping, setIsLocallyTyping] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
-
-  const handleInputChange = (val: string) => {
-    setNewMessage(val);
-    if (!id) return;
-    const convId = parseInt(id);
-
-    if (val.trim() === '') {
-      if (isLocallyTyping) {
-        setIsLocallyTyping(false);
-        sendTypingStatus(convId, false);
-      }
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      return;
-    }
-
-    if (!isLocallyTyping) {
-      setIsLocallyTyping(true);
-      sendTypingStatus(convId, true);
-    }
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    typingTimeoutRef.current = window.setTimeout(() => {
-      setIsLocallyTyping(false);
-      sendTypingStatus(convId, false);
-    }, 4000);
-  };
-
-
-  useEffect(() => {
-    return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      if (isLocallyTyping && id) {
-        sendTypingStatus(parseInt(id), false);
-      }
-    };
-  }, [id, isLocallyTyping, sendTypingStatus]);
 
   const [initialUnreadCount, setInitialUnreadCount] = useState<number | null>(null);
   const [unreadMessageIds, setUnreadMessageIds] = useState<Set<number>>(new Set());
@@ -105,12 +188,6 @@ const MessagesPage: React.FC = () => {
   const hasScrolledToInitialRef = useRef(false);
 
   useEffect(() => {
-    // Reset typing states on conversation switch
-    setIsLocallyTyping(false);
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
     // Reset unread tracking state
     setInitialUnreadCount(null);
     setUnreadMessageIds(new Set());
@@ -134,19 +211,15 @@ const MessagesPage: React.FC = () => {
     if (id) {
       const convIdNum = parseInt(id);
       setActiveConversationId(convIdNum);
-      fetchMessages(convIdNum);
       
-      // Handle prefill message from navigation state
+      // Clear state so a page refresh doesn't trigger it again
       if (location.state && location.state.prefillMessage) {
-        setNewMessage(location.state.prefillMessage);
-        // Clear state so a page refresh doesn't trigger it again
         window.history.replaceState({}, document.title);
       }
-      // Simulate a small typing effect when entering a chat for visual premium flair
     } else {
       setActiveConversationId(null);
     }
-  }, [id, setActiveConversationId, fetchMessages]);
+  }, [id, setActiveConversationId, location.state]);
 
   // Handle direct message URL parameters like ?user=username
   useEffect(() => {
@@ -258,29 +331,6 @@ const MessagesPage: React.FC = () => {
     }
   };
 
-  const handleSend = async () => {
-    if (!newMessage.trim() || !id) return;
-    const msgContent = newMessage;
-    setNewMessage('');
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    setIsLocallyTyping(false);
-    sendTypingStatus(parseInt(id), false);
-
-    try {
-      await sendMessage(parseInt(id), msgContent);
-    } catch (e) {
-      toast.error('Failed to send message');
-    }
-  };
-
-
-  const sendEmoji = (emoji: string) => {
-    setNewMessage(prev => prev + emoji);
-    setShowEmojiPicker(false);
-  };
-
   const formatRelativeTime = (dateStr: string) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -318,31 +368,37 @@ const MessagesPage: React.FC = () => {
     return colors[idx];
   };
 
-  const sokoniConversations = conversations.filter(c => !!c.product || !!c.product_name);
-  const regularConversations = conversations.filter(c => !c.product && !c.product_name);
+  const sokoniConversations = useMemo(() => conversations.filter(c => !!c.product || !!c.product_name), [conversations]);
+  const regularConversations = useMemo(() => conversations.filter(c => !c.product && !c.product_name), [conversations]);
 
-  const displayedConversations = (viewMode === 'sokoni' ? sokoniConversations : regularConversations).filter(c => {
-    const isBuyer = Number(c.buyer) === Number(userId);
-    const otherUser = isBuyer ? c.seller_username : c.buyer_username;
-    const product = c.product_name || '';
-    return otherUser.toLowerCase().includes(searchQuery.toLowerCase()) || 
-           product.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  const displayedConversations = useMemo(() => {
+    const list = viewMode === 'sokoni' ? sokoniConversations : regularConversations;
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(c => {
+      const isBuyer = Number(c.buyer) === Number(userId);
+      const otherUser = isBuyer ? c.seller_username : c.buyer_username;
+      const product = c.product_name || '';
+      return otherUser.toLowerCase().includes(q) || product.toLowerCase().includes(q);
+    });
+  }, [viewMode, sokoniConversations, regularConversations, searchQuery, userId]);
 
-  const sokoniUnreadCount = sokoniConversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-  const latestSokoniTimestamp = sokoniConversations.reduce((latest, c) => {
+  const sokoniUnreadCount = useMemo(() => sokoniConversations.reduce((sum, c) => sum + (c.unread_count || 0), 0), [sokoniConversations]);
+  const latestSokoniTimestamp = useMemo(() => sokoniConversations.reduce((latest, c) => {
     if (!c.last_message) return latest;
     const msgTime = new Date(c.last_message.created_at).getTime();
     return msgTime > latest ? msgTime : latest;
-  }, 0);
+  }, 0), [sokoniConversations]);
 
   // Group messages by day
-  const groupedMessages = currentMessages.reduce((groups: { [key: string]: Message[] }, msg) => {
-    const date = new Date(msg.created_at).toDateString();
-    if (!groups[date]) groups[date] = [];
-    groups[date].push(msg);
-    return groups;
-  }, {});
+  const groupedMessages = useMemo(() => {
+    return currentMessages.reduce((groups: { [key: string]: Message[] }, msg) => {
+      const date = new Date(msg.created_at).toDateString();
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(msg);
+      return groups;
+    }, {});
+  }, [currentMessages]);
 
   const formatDayHeader = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -355,8 +411,6 @@ const MessagesPage: React.FC = () => {
     
     return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
   };
-
-  const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🙏'];
 
   if (contextLoading && conversations.length === 0) {
     return (
@@ -712,14 +766,7 @@ const MessagesPage: React.FC = () => {
                             )}
 
                             {/* Bubble Container */}
-                            <motion.div 
-                              initial={{ opacity: 0, y: 15, scale: 0.5 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              transition={{ 
-                                opacity: { duration: 0.2 },
-                                default: { type: "spring", bounce: 0.4, duration: 0.5 }
-                              }}
-                              style={{ transformOrigin: isMe ? "bottom right" : "bottom left" }}
+                            <div 
                               className={`max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                             >
                               {/* Message Bubble wrapper with tooltip-like time reveal */}
@@ -761,7 +808,7 @@ const MessagesPage: React.FC = () => {
                                   )}
                                 </div>
                               )}
-                            </motion.div>
+                            </div>
                           </div>
                           </div>
                         );
@@ -783,20 +830,13 @@ const MessagesPage: React.FC = () => {
                         {(activeConv.buyer === userId ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
                       </div>
                     )}
-                    <motion.div 
-                      initial={{ opacity: 0, y: 15, scale: 0.5 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ 
-                        opacity: { duration: 0.2 },
-                        default: { type: "spring", bounce: 0.4, duration: 0.5 }
-                      }}
-                      style={{ transformOrigin: "bottom left" }}
+                    <div 
                       className="bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-1.5 shrink-0"
                     >
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                       <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </motion.div>
+                    </div>
                     </div>
                   )}
                 </AnimatePresence>
@@ -820,52 +860,12 @@ const MessagesPage: React.FC = () => {
               )}
 
               {/* Chat Input Console */}
-              <div className="px-3 md:px-4 py-3 border-t border-gray-200/60 dark:border-neutral-800/50 flex flex-col gap-2 shrink-0 z-10 backdrop-blur-xl bg-white/60 dark:bg-black/30">
-                {/* Emoji Quickbar */}
-                {showEmojiPicker && (
-                  <div className="flex items-center gap-2 p-1.5 bg-gray-100/60 dark:bg-neutral-900/40 rounded-full border border-gray-200/50 dark:border-neutral-800/40 overflow-x-auto">
-                    {quickEmojis.map(emoji => (
-                      <button
-                        key={emoji}
-                        onClick={() => sendEmoji(emoji)}
-                        className="text-lg hover:scale-125 hover:-translate-y-0.5 active:scale-95 transition-transform p-1 rounded-btn hover:bg-gray-150 dark:hover:bg-neutral-800"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 relative w-full">
-                  {/* Input form */}
-                  <div className="flex-1 relative flex items-center">
-                    <input
-                      type="text"
-                      value={newMessage}
-                      onChange={e => handleInputChange(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleSend()}
-                      placeholder={t('type_a_message')}
-                      className="w-full pr-10 pl-4 py-2.5 text-sm border border-gray-200/60 dark:border-neutral-800/50 rounded-full bg-gray-100/50 dark:bg-neutral-900/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/30 transition-all outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                    />
-                    <button 
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      className={`absolute right-3.5 p-1 rounded-full text-gray-400 hover:text-brand-500 transition-colors ${showEmojiPicker ? 'text-brand-500' : ''}`}
-                    >
-                      <Smile size={16} />
-                    </button>
-                  </div>
-
-                  {/* Send Button */}
-                  <Button 
-                    onClick={handleSend} 
-                    disabled={!newMessage.trim()}
-                    size="icon"
-                    className="shrink-0"
-                  >
-                    <Send size={14} />
-                  </Button>
-                </div>
-              </div>
+              <ChatInputConsole 
+                conversationId={parseInt(id)} 
+                sendMessage={sendMessage} 
+                sendTypingStatus={sendTypingStatus} 
+                prefillMessage={(location.state as any)?.prefillMessage} 
+              />
             </>
           )}
         </div>

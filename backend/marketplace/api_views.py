@@ -179,9 +179,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             annotated_is_verified=is_verified_expr,
             annotated_is_sponsored=is_sponsored_expr
         ).select_related(
-            'seller', 'seller__profile', 'category'
+            'seller', 'seller__profile', 'category', 'category__parent',
+            'brand', 'brand__created_by',
+            'reference_product', 'reference_product__brand', 'reference_product__category', 'reference_product__created_by'
         ).prefetch_related(
-            'images', 'inspections', 'inspections__report', 'fitments'
+            'images', 'inspections', 'inspections__report', 'fitments', 'price_tiers'
         )
         
         # FIX: Ensure detail actions (delete/edit) don't get blocked by list filters
@@ -859,8 +861,13 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
         active_product_filter = Q(products__is_available=True, products__stock__gt=0)
 
-        children_qs = Category.objects.annotate(
+        children_qs_lvl2 = Category.objects.annotate(
             annotated_product_count=Count('products', filter=active_product_filter, distinct=True)
+        )
+        children_qs_lvl1 = Category.objects.annotate(
+            annotated_product_count=Count('products', filter=active_product_filter, distinct=True)
+        ).prefetch_related(
+            Prefetch('children', queryset=children_qs_lvl2)
         )
         
         return Category.objects.filter(parent__isnull=True).annotate(
@@ -868,7 +875,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
             total_sales=Coalesce(Subquery(sales_sq, output_field=DecimalField()), Decimal('0.0')),
             total_saves=Coalesce(Subquery(saves_sq, output_field=IntegerField()), 0)
         ).prefetch_related(
-            Prefetch('children', queryset=children_qs)
+            Prefetch('children', queryset=children_qs_lvl1)
         ).order_by('name')
 
     def list(self, request, *args, **kwargs):
@@ -2175,7 +2182,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     lookup_field = 'user__username'
 
     def get_queryset(self):
-        return UserProfile.objects.all()
+        return UserProfile.objects.select_related('user').prefetch_related('store_images')
 
     def list(self, request, *args, **kwargs):
         q = request.query_params.get('q', '').strip().lower()
@@ -2473,7 +2480,39 @@ class ConversationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return Conversation.objects.filter(
             Q(buyer=user) | Q(seller=user)
-        ).select_related('buyer', 'seller', 'product').order_by('-updated_at')
+        ).select_related(
+            'buyer', 'buyer__profile', 'seller', 'seller__profile', 'product'
+        ).prefetch_related(
+            'product__images',
+            Prefetch('messages', queryset=Message.objects.select_related('sender').order_by('-created_at'), to_attr='prefetched_messages')
+        ).annotate(
+            annotated_unread_count=Count('messages', filter=Q(messages__is_read=False) & ~Q(messages__sender=user), distinct=True)
+        ).order_by('-updated_at')
+
+    def list(self, request, *args, **kwargs):
+        from django.core.cache import cache
+        queryset = self.filter_queryset(self.get_queryset())
+        convs = list(queryset)
+
+        # Bulk fetch user presence to eliminate sequential Redis queries
+        user_ids = set()
+        for c in convs:
+            other_id = c.seller_id if c.buyer_id == request.user.id else c.buyer_id
+            if other_id:
+                user_ids.add(other_id)
+
+        presence_keys = [f'user:seen:{uid}' for uid in user_ids]
+        seen_data = cache.get_many(presence_keys) if presence_keys else {}
+
+        presence_map = {}
+        for uid in user_ids:
+            key = f'user:seen:{uid}'
+            is_online = key in seen_data
+            last_seen = seen_data.get(key)
+            presence_map[uid] = {'is_online': is_online, 'last_seen': last_seen}
+
+        serializer = self.get_serializer(convs, many=True, context={'request': request, 'presence_map': presence_map})
+        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         seller_id = request.data.get('seller')
@@ -2564,7 +2603,9 @@ class ConversationViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass  # WS delivery is best-effort; REST response still returns
 
-            return Response(MessageSerializer(msg).data, status=201)
+            return Response(MessageSerializer(msg, context={'request': request}).data, status=201)
+
+        # Mark unread messages as read asynchronously without blocking response
         unread_msgs = Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user)
         unread_ids = list(unread_msgs.values_list('id', flat=True))
         if unread_ids:
@@ -2585,10 +2626,10 @@ class ConversationViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
 
-        # Fetch only last 50 messages, and order them chronologically
-        msgs = conv.messages.order_by('-created_at')[:50]
+        # Fetch last 50 messages with sender joined, and order chronologically
+        msgs = conv.messages.select_related('sender').order_by('-created_at')[:50]
         msgs = sorted(list(msgs), key=lambda x: x.created_at)
-        return Response(MessageSerializer(msgs, many=True).data)
+        return Response(MessageSerializer(msgs, many=True, context={'request': request}).data)
 
 
 # ─── FIX B-13: Saved Searches & Price Alerts ─────────────────────
