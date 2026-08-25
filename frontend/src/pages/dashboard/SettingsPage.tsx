@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, MapPin } from 'lucide-react';
+import { User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, MapPin, Clock } from 'lucide-react';
 
 const CITIES_COORDS: Record<string, { lat: number; lng: number }> = {
   'Dar es Salaam': { lat: -6.776012, lng: 39.178326 },
@@ -13,7 +13,7 @@ const CITIES_COORDS: Record<string, { lat: number; lng: number }> = {
 
 const SettingsPage: React.FC = () => {
     const [profile, setProfile] = useState<any>({});
-    const [form, setForm] = useState({ bio: '', phone_number: '', location: '', website: '', instagram_username: '', whatsapp_number: '', facebook_url: '', tiktok_username: '', twitter_username: '', youtube_url: '', linkedin_url: '', latitude: '', longitude: '' });
+    const [form, setForm] = useState({ bio: '', phone_number: '', location: '', website: '', instagram_username: '', whatsapp_number: '', facebook_url: '', tiktok_username: '', twitter_username: '', youtube_url: '', linkedin_url: '', latitude: '', longitude: '', show_product_requests: true });
     const [passwords, setPasswords] = useState({ old: '', new1: '', new2: '' });
     const [saving, setSaving] = useState(false);
 
@@ -114,6 +114,7 @@ const SettingsPage: React.FC = () => {
                     linkedin_url: r.data.linkedin_url || '',
                     latitude: r.data.latitude || '',
                     longitude: r.data.longitude || '',
+                    show_product_requests: r.data.show_product_requests !== false,
                 });
             });
         }
@@ -305,6 +306,37 @@ const SettingsPage: React.FC = () => {
                         </span>
                     )}
                 </div>
+            </div>
+
+                        {/* Store Profile Features */}
+            <div className="card p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <Clock size={18} className="text-brand-500" />
+                    <h3 className="font-bold text-gray-900 dark:text-white">Store Profile Features</h3>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                    Customize which sections and interactive tools appear on your public store profile.
+                </p>
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-neutral-800/40 rounded-xl border border-gray-100 dark:border-neutral-800">
+                    <div className="pr-4">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Coming Soon & Customer Requests</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Show the "Coming Soon / Requested" tab on your profile so buyers can vote on upcoming items and submit new product requests.
+                        </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                            type="checkbox"
+                            checked={form.show_product_requests}
+                            onChange={e => setForm(prev => ({ ...prev, show_product_requests: e.target.checked }))}
+                            className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-500"></div>
+                    </label>
+                </div>
+                <button onClick={handleProfileSave} disabled={saving} className="btn-primary">
+                    {saving ? 'Saving...' : 'Save Feature Settings'}
+                </button>
             </div>
 
             {/* Change Password */}

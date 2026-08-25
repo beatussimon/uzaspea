@@ -1286,7 +1286,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'user_id', 'username', 'first_name', 'last_name', 'is_verified', 'phone_number', 'instagram_username',
                   'whatsapp_number', 'facebook_url', 'tiktok_username', 'twitter_username', 'youtube_url', 'linkedin_url',
                   'website', 'bio', 'tier', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
-                  'preferred_currency', 'seller_rating', 'store_images', 'is_location_verified', 'is_following']
+                  'preferred_currency', 'seller_rating', 'store_images', 'is_location_verified', 'is_following',
+                  'show_product_requests']
         read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified']  # FIX: S-07 — only staff should set these
 
     def get_seller_rating(self, obj):

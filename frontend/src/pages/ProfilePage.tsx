@@ -9,6 +9,7 @@ import {
 import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
 import ProductCard from '../components/ProductCard';
+import SafeImage from '../components/SafeImage';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
@@ -54,6 +55,7 @@ const ProfilePage: React.FC = () => {
   // Authenticated context
   const currentUser = localStorage.getItem('username');
   const isOwner = currentUser === username;
+  const showDemandsTab = isOwner || profile?.show_product_requests !== false;
 
   // Extract unique categories from seller's products for quick-filter pills
   const sellerCategories = useMemo(() => {
@@ -475,24 +477,26 @@ const ProfilePage: React.FC = () => {
             )}
           </button>
 
-          <button
-            onClick={() => setActiveTab('demands')}
-            className={`relative flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
-              activeTab === 'demands' 
-                ? 'text-gray-900 dark:text-white font-bold' 
-                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-            }`}
-          >
-            <Clock size={15} />
-            <span>{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
-            {activeTab === 'demands' && (
-              <motion.div
-                layoutId="profile-nav-indicator"
-                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
-                transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              />
-            )}
-          </button>
+          {showDemandsTab && (
+            <button
+              onClick={() => setActiveTab('demands')}
+              className={`relative flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
+                activeTab === 'demands' 
+                  ? 'text-gray-900 dark:text-white font-bold' 
+                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              <Clock size={15} />
+              <span>{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
+              {activeTab === 'demands' && (
+                <motion.div
+                  layoutId="profile-nav-indicator"
+                  className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                />
+              )}
+            </button>
+          )}
 
           <button
             onClick={() => setActiveTab('about')}
@@ -668,73 +672,71 @@ const ProfilePage: React.FC = () => {
                     return (
                       <div 
                         key={req.id} 
-                        className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm flex flex-col justify-between group transition-all duration-300 hover:shadow-md hover:border-brand-500 dark:hover:border-brand-500 overflow-hidden"
+                        className="group relative card overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] border-2 border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all rounded-card"
                       >
-                        {/* Image Thumbnail */}
-                        <div className="relative aspect-square sm:aspect-[4/3] bg-gray-100 dark:bg-neutral-800 flex items-center justify-center overflow-hidden">
+                        {/* Background Image */}
+                        <div className="absolute inset-0 w-full h-full bg-gray-100 dark:bg-gray-800/50 overflow-hidden">
                           {req.image || req.image_url ? (
-                            <img 
+                            <SafeImage 
                               src={req.image_url || req.image} 
                               alt={req.name} 
                               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                             />
                           ) : (
-                            <Package size={44} className="text-gray-300 dark:text-neutral-700" />
-                          )}
-                          
-                          <div className="absolute top-2.5 left-2.5 px-2 py-1 bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold rounded-lg uppercase tracking-wider text-brand-500 flex items-center gap-1">
-                            {isFulfilled ? (
-                              <>
-                                <CheckCircle size={11} className="text-emerald-500" />
-                                <span className="text-emerald-500">In Stock</span>
-                              </>
-                            ) : (
-                              <>
-                                <Clock size={11} />
-                                <span>Coming Soon</span>
-                              </>
-                            )}
-                          </div>
-
-                          {req.condition && req.condition !== 'New' && (
-                            <div className="absolute top-2.5 right-2.5 px-2 py-1 bg-black/70 backdrop-blur text-[10px] font-bold rounded-lg text-white">
-                              {req.condition}
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-neutral-800">
+                              <Package size={48} className="text-gray-300 dark:text-neutral-700" />
                             </div>
                           )}
                         </div>
 
-                        {/* Card Body */}
-                        <div className="p-4 flex-1 flex flex-col justify-between">
-                          <div>
-                            <div className="flex justify-between items-start mb-1">
-                              <h3 className="font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 transition-colors" title={req.name}>
-                                {req.name}
-                              </h3>
-                            </div>
-                            
-                            {req.price && (
-                              <p className="text-sm font-black text-gray-900 dark:text-white mb-1">
-                                Est. TZS {Number(req.price).toLocaleString()}
-                              </p>
-                            )}
-
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 mb-2">
-                              {req.description || 'No description provided.'}
-                            </p>
+                        {/* Top Badges */}
+                        <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
+                          <div className="flex items-center gap-1 text-[8.5px] font-black bg-neutral-900 text-white px-2 py-0.5 rounded-card border border-orange-500/40 shadow-md uppercase tracking-wider w-fit">
+                            <Clock size={10} className="shrink-0 text-orange-500" />
+                            <span>{isFulfilled ? 'In Stock' : 'Coming Soon'}</span>
                           </div>
+                          {req.condition && req.condition !== 'New' && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-card font-bold text-white bg-gray-500 shadow-md uppercase tracking-wider w-fit">
+                              {req.condition}
+                            </span>
+                          )}
+                        </div>
 
-                          {/* Card Footer */}
-                          <div className="mt-auto flex items-center justify-between border-t border-gray-100 dark:border-neutral-800 pt-3">
-                            <div className="flex flex-col">
-                              <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Demand</span>
-                              <span className="font-black text-gray-800 dark:text-gray-200">
-                                {req.request_count || 1} {req.request_count === 1 ? 'vote' : 'votes'}
+                        {/* Bottom Card Body - Floating Bubbles */}
+                        <div className="absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent">
+                          {/* Product Name Bubble */}
+                          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm">
+                            <h3 className="font-bold text-xs text-gray-900 dark:text-white line-clamp-1">{req.name}</h3>
+                          </div>
+                          
+                          {/* Price / Estimated Budget Bubble */}
+                          {req.price && (
+                            <div className="w-fit px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm flex items-baseline gap-1.5">
+                              <span className="font-black text-gray-900 dark:text-white text-sm">
+                                Est. TSh {Number(req.price).toLocaleString()}
                               </span>
                             </div>
+                          )}
 
+                          {/* Description Bubble */}
+                          {req.description && (
+                            <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm">
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1">{req.description}</p>
+                            </div>
+                          )}
+
+                          {/* Demand & Action Row */}
+                          <div className="flex items-center justify-between gap-1 w-full mt-0.5">
+                            {/* Demand Bubble */}
+                            <div className="flex items-center gap-1 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-2 py-1 shadow-sm font-bold shrink-0">
+                              <span className="text-gray-400 uppercase text-[7.5px]">Demand:</span>
+                              <span className="font-black text-brand-500">{req.request_count || 1} {req.request_count === 1 ? 'vote' : 'votes'}</span>
+                            </div>
+
+                            {/* Action Button */}
                             {isFulfilled && req.fulfilled_product_slug ? (
-                              <Link to={`/products/${req.fulfilled_product_slug}`}>
-                                <Button size="sm" variant="outline" className="h-8 text-[11px] px-3 shadow-sm">
+                              <Link to={`/product/${req.fulfilled_product_slug}`}>
+                                <Button size="sm" variant="default" className="h-7 text-[10px] px-2.5 shadow-sm rounded-card">
                                   View Item
                                 </Button>
                               </Link>
@@ -743,10 +745,14 @@ const ProfilePage: React.FC = () => {
                                 size="sm" 
                                 variant={hasVoted ? 'default' : 'outline'}
                                 loading={isUpvotingThis}
-                                onClick={() => handleVoteToggle(req.id)}
-                                className="h-8 text-[11px] px-3 active:scale-95 shadow-sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleVoteToggle(req.id);
+                                }}
+                                className="h-7 text-[10px] px-2.5 active:scale-95 shadow-sm rounded-card bg-white/95 dark:bg-black/95"
                               >
-                                {hasVoted ? 'Voted' : 'I want this!'}
+                                {hasVoted ? 'Voted ✓' : 'I want this!'}
                               </Button>
                             )}
                           </div>
