@@ -456,8 +456,8 @@ const ProfilePage: React.FC = () => {
       {/* Navigation Tabs */}
       <div className="space-y-6">
         
-        {/* Navigation menu items with mobile-responsive horizontal scrolling & nowrap */}
-        <div className="flex items-center justify-start sm:justify-center gap-5 sm:gap-8 md:gap-12 overflow-x-auto no-scrollbar border-b border-gray-200/60 dark:border-neutral-800 pb-0 px-2 sm:px-0">
+        {/* Navigation menu items centered across all screens */}
+        <div className="flex items-center justify-center gap-6 sm:gap-8 md:gap-12 border-b border-gray-200/60 dark:border-neutral-800 pb-0 px-4">
           <button
             onClick={() => setActiveTab('listings')}
             className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm font-semibold transition-colors ${
