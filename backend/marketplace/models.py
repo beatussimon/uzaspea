@@ -133,6 +133,10 @@ class Brand(models.Model):
     slug = models.SlugField(unique=True, blank=True)
     logo = models.ImageField(upload_to='brands/', blank=True, null=True, validators=[validate_image])
     is_active = models.BooleanField(default=True)
+    is_verified = models.BooleanField(default=True, db_index=True, help_text="True if verified/curated, False if dynamically added by user")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_brands')
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     class Meta:
         ordering = ['name']
@@ -172,6 +176,10 @@ class ReferenceProduct(models.Model):
     
     image = models.ImageField(upload_to='reference_products/', blank=True, null=True, validators=[validate_image])
     structured_specs = models.JSONField(default=dict, blank=True, help_text="Definitive specs for this model")
+    is_verified = models.BooleanField(default=True, db_index=True, help_text="True if verified/canonical, False if dynamically added by user")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_reference_products')
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     
     class Meta:
         ordering = ['name']
@@ -218,6 +226,14 @@ class Category(models.Model):
             )
         return Category.objects.filter(id__in=ids)
 
+    def get_ancestors(self, include_self=False):
+        ancestors_ids = [self.id] if include_self else []
+        curr = self.parent
+        while curr:
+            ancestors_ids.append(curr.id)
+            curr = curr.parent
+        return Category.objects.filter(id__in=ancestors_ids)
+
     name = models.CharField(max_length=255, unique=True)
     slug = models.SlugField(unique=True, blank=True)
     description = models.TextField(blank=True)
@@ -230,6 +246,7 @@ class Category(models.Model):
     )
     spec_schema = models.JSONField(default=list, blank=True, help_text="List of dicts defining specs for this category")
     is_leaf = models.BooleanField(default=False, help_text="True if this is an end-node category")
+    brands = models.ManyToManyField(Brand, blank=True, related_name='categories', help_text="Brands applicable to this category")
 
     class Meta:
         verbose_name_plural = "Categories"

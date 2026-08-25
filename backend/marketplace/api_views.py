@@ -948,6 +948,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
         from django.shortcuts import get_object_or_404
         from marketplace.models import Category, Brand
         from marketplace.serializers import BrandSerializer
+        from django.db.models import Q
         category = get_object_or_404(Category, slug=slug)
         descendants = category.get_descendants(include_self=True)
 
@@ -960,12 +961,24 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
                 is_active=True
             ).distinct().order_by('name')
         else:
-            brands = Brand.objects.filter(reference_products__category__in=descendants, is_active=True).distinct().order_by('name')
-            if not brands.exists():
-                ancestors = category.get_ancestors(include_self=False)
-                brands = Brand.objects.filter(reference_products__category__in=ancestors, is_active=True).distinct().order_by('name')
-            if not brands.exists():
-                brands = Brand.objects.filter(is_active=True).order_by('name')
+            # Query brands explicitly associated with this category/descendants,
+            # or linked via reference products or products in this category hierarchy.
+            ancestors = category.get_ancestors(include_self=False)
+            brands = Brand.objects.filter(
+                Q(categories__in=descendants) |
+                Q(reference_products__category__in=descendants) |
+                Q(products__category__in=descendants),
+                is_active=True
+            ).distinct().order_by('name')
+
+            if not brands.exists() and (ancestors.exists() if hasattr(ancestors, 'exists') else bool(ancestors)):
+                brands = Brand.objects.filter(
+                    Q(categories__in=ancestors) |
+                    Q(reference_products__category__in=ancestors),
+                    is_active=True
+                ).distinct().order_by('name')
+
+            # Return strictly matched brands (never dump all global brands)
 
         return Response(BrandSerializer(brands, many=True).data)
 
@@ -973,6 +986,168 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     def filters(self, request, slug=None):
         # Placeholder for faceted counts if needed later
         return Response({})
+
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAdminUser])
+    def discovered_specs(self, request):
+        """
+        Scans products for custom/unapproved specification options and custom attributes across all categories.
+        """
+        from marketplace.models import Category, Product
+        from collections import defaultdict
+
+        # Fetch products with structured_specs
+        products_with_specs = Product.objects.filter(
+            is_available=True
+        ).exclude(structured_specs={}).select_related('category')
+
+        # Map categories to their existing spec options
+        categories = {c.id: c for c in Category.objects.all()}
+        
+        # Structure: {(category_id, spec_key, spec_label): {discovered_value: [product_names]}}
+        discovered = defaultdict(lambda: defaultdict(list))
+
+        for p in products_with_specs[:600]:
+            if not p.category_id or not p.structured_specs:
+                continue
+            cat = categories.get(p.category_id)
+            if not cat:
+                continue
+            
+            # Map existing options for this category schema
+            schema_keys = {}
+            for s in (cat.spec_schema or []):
+                k = s.get('key')
+                if k:
+                    schema_keys[k] = {
+                        'label': s.get('label', k.replace('_', ' ').title()),
+                        'options': set(s.get('options') or [])
+                    }
+
+            for k, val in p.structured_specs.items():
+                if not val or k in ['oem_part_number', 'brand', 'reference_product']:
+                    continue
+                val_str = str(val).strip()
+                if not val_str:
+                    continue
+
+                if k in schema_keys:
+                    # Check if val_str is NOT in existing schema options
+                    if val_str not in schema_keys[k]['options']:
+                        discovered[(cat.id, k, schema_keys[k]['label'])][val_str].append(p.name)
+                else:
+                    # Custom attribute key not even in schema!
+                    custom_label = k.replace('_', ' ').title()
+                    discovered[(cat.id, k, custom_label)][val_str].append(p.name)
+
+        results = []
+        for (cat_id, spec_key, spec_label), val_dict in discovered.items():
+            cat = categories.get(cat_id)
+            for val, prod_names in val_dict.items():
+                results.append({
+                    'category_id': cat_id,
+                    'category_name': cat.name if cat else 'Unknown',
+                    'category_slug': cat.slug if cat else '',
+                    'spec_key': spec_key,
+                    'spec_label': spec_label,
+                    'discovered_value': val,
+                    'occurrences_count': len(prod_names),
+                    'sample_products': prod_names[:3]
+                })
+
+        results.sort(key=lambda x: x['occurrences_count'], reverse=True)
+        return Response(results)
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    def approve_spec_option(self, request):
+        from marketplace.models import Category
+        category_id = request.data.get('category_id')
+        spec_key = request.data.get('spec_key')
+        spec_label = request.data.get('spec_label')
+        value = str(request.data.get('value', '')).strip()
+
+        if not category_id or not spec_key or not value:
+            return Response({'error': 'category_id, spec_key, and value are required.'}, status=400)
+
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return Response({'error': 'Category not found.'}, status=404)
+
+        schema = list(category.spec_schema or [])
+        found_spec = False
+
+        for item in schema:
+            if item.get('key') == spec_key:
+                found_spec = True
+                opts = item.get('options') or []
+                if value not in opts:
+                    opts.append(value)
+                    item['options'] = opts
+                    if item.get('type') != 'select':
+                        item['type'] = 'select'
+                break
+
+        if not found_spec:
+            schema.append({
+                'key': spec_key,
+                'label': spec_label or spec_key.replace('_', ' ').title(),
+                'type': 'select',
+                'options': [value],
+                'required': False
+            })
+
+        category.spec_schema = schema
+        category.save()
+
+        return Response({
+            'message': f"Added '{value}' to '{category.name}' under {spec_label or spec_key}.",
+            'spec_schema': category.spec_schema
+        })
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    def standardize_spec_option(self, request):
+        from marketplace.models import Category, Product
+        category_id = request.data.get('category_id')
+        spec_key = request.data.get('spec_key')
+        old_value = str(request.data.get('old_value', '')).strip()
+        new_value = str(request.data.get('new_value', '')).strip()
+
+        if not category_id or not spec_key or not old_value or not new_value:
+            return Response({'error': 'category_id, spec_key, old_value, and new_value are required.'}, status=400)
+
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return Response({'error': 'Category not found.'}, status=404)
+
+        descendants = category.get_descendants(include_self=True)
+        products = Product.objects.filter(category__in=descendants)
+        updated_count = 0
+
+        for p in products:
+            if p.structured_specs and p.structured_specs.get(spec_key) == old_value:
+                p.structured_specs[spec_key] = new_value
+                p.save(update_fields=['structured_specs'])
+                updated_count += 1
+
+        schema = list(category.spec_schema or [])
+        for item in schema:
+            if item.get('key') == spec_key:
+                opts = item.get('options') or []
+                if old_value in opts:
+                    opts.remove(old_value)
+                if new_value not in opts:
+                    opts.append(new_value)
+                item['options'] = opts
+                break
+
+        category.spec_schema = schema
+        category.save()
+
+        return Response({
+            'message': f"Standardized '{old_value}' to '{new_value}'. Updated {updated_count} product listing(s).",
+            'spec_schema': category.spec_schema
+        })
 
 class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
@@ -3271,17 +3446,33 @@ class VehicleViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(fitment_filter).distinct()
         return qs
 
-class BrandViewSet(viewsets.ReadOnlyModelViewSet):
+class BrandViewSet(viewsets.ModelViewSet):
     serializer_class = BrandSerializer
-    permission_classes = [permissions.AllowAny]
     search_fields = ['name']
     pagination_class = None
 
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        if self.action in ['create']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
+
     def get_queryset(self):
-        qs = Brand.objects.filter(is_active=True)
+        from django.db.models import Count
+        qs = Brand.objects.annotate(products_count_annotated=Count('products'))
+        
+        # Staff inspection view
+        include_unverified = self.request.query_params.get('include_unverified') == 'true'
+        only_unverified = self.request.query_params.get('only_unverified') == 'true'
+
+        if only_unverified:
+            return qs.filter(is_verified=False).order_by('-created_at', 'name')
+
         for_seller = self.request.query_params.get('for_seller') == 'true' or self.request.query_params.get('all') == 'true'
         has_products = self.request.query_params.get('has_products')
         category_slug = self.request.query_params.get('subcategory') or self.request.query_params.get('category')
+
         if not for_seller and (has_products == 'true' or has_products is None):
             prod_filter = Q(
                 products__is_available=True,
@@ -3296,20 +3487,126 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
                 except Category.DoesNotExist:
                     prod_filter &= Q(products__category__slug=category_slug)
             qs = qs.filter(prod_filter).distinct()
+        
+        if not include_unverified and not for_seller:
+            qs = qs.filter(is_active=True)
+
         return qs.order_by('name')
 
-class ReferenceProductViewSet(viewsets.ReadOnlyModelViewSet):
+    def perform_create(self, serializer):
+        from django.utils.text import slugify
+        raw_name = serializer.validated_data.get('name', '').strip()
+        clean_name = " ".join(raw_name.split())
+        clean_slug = slugify(clean_name) or "brand"
+        is_staff = self.request.user.is_staff or self.request.user.is_superuser
+        serializer.save(
+            name=clean_name,
+            slug=clean_slug,
+            is_verified=is_staff,
+            created_by=self.request.user
+        )
+
+    @action(detail=False, methods=['get'])
+    def unverified(self, request):
+        from django.db.models import Count
+        unverified_brands = Brand.objects.filter(is_verified=False).annotate(
+            products_count_annotated=Count('products')
+        ).order_by('-created_at', 'name')
+        return Response(BrandSerializer(unverified_brands, many=True).data)
+
+    @action(detail=True, methods=['post'])
+    def verify(self, request, pk=None):
+        brand = self.get_object()
+        brand.is_verified = True
+        
+        # Optional renaming / standardizing
+        new_name = request.data.get('name')
+        if new_name and isinstance(new_name, str) and new_name.strip():
+            from django.utils.text import slugify
+            clean_name = " ".join(new_name.strip().split())
+            brand.name = clean_name
+            brand.slug = slugify(clean_name) or brand.slug
+
+        if 'logo' in request.FILES:
+            brand.logo = request.FILES['logo']
+
+        brand.save()
+        return Response({
+            'message': f"Brand '{brand.name}' verified successfully.",
+            'brand': BrandSerializer(brand).data
+        })
+
+    @action(detail=False, methods=['post'])
+    def merge(self, request):
+        source_id = request.data.get('source_brand_id')
+        target_id = request.data.get('target_brand_id')
+
+        if not source_id or not target_id:
+            return Response({'error': 'Both source_brand_id and target_brand_id are required.'}, status=400)
+
+        if str(source_id) == str(target_id):
+            return Response({'error': 'Source and target brand cannot be identical.'}, status=400)
+
+        try:
+            source_brand = Brand.objects.get(id=source_id)
+            target_brand = Brand.objects.get(id=target_id)
+        except Brand.DoesNotExist:
+            return Response({'error': 'Source or target brand not found.'}, status=404)
+
+        from marketplace.models import Product, ReferenceProduct
+        
+        # Reassign products
+        updated_products_count = Product.objects.filter(brand=source_brand).update(brand=target_brand)
+        # Reassign reference products
+        ReferenceProduct.objects.filter(brand=source_brand).update(brand=target_brand)
+        
+        # Reassign category associations
+        target_brand.categories.add(*source_brand.categories.all())
+
+        source_name = source_brand.name
+        source_brand.delete()
+
+        return Response({
+            'message': f"Successfully merged '{source_name}' into '{target_brand.name}'. {updated_products_count} product(s) updated.",
+            'target_brand': BrandSerializer(target_brand).data
+        })
+
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        from marketplace.models import ReferenceProduct
+        unverified_count = Brand.objects.filter(is_verified=False).count()
+        total_brands = Brand.objects.count()
+        total_models = ReferenceProduct.objects.count()
+        return Response({
+            'unverified_brands_count': unverified_count,
+            'total_brands_count': total_brands,
+            'total_reference_models_count': total_models
+        })
+
+class ReferenceProductViewSet(viewsets.ModelViewSet):
     queryset = ReferenceProduct.objects.select_related('brand', 'category').all()
     serializer_class = ReferenceProductSerializer
-    permission_classes = [permissions.AllowAny]
     search_fields = ['name', 'brand__name']
 
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        if self.action in ['create']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
+
     def get_queryset(self):
-        qs = ReferenceProduct.objects.select_related('brand', 'category').all()
+        from django.db.models import Count
+        qs = ReferenceProduct.objects.select_related('brand', 'category').annotate(products_count_annotated=Count('instances'))
+        
+        only_unverified = self.request.query_params.get('only_unverified') == 'true'
+        if only_unverified:
+            return qs.filter(is_verified=False).order_by('-created_at', 'name')
+
         category_param = self.request.query_params.get('category')
         if category_param:
             from marketplace.models import Category
-            if category_param.isdigit():
+            if str(category_param).isdigit():
                 try:
                     cat = Category.objects.get(id=int(category_param))
                     qs = qs.filter(category__in=cat.get_descendants(include_self=True))
@@ -3324,9 +3621,31 @@ class ReferenceProductViewSet(viewsets.ReadOnlyModelViewSet):
 
         brand_param = self.request.query_params.get('brand')
         if brand_param:
-            if brand_param.isdigit():
+            if str(brand_param).isdigit():
                 qs = qs.filter(brand_id=int(brand_param))
             else:
                 qs = qs.filter(brand__slug=brand_param)
 
-        return qs
+        return qs.order_by('name')
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    def verify(self, request, pk=None):
+        ref = self.get_object()
+        ref.is_verified = True
+        
+        new_name = request.data.get('name')
+        if new_name and isinstance(new_name, str) and new_name.strip():
+            from django.utils.text import slugify
+            clean_name = " ".join(new_name.strip().split())
+            ref.name = clean_name
+            ref.slug = slugify(f"{ref.brand.slug}-{clean_name}")
+
+        specs = request.data.get('structured_specs')
+        if specs and isinstance(specs, dict):
+            ref.structured_specs = specs
+
+        ref.save()
+        return Response({
+            'message': f"Reference model '{ref.name}' verified successfully.",
+            'reference_product': ReferenceProductSerializer(ref).data
+        })

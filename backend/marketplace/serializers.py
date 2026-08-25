@@ -141,16 +141,32 @@ class ProductPriceTierSerializer(serializers.ModelSerializer):
 
 
 class BrandSerializer(serializers.ModelSerializer):
+    products_count = serializers.SerializerMethodField()
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True, default=None)
+
     class Meta:
         model = Brand
-        fields = ['id', 'name', 'slug', 'logo', 'is_active']
+        fields = ['id', 'name', 'slug', 'logo', 'is_active', 'is_verified', 'created_by_username', 'created_at', 'products_count']
+
+    def get_products_count(self, obj):
+        if hasattr(obj, 'products_count_annotated'):
+            return obj.products_count_annotated
+        return obj.products.count()
 
 class ReferenceProductSerializer(serializers.ModelSerializer):
     brand_name = serializers.CharField(source='brand.name', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True, default=None)
+    products_count = serializers.SerializerMethodField()
     
     class Meta:
         model = ReferenceProduct
-        fields = ['id', 'name', 'slug', 'brand', 'brand_name', 'category', 'image', 'structured_specs']
+        fields = ['id', 'name', 'slug', 'brand', 'brand_name', 'category', 'category_name', 'image', 'structured_specs', 'is_verified', 'created_by_username', 'created_at', 'products_count']
+
+    def get_products_count(self, obj):
+        if hasattr(obj, 'products_count_annotated'):
+            return obj.products_count_annotated
+        return obj.instances.count()
 
 class FlexibleBrandRelatedField(serializers.PrimaryKeyRelatedField):
     def to_internal_value(self, data):
@@ -159,10 +175,45 @@ class FlexibleBrandRelatedField(serializers.PrimaryKeyRelatedField):
         if isinstance(data, str) and not data.isdigit():
             from .models import Brand
             from django.db.models import Q
-            brand = Brand.objects.filter(Q(slug__iexact=data) | Q(name__iexact=data)).first()
+            from django.utils.text import slugify
+
+            raw_val = data.strip()
+            if not raw_val or raw_val.lower() == 'null' or raw_val.lower() == 'none' or raw_val == '__custom__':
+                return None
+
+            # Clean and standardize string
+            clean_name = " ".join(raw_val.split())
+            clean_slug = slugify(clean_name) or "brand"
+
+            # 1. Check existing brand (by slug or case-insensitive name)
+            brand = Brand.objects.filter(
+                Q(slug__iexact=clean_slug) | 
+                Q(name__iexact=clean_name) | 
+                Q(slug__iexact=raw_val) | 
+                Q(name__iexact=raw_val)
+            ).first()
+
             if brand:
                 return brand
-            raise serializers.ValidationError(f"Brand '{data}' not found.")
+
+            # 2. Smart auto-create with standard casing if not found
+            if clean_name.islower() or clean_name.isupper():
+                clean_name = clean_name.title()
+
+            request = self.context.get('request')
+            user = request.user if (request and hasattr(request, 'user') and request.user.is_authenticated) else None
+
+            brand, _ = Brand.objects.get_or_create(
+                slug=clean_slug,
+                defaults={
+                    'name': clean_name,
+                    'is_active': True,
+                    'is_verified': False,
+                    'created_by': user
+                }
+            )
+            return brand
+
         return super().to_internal_value(data)
 
 class FlexibleReferenceProductRelatedField(serializers.PrimaryKeyRelatedField):
@@ -170,11 +221,69 @@ class FlexibleReferenceProductRelatedField(serializers.PrimaryKeyRelatedField):
         if not data:
             return None
         if isinstance(data, str) and not data.isdigit():
-            from .models import ReferenceProduct
-            ref = ReferenceProduct.objects.filter(slug__iexact=data).first()
+            from .models import ReferenceProduct, Brand, Category
+            from django.db.models import Q
+            from django.utils.text import slugify
+
+            raw_val = data.strip()
+            if not raw_val or raw_val.lower() == 'null' or raw_val.lower() == 'none' or raw_val == '__custom__':
+                return None
+
+            clean_name = " ".join(raw_val.split())
+            clean_slug = slugify(clean_name) or "model"
+            ref = ReferenceProduct.objects.filter(
+                Q(slug__iexact=clean_slug) | 
+                Q(slug__iexact=raw_val) | 
+                Q(name__iexact=raw_val) |
+                Q(name__iexact=clean_name)
+            ).first()
+
             if ref:
                 return ref
-            raise serializers.ValidationError(f"Reference product '{data}' not found.")
+
+            # Auto-create unverified reference product if brand and category exist
+            request = self.context.get('request')
+            initial = getattr(self.root, 'initial_data', None) or getattr(self.parent, 'initial_data', None) or {}
+            req_data = getattr(request, 'data', {}) if request else {}
+            
+            brand_id_or_slug = initial.get('brand') or req_data.get('brand')
+            category_id = initial.get('category') or req_data.get('category')
+
+            brand_obj = None
+            if brand_id_or_slug:
+                if isinstance(brand_id_or_slug, Brand):
+                    brand_obj = brand_id_or_slug
+                elif str(brand_id_or_slug).isdigit():
+                    brand_obj = Brand.objects.filter(id=int(brand_id_or_slug)).first()
+                else:
+                    brand_obj = Brand.objects.filter(Q(slug__iexact=str(brand_id_or_slug)) | Q(name__iexact=str(brand_id_or_slug))).first()
+
+            cat_obj = None
+            if category_id:
+                if isinstance(category_id, Category):
+                    cat_obj = category_id
+                elif str(category_id).isdigit():
+                    cat_obj = Category.objects.filter(id=int(category_id)).first()
+                else:
+                    cat_obj = Category.objects.filter(slug=str(category_id)).first()
+
+            if brand_obj and cat_obj:
+                user = request.user if (request and hasattr(request, 'user') and request.user.is_authenticated) else None
+                ref_slug = slugify(f"{brand_obj.slug}-{clean_name}") or clean_slug
+                ref, _ = ReferenceProduct.objects.get_or_create(
+                    brand=brand_obj,
+                    name__iexact=clean_name,
+                    defaults={
+                        'name': clean_name,
+                        'slug': ref_slug,
+                        'category': cat_obj,
+                        'is_verified': False,
+                        'created_by': user
+                    }
+                )
+                return ref
+
+            return None
         return super().to_internal_value(data)
 
 class SafeJSONField(serializers.Field):
@@ -379,6 +488,14 @@ class ProductSerializer(serializers.ModelSerializer):
                     ProductPriceTier.objects.create(product=product, **tier)
             except Exception as e:
                 pass
+
+        # Ensure Brand is associated with Category for future listings
+        if product.category and product.brand:
+            try:
+                product.category.brands.add(product.brand)
+            except Exception:
+                pass
+
         return product
 
     def update(self, instance, validated_data):
@@ -400,6 +517,13 @@ class ProductSerializer(serializers.ModelSerializer):
             validated_data['specifications'] = specs
 
         instance = super().update(instance, validated_data)
+
+        # Ensure Brand is associated with Category for future listings
+        if instance.category and instance.brand:
+            try:
+                instance.category.brands.add(instance.brand)
+            except Exception:
+                pass
         if vehicle_ids is not None:
             from .models import ProductVehicleFitment, Vehicle
             ProductVehicleFitment.objects.filter(product=instance).delete()

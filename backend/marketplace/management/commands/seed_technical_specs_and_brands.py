@@ -1,13 +1,9 @@
-import os, sys, django
-sys.path.insert(0, '/home/bea/uzaspea/backend')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'uzachuo.settings')
-django.setup()
-
 import json
 from decimal import Decimal
 from django.db import transaction
 from django.utils.text import slugify
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
 from marketplace.models import Category, Brand, ReferenceProduct, Product
 
 User = get_user_model()
@@ -230,6 +226,65 @@ def run_seed():
                     print(f"  -> Injected {len(schema)} spec fields for category: {cat.slug} ({cat.name})")
 
         # ------------------------------------------------------------------
+        # 2.5 ATTACH APPLICABLE BRANDS TO CATEGORIES
+        # ------------------------------------------------------------------
+        print("2.5 Attaching Category-Specific Brands...")
+        category_brand_map = {
+            ('electronics-computers-laptops', 'laptops', 'desktop-pcs', 'computers'): [
+                "apple", "dell", "hp", "lenovo", "asus", "acer", "msi", "microsoft-surface", "samsung", "razer", "toshiba", "fujitsu", "huawei"
+            ],
+            ('electronics-mobile-phones', 'smartphones-only', 'smartphones', 'mobile-phones'): [
+                "apple", "samsung", "tecno", "infinix", "xiaomi", "redmi", "poco", "google-pixel", "oppo", "vivo", "oneplus", "huawei", "realme", "honor", "nokia", "itel", "sony"
+            ],
+            ('electronics-tablets-ereaders', 'tablets'): [
+                "apple", "samsung", "lenovo", "huawei", "xiaomi", "microsoft-surface"
+            ],
+            ('electronics-smartwatches-wearables', 'smartwatches'): [
+                "apple", "samsung", "garmin", "fitbit", "huawei", "xiaomi", "amazfit", "fossil"
+            ],
+            ('electronics-tvs-audio', 'televisions', 'tvs-audio', 'soundbars-home-theatre'): [
+                "samsung", "lg", "sony", "hisense", "tcl", "vitron", "jbl", "bose", "harman-kardon", "marshall", "sennheiser", "anker-soundcore"
+            ],
+            ('electronics-cameras-lenses', 'cameras-photography', 'mirrorless-dslr-cameras', 'drones-quadcopters'): [
+                "canon", "nikon", "sony", "fujifilm", "gopro", "dji", "insta360"
+            ],
+            ('electronics-video-games-consoles', 'gaming-consoles', 'home-consoles', 'handheld-gaming'): [
+                "sony-playstation", "microsoft-xbox", "nintendo", "steam-deck", "asus-rog"
+            ],
+            ('printers-pos-printers-copiers', 'printers-pos-systems', 'printers-pos-networking-routers', 'printers-scanners-pos', 'printers-pos-networking'): [
+                "epson", "hp", "canon", "brother", "xprinter", "tp-link", "ubiquiti-unifi", "mikrotik", "d-link", "huawei", "cisco", "netgear", "tenda"
+            ],
+            ('vehicles-cars', 'cars', 'passenger-vehicles'): [
+                "toyota", "nissan", "honda", "mercedes-benz", "bmw", "subaru", "mitsubishi", "ford", "volkswagen", "audi", "hyundai", "kia", "mazda", "land-rover", "suzuki", "isuzu", "volvo", "jeep", "lexus"
+            ],
+            ('vehicles-trucks-commercial-vehicles', 'trucks', 'commercial-vehicles'): [
+                "isuzu", "mitsubishi-fuso", "scania", "sinotruk-howo", "hino", "mercedes-benz-trucks", "faw", "shacman", "tata", "ashok-leyland"
+            ],
+            ('vehicles-motorcycles', 'vehicles-tricycles-tuktuks', 'motorcycles', 'tricycles'): [
+                "bajaj", "tvs", "yamaha", "honda", "haojue", "sanlg"
+            ],
+            ('vehicles-vehicle-parts-accessories', 'vehicles-tyres-rims-wheels', 'vehicle-parts'): [
+                "bosch-auto", "denso", "ngk", "brembo", "monroe", "kyb", "valeo", "gates", "mann-filter", "aisin", "michelin", "bridgestone", "pirelli", "continental", "goodyear", "yokohama", "dunlop", "maxxis"
+            ],
+            ('solar-energy', 'solar-energy-systems', 'solar-energy-solar-panels', 'solar-energy-solar-inverters', 'solar-energy-solar-batteries'): [
+                "jinko-solar", "canadian-solar", "felicity-solar", "must-solar", "deye", "growatt", "victron-energy", "chloride-exide", "luminous"
+            ],
+            ('generators', 'generators-power', 'tools-generators'): [
+                "honda-generators", "kipor", "firman", "lutian", "elepaq", "perkins", "cummins"
+            ],
+            ('power-tools', 'pumps-compressors', 'welding-equipment', 'tools-power-tools-machinery'): [
+                "bosch-pro", "makita", "dewalt", "milwaukee", "total-tools", "ingco", "pedrollo", "dab-pumps", "grundfos", "shimge"
+            ],
+        }
+
+        for slug_tuple, brand_slug_list in category_brand_map.items():
+            b_objs = [brands_dict[bs] for bs in brand_slug_list if bs in brands_dict]
+            for cat_slug in slug_tuple:
+                for cat in Category.objects.filter(slug=cat_slug):
+                    cat.brands.add(*b_objs)
+                    print(f"  -> Associated {len(b_objs)} brands with category: {cat.name} ({cat.slug})")
+
+        # ------------------------------------------------------------------
         # 3. SEED REFERENCE PRODUCTS (Canonical 2010 - Present Models)
         # ------------------------------------------------------------------
         print("3. Seeding Canonical Reference Products (2010-Present)...")
@@ -290,42 +345,891 @@ def run_seed():
                 "operating_system": "Windows 11 Home"
             }),
 
-            # Smartphones
-            (phone_cat, "apple", "Apple iPhone 15 Pro Max", "apple-iphone-15-pro-max", {
-                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
-                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "LTPO OLED",
-                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP",
-                "battery_capacity_mah": "4000 - 4800 mAh", "charging_wattage": "18W - 25W Fast",
-                "chipset_brand": "Apple A-Series", "os_platform": "iOS"
-            }),
+            # ═══════════════════════════════════════════════════════════════════
+            # SMARTPHONES (2010 - PRESENT EXHAUSTIVE CANONICAL MODELS)
+            # ═══════════════════════════════════════════════════════════════════
+            # --- SAMSUNG S-SERIES ---
             (phone_cat, "samsung", "Samsung Galaxy S24 Ultra", "samsung-galaxy-s24-ultra", {
                 "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "512GB",
                 "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Dynamic AMOLED 2X",
-                "refresh_rate_hz": "120Hz", "main_camera_mp": "200MP",
-                "battery_capacity_mah": "5000 mAh", "charging_wattage": "33W - 45W Super Fast",
-                "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "200MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
             }),
+            (phone_cat, "samsung", "Samsung Galaxy S24+", "samsung-galaxy-s24-plus", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "Samsung Exynos", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S24", "samsung-galaxy-s24", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Samsung Exynos", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S23 Ultra", "samsung-galaxy-s23-ultra", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "512GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "200MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S23+ / S23", "samsung-galaxy-s23", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S23 FE", "samsung-galaxy-s23-fe", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Samsung Exynos", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S22 Ultra 5G", "samsung-galaxy-s22-ultra", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S22+ / S22 5G", "samsung-galaxy-s22", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S21 Ultra / S21+ / S21 5G", "samsung-galaxy-s21-ultra", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S21 FE 5G", "samsung-galaxy-s21-fe", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S20 Ultra / S20+ / S20 5G", "samsung-galaxy-s20-ultra", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S20 FE 5G", "samsung-galaxy-s20-fe", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S10+ / S10 / S10e", "samsung-galaxy-s10-plus", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S9+ / S9 / S8+ / S8", "samsung-galaxy-s9-plus", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "3000 - 3999 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy S7 / S6 / S5 / S4 Classic", "samsung-galaxy-s7-edge", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "32GB",
+                "network_generation": "4G LTE", "screen_size_inch": "5.0\" - 5.9\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "3000 - 3999 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "Samsung Exynos", "os_platform": "Android"
+            }),
+
+            # --- SAMSUNG NOTE & FOLD/FLIP ---
+            (phone_cat, "samsung", "Samsung Galaxy Z Fold 6 / Fold 5 / Fold 4", "samsung-galaxy-z-fold-6", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "512GB",
+                "network_generation": "5G", "screen_size_inch": "7.0\" - 8.9\" (Compact Tablet)", "display_type": "Foldable AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy Z Flip 6 / Flip 5 / Flip 4", "samsung-galaxy-z-flip-6", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Foldable AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy Note 20 Ultra 5G", "samsung-galaxy-note-20-ultra", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy Note 10+ / Note 10 / Note 9", "samsung-galaxy-note-10-plus", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Dynamic AMOLED 2X",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "Samsung Exynos", "os_platform": "Android"
+            }),
+
+            # --- SAMSUNG A-SERIES (FULL POPULAR LINEUP) ---
+            (phone_cat, "samsung", "Samsung Galaxy A55 5G", "samsung-galaxy-a55-5g", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Samsung Exynos", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy A54 5G / A53 5G / A52s", "samsung-galaxy-a54-5g", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Samsung Exynos", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy A35 5G / A34 5G / A33 5G", "samsung-galaxy-a35-5g", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Samsung Exynos", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy A25 5G / A24 / A23", "samsung-galaxy-a25-5g", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Samsung Exynos", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy A15 5G / A15 4G", "samsung-galaxy-a15", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy A14 / A13 / A12 / A11", "samsung-galaxy-a14", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "samsung", "Samsung Galaxy A05s / A05 / A04s / A04 / A03", "samsung-galaxy-a05s", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+
+            # --- APPLE IPHONE (2010 - PRESENT) ---
+            (phone_cat, "apple", "Apple iPhone 16 Pro Max", "apple-iphone-16-pro-max", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "LTPO OLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone 16 Pro / 16 Plus / 16", "apple-iphone-16", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "OLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "3000 - 3999 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone 15 Pro Max", "apple-iphone-15-pro-max", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "LTPO OLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone 15 Pro / 15 Plus / 15", "apple-iphone-15", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "OLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "3000 - 3999 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone 14 Pro Max / 14 Pro", "apple-iphone-14-pro-max", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "LTPO OLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone 14 Plus / 14", "apple-iphone-14", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "OLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "3000 - 3999 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone 13 Pro Max / 13 Pro", "apple-iphone-13-pro-max", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "LTPO OLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone 13 / 13 mini", "apple-iphone-13", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.0\" - 6.4\"", "display_type": "OLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "3000 - 3999 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone 12 Pro Max / 12 Pro / 12", "apple-iphone-12-pro-max", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "OLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "3000 - 3999 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone 11 Pro Max / 11 Pro / 11", "apple-iphone-11-pro-max", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "OLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "3000 - 3999 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone XS Max / XS / XR / X", "apple-iphone-xs-max", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "OLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "3000 - 3999 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+            (phone_cat, "apple", "Apple iPhone 8 Plus / 8 / 7 / 6s / SE", "apple-iphone-8-plus", {
+                "device_type": "Smartphone", "ram_size_gb": "3GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "5.0\" - 5.9\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "< 3000 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "Apple A-Series", "os_platform": "iOS"
+            }),
+
+            # --- TECNO (EXHAUSTIVE LINEUP) ---
+            # CAMON SERIES (Camera Flagships)
             (phone_cat, "tecno", "Tecno Camon 30 Premier 5G", "tecno-camon-30-premier-5g", {
                 "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "512GB",
                 "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "LTPO OLED",
-                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP",
-                "battery_capacity_mah": "5000 mAh", "charging_wattage": "65W - 80W Ultra Fast",
-                "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
             }),
-            (phone_cat, "infinix", "Infinix Note 40 Pro+ 5G", "infinix-note-40-pro-plus", {
+            (phone_cat, "tecno", "Tecno Camon 30 Pro 5G / Camon 30 5G", "tecno-camon-30-pro", {
                 "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
                 "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
-                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP",
-                "battery_capacity_mah": "4000 - 4800 mAh", "charging_wattage": "100W - 120W HyperCharge",
-                "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+                "refresh_rate_hz": "144Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Camon 30 (4G)", "tecno-camon-30-4g", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Camon 20 Premier 5G", "tecno-camon-20-premier-5g", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "512GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Camon 20 Pro 5G / Camon 20 Pro 4G", "tecno-camon-20-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "64MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Camon 20 / Camon 19 Pro / Camon 19", "tecno-camon-20", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "64MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Camon 18 Premier / Camon 18P / Camon 18", "tecno-camon-18", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "64MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Camon 17 Pro / Camon 16 / Camon 15 Classic", "tecno-camon-17", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "64MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
             }),
 
+            # SPARK SERIES (Popular Everyday Value)
+            (phone_cat, "tecno", "Tecno Spark 20 Pro+ (Curved AMOLED 120Hz)", "tecno-spark-20-pro-plus", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Spark 20 Pro / Spark 20", "tecno-spark-20-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Spark 20C / Spark 10 Pro / Spark 10", "tecno-spark-20c", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Spark 10C / Spark 9 Pro / Spark 9", "tecno-spark-10c", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Unisoc", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Spark 8P / Spark 8 / Spark 7 Pro / Spark 6", "tecno-spark-8", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+
+            # POVA SERIES (Massive Battery & Gaming)
+            (phone_cat, "tecno", "Tecno Pova 6 Pro 5G / Pova 6", "tecno-pova-6-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "6000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Pova 5 Pro 5G / Pova 5 (6000mAh)", "tecno-pova-5-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "6000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Pova 4 Pro / Pova 4 / Pova Neo 2", "tecno-pova-4", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "6000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+
+            # PHANTOM SERIES (Premium Foldables & Flagships)
+            (phone_cat, "tecno", "Tecno Phantom V Fold (120Hz LTPO Foldable)", "tecno-phantom-v-fold", {
+                "device_type": "Foldable Smartphone", "ram_size_gb": "12GB", "storage_internal": "512GB",
+                "network_generation": "5G", "screen_size_inch": "7.8\" Foldable LTPO AMOLED", "display_type": "LTPO OLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Phantom V Flip (Clamshell Foldable)", "tecno-phantom-v-flip", {
+                "device_type": "Foldable Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "LTPO OLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "64MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Phantom X2 Pro 5G (Retractable Portrait Lens)", "tecno-phantom-x2-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+
+            # POP SERIES (Entry Level)
+            (phone_cat, "tecno", "Tecno Pop 8 (Magic Ring, 90Hz)", "tecno-pop-8", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "Unisoc", "os_platform": "Android"
+            }),
+            (phone_cat, "tecno", "Tecno Pop 7 Pro / Pop 7 / Pop 6 / Pop 5", "tecno-pop-7", {
+                "device_type": "Smartphone", "ram_size_gb": "2GB", "storage_internal": "32GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "Unisoc", "os_platform": "Android"
+            }),
+
+            # --- INFINIX (EXHAUSTIVE LINEUP) ---
+            # NOTE SERIES
+            (phone_cat, "infinix", "Infinix Note 40 Pro+ 5G", "infinix-note-40-pro-plus-5g", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "100W - 120W HyperCharge", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Note 40 Pro 5G / Note 40 Pro 4G", "infinix-note-40-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Note 40 4G / 5G", "infinix-note-40", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Note 30 VIP (50W Wireless)", "infinix-note-30-vip", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Note 30 Pro", "infinix-note-30-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Note 30 5G / Note 30 4G", "infinix-note-30", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "64MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Note 12 VIP (120W Charge)", "infinix-note-12-vip", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "100W - 120W HyperCharge", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Note 12 Pro 5G / Note 12 Pro 4G", "infinix-note-12-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Note 12 G96 / Note 12 / Note 11 Pro", "infinix-note-12-g96", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Note 10 Pro / Note 8 / Note 7", "infinix-note-10-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "64MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+
+            # HOT SERIES
+            (phone_cat, "infinix", "Infinix Hot 40 Pro", "infinix-hot-40-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Hot 40 / Hot 40i", "infinix-hot-40", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Hot 30 / Hot 30 5G / Hot 30i / Hot 30 Play", "infinix-hot-30", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Hot 20 / Hot 20 5G / Hot 20i / Hot 20 Play", "infinix-hot-20", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Hot 12 / Hot 12 Play / Hot 12i", "infinix-hot-12", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "6000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Hot 11 / Hot 11S / Hot 10 Play / Hot 9", "infinix-hot-11", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+
+            # SMART SERIES
+            (phone_cat, "infinix", "Infinix Smart 8 Pro / Smart 8 Plus", "infinix-smart-8-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "6000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Smart 8 / Smart 8 HD (Magic Ring)", "infinix-smart-8", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "Unisoc", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Smart 7 / Smart 7 Plus / Smart 7 HD", "infinix-smart-7", {
+                "device_type": "Smartphone", "ram_size_gb": "4GB", "storage_internal": "64GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "Unisoc", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Smart 6 / Smart 6 Plus / Smart 5", "infinix-smart-6", {
+                "device_type": "Smartphone", "ram_size_gb": "2GB", "storage_internal": "32GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "60Hz", "main_camera_mp": "12MP - 13MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "10W - 15W Standard", "chipset_brand": "Unisoc", "os_platform": "Android"
+            }),
+
+            # ZERO & GT SERIES
+            (phone_cat, "infinix", "Infinix Zero 30 5G (4K 60fps Vlog)", "infinix-zero-30-5g", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "144Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Zero Ultra (200MP, 180W Charge)", "infinix-zero-ultra", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "200MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "200W+ Extreme", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix Zero 20 / Zero 5G 2023 / Zero X Pro", "infinix-zero-20", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "4000 - 4800 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix GT 20 Pro 5G Gaming (Cyber Mecha)", "infinix-gt-20-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "144Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "infinix", "Infinix GT 10 Pro 5G Gaming", "infinix-gt-10-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+
+            # --- XIAOMI / REDMI / POCO ---
+            (phone_cat, "xiaomi", "Xiaomi 14 Ultra / 14 Pro / 14", "xiaomi-14-ultra", {
+                "device_type": "Smartphone", "ram_size_gb": "16GB", "storage_internal": "512GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "LTPO OLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "xiaomi", "Redmi Note 13 Pro+ 5G / Note 13 Pro", "redmi-note-13-pro-plus", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "512GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "200MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "100W - 120W HyperCharge", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+            (phone_cat, "xiaomi", "Redmi Note 13 4G / 5G / Note 12", "redmi-note-13", {
+                "device_type": "Smartphone", "ram_size_gb": "8GB", "storage_internal": "256GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "108MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "Qualcomm Snapdragon", "os_platform": "Android"
+            }),
+            (phone_cat, "xiaomi", "Redmi 13C / 12 / 10C / 9A / 9C", "redmi-13c", {
+                "device_type": "Smartphone", "ram_size_gb": "6GB", "storage_internal": "128GB",
+                "network_generation": "4G LTE", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "IPS LCD",
+                "refresh_rate_hz": "90Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "MediaTek Helio (G-Series)", "os_platform": "Android"
+            }),
+            (phone_cat, "xiaomi", "Poco X6 Pro 5G / Poco F6 Pro / F5", "poco-x6-pro-5g", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "512GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "Super AMOLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "64MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "65W - 80W Ultra Fast", "chipset_brand": "MediaTek Dimensity", "os_platform": "Android"
+            }),
+
+            # --- GOOGLE PIXEL ---
+            (phone_cat, "google-pixel", "Google Pixel 9 Pro XL / 9 Pro / 9", "google-pixel-9-pro-xl", {
+                "device_type": "Smartphone", "ram_size_gb": "16GB", "storage_internal": "256GB",
+                "network_generation": "5G", "screen_size_inch": "6.8\" - 6.9\"", "display_type": "LTPO OLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "33W - 45W Super Fast", "chipset_brand": "Google Tensor", "os_platform": "Android"
+            }),
+            (phone_cat, "google-pixel", "Google Pixel 8 Pro / Pixel 8 / 8a", "google-pixel-8-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "LTPO OLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Google Tensor", "os_platform": "Android"
+            }),
+            (phone_cat, "google-pixel", "Google Pixel 7 Pro / 7 / 6 Pro / 6", "google-pixel-7-pro", {
+                "device_type": "Smartphone", "ram_size_gb": "12GB", "storage_internal": "128GB",
+                "network_generation": "5G", "screen_size_inch": "6.5\" - 6.7\"", "display_type": "LTPO OLED",
+                "refresh_rate_hz": "120Hz", "main_camera_mp": "48MP - 50MP", "battery_capacity_mah": "5000 mAh",
+                "charging_wattage": "18W - 25W Fast", "chipset_brand": "Google Tensor", "os_platform": "Android"
+            }),
+
+            # ═══════════════════════════════════════════════════════════════════
+            # COMPUTERS & LAPTOPS (2010 - PRESENT EXHAUSTIVE CANONICAL MODELS)
+            # ═══════════════════════════════════════════════════════════════════
+            # --- APPLE MACBOOK ---
+            (comp_cat, "apple", "Apple MacBook Pro 16 M3 Max", "apple-macbook-pro-16-m3-max", {
+                "form_factor": "Mobile Workstation", "processor_brand": "Apple Silicon",
+                "processor_generation": "Apple M3 / M3 Pro / M3 Max", "processor_model": "Apple M3 Max (16-Core)",
+                "ram_size_gb": "64GB", "storage_capacity": "1TB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "16.2\"", "display_resolution": "Liquid Retina XDR",
+                "graphics_type": "Apple Unified GPU", "operating_system": "macOS"
+            }),
+            (comp_cat, "apple", "Apple MacBook Pro 14 M3 Pro", "apple-macbook-pro-14-m3-pro", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Apple Silicon",
+                "processor_generation": "Apple M3 / M3 Pro / M3 Max", "processor_model": "Apple M3 Pro (11-Core)",
+                "ram_size_gb": "18GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.2\"", "display_resolution": "Liquid Retina XDR",
+                "graphics_type": "Apple Unified GPU", "operating_system": "macOS"
+            }),
+            (comp_cat, "apple", "Apple MacBook Air 15 M3 / M2", "apple-macbook-air-15-m3", {
+                "form_factor": "Ultrabook", "processor_brand": "Apple Silicon",
+                "processor_generation": "Apple M3 / M3 Pro / M3 Max", "processor_model": "Apple M3 (8-Core)",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.3\"", "display_resolution": "Liquid Retina XDR",
+                "graphics_type": "Apple Unified GPU", "operating_system": "macOS"
+            }),
+            (comp_cat, "apple", "Apple MacBook Air 13 M2 / M1", "apple-macbook-air-13-m2", {
+                "form_factor": "Ultrabook", "processor_brand": "Apple Silicon",
+                "processor_generation": "Apple M2 / M2 Pro / M2 Max", "processor_model": "Apple M2 (8-Core)",
+                "ram_size_gb": "8GB", "storage_capacity": "256GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "13.6\"", "display_resolution": "Liquid Retina XDR",
+                "graphics_type": "Apple Unified GPU", "operating_system": "macOS"
+            }),
+            (comp_cat, "apple", "Apple MacBook Pro 13 (Intel Core i5/i7 TouchBar 2016-2020)", "apple-macbook-pro-13-intel", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 8th/9th Gen Core", "processor_model": "Core i5-8257U",
+                "ram_size_gb": "8GB", "storage_capacity": "256GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "13.3\"", "display_resolution": "Liquid Retina XDR",
+                "graphics_type": "Integrated Graphics", "operating_system": "macOS"
+            }),
+            (comp_cat, "apple", "Apple MacBook Pro 15 (Retina Intel Core i7 2012-2019)", "apple-macbook-pro-15-retina-intel", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 4th-7th Gen Core", "processor_model": "Core i7-4870HQ",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.6\"", "display_resolution": "Liquid Retina XDR",
+                "graphics_type": "Dedicated AMD Radeon", "operating_system": "macOS"
+            }),
+            (comp_cat, "apple", "Apple MacBook Air 13 (Classic Intel Core i5 2012-2017)", "apple-macbook-air-13-classic-intel", {
+                "form_factor": "Ultrabook", "processor_brand": "Intel",
+                "processor_generation": "Intel 4th-7th Gen Core", "processor_model": "Core i5-5250U",
+                "ram_size_gb": "8GB", "storage_capacity": "128GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "13.3\"", "display_resolution": "HD (1366x768)",
+                "graphics_type": "Integrated Graphics", "operating_system": "macOS"
+            }),
+            (comp_cat, "apple", "Apple iMac 24 M3 / M1 All-in-One", "apple-imac-24-m3", {
+                "form_factor": "All-in-One (AIO)", "processor_brand": "Apple Silicon",
+                "processor_generation": "Apple M3 / M3 Pro / M3 Max", "processor_model": "Apple M3 (8-Core CPU)",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "24.0\" (AIO)", "display_resolution": "4K UHD (3840x2160)",
+                "graphics_type": "Apple Unified GPU", "operating_system": "macOS"
+            }),
+
+            # --- DELL ---
+            (comp_cat, "dell", "Dell XPS 15 9530 / 9520", "dell-xps-15-9530", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i7-13700H",
+                "ram_size_gb": "16GB", "storage_capacity": "1TB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.6\"", "display_resolution": "3K / 3.5K OLED",
+                "graphics_type": "Dedicated NVIDIA RTX 40-Series", "gpu_model": "RTX 4060 8GB",
+                "operating_system": "Windows 11 Pro"
+            }),
+            (comp_cat, "dell", "Dell XPS 13 Plus 9320 / XPS 13 9310", "dell-xps-13-plus-9320", {
+                "form_factor": "Ultrabook", "processor_brand": "Intel",
+                "processor_generation": "Intel 12th Gen Core", "processor_model": "Core i7-1260P",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "13.3\"", "display_resolution": "FHD+ (1920x1200)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Pro"
+            }),
+            (comp_cat, "dell", "Dell Latitude 5440 / 5430 / 5420", "dell-latitude-5440", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i5-1335U",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Pro"
+            }),
+            (comp_cat, "dell", "Dell Latitude 7420 / 7410 / 7490 / 7480", "dell-latitude-7420", {
+                "form_factor": "Ultrabook", "processor_brand": "Intel",
+                "processor_generation": "Intel 11th Gen Core", "processor_model": "Core i7-1185G7",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Pro"
+            }),
+            (comp_cat, "dell", "Dell Latitude E7470 / E7450 / E6430 Classic", "dell-latitude-e7470", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 4th-7th Gen Core", "processor_model": "Core i5-6300U",
+                "ram_size_gb": "8GB", "storage_capacity": "256GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 10 Pro"
+            }),
+            (comp_cat, "dell", "Dell Inspiron 15 3520 / 3511 / 5510", "dell-inspiron-15-3520", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 12th Gen Core", "processor_model": "Core i5-1235U",
+                "ram_size_gb": "8GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.6\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "dell", "Dell Alienware m16 / m18 Gaming Laptop", "dell-alienware-m16", {
+                "form_factor": "Gaming Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i9-13900HX",
+                "ram_size_gb": "32GB", "storage_capacity": "1TB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "16.0\"", "display_resolution": "2K / QHD (2560x1440)",
+                "graphics_type": "Dedicated NVIDIA RTX 40-Series", "gpu_model": "RTX 4080 12GB",
+                "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "dell", "Dell OptiPlex 7010 / 5090 Desktop Tower", "dell-optiplex-7010", {
+                "form_factor": "Desktop Tower", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i7-13700",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "24.0\" (AIO)", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Pro"
+            }),
+
+            # --- HP ---
+            (comp_cat, "hp", "HP EliteBook 840 G10 / G9", "hp-elitebook-840-g10", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i7-1355U",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "FHD+ (1920x1200)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Pro"
+            }),
+            (comp_cat, "hp", "HP EliteBook 840 G8 / G7 / G6 / G5", "hp-elitebook-840-g8", {
+                "form_factor": "Ultrabook", "processor_brand": "Intel",
+                "processor_generation": "Intel 11th Gen Core", "processor_model": "Core i7-1165G7",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 10 Pro"
+            }),
+            (comp_cat, "hp", "HP EliteBook 840 G4 / G3 / G2 / G1 Classic", "hp-elitebook-840-g3", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 4th-7th Gen Core", "processor_model": "Core i5-6200U",
+                "ram_size_gb": "8GB", "storage_capacity": "256GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 10 Pro"
+            }),
+            (comp_cat, "hp", "HP ProBook 450 G10 / G9 / G8", "hp-probook-450-g10", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i5-1335U",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.6\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Pro"
+            }),
+            (comp_cat, "hp", "HP Spectre x360 14 / 16 2-in-1 Touch", "hp-spectre-x360-14", {
+                "form_factor": "2-in-1 Convertible / Touch", "processor_brand": "Intel",
+                "processor_generation": "Intel Core Ultra", "processor_model": "Core Ultra 7 155H",
+                "ram_size_gb": "16GB", "storage_capacity": "1TB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "3K / 3.5K OLED",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "hp", "HP Envy x360 15 / 14 2-in-1", "hp-envy-x360-15", {
+                "form_factor": "2-in-1 Convertible / Touch", "processor_brand": "AMD",
+                "processor_generation": "AMD Ryzen 8000/7000 Series", "processor_model": "Ryzen 7 7730U",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.6\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "hp", "HP Omen 16 / Victus 15 Gaming Laptop", "hp-victus-15-gaming", {
+                "form_factor": "Gaming Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i5-13420H",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.6\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Dedicated NVIDIA RTX 40-Series", "gpu_model": "RTX 4050 6GB",
+                "operating_system": "Windows 11 Home"
+            }),
+
+            # --- LENOVO ---
+            (comp_cat, "lenovo", "Lenovo ThinkPad X1 Carbon Gen 12 / 11 / 10", "lenovo-thinkpad-x1-carbon-gen-11", {
+                "form_factor": "Ultrabook", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i7-1365U",
+                "ram_size_gb": "32GB", "storage_capacity": "1TB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "2K / QHD (2560x1440)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Pro"
+            }),
+            (comp_cat, "lenovo", "Lenovo ThinkPad T14 Gen 4 / Gen 3 / Gen 2", "lenovo-thinkpad-t14-gen-4", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i5-1335U",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "FHD+ (1920x1200)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Pro"
+            }),
+            (comp_cat, "lenovo", "Lenovo ThinkPad T490 / T480 / T470 / T460", "lenovo-thinkpad-t480", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 8th/9th Gen Core", "processor_model": "Core i5-8250U",
+                "ram_size_gb": "16GB", "storage_capacity": "256GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Pro"
+            }),
+            (comp_cat, "lenovo", "Lenovo ThinkPad E14 / E15 / E490 / E480", "lenovo-thinkpad-e14", {
+                "form_factor": "Traditional Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 12th Gen Core", "processor_model": "Core i5-1235U",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Pro"
+            }),
+            (comp_cat, "lenovo", "Lenovo Legion Pro 7i / Legion 5 Gaming", "lenovo-legion-pro-7i", {
+                "form_factor": "Gaming Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i9-13900HX",
+                "ram_size_gb": "32GB", "storage_capacity": "1TB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "16.0\"", "display_resolution": "2K / QHD (2560x1440)",
+                "graphics_type": "Dedicated NVIDIA RTX 40-Series", "gpu_model": "RTX 4080 12GB",
+                "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "lenovo", "Lenovo IdeaPad 3 / 5 / Slim 3", "lenovo-ideapad-3", {
+                "form_factor": "Traditional Laptop", "processor_brand": "AMD",
+                "processor_generation": "AMD Ryzen 5000 Series", "processor_model": "Ryzen 5 5500U",
+                "ram_size_gb": "8GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.6\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Home"
+            }),
+
+            # --- ASUS & ACER & MSI & SURFACE ---
+            (comp_cat, "asus", "Asus ROG Zephyrus G14 / G16 Gaming", "asus-rog-zephyrus-g14", {
+                "form_factor": "Gaming Laptop", "processor_brand": "AMD",
+                "processor_generation": "AMD Ryzen 8000/7000 Series", "processor_model": "Ryzen 9 8945HS",
+                "ram_size_gb": "32GB", "storage_capacity": "1TB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "3K / 3.5K OLED",
+                "graphics_type": "Dedicated NVIDIA RTX 40-Series", "gpu_model": "RTX 4070 8GB",
+                "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "asus", "Asus ZenBook 14 OLED / Pro 14", "asus-zenbook-14-oled", {
+                "form_factor": "Ultrabook", "processor_brand": "Intel",
+                "processor_generation": "Intel Core Ultra", "processor_model": "Core Ultra 7 155H",
+                "ram_size_gb": "16GB", "storage_capacity": "1TB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "3K / 3.5K OLED",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "asus", "Asus TUF Gaming A15 / F15", "asus-tuf-gaming-a15", {
+                "form_factor": "Gaming Laptop", "processor_brand": "AMD",
+                "processor_generation": "AMD Ryzen 8000/7000 Series", "processor_model": "Ryzen 7 7735HS",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.6\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Dedicated NVIDIA RTX 40-Series", "gpu_model": "RTX 4060 8GB",
+                "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "acer", "Acer Nitro 16 / Nitro 5 Gaming Laptop", "acer-nitro-5-gaming", {
+                "form_factor": "Gaming Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 12th Gen Core", "processor_model": "Core i5-12500H",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.6\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Dedicated NVIDIA RTX 30-Series", "gpu_model": "RTX 3050 4GB",
+                "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "acer", "Acer Swift Go 14 / Aspire 5", "acer-swift-go-14", {
+                "form_factor": "Ultrabook", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i7-13700H",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "14.0\"", "display_resolution": "2K / QHD (2560x1440)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "msi", "MSI Katana 15 / Stealth 16 Gaming", "msi-katana-15", {
+                "form_factor": "Gaming Laptop", "processor_brand": "Intel",
+                "processor_generation": "Intel 13th Gen Core", "processor_model": "Core i7-13620H",
+                "ram_size_gb": "16GB", "storage_capacity": "1TB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "15.6\"", "display_resolution": "FHD (1920x1080)",
+                "graphics_type": "Dedicated NVIDIA RTX 40-Series", "gpu_model": "RTX 4060 8GB",
+                "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "microsoft-surface", "Microsoft Surface Pro 11 / Pro 9 2-in-1", "microsoft-surface-pro-9", {
+                "form_factor": "2-in-1 Convertible / Touch", "processor_brand": "Intel",
+                "processor_generation": "Intel 12th Gen Core", "processor_model": "Core i7-1255U",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "13.3\"", "display_resolution": "2K / QHD (2560x1440)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Home"
+            }),
+            (comp_cat, "microsoft-surface", "Microsoft Surface Laptop 7 / 6 / 5", "microsoft-surface-laptop-5", {
+                "form_factor": "Ultrabook", "processor_brand": "Intel",
+                "processor_generation": "Intel 12th Gen Core", "processor_model": "Core i5-1235U",
+                "ram_size_gb": "16GB", "storage_capacity": "512GB", "storage_type": "NVMe M.2 PCIe SSD",
+                "screen_size_inch": "13.6\"", "display_resolution": "2K / QHD (2560x1440)",
+                "graphics_type": "Integrated Graphics", "operating_system": "Windows 11 Home"
+            }),
+
+            # ═══════════════════════════════════════════════════════════════════
+            # TVS, AUDIO, CAMERAS, CONSOLES, COMMERCIAL, SOLAR & TOOLS
+            # ═══════════════════════════════════════════════════════════════════
             # TVs & Audio
+            (tv_cat, "samsung", "Samsung 65-inch Neo QLED 4K TV", "samsung-65-neo-qled-4k", {
+                "product_subtype": "Television", "screen_size_inch": "65\"",
+                "display_technology": "QLED", "display_resolution": "4K Ultra HD (3840x2160)",
+                "smart_tv_platform": "Samsung Tizen OS"
+            }),
             (tv_cat, "lg", "LG 55-inch C3 4K OLED TV", "lg-55-c3-oled-tv", {
                 "product_subtype": "Television", "screen_size_inch": "55\"",
                 "display_technology": "OLED", "display_resolution": "4K Ultra HD (3840x2160)",
-                "smart_tv_platform": "LG webOS", "audio_channels": "2.1 Channel (Subwoofer)",
-                "surround_audio_decoding": ["Dolby Atmos"]
+                "smart_tv_platform": "LG webOS"
+            }),
+            (tv_cat, "sony", "Sony BRAVIA XR 65-inch 4K HDR TV", "sony-bravia-xr-65", {
+                "product_subtype": "Television", "screen_size_inch": "65\"",
+                "display_technology": "OLED", "display_resolution": "4K Ultra HD (3840x2160)",
+                "smart_tv_platform": "Google TV"
             }),
             (tv_cat, "jbl", "JBL PartyBox 310 Bluetooth Speaker", "jbl-partybox-310", {
                 "product_subtype": "Party Speaker / Hi-Fi Tower",
@@ -334,16 +1238,30 @@ def run_seed():
             }),
 
             # Gaming & Cameras
-            (game_cat, "playstation", "Sony PlayStation 5 Disc Edition", "sony-playstation-5", {
+            (game_cat, "sony-playstation", "Sony PlayStation 5 Pro / Disc Edition", "sony-playstation-5", {
                 "console_type": "Home Console (Disc Edition)", "platform": "PlayStation 5",
                 "storage_capacity": "825GB SSD", "max_resolution_output": "4K UHD (60/120Hz)",
                 "refresh_rate_vrr": "120Hz VRR Supported", "optical_drive_type": "4K Ultra HD Blu-ray"
+            }),
+            (game_cat, "microsoft-xbox", "Microsoft Xbox Series X (1TB)", "xbox-series-x", {
+                "console_type": "Home Console (Disc Edition)", "platform": "Xbox Series X",
+                "storage_capacity": "1TB NVMe SSD", "max_resolution_output": "4K UHD (60/120Hz)",
+                "refresh_rate_vrr": "120Hz VRR Supported"
+            }),
+            (game_cat, "nintendo", "Nintendo Switch OLED Model", "nintendo-switch-oled", {
+                "console_type": "Hybrid Console / Handheld", "platform": "Nintendo Switch",
+                "storage_capacity": "64GB Internal", "max_resolution_output": "1080p (Docked) / 720p (Handheld)"
             }),
             (cam_cat, "sony", "Sony Alpha A7 IV Mirrorless Camera", "sony-alpha-a7-iv", {
                 "photography_type": "Mirrorless Camera", "sensor_format": "Full Frame (35mm)",
                 "sensor_resolution_mp": "26MP - 33MP", "max_video_resolution": "4K 30/60 fps",
                 "lens_mount_compatibility": "Sony E-Mount",
                 "stabilization_type": "5-Axis In-Body Sensor-Shift (IBIS)"
+            }),
+            (cam_cat, "canon", "Canon EOS R6 Mark II Mirrorless", "canon-eos-r6-mark-ii", {
+                "photography_type": "Mirrorless Camera", "sensor_format": "Full Frame (35mm)",
+                "sensor_resolution_mp": "24MP", "max_video_resolution": "4K 60 fps",
+                "lens_mount_compatibility": "Canon RF-Mount"
             }),
 
             # Trucks & Commercial
@@ -477,14 +1395,20 @@ def run_seed():
                     'price': price,
                     'stock': 10,
                     'is_available': True,
-                    'condition': 'NEW',
+                    'condition': 'New',
                     'seller': seller,
                     'structured_specs': specs,
                     'specifications': specs
                 }
             )
 
-    print("✓ Successfully seeded Technical Schemas, Brands, Models & Active Products!")
+    print("✓ Successfully seeded Technical Schemas, Brands, Category Associations, Models & Active Products!")
+
+class Command(BaseCommand):
+    help = 'Seeds technical schemas, brands, category-brand associations, models, and reference products'
+
+    def handle(self, *args, **options):
+        run_seed()
 
 if __name__ == '__main__':
     run_seed()
