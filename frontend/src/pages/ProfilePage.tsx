@@ -88,56 +88,84 @@ const ProfilePage: React.FC = () => {
     });
   };
 
-  const fetchProfile = () => {
-    setLoading(true);
-    api.get(`/api/profiles/${username}/`)
-      .then(res => {
-        setProfile(res.data);
+  const fetchProfile = React.useCallback(async (signal?: AbortSignal) => {
+    if (!username) return;
+    try {
+      const promises: Promise<any>[] = [
+        api.get(`/api/profiles/${username}/`, { signal }),
+        api.get(`/api/products/?seller=${username}`, { signal }),
+        api.get(`/api/product-requests/?seller_username=${username}`, { signal }),
+      ];
+
+      if (currentUser) {
+        promises.push(api.get(`/api/profiles/${username}/follow_status/`, { signal }));
+        if (currentUser === username) {
+          promises.push(api.get('/api/subscriptions/me/', { signal }));
+        }
+      }
+
+      const results = await Promise.allSettled(promises);
+
+      // 1. Profile Data
+      if (results[0].status === 'fulfilled' && results[0].value?.data) {
+        const pData = results[0].value.data;
+        setProfile(pData);
         setEditForm({
-          bio: res.data.bio || '',
-          location: res.data.location || '',
-          phone_number: res.data.phone_number || '',
-          website: res.data.website || '',
-          instagram_username: res.data.instagram_username || '',
-          whatsapp_number: res.data.whatsapp_number || '',
-          facebook_url: res.data.facebook_url || '',
-          tiktok_username: res.data.tiktok_username || '',
-          twitter_username: res.data.twitter_username || '',
-          youtube_url: res.data.youtube_url || '',
-          linkedin_url: res.data.linkedin_url || '',
+          bio: pData.bio || '',
+          location: pData.location || '',
+          phone_number: pData.phone_number || '',
+          website: pData.website || '',
+          instagram_username: pData.instagram_username || '',
+          whatsapp_number: pData.whatsapp_number || '',
+          facebook_url: pData.facebook_url || '',
+          tiktok_username: pData.tiktok_username || '',
+          twitter_username: pData.twitter_username || '',
+          youtube_url: pData.youtube_url || '',
+          linkedin_url: pData.linkedin_url || '',
         });
-      })
-      .catch(() => setProfile(null))
-      .finally(() => setLoading(false));
+      } else if (results[0].status === 'rejected') {
+        if (!signal?.aborted) setProfile(null);
+      }
 
-    if (isOwner) {
-      api.get('/api/subscriptions/me/')
-        .then(res => {
-          if (res.data && res.data.status !== 'none' && !res.data.is_active) {
-            setIsSubscriptionExpired(true);
-          } else {
-            setIsSubscriptionExpired(false);
-          }
-        })
-        .catch(() => setIsSubscriptionExpired(false));
+      // 2. Products
+      if (results[1].status === 'fulfilled') {
+        setProducts(results[1].value.data.results || results[1].value.data || []);
+      }
+
+      // 3. Product Requests
+      if (results[2].status === 'fulfilled') {
+        setProductRequests(results[2].value.data.results || results[2].value.data || []);
+      }
+
+      // 4. Follow Status
+      if (currentUser && results[3]?.status === 'fulfilled') {
+        setFollowStatus(results[3].value.data);
+      }
+
+      // 5. Subscription Expired Status
+      if (currentUser === username && results[4]?.status === 'fulfilled') {
+        const subData = results[4].value.data;
+        setIsSubscriptionExpired(Boolean(subData && subData.status !== 'none' && !subData.is_active));
+      }
+    } catch (err: any) {
+      if (!signal?.aborted) {
+        console.error("Profile load error", err);
+      }
+    } finally {
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
-
-    api.get(`/api/products/?seller=${username}`)
-      .then(res => setProducts(res.data.results || res.data))
-      .catch(() => {});
-      
-    api.get(`/api/product-requests/?seller_username=${username}`)
-      .then(res => setProductRequests(res.data.results || res.data))
-      .catch(() => {});
-  };
+  }, [username, currentUser]);
 
   useEffect(() => {
-    fetchProfile();
-    if (username) {
-        api.get(`/api/profiles/${username}/follow_status/`)
-            .then(r => setFollowStatus(r.data)).catch(() => {});
-    }
-  }, [username]);
+    const controller = new AbortController();
+    setLoading(true);
+    fetchProfile(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [fetchProfile]);
 
   const handleFollow = async () => {
       const action = followStatus.following ? 'unfollow' : 'follow';
@@ -185,7 +213,18 @@ const ProfilePage: React.FC = () => {
       setIsEditing(false);
       fetchProfile();
     } catch (err: any) {
-      toast.error('Failed to update profile');
+      const data = err.response?.data;
+      let errorMsg = 'Failed to update profile';
+      if (data) {
+        if (typeof data === 'string') {
+          errorMsg = data;
+        } else if (typeof data === 'object') {
+          errorMsg = Object.entries(data)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+            .join(' | ');
+        }
+      }
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -254,12 +293,49 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[50vh]">
-        <Spinner size="md" />
+  const ProfileSkeleton = () => (
+    <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 space-y-10 animate-pulse">
+      <div className="flex flex-col md:flex-row items-start gap-6 md:gap-16 pb-8 sm:pb-10">
+        <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full bg-gray-200 dark:bg-neutral-800 shrink-0" />
+        <div className="flex-1 space-y-4 w-full pt-2">
+          <div className="flex items-center gap-3">
+            <div className="h-7 w-44 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
+            <div className="h-7 w-24 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
+          </div>
+          <div className="flex items-center gap-6 pt-1">
+            <div className="h-5 w-20 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+            <div className="h-5 w-20 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+            <div className="h-5 w-20 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+          </div>
+          <div className="space-y-2 max-w-md pt-2">
+            <div className="h-4 w-full bg-gray-200 dark:bg-neutral-800 rounded" />
+            <div className="h-4 w-2/3 bg-gray-200 dark:bg-neutral-800 rounded" />
+          </div>
+          <div className="h-4 w-28 bg-gray-200 dark:bg-neutral-800 rounded" />
+          <div className="h-5 w-36 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
+        </div>
       </div>
-    );
+      <div className="flex justify-center gap-8 border-b border-gray-100 dark:border-neutral-800/40 pb-3">
+        <div className="h-6 w-24 bg-gray-200 dark:bg-neutral-800 rounded-full" />
+        <div className="h-6 w-28 bg-gray-200 dark:bg-neutral-800 rounded-full" />
+        <div className="h-6 w-20 bg-gray-200 dark:bg-neutral-800 rounded-full" />
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="h-8 w-20 bg-gray-200 dark:bg-neutral-800 rounded-full" />
+        <div className="h-8 w-16 bg-gray-200 dark:bg-neutral-800 rounded-full" />
+        <div className="h-8 w-28 bg-gray-200 dark:bg-neutral-800 rounded-full" />
+        <div className="h-8 w-32 bg-gray-200 dark:bg-neutral-800 rounded-full" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+          <div key={i} className="h-64 rounded-2xl bg-gray-200 dark:bg-neutral-800/80" />
+        ))}
+      </div>
+    </div>
+  );
+
+  if (loading && !profile) {
+    return <ProfileSkeleton />;
   }
 
   if (!profile) {
@@ -300,12 +376,12 @@ const ProfilePage: React.FC = () => {
         </div>
       )}
       
-      {/* Header Info Block — Clean Instagram Style */}
-      <header className="flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-16 pb-10 border-b border-gray-150 dark:border-neutral-800">
+      {/* Header Info Block — Clean Minimalist Style */}
+      <header className="flex flex-col md:flex-row items-start gap-6 md:gap-16 pb-8 sm:pb-10">
 
         
         {/* Left: Avatar Column */}
-        <div className="relative w-36 h-36 md:w-40 md:h-40 rounded-full border border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 shrink-0 overflow-hidden flex items-center justify-center shadow-sm">
+        <div className="relative w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full border border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 shrink-0 overflow-hidden flex items-center justify-center shadow-sm">
           {profile.profile_picture ? (
             <img 
               src={profile.profile_picture.startsWith('http') ? profile.profile_picture : `${API_BASE_URL}${profile.profile_picture}`} 
@@ -325,10 +401,10 @@ const ProfilePage: React.FC = () => {
         </div>
 
         {/* Right: Username, Stats & Bio */}
-        <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left space-y-5">
+        <div className="flex-1 flex flex-col items-start text-left space-y-4 md:space-y-5 w-full">
           
           {/* Row 1: Username & CTAs */}
-          <div className="flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <h1 className="text-2xl font-light text-gray-800 dark:text-neutral-100 flex items-center gap-1.5 leading-none">
               {profile.username}
               <VerifiedBadge tier={profile.tier} isVerified={profile.is_verified} className="w-6 h-6" />
@@ -358,7 +434,7 @@ const ProfilePage: React.FC = () => {
           </div>
 
           {/* Row 2: Statistics */}
-          <div className="flex items-center gap-8 text-sm">
+          <div className="flex items-center gap-6 sm:gap-8 text-sm">
             <div>
               <span className="font-bold text-gray-900 dark:text-neutral-100">{products.length}</span>
               <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('listings')}</span>
@@ -381,7 +457,7 @@ const ProfilePage: React.FC = () => {
 
           {/* Row 1.5: Secondary Action Buttons */}
           {!isOwner && currentUser && (
-            <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start">
+            <div className="flex flex-wrap items-center gap-2 justify-start">
                   {followStatus.following && profile?.phone_number && (
                     <a 
                       href={`tel:${profile.phone_number}`}
@@ -421,30 +497,34 @@ const ProfilePage: React.FC = () => {
           )}
 
           {/* Row 3: Bio & Meta Details */}
-          <div className="space-y-2 text-sm text-gray-800 dark:text-neutral-200">
+          <div className="space-y-2 text-sm text-gray-800 dark:text-neutral-200 w-full text-left">
 
 
             {/* Biography */}
             {profile.bio ? (
-              <p className="leading-relaxed whitespace-pre-wrap max-w-lg">{profile.bio}</p>
+              <p className="leading-relaxed whitespace-pre-wrap max-w-lg text-left">{profile.bio}</p>
             ) : (
-              <p className="italic text-gray-400 dark:text-neutral-600">No biography details provided.</p>
+              <p className="italic text-gray-400 dark:text-neutral-600 text-left">No biography details provided.</p>
             )}
 
-            {/* Ratings & Contact Info */}
-            <div className="pt-1 flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1.5 text-xs text-gray-500 dark:text-neutral-400 font-medium">
-              {ratingCount > 0 && (
-                <div className="flex items-center gap-1 text-amber-600 dark:text-amber-500">
-                  <Star size={13} fill="currentColor" />
-                  <span>{ratingAvg.toFixed(1)} ({ratingCount} reviews)</span>
-                </div>
-              )}
-              {profile.location && (
-                <div className="flex items-center gap-1.5">
-                  <MapPin size={13} />
-                  <span>{profile.location}</span>
-                </div>
-              )}
+            {/* Ratings on separate line */}
+            {ratingCount > 0 && (
+              <div className="flex items-center justify-start gap-1 text-xs text-amber-600 dark:text-amber-500 font-medium">
+                <Star size={13} fill="currentColor" />
+                <span>{ratingAvg.toFixed(1)} ({ratingCount} reviews)</span>
+              </div>
+            )}
+
+            {/* Location on separate line */}
+            {profile.location && (
+              <div className="flex items-center justify-start gap-1.5 text-xs text-gray-500 dark:text-neutral-400 font-medium">
+                <MapPin size={13} />
+                <span>{profile.location}</span>
+              </div>
+            )}
+
+            {/* Social Media Links on separate line */}
+            <div className="pt-0.5 flex items-center justify-start">
               <SocialLinks profile={profile} iconSize={16} />
             </div>
           </div>
@@ -457,13 +537,13 @@ const ProfilePage: React.FC = () => {
       <div className="space-y-6">
         
         {/* Navigation menu items centered across all screens */}
-        <div className="flex items-center justify-center gap-6 sm:gap-8 md:gap-12 border-b border-gray-200/60 dark:border-neutral-800 pb-0 px-4">
+        <div className="flex items-center justify-center gap-6 sm:gap-8 md:gap-12 px-4">
           <button
             onClick={() => setActiveTab('listings')}
-            className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm font-semibold transition-colors ${
+            className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
               activeTab === 'listings' 
-                ? 'text-gray-900 dark:text-white font-bold' 
-                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                ? 'text-black dark:text-white font-black' 
+                : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
             }`}
           >
             <ShoppingBag size={15} className="shrink-0" />
@@ -471,8 +551,8 @@ const ProfilePage: React.FC = () => {
             {activeTab === 'listings' && (
               <motion.div
                 layoutId="profile-nav-indicator"
-                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
-                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
               />
             )}
           </button>
@@ -480,10 +560,10 @@ const ProfilePage: React.FC = () => {
           {showDemandsTab && (
             <button
               onClick={() => setActiveTab('demands')}
-              className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm font-semibold transition-colors ${
+              className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
                 activeTab === 'demands' 
-                  ? 'text-gray-900 dark:text-white font-bold' 
-                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                  ? 'text-black dark:text-white font-black' 
+                  : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
               }`}
             >
               <Clock size={15} className="shrink-0" />
@@ -492,8 +572,8 @@ const ProfilePage: React.FC = () => {
               {activeTab === 'demands' && (
                 <motion.div
                   layoutId="profile-nav-indicator"
-                  className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
-                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
             </button>
@@ -501,10 +581,10 @@ const ProfilePage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('about')}
-            className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm font-semibold transition-colors ${
+            className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
               activeTab === 'about' 
-                ? 'text-gray-900 dark:text-white font-bold' 
-                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                ? 'text-black dark:text-white font-black' 
+                : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
             }`}
           >
             <Info size={15} className="shrink-0" />
@@ -512,8 +592,8 @@ const ProfilePage: React.FC = () => {
             {activeTab === 'about' && (
               <motion.div
                 layoutId="profile-nav-indicator"
-                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
-                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
               />
             )}
           </button>
@@ -528,50 +608,50 @@ const ProfilePage: React.FC = () => {
                 <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
                   <button
                     onClick={() => setDemandFilter('all')}
-                    className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                    className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs transition-all border ${
                       demandFilter === 'all'
-                        ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
-                        : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
+                        ? 'bg-gray-200 dark:bg-neutral-700 text-black dark:text-white font-black border-gray-300 dark:border-neutral-500 shadow-sm'
+                        : 'bg-gray-100 dark:bg-neutral-800/90 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-black dark:hover:text-white font-semibold border-transparent'
                     }`}
                   >
-                    All Upcoming <span className="opacity-60 ml-1">{productRequests.filter(r => !r.is_fulfilled).length}</span>
+                    All Upcoming <span className={`ml-1 ${demandFilter === 'all' ? 'text-gray-800 dark:text-white font-bold' : 'opacity-60 text-gray-500 dark:text-neutral-400'}`}>{productRequests.filter(r => !r.is_fulfilled).length}</span>
                   </button>
 
                   {currentUser && (
                     <>
                       <button
                         onClick={() => setDemandFilter('mine')}
-                        className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs transition-all border ${
                           demandFilter === 'mine'
-                            ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
-                            : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
+                            ? 'bg-gray-200 dark:bg-neutral-700 text-black dark:text-white font-black border-gray-300 dark:border-neutral-500 shadow-sm'
+                            : 'bg-gray-100 dark:bg-neutral-800/90 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-black dark:hover:text-white font-semibold border-transparent'
                         }`}
                       >
-                        My Requests <span className="opacity-60 ml-1">{productRequests.filter(r => r.user_username === currentUser).length}</span>
+                        My Requests <span className={`ml-1 ${demandFilter === 'mine' ? 'text-gray-800 dark:text-white font-bold' : 'opacity-60 text-gray-500 dark:text-neutral-400'}`}>{productRequests.filter(r => r.user_username === currentUser).length}</span>
                       </button>
 
                       <button
                         onClick={() => setDemandFilter('voted')}
-                        className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs transition-all border ${
                           demandFilter === 'voted'
-                            ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
-                            : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
+                            ? 'bg-gray-200 dark:bg-neutral-700 text-black dark:text-white font-black border-gray-300 dark:border-neutral-500 shadow-sm'
+                            : 'bg-gray-100 dark:bg-neutral-800/90 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-black dark:hover:text-white font-semibold border-transparent'
                         }`}
                       >
-                        Tracked & Voted <span className="opacity-60 ml-1">{productRequests.filter(r => r.has_voted).length}</span>
+                        Tracked & Voted <span className={`ml-1 ${demandFilter === 'voted' ? 'text-gray-800 dark:text-white font-bold' : 'opacity-60 text-gray-500 dark:text-neutral-400'}`}>{productRequests.filter(r => r.has_voted).length}</span>
                       </button>
                     </>
                   )}
 
                   <button
                     onClick={() => setDemandFilter('fulfilled')}
-                    className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                    className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs transition-all border ${
                       demandFilter === 'fulfilled'
-                        ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
-                        : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
+                        ? 'bg-gray-200 dark:bg-neutral-700 text-black dark:text-white font-black border-gray-300 dark:border-neutral-500 shadow-sm'
+                        : 'bg-gray-100 dark:bg-neutral-800/90 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-black dark:hover:text-white font-semibold border-transparent'
                     }`}
                   >
-                    Fulfilled <span className="opacity-60 ml-1">{productRequests.filter(r => r.is_fulfilled).length}</span>
+                    Fulfilled <span className={`ml-1 ${demandFilter === 'fulfilled' ? 'text-gray-800 dark:text-white font-bold' : 'opacity-60 text-gray-500 dark:text-neutral-400'}`}>{productRequests.filter(r => r.is_fulfilled).length}</span>
                   </button>
                 </div>
 
@@ -726,46 +806,45 @@ const ProfilePage: React.FC = () => {
         ) : activeTab === 'listings' ? (
           <div className="pt-2">
 
-            {/* Store Search Bar & Category Quick Filters */}
-            {products.length >= 5 && (
-              <div className="mb-6 px-4 sm:px-0 space-y-3">
-                {/* Inline search trigger */}
-                <button
-                  onClick={handleOpenStoreSearch}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-100 dark:bg-neutral-800/60 border border-gray-200/50 dark:border-neutral-700/30 text-gray-400 dark:text-neutral-500 hover:border-brand-500/30 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all group cursor-pointer"
-                >
-                  <Search size={18} className="text-gray-400 dark:text-neutral-500 group-hover:text-brand-500 transition-colors" />
-                  <span className="text-sm font-medium">Search @{username}'s products...</span>
-                </button>
+            {/* Category Quick Filters with Search Pill before All */}
+            {(products.length >= 3 || sellerCategories.length > 1) && (
+              <div className="mb-6 px-4 sm:px-0">
+                <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
+                  {/* Search Pill placed before All */}
+                  <button
+                    onClick={handleOpenStoreSearch}
+                    aria-label={`Search @${username}'s products`}
+                    title={`Search @${username}'s products`}
+                    className="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-gray-100 dark:bg-neutral-800/90 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-black dark:hover:text-white border border-transparent flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
+                  >
+                    <Search size={13} className="shrink-0 text-gray-500 dark:text-neutral-400" />
+                    <span>Search</span>
+                  </button>
 
-                {/* Category quick-filter pills */}
-                {sellerCategories.length > 1 && (
-                  <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
+                  <button
+                    onClick={() => setCategoryFilter('all')}
+                    className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs transition-all border ${
+                      categoryFilter === 'all'
+                        ? 'bg-gray-200 dark:bg-neutral-700 text-black dark:text-white font-black border-gray-300 dark:border-neutral-500 shadow-sm'
+                        : 'bg-gray-100 dark:bg-neutral-800/90 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-black dark:hover:text-white font-semibold border-transparent'
+                    }`}
+                  >
+                    All <span className={`ml-1 ${categoryFilter === 'all' ? 'text-gray-800 dark:text-white font-bold' : 'opacity-60 text-gray-500 dark:text-neutral-400'}`}>{products.length}</span>
+                  </button>
+                  {sellerCategories.map((cat) => (
                     <button
-                      onClick={() => setCategoryFilter('all')}
-                      className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                        categoryFilter === 'all'
-                          ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
-                          : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
+                      key={cat.slug}
+                      onClick={() => setCategoryFilter(cat.slug)}
+                      className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs transition-all border ${
+                        categoryFilter === cat.slug
+                          ? 'bg-gray-200 dark:bg-neutral-700 text-black dark:text-white font-black border-gray-300 dark:border-neutral-500 shadow-sm'
+                          : 'bg-gray-100 dark:bg-neutral-800/90 text-gray-700 dark:text-neutral-300 hover:bg-gray-200 dark:hover:bg-neutral-700 hover:text-black dark:hover:text-white font-semibold border-transparent'
                       }`}
                     >
-                      All <span className="opacity-60 ml-1">{products.length}</span>
+                      {cat.name} <span className={`ml-1 ${categoryFilter === cat.slug ? 'text-gray-800 dark:text-white font-bold' : 'opacity-60 text-gray-500 dark:text-neutral-400'}`}>{cat.count}</span>
                     </button>
-                    {sellerCategories.map((cat) => (
-                      <button
-                        key={cat.slug}
-                        onClick={() => setCategoryFilter(cat.slug)}
-                        className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                          categoryFilter === cat.slug
-                            ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-sm'
-                            : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-400 hover:bg-gray-200 dark:hover:bg-neutral-700'
-                        }`}
-                      >
-                        {cat.name} <span className="opacity-60 ml-1">{cat.count}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
             
@@ -938,11 +1017,11 @@ const ProfilePage: React.FC = () => {
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('social_media_links', 'Social Media Links')}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
-                label={t('whatsapp_number', 'WhatsApp Number')}
-                type="tel"
+                label={t('whatsapp_number', 'WhatsApp Number or Link')}
+                type="text"
                 value={editForm.whatsapp_number}
                 onChange={(e) => setEditForm({...editForm, whatsapp_number: e.target.value})}
-                placeholder="+255712345678"
+                placeholder="+255712345678 or https://wa.me/..."
               />
               <FormField
                 label={t('facebook_url', 'Facebook URL')}

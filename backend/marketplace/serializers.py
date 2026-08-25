@@ -176,6 +176,9 @@ class BrandSerializer(serializers.ModelSerializer):
     def get_products_count(self, obj):
         if hasattr(obj, 'products_count_annotated'):
             return obj.products_count_annotated
+        # Avoid N+1 count query when serialized nested inside ProductSerializer
+        if self.parent and isinstance(self.parent, serializers.BaseSerializer):
+            return 0
         return obj.products.count()
 
 class ReferenceProductSerializer(serializers.ModelSerializer):
@@ -191,6 +194,9 @@ class ReferenceProductSerializer(serializers.ModelSerializer):
     def get_products_count(self, obj):
         if hasattr(obj, 'products_count_annotated'):
             return obj.products_count_annotated
+        # Avoid N+1 count query when serialized nested inside ProductSerializer
+        if self.parent and isinstance(self.parent, serializers.BaseSerializer):
+            return 0
         return obj.instances.count()
 
 class FlexibleBrandRelatedField(serializers.PrimaryKeyRelatedField):
@@ -1281,6 +1287,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
     store_images = StoreImageSerializer(many=True, read_only=True)
     is_following = serializers.SerializerMethodField()
 
+    website = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    facebook_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    youtube_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    linkedin_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    whatsapp_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
     class Meta:
         model = UserProfile
         fields = ['id', 'user', 'user_id', 'username', 'first_name', 'last_name', 'is_verified', 'phone_number', 'instagram_username',
@@ -1290,6 +1303,52 @@ class UserProfileSerializer(serializers.ModelSerializer):
                   'show_product_requests']
         read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified']  # FIX: S-07 — only staff should set these
 
+    def _normalize_url(self, value):
+        if not value:
+            return ''
+        val = str(value).strip()
+        if not val:
+            return ''
+        if not (val.startswith('http://') or val.startswith('https://')):
+            return f'https://{val}'
+        return val
+
+    def validate_website(self, value):
+        return self._normalize_url(value)
+
+    def validate_facebook_url(self, value):
+        return self._normalize_url(value)
+
+    def validate_youtube_url(self, value):
+        return self._normalize_url(value)
+
+    def validate_linkedin_url(self, value):
+        return self._normalize_url(value)
+
+    def validate_whatsapp_number(self, value):
+        if not value:
+            return ''
+        import re
+        val = str(value).strip()
+        digits = re.sub(r'[^0-9]', '', val)
+        if digits:
+            if digits.startswith('0') and len(digits) == 10:
+                digits = f'255{digits[1:]}'
+            return f'+{digits}'
+        return ''
+
+    def validate_phone_number(self, value):
+        if not value:
+            return ''
+        import re
+        val = str(value).strip()
+        digits = re.sub(r'[^0-9]', '', val)
+        if digits:
+            if digits.startswith('0') and len(digits) == 10:
+                digits = f'255{digits[1:]}'
+            return f'+{digits}'
+        return ''
+
     def get_seller_rating(self, obj):
         return obj.seller_rating  # FIX B-14
 
@@ -1297,8 +1356,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user and request.user.is_authenticated:
             from .models import Follow
-            # This could be optimized using Prefetch or annotations in the queryset, 
-            # but for simplicity and typical payload sizes, this will suffice.
             return Follow.objects.filter(follower=request.user, following=obj).exists()
         return False
 
@@ -1429,36 +1486,52 @@ class ConversationSerializer(serializers.ModelSerializer):  # FIX B-12
         return obj.seller if request.user == obj.buyer else obj.buyer
 
     def get_is_online(self, obj):
-        from django.core.cache import cache
         other = self._get_other_user(obj)
-        if other:
-            return cache.get(f'user:seen:{other.id}') is not None
-        return False
+        if not other:
+            return False
+        presence_map = self.context.get('presence_map')
+        if presence_map is not None and other.id in presence_map:
+            return presence_map[other.id].get('is_online', False)
+        from django.core.cache import cache
+        return cache.get(f'user:seen:{other.id}') is not None
 
     def get_last_seen(self, obj):
-        from django.core.cache import cache
         other = self._get_other_user(obj)
-        if other:
-            val = cache.get(f'user:seen:{other.id}')
-            if val:
-                return val
-            # Fallback to last_login if available
-            if other.last_login:
-                return other.last_login.isoformat()
+        if not other:
+            return None
+        presence_map = self.context.get('presence_map')
+        if presence_map is not None and other.id in presence_map:
+            return presence_map[other.id].get('last_seen')
+        from django.core.cache import cache
+        val = cache.get(f'user:seen:{other.id}')
+        if val:
+            return val
+        if other.last_login:
+            return other.last_login.isoformat()
         return None
 
     def get_product_image(self, obj):
         if obj.product:
-            first_img = obj.product.images.first()
-            if first_img:
-                return first_img.image.url
+            # Use prefetched images if available
+            try:
+                images = obj.product.images.all()
+                if images:
+                    return images[0].image.url
+            except Exception:
+                pass
         return None
 
     def get_last_message(self, obj):
+        if hasattr(obj, 'prefetched_messages'):
+            if obj.prefetched_messages:
+                return MessageSerializer(obj.prefetched_messages[0]).data
+            return None
         msg = obj.messages.order_by('-created_at').first()
         return MessageSerializer(msg).data if msg else None
 
     def get_unread_count(self, obj):
+        if hasattr(obj, 'annotated_unread_count'):
+            return obj.annotated_unread_count
         request = self.context.get('request')
         if not request:
             return 0

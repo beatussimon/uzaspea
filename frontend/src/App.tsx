@@ -27,13 +27,12 @@ import CategoryBar from './components/layout/CategoryBar';
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
 
-import ProductList from './pages/ProductList';
-import ProductDetailPage from './pages/ProductDetailPage';
+const ProductList = lazy(() => import('./pages/ProductList'));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'));
 
 // Export preload functions for instant navigation on hover
-export const preloadProductDetail = () => Promise.resolve();
-// preloadProductList is no longer needed since it's eagerly loaded
-export const preloadProductList = () => Promise.resolve();
+export const preloadProductDetail = () => import('./pages/ProductDetailPage');
+export const preloadProductList = () => import('./pages/ProductList');
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const TeamsPage = lazy(() => import('./pages/TeamsPage'));

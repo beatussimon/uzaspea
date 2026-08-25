@@ -51,21 +51,6 @@ const GlobalSearchModal: React.FC = () => {
   const handleViewModeChange = (mode: 'grid' | 'list') => {
     setViewMode(mode);
     localStorage.setItem('viewMode', mode);
-    
-    // Build full query with all current filters + new view mode, navigate instantly
-    const params = new URLSearchParams();
-    if (query.trim()) params.set('q', query.trim());
-    if (category) params.set('category', category);
-    if (subcategory) params.set('subcategory', subcategory);
-    if (brand) params.set('brand', brand);
-    if (minPrice) params.set('min_price', minPrice);
-    if (maxPrice) params.set('max_price', maxPrice);
-    if (condition) params.set('condition', condition);
-    if (sortBy) params.set('sort_by', sortBy);
-    if (mode !== 'grid') params.set('view', mode);
-    const qs = params.toString();
-    navigate(qs ? `/products?${qs}` : '/products', { replace: true });
-    // Do NOT close modal — user can see the layout change live
   };
 
 
@@ -209,7 +194,7 @@ const GlobalSearchModal: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSearchOpen]);
 
-  // Debounced API call for predictive search
+  // Debounced API call for predictive search with AbortController
   useEffect(() => {
     const q = query.trim();
     const effectiveCategory = subcategory || category;
@@ -221,6 +206,8 @@ const GlobalSearchModal: React.FC = () => {
     }
 
     setIsSearching(true);
+    const abortController = new AbortController();
+
     const timer = setTimeout(() => {
       const productParams: any = { 
         q, 
@@ -244,15 +231,16 @@ const GlobalSearchModal: React.FC = () => {
       const promises: Promise<any>[] = [];
       // Only search user profiles when a search keyword is typed, NEVER on pure category/filter browse
       if (q.length >= 2 && !sellerScope && !vehicleId && !oemPartNumber) {
-        promises.push(api.get('/api/profiles/', { params: { q, page_size: 3 } }).catch(() => ({ data: { results: [] } })));
+        promises.push(api.get('/api/profiles/', { params: { q, page_size: 3 }, signal: abortController.signal }).catch(() => ({ data: { results: [] } })));
       } else {
         promises.push(Promise.resolve({ data: { results: [] } }));
       }
       promises.push(
-        api.get('/api/products/', { params: productParams }).catch(() => ({ data: { results: [] } }))
+        api.get('/api/products/', { params: productParams, signal: abortController.signal }).catch(() => ({ data: { results: [] } }))
       );
 
       Promise.all(promises).then(([profileRes, productRes]) => {
+        if (abortController.signal.aborted) return;
         const profiles = sellerScope ? [] : (profileRes.data.results || profileRes.data || []).map((p: any) => ({ ...p, type: 'account' }));
         const products = (productRes.data.results || []).map((p: any) => ({ ...p, type: 'product' }));
         const sortedProducts = [...products].sort((a: any, b: any) => (b.is_sponsored ? 1 : 0) - (a.is_sponsored ? 1 : 0));
@@ -260,10 +248,17 @@ const GlobalSearchModal: React.FC = () => {
         setSuggestions([...profiles, ...sortedProducts]);
         setTotalCount(productRes.data.count ?? (products.length > 0 ? products.length : 0));
         setIsSearching(false);
+      }).catch(() => {
+        if (!abortController.signal.aborted) {
+          setIsSearching(false);
+        }
       });
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      abortController.abort();
+    };
   }, [query, category, subcategory, brand, minPrice, maxPrice, condition, sortBy, sellerScope, vehicleId, oemPartNumber, specFilters]);
 
   const buildQueryString = (overrides?: { category?: string; subcategory?: string; query?: string; clearSeller?: boolean }) => {

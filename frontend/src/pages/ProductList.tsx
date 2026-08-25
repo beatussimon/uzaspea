@@ -134,6 +134,7 @@ const ProductList = () => {
   }, [viewMode]);
 
   const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -156,6 +157,12 @@ const ProductList = () => {
   const fetchProducts = useCallback(
     (p: number, reset = false) => {
       if (isFetchingRef.current && !reset) return;
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       
       const prms = buildParams(p);
       const cacheKey = `products:${JSON.stringify(prms)}`;
@@ -175,7 +182,7 @@ const ProductList = () => {
              const sData = cachedSpons.data.results || cachedSpons.data || [];
              setSponsoredAds(Array.isArray(sData) ? sData : []);
           } else if (!saved) {
-             api.get('/api/sponsored/', { params: sponsParams }).then(res => {
+             api.get('/api/sponsored/', { params: sponsParams, signal: controller.signal }).then(res => {
                apiCache.set(sponsCacheKey, res.data);
                const sData = res.data.results || res.data || [];
                setSponsoredAds(Array.isArray(sData) ? sData : []);
@@ -218,9 +225,10 @@ const ProductList = () => {
       
       if (reset) {
         Promise.all([
-          api.get('/api/products/', { params: prms }).catch(() => ({ data: { results: [] } })),
-          saved ? Promise.resolve({ data: { results: [] } }) : api.get('/api/sponsored/', { params: sponsParams }).catch(() => ({ data: { results: [] } }))
+          api.get('/api/products/', { params: prms, signal: controller.signal }).catch(() => ({ data: { results: [] } })),
+          saved ? Promise.resolve({ data: { results: [] } }) : api.get('/api/sponsored/', { params: sponsParams, signal: controller.signal }).catch(() => ({ data: { results: [] } }))
         ]).then(([prodRes, sponsRes]) => {
+          if (controller.signal.aborted) return;
           apiCache.set(cacheKey, prodRes.data); // Store to cache
           if (!saved && sponsRes.data) {
              apiCache.set(sponsCacheKey, sponsRes.data); // Store sponsored to cache
@@ -242,13 +250,16 @@ const ProductList = () => {
              }
           }
         }).finally(() => {
-          setLoading(false);
-          setLoadingMore(false);
-          isFetchingRef.current = false;
+          if (!controller.signal.aborted) {
+            setLoading(false);
+            setLoadingMore(false);
+            isFetchingRef.current = false;
+          }
         });
       } else {
-        api.get('/api/products/', { params: prms })
+        api.get('/api/products/', { params: prms, signal: controller.signal })
           .then((res) => {
+            if (controller.signal.aborted) return;
             apiCache.set(cacheKey, res.data); // Store to cache
             
             const data = res.data.results || res.data;
@@ -270,11 +281,17 @@ const ProductList = () => {
                }
             }
           })
-          .catch(() => setHasMore(false))
+          .catch(() => {
+            if (!controller.signal.aborted) {
+              setHasMore(false);
+            }
+          })
           .finally(() => { 
-            setLoading(false); 
-            setLoadingMore(false); 
-            isFetchingRef.current = false;
+            if (!controller.signal.aborted) {
+              setLoading(false); 
+              setLoadingMore(false); 
+              isFetchingRef.current = false;
+            }
           });
       }
     },
@@ -717,7 +734,7 @@ const ProductList = () => {
 
                   return (
                     <motion.div key={`${product.id}-${idx}`} variants={cardVariants} className="h-full">
-                      <ProductCard product={product} viewMode={viewMode} isSponsored={isPromo} />
+                      <ProductCard product={product} viewMode={viewMode} isSponsored={isPromo} isTopFold={idx < 4} />
                     </motion.div>
                   );
                 }
