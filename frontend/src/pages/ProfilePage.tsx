@@ -469,7 +469,7 @@ const ProfilePage: React.FC = () => {
             {activeTab === 'listings' && (
               <motion.div
                 layoutId="profile-nav-indicator"
-                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
                 transition={{ type: "spring", stiffness: 350, damping: 30 }}
               />
             )}
@@ -488,7 +488,7 @@ const ProfilePage: React.FC = () => {
             {activeTab === 'demands' && (
               <motion.div
                 layoutId="profile-nav-indicator"
-                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
                 transition={{ type: "spring", stiffness: 350, damping: 30 }}
               />
             )}
@@ -507,7 +507,7 @@ const ProfilePage: React.FC = () => {
             {activeTab === 'about' && (
               <motion.div
                 layoutId="profile-nav-indicator"
-                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
                 transition={{ type: "spring", stiffness: 350, damping: 30 }}
               />
             )}
@@ -544,7 +544,7 @@ const ProfilePage: React.FC = () => {
                     {demandFilter === 'all' && (
                       <motion.div
                         layoutId="demand-subfilter-indicator"
-                        className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                        className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
                         transition={{ type: "spring", stiffness: 350, damping: 30 }}
                       />
                     )}
@@ -565,7 +565,7 @@ const ProfilePage: React.FC = () => {
                         {demandFilter === 'mine' && (
                           <motion.div
                             layoutId="demand-subfilter-indicator"
-                            className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                            className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
                             transition={{ type: "spring", stiffness: 350, damping: 30 }}
                           />
                         )}
@@ -584,7 +584,7 @@ const ProfilePage: React.FC = () => {
                         {demandFilter === 'voted' && (
                           <motion.div
                             layoutId="demand-subfilter-indicator"
-                            className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                            className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
                             transition={{ type: "spring", stiffness: 350, damping: 30 }}
                           />
                         )}
@@ -605,7 +605,7 @@ const ProfilePage: React.FC = () => {
                     {demandFilter === 'fulfilled' && (
                       <motion.div
                         layoutId="demand-subfilter-indicator"
-                        className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-brand-500"
+                        className="absolute -bottom-px left-0 right-0 h-0.5 rounded-full bg-gray-900 dark:bg-white"
                         transition={{ type: "spring", stiffness: 350, damping: 30 }}
                       />
                     )}
