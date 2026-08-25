@@ -32,7 +32,8 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   const [followStatus, setFollowStatus] = useState({ following: false, followers_count: 0, following_count: 0 });
-  const [activeTab, setActiveTab] = useState<'listings' | 'about'>('listings');
+  const [activeTab, setActiveTab] = useState<'listings' | 'demands' | 'about'>('listings');
+  const [demandFilter, setDemandFilter] = useState<'all' | 'mine' | 'voted' | 'fulfilled'>('all');
   
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
@@ -150,17 +151,23 @@ const ProfilePage: React.FC = () => {
       }
   };
 
-  const handleUpvoteRequest = async (name: string) => {
+  const handleVoteToggle = async (reqId: number) => {
+    if (!currentUser) {
+      toast.error(t('login_to_vote', 'Please log in to vote for product requests.'));
+      return;
+    }
     try {
-      setUpvoting(name);
-      const res = await api.post('/api/product-requests/', {
-        name,
-        seller_username: username
-      });
-      setProductRequests(prev => prev.map(pr => pr.name === name ? res.data : pr));
-      toast.success(t('upvote_success', 'Vote recorded!'));
+      setUpvoting(String(reqId));
+      const res = await api.post(`/api/product-requests/${reqId}/vote/`);
+      setProductRequests(prev => prev.map(pr => pr.id === reqId ? {
+        ...pr,
+        has_voted: res.data.has_voted,
+        request_count: res.data.request_count,
+        votes_count: res.data.votes_count
+      } : pr));
+      toast.success(res.data.message || (res.data.has_voted ? 'Interest recorded!' : 'Vote removed.'));
     } catch (err: any) {
-      toast.error(err.response?.data?.error || t('error_upvoting', 'Failed to upvote'));
+      toast.error(err.response?.data?.detail || err.response?.data?.error || t('error_voting', 'Failed to update vote'));
     } finally {
       setUpvoting(null);
     }
@@ -446,7 +453,7 @@ const ProfilePage: React.FC = () => {
       {/* Navigation Tabs */}
       <div className="space-y-6">
         
-        {/* Centered navigation menu items */}
+        {/* Centered navigation menu items with underline design */}
         <div className="flex justify-center gap-12 border-t border-transparent">
           <button
             onClick={() => setActiveTab('listings')}
@@ -457,8 +464,21 @@ const ProfilePage: React.FC = () => {
             }`}
           >
             <ShoppingBag size={14} />
-            <span>{t('listings_tab')}</span>
+            <span>{t('listings_tab', 'Listings')}</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('demands')}
+            className={`flex items-center gap-2 pt-4 pb-1 text-xs font-bold uppercase tracking-wider transition-colors duration-200 border-t -mt-px ${
+              activeTab === 'demands' 
+                ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black' 
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <Star size={14} />
+            <span>{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('about')}
             className={`flex items-center gap-2 pt-4 pb-1 text-xs font-bold uppercase tracking-wider transition-colors duration-200 border-t -mt-px ${
@@ -468,8 +488,9 @@ const ProfilePage: React.FC = () => {
             }`}
           >
             <Info size={14} />
-            <span>{t('about_shop')}</span>
+            <span>{t('about_shop', 'About')}</span>
           </button>
+
           <button
             onClick={handleOpenStoreSearch}
             className="flex items-center gap-2 pt-4 pb-1 text-xs font-bold uppercase tracking-wider transition-colors duration-200 border-t -mt-px border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -481,7 +502,202 @@ const ProfilePage: React.FC = () => {
         </div>
 
         {/* Tab content renders */}
-        {activeTab === 'listings' ? (
+        {activeTab === 'demands' ? (
+          <div className="pt-2">
+            {/* Sub-Filters with top-right action */}
+            {productRequests.length > 0 && (
+              <div className="flex items-center justify-between border-b border-gray-200 dark:border-neutral-800 pb-0 gap-4 mb-6">
+                <div className="flex items-center gap-8 overflow-x-auto hide-scrollbar">
+                  <button
+                    onClick={() => setDemandFilter('all')}
+                    className={`flex items-center gap-1.5 pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap ${
+                      demandFilter === 'all'
+                        ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black'
+                        : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    <span>All Upcoming</span>
+                    <span className="text-[10px] opacity-60">({productRequests.filter(r => !r.is_fulfilled).length})</span>
+                  </button>
+
+                  {currentUser && (
+                    <>
+                      <button
+                        onClick={() => setDemandFilter('mine')}
+                        className={`flex items-center gap-1.5 pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap ${
+                          demandFilter === 'mine'
+                            ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black'
+                            : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                        }`}
+                      >
+                        <span>My Requests</span>
+                        <span className="text-[10px] opacity-60">({productRequests.filter(r => r.user_username === currentUser).length})</span>
+                      </button>
+
+                      <button
+                        onClick={() => setDemandFilter('voted')}
+                        className={`flex items-center gap-1.5 pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap ${
+                          demandFilter === 'voted'
+                            ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black'
+                            : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                        }`}
+                      >
+                        <span>Tracked & Voted</span>
+                        <span className="text-[10px] opacity-60">({productRequests.filter(r => r.has_voted).length})</span>
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    onClick={() => setDemandFilter('fulfilled')}
+                    className={`flex items-center gap-1.5 pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap ${
+                      demandFilter === 'fulfilled'
+                        ? 'border-gray-900 dark:border-white text-gray-900 dark:text-white font-black'
+                        : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    <span>Fulfilled</span>
+                    <span className="text-[10px] opacity-60">({productRequests.filter(r => r.is_fulfilled).length})</span>
+                  </button>
+                </div>
+
+                {!isOwner && (
+                  <button
+                    onClick={() => setIsRequestModalOpen(true)}
+                    className="shrink-0 pb-3 text-xs font-bold text-brand-500 hover:text-brand-600 flex items-center gap-1 transition"
+                  >
+                    <Plus size={14} /> <span>Request a Product</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Demands Content */}
+            {(() => {
+              const filteredDemands = productRequests.filter(req => {
+                if (demandFilter === 'mine') return req.user_username === currentUser;
+                if (demandFilter === 'voted') return req.has_voted;
+                if (demandFilter === 'fulfilled') return req.is_fulfilled;
+                return !req.is_fulfilled;
+              });
+
+              if (productRequests.length === 0 || filteredDemands.length === 0) {
+                return (
+                  <EmptyState
+                    icon={Star}
+                    title={
+                      demandFilter === 'mine' 
+                        ? "You haven't requested any items yet"
+                        : demandFilter === 'voted'
+                        ? "You haven't upvoted any upcoming items yet"
+                        : demandFilter === 'fulfilled'
+                        ? "No fulfilled requests yet"
+                        : t('no_upcoming_requests', 'No upcoming product requests')
+                    }
+                    description={
+                      !isOwner && demandFilter === 'all'
+                        ? `Looking for an item not listed in @${username}'s store? Let them know what you need.`
+                        : undefined
+                    }
+                    action={!isOwner && demandFilter === 'all' ? {
+                      label: t('request_product', 'Request a Product'),
+                      onClick: () => setIsRequestModalOpen(true)
+                    } : undefined}
+                  />
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 items-stretch p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
+                  {filteredDemands.map(req => {
+                    const isFulfilled = req.is_fulfilled;
+                    const hasVoted = req.has_voted;
+                    const isUpvotingThis = upvoting === String(req.id);
+
+                    return (
+                      <div 
+                        key={req.id} 
+                        className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 rounded-2xl shadow-sm flex flex-col justify-between group transition-all duration-300 hover:shadow-md hover:border-brand-500 dark:hover:border-brand-500 overflow-hidden"
+                      >
+                        {/* Image Thumbnail */}
+                        <div className="relative aspect-square sm:aspect-[4/3] bg-gray-100 dark:bg-neutral-800 flex items-center justify-center overflow-hidden">
+                          {req.image || req.image_url ? (
+                            <img 
+                              src={req.image_url || req.image} 
+                              alt={req.name} 
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                            />
+                          ) : (
+                            <Package size={44} className="text-gray-300 dark:text-neutral-700" />
+                          )}
+                          
+                          <div className="absolute top-2.5 left-2.5 px-2 py-1 bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold rounded-lg uppercase tracking-wider text-brand-500">
+                            {isFulfilled ? 'In Stock' : 'Coming Soon'}
+                          </div>
+
+                          {req.condition && req.condition !== 'New' && (
+                            <div className="absolute top-2.5 right-2.5 px-2 py-1 bg-black/70 backdrop-blur text-[10px] font-bold rounded-lg text-white">
+                              {req.condition}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Card Body */}
+                        <div className="p-4 flex-1 flex flex-col justify-between">
+                          <div>
+                            <div className="flex justify-between items-start mb-1">
+                              <h3 className="font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 transition-colors" title={req.name}>
+                                {req.name}
+                              </h3>
+                            </div>
+                            
+                            {req.price && (
+                              <p className="text-sm font-black text-gray-900 dark:text-white mb-1">
+                                Est. TZS {Number(req.price).toLocaleString()}
+                              </p>
+                            )}
+
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 mb-2">
+                              {req.description || 'No description provided.'}
+                            </p>
+                          </div>
+
+                          {/* Card Footer */}
+                          <div className="mt-auto flex items-center justify-between border-t border-gray-100 dark:border-neutral-800 pt-3">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Demand</span>
+                              <span className="font-black text-gray-800 dark:text-gray-200">
+                                {req.request_count || 1} {req.request_count === 1 ? 'vote' : 'votes'}
+                              </span>
+                            </div>
+
+                            {isFulfilled && req.fulfilled_product_slug ? (
+                              <Link to={`/products/${req.fulfilled_product_slug}`}>
+                                <Button size="sm" variant="outline" className="h-8 text-[11px] px-3 shadow-sm">
+                                  View Item
+                                </Button>
+                              </Link>
+                            ) : (
+                              <Button 
+                                size="sm" 
+                                variant={hasVoted ? 'default' : 'outline'}
+                                loading={isUpvotingThis}
+                                onClick={() => handleVoteToggle(req.id)}
+                                className="h-8 text-[11px] px-3 active:scale-95 shadow-sm"
+                              >
+                                {hasVoted ? 'Voted' : 'I want this!'}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        ) : activeTab === 'listings' ? (
           <div className="pt-2">
 
             {/* Store Search Bar & Category Quick Filters */}
@@ -527,67 +743,7 @@ const ProfilePage: React.FC = () => {
               </div>
             )}
             
-            {/* Requested Products Section */}
-            {productRequests.length > 0 && (
-              <div className="mb-8">
-                <div className="flex items-center gap-2 mb-4 px-4 sm:px-0">
-                  <Star size={18} className="text-amber-500 fill-amber-500" />
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {t('coming_soon_requested', 'Coming Soon / Requested')}
-                  </h2>
-                </div>
-                <div className="flex overflow-x-auto gap-4 pb-4 px-4 sm:px-0 hide-scrollbar snap-x snap-mandatory">
-                  {productRequests.map(req => (
-                    <div key={req.id} className="snap-start shrink-0 w-[240px] bg-white dark:bg-neutral-900 border border-brand-500 dark:border-neutral-800 rounded-2xl shadow-sm flex flex-col justify-between group transition-all duration-300 hover:shadow-md hover:border-brand-500 dark:hover:border-brand-500 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-16 h-16   to-transparent rounded-bl-full pointer-events-none z-10" />
-                      
-                      <div className="relative h-[120px] bg-gray-100 dark:bg-neutral-800 flex items-center justify-center overflow-hidden">
-                        {req.image ? (
-                          <img src={req.image} alt={req.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                        ) : (
-                          <Package size={40} className="text-gray-300 dark:text-neutral-700" />
-                        )}
-                        <div className="absolute top-2 left-2 px-2 py-1 bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold rounded-lg uppercase tracking-wider text-brand-500 dark:text-brand-500">
-                          Coming Soon
-                        </div>
-                      </div>
 
-                      <div className="p-4 flex-1 flex flex-col">
-                        <div className="flex justify-between items-start mb-1">
-                          <h3 className="font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 dark:group-hover:text-brand-500 transition-colors" title={req.name}>
-                            {req.name}
-                          </h3>
-                        </div>
-                        {req.price && (
-                          <p className="text-sm font-black text-gray-900 dark:text-white mb-1">
-                            Est. ${req.price}
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 mb-2">
-                          {req.description || 'No description provided.'}
-                        </p>
-                        
-                        <div className="mt-auto flex items-center justify-between border-t border-gray-100 dark:border-neutral-800 pt-3">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Demand</span>
-                            <span className="font-black text-gray-800 dark:text-gray-200">{req.request_count} votes</span>
-                          </div>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            loading={upvoting === req.name}
-                            onClick={() => handleUpvoteRequest(req.name)}
-                            className="h-8 text-[11px] px-3 active:scale-95 shadow-sm"
-                          >
-                            I want this!
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {products.length === 0 ? (
               <EmptyState

@@ -17,15 +17,40 @@ from .models import (
 class ProductRequestSerializer(serializers.ModelSerializer):
     seller_username = serializers.CharField(source='seller.username', read_only=True)
     user_username = serializers.CharField(source='user.username', read_only=True, allow_null=True)
+    category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
+    fulfilled_product_id = serializers.IntegerField(source='fulfilled_product.id', read_only=True, allow_null=True)
+    fulfilled_product_slug = serializers.CharField(source='fulfilled_product.slug', read_only=True, allow_null=True)
+    has_voted = serializers.SerializerMethodField()
+    votes_count = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductRequest
         fields = [
             'id', 'name', 'description', 'seller', 'seller_username', 
-            'user', 'user_username', 'request_count', 'created_at', 'last_requested',
-            'category', 'price', 'buying_price', 'condition', 'requires_quote', 'image', 'is_fulfilled'
+            'user', 'user_username', 'request_count', 'votes_count', 'has_voted',
+            'created_at', 'last_requested', 'category', 'category_name',
+            'price', 'buying_price', 'condition', 'requires_quote', 'image', 'image_url',
+            'is_fulfilled', 'fulfilled_product_id', 'fulfilled_product_slug'
         ]
-        read_only_fields = ['request_count', 'last_requested']
+        read_only_fields = ['request_count', 'last_requested', 'fulfilled_product_id', 'fulfilled_product_slug']
+
+    def get_has_voted(self, obj):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
+            return obj.votes.filter(user=request.user).exists() or (obj.user_id == request.user.id)
+        return False
+
+    def get_votes_count(self, obj):
+        return obj.request_count
+
+    def get_image_url(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
 
 class LipaNumberSerializer(serializers.ModelSerializer):
     network_name = serializers.CharField(source='network.name', read_only=True)
