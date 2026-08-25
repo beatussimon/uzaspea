@@ -734,6 +734,7 @@ class UserProfile(models.Model):
         default='TZS'
     )
     terms_accepted = models.BooleanField(default=False)
+    show_product_requests = models.BooleanField(default=True, help_text="Show Coming Soon / Requested items tab on profile")
     # FIX: S-12 — removed conflicting M2M field; Use Follow model for following relationships
 
     def __str__(self):
