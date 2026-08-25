@@ -456,17 +456,17 @@ const ProfilePage: React.FC = () => {
       {/* Navigation Tabs */}
       <div className="space-y-6">
         
-        {/* Centered navigation menu items with bottom underline indicator */}
-        <div className="flex justify-center gap-8 md:gap-12 border-b border-gray-200/60 dark:border-neutral-800 pb-0">
+        {/* Navigation menu items with mobile-responsive horizontal scrolling & nowrap */}
+        <div className="flex items-center justify-start sm:justify-center gap-5 sm:gap-8 md:gap-12 overflow-x-auto no-scrollbar border-b border-gray-200/60 dark:border-neutral-800 pb-0 px-2 sm:px-0">
           <button
             onClick={() => setActiveTab('listings')}
-            className={`relative flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
+            className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm font-semibold transition-colors ${
               activeTab === 'listings' 
                 ? 'text-gray-900 dark:text-white font-bold' 
                 : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
             }`}
           >
-            <ShoppingBag size={15} />
+            <ShoppingBag size={15} className="shrink-0" />
             <span>{t('listings_tab', 'Listings')}</span>
             {activeTab === 'listings' && (
               <motion.div
@@ -480,14 +480,15 @@ const ProfilePage: React.FC = () => {
           {showDemandsTab && (
             <button
               onClick={() => setActiveTab('demands')}
-              className={`relative flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
+              className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm font-semibold transition-colors ${
                 activeTab === 'demands' 
                   ? 'text-gray-900 dark:text-white font-bold' 
                   : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
               }`}
             >
-              <Clock size={15} />
-              <span>{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
+              <Clock size={15} className="shrink-0" />
+              <span className="hidden sm:inline">{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
+              <span className="sm:hidden">{t('coming_soon_short', 'Coming Soon')}</span>
               {activeTab === 'demands' && (
                 <motion.div
                   layoutId="profile-nav-indicator"
@@ -500,14 +501,14 @@ const ProfilePage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('about')}
-            className={`relative flex items-center gap-2 pb-3 text-sm font-semibold transition-colors ${
+            className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm font-semibold transition-colors ${
               activeTab === 'about' 
                 ? 'text-gray-900 dark:text-white font-bold' 
                 : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
             }`}
           >
-            <Info size={15} />
-            <span>{t('about_shop', 'About')}</span>
+            <Info size={15} className="shrink-0" />
+            <span>{t('about', 'About')}</span>
             {activeTab === 'about' && (
               <motion.div
                 layoutId="profile-nav-indicator"
@@ -519,10 +520,10 @@ const ProfilePage: React.FC = () => {
 
           <button
             onClick={handleOpenStoreSearch}
-            className="relative flex items-center gap-2 pb-3 text-sm font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+            className="relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
             title="Search this store"
           >
-            <Search size={15} />
+            <Search size={15} className="shrink-0" />
             <span>Search</span>
           </button>
         </div>
@@ -533,16 +534,16 @@ const ProfilePage: React.FC = () => {
             {/* Sub-Filters with bottom underline indicator */}
             {productRequests.length > 0 && (
               <div className="flex items-center justify-between border-b border-gray-200/60 dark:border-neutral-800 pb-0 gap-4 mb-6">
-                <div className="flex items-center gap-6 md:gap-8 overflow-x-auto hide-scrollbar">
+                <div className="flex items-center gap-4 sm:gap-6 md:gap-8 overflow-x-auto no-scrollbar">
                   <button
                     onClick={() => setDemandFilter('all')}
-                    className={`relative flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap ${
+                    className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
                       demandFilter === 'all'
                         ? 'text-gray-900 dark:text-white font-bold'
                         : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
-                    <Clock size={12} />
+                    <Clock size={12} className="shrink-0" />
                     <span>All Upcoming</span>
                     <span className="text-[10px] opacity-60">({productRequests.filter(r => !r.is_fulfilled).length})</span>
                     {demandFilter === 'all' && (
@@ -558,7 +559,7 @@ const ProfilePage: React.FC = () => {
                     <>
                       <button
                         onClick={() => setDemandFilter('mine')}
-                        className={`relative flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap ${
+                        className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
                           demandFilter === 'mine'
                             ? 'text-gray-900 dark:text-white font-bold'
                             : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
@@ -577,7 +578,7 @@ const ProfilePage: React.FC = () => {
 
                       <button
                         onClick={() => setDemandFilter('voted')}
-                        className={`relative flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap ${
+                        className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
                           demandFilter === 'voted'
                             ? 'text-gray-900 dark:text-white font-bold'
                             : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
@@ -598,7 +599,7 @@ const ProfilePage: React.FC = () => {
 
                   <button
                     onClick={() => setDemandFilter('fulfilled')}
-                    className={`relative flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap ${
+                    className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 pb-2.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
                       demandFilter === 'fulfilled'
                         ? 'text-gray-900 dark:text-white font-bold'
                         : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
@@ -619,7 +620,7 @@ const ProfilePage: React.FC = () => {
                 {!isOwner && (
                   <button
                     onClick={() => setIsRequestModalOpen(true)}
-                    className="shrink-0 pb-2.5 text-xs font-bold text-brand-500 hover:text-brand-600 flex items-center gap-1 transition"
+                    className="shrink-0 whitespace-nowrap pb-2.5 text-xs font-bold text-brand-500 hover:text-brand-600 flex items-center gap-1 transition"
                   >
                     <Plus size={14} /> <span>Request a Product</span>
                   </button>
