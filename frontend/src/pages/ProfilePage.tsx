@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { 
   Settings, MapPin, Camera, 
   Star, ShoppingBag, Info,
-  CheckCircle, Plus, Package, Search
+  CheckCircle, Plus, Package, Search, Clock
 } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
@@ -475,7 +475,7 @@ const ProfilePage: React.FC = () => {
                 : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
-            <Star size={14} />
+            <Clock size={14} />
             <span>{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
           </button>
 
@@ -516,6 +516,7 @@ const ProfilePage: React.FC = () => {
                         : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
+                    <Clock size={12} />
                     <span>All Upcoming</span>
                     <span className="text-[10px] opacity-60">({productRequests.filter(r => !r.is_fulfilled).length})</span>
                   </button>
@@ -584,7 +585,7 @@ const ProfilePage: React.FC = () => {
               if (productRequests.length === 0 || filteredDemands.length === 0) {
                 return (
                   <EmptyState
-                    icon={Star}
+                    icon={Clock}
                     title={
                       demandFilter === 'mine' 
                         ? "You haven't requested any items yet"
@@ -631,8 +632,18 @@ const ProfilePage: React.FC = () => {
                             <Package size={44} className="text-gray-300 dark:text-neutral-700" />
                           )}
                           
-                          <div className="absolute top-2.5 left-2.5 px-2 py-1 bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold rounded-lg uppercase tracking-wider text-brand-500">
-                            {isFulfilled ? 'In Stock' : 'Coming Soon'}
+                          <div className="absolute top-2.5 left-2.5 px-2 py-1 bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold rounded-lg uppercase tracking-wider text-brand-500 flex items-center gap-1">
+                            {isFulfilled ? (
+                              <>
+                                <CheckCircle size={11} className="text-emerald-500" />
+                                <span className="text-emerald-500">In Stock</span>
+                              </>
+                            ) : (
+                              <>
+                                <Clock size={11} />
+                                <span>Coming Soon</span>
+                              </>
+                            )}
                           </div>
 
                           {req.condition && req.condition !== 'New' && (
