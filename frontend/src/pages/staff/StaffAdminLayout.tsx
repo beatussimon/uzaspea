@@ -5,7 +5,7 @@ import {
   Users, CheckCircle2, XCircle, Clock, AlertTriangle,
   UserPlus, UserMinus, Building2, Briefcase, Plus,
   CreditCard, FileText, Layers, Megaphone, Star, MessageSquare,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Sparkles
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
@@ -21,6 +21,7 @@ import {
   SupportTicketsManager
 } from './StaffDashboardLayout';
 import SystemPaymentMethodsManager from './SystemPaymentMethodsManager';
+import CatalogModerationManager from './CatalogModerationManager';
 
 // ============ Types ============
 interface Task {
@@ -1069,6 +1070,7 @@ const StaffAdminLayout: React.FC = () => {
     { path: '/staff-admin/invoices', label: 'Commission Payments', icon: FileText },
     { path: '/staff-admin/payment-methods', label: 'Payment Methods', icon: CreditCard },
     { path: '/staff-admin/products', label: 'Product Moderation', icon: Layers },
+    { path: '/staff-admin/catalog', label: 'Catalog Curation', icon: Sparkles },
     { path: '/staff-admin/promotions', label: 'Promotions', icon: Megaphone },
     { path: '/staff-admin/reviews', label: 'Reviews', icon: Star },
     { path: '/staff-admin/disputes', label: 'Disputes', icon: AlertTriangle },
@@ -1140,6 +1142,7 @@ const StaffAdminLayout: React.FC = () => {
           <Route path="invoices" element={<CommissionPaymentsManager />} />
           <Route path="payment-methods" element={<SystemPaymentMethodsManager />} />
           <Route path="products" element={<ProductModeration />} />
+          <Route path="catalog" element={<CatalogModerationManager />} />
           <Route path="promotions" element={<PromotionQueue />} />
           <Route path="reviews" element={<ReviewsManager />} />
           <Route path="disputes" element={<DisputesManager />} />

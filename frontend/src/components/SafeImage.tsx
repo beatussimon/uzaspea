@@ -124,7 +124,7 @@ const SafeImage: React.FC<SafeImageProps> = ({
     
     // Vehicles / Cars
     if (
-      cat.includes('car') || 
+      (cat.includes('car') && !cat.includes('care')) || 
       cat.includes('vehicle') || 
       cat.includes('suv') || 
       cat.includes('motor') || 

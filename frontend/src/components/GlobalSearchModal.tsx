@@ -411,7 +411,7 @@ const GlobalSearchModal: React.FC = () => {
                 )}
 
                 {/* Auto Parts / Vehicle Filters */}
-                {(activeRootCategory?.slug?.includes('vehicle') || activeRootCategory?.slug?.includes('part') || activeRootCategory?.slug?.includes('auto')) && (
+                {(activeRootCategory?.slug?.startsWith('vehicle') || activeRootCategory?.slug === 'vehicles' || activeRootCategory?.slug === 'vehicles-automotive' || activeRootCategory?.slug === 'auto-parts') && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
                     <VehicleSelector 
                       category={category}
@@ -617,7 +617,7 @@ const GlobalSearchModal: React.FC = () => {
                       </div>
 
                       {/* Auto Parts / Vehicle Filters (Mobile) */}
-                      {(activeRootCategory?.slug?.includes('vehicle') || activeRootCategory?.slug?.includes('part') || activeRootCategory?.slug?.includes('auto')) && (
+                      {(activeRootCategory?.slug?.startsWith('vehicle') || activeRootCategory?.slug === 'vehicles' || activeRootCategory?.slug === 'vehicles-automotive' || activeRootCategory?.slug === 'auto-parts') && (
                         <div className="space-y-3 pt-2">
                           <VehicleSelector 
                             category={category}

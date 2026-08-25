@@ -4,7 +4,8 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
   Package, Plus, Printer, Image as ImageIcon, Camera, DollarSign, 
-  CheckCircle2, Sliders, Trash2, ArrowRight, ArrowLeft, Check, Tag
+  CheckCircle2, Sliders, Trash2, ArrowRight, ArrowLeft, Check, Tag,
+  Star, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
@@ -182,6 +183,13 @@ const DashboardProducts: React.FC = () => {
   const location = useLocation();
   const [fulfillRequestId, setFulfillRequestId] = useState<number | null>(null);
   const [hasCustomUnit, setHasCustomUnit] = useState(false);
+  const [isCustomBrand, setIsCustomBrand] = useState(false);
+  const [isCustomModel, setIsCustomModel] = useState(false);
+  const [customSpecKeys, setCustomSpecKeys] = useState<Record<string, boolean>>({});
+  const [customAttributes, setCustomAttributes] = useState<Array<{ key: string; label: string; value: string }>>([]);
+  const [showAddAttr, setShowAddAttr] = useState(false);
+  const [newAttrLabel, setNewAttrLabel] = useState('');
+  const [newAttrValue, setNewAttrValue] = useState('');
 
   // Wizard state — must be at component top level (React Rules of Hooks)
   const [wizardStep, setWizardStep] = useState(1);
@@ -292,14 +300,14 @@ const DashboardProducts: React.FC = () => {
 
         api.get(`/api/categories/${selectedCat.slug}/brands/?for_seller=true`)
           .then(res => {
-            if (Array.isArray(res.data) && res.data.length > 0) {
+            if (Array.isArray(res.data)) {
               setCategoryBrands(res.data);
             } else {
-              api.get('/api/brands/').then(bRes => setCategoryBrands(bRes.data.results || bRes.data || [])).catch(() => setCategoryBrands([]));
+              setCategoryBrands([]);
             }
           })
           .catch(() => {
-            api.get('/api/brands/').then(bRes => setCategoryBrands(bRes.data.results || bRes.data || [])).catch(() => setCategoryBrands([]));
+            setCategoryBrands([]);
           });
       }
     } else {
@@ -476,6 +484,50 @@ const DashboardProducts: React.FC = () => {
     const updatedPreviews = imagePreviews.filter((_, idx) => idx !== indexToRemove);
     setImagePreviews(updatedPreviews);
     setImageFiles(updatedPreviews.map(p => p.file));
+  };
+
+  const handleSetCoverImage = (index: number) => {
+    if (index <= 0 || index >= imagePreviews.length) return;
+    const updated = [...imagePreviews];
+    const [selected] = updated.splice(index, 1);
+    updated.unshift(selected);
+    setImagePreviews(updated);
+    setImageFiles(updated.map(p => p.file));
+    toast.success('Cover photo updated!');
+  };
+
+  const handleMoveImage = (index: number, direction: 'left' | 'right') => {
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= imagePreviews.length) return;
+    const updated = [...imagePreviews];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setImagePreviews(updated);
+    setImageFiles(updated.map(p => p.file));
+  };
+
+  const handleSetExistingCoverImage = (index: number) => {
+    if (index <= 0 || index >= existingImages.length) return;
+    const updated = [...existingImages];
+    const [selected] = updated.splice(index, 1);
+    updated.unshift(selected);
+    setExistingImages(updated);
+    toast.success('Cover photo updated!');
+  };
+
+  const handleMoveExistingImage = (index: number, direction: 'left' | 'right') => {
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= existingImages.length) return;
+    const updated = [...existingImages];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setExistingImages(updated);
+  };
+
+  const handleRemoveExistingImage = (idToRemove: number) => {
+    setExistingImages(prev => prev.filter(img => img.id !== idToRemove));
   };
 
   const handleBatchUpload = async () => {
@@ -744,7 +796,57 @@ const DashboardProducts: React.FC = () => {
       {showForm && (() => {
 
         const selectedCat = flatCategories.find(c => String(c.id) === String(form.category));
-        const isAuto = selectedCat && (selectedCat.slug.includes('vehicle') || selectedCat.slug.includes('part') || selectedCat.slug.includes('auto') || selectedCat.slug.includes('car'));
+        const isAuto = Boolean(
+          selectedCat && (() => {
+            const s = (selectedCat.slug || '').toLowerCase();
+            const rootS = (currentRootCat?.slug || '').toLowerCase();
+
+            // 1. Explicit exclusions for non-automotive categories (prevent substring collision like 'care' matching 'car' or 'party' matching 'part')
+            if (
+              s.includes('skin') || s.includes('care') || s.includes('beauty') || 
+              s.includes('health') || s.includes('cosmetic') || s.includes('fashion') ||
+              s.includes('cloth') || s.includes('apparel') || s.includes('phone') ||
+              s.includes('computer') || s.includes('laptop') || s.includes('tv') ||
+              s.includes('estate') || s.includes('property') || s.includes('service') ||
+              s.includes('furniture') || s.includes('food') || s.includes('grocery')
+            ) {
+              return false;
+            }
+
+            // 2. Root category is vehicles/automotive
+            if (rootS === 'vehicles' || rootS === 'vehicles-automotive' || rootS.startsWith('vehicle')) {
+              return true;
+            }
+
+            // 3. Strict prefix or exact matches
+            const autoPrefixes = ['vehicles-', 'vehicle-', 'automotive-', 'cars-', 'trucks-', 'motorcycles-', 'auto-spare-', 'auto-parts-', 'tyres-'];
+            if (autoPrefixes.some(p => s.startsWith(p))) {
+              return true;
+            }
+
+            const exactAutoSlugs = [
+              'vehicles', 'cars', 'trucks', 'motorcycles', 'motorcycles-scooters',
+              'tricycles-tuktuks', 'vehicle-parts', 'vehicle-parts-accessories', 
+              'tyres-rims-wheels', 'auto-parts', 'spare-parts', 'commercial-vehicles',
+              'car-accessories', 'car-electronics'
+            ];
+            if (exactAutoSlugs.includes(s)) {
+              return true;
+            }
+
+            // 4. Parent traversal
+            let p = selectedCat.parent;
+            while (p) {
+              const pSlug = (p.slug || '').toLowerCase();
+              if (pSlug === 'vehicles' || pSlug.startsWith('vehicle') || exactAutoSlugs.includes(pSlug)) {
+                return true;
+              }
+              p = p.parent;
+            }
+
+            return false;
+          })()
+        );
 
         const canProceedStep1 = Boolean(form.category && form.name.trim());
         const canProceedStep2 = Boolean(imagePreviews.length > 0 || existingImages.length > 0 || editingId);
@@ -756,9 +858,9 @@ const DashboardProducts: React.FC = () => {
         const canSubmit = canProceedStep1 && canProceedStep2 && canProceedStep3 && canProceedStep4;
 
         const WIZARD_STEPS = [
-          { id: 1, title: 'Category & Identity', shortTitle: 'Identity', icon: Tag, desc: 'Category, Brand & Model' },
+          { id: 1, title: 'Category & Identity', shortTitle: 'Identity', icon: Tag, desc: 'Category, Title & Condition' },
           { id: 2, title: 'Photos & Media', shortTitle: 'Media', icon: ImageIcon, desc: 'Upload product imagery' },
-          { id: 3, title: isAuto ? 'Vehicle & Fitment' : (specSchema.length > 0 ? 'Specifications' : 'Specs & Details'), shortTitle: 'Specs', icon: Sliders, desc: 'Technical attributes' },
+          { id: 3, title: isAuto ? 'Vehicle, Brand & Fitment' : (categoryBrands.length > 0 || specSchema.length > 0 ? 'Brand & Specifications' : 'Specs & Details'), shortTitle: 'Specs', icon: Sliders, desc: 'Brand, Model & Specs' },
           { id: 4, title: 'Pricing & Inventory', shortTitle: 'Pricing', icon: DollarSign, desc: 'Price, Stock & Variants' },
           { id: 5, title: 'Review & Publish', shortTitle: 'Publish', icon: CheckCircle2, desc: 'Final review & launch' },
         ];
@@ -1085,68 +1187,6 @@ const DashboardProducts: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Brand & Model Catalog Matcher (Clean 2-column) */}
-                  {form.category && categoryBrands.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
-                          Brand
-                        </label>
-                        <select 
-                          value={form.brand} 
-                          onChange={e => {
-                            setForm(prev => ({ ...prev, brand: e.target.value, reference_product: '' }));
-                          }} 
-                          className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
-                        >
-                          <option value="">Select Brand (Optional)...</option>
-                          {categoryBrands.map(b => <option key={b.slug} value={b.slug}>{b.name}</option>)}
-                        </select>
-                      </div>
-
-                      {form.brand && (
-                        <div>
-                          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
-                            Model / Series
-                          </label>
-                          <select 
-                            value={form.reference_product} 
-                            onChange={e => {
-                              const refSlug = e.target.value;
-                              const ref = referenceProducts.find(r => r.slug === refSlug);
-                              setForm(prev => {
-                                const updatedSpecs = ref && ref.structured_specs ? { ...prev.structured_specs, ...ref.structured_specs } : prev.structured_specs;
-                                const brandObj = categoryBrands.find(b => b.slug === form.brand);
-                                const brandPrefix = brandObj?.name || ref?.brand_name || '';
-                                const autoTitle = ref && (!prev.name.trim() || prev.name === 'Untitled')
-                                  ? `${brandPrefix ? brandPrefix + ' ' : ''}${ref.name}`.trim()
-                                  : (ref && !prev.name ? ref.name : prev.name);
-                                return {
-                                  ...prev,
-                                  reference_product: refSlug,
-                                  name: autoTitle || prev.name,
-                                  structured_specs: updatedSpecs,
-                                };
-                              });
-                            }} 
-                            className="w-full px-3.5 py-2.5 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition-colors"
-                          >
-                            <option value="">
-                              {referenceProducts.length > 0 
-                                ? 'Select Model (Optional)...' 
-                                : 'Manual model entry'}
-                            </option>
-                            {referenceProducts.map(r => (
-                              <option key={r.slug} value={r.slug}>
-                                {r.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   {/* Product Title */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
@@ -1241,12 +1281,61 @@ const DashboardProducts: React.FC = () => {
                   </div>
 
                   {existingImages.length > 0 && (
-                    <div>
-                      <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">Existing Images</p>
-                      <div className="flex gap-2 overflow-x-auto pb-2">
-                        {existingImages.map((img: any) => (
-                          <div key={img.id} className="w-20 h-20 shrink-0 rounded-lg overflow-hidden border border-neutral-300 dark:border-neutral-700">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">Current Images ({existingImages.length})</p>
+                        <span className="text-[10px] text-neutral-400">First image is current cover</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
+                        {existingImages.map((img: any, idx: number) => (
+                          <div key={img.id} className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 group bg-neutral-100 dark:bg-neutral-900">
                             <SafeImage src={img.image} alt="Product" category={selectedCat?.name || ''} className="w-full h-full object-cover" />
+                            
+                            {idx === 0 ? (
+                              <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-0.5 z-10">
+                                <Star size={10} className="fill-black" /> Cover
+                              </span>
+                            ) : (
+                              <button 
+                                type="button" 
+                                onClick={() => handleSetExistingCoverImage(idx)}
+                                className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-amber-500 hover:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded transition opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shadow z-10"
+                                title="Make this the cover photo"
+                              >
+                                <Star size={9} /> Set Cover
+                              </button>
+                            )}
+
+                            <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                              <div className="flex items-center gap-0.5 bg-black/80 backdrop-blur-sm rounded p-0.5">
+                                <button 
+                                  type="button" 
+                                  disabled={idx === 0} 
+                                  onClick={() => handleMoveExistingImage(idx, 'left')} 
+                                  className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
+                                  title="Move Left"
+                                >
+                                  <ChevronLeft size={12} />
+                                </button>
+                                <button 
+                                  type="button" 
+                                  disabled={idx === existingImages.length - 1} 
+                                  onClick={() => handleMoveExistingImage(idx, 'right')} 
+                                  className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
+                                  title="Move Right"
+                                >
+                                  <ChevronRight size={12} />
+                                </button>
+                              </div>
+                              <button 
+                                type="button" 
+                                onClick={() => handleRemoveExistingImage(img.id)}
+                                className="p-1 bg-black/80 hover:bg-red-600 text-white rounded transition" 
+                                title="Remove photo"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1278,25 +1367,63 @@ const DashboardProducts: React.FC = () => {
                       </div>
                     ) : (
                       <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-400">
+                            {imagePreviews.length} photo{imagePreviews.length !== 1 ? 's' : ''} selected
+                          </p>
+                          <p className="text-[11px] text-neutral-500">First image is the main Cover Photo. Click &quot;Set Cover&quot; or use arrows to reorder.</p>
+                        </div>
+
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                           {imagePreviews.map((p, idx) => (
-                            <div key={p.url} className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 group">
+                            <div key={p.url} className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 group bg-neutral-100 dark:bg-neutral-900">
                               <img src={p.url} alt="Preview" className="w-full h-full object-cover" />
                               
-                              {idx === 0 && (
-                                <span className="absolute top-1.5 left-1.5 bg-black/80 text-brand-500 text-[9px] font-bold px-1.5 py-0.5 rounded">
-                                  Cover
+                              {idx === 0 ? (
+                                <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-0.5 z-10">
+                                  <Star size={10} className="fill-black" /> Cover Photo
                                 </span>
+                              ) : (
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleSetCoverImage(idx)}
+                                  className="absolute top-1.5 left-1.5 bg-black/80 hover:bg-amber-500 hover:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded transition opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shadow z-10"
+                                  title="Set as cover photo"
+                                >
+                                  <Star size={9} /> Set Cover
+                                </button>
                               )}
 
-                              <button 
-                                type="button" 
-                                onClick={() => handleRemoveImage(idx)}
-                                className="absolute top-1.5 right-1.5 p-1 bg-black/70 hover:bg-red-600 text-white rounded transition opacity-0 group-hover:opacity-100" 
-                                title="Remove"
-                              >
-                                <Trash2 size={12} />
-                              </button>
+                              <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <div className="flex items-center gap-0.5 bg-black/80 backdrop-blur-sm rounded p-0.5">
+                                  <button 
+                                    type="button" 
+                                    disabled={idx === 0} 
+                                    onClick={() => handleMoveImage(idx, 'left')} 
+                                    className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
+                                    title="Move Left"
+                                  >
+                                    <ChevronLeft size={12} />
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    disabled={idx === imagePreviews.length - 1} 
+                                    onClick={() => handleMoveImage(idx, 'right')} 
+                                    className="p-1 text-white hover:bg-white/20 disabled:opacity-30 rounded transition"
+                                    title="Move Right"
+                                  >
+                                    <ChevronRight size={12} />
+                                  </button>
+                                </div>
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleRemoveImage(idx)}
+                                  className="p-1 bg-black/80 hover:bg-red-600 text-white rounded transition" 
+                                  title="Remove photo"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1345,6 +1472,228 @@ const DashboardProducts: React.FC = () => {
               {/* ═══ STEP 3: SPECIFICATIONS & FITMENT ═══ */}
               {wizardStep === 3 && (
                 <div className="space-y-5">
+                  {/* Non-Auto: Brand & Model Catalog Selector */}
+                  {!isAuto && (
+                    <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                          Brand & Model
+                        </p>
+                        {form.reference_product && (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                            Auto-fills Specifications
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[11px] font-semibold text-neutral-600 dark:text-neutral-400">
+                              Brand (Optional)
+                            </label>
+                            {categoryBrands.length > 0 && isCustomBrand && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsCustomBrand(false);
+                                  setForm(prev => ({ ...prev, brand: '', reference_product: '' }));
+                                }}
+                                className="text-[10px] text-brand-500 hover:underline font-semibold"
+                              >
+                                Pick from catalog list
+                              </button>
+                            )}
+                          </div>
+                          {categoryBrands.length > 0 && !isCustomBrand ? (
+                            <select 
+                              value={form.brand} 
+                              onChange={e => {
+                                const brandSlug = e.target.value;
+                                if (brandSlug === '__custom__') {
+                                  setIsCustomBrand(true);
+                                  setForm(prev => ({ ...prev, brand: '', reference_product: '' }));
+                                  return;
+                                }
+                                setForm(prev => {
+                                  let updatedSpecs = { ...prev.structured_specs };
+                                  const b = brandSlug.toLowerCase();
+                                  const cat = (selectedCat?.slug || '').toLowerCase();
+                                  
+                                  // Smart auto-detection for OS & Processor ecosystem
+                                  if (cat.includes('phone') || cat.includes('mobile')) {
+                                    if (b.includes('apple')) {
+                                      updatedSpecs.operating_system = 'iOS';
+                                      updatedSpecs.processor_brand = 'Apple Silicon';
+                                    } else if (b) {
+                                      updatedSpecs.operating_system = 'Android';
+                                      if (b.includes('google')) updatedSpecs.processor_brand = 'Google Tensor';
+                                    }
+                                  } else if (cat.includes('tablet')) {
+                                    if (b.includes('apple')) {
+                                      updatedSpecs.operating_system = 'iPadOS';
+                                      updatedSpecs.processor_brand = 'Apple Silicon';
+                                    } else if (b.includes('microsoft')) {
+                                      updatedSpecs.operating_system = 'Windows 11';
+                                    } else if (b) {
+                                      updatedSpecs.operating_system = 'Android';
+                                    }
+                                  } else if (cat.includes('computer') || cat.includes('laptop') || cat.includes('desktop')) {
+                                    if (b.includes('apple')) {
+                                      updatedSpecs.operating_system = 'macOS';
+                                      updatedSpecs.processor_brand = 'Apple Silicon';
+                                    } else if (b && (!updatedSpecs.operating_system || updatedSpecs.operating_system === 'macOS')) {
+                                      updatedSpecs.operating_system = 'Windows 11';
+                                    }
+                                  } else if (cat.includes('smartwatch') || cat.includes('wearable')) {
+                                    if (b.includes('apple')) {
+                                      updatedSpecs.operating_system = 'watchOS';
+                                    } else if (b.includes('samsung')) {
+                                      updatedSpecs.operating_system = 'Wear OS (Samsung One UI)';
+                                    }
+                                  }
+
+                                  return {
+                                    ...prev,
+                                    brand: brandSlug,
+                                    reference_product: '',
+                                    structured_specs: updatedSpecs
+                                  };
+                                });
+                              }} 
+                              className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                            >
+                              <option value="">Select Brand (Optional)...</option>
+                              {categoryBrands.map(b => <option key={b.slug} value={b.slug}>{b.name}</option>)}
+                              <option value="__custom__">+ Enter Custom / Unlisted Brand...</option>
+                            </select>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {categoryBrands.length > 0 && (
+                                <span className="inline-block text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
+                                  Custom Brand (Will be added to catalog)
+                                </span>
+                              )}
+                              <input 
+                                type="text"
+                                name="brand"
+                                value={form.brand}
+                                onChange={e => {
+                                  const brandVal = e.target.value;
+                                  setForm(prev => {
+                                    let updatedSpecs = { ...prev.structured_specs };
+                                    const b = brandVal.toLowerCase();
+                                    const cat = (selectedCat?.slug || '').toLowerCase();
+                                    if (cat.includes('phone') || cat.includes('mobile')) {
+                                      if (b.includes('apple')) {
+                                        updatedSpecs.operating_system = 'iOS';
+                                        updatedSpecs.processor_brand = 'Apple Silicon';
+                                      } else if (b) {
+                                        updatedSpecs.operating_system = 'Android';
+                                      }
+                                    }
+                                    return { ...prev, brand: brandVal, structured_specs: updatedSpecs };
+                                  });
+                                }}
+                                placeholder="e.g. CeraVe, Garnier, The Ordinary, Generic..."
+                                className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {form.brand && (
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-[11px] font-semibold text-neutral-600 dark:text-neutral-400">
+                                Model / Series Catalog
+                              </label>
+                              {referenceProducts.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsCustomModel(!isCustomModel);
+                                    setForm(prev => ({ ...prev, reference_product: '' }));
+                                  }}
+                                  className="text-[10px] font-bold text-brand-500 hover:underline"
+                                >
+                                  {isCustomModel ? 'Pick from catalog' : '+ Enter Custom Model'}
+                                </button>
+                              )}
+                            </div>
+
+                            {referenceProducts.length > 0 && !isCustomModel ? (
+                              <select 
+                                value={form.reference_product} 
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  if (val === '__custom__') {
+                                    setIsCustomModel(true);
+                                    setForm(prev => ({ ...prev, reference_product: '' }));
+                                    return;
+                                  }
+                                  const ref = referenceProducts.find(r => r.slug === val);
+                                  setForm(prev => {
+                                    const updatedSpecs = ref && ref.structured_specs ? { ...prev.structured_specs, ...ref.structured_specs } : prev.structured_specs;
+                                    const brandObj = categoryBrands.find(b => b.slug === form.brand);
+                                    const brandPrefix = brandObj?.name || ref?.brand_name || '';
+                                    const autoTitle = ref && (!prev.name.trim() || prev.name === 'Untitled' || prev.name === 'Untitled Draft')
+                                      ? `${brandPrefix ? brandPrefix + ' ' : ''}${ref.name}`.trim()
+                                      : prev.name;
+                                    return {
+                                      ...prev,
+                                      reference_product: val,
+                                      name: autoTitle || prev.name,
+                                      structured_specs: updatedSpecs,
+                                    };
+                                  });
+                                }} 
+                                className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                              >
+                                <option value="">Select Model (Auto-fill specs)...</option>
+                                {referenceProducts.map(r => (
+                                  <option key={r.slug} value={r.slug}>
+                                    {r.name}
+                                  </option>
+                                ))}
+                                <option value="__custom__">+ Enter Custom / Unlisted Model...</option>
+                              </select>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {referenceProducts.length > 0 && (
+                                  <span className="inline-block text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
+                                    Custom Model (Will be registered to brand catalog)
+                                  </span>
+                                )}
+                                <input 
+                                  type="text"
+                                  value={form.reference_product}
+                                  onChange={e => {
+                                    const modelVal = e.target.value;
+                                    setForm(prev => {
+                                      const brandObj = categoryBrands.find(b => b.slug === form.brand);
+                                      const brandPrefix = brandObj?.name || '';
+                                      const autoTitle = modelVal && (!prev.name.trim() || prev.name === 'Untitled' || prev.name === 'Untitled Draft')
+                                        ? `${brandPrefix ? brandPrefix + ' ' : ''}${modelVal}`.trim()
+                                        : prev.name;
+                                      return {
+                                        ...prev,
+                                        reference_product: modelVal,
+                                        name: autoTitle || prev.name,
+                                      };
+                                    });
+                                  }}
+                                  placeholder="e.g. Galaxy S25 Ultra, Latitude 5450, Pavilion 15, iPhone 16 Pro..."
+                                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Vehicle Fitment if Auto */}
                   {isAuto && (
                     <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
@@ -1412,17 +1761,54 @@ const DashboardProducts: React.FC = () => {
                                 {spec.label} {spec.required && <span className="text-brand-500">*</span>}
                               </label>
                               {spec.type === 'select' && spec.options ? (
-                                <select 
-                                  required={spec.required}
-                                  value={form.structured_specs[spec.key] || ''} 
-                                  onChange={e => setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: e.target.value } }))}
-                                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
-                                >
-                                  <option value="">Select {spec.label}...</option>
-                                  {spec.options.map((opt: string) => (
-                                    <option key={opt} value={opt}>{opt}{spec.unit ? ` ${spec.unit}` : ''}</option>
-                                  ))}
-                                </select>
+                                customSpecKeys[spec.key] ? (
+                                  <div className="space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9px] font-bold text-amber-500 uppercase">Custom Option</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCustomSpecKeys(prev => ({ ...prev, [spec.key]: false }));
+                                          setForm(prev => ({
+                                            ...prev,
+                                            structured_specs: { ...prev.structured_specs, [spec.key]: '' }
+                                          }));
+                                        }}
+                                        className="text-[9px] text-brand-500 hover:underline font-semibold"
+                                      >
+                                        Pick list
+                                      </button>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      placeholder={`Enter custom ${spec.label}`}
+                                      value={form.structured_specs[spec.key] || ''}
+                                      onChange={e => setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: e.target.value } }))}
+                                      className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                                    />
+                                  </div>
+                                ) : (
+                                  <select 
+                                    required={spec.required}
+                                    value={form.structured_specs[spec.key] || ''} 
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      if (val === '__custom__') {
+                                        setCustomSpecKeys(prev => ({ ...prev, [spec.key]: true }));
+                                        setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: '' } }));
+                                      } else {
+                                        setForm(prev => ({ ...prev, structured_specs: { ...prev.structured_specs, [spec.key]: val } }));
+                                      }
+                                    }}
+                                    className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#161616] text-neutral-900 dark:text-neutral-100 outline-none focus:border-brand-500"
+                                  >
+                                    <option value="">Select {spec.label}...</option>
+                                    {spec.options.map((opt: string) => (
+                                      <option key={opt} value={opt}>{opt}</option>
+                                    ))}
+                                    <option value="__custom__">+ Other / Enter custom value...</option>
+                                  </select>
+                                )
                               ) : (
                                 <div className="relative flex items-center">
                                   <input 
@@ -1446,6 +1832,123 @@ const DashboardProducts: React.FC = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Custom Specifications & Attributes Block */}
+                  <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                          Additional Specifications & Attributes (Optional)
+                        </p>
+                        <p className="text-[11px] text-neutral-500">
+                          Add custom attributes like Warranty, Material, Shade, Capacity, or any unique specification.
+                        </p>
+                      </div>
+                      {!showAddAttr && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAddAttr(true)}
+                          className="px-2.5 py-1 bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-300 dark:hover:bg-neutral-700 font-bold text-xs rounded transition flex items-center gap-1"
+                        >
+                          <Plus size={12} /> Add Field
+                        </button>
+                      )}
+                    </div>
+
+                    {/* List of Custom Attributes */}
+                    {customAttributes.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {customAttributes.map(attr => (
+                          <div key={attr.key} className="relative p-2.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#161616]">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-bold text-neutral-500 uppercase">{attr.label}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCustomAttributes(prev => prev.filter(a => a.key !== attr.key));
+                                  setForm(prev => {
+                                    const updated = { ...prev.structured_specs };
+                                    delete updated[attr.key];
+                                    return { ...prev, structured_specs: updated };
+                                  });
+                                }}
+                                className="text-neutral-400 hover:text-red-500 text-xs font-bold"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={form.structured_specs[attr.key] || attr.value}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setForm(prev => ({
+                                  ...prev,
+                                  structured_specs: { ...prev.structured_specs, [attr.key]: val }
+                                }));
+                              }}
+                              className="w-full text-xs font-semibold text-neutral-900 dark:text-white bg-transparent outline-none"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add Custom Attribute Form */}
+                    {showAddAttr && (
+                      <div className="p-3 rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700 bg-white dark:bg-[#161616] space-y-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Attribute Name (e.g. Shade, Warranty, Fabric)"
+                            value={newAttrLabel}
+                            onChange={e => setNewAttrLabel(e.target.value)}
+                            className="px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-700 rounded-lg bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Value (e.g. #02 Golden Sand, 2 Years, 100% Cotton)"
+                            value={newAttrValue}
+                            onChange={e => setNewAttrValue(e.target.value)}
+                            className="px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-700 rounded-lg bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
+                          />
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAddAttr(false);
+                              setNewAttrLabel('');
+                              setNewAttrValue('');
+                            }}
+                            className="px-3 py-1 text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!newAttrLabel.trim() || !newAttrValue.trim()) return;
+                              const cleanKey = newAttrLabel.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+                              const cleanLabel = newAttrLabel.trim();
+                              const cleanVal = newAttrValue.trim();
+                              setCustomAttributes(prev => [...prev.filter(a => a.key !== cleanKey), { key: cleanKey, label: cleanLabel, value: cleanVal }]);
+                              setForm(prev => ({
+                                ...prev,
+                                structured_specs: { ...prev.structured_specs, [cleanKey]: cleanVal }
+                              }));
+                              setNewAttrLabel('');
+                              setNewAttrValue('');
+                              setShowAddAttr(false);
+                            }}
+                            className="px-3 py-1 bg-brand-500 text-black font-bold text-xs rounded transition"
+                          >
+                            Add Specification
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Description */}
                   <div>
