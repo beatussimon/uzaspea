@@ -160,7 +160,7 @@ const CategoryBar: React.FC = () => {
   // Render a loading skeleton for product details page
   if (isProductDetailPage && (loading || !product)) {
     return (
-      <div className="w-full bg-white dark:bg-[#000000] border-b border-gray-200 dark:border-neutral-800/80 transition-colors duration-300">
+      <div className="w-full bg-white dark:bg-[#000000] transition-colors duration-300">
         <div className="flex items-center justify-center gap-2 py-2.5 px-4 w-full">
           <div className="h-7 w-24 rounded-full bg-neutral-200 dark:bg-neutral-700 animate-pulse" />
           <div className="h-7 w-24 rounded-full bg-neutral-200 dark:bg-neutral-700 animate-pulse" />
@@ -172,7 +172,7 @@ const CategoryBar: React.FC = () => {
   if (isProductsPage) {
     // CIRCLES Layout (original category circles slider, updated with desktop-large/mobile-small sizes)
     return (
-      <div className="w-full pt-1 pb-1 bg-white dark:bg-[#000000] border-b border-gray-200 dark:border-neutral-800/80 transition-colors duration-300">
+      <div className="w-full pt-1 pb-1 bg-white dark:bg-[#000000] transition-colors duration-300">
         <div className="flex items-start justify-start md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-2 w-full px-4 scroll-smooth">
           {loading ? (
             Array.from({ length: 6 }).map((_, i) => (
@@ -261,7 +261,7 @@ const CategoryBar: React.FC = () => {
     : topCategories.filter((cat: any) => cat.total_products > 0);
 
   return (
-    <div className="w-full bg-white dark:bg-[#000000] border-b border-gray-200 dark:border-neutral-800/80 transition-colors duration-300">
+    <div className="w-full bg-white dark:bg-[#000000] transition-colors duration-300">
       <div className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar py-2.5 px-4 scroll-smooth w-full">
         {/* All Products Pill - only shown when showing all categories */}
         {!isProductDetailPage && (
