@@ -6,6 +6,11 @@ DATA_INSTANCE="13.235.198.184"
 APP_SSH_KEY="~/.ssh/LightsailDefaultKey-ap-south-1.pem"
 DATA_SSH_KEY="~/.ssh/LightsailDefaultKey-ap-south-1-sokonimax.pem"
 
+echo "Building frontend locally to avoid App Node OOM..."
+cd frontend
+npm run build
+cd ..
+
 echo "Pushing latest code to GitHub..."
 ./push_script.sh
 
@@ -58,11 +63,19 @@ ssh -o StrictHostKeyChecking=no -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << EOF
   git fetch origin master
   git reset --hard origin/master
   git clean -fd
+EOF
+
+echo "=> Syncing compiled frontend to App Node..."
+rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no -i $APP_SSH_KEY" frontend/dist/ ubuntu@$APP_INSTANCE:~/uzaspea/frontend/dist/
+
+ssh -o StrictHostKeyChecking=no -i $APP_SSH_KEY ubuntu@$APP_INSTANCE << EOF
+  set -e
+  cd ~/uzaspea
   
   echo "=> Building backend container..."
   docker compose -f docker-compose.app.yml build backend
   
-  echo "=> Building frontend container..."
+  echo "=> Building frontend container (fast copy of synced dist)..."
   docker compose -f docker-compose.app.yml build frontend
   
   echo "=> Restarting App Node containers (Traefik, Backend, Frontend)..."
