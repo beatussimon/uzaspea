@@ -412,11 +412,30 @@ class ProductViewSet(viewsets.ModelViewSet):
             
         fulfill_request_id = self.request.data.get('fulfill_request_id')
         if fulfill_request_id:
-            from marketplace.models import ProductRequest
+            from marketplace.models import ProductRequest, push_notification
             try:
                 pr = ProductRequest.objects.get(id=fulfill_request_id, seller=seller)
                 pr.is_fulfilled = True
-                pr.save()
+                pr.fulfilled_product = product
+                pr.save(update_fields=['is_fulfilled', 'fulfilled_product'])
+
+                # Notify requester and all voters that the requested product is in stock!
+                recipient_ids = set()
+                if pr.user_id:
+                    recipient_ids.add(pr.user_id)
+                for vote in pr.votes.all():
+                    recipient_ids.add(vote.user_id)
+
+                for uid in recipient_ids:
+                    recipient_user = User.objects.filter(id=uid).first()
+                    if recipient_user:
+                        push_notification(
+                            user=recipient_user,
+                            notification_type='order',
+                            title="Requested Item Now in Stock!",
+                            message=f"Good news! '{pr.name}' requested from @{seller.username} is now available.",
+                            link=f"/products/{product.slug}"
+                        )
             except ProductRequest.DoesNotExist:
                 pass
 
@@ -3208,45 +3227,81 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        seller_username = self.request.query_params.get('seller_username')
-        if seller_username:
-            return ProductRequest.objects.filter(seller__username=seller_username)
-        seller_id = self.request.query_params.get('seller_id')
-        if seller_id:
-            return ProductRequest.objects.filter(seller_id=seller_id)
         user = self.request.user
-        if not user.is_authenticated:
-            return ProductRequest.objects.none()
-        return ProductRequest.objects.filter(seller=user)
+        qs = ProductRequest.objects.select_related('seller', 'user', 'category', 'fulfilled_product').prefetch_related('votes')
+
+        seller_username = self.request.query_params.get('seller_username') or self.request.query_params.get('seller')
+        if seller_username:
+            if str(seller_username).isdigit():
+                qs = qs.filter(seller_id=int(seller_username))
+            else:
+                qs = qs.filter(seller__username=seller_username)
+
+        seller_id = self.request.query_params.get('seller_id')
+        if seller_id and str(seller_id).isdigit():
+            qs = qs.filter(seller_id=int(seller_id))
+
+        my_requests = self.request.query_params.get('my_requests') == 'true'
+        if my_requests and user.is_authenticated:
+            qs = qs.filter(user=user)
+
+        my_votes = self.request.query_params.get('my_votes') == 'true'
+        if my_votes and user.is_authenticated:
+            qs = qs.filter(votes__user=user)
+
+        is_fulfilled = self.request.query_params.get('is_fulfilled')
+        if is_fulfilled is not None:
+            if is_fulfilled.lower() == 'true':
+                qs = qs.filter(is_fulfilled=True)
+            elif is_fulfilled.lower() == 'false':
+                qs = qs.filter(is_fulfilled=False)
+
+        # Default fallback for seller dashboard
+        if not seller_username and not seller_id and not my_requests and not my_votes and user.is_authenticated:
+            if self.request.query_params.get('for_seller') == 'true':
+                qs = qs.filter(seller=user)
+
+        return qs.order_by('-request_count', '-last_requested')
 
     def create(self, request, *args, **kwargs):
         name = request.data.get('name', '').strip()
         seller_id = request.data.get('seller_id')
-        seller_username = request.data.get('seller_username')
+        seller_username = request.data.get('seller_username') or request.data.get('seller')
         
         if not name or (not seller_id and not seller_username):
             return Response({'error': 'name and seller_id/seller_username required'}, status=400)
             
         try:
-            if seller_id:
-                seller = User.objects.get(id=seller_id)
+            if seller_id and str(seller_id).isdigit():
+                seller = User.objects.get(id=int(seller_id))
             else:
                 seller = User.objects.get(username=seller_username)
         except User.DoesNotExist:
             return Response({'error': 'Seller not found'}, status=404)
             
+        from marketplace.models import ProductRequestVote
+
         # Case insensitive check
         pr = ProductRequest.objects.filter(seller=seller, name__iexact=name).first()
         is_seller_creating = request.user.is_authenticated and request.user.id == seller.id
         
         if pr:
-            pr.request_count += 1
-            pr.save()
+            if request.user.is_authenticated and not is_seller_creating:
+                if not ProductRequestVote.objects.filter(request=pr, user=request.user).exists() and pr.user_id != request.user.id:
+                    ProductRequestVote.objects.create(request=pr, user=request.user)
+                
+                # Exact distinct voter count
+                distinct_votes = ProductRequestVote.objects.filter(request=pr).count()
+                if pr.user_id and not ProductRequestVote.objects.filter(request=pr, user_id=pr.user_id).exists():
+                    distinct_votes += 1
+                pr.request_count = max(distinct_votes, 1)
+                pr.save(update_fields=['request_count', 'last_requested'])
+            
             serializer = self.get_serializer(pr)
             return Response(serializer.data, status=200)
         else:
             category_id = request.data.get('category')
-            price = request.data.get('price')
+            price = request.data.get('price') or request.data.get('target_price')
             
             pr = ProductRequest.objects.create(
                 name=name,
@@ -3263,9 +3318,45 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
             if 'image' in request.FILES:
                 pr.image = request.FILES['image']
                 pr.save()
+
+            if request.user.is_authenticated and not is_seller_creating:
+                ProductRequestVote.objects.get_or_create(request=pr, user=request.user)
                 
             serializer = self.get_serializer(pr)
             return Response(serializer.data, status=201)
+
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def vote(self, request, pk=None):
+        pr = self.get_object()
+        user = request.user
+        
+        from marketplace.models import ProductRequestVote
+        existing_vote = ProductRequestVote.objects.filter(request=pr, user=user).first()
+        
+        if existing_vote:
+            # Unvote
+            existing_vote.delete()
+            voted = False
+        else:
+            # Vote
+            ProductRequestVote.objects.create(request=pr, user=user)
+            voted = True
+
+        # Calculate exact distinct voters
+        real_votes_count = ProductRequestVote.objects.filter(request=pr).count()
+        if pr.user_id and not ProductRequestVote.objects.filter(request=pr, user_id=pr.user_id).exists():
+            real_votes_count += 1
+        
+        pr.request_count = max(real_votes_count, 1 if pr.user_id else 0)
+        pr.save(update_fields=['request_count', 'last_requested'])
+
+        return Response({
+            'id': pr.id,
+            'has_voted': voted,
+            'votes_count': pr.request_count,
+            'request_count': pr.request_count,
+            'message': "Interest recorded!" if voted else "Vote removed."
+        })
 
 class SellerAnalyticsView(APIView):
     """

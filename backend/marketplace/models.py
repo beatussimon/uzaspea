@@ -1546,6 +1546,7 @@ class ProductRequest(models.Model):
     requires_quote = models.BooleanField(default=False)
     image = models.ImageField(upload_to='product-requests/', null=True, blank=True)
     is_fulfilled = models.BooleanField(default=False)
+    fulfilled_product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='fulfilled_requests')
     
     created_at = models.DateTimeField(auto_now_add=True)
     last_requested = models.DateTimeField(auto_now=True)
@@ -1556,6 +1557,22 @@ class ProductRequest(models.Model):
 
     def __str__(self):
         return f"{self.name} requested {self.request_count} times for {self.seller.username}"
+
+
+class ProductRequestVote(models.Model):
+    request = models.ForeignKey(ProductRequest, on_delete=models.CASCADE, related_name='votes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_request_votes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('request', 'user')
+        indexes = [
+            models.Index(fields=['request', 'user']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} voted for {self.request.name}"
 
 
 # ==============================================================================
