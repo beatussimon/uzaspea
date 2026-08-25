@@ -517,15 +517,6 @@ const ProfilePage: React.FC = () => {
               />
             )}
           </button>
-
-          <button
-            onClick={handleOpenStoreSearch}
-            className="relative shrink-0 whitespace-nowrap flex items-center gap-1.5 sm:gap-2 pb-3 text-xs sm:text-sm font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
-            title="Search this store"
-          >
-            <Search size={15} className="shrink-0" />
-            <span>Search</span>
-          </button>
         </div>
 
         {/* Tab content renders */}
