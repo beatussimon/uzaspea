@@ -1294,10 +1294,10 @@ def run_seed():
             brand = brands_dict.get(brand_slug)
             if not brand: continue
             rp, _ = ReferenceProduct.objects.update_or_create(
-                slug=slug,
+                brand=brand,
+                name=name,
                 defaults={
-                    'name': name,
-                    'brand': brand,
+                    'slug': slug,
                     'category': cat,
                     'structured_specs': specs
                 }
