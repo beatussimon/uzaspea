@@ -622,7 +622,7 @@ const ProductList = () => {
 
         {/* Unified Search Query & Active Filters Row */}
         {(urlQuery || activePills.length > 0) && (
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-0 py-2 border-b border-gray-200/60 dark:border-neutral-800/60 pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-0 py-2 pb-3">
             {/* Left: Search Header & Filter Pills Inline */}
             <div className="flex flex-wrap items-center gap-2.5">
               {urlQuery ? (

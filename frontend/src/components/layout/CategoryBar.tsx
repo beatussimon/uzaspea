@@ -160,7 +160,7 @@ const CategoryBar: React.FC = () => {
   // Render a loading skeleton for product details page
   if (isProductDetailPage && (loading || !product)) {
     return (
-      <div className="w-full bg-white dark:bg-[#000000] border-b border-gray-150 dark:border-neutral-900 transition-colors duration-300">
+      <div className="w-full bg-white dark:bg-[#000000] transition-colors duration-300">
         <div className="flex items-center justify-center gap-2 py-2.5 px-4 w-full">
           <div className="h-7 w-24 rounded-full bg-neutral-200 dark:bg-neutral-700 animate-pulse" />
           <div className="h-7 w-24 rounded-full bg-neutral-200 dark:bg-neutral-700 animate-pulse" />
@@ -172,7 +172,7 @@ const CategoryBar: React.FC = () => {
   if (isProductsPage) {
     // CIRCLES Layout (original category circles slider, updated with desktop-large/mobile-small sizes)
     return (
-      <div className="w-full pt-1 pb-1 bg-white dark:bg-[#000000] border-b border-gray-150 dark:border-neutral-900 transition-colors duration-300">
+      <div className="w-full pt-1 pb-1 bg-white dark:bg-[#000000] transition-colors duration-300">
         <div className="flex items-start justify-start md:justify-center gap-5 overflow-x-auto no-scrollbar pt-3 pb-2 w-full px-4 scroll-smooth">
           {loading ? (
             Array.from({ length: 6 }).map((_, i) => (
@@ -224,7 +224,7 @@ const CategoryBar: React.FC = () => {
           if (activeCat && availableChildren.length > 0) {
             const subCategoryParam = searchParams.get('subcategory') || '';
             return (
-              <div className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar py-2.5 px-4 border-t border-gray-150 dark:border-neutral-900 w-full scroll-smooth bg-gray-50/50 dark:bg-black/50">
+              <div className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar py-2.5 px-4 w-full scroll-smooth bg-gray-50/50 dark:bg-black/50">
                 <button
                   onClick={() => handleCategoryClick(activeCat.slug)}
                   className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all border shrink-0 ${!subCategoryParam ? 'bg-brand-500 text-white border-brand-500 shadow-md' : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}
@@ -261,7 +261,7 @@ const CategoryBar: React.FC = () => {
     : topCategories.filter((cat: any) => cat.total_products > 0);
 
   return (
-    <div className="w-full bg-white dark:bg-[#000000] border-b border-gray-150 dark:border-neutral-900 transition-colors duration-300">
+    <div className="w-full bg-white dark:bg-[#000000] transition-colors duration-300">
       <div className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar py-2.5 px-4 scroll-smooth w-full">
         {/* All Products Pill - only shown when showing all categories */}
         {!isProductDetailPage && (
