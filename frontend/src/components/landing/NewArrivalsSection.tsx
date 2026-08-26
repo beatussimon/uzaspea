@@ -86,10 +86,10 @@ const NewArrivalsSection: React.FC<NewArrivalsSectionProps> = ({
                       </div>
                     ) : newArrivals.length > 0 ? (
                       <>
-                        <div className="flex gap-4 w-max">
-                          {row1.map((product) => (
+                                                <div className="flex gap-4 w-max">
+                          {row1.map((product, idx) => (
                             <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
-                              <ProductCard product={product} viewMode="grid" showTrendingMetrics="new" />
+                              <ProductCard product={product} viewMode="grid" showTrendingMetrics="new" isTopFold={idx < 4} />
                             </div>
                           ))}
                         </div>
@@ -97,7 +97,7 @@ const NewArrivalsSection: React.FC<NewArrivalsSectionProps> = ({
                           <div className="flex gap-4 w-max">
                             {row2.map((product) => (
                               <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
-                                <ProductCard product={product} viewMode="grid" showTrendingMetrics="new" />
+                                <ProductCard product={product} viewMode="grid" showTrendingMetrics="new" isTopFold={false} />
                               </div>
                             ))}
                           </div>

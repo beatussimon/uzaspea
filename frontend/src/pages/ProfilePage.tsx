@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, lazy, Suspense } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Settings, MapPin, Camera, 
@@ -18,7 +18,7 @@ import { Modal } from '../components/ui/Modal';
 import SocialLinks from '../components/SocialLinks';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
-import ProductRequestModal from '../components/ProductRequestModal';
+const ProductRequestModal = lazy(() => import('../components/ProductRequestModal'));
 import { useSearch } from '../context/SearchContext';
 import { useMessages } from '../context/MessageContext';
 
@@ -707,7 +707,7 @@ const ProfilePage: React.FC = () => {
 
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 items-stretch p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
-                  {filteredDemands.map(req => {
+                  {filteredDemands.map((req, idx) => {
                     const isFulfilled = req.is_fulfilled;
                     const hasVoted = req.has_voted;
                     const isUpvotingThis = upvoting === String(req.id);
@@ -724,6 +724,8 @@ const ProfilePage: React.FC = () => {
                               src={req.image_url || req.image} 
                               alt={req.name} 
                               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                              loading={idx < 4 ? 'eager' : 'lazy'}
+                              decoding="async"
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-neutral-800">
@@ -867,9 +869,9 @@ const ProfilePage: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5 items-stretch p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
-                {filteredProducts.map((p) => (
+                {filteredProducts.map((p, idx) => (
                   <div key={p.id} className="flex flex-col">
-                    <ProductCard product={p} />
+                    <ProductCard product={p} isTopFold={idx < 4} />
                   </div>
                 ))}
               </div>
@@ -1181,13 +1183,15 @@ const ProfilePage: React.FC = () => {
         )}
       </Modal>
 
-      {profile && (
-        <ProductRequestModal
-          isOpen={isRequestModalOpen}
-          onClose={() => setIsRequestModalOpen(false)}
-          sellerId={profile.user_id}
-          sellerUsername={profile.username}
-        />
+      {profile && isRequestModalOpen && (
+        <Suspense fallback={null}>
+          <ProductRequestModal
+            isOpen={isRequestModalOpen}
+            onClose={() => setIsRequestModalOpen(false)}
+            sellerId={profile.user_id}
+            sellerUsername={profile.username}
+          />
+        </Suspense>
       )}
     </div>
   );
