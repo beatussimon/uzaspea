@@ -219,7 +219,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
 
   return (
     <div 
-      className="fixed bottom-0 z-50 w-[330px] h-[450px] bg-white dark:bg-black border border-gray-200/90 dark:border-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl transition-all"
+      className="fixed bottom-0 z-[200] w-[330px] h-[450px] bg-white dark:bg-black border border-gray-200/90 dark:border-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl transition-all"
       style={{ right: `${rightOffset}px` }}
     >
       {/* --- Window Header --- */}

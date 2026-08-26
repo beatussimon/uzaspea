@@ -1031,7 +1031,7 @@ class OrderSerializer(serializers.ModelSerializer):
             user = request.user
             if not (user.is_staff or user.is_superuser or instance.user == user):
                 from uzachuo.permissions import get_effective_sellers
-                sellers = get_effective_sellers(user, required_permission='manage_products')
+                sellers = get_effective_sellers(user, required_permission='manage_orders') or get_effective_sellers(user, required_permission='manage_products') or [user.id]
                 all_items = list(instance.orderitem_set.all())
                 filtered_items = [item for item in all_items if item.product.seller_id in sellers]
                 ret['items'] = OrderItemSerializer(filtered_items, many=True, context=self.context).data
@@ -1042,7 +1042,7 @@ class OrderSerializer(serializers.ModelSerializer):
         if not request or not hasattr(request, 'user') or request.user.is_anonymous:
             return items
         from uzachuo.permissions import get_effective_sellers
-        sellers = get_effective_sellers(request.user)
+        sellers = get_effective_sellers(request.user, required_permission='manage_orders') or get_effective_sellers(request.user)
         filtered_items = [item for item in items if item.product.seller_id in sellers]
         if not filtered_items:
             filtered_items = [item for item in items if item.product.seller_id == request.user.id]

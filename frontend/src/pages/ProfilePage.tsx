@@ -19,12 +19,14 @@ import SocialLinks from '../components/SocialLinks';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 const ProductRequestModal = lazy(() => import('../components/ProductRequestModal'));
+import { useAuth } from '../context/AuthContext';
 import { useSearch } from '../context/SearchContext';
 import { useMessages } from '../context/MessageContext';
 
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
   const { username } = useParams<{ username: string }>();
+  const { user } = useAuth();
   const { conversations, openDesktopChat } = useMessages();
   const { openSearchForSeller } = useSearch();
   const [profile, setProfile] = useState<any>(null);
@@ -53,8 +55,8 @@ const ProfilePage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   // Authenticated context
-  const currentUser = localStorage.getItem('username');
-  const isOwner = currentUser === username;
+  const currentUser = user?.username || localStorage.getItem('username');
+  const isOwner = Boolean(username && currentUser && currentUser.toLowerCase() === username.toLowerCase());
   const showDemandsTab = isOwner || profile?.show_product_requests !== false;
 
   // Extract unique categories from seller's products for quick-filter pills
@@ -101,7 +103,7 @@ const ProfilePage: React.FC = () => {
 
       if (currentUser) {
         promises.push(api.get(`/api/profiles/${username}/follow_status/`, { signal }));
-        if (currentUser === username) {
+        if (currentUser.toLowerCase() === username.toLowerCase()) {
           promises.push(api.get('/api/subscriptions/me/', { signal }));
         }
       }
@@ -125,18 +127,22 @@ const ProfilePage: React.FC = () => {
           youtube_url: pData.youtube_url || '',
           linkedin_url: pData.linkedin_url || '',
         });
-      } else if (results[0].status === 'rejected') {
+      } else {
         if (!signal?.aborted) setProfile(null);
       }
 
       // 2. Products
-      if (results[1].status === 'fulfilled') {
+      if (results[1].status === 'fulfilled' && results[1].value?.data) {
         setProducts(results[1].value.data.results || results[1].value.data || []);
+      } else {
+        if (!signal?.aborted) setProducts([]);
       }
 
       // 3. Product Requests
-      if (results[2].status === 'fulfilled') {
+      if (results[2].status === 'fulfilled' && results[2].value?.data) {
         setProductRequests(results[2].value.data.results || results[2].value.data || []);
+      } else {
+        if (!signal?.aborted) setProductRequests([]);
       }
 
       // 4. Follow Status
@@ -145,13 +151,16 @@ const ProfilePage: React.FC = () => {
       }
 
       // 5. Subscription Expired Status
-      if (currentUser === username && results[4]?.status === 'fulfilled') {
+      if (currentUser && currentUser.toLowerCase() === username.toLowerCase() && results[4]?.status === 'fulfilled') {
         const subData = results[4].value.data;
         setIsSubscriptionExpired(Boolean(subData && subData.status !== 'none' && !subData.is_active));
       }
     } catch (err: any) {
       if (!signal?.aborted) {
         console.error("Profile load error", err);
+        setProfile(null);
+        setProducts([]);
+        setProductRequests([]);
       }
     } finally {
       if (!signal?.aborted) {
@@ -163,6 +172,9 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setProfile(null);
+    setProducts([]);
+    setProductRequests([]);
     fetchProfile(controller.signal);
     return () => {
       controller.abort();

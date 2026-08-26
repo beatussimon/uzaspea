@@ -275,7 +275,7 @@ const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
-  const { openDesktopChat } = useMessages();
+  const { openDesktopChat, toggleDesktopChat, totalUnread: messageUnreadCount } = useMessages();
   const initialProduct = (location.state as any)?.initialProduct || null;
 
   const [product, setProduct] = useState<ProductData | null>(initialProduct);
@@ -533,7 +533,7 @@ const ProductDetailPage: React.FC = () => {
 
       {/* ═══ MOBILE IMAGE GRID (< lg only) ═══ */}
       <div className="block lg:hidden relative w-full bg-neutral-950 shrink-0">
-        {/* Top-left overlay: Two separate floating circles matching navigation circles */}
+        {/* Top-left overlay: Floating action circles matching navigation */}
         <div className="absolute top-3 left-3 z-40 flex items-center gap-2.5">
           <button
             onPointerDown={(e) => { e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/products'); }}
@@ -548,6 +548,25 @@ const ProductDetailPage: React.FC = () => {
             title="Go to Homepage"
           >
             <img src="/logo.png" alt="OKO" className="w-full h-full object-contain drop-shadow-md" />
+          </button>
+          <button
+            onClick={() => {
+              if (window.innerWidth >= 768) {
+                toggleDesktopChat();
+              } else {
+                navigate('/messages');
+              }
+            }}
+            className="relative w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
+            title="Messages"
+            aria-label="View messages"
+          >
+            <MessageSquare size={19} />
+            {messageUnreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-black animate-pulse">
+                {messageUnreadCount > 99 ? '99' : messageUnreadCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -597,7 +616,7 @@ const ProductDetailPage: React.FC = () => {
       {/* ═══ DESKTOP IMAGE STAGE (lg+ only) ═══ */}
       <div className="hidden lg:flex relative lg:w-[58%] xl:w-[62%] lg:h-full bg-neutral-950 overflow-hidden flex-col items-center justify-center select-none group/stage shrink-0">
         
-        {/* 1. TOP-LEFT OVERLAY: Two separate floating circles matching navigation circles */}
+        {/* 1. TOP-LEFT OVERLAY: Floating circles matching navigation circles */}
         <div className="absolute top-4 left-4 z-40 flex items-center gap-3">
           <button
             onPointerDown={(e) => { e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/products'); }}
@@ -612,6 +631,19 @@ const ProductDetailPage: React.FC = () => {
             title="Go to Homepage"
           >
             <img src="/logo.png" alt="OKO" className="w-full h-full object-contain drop-shadow-md" />
+          </button>
+          <button
+            onClick={toggleDesktopChat}
+            className="relative w-12 h-12 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-110 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
+            title="Messages"
+            aria-label="View messages"
+          >
+            <MessageSquare size={20} />
+            {messageUnreadCount > 0 && (
+              <span className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-black animate-pulse">
+                {messageUnreadCount > 99 ? '99' : messageUnreadCount}
+              </span>
+            )}
           </button>
         </div>
 

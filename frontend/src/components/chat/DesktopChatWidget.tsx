@@ -246,7 +246,7 @@ export const DesktopChatWidget: React.FC = () => {
   const activeOpenConversations = conversations.filter(c => openConvIds.includes(c.id));
 
   return (
-    <div className="fixed bottom-0 right-6 z-50 hidden md:flex items-end gap-3 pointer-events-none">
+    <div className="fixed bottom-0 right-6 z-[200] hidden md:flex items-end gap-3 pointer-events-none">
       {/* --- Person-Specific Minimized Floating Bubbles Stack --- */}
       <div className="flex items-center gap-2 pointer-events-auto">
         {activeOpenConversations.map(conv => {

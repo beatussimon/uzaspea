@@ -14,7 +14,7 @@ class OrderStateMachine:
         'PAID': ['SELLER_CONFIRMED', 'PROCESSING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'SELLER_CONFIRMED': ['PREPARING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'PREPARING': ['PACKAGING', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
-        'PACKAGING': ['SHIPPED_TO_WAREHOUSE', 'SHIPPED', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
+        'PACKAGING': ['SHIPPED_TO_WAREHOUSE', 'SHIPPED', 'READY_FOR_PICKUP', 'DELIVERED', 'CANCELLED', 'RECEIVED_AT_WAREHOUSE'],
         'SHIPPED_TO_WAREHOUSE': ['RECEIVED_AT_WAREHOUSE'],
         'RECEIVED_AT_WAREHOUSE': ['AWAITING_DELIVERY_PAYMENT', 'ASSIGNED_TRANSPORT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'],
         'AWAITING_DELIVERY_PAYMENT': ['PENDING_DELIVERY_VERIFICATION', 'CANCELLED'],
@@ -24,7 +24,7 @@ class OrderStateMachine:
         'OUT_FOR_DELIVERY': ['DELIVERED', 'COMPLETED', 'FAILED_DELIVERY'],
         'ARRIVED_AT_REGIONAL_WAREHOUSE': ['ASSIGNED_TRANSPORT', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'DELIVERED', 'COMPLETED'],
         'READY_FOR_VEHICLE_HANDOVER': ['DELIVERED', 'COMPLETED'],
-        'READY_FOR_PICKUP': ['DELIVERED', 'COMPLETED'],
+        'READY_FOR_PICKUP': ['DELIVERED', 'COMPLETED', 'CANCELLED'],
         'PROCESSING': ['SHIPPED', 'CANCELLED'],
         'SHIPPED': ['DELIVERED', 'COMPLETED', 'IN_TRANSIT'],
         'DELIVERED': ['COMPLETED', 'DISPUTED'],  # FIX B-15: buyer can dispute after delivery
@@ -77,10 +77,10 @@ class OrderStateMachine:
                     raise ValueError(f"State '{new_state}' is not allowed for WAREHOUSE_PICKUP orders.")
 
             elif locked_order.fulfillment_type == 'SELLER_PICKUP':
-                # Seller pickup (POS/walk-in): no logistics involved at all
+                # Seller pickup (POS/walk-in): no warehouse logistics involved at all
                 logistics_states = {
                     'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ARRIVED_AT_REGIONAL_WAREHOUSE',
-                    'AWAITING_DELIVERY_PAYMENT', 'PENDING_DELIVERY_VERIFICATION', 'READY_FOR_PICKUP',
+                    'AWAITING_DELIVERY_PAYMENT', 'PENDING_DELIVERY_VERIFICATION',
                     'RETURNED_TO_WAREHOUSE', 'OUT_FOR_DELIVERY', 'IN_TRANSIT', 'ASSIGNED_TRANSPORT',
                     'READY_FOR_VEHICLE_HANDOVER'
                 }
@@ -114,6 +114,26 @@ class OrderStateMachine:
                 locked_order.save(update_fields=['platform_fee'])
                 order.platform_fee = 0
 
+            if new_state == 'PACKAGING':
+                from marketplace.models import push_notification
+                try:
+                    if locked_order.fulfillment_type == 'SELLER_PICKUP':
+                        code_str = locked_order.delivery_code or ""
+                        code_msg = f" Your pickup code is {code_str}." if code_str else ""
+                        push_notification(
+                            locked_order.user, 'order_status', 'Order Packaging Underway',
+                            f'The seller is packaging order #{locked_order.id}. It will be ready for pickup soon.{code_msg}',
+                            f'/orders?highlight={locked_order.id}'
+                        )
+                    else:
+                        push_notification(
+                            locked_order.user, 'order_status', 'Order Packaging',
+                            f'Your order #{locked_order.id} is being packaged by the seller.',
+                            f'/orders?highlight={locked_order.id}'
+                        )
+                except Exception:
+                    pass
+
             if new_state in ('ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER'):
                 from logistics.models import PickupCode
                 from marketplace.models import push_notification
@@ -122,11 +142,19 @@ class OrderStateMachine:
                     PickupCode.objects.get_or_create(order=locked_order)
                 if new_state == 'READY_FOR_PICKUP':
                     try:
-                        push_notification(
-                            locked_order.user, 'order_status', 'Ready for Pickup',
-                            f'Your order #{locked_order.id} is ready for pickup. Check your orders page for the collection code.',
-                            f'/orders'
-                        )
+                        code_str = locked_order.delivery_code or ""
+                        if locked_order.fulfillment_type == 'SELLER_PICKUP':
+                            push_notification(
+                                locked_order.user, 'order_status', 'Packaging Done - Ready for Pickup!',
+                                f'Packaging is done! Order #{locked_order.id} is ready for you to pick up from the seller. Present your pickup code: {code_str}',
+                                f'/orders?highlight={locked_order.id}'
+                            )
+                        else:
+                            push_notification(
+                                locked_order.user, 'order_status', 'Ready for Pickup',
+                                f'Your order #{locked_order.id} is ready for pickup at the warehouse. Your collection code is: {code_str}',
+                                f'/orders?highlight={locked_order.id}'
+                            )
                     except Exception:
                         pass
 
