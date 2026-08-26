@@ -65,9 +65,10 @@ const SuspenseLoader = () => (
 // ProtectedRoute extracted outside App component body to prevent unmount/remount cycles
 const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = false, requireInspector = false, requireSeller = false }: any) => {
   const { isAuthenticated, user } = useAuth();
+  const location = useLocation();
   
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
   // If role checks are required but user hasn't loaded yet, show loading

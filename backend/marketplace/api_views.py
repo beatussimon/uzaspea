@@ -43,8 +43,13 @@ class LoginRateThrottle(AnonRateThrottle):
 class OrderCreateThrottle(UserRateThrottle):
     scope = 'order_create'
 
-class TicketRateThrottle(AnonRateThrottle):
+class TicketAnonRateThrottle(AnonRateThrottle):
     scope = 'ticket'
+    rate = '10/hour'
+
+class TicketUserRateThrottle(UserRateThrottle):
+    scope = 'ticket'
+    rate = '30/hour'
 
 class GeocodeAnonRateThrottle(AnonRateThrottle):
     rate = '20/minute'
@@ -450,7 +455,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             for img in images:
                 ProductImage.objects.create(product=product, image=img)
 
-    @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
     def batch_upload(self, request):
         import csv
         import io
@@ -739,6 +744,12 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
+        # Mutations must strictly operate on own LipaNumbers or all for staff
+        if self.action in ['update', 'partial_update', 'destroy']:
+            if self.request.user.is_staff or self.request.user.is_superuser:
+                return LipaNumber.objects.all().select_related('network')
+            return LipaNumber.objects.filter(seller=self.request.user, is_system=False).select_related('network')
+
         is_system_query = self.request.query_params.get('is_system') or self.request.query_params.get('system')
         seller_username = self.request.query_params.get('seller')
         purpose = self.request.query_params.get('purpose')
@@ -765,7 +776,7 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return [permissions.IsAuthenticated(), IsSellerOrAbove()]
         if self.action in ['update', 'partial_update', 'destroy']:
-            return [permissions.IsAuthenticated(), IsSellerOrAbove()]
+            return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
         return [permissions.AllowAny()]
 
     def perform_create(self, serializer):
@@ -799,7 +810,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated(), IsStaffMember()]
     def get_throttles(self):  # FIX D-07
         if self.action == 'create':
-            return [TicketRateThrottle()]
+            return [TicketAnonRateThrottle(), TicketUserRateThrottle()]
         return super().get_throttles()
     def get_queryset(self):
         user = self.request.user
@@ -809,10 +820,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
             if status_filter:
                 qs = qs.filter(status=status_filter)
             return qs
-        # FIX LOW-02: also match by email for anonymous-then-logged-in users
-        return SupportTicket.objects.filter(
-            Q(user=user) | Q(email=user.email)
-        ).order_by('-created_at')
+        return SupportTicket.objects.filter(user=user).order_by('-created_at')
     def perform_create(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(user=user)
@@ -1236,7 +1244,23 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        order = serializer.save(user=self.request.user)
+        # Notify sellers of incoming new order
+        try:
+            seller_ids = set(order.orderitem_set.values_list('product__seller_id', flat=True))
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            for seller in User.objects.filter(id__in=seller_ids):
+                if seller != self.request.user:
+                    push_notification(
+                        user=seller,
+                        notification_type='order_status',
+                        title=f'New Order #{order.id}',
+                        message=f'Customer @{self.request.user.username} placed a new order totaling TSh {int(order.total_amount):,}.',
+                        link=f'/dashboard/orders?highlight={order.id}'
+                    )
+        except Exception:
+            pass
 
     @decorators.action(detail=True, methods=['post'])
     @transaction.atomic
@@ -1555,9 +1579,10 @@ class OrderViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=False, methods=['post'], url_path='request-invoice')
     @transaction.atomic
     def request_invoice(self, request):
-        """Convert cart items into an order that requires a quote/invoice."""
+        """Convert cart items into a bulk order that requires a quote/invoice."""
         user = request.user
         items_data = request.data.get('items', [])
+        buyer_note = request.data.get('note', '')
         
         if not items_data:
             return Response({'error': 'No items provided.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1566,24 +1591,56 @@ class OrderViewSet(viewsets.ModelViewSet):
             user=user,
             status='REQUESTED_INVOICE',
             shipping_method=request.data.get('shipping_method', 'DELIVERY'),
-            fulfillment_type=request.data.get('fulfillment_type', 'PLATFORM_DELIVERY')
+            fulfillment_type=request.data.get('fulfillment_type', 'PLATFORM_DELIVERY'),
+            is_bulk_order=True,
+            negotiation_data={
+                'buyer_request_note': buyer_note,
+                'counter_count': 0,
+                'resolved': False,
+            }
         )
         
         for item_data in items_data:
             product_id = item_data.get('product_id')
-            quantity = int(item_data.get('quantity', 1))
+            variant_id = item_data.get('variant_id') or item_data.get('variant')
+            quantity = Decimal(str(item_data.get('quantity', 1)))
             product = Product.objects.get(id=product_id)
+            variant = None
+            if variant_id:
+                try:
+                    variant = ProductVariant.objects.get(id=variant_id, product=product)
+                except ProductVariant.DoesNotExist:
+                    variant = None
             
             OrderItem.objects.create(
                 order=order,
                 product=product,
+                variant=variant,
                 quantity=quantity,
                 price=product.price if not product.requires_quote else Decimal('0.00')
             )
             
         order.update_total()
-        TrackingEvent.objects.create(order=order, status='REQUESTED_INVOICE', notes='Customer requested an invoice.')
-        return Response({'order_id': order.id, 'status': order.status}, status=status.HTTP_201_CREATED)
+        TrackingEvent.objects.create(order=order, status='REQUESTED_INVOICE', notes=buyer_note or 'Customer requested an invoice.')
+        
+        # Notify sellers of invoice request
+        try:
+            seller_ids = set(order.orderitem_set.values_list('product__seller_id', flat=True))
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            for seller in User.objects.filter(id__in=seller_ids):
+                if seller != user:
+                    push_notification(
+                        user=seller,
+                        notification_type='order_status',
+                        title=f'New Invoice Request #{order.id}',
+                        message=f'@{user.username} requested a bulk quote for {order.orderitem_set.count()} items.',
+                        link='/dashboard/invoices'
+                    )
+        except Exception:
+            pass
+
+        return Response({'order_id': order.id, 'status': order.status, 'is_bulk_order': order.is_bulk_order}, status=status.HTTP_201_CREATED)
 
     @decorators.action(detail=True, methods=['post'], url_path='generate-invoice')
     @transaction.atomic
@@ -1603,6 +1660,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         if order.status not in ('REQUESTED_INVOICE', 'CART', 'CHECKOUT', 'BUYER_COUNTERED'):
             return Response({'error': 'Order is not pending an invoice.'}, status=status.HTTP_400_BAD_REQUEST)
         
+        seller_note = request.data.get('seller_note') or request.data.get('note', '')
+        neg_data = dict(order.negotiation_data or {})
+        
         # If seller clicks "Accept Buyer's Offer", apply the buyer's proposed prices
         accept_counter = request.data.get('accept_counter', False)
         if accept_counter and order.status == 'BUYER_COUNTERED' and order.negotiation_data:
@@ -1611,12 +1671,19 @@ class OrderViewSet(viewsets.ModelViewSet):
                 if str(item.id) in proposed:
                     item.price = Decimal(str(proposed[str(item.id)]))
                     item.save(update_fields=['price'])
+            neg_data['seller_final_note'] = seller_note or 'Accepted counter-offer'
+            neg_data['resolved'] = True
         else:
             prices = request.data.get('prices', {}) # {item_id: price}
             for item in order.orderitem_set.all():
                 if str(item.id) in prices:
                     item.price = Decimal(str(prices[str(item.id)]))
                     item.save(update_fields=['price'])
+            if order.status == 'BUYER_COUNTERED':
+                neg_data['seller_final_note'] = seller_note
+                neg_data['resolved'] = True
+            else:
+                neg_data['seller_invoice_note'] = seller_note
                 
         # Handle shipping fee
         shipping_fee = request.data.get('shipping_fee')
@@ -1632,18 +1699,29 @@ class OrderViewSet(viewsets.ModelViewSet):
             di['is_pos'] = True
             order.delivery_info = di
         
-        # Clear negotiation data after final invoice is generated
-        if not complete_pos:
-            order.negotiation_data = order.negotiation_data or {}
-            order.negotiation_data['resolved'] = True
-            
+        order.negotiation_data = neg_data
         order.save(update_fields=['status', 'shipping_fee', 'delivery_info', 'negotiation_data'])
         order.update_total()
         
-        notes = 'Seller accepted buyer\'s counter-offer.' if accept_counter else 'Invoice generated by seller.'
+        notes = 'Seller accepted buyer\'s counter-offer.' if accept_counter else ('Final invoice generated by seller.' if neg_data.get('resolved') else 'Invoice generated by seller.')
+        if seller_note:
+            notes += f" ({seller_note})"
         TrackingEvent.objects.create(order=order, status=order.status, notes=notes)
         
-        return Response({'status': order.status})
+        # Notify buyer that invoice is ready/updated
+        try:
+            title = f'Invoice Updated #{order.id}' if neg_data.get('counter_count', 0) > 0 else f'Invoice Ready #{order.id}'
+            push_notification(
+                user=order.user,
+                notification_type='order_status',
+                title=title,
+                message=f'@{user.username} sent your invoice for order #{order.id} totaling TSh {int(order.total_amount):,}.',
+                link=f'/orders?highlight={order.id}'
+            )
+        except Exception:
+            pass
+
+        return Response({'status': order.status, 'negotiation_data': order.negotiation_data})
 
     @decorators.action(detail=True, methods=['post'], url_path='confirm-invoice')
     @transaction.atomic
@@ -1659,19 +1737,41 @@ class OrderViewSet(viewsets.ModelViewSet):
         order.status = 'AWAITING_PAYMENT'
         order.save(update_fields=['status'])
         TrackingEvent.objects.create(order=order, status='AWAITING_PAYMENT', notes='Buyer confirmed invoice.')
+        
+        # Notify sellers that invoice was accepted
+        try:
+            seller_ids = set(order.orderitem_set.values_list('product__seller_id', flat=True))
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            for seller in User.objects.filter(id__in=seller_ids):
+                if seller != request.user:
+                    push_notification(
+                        user=seller,
+                        notification_type='order_status',
+                        title=f'Invoice Confirmed #{order.id}',
+                        message=f'@{request.user.username} accepted invoice #{order.id} and proceeded to checkout.',
+                        link=f'/dashboard/orders?highlight={order.id}'
+                    )
+        except Exception:
+            pass
+
         return Response({'status': order.status})
 
     @decorators.action(detail=True, methods=['post'], url_path='counter-invoice')
     @transaction.atomic
     def counter_invoice(self, request, pk=None):
-        """Buyer submits a counter-offer on the invoice."""
+        """Buyer submits a counter-offer on the invoice (1 round allowed)."""
         from django.utils import timezone
         order = self.get_object()
         if order.user != request.user:
             return Response({'error': 'Unauthorized'}, status=403)
 
         if order.status != 'INVOICE_GENERATED':
-            return Response({'error': 'Invoice must be generated before countering.'}, status=400)
+            return Response({'error': 'Invoice must be in generated state before countering.'}, status=400)
+
+        neg_data = dict(order.negotiation_data or {})
+        if neg_data.get('counter_count', 0) >= 1 or neg_data.get('resolved', False):
+            return Response({'error': 'Negotiation limit reached. You cannot submit another counter-offer on this invoice.'}, status=400)
 
         proposed_prices = request.data.get('proposed_prices', {})  # {item_id: proposed_price}
         note = request.data.get('note', '')
@@ -1679,15 +1779,34 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not proposed_prices:
             return Response({'error': 'Please propose at least one price.'}, status=400)
 
-        order.negotiation_data = {
-            'proposed_prices': proposed_prices,
-            'note': note,
-            'countered_at': timezone.now().isoformat(),
-        }
+        neg_data['proposed_prices'] = proposed_prices
+        neg_data['counter_note'] = note
+        neg_data['counter_count'] = neg_data.get('counter_count', 0) + 1
+        neg_data['countered_at'] = timezone.now().isoformat()
+        
+        order.negotiation_data = neg_data
         order.status = 'BUYER_COUNTERED'
         order.save(update_fields=['status', 'negotiation_data'])
         TrackingEvent.objects.create(order=order, status='BUYER_COUNTERED', notes=f'Buyer counter-offer: {note}')
-        return Response({'status': order.status})
+        
+        # Notify sellers of buyer counter-offer
+        try:
+            seller_ids = set(order.orderitem_set.values_list('product__seller_id', flat=True))
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            for seller in User.objects.filter(id__in=seller_ids):
+                if seller != request.user:
+                    push_notification(
+                        user=seller,
+                        notification_type='order_status',
+                        title=f'Counter-Offer Received #{order.id}',
+                        message=f'@{request.user.username} submitted a counter-offer on invoice #{order.id}.',
+                        link='/dashboard/invoices'
+                    )
+        except Exception:
+            pass
+
+        return Response({'status': order.status, 'negotiation_data': order.negotiation_data})
 
     @decorators.action(detail=False, methods=['get'])
     def incoming(self, request):
@@ -1714,14 +1833,21 @@ class OrderViewSet(viewsets.ModelViewSet):
                 orders_qs = orders_qs.filter(delivery_info__is_pos=True)
             else:
                 orders_qs = orders_qs.exclude(delivery_info__is_pos=True)
+
+        is_bulk_param = request.query_params.get('is_bulk_order')
+        if is_bulk_param is not None:
+            orders_qs = orders_qs.filter(is_bulk_order=(is_bulk_param.lower() == 'true'))
                 
         orders = orders_qs.prefetch_related(
             seller_items_prefetch, 'timeline_events', 'payments'
         ).select_related('user').order_by('-order_date')
 
         status_filter = request.query_params.get('status', None)
-        if status_filter:
-            orders = orders.filter(status=status_filter)
+        if status_filter and status_filter.upper() != 'ALL':
+            if ',' in status_filter:
+                orders = orders.filter(status__in=[s.strip() for s in status_filter.split(',')])
+            else:
+                orders = orders.filter(status=status_filter)
 
         exclude_statuses = request.query_params.get('exclude_statuses', None)
         if exclude_statuses:
@@ -1738,6 +1864,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             for item in order.relevant_items:
                 # FIX: L-04 — use prefetched images, avoid 2 queries per item
                 _imgs = list(item.product.images.all())
+                catalog_price = float(item.variant.final_price) if item.variant else (float(item.product.price) if item.product and item.product.price else None)
                 items_data.append({
                     'id': item.id,
                     'product_name': item.product.name,
@@ -1745,6 +1872,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     'product_image': _imgs[0].image.url if _imgs else None,
                     'quantity': item.quantity,
                     'price': float(item.price),
+                    'catalog_price': catalog_price,
                     'subtotal': float(item.subtotal()),
                     'variant_name': item.variant.name if item.variant else None,
                 })
@@ -1772,11 +1900,14 @@ class OrderViewSet(viewsets.ModelViewSet):
                 'status': order.status,
                 'has_vehicles': order_has_vehicles(order),
                 'total_amount': float(order.total_amount),
+                'shipping_fee': float(order.shipping_fee) if order.shipping_fee else 0.0,
                 'seller_subtotal': sum(i['subtotal'] for i in items_data),
                 'items': items_data,
                 'timeline': timeline,
                 'payments': payments,
                 'delivery_info': order.delivery_info if isinstance(order.delivery_info, dict) else (json.loads(order.delivery_info) if isinstance(order.delivery_info, str) else {}),
+                'negotiation_data': order.negotiation_data if isinstance(order.negotiation_data, dict) else (json.loads(order.negotiation_data) if isinstance(order.negotiation_data, str) else {}),
+                'is_bulk_order': order.is_bulk_order,
             }
 
         if page is not None:

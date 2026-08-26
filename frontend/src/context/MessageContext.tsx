@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import api, { API_BASE_URL, decodeJwtPayload } from '../api';
 import { useAuth } from './AuthContext';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const getValidToken = async (): Promise<string | null> => {
   const token = localStorage.getItem('access_token');
@@ -121,6 +122,7 @@ interface MessageContextType {
   toggleDesktopMinimize: () => void;
   closeThreadBubble: (convId: number) => void;
   openThreadBubble: (convId: number) => void;
+  startOrderInquiryChat: (sellerUsername: string, itemsSummary: string, sellerId?: number) => Promise<number | null>;
 }
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
@@ -210,6 +212,40 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const toggleDesktopMinimize = useCallback(() => {
     setIsDesktopMinimized(prev => !prev);
   }, []);
+
+  const startOrderInquiryChat = useCallback(async (sellerUsername: string, itemsSummary: string, sellerId?: number) => {
+    try {
+      let targetSellerId = sellerId;
+      if (!targetSellerId) {
+        const existingConv = conversations.find(c =>
+          c.seller_username?.toLowerCase() === sellerUsername.toLowerCase() ||
+          c.buyer_username?.toLowerCase() === sellerUsername.toLowerCase()
+        );
+        if (existingConv) {
+          openChatWindow(existingConv.id, itemsSummary);
+          return existingConv.id;
+        }
+        const profRes = await api.get(`/api/profiles/${sellerUsername}/`);
+        targetSellerId = profRes.data?.user?.id || profRes.data?.id;
+      }
+      if (!targetSellerId) {
+        toast.error('Could not identify seller.');
+        return null;
+      }
+      const res = await api.post('/api/conversations/', { seller: targetSellerId });
+      const newConv = res.data;
+      setConversations(prev => {
+        if (prev.some(c => c.id === newConv.id)) return prev;
+        return [newConv, ...prev];
+      });
+      openChatWindow(newConv.id, itemsSummary);
+      return newConv.id;
+    } catch (err) {
+      console.error('Failed to start order inquiry chat', err);
+      toast.error('Could not open chat with seller.');
+      return null;
+    }
+  }, [conversations, openChatWindow]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -767,6 +803,7 @@ const subscribeToWebPush = async () => {
     toggleDesktopMinimize,
     openThreadBubble,
     closeThreadBubble,
+    startOrderInquiryChat,
   }), [
     conversations, totalUnread, activeConversationId, setActiveConversationId,
     messages, fetchMessages, sendMessage, toasts, dismissToast, loading,
@@ -776,7 +813,7 @@ const subscribeToWebPush = async () => {
     isDesktopPopupOpen, setIsDesktopPopupOpen, desktopActiveConvId, setDesktopActiveConvId,
     isDesktopMinimized, setIsDesktopMinimized, desktopPrefillMessage, setDesktopPrefillMessage,
     openConvIds, minimizedConvIds, openDesktopChat, closeDesktopChat, toggleDesktopChat, toggleDesktopMinimize,
-    openThreadBubble, closeThreadBubble,
+    openThreadBubble, closeThreadBubble, startOrderInquiryChat,
   ]);
 
   return (

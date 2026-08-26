@@ -34,6 +34,7 @@ interface Shipment {
   tracking_number: string;
   status: string;
   estimated_delivery: string | null;
+  is_bulk_order?: boolean;
 }
 
 const LeafletMap: React.FC<{ lat: number; lng: number; stale: boolean }> = ({ lat, lng, stale }) => {
@@ -280,6 +281,11 @@ export const ShipmentTrackingPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-500">
               <span>{t('shipment_for_order', 'Shipment for Order')}</span>
               <span className="text-gray-300 font-mono font-bold">#{shipment.order}</span>
+              {shipment.is_bulk_order && (
+                <span className="px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider bg-amber-500 text-black">
+                  {t('bulk_order', 'Bulk Order')}
+                </span>
+              )}
               <span>&bull;</span>
               <span>{t('status_label', 'Status')}:</span>
               <StatusBadge status={shipment.status} size="sm" />
