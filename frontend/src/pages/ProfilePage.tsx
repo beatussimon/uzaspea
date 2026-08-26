@@ -496,31 +496,40 @@ const ProfilePage: React.FC = () => {
             </div>
           )}
 
-          {/* Row 3: Bio & Meta Details — Instagram style left-aligned text block */}
-          <div className="space-y-2 text-sm text-gray-800 dark:text-neutral-200 w-full max-w-md md:max-w-lg text-left px-2 sm:px-0">
+          {/* Row 3: Bio & Meta Details — Bounded to action buttons width with centered bottom meta */}
+          <div className="space-y-3 text-sm text-gray-800 dark:text-neutral-200 w-full max-w-[335px] sm:max-w-[360px] md:max-w-lg mx-auto md:mx-0 text-left">
 
-            {/* Biography */}
+            {/* Biography — Left-aligned prose contained within the button bounds */}
             {profile.bio ? (
-              <p className="leading-relaxed whitespace-pre-wrap text-left">{profile.bio}</p>
+              <p className="leading-relaxed whitespace-pre-wrap text-left break-words">{profile.bio}</p>
             ) : (
               <p className="italic text-gray-400 dark:text-neutral-600 text-left">No biography details provided.</p>
             )}
 
-            {/* Ratings & Contact Info */}
-            <div className="pt-1 flex flex-wrap items-center justify-start gap-x-4 gap-y-1.5 text-xs text-gray-500 dark:text-neutral-400 font-medium">
-              {ratingCount > 0 && (
-                <div className="flex items-center gap-1 text-amber-600 dark:text-amber-500">
-                  <Star size={13} fill="currentColor" />
-                  <span>{ratingAvg.toFixed(1)} ({ratingCount} reviews)</span>
+            {/* Bottom Meta & Social Links — Centered on mobile */}
+            <div className="pt-1 space-y-2 flex flex-col items-center md:items-start w-full">
+              {/* Ratings & Location */}
+              {(ratingCount > 0 || profile.location) && (
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-neutral-400 font-medium">
+                  {ratingCount > 0 && (
+                    <div className="flex items-center gap-1 text-amber-600 dark:text-amber-500">
+                      <Star size={13} fill="currentColor" />
+                      <span>{ratingAvg.toFixed(1)} ({ratingCount} reviews)</span>
+                    </div>
+                  )}
+                  {profile.location && (
+                    <div className="flex items-center gap-1.5">
+                      <MapPin size={13} />
+                      <span>{profile.location}</span>
+                    </div>
+                  )}
                 </div>
               )}
-              {profile.location && (
-                <div className="flex items-center gap-1.5">
-                  <MapPin size={13} />
-                  <span>{profile.location}</span>
-                </div>
-              )}
-              <SocialLinks profile={profile} iconSize={16} />
+
+              {/* Social Media Icons */}
+              <div className="flex items-center justify-center md:justify-start w-full">
+                <SocialLinks profile={profile} iconSize={16} className="justify-center md:justify-start" />
+              </div>
             </div>
           </div>
 
