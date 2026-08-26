@@ -86,11 +86,11 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
                       </div>
                     ) : (row1.length > 0 || row2.length > 0) ? (
                       <>
-                        {row1.length > 0 && (
+                                                {row1.length > 0 && (
                           <div className="flex gap-4 w-max">
-                            {row1.map((product) => (
+                            {row1.map((product, idx) => (
                               <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
-                                <ProductCard product={product} viewMode="grid" showTrendingMetrics="sales" />
+                                <ProductCard product={product} viewMode="grid" showTrendingMetrics="sales" isTopFold={idx < 4} />
                               </div>
                             ))}
                           </div>
@@ -99,7 +99,7 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
                           <div className="flex gap-4 w-max">
                             {row2.map((product) => (
                               <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
-                                <ProductCard product={product} viewMode="grid" showTrendingMetrics="saves" />
+                                <ProductCard product={product} viewMode="grid" showTrendingMetrics="saves" isTopFold={false} />
                               </div>
                             ))}
                           </div>

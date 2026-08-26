@@ -92,10 +92,10 @@ const FeaturedSection: React.FC<FeaturedSectionProps> = ({
                       </div>
                     ) : featuredProducts.length > 0 ? (
                       <>
-                        <div className="flex gap-4 w-max">
-                          {row1.map((product) => (
+                                                <div className="flex gap-4 w-max">
+                          {row1.map((product, idx) => (
                             <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
-                              <ProductCard product={product} viewMode="grid" isSponsored={true} />
+                              <ProductCard product={product} viewMode="grid" isSponsored={true} isTopFold={idx < 4} />
                             </div>
                           ))}
                         </div>
@@ -103,7 +103,7 @@ const FeaturedSection: React.FC<FeaturedSectionProps> = ({
                           <div className="flex gap-4 w-max">
                             {row2.map((product) => (
                               <div key={product.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] h-full relative">
-                                <ProductCard product={product} viewMode="grid" isSponsored={true} />
+                                <ProductCard product={product} viewMode="grid" isSponsored={true} isTopFold={false} />
                               </div>
                             ))}
                           </div>
