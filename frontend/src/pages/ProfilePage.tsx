@@ -294,42 +294,84 @@ const ProfilePage: React.FC = () => {
   };
 
   const ProfileSkeleton = () => (
-    <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 space-y-10 animate-pulse">
-      <div className="flex flex-col md:flex-row items-start gap-6 md:gap-16 pb-8 sm:pb-10">
-        <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full bg-gray-200 dark:bg-neutral-800 shrink-0" />
-        <div className="flex-1 space-y-4 w-full pt-2">
-          <div className="flex items-center gap-3">
-            <div className="h-7 w-44 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
-            <div className="h-7 w-24 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
+    <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 space-y-12 animate-pulse">
+      {/* Header Skeleton — Centered on mobile, Left on desktop */}
+      <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-16 pb-8 sm:pb-10">
+        {/* Avatar */}
+        <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full bg-gray-200 dark:bg-neutral-800 shrink-0 shadow-sm" />
+        
+        {/* Right Column */}
+        <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left space-y-4 md:space-y-5 w-full">
+          {/* Row 1: Username & CTA */}
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 sm:gap-4">
+            <div className="h-7 w-36 sm:w-44 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
+            <div className="h-7 w-20 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
           </div>
-          <div className="flex items-center gap-6 pt-1">
-            <div className="h-5 w-20 bg-gray-200 dark:bg-neutral-800 rounded-md" />
-            <div className="h-5 w-20 bg-gray-200 dark:bg-neutral-800 rounded-md" />
-            <div className="h-5 w-20 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+
+          {/* Row 2: Statistics */}
+          <div className="flex items-center justify-center md:justify-start gap-6 sm:gap-8">
+            <div className="h-5 w-16 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+            <div className="h-5 w-16 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+            <div className="h-5 w-16 bg-gray-200 dark:bg-neutral-800 rounded-md" />
           </div>
-          <div className="space-y-2 max-w-md pt-2">
-            <div className="h-4 w-full bg-gray-200 dark:bg-neutral-800 rounded" />
-            <div className="h-4 w-2/3 bg-gray-200 dark:bg-neutral-800 rounded" />
+
+          {/* Row 1.5: Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start">
+            <div className="h-7 w-16 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
+            <div className="h-7 w-20 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
+            <div className="h-7 w-28 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
           </div>
-          <div className="h-4 w-28 bg-gray-200 dark:bg-neutral-800 rounded" />
-          <div className="h-5 w-36 bg-gray-200 dark:bg-neutral-800 rounded-lg" />
+
+          {/* Row 3: Bio & Meta Details — Bounded to action buttons width with centered bottom meta */}
+          <div className="space-y-3 w-full max-w-[335px] sm:max-w-[360px] md:max-w-lg mx-auto md:mx-0">
+            {/* Bio lines */}
+            <div className="space-y-1.5 w-full">
+              <div className="h-3.5 w-full bg-gray-200 dark:bg-neutral-800 rounded" />
+              <div className="h-3.5 w-4/5 bg-gray-200 dark:bg-neutral-800 rounded" />
+            </div>
+
+            {/* Bottom Meta & Social Links */}
+            <div className="pt-1 space-y-2 flex flex-col items-center md:items-start w-full">
+              {/* Ratings & Location */}
+              <div className="flex items-center justify-center md:justify-start gap-3">
+                <div className="h-3.5 w-24 bg-gray-200 dark:bg-neutral-800 rounded" />
+                <div className="h-3.5 w-20 bg-gray-200 dark:bg-neutral-800 rounded" />
+              </div>
+
+              {/* Social Icons */}
+              <div className="flex items-center justify-center md:justify-start gap-2 w-full pt-0.5">
+                <div className="h-6 w-6 rounded-lg bg-gray-200 dark:bg-neutral-800" />
+                <div className="h-6 w-6 rounded-lg bg-gray-200 dark:bg-neutral-800" />
+                <div className="h-6 w-6 rounded-lg bg-gray-200 dark:bg-neutral-800" />
+                <div className="h-6 w-6 rounded-lg bg-gray-200 dark:bg-neutral-800" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <div className="flex justify-center gap-8 border-b border-gray-100 dark:border-neutral-800/40 pb-3">
-        <div className="h-6 w-24 bg-gray-200 dark:bg-neutral-800 rounded-full" />
-        <div className="h-6 w-28 bg-gray-200 dark:bg-neutral-800 rounded-full" />
-        <div className="h-6 w-20 bg-gray-200 dark:bg-neutral-800 rounded-full" />
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="h-8 w-20 bg-gray-200 dark:bg-neutral-800 rounded-full" />
-        <div className="h-8 w-16 bg-gray-200 dark:bg-neutral-800 rounded-full" />
-        <div className="h-8 w-28 bg-gray-200 dark:bg-neutral-800 rounded-full" />
-        <div className="h-8 w-32 bg-gray-200 dark:bg-neutral-800 rounded-full" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {[1, 2, 3, 4, 5, 6].map(i => (
-          <div key={i} className="h-64 rounded-2xl bg-gray-200 dark:bg-neutral-800/80" />
-        ))}
+
+      {/* Navigation Tabs Skeleton — Centered */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-center gap-6 sm:gap-8 md:gap-12 px-4 pb-3">
+          <div className="h-5 w-20 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+          <div className="h-5 w-24 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+          <div className="h-5 w-16 bg-gray-200 dark:bg-neutral-800 rounded-md" />
+        </div>
+
+        {/* Quick Filter Pills Skeleton */}
+        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1 px-4 sm:px-0">
+          <div className="h-7 w-20 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
+          <div className="h-7 w-16 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
+          <div className="h-7 w-24 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
+          <div className="h-7 w-28 bg-gray-200 dark:bg-neutral-800 rounded-full shrink-0" />
+        </div>
+
+        {/* Products Grid Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-72 rounded-card bg-gray-200 dark:bg-neutral-800/70 border border-gray-100 dark:border-neutral-800" />
+          ))}
+        </div>
       </div>
     </div>
   );
