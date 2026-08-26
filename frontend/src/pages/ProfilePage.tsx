@@ -85,6 +85,8 @@ const ProfilePage: React.FC = () => {
       username: username || '',
       displayName: profile?.display_name || profile?.username || username || '',
       avatar: profile?.profile_picture || '',
+      products: products,
+      categories: sellerCategories,
     });
   };
 
