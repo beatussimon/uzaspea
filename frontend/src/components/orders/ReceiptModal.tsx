@@ -129,7 +129,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
             </div>
             
             <div className="border-t border-dashed border-gray-400 py-2 mb-2 text-center text-xs">
-              <p className="font-bold">INVOICE #{order.id}</p>
+              <p className="font-bold">INVOICE #{order.id} {order.is_bulk_order ? '• [BULK ORDER]' : ''}</p>
               <p>{(() => {
                 const rawDate = order.order_date || order.created_at;
                 if (!rawDate) return new Date().toLocaleString();

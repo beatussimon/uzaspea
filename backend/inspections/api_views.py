@@ -203,7 +203,7 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = ChecklistTemplateSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'for_category', 'add_item']:
+        if self.action in ['list', 'retrieve', 'for_category']:
             return [permissions.IsAuthenticated()]
         return [IsSuperUser()]
 

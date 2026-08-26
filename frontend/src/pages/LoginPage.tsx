@@ -28,14 +28,12 @@ const LoginPage: React.FC = () => {
       
       // Prevent state leakage between accounts
       const theme = localStorage.getItem('theme');
-      const savedCart = localStorage.getItem('sokonimax_cart');
       localStorage.clear();
       if (theme) localStorage.setItem('theme', theme);
-      if (savedCart) localStorage.setItem('sokonimax_cart', savedCart);
       
       localStorage.setItem('access_token', res.data.access);
       localStorage.setItem('refresh_token', res.data.refresh);
-      localStorage.setItem('user_id', res.data.user_id);
+      localStorage.setItem('user_id', String(res.data.user_id));
       localStorage.setItem('username', res.data.username);
       localStorage.setItem('is_verified', String(res.data.is_verified || false));
       localStorage.setItem('tier', res.data.tier || 'free');
@@ -46,8 +44,47 @@ const LoginPage: React.FC = () => {
       
       setIsBanned(false);
       
+      // Process pending cart item if user had tried to add to cart before login
+      try {
+        const pending = sessionStorage.getItem('pendingCartItem');
+        if (pending) {
+          const { product, quantity } = JSON.parse(pending);
+          const userCartKey = `sokonimax_cart_${res.data.user_id}`;
+          const existingCartStr = localStorage.getItem(userCartKey);
+          let userCart = existingCartStr ? JSON.parse(existingCartStr) : [];
+          if (!product.seller_username || product.seller_username.toLowerCase() !== res.data.username?.toLowerCase()) {
+            const existingItem = userCart.find((i: any) => i.productId === product.id);
+            const firstImage = product.images?.[0]?.image || product.image || '';
+            if (existingItem) {
+              existingItem.quantity = Math.min(existingItem.quantity + (quantity || 1), product.stock || 999);
+            } else {
+              userCart.push({
+                productId: product.id,
+                name: product.name,
+                price: parseFloat(product.price),
+                stock: product.stock,
+                quantity: quantity || 1,
+                image: firstImage,
+                slug: product.slug,
+                seller_username: product.seller_username,
+                category: product.category_name,
+                weight_kg: product.weight_kg ? parseFloat(product.weight_kg) : 1.0,
+                size: product.size || 'small',
+                requires_quote: product.requires_quote || false,
+              });
+            }
+            localStorage.setItem(userCartKey, JSON.stringify(userCart));
+          }
+          sessionStorage.removeItem('pendingCartItem');
+        }
+      } catch (e) {
+        sessionStorage.removeItem('pendingCartItem');
+      }
+
       toast.success(t('login_success', 'Login successful!'));
-      const redirectTo = sessionStorage.getItem('loginRedirect') || '/';
+      const urlParams = new URLSearchParams(window.location.search);
+      const nextParam = urlParams.get('next');
+      const redirectTo = nextParam || sessionStorage.getItem('loginRedirect') || '/';
       sessionStorage.removeItem('loginRedirect');
       window.location.href = redirectTo;
     } catch (err: any) {

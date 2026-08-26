@@ -11,6 +11,8 @@ import { ORDER_STATUS_CONFIG as STATUS_CONFIG } from '../constants/orderStatus';
 import ReviewModal from '../components/orders/ReviewModal';
 import DisputeModal from '../components/orders/DisputeModal';
 import ReceiptModal from '../components/orders/ReceiptModal';
+import InvoiceReviewModal from '../components/cart/InvoiceReviewModal';
+import PrintableInvoiceModal from '../components/orders/PrintableInvoiceModal';
 import { useDialog } from '../components/ui/Dialogs';
 import { Spinner } from '../components/ui/Spinner';
 import { StatusBadge } from '../components/ui/StatusBadge';
@@ -34,7 +36,6 @@ const OrdersPage: React.FC = () => {
   const sentinelRef = React.useRef<HTMLDivElement>(null);
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [advancing, setAdvancing] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState('');
   
   // Payment Proof State
@@ -50,8 +51,9 @@ const OrdersPage: React.FC = () => {
   const [openDisputeId, setOpenDisputeId] = useState<number | null>(null);
 
   // Receipt State
-  const [, setBargainOrderId] = useState<number | null>(null);
+  const [reviewModalOrder, setReviewModalOrder] = useState<any | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
+  const [printInvoiceOrder, setPrintInvoiceOrder] = useState<any | null>(null);
 
   // Bargain State
 
@@ -410,8 +412,13 @@ const OrdersPage: React.FC = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="text-[10px] font-black text-brand-600 uppercase tracking-widest bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">Order #{order.id}</span>
+                        {order.is_bulk_order && (
+                          <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700/50">
+                            Bulk Order
+                          </span>
+                        )}
                         <span className="text-[10px] font-bold text-gray-400">{fmtDate(order.order_date)}</span>
                       </div>
                       <h4 className="text-sm font-black text-gray-900 dark:text-white truncate uppercase">
@@ -471,83 +478,27 @@ const OrdersPage: React.FC = () => {
                             </p>
                             
                             <div className="flex flex-wrap gap-3">
-                              {/* Accept Invoice */}
+                              {/* Review & Negotiate Invoice */}
                               <button 
-                                disabled={advancing === order.id}
-                                onClick={async () => {
-                                  setAdvancing(order.id);
-                                  try {
-                                    await api.post(`/api/orders/${order.id}/confirm-invoice/`);
-                                    toast.success('Invoice accepted! Proceeding to payment.');
-                                    fetchOrders(1, true);
-                                  } catch (e) {
-                                    toast.error('Failed to accept invoice.');
-                                  } finally {
-                                    setAdvancing(null);
-                                  }
-                                }}
-                                className="btn-primary py-2.5 px-6 text-sm font-bold"
+                                onClick={() => setReviewModalOrder(order)}
+                                className="btn-primary py-2.5 px-6 text-sm font-bold flex items-center gap-2"
                               >
-                                {advancing === order.id ? 'Accepting...' : 'Accept Invoice & Pay'}
+                                <Receipt size={16} />
+                                Review & Accept Invoice
                               </button>
                               
                               {/* Bargain Price */}
                               <button
-                                onClick={() => setBargainOrderId(order.id)}
+                                onClick={() => setReviewModalOrder(order)}
                                 className="px-6 py-2.5 rounded-xl border-2 border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-sm font-bold transition-all flex items-center gap-2"
                               >
                                 <MessageSquare size={16} />
-                                Bargain Price
+                                Negotiate Price
                               </button>
                               
                               {/* Print Invoice */}
                               <button
-                                onClick={() => {
-                                  const printWindow = window.open('', '_blank');
-                                  if (!printWindow) return;
-                                  const itemsHtml = (order.items || []).map((item: any) => `
-                                    <tr>
-                                      <td style="padding:8px 12px;border-bottom:1px solid #eee;">${item.product_name}${item.variant_name ? ` (${item.variant_name})` : ''}</td>
-                                      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td>
-                                      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;">TSh ${(item.price || 0).toLocaleString()}</td>
-                                      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;">TSh ${(item.subtotal || 0).toLocaleString()}</td>
-                                    </tr>
-                                  `).join('');
-                                  printWindow.document.write(`
-                                    <html><head><title>Invoice #${order.id}</title>
-                                    <style>
-                                      body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; }
-                                      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #000; }
-                                      .header h1 { font-size: 28px; margin: 0; letter-spacing: -1px; }
-                                      .header .meta { text-align: right; font-size: 13px; color: #666; }
-                                      .header .meta strong { color: #000; display: block; font-size: 15px; }
-                                      table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                                      th { background: #f5f5f5; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; border-bottom: 2px solid #ddd; }
-                                      th:nth-child(2), th:nth-child(3), th:nth-child(4) { text-align: right; }
-                                      th:nth-child(2) { text-align: center; }
-                                      .totals { margin-top: 20px; margin-left: auto; width: 300px; }
-                                      .totals div { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
-                                      .totals .total { font-size: 20px; font-weight: 900; border-top: 3px solid #000; padding-top: 12px; margin-top: 8px; }
-                                      .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center; }
-                                      @media print { body { margin: 0; } }
-                                    </style></head><body>
-                                    <div class="header">
-                                      <div><h1>INVOICE</h1><p style="margin:4px 0 0;color:#666;font-size:13px;">Order #${order.id}</p></div>
-                                      <div class="meta"><strong>SokoniMax</strong>${fmtDate(order.order_date)}<br/>Status: ${STATUS_CONFIG[order.status]?.label || order.status}</div>
-                                    </div>
-                                    <table><thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead><tbody>${itemsHtml}</tbody></table>
-                                    <div class="totals">
-                                      <div><span>Subtotal</span><span>TSh ${(parseFloat(order.total_amount || 0) - parseFloat(order.shipping_fee || 0)).toLocaleString()}</span></div>
-                                      ${order.promo_code_code ? `<div style="color:green;"><span>Discount (${order.promo_code_code})</span><span>-TSh ${parseInt(order.discount_amount || 0).toLocaleString()}</span></div>` : ''}
-                                      <div><span>Delivery Fee</span><span>${Number(order.shipping_fee) > 0 ? 'TSh ' + Number(order.shipping_fee).toLocaleString() : 'TBD'}</span></div>
-                                      <div class="total"><span>Total</span><span>TSh ${parseInt(order.total_amount).toLocaleString()}</span></div>
-                                    </div>
-                                    <div class="footer">This invoice was generated by SokoniMax. Thank you for your business.</div>
-                                    </body></html>
-                                  `);
-                                  printWindow.document.close();
-                                  setTimeout(() => printWindow.print(), 300);
-                                }}
+                                onClick={() => setPrintInvoiceOrder(order)}
                                 className="px-6 py-2.5 rounded-xl border-2 border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-bold transition-all flex items-center gap-2"
                               >
                                 <Receipt size={16} />
@@ -825,6 +776,11 @@ const OrdersPage: React.FC = () => {
                                           </div>
                                         ) : (
                                           <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                                              {item.catalog_price && Number(item.catalog_price) > Number(item.price) && (
+                                                <span className="line-through text-gray-400 text-2xs mr-1">
+                                                  TSh {parseInt(item.catalog_price).toLocaleString()}
+                                                </span>
+                                              )}
                                               {Number(item.price) > 0 ? `TSh ${parseInt(item.price).toLocaleString()} each` : 'TBD'}
                                           </span>
                                         )}
@@ -973,6 +929,24 @@ const OrdersPage: React.FC = () => {
       {/* Receipt Modal */}
       {receiptOrder && (
         <ReceiptModal order={receiptOrder} onClose={() => setReceiptOrder(null)} />
+      )}
+
+      {/* Invoice Review Modal */}
+      {reviewModalOrder && (
+        <InvoiceReviewModal
+          isOpen={!!reviewModalOrder}
+          onClose={() => setReviewModalOrder(null)}
+          order={reviewModalOrder}
+          onOrderUpdated={() => fetchOrders(1, true)}
+        />
+      )}
+
+      {/* Printable Invoice Modal */}
+      {printInvoiceOrder && (
+        <PrintableInvoiceModal
+          order={printInvoiceOrder}
+          onClose={() => setPrintInvoiceOrder(null)}
+        />
       )}
     </div>
   );

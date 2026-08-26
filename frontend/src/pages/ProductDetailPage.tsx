@@ -402,6 +402,16 @@ const ProductDetailPage: React.FC = () => {
         stock: selectedVariant.stock,
         id: `${product.id}-${selectedVariant.id}` as any
       } : product;
+
+      if (!isAuthenticated) {
+        const returnUrl = location.pathname + location.search;
+        sessionStorage.setItem('loginRedirect', returnUrl);
+        sessionStorage.setItem('pendingCartItem', JSON.stringify({ product: p, quantity }));
+        toast.error(t('login_to_add_cart', 'Please sign in to add items to your cart'));
+        navigate(`/login?next=${encodeURIComponent(returnUrl)}`);
+        return;
+      }
+
       addToCart(p, quantity);
     }
   };

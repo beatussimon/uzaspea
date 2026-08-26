@@ -298,6 +298,11 @@ const DashboardOrders: React.FC = () => {
                             <Receipt size={11} /> POS
                           </span>
                         )}
+                        {order.is_bulk_order && (
+                          <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700/50 px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1 shadow-xs">
+                            Bulk Order
+                          </span>
+                        )}
                         <span className="text-[10px] font-black text-brand-500   px-2 py-0.5 rounded uppercase tracking-widest">Order #{order.id}</span>
                         <span className="text-[10px] font-bold text-gray-400 capitalize">{fmtOrderDate(order.order_date)}</span>
                     </div>

@@ -35,11 +35,40 @@ const CheckoutPage: React.FC = () => {
   const { items, clearCartByMerchant } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  const merchant = new URLSearchParams(location.search).get('merchant') || 'Unknown Store';
+  const searchParams = new URLSearchParams(location.search);
+  const merchant = searchParams.get('merchant') || 'Unknown Store';
+  const orderIdParam = searchParams.get('order_id');
+  const [invoiceOrder, setInvoiceOrder] = useState<any>(null);
+
+  useEffect(() => {
+    if (orderIdParam) {
+      api.get(`/api/orders/${orderIdParam}/`).then(res => {
+        setInvoiceOrder(res.data);
+      }).catch(err => {
+        console.error('Failed to load invoice order for checkout', err);
+      });
+    }
+  }, [orderIdParam]);
   
-  const checkoutItems = useMemo(() => items.filter(i => (i.seller_username || 'Unknown Store') === merchant), [items, merchant]);
-  const checkoutTotal = useMemo(() => checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0), [checkoutItems]);
-  const hasQuoteItem = useMemo(() => checkoutItems.some(i => i.requires_quote), [checkoutItems]);
+  const checkoutItems = useMemo(() => {
+    if (invoiceOrder && invoiceOrder.items) {
+      return invoiceOrder.items.map((i: any) => ({
+        productId: i.variant ? `${i.product}-${i.variant}` : i.product,
+        name: i.product_name,
+        price: Number(i.price),
+        stock: 9999,
+        quantity: Number(i.quantity),
+        image: i.product_image || '',
+        slug: i.product_slug || '',
+        seller_username: i.seller_username || merchant,
+        requires_quote: false,
+      }));
+    }
+    return items.filter(i => (i.seller_username || 'Unknown Store') === merchant);
+  }, [items, merchant, invoiceOrder]);
+
+  const checkoutTotal = useMemo(() => checkoutItems.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0), [checkoutItems]);
+  const hasQuoteItem = useMemo(() => checkoutItems.some((i: any) => i.requires_quote), [checkoutItems]);
 
   const [submitting, setSubmitting] = useState(false);
   const [shippingMethod, setShippingMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
@@ -197,7 +226,7 @@ const CheckoutPage: React.FC = () => {
     const coords = citiesCoords[city] || CITIES_COORDS[city];
     if (!coords) return;
     
-    const totalWeight = checkoutItems.reduce((acc, item) => acc + (item.quantity * (item.weight_kg ?? 1.0)), 0);
+    const totalWeight = checkoutItems.reduce((acc: number, item: any) => acc + (item.quantity * (item.weight_kg ?? 1.0)), 0);
     const sizesPriority: Record<string, number> = { 'small': 0, 'medium': 1, 'large': 2, 'oversized': 3 };
     let maxSize = 'small';
     for (const item of checkoutItems) {
@@ -377,7 +406,7 @@ const CheckoutPage: React.FC = () => {
         setSubmitting(true);
         try {
           const rfqData = {
-            items: checkoutItems.map(i => {
+            items: checkoutItems.map((i: any) => {
               let pId = i.productId;
               if (typeof pId === 'string' && pId.includes('-')) pId = parseInt(pId.split('-')[0], 10);
               return { product_id: pId, quantity: i.quantity };
@@ -424,8 +453,43 @@ const CheckoutPage: React.FC = () => {
         return code;
       })();
 
+      const deliveryPayload = {
+        full_name: form.fullName,
+        phone: form.phone,
+        address: `${form.deliveryAddress}, ${selectedDistrict}, ${selectedCity}`,
+        region: selectedCity,
+        district: selectedDistrict,
+        notes: form.notes,
+        shipping_speed: shippingMethod === 'DELIVERY' ? selectedQuoteCode : undefined,
+        warehouse_code: nearestWarehouseCode,
+        destination_warehouse_code: citiesCoords[selectedCity]?.code,
+        estimated_shipping_fee: estimatedShippingFee,
+        is_historical_estimate: activeQuote?.is_historical_estimate ?? false
+      };
+
+      if (invoiceOrder) {
+        await api.patch(`/api/orders/${invoiceOrder.id}/`, {
+          shipping_method: shippingMethod,
+          fulfillment_type: fulfillmentType,
+          delivery_info: deliveryPayload,
+        });
+
+        await api.post(`/api/orders/${invoiceOrder.id}/advance/`, { 
+          status: 'AWAITING_PAYMENT',
+          notes: 'Bulk order checked out, awaiting offline payment proof.' 
+        });
+
+        setCheckoutSuccess(true);
+        clearCartByMerchant(merchant);
+        toast.success(t('order_placed_success', 'Order placed successfully!'));
+        setTimeout(() => {
+          navigate(`/orders?highlight=${invoiceOrder.id}`);
+        }, 100);
+        return;
+      }
+
       const orderData = {
-        items: checkoutItems.map((item) => {
+        items: checkoutItems.map((item: any) => {
           let productId = item.productId;
           let variantId = null;
           if (typeof productId === 'string' && productId.includes('-')) {
@@ -444,19 +508,7 @@ const CheckoutPage: React.FC = () => {
         fulfillment_type: fulfillmentType,
         shipping_fee: 0, 
         promo_code: appliedPromo ? appliedPromo.code : undefined,
-        delivery_info: {
-          full_name: form.fullName,
-          phone: form.phone,
-          address: `${form.deliveryAddress}, ${selectedDistrict}, ${selectedCity}`,
-          region: selectedCity,
-          district: selectedDistrict,
-          notes: form.notes,
-          shipping_speed: shippingMethod === 'DELIVERY' ? selectedQuoteCode : undefined,
-          warehouse_code: nearestWarehouseCode,
-          destination_warehouse_code: citiesCoords[selectedCity]?.code,
-          estimated_shipping_fee: estimatedShippingFee,
-          is_historical_estimate: activeQuote?.is_historical_estimate ?? false
-        },
+        delivery_info: deliveryPayload,
       };
 
       const res = await api.post('/api/orders/', orderData);
@@ -482,11 +534,18 @@ const CheckoutPage: React.FC = () => {
 
   return (
     <div className="container-page max-w-5xl">
-      <div className="mb-6 flex flex-col gap-1">
-        <h1 className="text-heading-md font-black text-gray-900 dark:text-white uppercase">{t('checkout')}</h1>
-        <p className="text-xs font-bold text-brand-500 dark:text-brand-500 uppercase tracking-wide">
-          {t('seller')}: @{merchant}
-        </p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h1 className="text-heading-md font-black text-gray-900 dark:text-white uppercase">{t('checkout')}</h1>
+          <p className="text-xs font-bold text-brand-500 dark:text-brand-500 uppercase tracking-wide">
+            {t('seller')}: @{merchant}
+          </p>
+        </div>
+        {(invoiceOrder || invoiceOrder?.is_bulk_order) && (
+          <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500 text-black shrink-0 self-start sm:self-auto">
+            {t('bulk_order', 'Bulk Order')}
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -817,7 +876,7 @@ const CheckoutPage: React.FC = () => {
             {t('order_summary')} (@{merchant})
           </h2>
           <div className="space-y-3 mb-4">
-            {checkoutItems.map((item) => (
+            {checkoutItems.map((item: any) => (
               <div key={item.productId} className="flex items-center gap-3">
                 <SafeImage
                   src={item.image}

@@ -745,13 +745,29 @@ class OrderItemSerializer(serializers.ModelSerializer):
     variant_name = serializers.CharField(source='variant.name', read_only=True)
     product_image = serializers.SerializerMethodField()
     seller_username = serializers.CharField(source='product.seller.username', read_only=True)
+    requires_quote = serializers.BooleanField(source='product.requires_quote', read_only=True)
+    catalog_price = serializers.SerializerMethodField()
     has_review = serializers.SerializerMethodField()
     review = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'has_review', 'review']
+        fields = ['id', 'product', 'product_slug', 'variant', 'variant_name', 'product_name', 'product_image', 'seller_username', 'quantity', 'price', 'subtotal', 'requires_quote', 'catalog_price', 'has_review', 'review']
         read_only_fields = ['price']
+
+    def get_catalog_price(self, obj):
+        try:
+            if obj.variant:
+                if hasattr(obj.variant, 'final_price'):
+                    return float(obj.variant.final_price)
+                if hasattr(obj.variant, 'price_adjustment'):
+                    base = float(obj.product.price) if (obj.product and obj.product.price) else 0
+                    return base + float(obj.variant.price_adjustment or 0)
+            if obj.product and obj.product.price:
+                return float(obj.product.price)
+        except Exception:
+            pass
+        return None
 
     def get_has_review(self, obj):
         from .models import Review
@@ -847,7 +863,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
             'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout',
             'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount', 'promo_code_details',
-            'negotiation_data'
+            'negotiation_data', 'is_bulk_order'
         ]
         read_only_fields = ['user', 'total_amount']
 
@@ -1358,6 +1374,21 @@ class UserProfileSerializer(serializers.ModelSerializer):
             from .models import Follow
             return Follow.objects.filter(follower=request.user, following=obj).exists()
         return False
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        is_owner = request and request.user.is_authenticated and request.user.id == instance.user_id
+        is_staff = request and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
+        is_commercial_seller = instance.tier in ['seller_pro', 'business', 'worker']
+        
+        # Protect PII: mask private phone number and coordinates for non-sellers from public visitors
+        if not (is_owner or is_staff or is_commercial_seller):
+            data['phone_number'] = None
+            data['whatsapp_number'] = None
+            data['latitude'] = None
+            data['longitude'] = None
+        return data
 
     def update(self, instance, validated_data):
         # Check if location coordinates changed

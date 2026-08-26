@@ -613,6 +613,7 @@ class Order(models.Model):
     platform_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     delivery_info = models.JSONField(null=True, blank=True, default=dict)  # FIX: L-02 — store buyer's name/phone/address
     negotiation_data = models.JSONField(null=True, blank=True, default=dict) # Stores buyer's proposed prices and notes
+    is_bulk_order = models.BooleanField(default=False, db_index=True)
     delivery_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     delivery_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
@@ -1178,9 +1179,18 @@ class ProductVariant(models.Model):
         if self.image:
             convert_and_save_image(self, 'image', max_width=1000)
 
+    def __str__(self):
+        return f'{self.product.name} — {self.name}'
+
+    @property
+    def final_price(self):
+        base = self.product.price if (self.product and self.product.price) else 0
+        return base + (self.price_adjustment or 0)
+
     class Meta:
         ordering = ['name']
-        
+
+
 # --- Cache Invalidation Signals ---
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
@@ -1189,14 +1199,6 @@ from django.core.cache import cache
 @receiver([post_save, post_delete], sender=UserProfile)
 def invalidate_user_profile_search_cache(sender, instance, **kwargs):
     cache.delete('searchable_user_profiles')
-
-
-    def __str__(self):
-        return f'{self.product.name} — {self.name}'
-
-    @property
-    def final_price(self):
-        return self.product.price + self.price_adjustment
 
 
 # ─── Site Settings (B-18) ────────────────────────────────────────
