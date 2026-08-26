@@ -4,14 +4,97 @@ import { Search, X, Clock, ArrowRight, Loader2, Tag, Filter, ShoppingCart } from
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useSearch } from '../context/SearchContext';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import api from '../api';
 import SafeImage from './SafeImage';
 import VehicleSelector from './VehicleSelector';
 
+// In-memory filter for seller-scoped search (0ms instant response)
+const filterSellerProductsInMemory = (
+  products: any[],
+  q: string,
+  effectiveCategory: string,
+  brand: string,
+  minPrice: string,
+  maxPrice: string,
+  condition: string,
+  sortBy: string,
+  specFilters: Record<string, string>
+) => {
+  const qTerms = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  
+  const filtered = products.filter((p: any) => {
+    // 1. Text search across name, description, category_name, brand_name, tags
+    if (qTerms.length > 0) {
+      const pName = (p.name || '').toLowerCase();
+      const pDesc = (p.description || '').toLowerCase();
+      const pCat = (p.category_name || p.category?.name || '').toLowerCase();
+      const pBrand = (p.brand_name || p.brand?.name || (typeof p.brand === 'string' ? p.brand : '') || '').toLowerCase();
+      const pTags = Array.isArray(p.tags) ? p.tags.join(' ').toLowerCase() : '';
+      
+      const combined = `${pName} ${pDesc} ${pCat} ${pBrand} ${pTags}`;
+      const matchesAll = qTerms.every(term => combined.includes(term));
+      if (!matchesAll) return false;
+    }
+
+    // 2. Category filter
+    if (effectiveCategory) {
+      const catSlug = (p.category_slug || p.category?.slug || '').toLowerCase();
+      const catName = (p.category_name || p.category?.name || '').toLowerCase();
+      if (catSlug !== effectiveCategory.toLowerCase() && catName !== effectiveCategory.toLowerCase()) {
+        return false;
+      }
+    }
+
+    // 3. Brand filter
+    if (brand) {
+      const pBrand = (p.brand_name || p.brand?.name || (typeof p.brand === 'string' ? p.brand : '') || '').toLowerCase();
+      if (pBrand !== brand.toLowerCase()) return false;
+    }
+
+    // 4. Condition filter
+    if (condition) {
+      if (p.condition !== condition) return false;
+    }
+
+    // 5. Price filter
+    const priceNum = Number(p.price) || 0;
+    if (minPrice && !isNaN(Number(minPrice)) && priceNum < Number(minPrice)) return false;
+    if (maxPrice && !isNaN(Number(maxPrice)) && priceNum > Number(maxPrice)) return false;
+
+    // 6. Spec filters
+    if (specFilters && typeof specFilters === 'object' && Object.keys(specFilters).length > 0) {
+      const pSpecs = p.specifications || p.structured_specs || {};
+      for (const [k, v] of Object.entries(specFilters)) {
+        if (v && pSpecs[k] && String(pSpecs[k]).toLowerCase() !== String(v).toLowerCase()) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  });
+
+  // Sort
+  if (sortBy === 'price_asc') {
+    filtered.sort((a, b) => Number(a.price) - Number(b.price));
+  } else if (sortBy === 'price_desc') {
+    filtered.sort((a, b) => Number(b.price) - Number(a.price));
+  } else if (sortBy === 'popular' || sortBy === 'views') {
+    filtered.sort((a, b) => (b.views_count || 0) - (a.views_count || 0));
+  } else if (sortBy === 'rating') {
+    filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  }
+
+  return filtered;
+};
+
 const GlobalSearchModal: React.FC = () => {
   const { isSearchOpen, sellerScope, closeSearch, openSearch } = useSearch();
   const { addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -194,11 +277,44 @@ const GlobalSearchModal: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSearchOpen]);
 
-  // Debounced API call for predictive search with AbortController
+  // Predictive Search: Instant 0ms for preloaded seller products, debounced API for global search
   useEffect(() => {
     const q = query.trim();
     const effectiveCategory = subcategory || category;
-    if (!q && !effectiveCategory && !brand && !minPrice && !maxPrice && !condition && !vehicleId && !oemPartNumber && Object.keys(specFilters).length === 0) {
+    const hasActiveFilters = !!(q || effectiveCategory || brand || minPrice || maxPrice || condition || sortBy || vehicleId || oemPartNumber || Object.keys(specFilters).length > 0);
+
+    // CASE 1: Seller Scope with preloaded in-memory products (0ms Instant response)
+    if (sellerScope?.products && Array.isArray(sellerScope.products)) {
+      if (!hasActiveFilters) {
+        // Initial open: Immediately show seller's products with 0ms latency
+        const initialList = sellerScope.products.slice(0, 12).map((p: any) => ({ ...p, type: 'product' }));
+        setSuggestions(initialList);
+        setTotalCount(sellerScope.products.length);
+        setIsSearching(false);
+        return;
+      }
+
+      // Filter in-memory synchronously (0ms, no network delay, no spinner)
+      const matched = filterSellerProductsInMemory(
+        sellerScope.products,
+        q,
+        effectiveCategory,
+        brand,
+        minPrice,
+        maxPrice,
+        condition,
+        sortBy,
+        specFilters
+      );
+
+      setSuggestions(matched.slice(0, 12).map((p: any) => ({ ...p, type: 'product' })));
+      setTotalCount(matched.length);
+      setIsSearching(false);
+      return;
+    }
+
+    // CASE 2: Global Search or Seller without preloaded array (Debounced API)
+    if (!hasActiveFilters) {
       setSuggestions([]);
       setTotalCount(null);
       setIsSearching(false);
@@ -707,8 +823,8 @@ const GlobalSearchModal: React.FC = () => {
 
               {/* Results Area - Always Scrollable with visible content */}
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain relative">
-                {(!query.trim() && !category && !subcategory && !minPrice && !maxPrice && !condition && !vehicleId && !oemPartNumber && Object.keys(specFilters).length === 0) ? (
-                  // Default State (Recent & Popular)
+                {(!query.trim() && !category && !subcategory && !minPrice && !maxPrice && !condition && !vehicleId && !oemPartNumber && Object.keys(specFilters).length === 0 && !sellerScope?.products) ? (
+                  // Default Global State (Recent & Popular)
                   <div className="p-4 sm:p-6 space-y-6">
                     {recentSearches.length > 0 && (
                       <div>
@@ -757,9 +873,51 @@ const GlobalSearchModal: React.FC = () => {
                       </div>
                     ) : suggestions.length > 0 ? (
                       <div>
+                        {/* Seller Categories quick filter pills */}
+                        {sellerScope?.categories && sellerScope.categories.length > 1 && (
+                          <div className="mb-3 px-1">
+                            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+                              <button
+                                type="button"
+                                onClick={() => { setCategory(''); setSubcategory(''); }}
+                                className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold transition-all border ${
+                                  !category && !subcategory
+                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-black border-transparent shadow-sm'
+                                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 border-transparent'
+                                }`}
+                              >
+                                All <span className="opacity-60 ml-1">{sellerScope.products?.length || totalCount}</span>
+                              </button>
+                              {sellerScope.categories.map((cat) => (
+                                <button
+                                  type="button"
+                                  key={cat.slug}
+                                  onClick={() => {
+                                    if (category === cat.slug) {
+                                      setCategory('');
+                                    } else {
+                                      setCategory(cat.slug);
+                                      setSubcategory('');
+                                    }
+                                  }}
+                                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold transition-all border ${
+                                    category === cat.slug
+                                      ? 'bg-gray-900 dark:bg-white text-white dark:text-black border-transparent shadow-sm'
+                                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 border-transparent'
+                                  }`}
+                                >
+                                  {cat.name} <span className="opacity-60 ml-1">{cat.count}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between px-3 mb-2">
                           <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-                            Preview Results {totalCount !== null ? `(${totalCount.toLocaleString()} matching)` : ''}
+                            {sellerScope 
+                              ? `Products in @${sellerScope.username}'s Store (${totalCount ?? suggestions.length})` 
+                              : `Preview Results ${totalCount !== null ? `(${totalCount.toLocaleString()} matching)` : ''}`}
                           </h3>
                         </div>
                         <div className="space-y-1">
@@ -845,6 +1003,15 @@ const GlobalSearchModal: React.FC = () => {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
+                                        if (!isAuthenticated) {
+                                          closeSearch();
+                                          const returnUrl = location.pathname + location.search;
+                                          sessionStorage.setItem('loginRedirect', returnUrl);
+                                          sessionStorage.setItem('pendingCartItem', JSON.stringify({ product: item, quantity: 1 }));
+                                          toast.error(t('login_to_add_cart', 'Please sign in to add items to your cart'));
+                                          navigate(`/login?next=${encodeURIComponent(returnUrl)}`);
+                                          return;
+                                        }
                                         addToCart(item);
                                       }}
                                       className="p-2 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 hover:bg-brand-500/20 transition-colors"

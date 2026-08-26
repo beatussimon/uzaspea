@@ -1,9 +1,17 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-interface SellerScope {
+export interface SellerCategoryOption {
+  name: string;
+  slug: string;
+  count: number;
+}
+
+export interface SellerScope {
   username: string;
   displayName?: string;
   avatar?: string;
+  products?: any[];
+  categories?: SellerCategoryOption[];
 }
 
 interface SearchContextType {
