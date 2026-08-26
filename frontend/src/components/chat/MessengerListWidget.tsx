@@ -70,7 +70,7 @@ export const MessengerListWidget: React.FC = () => {
   return (
     <div 
       ref={widgetRef}
-      className="fixed bottom-0 right-6 z-50 w-[360px] h-[500px] bg-white dark:bg-black border border-gray-200/90 dark:border-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-200"
+      className="fixed bottom-0 right-6 z-[200] w-[360px] h-[500px] bg-white dark:bg-black border border-gray-200/90 dark:border-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-200"
     >
       {/* Header */}
       <div className="px-4 py-3 bg-surface-muted/90 dark:bg-neutral-900/90 border-b border-gray-200/60 dark:border-neutral-800/60 flex items-center justify-between shrink-0 select-none">

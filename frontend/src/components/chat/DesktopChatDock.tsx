@@ -18,7 +18,7 @@ export const DesktopChatDock: React.FC = () => {
   const minimizedConversations = conversations.filter(c => minimizedChatWindows.includes(c.id));
 
   return (
-    <div className="fixed bottom-0 right-6 z-50 hidden md:flex items-end gap-3 pointer-events-none">
+    <div className="fixed bottom-0 right-6 z-[200] hidden md:flex items-end gap-3 pointer-events-none">
       {/* --- Minimized Person-Specific Bubbles Stack --- */}
       <div className="flex items-center gap-2 pointer-events-auto">
         {minimizedConversations.map(conv => (

@@ -207,8 +207,21 @@ class ProductViewSet(viewsets.ModelViewSet):
         lng = self.request.query_params.get('lng', None)
         radius = self.request.query_params.get('radius', None)
 
-        # FIX S-17: sellers can retrieve their own products regardless of availability
-        if user.is_authenticated and self.request.query_params.get('mine') == 'true':
+        # Seller query parameter (e.g. Profile page or seller store filtering)
+        if seller_param:
+            queryset = base.filter(seller__username__iexact=seller_param)
+            is_draft_param = self.request.query_params.get('is_draft')
+            include_unlisted = self.request.query_params.get('include_unlisted') == 'true'
+            is_seller_self = user.is_authenticated and (user.username.lower() == str(seller_param).lower() or user.is_staff or user.is_superuser)
+            if is_seller_self and is_draft_param == 'true':
+                queryset = queryset.filter(is_draft=True)
+            elif is_seller_self and is_draft_param == 'false':
+                queryset = queryset.filter(is_draft=False)
+            elif is_seller_self and include_unlisted:
+                pass
+            else:
+                queryset = queryset.filter(is_available=True, stock__gt=0, is_draft=False)
+        elif user.is_authenticated and self.request.query_params.get('mine') == 'true':
             from uzachuo.permissions import get_effective_sellers
             sellers = get_effective_sellers(user, required_permission='manage_products')
             queryset = base.filter(seller_id__in=sellers)
@@ -221,10 +234,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             from .models import Follow
             followed = Follow.objects.filter(follower=user).values_list('following__user_id', flat=True)
             queryset = base.filter(seller_id__in=followed, is_available=True, stock__gt=0, is_draft=False)
-        elif user.is_authenticated and user.is_staff:
+        elif user.is_authenticated and (user.is_staff or user.is_superuser) and (self.request.query_params.get('all') == 'true' or self.request.query_params.get('moderation') == 'true'):
             queryset = base.all()
-        elif seller_param:
-            queryset = base.filter(seller__username=seller_param, is_available=True, stock__gt=0, is_draft=False)
         else:
             # Public list only shows available and in-stock published products for general browsing
             queryset = base.filter(is_available=True, stock__gt=0, is_draft=False)
@@ -1194,14 +1205,34 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff or user.is_superuser:
-            qs = Order.objects.all()
+        if not user or not user.is_authenticated:
+            return Order.objects.none()
+
+        # Detail actions: allow buyer, seller/team member of product in order, or staff
+        if getattr(self, 'detail', False) or self.action in ['retrieve', 'update', 'partial_update', 'destroy', 'advance', 'cancel']:
+            if user.is_staff or user.is_superuser:
+                qs = Order.objects.all()
+            else:
+                from uzachuo.permissions import get_effective_sellers
+                sellers = get_effective_sellers(user, required_permission='manage_orders')
+                qs = Order.objects.filter(
+                    Q(user=user) | Q(orderitem_set__product__seller_id__in=sellers)
+                ).distinct()
         else:
-            from uzachuo.permissions import get_effective_sellers
-            sellers = get_effective_sellers(user, required_permission='manage_orders')
-            qs = Order.objects.filter(
-                Q(user=user) | Q(orderitem_set__product__seller_id__in=sellers)
-            ).distinct()
+            # List action:
+            role = self.request.query_params.get('role')
+            order_type = self.request.query_params.get('type')
+            all_param = self.request.query_params.get('all') == 'true'
+
+            if role == 'seller' or order_type == 'incoming':
+                from uzachuo.permissions import get_effective_sellers
+                sellers = get_effective_sellers(user, required_permission='manage_orders')
+                qs = Order.objects.filter(orderitem_set__product__seller_id__in=sellers).distinct()
+            elif (user.is_staff or user.is_superuser) and (all_param or role == 'all' or order_type == 'all'):
+                qs = Order.objects.all()
+            else:
+                # Default for /api/orders/ (Customer Orders / Outgoing Orders): only user's own purchases
+                qs = Order.objects.filter(user=user)
             
         status_param = self.request.query_params.get('status')
         exclude_statuses = self.request.query_params.get('exclude_statuses')
@@ -1299,7 +1330,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         }
         SELLER_ALLOWED_STATES = {
             'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE',
-            'PROCESSING', 'SHIPPED', 'DELIVERED', 'DISPUTED'
+            'PROCESSING', 'SHIPPED', 'DELIVERED', 'READY_FOR_PICKUP', 'COMPLETED', 'DISPUTED'
         }
         BUYER_ALLOWED_STATES = {'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'CHECKOUT', 'COMPLETED', 'DISPUTED', 'READY_FOR_TRANSIT', 'ASSIGNED_TRANSPORT', 'PAID_PRODUCT'}
 
@@ -1317,7 +1348,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                 and order.fulfillment_type == 'DIRECT_DELIVERY'
                 and is_seller
             )
-            if not is_direct_seller_delivery:
+            # SELLER_PICKUP orders — seller prepares and marks as READY_FOR_PICKUP or DELIVERED upon customer collection
+            is_seller_pickup_action = (
+                new_state in ['READY_FOR_PICKUP', 'DELIVERED', 'COMPLETED']
+                and order.fulfillment_type == 'SELLER_PICKUP'
+                and is_seller
+            )
+            if not (is_direct_seller_delivery or is_seller_pickup_action):
                 return Response(
                     {'detail': f'ERR_STAFF_ONLY: Only staff or warehouse operators can set order status to {new_state}.'},
                     status=403
@@ -1368,13 +1405,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order.delivery_info = {'warehouse_code': dropoff_warehouse_code}
                 order.save(update_fields=['delivery_info'])
 
-        if new_state == 'DELIVERED':
+        if new_state in ['DELIVERED', 'COMPLETED']:
             delivery_code = request.data.get('delivery_code')
-            if order.delivery_code and str(delivery_code).strip() != order.delivery_code:
-                return Response({'error': 'Invalid delivery code. Please verify the code with the customer.'}, status=status.HTTP_400_BAD_REQUEST)
-            if delivery_code and str(delivery_code).strip() == order.delivery_code:
-                new_state = 'COMPLETED'
-                notes = (notes + " Verified by secure delivery code.") if notes else "Verified by secure delivery code."
+            if order.delivery_code:
+                if not delivery_code or str(delivery_code).strip() != str(order.delivery_code).strip():
+                    return Response({'error': 'Invalid pickup/delivery code. Please check the code with the customer.'}, status=status.HTTP_400_BAD_REQUEST)
+            new_state = 'COMPLETED'
+            notes = (notes + " Verified by secure collection code.") if notes else "Verified by secure collection code."
 
         try:
             OrderStateMachine.transition_order(order, new_state, notes=notes)
@@ -1388,6 +1425,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         if order.user != request.user and not (request.user.is_staff or request.user.is_superuser):
             return Response({'error': 'You are not authorized to view this pickup code.'}, status=status.HTTP_403_FORBIDDEN)
         
+        if order.fulfillment_type == 'SELLER_PICKUP':
+            return Response({'code': order.delivery_code})
+
         pickup_code = order.pickup_codes.filter(is_used=False).first()
         if not pickup_code and order.status in ('ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER'):
             from logistics.models import PickupCode
@@ -2314,6 +2354,19 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return UserProfile.objects.select_related('user').prefetch_related('store_images')
+
+    def get_object(self):
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_val = self.kwargs.get(lookup_url_kwarg)
+        if not lookup_val:
+            return super().get_object()
+        from django.http import Http404
+        queryset = self.filter_queryset(self.get_queryset())
+        obj = queryset.filter(user__username__iexact=lookup_val).first()
+        if not obj:
+            raise Http404("No UserProfile matches the given query.")
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def list(self, request, *args, **kwargs):
         q = request.query_params.get('q', '').strip().lower()
@@ -3407,7 +3460,7 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
             if str(seller_username).isdigit():
                 qs = qs.filter(seller_id=int(seller_username))
             else:
-                qs = qs.filter(seller__username=seller_username)
+                qs = qs.filter(seller__username__iexact=seller_username)
 
         seller_id = self.request.query_params.get('seller_id')
         if seller_id and str(seller_id).isdigit():
@@ -3447,7 +3500,7 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
             if seller_id and str(seller_id).isdigit():
                 seller = User.objects.get(id=int(seller_id))
             else:
-                seller = User.objects.get(username=seller_username)
+                seller = User.objects.get(username__iexact=seller_username)
         except User.DoesNotExist:
             return Response({'error': 'Seller not found'}, status=404)
             

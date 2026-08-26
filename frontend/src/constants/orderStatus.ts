@@ -96,14 +96,17 @@ export function getSellerNextStatus(
     case 'SELLER_CONFIRMED': return 'PREPARING';
     case 'PREPARING':    return 'PACKAGING';
     case 'PACKAGING':
-      // CRIT-1: Direct delivery skips warehouse; seller ships directly
+      if (fulfillmentType === 'SELLER_PICKUP') return 'READY_FOR_PICKUP';
       return (fulfillmentType === 'DIRECT_DELIVERY') ? 'SHIPPED' : 'SHIPPED_TO_WAREHOUSE';
+    case 'READY_FOR_PICKUP':
+      if (fulfillmentType === 'SELLER_PICKUP') return 'DELIVERED';
+      return undefined;
     case 'PROCESSING':   return 'SHIPPED';
     case 'SHIPPED':
       // For DIRECT_DELIVERY, seller can mark DELIVERED themselves
-      return (fulfillmentType === 'DIRECT_DELIVERY') ? 'DELIVERED' : 'DELIVERED';
-    case 'OUT_FOR_DELIVERY': return 'DELIVERED';
-    case 'DELIVERED':    return 'COMPLETED';
+      return (fulfillmentType === 'DIRECT_DELIVERY') ? 'DELIVERED' : undefined;
+    case 'OUT_FOR_DELIVERY': return (fulfillmentType === 'DIRECT_DELIVERY') ? 'DELIVERED' : undefined;
+    case 'DELIVERED':    return undefined;
     default:             return undefined;
   }
 }

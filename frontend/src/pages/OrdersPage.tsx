@@ -726,18 +726,27 @@ const OrdersPage: React.FC = () => {
 
                         
                         {/* Soft Banner for Codes */}
-                        {(order.delivery_code || pickupCodesMap[order.id]) && ['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(order.status) && (
+                        {(order.delivery_code || pickupCodesMap[order.id]) && (
+                          (order.fulfillment_type === 'SELLER_PICKUP' && ['PACKAGING', 'READY_FOR_PICKUP', 'DELIVERED', 'COMPLETED'].includes(order.status)) ||
+                          (['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(order.status))
+                        ) && (
                           <div className="bg-brand-50/50 dark:bg-brand-900/10 rounded-xl border border-brand-100 dark:border-brand-900/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
-                                <p className="text-xs font-bold text-brand-900 dark:text-brand-100 uppercase tracking-wider mb-0.5">{order.shipping_method === 'PICKUP' ? 'Warehouse Code' : 'Delivery Code'}</p>
-                                <p className="text-[11px] text-brand-700/80 dark:text-brand-300/80">Show this to the agent to collect your items.</p>
+                                <p className="text-xs font-bold text-brand-900 dark:text-brand-100 uppercase tracking-wider mb-0.5">
+                                  {order.fulfillment_type === 'SELLER_PICKUP' ? 'Store Pickup Code' : (order.shipping_method === 'PICKUP' ? 'Warehouse Code' : 'Delivery Code')}
+                                </p>
+                                <p className="text-[11px] text-brand-700/80 dark:text-brand-300/80">
+                                  {order.fulfillment_type === 'SELLER_PICKUP' 
+                                    ? 'Show this 6-digit code to the seller to pick up your package.' 
+                                    : 'Show this to the agent to collect your items.'}
+                                </p>
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="font-mono font-black text-2xl tracking-[0.2em] text-brand-600 dark:text-brand-400 bg-white/50 dark:bg-black/20 px-4 py-1.5 rounded-lg shadow-sm">
-                                {order.shipping_method === 'PICKUP' ? pickupCodesMap[order.id] || "..." : order.delivery_code}
+                                {order.fulfillment_type === 'SELLER_PICKUP' ? (order.delivery_code || '...') : (order.shipping_method === 'PICKUP' ? (pickupCodesMap[order.id] || order.delivery_code || '...') : (order.delivery_code || '...'))}
                               </span>
-                              {order.shipping_method === 'PICKUP' && (
-                                 <QRCodeSVG value={order.id.toString()} size={40} bgColor="transparent" fgColor="currentColor" className="text-brand-900 dark:text-brand-100 shrink-0" />
+                              {(order.shipping_method === 'PICKUP' || order.fulfillment_type === 'SELLER_PICKUP') && (
+                                 <QRCodeSVG value={(order.delivery_code || order.id).toString()} size={40} bgColor="transparent" fgColor="currentColor" className="text-brand-900 dark:text-brand-100 shrink-0" />
                               )}
                             </div>
                           </div>

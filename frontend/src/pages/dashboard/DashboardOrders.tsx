@@ -164,10 +164,10 @@ const DashboardOrders: React.FC = () => {
 
   const handleAdvance = async (orderId: number, nextStatus: string, notes: string = "", warehouseCode?: string) => {
     let delivery_code;
-    if (nextStatus === 'DELIVERED') {
+    if (nextStatus === 'DELIVERED' || nextStatus === 'COMPLETED') {
       delivery_code = await showPrompt(
-        t('enter_delivery_code_title', 'Delivery Code Verification'),
-        t('enter_delivery_code_placeholder', 'Enter the 6-digit code provided by the buyer...')
+        t('enter_delivery_code_title', 'Pickup / Delivery Code Verification'),
+        t('enter_delivery_code_placeholder', 'Enter the 6-digit pickup code provided by the buyer...')
       );
       if (!delivery_code) return; // Cancel if no code provided
     }
@@ -508,6 +508,18 @@ const DashboardOrders: React.FC = () => {
                                         </button>
                                     )}
 
+                                    {order.fulfillment_type === 'SELLER_PICKUP' && order.status === 'PACKAGING' && (
+                                        <button
+                                            onClick={() => handleAdvance(order.id, 'COMPLETED', 'Handed over directly to customer with verification code.')}
+                                            disabled={advancing === order.id}
+                                            className="px-4 py-3 rounded-xl border-2 border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-950/30 text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-widest transition-all shrink-0 flex items-center justify-center gap-2"
+                                            title="If the customer is present now, enter their code to complete order"
+                                        >
+                                            <ShieldCheck size={16} />
+                                            Enter Code & Handover
+                                        </button>
+                                    )}
+
                                     {nextStatus ? (
                                         <button
                                             onClick={() => {
@@ -529,13 +541,14 @@ const DashboardOrders: React.FC = () => {
                                                 <>
                                                   {nextStatus === 'SELLER_CONFIRMED' && 'Confirm Order'}
                                                   {nextStatus === 'PREPARING' && 'Start Preparing'}
-                                                  {nextStatus === 'PACKAGING' && 'Package Order'}
+                                                  {nextStatus === 'PACKAGING' && (order.fulfillment_type === 'SELLER_PICKUP' ? 'Start Packaging' : 'Package Order')}
+                                                  {nextStatus === 'READY_FOR_PICKUP' && (order.fulfillment_type === 'SELLER_PICKUP' ? 'Packaging Done (Notify Buyer)' : 'Ready for Pickup')}
                                                   {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to Warehouse'}
                                                   {nextStatus === 'PROCESSING' && 'Process Order'}
                                                   {nextStatus === 'SHIPPED' && 'Mark Shipped'}
-                                                  {nextStatus === 'DELIVERED' && 'Confirm Delivery'}
+                                                  {nextStatus === 'DELIVERED' && (order.fulfillment_type === 'SELLER_PICKUP' ? 'Enter Code & Handover' : 'Confirm Delivery')}
                                                   {nextStatus === 'COMPLETED' && 'Finalize'}
-                                                  {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && `Advance`}
+                                                  {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'READY_FOR_PICKUP', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && `Advance`}
                                                   <ShieldCheck size={16} />
                                                 </>
                                             )}
@@ -563,7 +576,22 @@ const DashboardOrders: React.FC = () => {
                                   </div>
                                 )}
 
-                                {order.fulfillment_type !== 'DIRECT_DELIVERY' && ['RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'].includes(order.status) && (
+                                {order.fulfillment_type === 'SELLER_PICKUP' && (
+                                  <div className="mt-4 text-xs p-3.5 bg-brand-50 dark:bg-brand-950/40 rounded-xl border border-brand-200 dark:border-brand-800/40 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2 text-brand-900 dark:text-brand-100">
+                                      <MapPin size={16} className="text-brand-500 shrink-0" />
+                                      <span>
+                                        {order.status === 'PACKAGING' 
+                                          ? 'Store Pickup: Once packaged, click "Packaging Done" to notify the buyer to collect, or enter code if buyer is present.'
+                                          : order.status === 'READY_FOR_PICKUP'
+                                          ? 'Store Pickup: Customer has been notified. When they arrive, click "Enter Code & Handover" and enter their 6-digit code.'
+                                          : 'Store Pickup Order (Handover directly at your shop).'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {!['DIRECT_DELIVERY', 'SELLER_PICKUP'].includes(order.fulfillment_type) && ['RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'].includes(order.status) && (
                                     <div className="mt-4 text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-xl">
                                         <Truck size={14} className="text-brand-500 shrink-0" />
                                         <span>Logistics handling delivery.</span>
