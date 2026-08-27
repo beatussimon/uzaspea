@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion';
 import React, { useEffect, useState, useMemo, lazy, Suspense } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Settings, MapPin, Camera, 
   Star, ShoppingBag, Info,
-  CheckCircle, Plus, Package, Search, Clock
+  CheckCircle, Plus, Package, Search, Clock, MessageSquare
 } from 'lucide-react';
 import api, { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
@@ -26,8 +26,10 @@ import { useMessages } from '../context/MessageContext';
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
   const { username } = useParams<{ username: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const { conversations, openDesktopChat } = useMessages();
+  const { startDirectChat } = useMessages();
   const { openSearchForSeller } = useSearch();
   const [profile, setProfile] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
@@ -90,6 +92,35 @@ const ProfilePage: React.FC = () => {
       products: products,
       categories: sellerCategories,
     });
+  };
+
+  const [startingChat, setStartingChat] = useState(false);
+
+  const handleStartMessage = async (targetUsername?: string, targetUserId?: number) => {
+    const toUser = targetUsername || username;
+    if (!toUser) return;
+    if (!currentUser) {
+      navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+      return;
+    }
+    if (currentUser.toLowerCase() === toUser.toLowerCase()) {
+      toast.error(t('cannot_message_self', 'You cannot message yourself'));
+      return;
+    }
+
+    setStartingChat(true);
+    try {
+      const convId = await startDirectChat(toUser, targetUserId || profile?.user_id || profile?.user);
+      if (convId) {
+        if (window.innerWidth < 768) {
+          navigate(`/messages/${convId}`);
+        }
+      }
+    } catch {
+      toast.error('Could not start conversation');
+    } finally {
+      setStartingChat(false);
+    }
   };
 
   const fetchProfile = React.useCallback(async (signal?: AbortSignal) => {
@@ -512,43 +543,32 @@ const ProfilePage: React.FC = () => {
           </div>
 
           {/* Row 1.5: Secondary Action Buttons */}
-          {!isOwner && currentUser && (
+          {!isOwner && (
             <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start">
-                  {followStatus.following && profile?.phone_number && (
-                    <a 
-                      href={`tel:${profile.phone_number}`}
-                      className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500     transition active:scale-95 flex items-center gap-1.5"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                      {t('call')}
-                    </a>
-                  )}
-                  {followStatus.following && (
-                  <button 
-                    onClick={() => {
-                      if (window.innerWidth >= 768) {
-                        const existing = conversations.find(c => 
-                          c.buyer_username.toLowerCase() === (username || '').toLowerCase() || 
-                          c.seller_username.toLowerCase() === (username || '').toLowerCase()
-                        );
-                        openDesktopChat(existing ? existing.id : null);
-                      } else {
-                        window.location.href = `/messages?user=${username}`;
-                      }
-                    }}
-                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-                    {t('message')}
-                  </button>
-                  )}
-                  <button
-                    onClick={() => setIsRequestModalOpen(true)}
-                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500     transition active:scale-95 flex items-center gap-1.5"
-                  >
-                    <Plus size={14} />
-                    {t('request_product', 'Request Product')}
-                  </button>
+              {followStatus.following && profile?.phone_number && (
+                <a 
+                  href={`tel:${profile.phone_number}`}
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500 transition active:scale-95 flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                  {t('call')}
+                </a>
+              )}
+              <button 
+                onClick={() => handleStartMessage()}
+                disabled={startingChat}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-brand-500" />
+                {startingChat ? t('opening...', 'Opening...') : t('message', 'Message')}
+              </button>
+              <button
+                onClick={() => setIsRequestModalOpen(true)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500 transition active:scale-95 flex items-center gap-1.5"
+              >
+                <Plus size={14} />
+                {t('request_product', 'Request Product')}
+              </button>
             </div>
           )}
 
@@ -1201,13 +1221,18 @@ const ProfilePage: React.FC = () => {
                   </div>
                 </Link>
                 <div className="flex items-center gap-2">
-                  <Link 
-                    to={`/messages?user=${user.username}`}
-                    className="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-neutral-800 transition"
-                    title="Message"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-                  </Link>
+                  {currentUser?.toLowerCase() !== user.username.toLowerCase() && (
+                    <button 
+                      onClick={() => {
+                        setIsFollowModalOpen(false);
+                        handleStartMessage(user.username, user.user_id || user.user || user.id);
+                      }}
+                      className="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-neutral-800 transition cursor-pointer"
+                      title="Message"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                    </button>
+                  )}
                   {currentUser !== user.username && currentUser && (
                     <button
                       onClick={async () => {

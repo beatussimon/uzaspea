@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, MessageSquare, XCircle, MapPin, X, Receipt } from 'lucide-react';
+import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, MessageSquare, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, getSellerNextStatus } from '../../constants/orderStatus';
@@ -11,6 +11,7 @@ import { useDialog } from '../../components/ui/Dialogs';
 import { Spinner } from '../../components/ui/Spinner';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Button } from '../../components/ui/Button';
 
 // ============ Incoming Orders (Seller) ============
 const fmtOrderDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -64,6 +65,7 @@ const DashboardOrders: React.FC = () => {
   const sentinelRef = React.useRef<HTMLDivElement>(null);
 
   const [filterStatus, setFilterStatus] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [advancing, setAdvancing] = useState<number | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
@@ -199,106 +201,152 @@ const DashboardOrders: React.FC = () => {
     finally { setAdvancing(null); }
   };
 
-  const filterTabs = ['', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'AWAITING_DELIVERY_PAYMENT', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'DELIVERED', 'FAILED_DELIVERY', 'COMPLETED', 'CANCELLED'];
+  const orderTabs = [
+    { key: '', label: t('all_orders', 'All Orders'), count: orders.length },
+    { key: 'PENDING_VERIFICATION', label: t('to_verify', 'To Verify'), count: orders.filter(o => o.status === 'PENDING_VERIFICATION' || o.status === 'PENDING_DELIVERY_VERIFICATION').length, isAction: orders.some(o => o.status === 'PENDING_VERIFICATION' || o.status === 'PENDING_DELIVERY_VERIFICATION') },
+    { key: 'PAID', label: t('ready_to_process', 'Ready to Process'), count: orders.filter(o => o.status === 'PAID').length },
+    { key: 'PROCESSING', label: t('in_processing', 'In Processing'), count: orders.filter(o => ['PREPARING', 'PACKAGING', 'PROCESSING', 'SELLER_CONFIRMED'].includes(o.status)).length },
+    { key: 'SHIPPED', label: t('in_transit_shipped', 'In Transit / Shipped'), count: orders.filter(o => ['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'SHIPPED'].includes(o.status)).length },
+    { key: 'DELIVERED', label: t('delivered_done', 'Delivered / Done'), count: orders.filter(o => ['DELIVERED', 'COMPLETED'].includes(o.status)).length },
+    { key: 'CANCELLED', label: t('cancelled_disputed', 'Cancelled'), count: orders.filter(o => ['CANCELLED', 'DISPUTED'].includes(o.status)).length },
+  ];
 
   const filteredOrders = useMemo(() => {
-    if (!filterStatus) return orders;
-    if (filterStatus === 'PENDING_VERIFICATION') {
-      return orders.filter(o => o.status === 'PENDING_VERIFICATION' || o.status === 'PENDING_DELIVERY_VERIFICATION');
-    }
-    if (filterStatus === 'PROCESSING') {
-      return orders.filter(o => ['PREPARING', 'PACKAGING', 'PROCESSING', 'SELLER_CONFIRMED'].includes(o.status));
-    }
-    if (filterStatus === 'SHIPPED') {
-      return orders.filter(o => ['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'SHIPPED'].includes(o.status));
-    }
-    return orders.filter(o => o.status === filterStatus);
-  }, [orders, filterStatus]);
+    return orders.filter(order => {
+      // Status filter
+      if (filterStatus) {
+        if (filterStatus === 'PENDING_VERIFICATION') {
+          if (order.status !== 'PENDING_VERIFICATION' && order.status !== 'PENDING_DELIVERY_VERIFICATION') return false;
+        } else if (filterStatus === 'PROCESSING') {
+          if (!['PREPARING', 'PACKAGING', 'PROCESSING', 'SELLER_CONFIRMED'].includes(order.status)) return false;
+        } else if (filterStatus === 'SHIPPED') {
+          if (!['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'SHIPPED'].includes(order.status)) return false;
+        } else if (filterStatus === 'DELIVERED') {
+          if (!['DELIVERED', 'COMPLETED'].includes(order.status)) return false;
+        } else if (filterStatus === 'CANCELLED') {
+          if (!['CANCELLED', 'DISPUTED'].includes(order.status)) return false;
+        } else if (order.status !== filterStatus) {
+          return false;
+        }
+      }
 
-  const statCounts = useMemo(() => {
-    return {
-      PENDING_VERIFICATION: orders.filter(o => o.status === 'PENDING_VERIFICATION' || o.status === 'PENDING_DELIVERY_VERIFICATION').length,
-      PAID: orders.filter(o => o.status === 'PAID').length,
-      PROCESSING: orders.filter(o => ['PREPARING', 'PACKAGING', 'PROCESSING', 'SELLER_CONFIRMED'].includes(o.status)).length,
-      SHIPPED: orders.filter(o => ['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'SHIPPED'].includes(o.status)).length,
-    };
-  }, [orders]);
+      // Search filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const idMatch = String(order.id).includes(q);
+        const buyerMatch = (order.buyer || order.buyer_username || order.delivery_info?.customer_name || '').toLowerCase().includes(q);
+        const itemMatch = (order.items || []).some((i: any) => (i.product_name || '').toLowerCase().includes(q));
+        if (!idMatch && !buyerMatch && !itemMatch) return false;
+      }
+
+      return true;
+    });
+  }, [orders, filterStatus, searchQuery]);
 
   return (
-    <div className="space-y-4 w-full min-w-0">
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Incoming Orders</h2>
-        <span className="text-[10px] font-bold bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded shadow-sm uppercase tracking-widest text-gray-500">Live View</span>
-      </div>
-
-      {/* Filter Tabs */}
-      {loading ? (
-        <div className="flex gap-2 overflow-x-auto mb-4 p-1.5 [&::-webkit-scrollbar]:hidden w-full">
-          {[16, 24, 20, 28, 22].map((w, i) => (
-            <div key={i} className="h-7 rounded-lg bg-gray-200 dark:bg-gray-800 animate-pulse shrink-0" style={{ width: `${w * 4}px` }} />
-          ))}
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t('incoming_orders', 'Incoming Orders')}
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            {t('orders_desc', 'Track incoming customer orders, verify payments, manage shipments, and fulfill orders in real-time.')}
+          </p>
         </div>
-      ) : orders.length > 0 ? (
-        <div data-horizontal-scroll="true" className="flex gap-1 overflow-x-auto mb-4 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm [&::-webkit-scrollbar]:hidden w-full">
-          {filterTabs.map(s => (
-            <button key={s} onClick={() => setFilterStatus(s)}
-              className={`shrink-0 px-3 py-1.5 text-[10px] sm:text-xs rounded-lg font-bold transition uppercase tracking-wider ${filterStatus === s ? 'bg-brand-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-              {s ? (ORDER_STATUS_CFG[s]?.label || s) : 'All Orders'}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 border border-surface-border dark:border-surface-dark-border px-3 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            {t('live_view', 'Live View')}
+          </span>
         </div>
-      ) : null}
+      </header>
 
-      {/* Status Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          {[
-              { id: 'PENDING_VERIFICATION', label: 'Payments to Verify', icon: ShieldAlert, color: 'text-orange-500', bg: ' ' },
-              { id: 'PAID', label: 'Ready to Process', icon: Package, color: 'text-green-500', bg: ' ' },
-              { id: 'PROCESSING', label: 'In Processing', icon: Clock, color: 'text-brand-500', bg: ' ' },
-              { id: 'SHIPPED', label: 'Active Shipments', icon: Truck, color: 'text-brand-500', bg: ' ' },
-          ].map((stat) => {
-              const count = statCounts[stat.id as keyof typeof statCounts] || 0;
-              return (
-                  <button key={stat.id} onClick={() => setFilterStatus(stat.id)} 
-                    className={`card p-4 flex flex-col items-center text-center transition-all ${filterStatus === stat.id ? 'ring-2 ring-brand-500 scale-105' : 'hover:scale-[1.02]'}`}>
-                      <stat.icon size={20} className={stat.color} />
-                      <span className="text-[20px] font-black text-gray-900 dark:text-white mt-1">{count}</span>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">{stat.label}</span>
-                  </button>
-              );
+      {/* Filter Pills & Search Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+        {/* Horizontal Scroll Pill Bar */}
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {orderTabs.map((tab) => {
+            const isActive = filterStatus === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilterStatus(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  isActive
+                    ? tab.isAction
+                      ? 'bg-brand-500 text-white shadow-xs'
+                      : 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
+                      isActive
+                        ? tab.isAction
+                          ? 'bg-white text-brand-600'
+                          : 'bg-white/20 dark:bg-black/20 text-inherit'
+                        : tab.isAction
+                        ? 'bg-brand-500 text-white'
+                        : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
           })}
+        </div>
+
+        {/* Search Box */}
+        <div className="relative min-w-[220px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('search_orders', 'Search Order #, Buyer, Product...')}
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
+        </div>
       </div>
 
+      {/* Orders List */}
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 animate-pulse">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
-                  <div className="h-3.5 bg-gray-100 dark:bg-gray-700/60 rounded w-1/2" />
-                </div>
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-24" />
-              </div>
-            </div>
-          ))}
+        <div className="flex justify-center p-12">
+          <Spinner size="lg" />
         </div>
       ) : filteredOrders.length === 0 ? (
         <EmptyState
           icon={ShoppingCart}
-          title={t('no_incoming_orders', 'No incoming orders found')}
-          action={filterStatus ? {
-            label: t('clear_filter', 'Clear Filter'),
-            onClick: () => setFilterStatus(''),
-          } : undefined}
+          title={t('no_orders_found', 'No Orders Found')}
+          description={
+            filterStatus || searchQuery
+              ? t('no_orders_matching', 'No orders matching your selected filters.')
+              : t('no_incoming_orders_yet', 'You have no incoming orders yet.')
+          }
+          action={
+            filterStatus || searchQuery
+              ? {
+                  label: t('clear_filters', 'Clear Filters'),
+                  onClick: () => {
+                    setFilterStatus('');
+                    setSearchQuery('');
+                  },
+                }
+              : undefined
+          }
         />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filteredOrders.map((order: any) => {
             const isExpanded = expandedId === order.id;
-
-
+            const itemsList = order.items || [];
             const nextStatus = getSellerNextStatus(
               order.status,
               order.fulfillment_type || 'PLATFORM_DELIVERY',
@@ -309,349 +357,291 @@ const DashboardOrders: React.FC = () => {
             const hasPendingPayment = isMainPayment || isDeliveryPayment;
 
             return (
-              <div key={order.id} className={`bg-white dark:bg-gray-800 rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'shadow-xl ring-1 ring-brand-500/20' : 'shadow-sm hover:shadow-md border-gray-100 dark:border-gray-700'}`}>
-                {/* Header */}
-                <button onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                  className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-gray-50/20 transition group">
-                  
-                  {/* Product Thumbnail */}
-                  <div className="relative w-16 h-16 shrink-0">
-                    <div className="w-full h-full rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden shadow-inner flex items-center justify-center">
-                        {order.items?.[0]?.product_image ? (
-                            <img src={order.items[0].product_image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              <div
+                key={order.id}
+                className="card overflow-hidden transition-all duration-200"
+              >
+                {/* Collapsible Header */}
+                <div
+                  onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                  className="p-4 cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition flex flex-col md:flex-row gap-4 justify-between items-start md:items-center select-none"
+                >
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    {/* Product Thumbnail */}
+                    <div className="relative w-14 h-14 shrink-0">
+                      <div className="w-full h-full rounded-xl bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border overflow-hidden flex items-center justify-center">
+                        {itemsList[0]?.product_image ? (
+                          <img
+                            src={itemsList[0].product_image}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
-                            <Package size={24} className="text-gray-300" />
+                          <Package size={22} className="text-gray-400" />
                         )}
-                    </div>
-                    {order.items?.length > 1 && (
-                        <div className="absolute -bottom-1 -right-1 bg-brand-500 text-white text-[10px] font-black w-5 h-5 rounded-lg flex items-center justify-center shadow-lg border-2 border-white dark:border-gray-800">
-                            +{order.items.length - 1}
+                      </div>
+                      {itemsList.length > 1 && (
+                        <div className="absolute -bottom-1 -right-1 bg-brand-500 text-white text-[10px] font-black w-4 h-4 rounded-md flex items-center justify-center shadow-sm border border-white dark:border-gray-900">
+                          +{itemsList.length - 1}
                         </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        {order.delivery_info?.is_pos && (
-                          <span className="text-[10px] font-black text-purple-500 dark:text-purple-500   border border-purple-500 dark:border-purple-500 px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1 shadow-xs">
-                            <Receipt size={11} /> POS
-                          </span>
-                        )}
-                        {order.is_bulk_order && (
-                          <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700/50 px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1 shadow-xs">
-                            Bulk Order
-                          </span>
-                        )}
-                        <span className="text-[10px] font-black text-brand-500   px-2 py-0.5 rounded uppercase tracking-widest">Order #{order.id}</span>
-                        <span className="text-[10px] font-bold text-gray-400 capitalize">{fmtOrderDate(order.order_date)}</span>
-                    </div>
-                    <h4 className="text-base font-black text-gray-900 dark:text-white truncate">
-                        {order.items?.length > 0 ? order.items[0].product_name : 'Multiple Items'}
-                    </h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                      {order.delivery_info?.is_pos ? (
-                        <>Customer: <span className="font-bold text-purple-500 dark:text-purple-500">{order.delivery_info?.customer_name || 'Walk-in Customer'}</span></>
-                      ) : (
-                        <>Customer: <span className="font-bold text-gray-700 dark:text-gray-300">@{order.buyer}</span></>
                       )}
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center gap-6 shrink-0">
-                    <div className="flex flex-col items-end gap-1">
-                        <StatusBadge status={order.status} size="sm" className="mb-1" />
-                        <div className="text-right">
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Total: TSh {(order.seller_subtotal || parseFloat(order.total_amount) || 0).toLocaleString()}</p>
-                          {order.promo_code_code && (
-                            <p className="text-[10px] text-green-500 font-medium">
-                              Promo: {order.promo_code_code} ({order.promo_code_details?.discount_type === 'percentage' ? `${parseInt(order.promo_code_details.value)}%` : `TSh ${parseInt(order.promo_code_details.value).toLocaleString()}`} off) -TSh {parseInt(order.discount_amount || 0).toLocaleString()}
-                            </p>
-                          )}
-                        </div>
                     </div>
-                    <div className="flex flex-col items-center gap-3">
-                        <Link 
-                            to={`/${order.buyer}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-2 text-gray-400 hover:text-brand-500   rounded-lg transition"
-                            title="Contact Customer"
-                        >
-                            <MessageSquare size={18} />
-                        </Link>
-                        {isExpanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
-                    </div>
-                  </div>
-                </button>
 
-                {/* Expanded */}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-extrabold text-sm text-gray-900 dark:text-white">
+                          Order #{order.id}
+                        </span>
+                        <span className="text-2xs text-gray-400">
+                          {order.delivery_info?.is_pos
+                            ? order.delivery_info?.customer_name || 'Walk-in Customer'
+                            : `@${order.buyer || 'Customer'}`}
+                        </span>
+
+                        <StatusBadge status={order.status} size="sm" />
+
+                        {order.delivery_info?.is_pos && (
+                          <span className="px-2 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-tight bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center gap-1">
+                            <Receipt size={10} /> POS
+                          </span>
+                        )}
+
+                        {order.is_bulk_order && (
+                          <span className="px-2 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-tight bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                            {t('bulk_order', 'Bulk Order')}
+                          </span>
+                        )}
+
+                        <span className="text-2xs font-extrabold text-gray-900 dark:text-white ml-auto md:ml-0">
+                          Total: TSh {(order.seller_subtotal || parseFloat(order.total_amount) || 0).toLocaleString()}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-2xs text-gray-400 flex-wrap">
+                        <span className="flex items-center gap-1 font-medium text-gray-800 dark:text-gray-200">
+                          {itemsList[0]?.product_name || 'Item'}
+                          {itemsList.length > 1 ? ` (+${itemsList.length - 1} more)` : ''}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Clock size={12} /> {fmtOrderDate(order.order_date)}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Package size={12} /> {itemsList.length} {t('items', 'items')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions & Chevron */}
+                  <div className="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
+                    {nextStatus && (
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (nextStatus === 'SHIPPED') {
+                            const promptNotes = prompt('Enter tracking number or courier info:') || '';
+                            handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
+                          } else if (nextStatus === 'SHIPPED_TO_WAREHOUSE') {
+                            setShipModalOpen(order.id);
+                          } else {
+                            handleAdvance(order.id, nextStatus, `Moved to ${nextStatus} by seller.`);
+                          }
+                        }}
+                        disabled={advancing === order.id}
+                        className="font-bold flex items-center gap-1"
+                      >
+                        {advancing === order.id ? (
+                          <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
+                        ) : (
+                          <>
+                            <ShieldCheck size={14} />
+                            {nextStatus === 'SELLER_CONFIRMED' && 'Confirm'}
+                            {nextStatus === 'PREPARING' && 'Prepare'}
+                            {nextStatus === 'PACKAGING' && 'Package'}
+                            {nextStatus === 'READY_FOR_PICKUP' && 'Ready for Pickup'}
+                            {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to Warehouse'}
+                            {nextStatus === 'PROCESSING' && 'Process'}
+                            {nextStatus === 'SHIPPED' && 'Mark Shipped'}
+                            {nextStatus === 'DELIVERED' && 'Confirm Delivery'}
+                            {nextStatus === 'COMPLETED' && 'Finalize'}
+                            {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'READY_FOR_PICKUP', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && 'Advance'}
+                          </>
+                        )}
+                      </Button>
+                    )}
+
+                    {!order.delivery_info?.is_pos && (
+                      <Link
+                        to={`/${order.buyer}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 text-gray-400 hover:text-brand-500 transition rounded-lg hover:bg-surface-muted dark:hover:bg-[#161616]"
+                        title={t('contact_customer', 'Contact Customer')}
+                      >
+                        <MessageSquare size={16} />
+                      </Link>
+                    )}
+
+                    <div className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
+                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Collapsible Body */}
                 {isExpanded && (
-                  <div className="border-t border-gray-50 dark:border-gray-700 bg-gray-50/20 dark:bg-gray-900/5 pulse-in">
-                    
-                    
-
-                    {/* Payment Verification Block */}
+                  <div className="p-4 pt-0 border-t border-surface-border dark:border-surface-dark-border space-y-4 text-xs bg-surface-muted/20 dark:bg-[#131313]/30">
+                    {/* Payment Verification Callout */}
                     {hasPendingPayment && order.payments?.length > 0 && (
-                      <div className="px-6 py-6   border-b border-brand-500 dark:border-brand-500/20">
-                          <div className="flex items-center gap-2 mb-4">
-                              <ShieldCheck className="text-brand-500" size={20} />
-                              <h4 className="font-black text-gray-900 dark:text-white text-sm uppercase tracking-wider">Payment Verification Needed</h4>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                  {order.payments.filter((p:any) => p.status === 'PENDING_VERIFICATION').map((p:any) => (
-                                      <div key={p.id} className="card p-4 space-y-3 bg-white/70 dark:bg-gray-800/70 border-brand-500">
-                                          <div className="flex justify-between text-xs">
-                                              <span className="text-gray-500 font-bold uppercase">Transaction ID</span>
-                                              <span className="font-black text-brand-500 dark:text-brand-500 select-all">{p.transaction_id || 'N/A'}</span>
-                                          </div>
-                                          <div className="flex justify-between text-xs">
-                                              <span className="text-gray-500 font-bold uppercase">Amount</span>
-                                              <span className="font-bold text-gray-900 dark:text-white">TSh {(p.amount || 0).toLocaleString()}</span>
-                                          </div>
-                                          
-                                          {p.proof_image && (
-                                              <div 
-                                                  onClick={() => setZoomImage(p.proof_image)}
-                                                  className="group relative rounded-xl overflow-hidden cursor-zoom-in border border-gray-100 dark:border-gray-700"
-                                              >
-                                                  <img src={p.proof_image} alt="Proof" className="w-full h-40 object-cover transition duration-300 group-hover:scale-105" />
-                                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                                                      <button type="button" className="btn-primary py-1 px-3 text-xs flex items-center gap-1">
-                                                          <Eye size={14} /> Full View
-                                                      </button>
-                                                  </div>
-                                              </div>
-                                          )}
-                                      </div>
-                                  ))}
-                              </div>
-                              
-                              <div className="bg-white/50 dark:bg-gray-800/50 p-5 rounded-2xl border border-brand-500/50 dark:border-brand-500/20 flex flex-col justify-center gap-3">
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 italic">
-                                     {isDeliveryPayment 
-                                        ? "Review the delivery fee transaction above. Once confirmed, assign the order to transport."
-                                        : "Review the transaction ID and receipt above. Once confirmed, mark as PAID to allow the order to proceed to processing."}
-                                  </p>
-                                  <div className="flex gap-2 mt-2">
-                                      <button 
-                                          onClick={() => handleAdvance(order.id, isDeliveryPayment ? 'ASSIGNED_TRANSPORT' : 'PAID', 'Payment successfully verified by system/admin.')}
-                                          disabled={advancing === order.id}
-                                          className="btn-primary py-2 px-4 flex-1 text-xs"
-                                      >
-                                          {advancing === order.id ? 'Processing...' : (isDeliveryPayment ? 'Verify & Assign Transport' : 'Verify & Mark as PAID')}
-                                      </button>
-                                      <button 
-                                          onClick={() => handleAdvance(order.id, 'AWAITING_PAYMENT', 'Payment rejected. Incorrect transaction ID or proof.')}
-                                          className="flex-1 btn-ghost py-2.5 border-red-500 text-red-500  text-[11px] font-bold uppercase tracking-widest"
-                                      >
-                                          Reject
-                                      </button>
+                      <div className="p-3.5 rounded-btn bg-brand-500/10 border border-brand-500/20 space-y-3 mt-3">
+                        <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 font-bold text-xs uppercase tracking-wider">
+                          <ShieldAlert size={16} />
+                          <span>Payment Verification Needed</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            {order.payments
+                              .filter((p: any) => p.status === 'PENDING_VERIFICATION')
+                              .map((p: any) => (
+                                <div key={p.id} className="p-3 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border space-y-2">
+                                  <div className="flex justify-between text-2xs font-bold text-gray-500">
+                                    <span>TRANSACTION ID</span>
+                                    <span className="font-mono text-gray-900 dark:text-white select-all">{p.transaction_id || 'N/A'}</span>
                                   </div>
-                              </div>
+                                  <div className="flex justify-between text-2xs font-bold text-gray-500">
+                                    <span>AMOUNT PAID</span>
+                                    <span className="font-extrabold text-gray-900 dark:text-white">TSh {(p.amount || 0).toLocaleString()}</span>
+                                  </div>
+                                  {p.proof_image && (
+                                    <div
+                                      onClick={() => setZoomImage(p.proof_image)}
+                                      className="relative rounded-lg overflow-hidden cursor-zoom-in border border-surface-border dark:border-surface-dark-border group h-28"
+                                    >
+                                      <img src={p.proof_image} alt="Proof" className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-2xs font-bold gap-1">
+                                        <Eye size={12} /> View Receipt Proof
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
                           </div>
+
+                          <div className="flex flex-col justify-center gap-2 p-3 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border">
+                            <p className="text-2xs text-gray-500 dark:text-gray-400">
+                              {isDeliveryPayment
+                                ? 'Verify customer delivery payment receipt before handing to transport.'
+                                : 'Verify customer payment proof before confirming and processing order items.'}
+                            </p>
+                            <div className="flex gap-2 pt-1">
+                              <Button
+                                size="sm"
+                                onClick={() => handleAdvance(order.id, isDeliveryPayment ? 'ASSIGNED_TRANSPORT' : 'PAID', 'Payment verified by seller.')}
+                                disabled={advancing === order.id}
+                                className="flex-1 font-bold"
+                              >
+                                {advancing === order.id ? 'Processing...' : (isDeliveryPayment ? 'Verify Delivery' : 'Verify & Mark Paid')}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAdvance(order.id, 'AWAITING_PAYMENT', 'Payment proof rejected.')}
+                                className="text-red-500 border-red-500/30 hover:bg-red-500/10"
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
 
-                    {/* Order Content */}
-                    <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-gray-100 dark:divide-gray-800">
-                        {/* Left: Items (Cols 3 or 5 for POS) */}
-                        <div className={`p-6 ${order.delivery_info?.is_pos ? 'w-full' : 'w-full lg:w-[60%]'}`}>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5">Package Contents</p>
-                            <div className="space-y-1">
-                                {order.items?.map((item: any) => (
-                                <div key={item.id} className="flex items-center gap-4 py-2 border-b border-gray-50 dark:border-gray-800/50 last:border-0 group">
-                                    {item.product_image && (
-                                    <img src={item.product_image} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100 dark:bg-gray-800" onError={(e: any) => e.target.style.display = 'none'} />
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                                          {item.product_name}
-                                          {item.variant_name && <span className="ml-2 text-[10px] uppercase font-bold text-brand-500 bg-brand-50 dark:bg-brand-500/10 px-2 py-0.5 rounded tracking-wider">{item.variant_name}</span>}
-                                      </p>
-                                      <p className="text-xs text-gray-500 font-medium mt-0.5">Qty: {item.quantity} × TSh {(item.price || 0).toLocaleString()}</p>
-                                    </div>
-                                    <p className="text-sm font-black text-gray-900 dark:text-white">TSh {(item.subtotal || 0).toLocaleString()}</p>
-                                </div>
-                                ))}
-                            </div>
+                    {/* Items List Table */}
+                    <div className="border border-surface-border dark:border-surface-dark-border rounded-btn overflow-hidden mt-3">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                          <tr>
+                            <th className="p-2.5">Item Description</th>
+                            <th className="p-2.5 text-center">Qty</th>
+                            <th className="p-2.5 text-right">Unit Price</th>
+                            <th className="p-2.5 text-right">Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                          {itemsList.map((item: any) => (
+                            <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30">
+                              <td className="p-2.5 font-medium text-gray-900 dark:text-white">
+                                {item.product_name} {item.variant_name ? `(${item.variant_name})` : ''}
+                              </td>
+                              <td className="p-2.5 text-center text-gray-500">{item.quantity}</td>
+                              <td className="p-2.5 text-right text-gray-700 dark:text-gray-300">
+                                TSh {(item.price || 0).toLocaleString()}
+                              </td>
+                              <td className="p-2.5 text-right font-bold text-gray-900 dark:text-white">
+                                TSh {(item.subtotal || (item.price * item.quantity) || 0).toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
 
-                            {/* Receipt Math Section */}
-                            <div className="mt-6 pt-4 border-t border-dashed border-gray-200 dark:border-gray-700 space-y-2">
-                                <div className="flex justify-between text-xs font-bold text-gray-500 dark:text-gray-400">
-                                  <span>Subtotal</span>
-                                  <span>TSh {(parseFloat(order.total_amount || 0) - parseFloat(order.shipping_fee || 0)).toLocaleString()}</span>
-                                </div>
-                                
-                                {order.promo_code_code && (
-                                  <div className="flex justify-between text-xs font-bold text-green-500">
-                                    <span>Discount ({order.promo_code_code})</span>
-                                    <span>-TSh {parseInt(order.discount_amount || 0).toLocaleString()}</span>
-                                  </div>
-                                )}
-                                
-                                <div className="flex justify-between text-xs font-bold text-gray-500 dark:text-gray-400">
-                                  <span>Delivery Fee</span>
-                                  <span>
-                                    {Number(order.shipping_fee) > 0 
-                                      ? `TSh ${Number(order.shipping_fee).toLocaleString()}` 
-                                      : ['COMPLETED', 'DELIVERED', 'OUT_FOR_DELIVERY', 'READY_FOR_PICKUP', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'SHIPPED', 'ASSIGNED_TRANSPORT'].includes(order.status)
-                                        ? 'FREE'
-                                        : 'TBD'}
-                                  </span>
-                                </div>
-                                
-                                <div className="flex justify-between text-lg font-black text-gray-900 dark:text-white pt-2 border-t border-gray-100 dark:border-gray-800 mt-2">
-                                  <span>Total</span>
-                                  <span>TSh {parseInt(order.total_amount).toLocaleString()}</span>
-                                </div>
-                            </div>
+                    {/* Footer Math & Order Timeline */}
+                    <div className="flex flex-col md:flex-row justify-between gap-4 pt-2">
+                      <div className="space-y-1 text-2xs text-gray-400">
+                        <div>
+                          <span>Subtotal: </span>
+                          <strong className="text-gray-700 dark:text-gray-300">
+                            TSh {(parseFloat(order.total_amount || 0) - parseFloat(order.shipping_fee || 0)).toLocaleString()}
+                          </strong>
                         </div>
+                        {order.promo_code_code && (
+                          <div className="text-emerald-500 font-medium">
+                            Promo ({order.promo_code_code}): -TSh {parseInt(order.discount_amount || 0).toLocaleString()}
+                          </div>
+                        )}
+                        {order.shipping_fee > 0 && (
+                          <div>
+                            <span>Shipping Fee: </span>
+                            <strong className="text-gray-700 dark:text-gray-300">TSh {Number(order.shipping_fee).toLocaleString()}</strong>
+                          </div>
+                        )}
+                        <div className="pt-1 text-xs">
+                          <span className="text-gray-500">Grand Total: </span>
+                          <strong className="text-gray-900 dark:text-white font-extrabold">
+                            TSh {parseInt(order.total_amount || 0).toLocaleString()}
+                          </strong>
+                        </div>
+                      </div>
 
-                        {/* Right: Timeline & Actions */}
-                        {!order.delivery_info?.is_pos && (
-                          <div className="w-full lg:w-[40%] p-6 bg-gray-50/50 dark:bg-gray-800/10 flex flex-col justify-between">
-                            
-                            {/* Enhanced Vertical Timeline */}
-                            <div className="flex-1 flex flex-col min-h-[160px] lg:min-h-0 relative">
-                              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 shrink-0">Order History</h4>
-                              <div className="max-h-[160px] lg:max-h-none lg:absolute lg:top-8 lg:bottom-0 lg:left-0 lg:right-0 overflow-y-auto pr-2 -mr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded-full">
-                                <div className="space-y-4 pt-1 relative pl-4 border-l-2 border-brand-500/20 dark:border-brand-500/30">
-                                    {[...(order.timeline || [])].reverse().map((ev: any, i: number) => {
-                                        const isLatest = i === 0;
-                                        return (
-                                          <div key={i} className="relative">
-                                              <div className={`absolute -left-[21.5px] w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-800 shadow-sm ${isLatest ? 'bg-brand-500 ring-4 ring-brand-500/20' : 'bg-gray-300 dark:bg-gray-600'}`} />
-                                              <div className="ml-3">
-                                                  <p className={`text-xs font-black uppercase tracking-tighter ${isLatest ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{ORDER_STATUS_CFG[ev.status]?.label || ev.status}</p>
-                                                  <p className="text-[10px] text-gray-400 mt-0.5 font-bold uppercase">{fmtOrderDate(ev.created_at)}</p>
-                                              </div>
-                                          </div>
-                                        );
-                                    })}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Action Buttons (Docked to bottom right) */}
-                            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 shrink-0">
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    {['AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'PROCESSING'].includes(order.status) && (
-                                        <button 
-                                            onClick={() => handleCancel(order.id)}
-                                            disabled={advancing === order.id}
-                                            className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-500 hover:text-red-500 text-xs font-black uppercase tracking-widest transition-all shrink-0 flex items-center justify-center gap-2"
-                                        >
-                                            <XCircle size={16} />
-                                            Cancel
-                                        </button>
-                                    )}
-
-                                    {order.fulfillment_type === 'SELLER_PICKUP' && order.status === 'PACKAGING' && (
-                                        <button
-                                            onClick={() => handleAdvance(order.id, 'COMPLETED', 'Handed over directly to customer with verification code.')}
-                                            disabled={advancing === order.id}
-                                            className="px-4 py-3 rounded-xl border-2 border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-950/30 text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-widest transition-all shrink-0 flex items-center justify-center gap-2"
-                                            title="If the customer is present now, enter their code to complete order"
-                                        >
-                                            <ShieldCheck size={16} />
-                                            Enter Code & Handover
-                                        </button>
-                                    )}
-
-                                    {nextStatus ? (
-                                        <button
-                                            onClick={() => {
-                                                let promptNotes = "";
-                                                if (nextStatus === 'SHIPPED') {
-                                                  promptNotes = prompt('Enter tracking number or courier info:') || "";
-                                                } else if (nextStatus === 'SHIPPED_TO_WAREHOUSE') {
-                                                  setShipModalOpen(order.id);
-                                                  return;
-                                                }
-                                                handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
-                                            }}
-                                            disabled={advancing === order.id}
-                                            className="flex-1 px-4 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:bg-brand-400 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20"
-                                        >
-                                            {advancing === order.id ? (
-                                                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                                            ) : (
-                                                <>
-                                                  {nextStatus === 'SELLER_CONFIRMED' && 'Confirm Order'}
-                                                  {nextStatus === 'PREPARING' && 'Start Preparing'}
-                                                  {nextStatus === 'PACKAGING' && (order.fulfillment_type === 'SELLER_PICKUP' ? 'Start Packaging' : 'Package Order')}
-                                                  {nextStatus === 'READY_FOR_PICKUP' && (order.fulfillment_type === 'SELLER_PICKUP' ? 'Packaging Done (Notify Buyer)' : 'Ready for Pickup')}
-                                                  {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to Warehouse'}
-                                                  {nextStatus === 'PROCESSING' && 'Process Order'}
-                                                  {nextStatus === 'SHIPPED' && 'Mark Shipped'}
-                                                  {nextStatus === 'DELIVERED' && (order.fulfillment_type === 'SELLER_PICKUP' ? 'Enter Code & Handover' : 'Confirm Delivery')}
-                                                  {nextStatus === 'COMPLETED' && 'Finalize'}
-                                                  {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'READY_FOR_PICKUP', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && `Advance`}
-                                                  <ShieldCheck size={16} />
-                                                </>
-                                            )}
-                                        </button>
-                                    ) : order.status === 'AWAITING_PAYMENT' ? (
-                                        <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 flex items-center justify-center">
-                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                                                Awaiting Payment
-                                            </p>
-                                        </div>
-                                    ) : null}
-                                </div>
-                                
-                                {order.status === 'SHIPPED_TO_WAREHOUSE' && (
-                                  <div className="mt-4 flex items-center justify-between gap-4 p-4 rounded-xl border border-brand-500/30 bg-brand-50/50 dark:bg-brand-500/5">
-                                    <div className="flex-1">
-                                      <p className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-0.5">Drop-off Tag</p>
-                                      <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
-                                        Show this QR Code at the warehouse.
-                                      </p>
-                                    </div>
-                                    <div className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 shrink-0">
-                                      <QRCodeSVG value={order.id.toString()} size={60} bgColor="transparent" fgColor="#000" />
-                                    </div>
-                                  </div>
-                                )}
-
-                                {order.fulfillment_type === 'SELLER_PICKUP' && (
-                                  <div className="mt-4 text-xs p-3.5 bg-brand-50 dark:bg-brand-950/40 rounded-xl border border-brand-200 dark:border-brand-800/40 flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2 text-brand-900 dark:text-brand-100">
-                                      <MapPin size={16} className="text-brand-500 shrink-0" />
-                                      <span>
-                                        {order.status === 'PACKAGING' 
-                                          ? 'Store Pickup: Once packaged, click "Packaging Done" to notify the buyer to collect, or enter code if buyer is present.'
-                                          : order.status === 'READY_FOR_PICKUP'
-                                          ? 'Store Pickup: Customer has been notified. When they arrive, click "Enter Code & Handover" and enter their 6-digit code.'
-                                          : 'Store Pickup Order (Handover directly at your shop).'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {!['DIRECT_DELIVERY', 'SELLER_PICKUP'].includes(order.fulfillment_type) && ['RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP'].includes(order.status) && (
-                                    <div className="mt-4 text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-xl">
-                                        <Truck size={14} className="text-brand-500 shrink-0" />
-                                        <span>Logistics handling delivery.</span>
-                                    </div>
-                                )}
-                                
-                                <div className="mt-4 flex items-center justify-center gap-4 border-t border-gray-100 dark:border-gray-800 pt-4">
-                                    <div className="flex items-center gap-1.5 text-gray-400">
-                                        <Clock size={12} />
-                                        <p className="text-[9px] font-black uppercase tracking-[0.1em]">
-                                            Last Activity: {fmtOrderDate(order.order_date)}
-                                        </p>
-                                    </div>
-                                    <Link to={`/${order.buyer}`} className="text-[9px] font-black text-brand-500 uppercase tracking-[0.1em] hover:underline flex items-center gap-1">
-                                        <MessageSquare size={12} />
-                                        Contact Buyer
-                                    </Link>
-                                </div>
+                      {/* Footer Actions */}
+                      <div className="flex items-center gap-2 self-end md:self-center">
+                        {order.status === 'SHIPPED_TO_WAREHOUSE' && (
+                          <div className="flex items-center gap-2 p-2 rounded-btn bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border">
+                            <QRCodeSVG value={order.id.toString()} size={36} bgColor="transparent" fgColor="currentColor" className="text-gray-900 dark:text-white" />
+                            <div className="text-3xs text-gray-400">
+                              <p className="font-bold text-gray-800 dark:text-gray-200">Warehouse Drop-off Tag</p>
+                              <p>Show code upon intake</p>
                             </div>
                           </div>
                         )}
+
+                        {['AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING'].includes(order.status) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCancel(order.id)}
+                            disabled={advancing === order.id}
+                            className="text-red-500 border-red-500/30 hover:bg-red-500/10 text-xs"
+                          >
+                            <XCircle size={13} className="mr-1" />
+                            Cancel Order
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -659,42 +649,42 @@ const DashboardOrders: React.FC = () => {
             );
           })}
 
-            {loadingMore && (
-              <div className="flex justify-center py-8">
-                <Spinner size="sm" />
-              </div>
-            )}
+          {loadingMore && (
+            <div className="flex justify-center py-8">
+              <Spinner size="sm" />
+            </div>
+          )}
 
-            {!hasMore && orders.length > 0 && (
-              <p className="text-center py-8 text-sm text-gray-400 dark:text-gray-500 font-medium">
-                End of list
-              </p>
-            )}
-            
-            <div ref={sentinelRef} className="h-4" />
+          {!hasMore && orders.length > 0 && (
+            <p className="text-center py-6 text-2xs text-gray-400 font-medium">
+              End of orders
+            </p>
+          )}
+
+          <div ref={sentinelRef} className="h-4" />
         </div>
       )}
 
       {/* Ship to Warehouse Modal */}
       {shipModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-up border border-gray-100 dark:border-gray-700">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
-              <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
-                <MapPin className="text-brand-500" />
+          <div className="bg-white dark:bg-[#121212] rounded-card w-full max-w-md overflow-hidden shadow-2xl border border-surface-border dark:border-surface-dark-border">
+            <div className="p-5 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <MapPin className="text-brand-500" size={18} />
                 Select Destination Warehouse
               </h3>
               <button onClick={() => setShipModalOpen(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <XCircle size={24} />
+                <X size={18} />
               </button>
             </div>
             
-            <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Destination Warehouse</label>
+            <div className="p-5 space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="block font-bold text-gray-700 dark:text-gray-300">Destination Warehouse</label>
                 <select
                   required
-                  className="input w-full"
+                  className="input w-full py-2 text-xs"
                   value={shipWarehouseCode}
                   onChange={(e) => setShipWarehouseCode(e.target.value)}
                 >
@@ -703,26 +693,27 @@ const DashboardOrders: React.FC = () => {
                     <option key={w.code} value={w.code}>{w.name} ({w.region})</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">This order will automatically appear in this warehouse's intake queue.</p>
+                <p className="text-3xs text-gray-400">This order will automatically route to this intake warehouse.</p>
               </div>
               
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Courier / Delivery Notes</label>
+              <div className="space-y-1.5">
+                <label className="block font-bold text-gray-700 dark:text-gray-300">Courier / Delivery Notes</label>
                 <input
                   type="text"
                   placeholder="e.g. Sent via Bodaboda, Plate MC 123"
-                  className="input w-full"
+                  className="input w-full py-2 text-xs"
                   value={shipNotes}
                   onChange={(e) => setShipNotes(e.target.value)}
                 />
               </div>
             </div>
             
-            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
-              <button onClick={() => setShipModalOpen(null)} className="px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition">
+            <div className="p-4 bg-surface-muted dark:bg-[#161616] border-t border-surface-border dark:border-surface-dark-border flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShipModalOpen(null)}>
                 Cancel
-              </button>
-              <button 
+              </Button>
+              <Button 
+                size="sm"
                 onClick={() => {
                   if (!shipWarehouseCode) {
                     toast.error("Please select a destination warehouse.");
@@ -731,11 +722,11 @@ const DashboardOrders: React.FC = () => {
                   handleAdvance(shipModalOpen, 'SHIPPED_TO_WAREHOUSE', shipNotes || 'Dispatched to Warehouse Operations', shipWarehouseCode);
                 }}
                 disabled={!shipWarehouseCode || advancing === shipModalOpen}
-                className="btn-primary px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg disabled:opacity-50"
+                className="flex items-center gap-1.5 font-bold"
               >
                 {advancing === shipModalOpen ? 'Processing...' : 'Confirm Shipment'}
-                <Truck size={16} />
-              </button>
+                <Truck size={14} />
+              </Button>
             </div>
           </div>
         </div>
@@ -749,14 +740,14 @@ const DashboardOrders: React.FC = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()} 
-            className="relative max-w-4xl max-h-[90vh] bg-neutral-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl animate-scale-in cursor-default flex flex-col items-center justify-center"
+            className="relative max-w-3xl max-h-[90vh] bg-neutral-900 rounded-card overflow-hidden border border-white/10 shadow-2xl animate-scale-in cursor-default flex flex-col items-center justify-center"
           >
             <button 
               onClick={() => setZoomImage(null)}
-              className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white rounded-full p-2.5 backdrop-blur-md border border-white/20 transition-all active:scale-95 z-10"
-              title="Close View"
+              className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 backdrop-blur-md border border-white/20 transition-all z-10"
+              title="Close"
             >
-              <X size={20} />
+              <X size={16} />
             </button>
             <img 
               src={zoomImage} 
@@ -766,7 +757,6 @@ const DashboardOrders: React.FC = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

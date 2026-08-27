@@ -53,6 +53,7 @@ const TermsAndConditionsPage = lazy(() => import('./pages/legal/TermsAndConditio
 const PrivacyPolicyPage = lazy(() => import('./pages/legal/PrivacyPolicyPage'));
 const SellerContractPage = lazy(() => import('./pages/legal/SellerContractPage'));
 const TeamsDashboardLayout = lazy(() => import('./pages/teams/TeamsDashboardLayout'));
+const SettingsPage = lazy(() => import('./pages/dashboard/SettingsPage'));
 
 import GlobalTermsModal from './components/GlobalTermsModal';
 import DesktopChatDock from './components/chat/DesktopChatDock';
@@ -129,6 +130,7 @@ function AppRoutes() {
         <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
         <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/:username" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

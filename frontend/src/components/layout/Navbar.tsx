@@ -40,6 +40,8 @@ const Navbar = () => {
   const username = user?.username || 'User';
   const isSeller = userTier === 'seller_pro' || userTier === 'business' || isStaff || isSuperuser;
   const isTeamMember = !!user?.is_team_member || userTier === 'worker';
+  const isCustomer = !isSeller && !isStaff && !isInspector && !isTeamMember;
+  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || username;
 
   // Reset scroll and state on route change (skip for modal product overlays)
   const prevPathRef = useRef(location.pathname);
@@ -346,11 +348,20 @@ const Navbar = () => {
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-none group-hover:text-brand-500 transition-colors">{username}</p>
-                            <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
-                          </div>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 truncate font-medium capitalize">{userTier} {t('member')}</p>
+                          {isCustomer ? (
+                            <>
+                              <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-none group-hover:text-brand-500 transition-colors">{fullName}</p>
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 truncate font-medium">@{username}</p>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-none group-hover:text-brand-500 transition-colors">{fullName}</p>
+                                <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
+                              </div>
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 truncate font-medium capitalize">{userTier.replace('_', ' ')} {t('member')}</p>
+                            </>
+                          )}
                         </div>
                       </div>
                     </Link>
@@ -379,31 +390,22 @@ const Navbar = () => {
                         </div>
                       </div>
 
-                      {/* Sell & Grow */}
-                      <div className="mb-1 border-t border-gray-100 dark:border-neutral-900 pt-1 mt-1">
-                        {isSeller ? (
-                          <>
-                            <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('sell_and_grow')}</p>
-                            <div className="space-y-0.5">
-                              <Link to="/dashboard" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
-                                <LayoutDashboard size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
-                                <span className="text-sm font-medium">{t('seller_dashboard')}</span>
-                              </Link>
-                              <Link to="/dashboard/products#new" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
-                                <PlusCircle size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
-                                <span className="text-sm font-medium">{t('add_new_product')}</span>
-                              </Link>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="px-1.5 py-1">
-                            <Link to="/upgrade" className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-brand-50 dark:bg-brand-900/20 hover:bg-brand-100 dark:hover:bg-brand-900/40 text-brand-600 dark:text-brand-400 transition-colors group" onClick={() => setProfileOpen(false)}>
-                              <PlusCircle size={16} className="group-hover:scale-110 transition-transform" />
-                              <span className="font-semibold text-sm">{t('become_a_seller')}</span>
+                      {/* Sell & Grow (Sellers only) */}
+                      {isSeller && (
+                        <div className="mb-1 border-t border-gray-100 dark:border-neutral-900 pt-1 mt-1">
+                          <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('sell_and_grow')}</p>
+                          <div className="space-y-0.5">
+                            <Link to="/dashboard" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                              <LayoutDashboard size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                              <span className="text-sm font-medium">{t('seller_dashboard')}</span>
+                            </Link>
+                            <Link to="/dashboard/products#new" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                              <PlusCircle size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                              <span className="text-sm font-medium">{t('add_new_product')}</span>
                             </Link>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       {/* Management Group */}
                       {(isStaff || isInspector) && (
@@ -432,15 +434,15 @@ const Navbar = () => {
                         </div>
                       )}
 
-                      {/* Support Group */}
+                      {/* Support & Settings Group */}
                       <div className="border-t border-gray-100 dark:border-neutral-900 pt-1 mt-1">
                         <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('system')}</p>
                         <div className="space-y-0.5">
-                          <Link to="/dashboard/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
+                          <Link to="/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
                             <Settings size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
                             <span className="text-sm font-medium">{t('settings')}</span>
                           </Link>
-                          <Link to="/dashboard/help-center" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
+                          <Link to="/help" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
                             <HelpCircle size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
                             <span className="text-sm font-medium">{t('support')}</span>
                           </Link>

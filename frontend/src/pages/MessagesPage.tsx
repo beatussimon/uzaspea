@@ -169,6 +169,7 @@ const MessagesPage: React.FC = () => {
     loading: contextLoading,
     typingStatus,
     sendTypingStatus,
+    setConversations,
   } = useMessages();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -240,7 +241,7 @@ const MessagesPage: React.FC = () => {
           // Fetch target profile first to start conversation
           api.get(`/api/profiles/${targetUser}/`)
             .then(res => {
-              const targetUserId = res.data.user_id;
+              const targetUserId = res.data.user_id || res.data.user || (typeof res.data.id === 'number' ? res.data.id : null);
               if (targetUserId) {
                 if (Number(targetUserId) === Number(userId)) {
                   toast.error("You cannot message yourself");
@@ -253,6 +254,10 @@ const MessagesPage: React.FC = () => {
             })
             .then(res => {
               if (res && res.data) {
+                setConversations(prev => {
+                  if (prev.some(c => c.id === res.data.id)) return prev;
+                  return [res.data, ...prev];
+                });
                 navigate(`/messages/${res.data.id}`, { replace: true });
               }
             })
@@ -260,7 +265,7 @@ const MessagesPage: React.FC = () => {
         }
       }
     }
-  }, [id, conversations, searchParams, navigate, contextLoading, user, userId]);
+  }, [id, conversations, searchParams, navigate, contextLoading, user, userId, setConversations]);
 
   const activeConv = conversations.find(c => c.id === parseInt(id || ''));
 

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { 
   Package, Plus, Printer, Image as ImageIcon, Camera, DollarSign, 
   CheckCircle2, Sliders, Trash2, ArrowRight, ArrowLeft, Check, Tag,
-  Star, ChevronLeft, ChevronRight
+  Star, ChevronLeft, ChevronRight, Search, X
 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
@@ -658,16 +658,25 @@ const DashboardProducts: React.FC = () => {
   };
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t('my_products', 'My Products')}</h2>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t('my_products', 'My Products')}
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            {t('manage_inventory_desc', 'Manage inventory, update pricing, bulk import items, and track listing statuses.')}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={() => setShowBatchModal(true)}
             variant="outline"
-            className="flex items-center gap-2"
+            size="sm"
+            className="flex items-center gap-1.5"
           >
-            <Package size={16} />
+            <Package size={14} />
             Batch Import (CSV)
           </Button>
           <Button
@@ -680,92 +689,115 @@ const DashboardProducts: React.FC = () => {
             }}
             disabled={user?.tier === 'customer'}
             variant={showForm ? 'outline' : 'default'}
-            className="flex items-center gap-2"
+            size="sm"
+            className="flex items-center gap-1.5 font-bold"
           >
-            <Plus size={16} />
+            <Plus size={14} />
             {showForm ? 'Cancel' : t('add_new', 'Add New')}
           </Button>
           <button 
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition shadow-sm font-bold text-sm"
+            className="btn-ghost border border-surface-border dark:border-surface-dark-border px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 rounded-btn hover:bg-surface-muted dark:hover:bg-[#161616]"
           >
-            <Printer size={16} /> Print
+            <Printer size={14} /> Print
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Search and Filters */}
       {!showForm && (
-        <div className="flex flex-col md:flex-row gap-3 mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shrink-0">
-            <button
-              type="button"
-              onClick={() => setFilterStatus('all')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition ${filterStatus === 'all' ? 'bg-white dark:bg-gray-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterStatus('published')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition ${filterStatus === 'published' ? 'bg-white dark:bg-gray-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}
-            >
-              Published
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterStatus('drafts')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition ${filterStatus === 'drafts' ? 'bg-white dark:bg-gray-800 text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'}`}
-            >
-              Drafts
-            </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+          {/* Status Pills */}
+          <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            {([
+              { key: 'all' as const, label: t('all', 'All') },
+              { key: 'published' as const, label: t('published', 'Published') },
+              { key: 'drafts' as const, label: t('drafts', 'Drafts') },
+            ]).map((tab) => {
+              const isActive = filterStatus === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setFilterStatus(tab.key)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                    isActive
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                      : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
-          <input
-            type="text"
-            placeholder="Search by Name or SKU..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 p-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-          />
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="w-full md:w-48 p-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            <option value="">All Categories</option>
-            {flatCategories.map((c: any) => (
-              <option key={c.slug} value={c.slug}>{c.name}</option>
-            ))}
-          </select>
-          <select
-            value={filterCondition}
-            onChange={(e) => setFilterCondition(e.target.value)}
-            className="w-full md:w-32 p-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            <option value="">Any Condition</option>
-            <option value="New">New</option>
-            <option value="Used">Used</option>
-          </select>
+
+          {/* Search Box & Dropdowns */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 flex-1 sm:justify-end">
+            <div className="relative flex-1 sm:max-w-xs min-w-[180px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder={t('search_products', 'Search by Name or SKU...')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input pl-8 py-1.5 text-xs w-full"
+              />
+            </div>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="input py-1.5 text-xs w-auto min-w-[140px]"
+            >
+              <option value="">All Categories</option>
+              {flatCategories.map((c: any) => (
+                <option key={c.slug} value={c.slug}>{c.name}</option>
+              ))}
+            </select>
+            <select
+              value={filterCondition}
+              onChange={(e) => setFilterCondition(e.target.value)}
+              className="input py-1.5 text-xs w-auto min-w-[110px]"
+            >
+              <option value="">Any Condition</option>
+              <option value="New">New</option>
+              <option value="Used">Used</option>
+            </select>
+          </div>
         </div>
       )}
 
       {/* Batch Upload Modal */}
       {showBatchModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Batch Import Products</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Upload a CSV file with your products. Ensure your CSV has columns like Name, Description, Price, Stock, Category ID, SKU, and Condition.
-            </p>
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => setBatchFile(e.target.files ? e.target.files[0] : null)}
-              className="w-full mb-6 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file: file:text-brand-500 hover:file:"
-            />
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setShowBatchModal(false)}>Cancel</Button>
-              <Button onClick={handleBatchUpload} disabled={!batchFile || batchUploading}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#121212] rounded-card w-full max-w-md overflow-hidden shadow-2xl border border-surface-border dark:border-surface-dark-border">
+            <div className="p-5 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Package className="text-brand-500" size={18} />
+                Batch Import Products
+              </h3>
+              <button onClick={() => setShowBatchModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4 text-xs">
+              <p className="text-gray-500 dark:text-gray-400">
+                Upload a CSV file with your products. Ensure your CSV includes columns: Name, Description, Price, Stock, Category ID, SKU, and Condition.
+              </p>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => setBatchFile(e.target.files ? e.target.files[0] : null)}
+                className="input w-full py-2 text-xs file:mr-3 file:py-1 file:px-3 file:rounded-btn file:border-0 file:text-xs file:font-bold file:bg-brand-500 file:text-white hover:file:bg-brand-600"
+              />
+            </div>
+
+            <div className="p-4 bg-surface-muted dark:bg-[#161616] border-t border-surface-border dark:border-surface-dark-border flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowBatchModal(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleBatchUpload} disabled={!batchFile || batchUploading}>
                 {batchUploading ? 'Importing...' : 'Upload CSV'}
               </Button>
             </div>
@@ -2462,8 +2494,8 @@ const DashboardProducts: React.FC = () => {
       })()}
 
       {/* Products Table */}
-      {loading ? (
-        <div className="flex justify-center py-8">
+      {loading && products.length === 0 ? (
+        <div className="flex justify-center py-12">
           <Spinner size="md" />
         </div>
       ) : products.length === 0 ? (
@@ -2472,61 +2504,86 @@ const DashboardProducts: React.FC = () => {
           title={t('no_products_yet', 'No products yet. Create your first listing!')}
         />
       ) : (
-        <>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {products.map((product: any) => (
-            <div key={product.id}
-              className="flex items-center gap-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4 hover:shadow-sm transition">
-              <SafeImage src={product.images?.[0]?.image || ''} alt={product.name} category={product.category_name}
-                className="w-16 h-16 rounded-lg object-cover shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-medium text-gray-900 dark:text-white truncate">{product.name}</h4>
+        <div className="relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/40 dark:bg-black/40 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-card transition-all">
+              <Spinner size="md" />
+            </div>
+          )}
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 transition-opacity duration-200 ${loading ? 'opacity-50' : 'opacity-100'}`}>
+            {products.map((product: any) => (
+            <div
+              key={product.id}
+              className="card p-4 hover:shadow-xs transition flex flex-col sm:flex-row items-start sm:items-center gap-4"
+            >
+              <SafeImage
+                src={product.images?.[0]?.image || ''}
+                alt={product.name}
+                category={product.category_name}
+                className="w-16 h-16 rounded-xl object-cover shrink-0 bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border"
+              />
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-extrabold text-sm text-gray-900 dark:text-white truncate max-w-[200px]">
+                    {product.name}
+                  </h4>
                   {product.is_draft ? (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
+                    <span className="text-3xs font-black uppercase px-2 py-0.5 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-500 dark:text-gray-400 border border-surface-border dark:border-surface-dark-border">
                       Draft
                     </span>
                   ) : (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      product.stock === 0 ? ' text-red-500' : 
-                      product.stock <= 3 ? ' text-yellow-500' : 
-                      ' text-green-500'
-                    }`}>
+                    <span
+                      className={`text-3xs font-black uppercase px-2 py-0.5 rounded-full ${
+                        product.stock === 0
+                          ? 'bg-red-500/10 text-red-500 border border-red-500/20'
+                          : product.stock <= 3
+                          ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                          : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                      }`}
+                    >
                       {product.stock === 0 ? 'Out of Stock' : product.stock <= 3 ? 'Low Stock' : 'In Stock'}
                     </span>
                   )}
-                </div>
-                <p className="text-sm text-brand-500 dark:text-brand-500 font-bold mb-1 flex items-center gap-2">
-                  <span>TSh {parseInt(product.price).toLocaleString()}</span>
-                  {product.buying_price && (
-                    <span className="text-xs text-gray-500 font-normal ml-2">Cost: TSh {parseInt(product.buying_price).toLocaleString()}</span>
-                  )}
                   {product.sku && (
-                    <span className="text-[9px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded border dark:border-gray-600 ml-auto">SKU: {product.sku}</span>
+                    <span className="text-3xs font-mono text-gray-400 ml-auto">
+                      SKU: {product.sku}
+                    </span>
                   )}
-                </p>
-                <div className="flex items-center gap-2 text-xs text-gray-400">
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  <span className="font-extrabold text-gray-900 dark:text-white">
+                    TSh {parseInt(product.price).toLocaleString()}
+                  </span>
+                  {product.buying_price && (
+                    <span className="text-2xs text-gray-400 font-normal">
+                      Cost: TSh {parseInt(product.buying_price).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 text-2xs text-gray-400">
                   {editingStockId === product.id ? (
                     <div className="flex items-center gap-1">
-                      <input 
-                        type="number" 
-                        value={quickStockValue} 
+                      <input
+                        type="number"
+                        value={quickStockValue}
                         onChange={(e) => setQuickStockValue(e.target.value)}
-                        className="w-16 px-1.5 py-0.5 border rounded text-gray-900 dark:text-white dark:bg-gray-700" 
+                        className="input py-0.5 px-1.5 text-xs w-16"
                         autoFocus
                       />
-                      <button onClick={() => handleQuickStockUpdate(product.id)} className="text-green-500 hover:text-green-500 px-1 font-bold">✓</button>
-                      <button onClick={() => setEditingStockId(null)} className="text-red-500 hover:text-red-500 px-1 font-bold">✕</button>
+                      <button onClick={() => handleQuickStockUpdate(product.id)} className="text-emerald-500 hover:text-emerald-600 px-1 font-bold">✓</button>
+                      <button onClick={() => setEditingStockId(null)} className="text-red-500 hover:text-red-600 px-1 font-bold">✕</button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1 group">
-                      <span>Stock: {product.stock}</span>
-                      <button 
+                      <span>Stock: <strong className="text-gray-700 dark:text-gray-300">{product.stock}</strong></span>
+                      <button
                         onClick={() => { setEditingStockId(product.id); setQuickStockValue(String(product.stock)); }}
-                        className="opacity-0 group-hover:opacity-100 text-brand-500 hover:text-brand-500 ml-1 transition"
+                        className="opacity-0 group-hover:opacity-100 text-brand-500 hover:text-brand-600 ml-1 transition text-3xs font-bold"
                         title="Quick Edit Stock"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                        Edit
                       </button>
                     </div>
                   )}
@@ -2538,26 +2595,39 @@ const DashboardProducts: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="flex flex-col gap-2 shrink-0">
-                <button onClick={() => handleEdit(product)}
-                  className="px-3 py-1.5 text-xs text-center border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-300">
+
+              <div className="flex sm:flex-col gap-1.5 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-surface-border dark:border-surface-dark-border">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(product)}
+                  className="flex-1 sm:flex-initial text-xs py-1"
+                >
                   Edit
-                </button>
-                <button onClick={() => setVariantProductId(product.id.toString())}
-                  className="px-3 py-1.5 text-xs text-center border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500 rounded-lg   transition">
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVariantProductId(product.id.toString())}
+                  className="flex-1 sm:flex-initial text-xs py-1 text-brand-600 dark:text-brand-400 border-brand-500/30"
+                >
                   Variants
-                </button>
-                <button onClick={() => handleDelete(product.slug)}
-                  className="px-3 py-1.5 text-xs text-center border border-red-500 text-red-500 rounded-lg   transition">
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDelete(product.slug)}
+                  className="flex-1 sm:flex-initial text-xs py-1 text-red-500 border-red-500/30 hover:bg-red-500/10"
+                >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           ))}
         </div>
         {hasMore && <div ref={sentinelRef} className="h-4" />}
         {loadingMore && <div className="text-center py-4 text-gray-500 text-sm">Loading more...</div>}
-        </>
+        </div>
       )}
 
       {variantProductId && (

@@ -3,6 +3,7 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 import { BarChart3, ShieldAlert, Package, ShoppingCart, DollarSign, Star, AlertTriangle, Printer } from 'lucide-react';
 import { Spinner } from '../../components/ui/Spinner';
+import { Button } from '../../components/ui/Button';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { DateRangePicker, DateRange } from '../../components/ui/DateRangePicker';
@@ -159,20 +160,29 @@ const DashboardOverview: React.FC = () => {
 
   return (
     <div className="space-y-6 print:space-y-0 print:m-0">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print-hide">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t('store_analytics', 'Store Analytics')}</h2>
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print-hide">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t('store_analytics', 'Store Analytics')}
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Real-time sales breakdown, order conversion pipeline, and inventory status.
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <DateRangePicker value={dateRange} onChange={setDateRange} />
-          <button 
+          <Button 
+            variant="outline"
+            size="sm"
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-3 py-2     text-brand-500 dark:text-brand-500 border border-transparent rounded-lg text-sm font-bold transition-colors"
+            className="font-bold flex items-center gap-1.5"
             title="Export to PDF"
           >
-            <Printer size={16} />
-            <span className="hidden sm:inline">Export</span>
-          </button>
+            <Printer size={14} />
+            <span>Export</span>
+          </Button>
         </div>
-      </div>
+      </header>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 print-hide">
@@ -193,12 +203,12 @@ const DashboardOverview: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print-hide">
         {/* Revenue Area Chart */}
         <div className="lg:col-span-2 card p-5 flex flex-col h-[350px]">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center justify-between">
-            Revenue Pipeline
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center justify-between">
+            <span>Revenue Pipeline</span>
             <BarChart3 size={16} className="text-brand-500" />
           </h3>
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height={280} minWidth={1} minHeight={1}>
+          <div className="h-[280px] w-full min-h-[280px]">
+            <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={280} debounce={50}>
                <AreaChart data={stats?.revenue_data || []}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -218,9 +228,9 @@ const DashboardOverview: React.FC = () => {
 
         {/* Status Pie Chart */}
         <div className="card p-5 flex flex-col h-[350px]">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4">Order Status</h3>
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height={280} minWidth={1} minHeight={1}>
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Order Status</h3>
+          <div className="h-[280px] w-full min-h-[280px]">
+            <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={280} debounce={50}>
               <PieChart>
                 <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                   {pieData.map((_, index) => (
@@ -239,22 +249,22 @@ const DashboardOverview: React.FC = () => {
         {/* Top Products */}
         <div className="space-y-6">
           <div className="card overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">Top Performing Products</h3>
-              <span className="text-[10px] font-bold text-brand-500  px-2 py-0.5 rounded uppercase">Best Sellers</span>
+            <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
+              <h3 className="text-xs font-bold text-gray-900 dark:text-white">Top Performing Products</h3>
+              <span className="text-3xs font-black text-brand-600 dark:text-brand-400 bg-brand-500/10 border border-brand-500/20 px-2 py-0.5 rounded-full uppercase">Best Sellers</span>
             </div>
-            <div className="divide-y divide-gray-50 dark:divide-gray-700">
+            <div className="divide-y divide-surface-border dark:divide-surface-dark-border">
               {(stats?.top_products || []).map((p: any, i: number) => (
-                <div key={i} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
+                <div key={i} className="p-3 flex items-center justify-between hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
                   <div className="flex items-center gap-3 overflow-hidden pr-2">
-                    <div className="w-8 h-8 shrink-0 rounded bg-gray-100 flex items-center justify-center font-bold text-gray-400 text-xs">#{i+1}</div>
+                    <div className="w-7 h-7 shrink-0 rounded-btn bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center font-bold text-gray-400 text-xs">#{i+1}</div>
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{p.name}</p>
-                      <p className="text-[10px] text-gray-500 truncate">{p.sold} sold</p>
+                      <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{p.name}</p>
+                      <p className="text-3xs text-gray-400 truncate">{p.sold} sold</p>
                     </div>
                   </div>
-                  <div className="text-right shrink-0 max-w-[100px] sm:max-w-[140px]">
-                    <p className="text-sm font-black text-brand-500 truncate" title={`TSh ${(p.revenue ?? 0).toLocaleString()}`}>TSh {(p.revenue ?? 0).toLocaleString()}</p>
+                  <div className="text-right shrink-0 max-w-[120px]">
+                    <p className="text-xs font-extrabold text-brand-600 dark:text-brand-400 truncate" title={`TSh ${(p.revenue ?? 0).toLocaleString()}`}>TSh {(p.revenue ?? 0).toLocaleString()}</p>
                   </div>
                 </div>
               ))}
@@ -268,31 +278,31 @@ const DashboardOverview: React.FC = () => {
 
           {/* Store QR Code */}
           <div className="card p-5 space-y-4">
-            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 pb-2">Your Store QR Code</h3>
-            <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="bg-white p-3 rounded-xl border-4 border-brand-500 shadow-sm shrink-0">
+            <h3 className="text-xs font-bold text-gray-900 dark:text-white border-b border-surface-border dark:border-surface-dark-border pb-2">Your Store QR Code</h3>
+            <div className="flex flex-col sm:flex-row items-center gap-5">
+              <div className="bg-white p-2.5 rounded-btn border-2 border-brand-500 shadow-xs shrink-0">
                 {user?.username ? (
                   <QRCodeSVG 
                     value={`${window.location.origin}/${user.username}`} 
-                    size={120} 
+                    size={100} 
                     level="H" 
                     includeMargin={true}
                     fgColor="#000000"
                   />
                 ) : (
-                  <div className="w-[120px] h-[120px] bg-gray-100 rounded-lg animate-pulse" />
+                  <div className="w-[100px] h-[100px] bg-gray-100 rounded-lg animate-pulse" />
                 )}
               </div>
-              <div className="space-y-2 text-center sm:text-left">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">Scan to visit store</p>
-                <p className="text-xs text-gray-500">
-                  Customers can scan this code to browse your products and place orders.
+              <div className="space-y-1.5 text-center sm:text-left">
+                <p className="text-xs font-bold text-gray-900 dark:text-white">Scan to visit store</p>
+                <p className="text-2xs text-gray-500 dark:text-gray-400">
+                  Customers can scan this code to browse your products and place direct orders.
                 </p>
                 <a 
                   href={`/${user?.username}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block px-4 py-2     text-brand-500 dark:text-brand-500 font-bold text-xs rounded-lg transition"
+                  className="inline-block px-3 py-1.5 bg-brand-500/10 border border-brand-500/20 text-brand-600 dark:text-brand-400 font-bold text-2xs rounded-btn hover:bg-brand-500/20 transition"
                 >
                   View Storefront
                 </a>
@@ -302,23 +312,25 @@ const DashboardOverview: React.FC = () => {
         </div>
 
         {/* Low Stock Alerts */}
-        <div className="card overflow-hidden border-orange-500 dark:border-orange-500/20">
-          <div className="px-5 py-4 border-b border-orange-500 dark:border-orange-500/10 flex items-center justify-between ">
-            <h3 className="text-sm font-bold text-orange-500 dark:text-orange-500">Stock Alerts</h3>
-            <ShieldAlert size={16} className="text-orange-500" />
+        <div className="card overflow-hidden">
+          <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+              <ShieldAlert size={14} className="text-amber-500" /> Stock Alerts
+            </h3>
+            <span className="text-3xs text-gray-400 font-bold">{stats?.stock_alerts?.length || 0} alerts</span>
           </div>
           {(stats?.stock_alerts?.length || 0) > 0 ? (
-            <div className="divide-y divide-gray-50 dark:divide-gray-700">
+            <div className="divide-y divide-surface-border dark:divide-surface-dark-border">
               {stats.stock_alerts.map((s: any, i: number) => (
-                <div key={i} className="px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{s.name}</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${s.stock === 0 ? ' text-red-500  dark:text-red-500' : ' text-yellow-500  dark:text-yellow-500'}`}>
-                    {s.stock === 0 ? 'OUT OF STOCK' : `${s.stock} left`}
+                <div key={i} className="p-3 flex items-center justify-between hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                  <span className="text-xs font-medium text-gray-900 dark:text-white truncate pr-2">{s.name}</span>
+                  <span className={`text-3xs font-bold px-2 py-0.5 rounded-full uppercase shrink-0 ${s.stock === 0 ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}`}>
+                    {s.stock === 0 ? 'Out of Stock' : `${s.stock} left`}
                   </span>
                 </div>
               ))}
             </div>
-          ) : <p className="px-5 py-8 text-center text-gray-400 text-sm">All products well-stocked 🎉</p>}
+          ) : <p className="px-5 py-8 text-center text-gray-400 text-xs">All products well-stocked 🎉</p>}
         </div>
       </div>
 
@@ -332,60 +344,60 @@ const DashboardOverview: React.FC = () => {
             date={new Date().toLocaleDateString() + ' - ' + dateRange.label}
           />
 
-          <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between print-hide">
-            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">Items Sold ({dateRange.label})</h3>
-            <span className="text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded uppercase">Recent 100</span>
+          <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between print-hide">
+            <h3 className="text-xs font-bold text-gray-900 dark:text-white">Items Sold ({dateRange.label})</h3>
+            <span className="text-3xs font-bold text-gray-400 uppercase">Recent 100</span>
           </div>
           <div className="overflow-x-auto print:overflow-visible">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 text-[10px] uppercase tracking-wider">
-                  <th className="px-3 py-3 font-semibold w-8 text-center">S/N</th>
-                  <th className="px-4 py-3 font-semibold whitespace-nowrap">Date & Time</th>
-                  <th className="px-4 py-3 font-semibold min-w-[150px]">Product</th>
-                  <th className="px-4 py-3 font-semibold text-right">Qty</th>
-                  <th className="px-4 py-3 font-semibold text-right">Cost (Unit)</th>
-                  <th className="px-4 py-3 font-semibold text-right">Price (Unit)</th>
-                  <th className="px-4 py-3 font-semibold text-right">Total Rev</th>
-                  <th className="px-4 py-3 font-semibold text-center whitespace-nowrap">Status</th>
+            <table className="w-full text-left">
+              <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                <tr>
+                  <th className="px-3 py-2.5 font-bold w-8 text-center">S/N</th>
+                  <th className="px-3 py-2.5 font-bold whitespace-nowrap">Date & Time</th>
+                  <th className="px-3 py-2.5 font-bold min-w-[150px]">Product</th>
+                  <th className="px-3 py-2.5 font-bold text-right">Qty</th>
+                  <th className="px-3 py-2.5 font-bold text-right">Cost (Unit)</th>
+                  <th className="px-3 py-2.5 font-bold text-right">Price (Unit)</th>
+                  <th className="px-3 py-2.5 font-bold text-right">Total Rev</th>
+                  <th className="px-3 py-2.5 font-bold text-center whitespace-nowrap">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50 print:divide-gray-300">
+              <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border print:divide-gray-300">
                 {stats.items_sold_list.map((item: any, idx: number) => (
-                  <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors text-sm print:text-xs">
-                    <td className="px-3 py-3 text-center text-gray-500 dark:text-gray-400 print:text-black font-medium">{idx + 1}</td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 print:text-black whitespace-nowrap">
-                      {new Date(item.date).toLocaleDateString()} <span className="text-[10px] text-gray-400 print:text-gray-600 ml-1">{new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                  <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition text-xs print:text-2xs">
+                    <td className="px-3 py-2.5 text-center text-gray-400 print:text-black font-medium">{idx + 1}</td>
+                    <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black whitespace-nowrap">
+                      {new Date(item.date).toLocaleDateString()} <span className="text-3xs text-gray-400 print:text-gray-600 ml-1">{new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white print:text-black" title={item.product_name}>
-                      <div className="line-clamp-2 max-w-[200px] print:line-clamp-none print:max-w-none">{item.product_name}</div>
+                    <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-white print:text-black" title={item.product_name}>
+                      <div className="line-clamp-1 max-w-[200px] print:line-clamp-none print:max-w-none">{item.product_name}</div>
                     </td>
-                    <td className="px-4 py-3 font-bold text-gray-600 dark:text-gray-300 print:text-black text-right">
+                    <td className="px-3 py-2.5 font-bold text-gray-700 dark:text-gray-300 print:text-black text-right">
                       {item.quantity}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 print:text-black text-right whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black text-right whitespace-nowrap">
                       {item.buying_price ? formatCompactCurrency(item.buying_price) : '-'}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 print:text-black text-right whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 print:text-black text-right whitespace-nowrap">
                       {formatCompactCurrency(item.price)}
                     </td>
-                    <td className="px-4 py-3 font-black text-brand-500 dark:text-brand-500 print:text-black text-right whitespace-nowrap">
+                    <td className="px-3 py-2.5 font-extrabold text-brand-600 dark:text-brand-400 print:text-black text-right whitespace-nowrap">
                       {formatCompactCurrency(item.total)}
                     </td>
-                    <td className="px-4 py-3 text-center whitespace-nowrap">
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 print:bg-transparent print:border print:border-gray-300 print:text-black">
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      <span className="text-3xs font-bold px-2 py-0.5 rounded-full bg-surface-muted text-gray-600 dark:bg-[#161616] dark:text-gray-400 border border-surface-border dark:border-surface-dark-border print:bg-transparent print:border print:border-gray-300 print:text-black">
                         {item.status}
                       </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="border-t-2 border-gray-200 dark:border-gray-700 print:border-black font-black">
-                <tr className="bg-gray-50/50 dark:bg-gray-800/20 print:bg-transparent text-sm print:text-xs">
-                  <td colSpan={3} className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black uppercase tracking-widest">
+              <tfoot className="border-t-2 border-surface-border dark:border-surface-dark-border print:border-black font-extrabold">
+                <tr className="bg-surface-muted/40 dark:bg-[#161616]/40 print:bg-transparent text-xs print:text-2xs">
+                  <td colSpan={3} className="px-3 py-3 text-right text-gray-900 dark:text-white print:text-black uppercase tracking-wider text-2xs">
                     Grand Total
                   </td>
-                  <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black">
+                  <td className="px-3 py-3 text-right text-gray-900 dark:text-white print:text-black">
                     {stats.items_sold_list.reduce((acc: number, item: any) => acc + item.quantity, 0)}
                   </td>
                   <td className="px-4 py-4 text-right text-gray-900 dark:text-white print:text-black whitespace-nowrap">

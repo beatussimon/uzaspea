@@ -1433,7 +1433,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if order.user != request.user and not (request.user.is_staff or request.user.is_superuser):
             return Response({'error': 'You are not authorized to view this pickup code.'}, status=status.HTTP_403_FORBIDDEN)
         
-        if order.fulfillment_type == 'SELLER_PICKUP':
+        if order.fulfillment_type in ('SELLER_PICKUP', 'DIRECT_DELIVERY'):
             return Response({'code': order.delivery_code})
 
         pickup_code = order.pickup_codes.filter(is_used=False).first()
@@ -1946,6 +1946,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 },
                 'order_date': order.order_date.isoformat(),
                 'status': order.status,
+                'shipping_method': order.shipping_method,
+                'fulfillment_type': order.fulfillment_type,
                 'has_vehicles': order_has_vehicles(order),
                 'total_amount': float(order.total_amount),
                 'shipping_fee': float(order.shipping_fee) if order.shipping_fee else 0.0,

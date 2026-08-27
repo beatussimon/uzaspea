@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { CreditCard, MapPin, Truck, Shield } from 'lucide-react';
+import { CreditCard, MapPin, Truck, Shield, Clock, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import api from '../api';
@@ -554,90 +554,111 @@ const CheckoutPage: React.FC = () => {
           <div className="card p-6">
             {/* City & District fields moved inside the Edit Details section below */}
 
-            <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white uppercase mb-4">{t('shipping_method')}</h2>
-            <div className="mb-6">
+            <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white uppercase mb-3">{t('shipping_method')}</h2>
+            <div className="mb-4">
               {loadingOptions ? (
-                // HIGH-3: Skeleton while options load
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[1, 2].map(i => (
-                    <div key={i} className="p-4 rounded-btn border-2 border-surface-border dark:border-surface-dark-border animate-pulse h-24 bg-gray-100 dark:bg-gray-800" />
-                  ))}
-                </div>
+                <div className="h-11 rounded-lg border border-surface-border dark:border-surface-dark-border animate-pulse bg-gray-100 dark:bg-gray-800" />
               ) : fulfillmentOptions.length === 0 ? (
-                <p className="text-xs text-gray-400 py-4 text-center">No delivery options available for this location.</p>
+                <p className="text-xs text-gray-400 py-3 text-center">No delivery options available for this location.</p>
               ) : (
-                <>
-                  {/* Delivery Group */}
-                  {fulfillmentOptions.some(o => o.shipping_method === 'DELIVERY') && (
-                    <div className="mb-6">
-                      <h3 className="text-xs font-bold text-brand-500 dark:text-brand-500 uppercase tracking-widest mb-3">Delivery Options</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {fulfillmentOptions.filter(o => o.shipping_method === 'DELIVERY').map((opt) => {
-                          const isSelected = fulfillmentType === opt.fulfillment_type;
-                          return (
-                            <button
-                              key={opt.fulfillment_type}
-                              type="button"
-                              onClick={() => {
-                                setFulfillmentType(opt.fulfillment_type);
-                                setShippingMethod(opt.shipping_method);
-                              }}
-                              className={`p-4 rounded-btn border-2 flex flex-col items-start gap-2 transition-all duration-200 text-left ${
-                                isSelected
-                                  ? 'border-brand-500 '
-                                  : 'border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <Truck size={18} className={isSelected ? 'text-brand-500' : 'text-gray-500'} />
-                                <span className={`font-bold text-xs uppercase tracking-wider ${isSelected ? 'text-brand-500' : 'text-gray-700 dark:text-gray-300'}`}>{opt.name}</span>
-                              </div>
-                              <span className="text-xs text-gray-500">{opt.description}</span>
-                              <span className="text-[10px] font-bold text-gray-400 mt-auto pt-2">
-                                {fulfillmentType === 'PLATFORM_DELIVERY' && activeQuote && isSelected
-                                  ? `~TSh ${activeQuote.price.toLocaleString()} estimated` : ''}
-                              </span>
-                            </button>
-                          );
-                        })}
+                <div className="space-y-3">
+                  {/* Fulfillment Method Select */}
+                  <div className="space-y-1.5">
+                    <label className="text-2xs font-extrabold uppercase tracking-wider text-gray-500">
+                      {t('fulfillment_method', 'Fulfillment Method')} *
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={fulfillmentType}
+                        onChange={(e) => {
+                          const selectedVal = e.target.value;
+                          const opt = fulfillmentOptions.find(o => o.fulfillment_type === selectedVal);
+                          if (opt) {
+                            setFulfillmentType(opt.fulfillment_type);
+                            setShippingMethod(opt.shipping_method);
+                          }
+                        }}
+                        className="input h-11 pl-10 pr-10 text-xs font-bold appearance-none bg-surface-muted dark:bg-[#161616] cursor-pointer border border-surface-border dark:border-surface-dark-border focus:border-brand-500"
+                      >
+                        {fulfillmentOptions.some(o => o.shipping_method === 'DELIVERY') && (
+                          <optgroup label="── Delivery Options ──">
+                            {fulfillmentOptions.filter(o => o.shipping_method === 'DELIVERY').map(opt => (
+                              <option key={opt.fulfillment_type} value={opt.fulfillment_type}>
+                                {opt.name} ({opt.fulfillment_type === 'PLATFORM_DELIVERY' && activeQuote ? `~TSh ${activeQuote.price.toLocaleString()}` : 'Standard'})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {fulfillmentOptions.some(o => o.shipping_method === 'PICKUP') && (
+                          <optgroup label="── Pickup Options ──">
+                            {fulfillmentOptions.filter(o => o.shipping_method === 'PICKUP').map(opt => (
+                              <option key={opt.fulfillment_type} value={opt.fulfillment_type}>
+                                {opt.name} (Free)
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-brand-500">
+                        {shippingMethod === 'PICKUP' ? <MapPin size={16} /> : <Truck size={16} />}
+                      </div>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+
+                    {/* Active Option Subtitle / Description */}
+                    {(() => {
+                      const activeOpt = fulfillmentOptions.find(o => o.fulfillment_type === fulfillmentType);
+                      if (!activeOpt) return null;
+                      return (
+                        <div className="flex items-center justify-between text-2xs text-gray-400 px-1 pt-0.5">
+                          <span>{activeOpt.description}</span>
+                          <span className="font-extrabold text-brand-500 shrink-0 ml-2">
+                            {activeOpt.shipping_method === 'PICKUP'
+                              ? 'Free'
+                              : (fulfillmentType === 'PLATFORM_DELIVERY' && activeQuote ? `~TSh ${activeQuote.price.toLocaleString()}` : '')}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Delivery Speed Dropdown (Only when PLATFORM_DELIVERY and quotes exist) */}
+                  {shippingMethod === 'DELIVERY' && fulfillmentType === 'PLATFORM_DELIVERY' && quotes.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-2xs font-extrabold uppercase tracking-wider text-gray-500">
+                          {t('delivery_speed_pricing', 'Delivery Speed & Pricing')} *
+                        </label>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
+                          Estimated at warehouse
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <select
+                          value={selectedQuoteCode}
+                          onChange={(e) => setSelectedQuoteCode(e.target.value)}
+                          className="input h-11 pl-10 pr-10 text-xs font-bold appearance-none bg-surface-muted dark:bg-[#161616] cursor-pointer border border-surface-border dark:border-surface-dark-border focus:border-brand-500"
+                        >
+                          {quotes.map(q => (
+                            <option key={q.code} value={q.code}>
+                              {q.name.toUpperCase()} ── ~TSh {q.price.toLocaleString()}
+                            </option>
+                          ))}
+                        </select>
+                        <Clock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-brand-500" />
+                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                       </div>
                     </div>
                   )}
 
-                  {/* Pickup Group */}
-                  {fulfillmentOptions.some(o => o.shipping_method === 'PICKUP') && (
-                    <div>
-                      <h3 className="text-xs font-bold text-brand-500 dark:text-brand-500 uppercase tracking-widest mb-3">Pickup Options</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {fulfillmentOptions.filter(o => o.shipping_method === 'PICKUP').map((opt) => {
-                          const isSelected = fulfillmentType === opt.fulfillment_type;
-                          return (
-                            <button
-                              key={opt.fulfillment_type}
-                              type="button"
-                              onClick={() => {
-                                setFulfillmentType(opt.fulfillment_type);
-                                setShippingMethod(opt.shipping_method);
-                              }}
-                              className={`p-4 rounded-btn border-2 flex flex-col items-start gap-2 transition-all duration-200 text-left ${
-                                isSelected
-                                  ? 'border-brand-500 '
-                                  : 'border-surface-border dark:border-surface-dark-border hover:border-gray-300 dark:hover:border-gray-600'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <MapPin size={18} className={isSelected ? 'text-brand-500' : 'text-gray-500'} />
-                                <span className={`font-bold text-xs uppercase tracking-wider ${isSelected ? 'text-brand-500' : 'text-gray-700 dark:text-gray-300'}`}>{opt.name}</span>
-                              </div>
-                              <span className="text-xs text-gray-500">{opt.description}</span>
-                              <span className="text-[10px] font-bold text-gray-400 mt-auto pt-2">Free</span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                  {/* Direct Delivery Notice */}
+                  {fulfillmentType === 'DIRECT_DELIVERY' && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg flex items-center gap-2 text-2xs text-amber-500 font-medium">
+                      <Truck size={14} className="shrink-0" />
+                      <span>The seller will dispatch directly to your address. Delivery fee is settled directly with the seller.</span>
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
 
@@ -650,51 +671,7 @@ const CheckoutPage: React.FC = () => {
                   transition={{ duration: 0.3 }}
                   className="overflow-hidden"
                 >
-                  <h2 className="text-heading-sm font-bold text-gray-900 dark:text-white mt-6 mb-4 uppercase">{t('delivery_options')}</h2>
-                  <div className="space-y-4">
-
-                    {/* HIGH-2: Only show warehouse quotes for platform-managed delivery */}
-                    {fulfillmentType === 'PLATFORM_DELIVERY' && quotes.length > 0 && (
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
-                          {t('delivery_speed_pricing', 'Delivery Speed & Pricing')}
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                          {quotes.map((q) => {
-                            const isSel = selectedQuoteCode === q.code;
-                            return (
-                              <button
-                                key={q.code}
-                                type="button"
-                                onClick={() => setSelectedQuoteCode(q.code)}
-                                className={`p-3 border rounded-btn flex flex-col justify-center items-center transition-all duration-200 ${
-                                  isSel
-                                    ? 'border-brand-500  text-brand-500'
-                                    : 'border-surface-border dark:border-surface-dark-border text-gray-500 dark:text-gray-400 hover:bg-surface-muted dark:hover:bg-white/5'
-                                }`}
-                              >
-                                <span className="text-xs font-bold capitalize">{q.name}</span>
-                                <span className="text-xs font-black mt-1">~TSh {q.price.toLocaleString()}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <span className="text-[10px] text-gray-450 dark:text-gray-500 font-bold uppercase tracking-wide block mt-1">
-                          {t('estimated_shipping_notice', 'Estimated — confirmed after warehouse receipt')}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* DIRECT_DELIVERY notice */}
-                    {fulfillmentType === 'DIRECT_DELIVERY' && (
-                      <div className="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 p-3 rounded-btn mb-4">
-                        <p className="text-xs text-amber-700 dark:text-amber-400 font-bold flex items-center gap-2">
-                          <Truck size={14} />
-                          The seller will ship directly to your address. Shipping fee is agreed with seller.
-                        </p>
-                      </div>
-                    )}
-
+                  <div className="space-y-4 pt-2">
                     {!isEditingDetails ? (
                       <div className="bg-gray-50 dark:bg-neutral-800/50 p-4 rounded-xl border border-surface-border dark:border-surface-dark-border">
                         <div className="flex justify-between items-start mb-2">

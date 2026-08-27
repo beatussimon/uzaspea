@@ -4,6 +4,9 @@ import toast from 'react-hot-toast';
 import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck, Shield, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDialog } from '../../components/ui/Dialogs';
+import { Button } from '../../components/ui/Button';
+import { Spinner } from '../../components/ui/Spinner';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 const TIER_RANKS: Record<string, number> = {
   'customer': 1,
@@ -19,7 +22,8 @@ const BillingPage: React.FC = () => {
   const [driverPayments, setDriverPayments] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [tiers, setTiers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'invoices' | 'ledger' | 'driver_payments'>('subscriptions');
 
   // Filters and Pagination
@@ -129,6 +133,7 @@ const BillingPage: React.FC = () => {
       toast.error('Failed to load billing information');
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
   }, [pageInvoices, pageLedger, pageDriverPayments, dateFilter, customStartDate, customEndDate]);
 
@@ -261,114 +266,116 @@ const BillingPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-2">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Wallet className="text-brand-500" size={24} /> Billing & Commission
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Manage your platform fees, commission ledger, and monthly payouts.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t('billing_commission', 'Billing & Commission')}
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            {t('billing_desc', 'Manage your subscriptions, monthly invoices, commission ledger, and logistics payouts.')}
+          </p>
         </div>
-      </div>
+      </header>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="flex gap-6 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setActiveTab('subscriptions')}
-            className={`py-3.5 border-b-2 text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === 'subscriptions'
-                ? 'border-brand-500 text-brand-500'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-            }`}
-          >
-            My Subscriptions
-          </button>
-          <button
-            onClick={() => setActiveTab('invoices')}
-            className={`py-3.5 border-b-2 text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === 'invoices'
-                ? 'border-brand-500 text-brand-500'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-            }`}
-          >
-            Monthly Invoices
-          </button>
-          <button
-            onClick={() => setActiveTab('ledger')}
-            className={`py-3.5 border-b-2 text-sm font-bold transition-all ${
-              activeTab === 'ledger'
-                ? 'border-brand-500 text-brand-500'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-            }`}
-          >
-            Commission Ledger
-          </button>
-          {driverPayments.length > 0 && (
+      <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 pt-2">
+        {[
+          { key: 'subscriptions', label: 'My Subscriptions' },
+          { key: 'invoices', label: 'Monthly Invoices' },
+          { key: 'ledger', label: 'Commission Ledger' },
+          ...(driverPayments.length > 0 ? [{ key: 'driver_payments', label: 'Logistics Costs' }] : []),
+        ].map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
             <button
-              onClick={() => setActiveTab('driver_payments')}
-              className={`py-3.5 border-b-2 text-sm font-bold transition-all ${
-                activeTab === 'driver_payments'
-                  ? 'border-brand-500 text-brand-500'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key as any)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                isActive
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                  : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
               }`}
             >
-              Logistics Costs
+              {tab.label}
             </button>
-          )}
-        </nav>
+          );
+        })}
       </div>
 
       {activeTab !== 'subscriptions' && (
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 no-scrollbar">
-            <Filter size={16} className="text-gray-400 shrink-0" />
-            <button onClick={() => setDateFilter('all')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'all' ? ' text-brand-500  dark:text-brand-500' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>All Time</button>
-            <button onClick={() => setDateFilter('this_month')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'this_month' ? ' text-brand-500  dark:text-brand-500' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>This Month</button>
-            <button onClick={() => setDateFilter('last_month')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'last_month' ? ' text-brand-500  dark:text-brand-500' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>Last Month</button>
-            <button onClick={() => setDateFilter('this_year')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'this_year' ? ' text-brand-500  dark:text-brand-500' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>This Year</button>
-            <button onClick={() => setDateFilter('custom')} className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-colors ${dateFilter === 'custom' ? ' text-brand-500  dark:text-brand-500' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}`}>Custom</button>
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between p-3 rounded-btn bg-surface-muted/40 dark:bg-[#161616]/40 border border-surface-border dark:border-surface-dark-border">
+          <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+            <Filter size={14} className="text-gray-400 shrink-0 mr-1" />
+            {[
+              { key: 'all', label: 'All Time' },
+              { key: 'this_month', label: 'This Month' },
+              { key: 'last_month', label: 'Last Month' },
+              { key: 'this_year', label: 'This Year' },
+              { key: 'custom', label: 'Custom' },
+            ].map((f) => {
+              const isSelected = dateFilter === f.key;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setDateFilter(f.key as any)}
+                  className={`px-2.5 py-1 rounded-full text-2xs font-bold transition-all whitespace-nowrap ${
+                    isSelected
+                      ? 'bg-brand-500 text-white shadow-xs'
+                      : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
           </div>
           {dateFilter === 'custom' && (
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="input text-xs py-1.5 h-auto w-full sm:w-auto" />
+              <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="input text-xs py-1 h-auto w-full sm:w-auto" />
               <span className="text-gray-400 text-xs">to</span>
-              <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="input text-xs py-1.5 h-auto w-full sm:w-auto" />
+              <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="input text-xs py-1 h-auto w-full sm:w-auto" />
             </div>
           )}
         </div>
       )}
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" />
+      {initialLoading ? (
+        <div className="flex justify-center py-16">
+          <Spinner size="lg" />
         </div>
-      ) : activeTab === 'subscriptions' ? (
-        <div className="space-y-4">
+      ) : (
+        <div className={`transition-opacity duration-200 ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+          {activeTab === 'subscriptions' ? (
+            <div className="space-y-6">
           {subscriptions.length === 0 ? (
             <div className="space-y-6">
-              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 shadow-sm">
-                <Shield size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-                <p className="text-gray-500 font-medium mb-1">You don't have an active seller subscription.</p>
-                <p className="text-xs text-gray-400">Choose one of the premium plans below to activate your account and start selling.</p>
-              </div>
+              <EmptyState
+                icon={Shield}
+                title="No Active Seller Subscription"
+                description="Choose one of the premium seller plans below to activate your account and access all seller capabilities."
+              />
 
               <div className="space-y-3">
-                <h3 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Available subscription plans:</h3>
+                <h3 className="font-extrabold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Available subscription plans:</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {tiers.filter((t: any) => t.tier_level !== 'customer').map((t: any) => (
-                    <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:border-brand-500 transition-all flex flex-col justify-between">
+                    <div key={t.id} className="card p-5 flex flex-col justify-between hover:border-brand-500 transition-all">
                       <div>
-                        <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
-                        <div className="text-lg font-black text-brand-500 dark:text-brand-500 mb-1">TZS {Number(t.price).toLocaleString()}</div>
-                        <p className="text-[10px] text-gray-400">Duration: {t.duration} Days</p>
+                        <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
+                        <p className="text-2xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
+                        <div className="text-lg font-extrabold text-brand-500 dark:text-brand-400 mb-1">TZS {Number(t.price).toLocaleString()}</div>
+                        <p className="text-3xs text-gray-400">Duration: {t.duration} Days</p>
                       </div>
-                      <button
+                      <Button
+                        size="sm"
                         onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
-                        className="btn-primary py-2 px-4 mt-4 w-full rounded-lg text-xs font-bold bg-brand-500 hover:bg-brand-500 text-white shadow-sm"
+                        className="mt-4 w-full font-bold"
                       >
                         Subscribe Now
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -377,43 +384,46 @@ const BillingPage: React.FC = () => {
           ) : (
             <div className="space-y-6">
               {subscriptions.map((sub: any) => (
-                <div key={sub.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+                <div key={sub.id} className="card p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                   <div>
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-                      <span className="capitalize">{sub.tier?.name || 'Unknown Tier'}</span> Plan
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-extrabold text-base text-gray-900 dark:text-white capitalize">
+                        {sub.tier?.name || 'Seller'} Plan
+                      </h3>
                       {sub.is_expired ? (
-                        <span className="px-2 py-0.5  text-red-500  dark:text-red-500 text-xs rounded-full uppercase tracking-wider font-bold">Expired</span>
+                        <span className="px-2 py-0.5 bg-red-500/10 text-red-500 border border-red-500/20 text-3xs rounded-full uppercase tracking-wider font-bold">Expired</span>
                       ) : (
-                        <span className="px-2 py-0.5  text-green-500  dark:text-green-500 text-xs rounded-full uppercase tracking-wider font-bold">Active</span>
+                        <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-3xs rounded-full uppercase tracking-wider font-bold">Active</span>
                       )}
-                    </h3>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
-                      <p>Started: <span className="font-semibold text-gray-900 dark:text-gray-300">{new Date(sub.start_date).toLocaleDateString()}</span></p>
-                      <p>Expires: <span className="font-semibold text-gray-900 dark:text-gray-300">{new Date(sub.end_date).toLocaleDateString()}</span></p>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                      <p>Started: <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(sub.start_date).toLocaleDateString()}</span></p>
+                      <p>Expires: <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(sub.end_date).toLocaleDateString()}</span></p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-3 text-right w-full md:w-auto">
+                  <div className="flex flex-col md:items-end gap-3 w-full md:w-auto">
                     <div>
-                      <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Renewal Due</div>
-                      <div className="text-xl font-black text-gray-900 dark:text-white">TZS {Number(sub.tier?.price || 0).toLocaleString()}</div>
+                      <div className="text-3xs text-gray-400 uppercase font-bold tracking-wider">Renewal Fee</div>
+                      <div className="text-lg font-extrabold text-gray-900 dark:text-white">TZS {Number(sub.tier?.price || 0).toLocaleString()}</div>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto justify-end">
+                    <div className="flex flex-wrap gap-2 w-full md:w-auto">
                       {sub.is_active && (
-                        <button
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={handleCancelSubscription}
-                          className="py-2 px-4 rounded-lg text-xs font-bold border border-red-500 dark:border-red-500/30 text-red-500 dark:text-red-500   transition"
+                          className="text-red-500 border-red-500/30 hover:bg-red-500/10"
                         >
                           Cancel Subscription
-                        </button>
+                        </Button>
                       )}
-                      <button
+                      <Button
+                        size="sm"
                         onClick={() => handleOpenSubscriptionPayModal(sub)}
-                        className={`btn-primary py-2 px-6 rounded-lg text-xs font-bold shadow-md w-full md:w-auto ${
-                          sub.is_expired ? 'bg-red-500 hover:bg-red-500 text-white shadow-red-600/20' : 'bg-brand-500 hover:bg-brand-500 text-white shadow-brand-600/20'
-                        }`}
+                        className="font-bold"
                       >
                         {sub.is_expired ? 'Renew Now' : 'Pay Renewal Early'}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -430,30 +440,31 @@ const BillingPage: React.FC = () => {
                 });
 
                 return availableUpgrades.length > 0 ? (
-                  <div className="space-y-3 pt-4 border-t dark:border-gray-700">
-                    <h3 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Upgrade Plan:</h3>
+                  <div className="space-y-3 pt-4 border-t border-surface-border dark:border-surface-dark-border">
+                    <h3 className="font-extrabold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Upgrade Plan:</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {availableUpgrades.map((t: any) => (
-                        <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:border-brand-500 transition-all flex flex-col justify-between">
+                        <div key={t.id} className="card p-5 flex flex-col justify-between hover:border-brand-500 transition-all">
                           <div>
-                            <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
-                            <div className="text-lg font-black text-brand-500 dark:text-brand-500 mb-1">TZS {Number(t.price).toLocaleString()}</div>
-                            <p className="text-[10px] text-gray-400">Duration: {t.duration} Days</p>
+                            <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
+                            <p className="text-2xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
+                            <div className="text-lg font-extrabold text-brand-500 dark:text-brand-400 mb-1">TZS {Number(t.price).toLocaleString()}</div>
+                            <p className="text-3xs text-gray-400">Duration: {t.duration} Days</p>
                           </div>
-                          <button
+                          <Button
+                            size="sm"
                             onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
-                            className="btn-primary py-2 px-4 mt-4 w-full rounded-lg text-xs font-bold bg-brand-500 hover:bg-brand-500 text-white shadow-sm"
+                            className="mt-4 w-full font-bold"
                           >
                             Choose Upgrade
-                          </button>
+                          </Button>
                         </div>
                       ))}
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4   border border-brand-500 dark:border-brand-500/30 rounded-xl text-center">
-                    <p className="text-sm font-semibold text-brand-500 dark:text-brand-500">
+                  <div className="p-4 bg-surface-muted/40 dark:bg-[#161616]/40 border border-surface-border dark:border-surface-dark-border rounded-btn text-center">
+                    <p className="text-xs font-semibold text-brand-600 dark:text-brand-400">
                       You are subscribed to our highest tier plan (Business). Thank you for being a premium partner!
                     </p>
                   </div>
@@ -465,50 +476,52 @@ const BillingPage: React.FC = () => {
       ) : activeTab === 'invoices' ? (
         <div className="space-y-4">
           {invoices.length === 0 ? (
-            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
-              <Receipt size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-              <p className="text-gray-500">No invoices generated yet.</p>
-            </div>
+            <EmptyState
+              icon={Receipt}
+              title="No Invoices Generated Yet"
+              description="Monthly commission invoices will appear here after orders are finalized."
+            />
           ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
+            <div className="card overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700 text-gray-500 dark:text-gray-400 uppercase font-black tracking-wider">
-                      <th className="p-4">Billing Period</th>
-                      <th className="p-4 text-right">Orders Value</th>
-                      <th className="p-4 text-right">Commission Due</th>
-                      <th className="p-4">Due Date</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4 text-center">Action</th>
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                    <tr>
+                      <th className="p-3">Billing Period</th>
+                      <th className="p-3 text-right">Orders Value</th>
+                      <th className="p-3 text-right">Commission Due</th>
+                      <th className="p-3">Due Date</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                     {invoices.map((inv: any) => (
-                      <tr key={inv.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
-                        <td className="p-4 font-bold text-gray-900 dark:text-white">
+                      <tr key={inv.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                        <td className="p-3 font-bold text-gray-900 dark:text-white">
                           {formatMonth(inv.year, inv.month)}
                         </td>
-                        <td className="p-4 text-right text-gray-600 dark:text-gray-300">
+                        <td className="p-3 text-right text-gray-600 dark:text-gray-300">
                           TSh {Number(inv.total_order_amount).toLocaleString()}
                         </td>
-                        <td className="p-4 text-right text-brand-500 font-bold">
+                        <td className="p-3 text-right text-brand-600 dark:text-brand-400 font-bold">
                           TSh {Number(inv.total_commission).toLocaleString()}
                         </td>
-                        <td className="p-4 text-gray-500 dark:text-gray-400">
+                        <td className="p-3 text-gray-500 dark:text-gray-400">
                           {new Date(inv.due_date).toLocaleDateString()}
                         </td>
-                        <td className="p-4">{getStatusBadge(inv.status)}</td>
-                        <td className="p-4 text-center">
+                        <td className="p-3">{getStatusBadge(inv.status)}</td>
+                        <td className="p-3 text-center">
                           {(inv.status === 'UNPAID' || inv.status === 'OVERDUE') ? (
-                            <button
+                            <Button
+                              size="sm"
                               onClick={() => handleOpenPayModal(inv)}
-                              className="px-3 py-1 bg-brand-500 hover:bg-brand-500 text-white rounded font-bold transition text-[11px]"
+                              className="text-2xs py-0.5 px-2.5 font-bold"
                             >
                               Pay Now
-                            </button>
+                            </Button>
                           ) : (
-                            <span className="text-[11px] text-gray-400 font-medium">—</span>
+                            <span className="text-2xs text-gray-400 font-medium">—</span>
                           )}
                         </td>
                       </tr>
@@ -516,22 +529,26 @@ const BillingPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-              <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <button
+              <div className="p-3 border-t border-surface-border dark:border-surface-dark-border flex items-center justify-between bg-surface-muted/30 dark:bg-[#161616]/30">
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={pageInvoices === 1}
                   onClick={() => setPageInvoices(p => Math.max(1, p - 1))}
-                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                  className="text-xs"
                 >
-                  <ChevronLeft size={14} /> Previous
-                </button>
-                <span className="text-xs text-gray-500 dark:text-gray-400 font-bold">Page {pageInvoices}</span>
-                <button
+                  <ChevronLeft size={14} className="mr-1" /> Previous
+                </Button>
+                <span className="text-2xs text-gray-400 font-bold">Page {pageInvoices}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={!hasMoreInvoices}
                   onClick={() => setPageInvoices(p => p + 1)}
-                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                  className="text-xs"
                 >
-                  Next <ChevronRight size={14} />
-                </button>
+                  Next <ChevronRight size={14} className="ml-1" />
+                </Button>
               </div>
             </div>
           )}
@@ -539,25 +556,25 @@ const BillingPage: React.FC = () => {
       ) : activeTab === 'ledger' ? (
         <div className="space-y-4">
           {ledger.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                <div className="p-3   text-blue-500 rounded-lg">
-                  <Receipt size={24} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="card p-4 flex items-center gap-4">
+                <div className="p-3 rounded-btn bg-blue-500/10 text-blue-500">
+                  <Receipt size={20} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Order Amount</p>
-                  <p className="text-xl font-black text-gray-900 dark:text-white mt-1">
+                  <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Total Order Amount</p>
+                  <p className="text-lg font-extrabold text-gray-900 dark:text-white mt-0.5">
                     TSh {Number(ledgerTotals?.total_order_amount || ledger.reduce((sum, entry) => sum + Number(entry.order_amount || 0), 0)).toLocaleString()}
                   </p>
                 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-                <div className="p-3   text-brand-500 rounded-lg">
-                  <Wallet size={24} />
+              <div className="card p-4 flex items-center gap-4">
+                <div className="p-3 rounded-btn bg-brand-500/10 text-brand-500">
+                  <Wallet size={20} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Commission</p>
-                  <p className="text-xl font-black text-brand-500 mt-1">
+                  <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Total Commission</p>
+                  <p className="text-lg font-extrabold text-brand-500 mt-0.5">
                     TSh {Number(ledgerTotals?.total_commission || ledger.reduce((sum, entry) => sum + Number(entry.commission_amount || 0), 0)).toLocaleString()}
                   </p>
                 </div>
@@ -565,43 +582,44 @@ const BillingPage: React.FC = () => {
             </div>
           )}
           {ledger.length === 0 ? (
-            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
-              <ArrowDownRight size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-              <p className="text-gray-500">No ledger transactions recorded.</p>
-            </div>
+            <EmptyState
+              icon={ArrowDownRight}
+              title="No Ledger Transactions"
+              description="Commission deductions and adjustments will be recorded here in real-time."
+            />
           ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
+            <div className="card overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700 text-gray-500 dark:text-gray-400 uppercase font-black tracking-wider">
-                      <th className="p-4">Date</th>
-                      <th className="p-4">Order ID</th>
-                      <th className="p-4">Type</th>
-                      <th className="p-4 text-right">Order Amount</th>
-                      <th className="p-4 text-right">Rate</th>
-                      <th className="p-4 text-right">Commission</th>
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                    <tr>
+                      <th className="p-3">Date</th>
+                      <th className="p-3">Order ID</th>
+                      <th className="p-3">Type</th>
+                      <th className="p-3 text-right">Order Amount</th>
+                      <th className="p-3 text-right">Rate</th>
+                      <th className="p-3 text-right">Commission</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                     {ledger.map((entry: any) => (
-                      <tr key={entry.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
-                        <td className="p-4 text-gray-500 dark:text-gray-400">
+                      <tr key={entry.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                        <td className="p-3 text-gray-500 dark:text-gray-400">
                           {new Date(entry.created_at).toLocaleDateString()}
                         </td>
-                        <td className="p-4 font-bold text-gray-900 dark:text-white">
+                        <td className="p-3 font-bold text-gray-900 dark:text-white">
                           #{entry.order_id}
                         </td>
-                        <td className="p-4 text-gray-600 dark:text-gray-300 font-medium">
+                        <td className="p-3 text-gray-600 dark:text-gray-300 font-medium">
                           {entry.entry_type === 'COMMISSION' ? 'Platform Commission' : 'Cancellation Fee'}
                         </td>
-                        <td className="p-4 text-right text-gray-600 dark:text-gray-300">
+                        <td className="p-3 text-right text-gray-600 dark:text-gray-300">
                           TSh {Number(entry.order_amount).toLocaleString()}
                         </td>
-                        <td className="p-4 text-right text-gray-500 dark:text-gray-400">
+                        <td className="p-3 text-right text-gray-500 dark:text-gray-400">
                           {Number(entry.commission_rate)}%
                         </td>
-                        <td className="p-4 text-right font-bold text-brand-500">
+                        <td className="p-3 text-right font-bold text-brand-600 dark:text-brand-400">
                           TSh {Number(entry.commission_amount).toLocaleString()}
                         </td>
                       </tr>
@@ -609,108 +627,113 @@ const BillingPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-              <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <button
+              <div className="p-3 border-t border-surface-border dark:border-surface-dark-border flex items-center justify-between bg-surface-muted/30 dark:bg-[#161616]/30">
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={pageLedger === 1}
                   onClick={() => setPageLedger(p => Math.max(1, p - 1))}
-                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                  className="text-xs"
                 >
-                  <ChevronLeft size={14} /> Previous
-                </button>
-                <span className="text-xs text-gray-500 dark:text-gray-400 font-bold">Page {pageLedger}</span>
-                <button
+                  <ChevronLeft size={14} className="mr-1" /> Previous
+                </Button>
+                <span className="text-2xs text-gray-400 font-bold">Page {pageLedger}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={!hasMoreLedger}
                   onClick={() => setPageLedger(p => p + 1)}
-                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                  className="text-xs"
                 >
-                  Next <ChevronRight size={14} />
-                </button>
+                  Next <ChevronRight size={14} className="ml-1" />
+                </Button>
               </div>
             </div>
           )}
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="  border border-blue-500/50 dark:border-blue-500/30 p-4 rounded-xl">
-            <h4 className="text-xs font-bold text-blue-500 dark:text-blue-500 uppercase tracking-wider flex items-center gap-1.5 mb-1">
+          <div className="p-3.5 rounded-btn bg-blue-500/10 border border-blue-500/20">
+            <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5 mb-1">
               <Truck size={14} /> Logistics & Delivery Costs
             </h4>
-            <p className="text-xs text-blue-500 dark:text-blue-500 leading-relaxed">
-              These are the driver compensation costs SokoniMax has incurred fulfilling your orders via our fleet. Note that these delivery fees are automatically deducted from the payout or charged to your account.
+            <p className="text-2xs text-gray-600 dark:text-gray-400 leading-relaxed">
+              These are the driver compensation costs SokoniMax has incurred fulfilling your orders via our fleet. Note that these delivery fees are automatically deducted from payouts.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-              <div className="p-3   text-brand-500 rounded-lg">
-                <Truck size={24} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="card p-4 flex items-center gap-4">
+              <div className="p-3 rounded-btn bg-brand-500/10 text-brand-500">
+                <Truck size={20} />
               </div>
               <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Delivery Costs</p>
-                <p className="text-xl font-black text-gray-900 dark:text-white mt-1">TSh {Number(driverPaymentsTotals?.total_amount || driverPayments.reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
+                <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Total Delivery Costs</p>
+                <p className="text-lg font-extrabold text-gray-900 dark:text-white mt-0.5">TSh {Number(driverPaymentsTotals?.total_amount || driverPayments.reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
               </div>
             </div>
-            <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-              <div className="p-3   text-green-500 rounded-lg">
-                <CheckCircle2 size={24} />
+            <div className="card p-4 flex items-center gap-4">
+              <div className="p-3 rounded-btn bg-emerald-500/10 text-emerald-500">
+                <CheckCircle2 size={20} />
               </div>
               <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Paid to Drivers</p>
-                <p className="text-xl font-black text-green-500 mt-1">TSh {Number(driverPaymentsTotals?.total_paid || driverPayments.filter(dp => dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
+                <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Paid to Drivers</p>
+                <p className="text-lg font-extrabold text-emerald-500 mt-0.5">TSh {Number(driverPaymentsTotals?.total_paid || driverPayments.filter(dp => dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
               </div>
             </div>
-            <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4">
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 rounded-lg">
-                <Wallet size={24} />
+            <div className="card p-4 flex items-center gap-4">
+              <div className="p-3 rounded-btn bg-amber-500/10 text-amber-500">
+                <Wallet size={20} />
               </div>
               <div>
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pending Delivery Costs</p>
-                <p className="text-xl font-black text-amber-600 mt-1">TSh {Number(driverPaymentsTotals?.total_unpaid || driverPayments.filter(dp => !dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
+                <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Pending Delivery Costs</p>
+                <p className="text-lg font-extrabold text-amber-500 mt-0.5">TSh {Number(driverPaymentsTotals?.total_unpaid || driverPayments.filter(dp => !dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
               </div>
             </div>
           </div>
 
           {driverPayments.length === 0 ? (
-            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
-              <Truck size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3 animate-pulse" />
-              <p className="text-gray-500">No delivery costs or driver payments logged yet.</p>
-            </div>
+            <EmptyState
+              icon={Truck}
+              title="No Logistics Costs"
+              description="No driver delivery payouts or costs logged yet for fulfilled orders."
+            />
           ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">
+            <div className="card overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700 text-gray-500 dark:text-gray-400 uppercase font-black tracking-wider">
-                      <th className="p-4">Date</th>
-                      <th className="p-4">Order ID</th>
-                      <th className="p-4">Driver</th>
-                      <th className="p-4 text-right">Amount</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4">Paid At</th>
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                    <tr>
+                      <th className="p-3">Date</th>
+                      <th className="p-3">Order ID</th>
+                      <th className="p-3">Driver</th>
+                      <th className="p-3 text-right">Amount</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3">Paid At</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                     {driverPayments.map((dp: any) => (
-                      <tr key={dp.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition">
-                        <td className="p-4 text-gray-500 dark:text-gray-400">
+                      <tr key={dp.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                        <td className="p-3 text-gray-500 dark:text-gray-400">
                           {new Date(dp.created_at).toLocaleDateString()}
                         </td>
-                        <td className="p-4 font-bold text-gray-900 dark:text-white">
+                        <td className="p-3 font-bold text-gray-900 dark:text-white">
                           #{dp.shipment_order_id}
                         </td>
-                        <td className="p-4 text-gray-600 dark:text-gray-300 font-medium">
+                        <td className="p-3 text-gray-600 dark:text-gray-300 font-medium">
                           {dp.driver_username || 'Third-Party / None'}
                         </td>
-                        <td className="p-4 text-right text-gray-900 dark:text-white font-bold">
+                        <td className="p-3 text-right text-gray-900 dark:text-white font-bold">
                           TSh {Number(dp.amount).toLocaleString()}
                         </td>
-                        <td className="p-4">
+                        <td className="p-3">
                           {dp.is_paid ? (
-                            <span className="px-2.5 py-0.5 text-[10px] font-bold  text-green-500  dark:text-green-500 rounded-full uppercase">Paid</span>
+                            <span className="px-2 py-0.5 text-3xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full uppercase">Paid</span>
                           ) : (
-                            <span className="px-2.5 py-0.5 text-[10px] font-bold  text-yellow-500  dark:text-yellow-500 rounded-full uppercase">Unpaid</span>
+                            <span className="px-2 py-0.5 text-3xs font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-full uppercase">Unpaid</span>
                           )}
                         </td>
-                        <td className="p-4 text-gray-500 dark:text-gray-400">
+                        <td className="p-3 text-gray-500 dark:text-gray-400">
                           {dp.paid_at ? new Date(dp.paid_at).toLocaleDateString() : '—'}
                         </td>
                       </tr>
@@ -718,140 +741,155 @@ const BillingPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-              <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <button
+              <div className="p-3 border-t border-surface-border dark:border-surface-dark-border flex items-center justify-between bg-surface-muted/30 dark:bg-[#161616]/30">
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={pageDriverPayments === 1}
                   onClick={() => setPageDriverPayments(p => Math.max(1, p - 1))}
-                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                  className="text-xs"
                 >
-                  <ChevronLeft size={14} /> Previous
-                </button>
-                <span className="text-xs text-gray-500 dark:text-gray-400 font-bold">Page {pageDriverPayments}</span>
-                <button
+                  <ChevronLeft size={14} className="mr-1" /> Previous
+                </Button>
+                <span className="text-2xs text-gray-400 font-bold">Page {pageDriverPayments}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={!hasMoreDriverPayments}
                   onClick={() => setPageDriverPayments(p => p + 1)}
-                  className="px-3 py-1.5 text-xs font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-1"
+                  className="text-xs"
                 >
-                  Next <ChevronRight size={14} />
-                </button>
+                  Next <ChevronRight size={14} className="ml-1" />
+                </Button>
               </div>
             </div>
           )}
         </div>
+        )}
+      </div>
       )}
 
       {/* Pay Invoice Modal */}
       {showPayModal && (selectedInvoice || selectedSubscription) && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border dark:border-gray-700 animate-scale-in my-8">
-            <button
-              onClick={() => { setShowPayModal(false); setSelectedInvoice(null); setSelectedSubscription(null); }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
-            >
-              <X size={20} />
-            </button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-white dark:bg-[#121212] rounded-card max-w-lg w-full overflow-hidden shadow-2xl border border-surface-border dark:border-surface-dark-border animate-scale-in my-8">
+            <div className="p-5 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Wallet className="text-brand-500" size={18} />
+                {selectedInvoice ? 'Pay Commission Invoice' : 'Renew Subscription'}
+              </h3>
+              <button
+                onClick={() => { setShowPayModal(false); setSelectedInvoice(null); setSelectedSubscription(null); }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-            <h3 className="text-lg font-black text-gray-900 dark:text-white mb-4">
-              {selectedInvoice ? 'Pay Commission Invoice' : 'Renew Subscription'}
-            </h3>
-
-            {loadingPaymentData ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" />
-              </div>
-            ) : (
-              <form onSubmit={handlePaySubmit} className="space-y-4">
-                <div className="flex items-center justify-between p-3   border border-brand-500 dark:border-brand-500/30 rounded-xl">
-                  {selectedInvoice ? (
-                    <>
-                      <div>
-                        <p className="text-xs text-brand-500 dark:text-brand-500 font-bold uppercase tracking-wider leading-none">Invoice Period</p>
-                        <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mt-1">{formatMonth(selectedInvoice.year, selectedInvoice.month)}</h4>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500 leading-none">Commission Due</p>
-                        <p className="font-black text-brand-500 text-sm mt-1">TSh {Number(selectedInvoice.total_commission).toLocaleString()}</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <p className="text-xs text-brand-500 dark:text-brand-500 font-bold uppercase tracking-wider leading-none">Subscription</p>
-                        <h4 className="font-black text-gray-900 dark:text-white capitalize text-sm mt-1">{selectedSubscription?.tier?.name} Plan</h4>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500 leading-none">Renewal Due</p>
-                        <p className="font-black text-brand-500 text-sm mt-1">TSh {Number(selectedSubscription?.tier?.price || 0).toLocaleString()}</p>
-                      </div>
-                    </>
-                  )}
+            <div className="p-5">
+              {loadingPaymentData ? (
+                <div className="flex justify-center py-12">
+                  <Spinner size="md" />
                 </div>
-
-                <div>
-                  <p className="text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wider">
-                    Pay to these numbers:
-                  </p>
-                  {adminLipa.length === 0 ? (
-                    <p className="text-xs text-yellow-500">No official payment numbers configured. Please contact support.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {adminLipa.map((lipa: any) => (
-                        <div key={lipa.id} className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5">
-                          <div className={`rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700 ${lipa.network_logo ? 'w-16 h-8' : 'w-8 h-8'}`}>
-                            {lipa.network_logo ? (
-                              <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
-                            ) : (
-                              <Smartphone size={16} className="text-green-500" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase leading-none">{lipa.network_name}</p>
-                            <p className="font-mono font-black text-gray-900 dark:text-white text-xs mt-0.5">{lipa.number}</p>
-                            <p className="text-[10px] text-gray-500 leading-none">{lipa.name}</p>
-                          </div>
-                          <button type="button" onClick={() => { navigator.clipboard.writeText(lipa.number); toast.success('Copied!'); }}
-                              className="ml-auto btn-ghost text-[10px] py-0.5 px-1.5 border border-gray-300 dark:border-gray-600 rounded">Copy</button>
+              ) : (
+                <form onSubmit={handlePaySubmit} className="space-y-4 text-xs">
+                  <div className="flex items-center justify-between p-3.5 rounded-btn bg-brand-500/10 border border-brand-500/20">
+                    {selectedInvoice ? (
+                      <>
+                        <div>
+                          <p className="text-3xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider">Invoice Period</p>
+                          <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mt-0.5">{formatMonth(selectedInvoice.year, selectedInvoice.month)}</h4>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        <div className="text-right">
+                          <p className="text-3xs text-gray-400">Commission Due</p>
+                          <p className="font-extrabold text-brand-600 dark:text-brand-400 text-sm mt-0.5">TSh {Number(selectedInvoice.total_commission).toLocaleString()}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <p className="text-3xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider">Subscription</p>
+                          <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mt-0.5">{selectedSubscription?.tier?.name} Plan</h4>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-3xs text-gray-400">Renewal Due</p>
+                          <p className="font-extrabold text-brand-600 dark:text-brand-400 text-sm mt-0.5">TSh {Number(selectedSubscription?.tier?.price || 0).toLocaleString()}</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
 
-                <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Transaction ID / Reference</label>
-                    <input
-                      type="text"
-                      required
-                      value={refId}
-                      onChange={(e) => setRefId(e.target.value)}
-                      placeholder="e.g. PP260618.1746"
-                      className="input text-sm h-10"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Receipt Screenshot</label>
-                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                      <div className="flex flex-col items-center justify-center pt-3 pb-4">
-                        <Upload size={20} className="text-gray-400 mb-1" />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center px-4">
-                          {proofFile ? proofFile.name : 'Click to upload screenshot proof'}
-                        </p>
+                    <p className="text-2xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
+                      Pay to these numbers:
+                    </p>
+                    {adminLipa.length === 0 ? (
+                      <p className="text-xs text-amber-500">No official payment numbers configured. Please contact support.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {adminLipa.map((lipa: any) => (
+                          <div key={lipa.id} className="flex items-center gap-3 bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border rounded-btn p-2.5">
+                            <div className={`rounded-lg bg-white dark:bg-[#121212] flex items-center justify-center overflow-hidden shrink-0 border border-surface-border dark:border-surface-dark-border ${lipa.network_logo ? 'w-16 h-8' : 'w-8 h-8'}`}>
+                              {lipa.network_logo ? (
+                                <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
+                              ) : (
+                                <Smartphone size={16} className="text-emerald-500" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-3xs font-bold text-gray-400 uppercase">{lipa.network_name}</p>
+                              <p className="font-mono font-extrabold text-gray-900 dark:text-white text-xs mt-0.5">{lipa.number}</p>
+                              <p className="text-3xs text-gray-500">{lipa.name}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => { navigator.clipboard.writeText(lipa.number); toast.success('Copied!'); }}
+                              className="ml-auto btn-ghost text-3xs py-0.5 px-2 border border-surface-border dark:border-surface-dark-border rounded"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                      <input type="file" required className="hidden" accept="image/*" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
-                    </label>
+                    )}
                   </div>
-                  <button
-                    type="submit"
-                    disabled={submittingPayment}
-                    className="btn-primary w-full py-2.5 flex items-center justify-center gap-2"
-                  >
-                    {submittingPayment ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <CheckCircle2 size={18} />}
-                    Submit Payment Details
-                  </button>
-                </div>
-              </form>
-            )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wider">Transaction ID / Reference</label>
+                      <input
+                        type="text"
+                        required
+                        value={refId}
+                        onChange={(e) => setRefId(e.target.value)}
+                        placeholder="e.g. PP260618.1746"
+                        className="input text-xs py-2 w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wider">Receipt Screenshot</label>
+                      <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-surface-border dark:border-surface-dark-border rounded-btn cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition">
+                        <div className="flex flex-col items-center justify-center pt-2 pb-3">
+                          <Upload size={18} className="text-gray-400 mb-1" />
+                          <p className="text-2xs text-gray-500 dark:text-gray-400 text-center px-4">
+                            {proofFile ? proofFile.name : 'Click to upload screenshot proof'}
+                          </p>
+                        </div>
+                        <input type="file" required className="hidden" accept="image/*" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
+                      </label>
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={submittingPayment}
+                      className="w-full py-2.5 font-bold flex items-center justify-center gap-2 mt-2"
+                    >
+                      {submittingPayment ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <CheckCircle2 size={16} />}
+                      Submit Payment Details
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}
