@@ -204,34 +204,82 @@ class SellerApplicationTests(TestCase):
         owner.profile.tier = 'business'
         owner.profile.save()
         
-        member = User.objects.create_user('team_member_1', 'member1@test.com', 'MemberPass123!')
-        
-        # 1. Invite team member
+        # 1. Direct team member creation with credentials by Business Owner
         owner_token = RefreshToken.for_user(owner)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(owner_token.access_token)}')
         
         res = self.client.post('/api/team-members/', {
-            'username': 'team_member_1',
-            'permissions': {'manage_orders': True, 'manage_products': True}
+            'username': 'accountant_joe',
+            'password': 'JoeAccountant123!',
+            'email': 'joe@business.com',
+            'first_name': 'Joe',
+            'last_name': 'Accountant',
+            'role_preset': 'accountant',
+            'permissions': {
+                'manage_payments': True,
+                'manage_invoices': True,
+                'view_analytics': True,
+                'manage_payment_numbers': True,
+                'manage_billing': True
+            },
+            'create_user': True
         }, format='json')
         self.assertEqual(res.status_code, 201)
         
-        # Verify TeamMember record exists
-        from marketplace.models import TeamMember
-        self.assertTrue(TeamMember.objects.filter(owner=owner, user=member).exists())
+        # Verify TeamMember record and provisioned User record exist
+        from marketplace.models import TeamMember, TeamMemberAuditLog
+        member_record = TeamMember.objects.filter(owner=owner, user__username='accountant_joe').first()
+        self.assertIsNotNone(member_record)
+        self.assertTrue(member_record.is_active)
+        self.assertEqual(member_record.invitation_status, 'accepted')
+        self.assertEqual(member_record.role_preset, 'accountant')
+        self.assertTrue(member_record.created_by_owner)
         
-        # 2. Member logs in and gets business tier override in token
+        # 2. Member logs in using directly provisioned credentials
         res_login = self.client.post('/api/auth/token/', {
-            'username': 'team_member_1',
-            'password': 'MemberPass123!'
+            'username': 'accountant_joe',
+            'password': 'JoeAccountant123!'
         }, format='json')
         self.assertEqual(res_login.status_code, 200)
-        self.assertEqual(res_login.json()['tier'], 'business')
         self.assertTrue(res_login.json()['is_team_member'])
-        self.assertTrue(res_login.json()['team_permissions']['manage_orders'])
+        self.assertEqual(res_login.json()['team_role_preset'], 'accountant')
+        self.assertTrue(res_login.json()['team_permissions']['manage_payments'])
+        self.assertTrue(res_login.json()['team_permissions']['manage_invoices'])
+        self.assertFalse(res_login.json().get('team_permissions', {}).get('manage_products', False))
 
-        # 3. Seller Pro tier does not see advanced analytics (test conditional restriction)
-        # Setup Seller Pro user
+        # 3. Owner resets member's password
+        res_pw = self.client.post(f'/api/team-members/{member_record.id}/reset-password/', {
+            'new_password': 'BrandNewPassword123!',
+            'confirm_password': 'BrandNewPassword123!'
+        }, format='json')
+        self.assertEqual(res_pw.status_code, 200)
+
+        # 4. Member logs in with new password
+        res_new_login = self.client.post('/api/auth/token/', {
+            'username': 'accountant_joe',
+            'password': 'BrandNewPassword123!'
+        }, format='json')
+        self.assertEqual(res_new_login.status_code, 200)
+
+        # 5. Owner suspends member
+        res_suspend = self.client.post(f'/api/team-members/{member_record.id}/toggle-suspend/')
+        self.assertEqual(res_suspend.status_code, 200)
+        self.assertFalse(res_suspend.json()['is_active'])
+
+        # Check audit logs
+        res_audit = self.client.get('/api/team-members/audit-log/')
+        self.assertEqual(res_audit.status_code, 200)
+        actions = [e['action'] for e in res_audit.json()]
+        self.assertIn('user_created', actions)
+        self.assertIn('password_reset', actions)
+        self.assertIn('suspended', actions)
+
+        # 6. Reactivate member
+        res_reactivate = self.client.post(f'/api/team-members/{member_record.id}/toggle-suspend/')
+        self.assertEqual(res_reactivate.status_code, 200)
+        self.assertTrue(res_reactivate.json()['is_active'])
+
+        # 7. Non-business user (Seller Pro or Customer) cannot manage teams
         pro_user = User.objects.create_user('pro_seller', 'pro@test.com', 'ProPass123!')
         pro_user.profile.tier = 'seller_pro'
         pro_user.profile.save()
@@ -239,10 +287,12 @@ class SellerApplicationTests(TestCase):
         pro_token = RefreshToken.for_user(pro_user)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(pro_token.access_token)}')
         
-        res_stats = self.client.get('/api/products/seller_stats/')
-        self.assertEqual(res_stats.status_code, 200)
-        self.assertFalse(res_stats.json()['has_advanced_analytics'])
-        self.assertEqual(res_stats.json()['revenue_data'], [])
+        res_forbidden = self.client.post('/api/team-members/', {
+            'username': 'some_user',
+            'password': 'SomePassword123!',
+            'create_user': True
+        }, format='json')
+        self.assertEqual(res_forbidden.status_code, 400) # ValidationError: Only active Business tier can manage teams
 
 class StoreImageTests(TestCase):
     def setUp(self):

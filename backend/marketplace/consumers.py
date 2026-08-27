@@ -23,6 +23,28 @@ def get_user_from_token(token):
             return None
 
 
+@database_sync_to_async
+def get_effective_seller_id_for_orders(user):
+    """Resolve business owner ID if user is an active team member with manage_orders."""
+    try:
+        from marketplace.models import TeamMember
+        tm = TeamMember.objects.filter(
+            user=user, invitation_status='accepted', is_active=True
+        ).select_related('owner', 'owner__profile').first()
+        if tm:
+            owner = tm.owner
+            is_business = (
+                getattr(getattr(owner, 'profile', None), 'tier', None) == 'business' or
+                owner.subscriptions.filter(is_active=True, tier__tier_level='business').exists() or
+                owner.is_superuser
+            )
+            if is_business and tm.permissions.get('manage_orders', False):
+                return tm.owner_id
+    except Exception:
+        pass
+    return user.id
+
+
 class OrderTrackingConsumer(AsyncWebsocketConsumer):
     """
     WebSocket for real-time order tracking.
@@ -38,7 +60,8 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
             # Seller mode: subscribe to all orders containing their products
             user = self.scope.get('user')
             if user and user.is_authenticated:
-                self.room_group_name = f'seller_orders_{user.id}'
+                target_seller_id = await get_effective_seller_id_for_orders(user)
+                self.room_group_name = f'seller_orders_{target_seller_id}'
             else:
                 # Try token from query string
                 qs = parse_qs(self.scope.get('query_string', b'').decode())
@@ -46,7 +69,8 @@ class OrderTrackingConsumer(AsyncWebsocketConsumer):
                 if token:
                     user = await get_user_from_token(token)
                     if user:
-                        self.room_group_name = f'seller_orders_{user.id}'
+                        target_seller_id = await get_effective_seller_id_for_orders(user)
+                        self.room_group_name = f'seller_orders_{target_seller_id}'
                     else:
                         await self.close()
                         return

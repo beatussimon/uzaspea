@@ -15,6 +15,13 @@ interface User {
   subscription_active?: boolean;
   subscription_end_date?: string | null;
   is_team_member?: boolean;
+  team_owner_id?: number | null;
+  team_owner_username?: string | null;
+  business_name?: string | null;
+  team_role_preset?: string | null;
+  team_role_label?: string | null;
+  is_team_suspended?: boolean;
+  is_owner_subscription_active?: boolean;
   team_permissions?: Record<string, boolean>;
   terms_accepted?: boolean;
   profile_picture?: string | null;
@@ -60,6 +67,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           subscription_active: payload.subscription_active,
           subscription_end_date: payload.subscription_end_date,
           is_team_member: payload.is_team_member === true || payload.is_team_member === 'true',
+          team_owner_id: payload.team_owner_id || (localStorage.getItem('team_owner_id') ? Number(localStorage.getItem('team_owner_id')) : null),
+          team_owner_username: payload.team_owner_username || localStorage.getItem('team_owner_username') || null,
+          business_name: payload.business_name || localStorage.getItem('business_name') || null,
+          team_role_preset: payload.team_role_preset || localStorage.getItem('team_role_preset') || null,
+          team_role_label: payload.team_role_label || localStorage.getItem('team_role_label') || null,
+          is_team_suspended: payload.is_team_suspended === true || payload.is_team_suspended === 'true',
+          is_owner_subscription_active: payload.is_owner_subscription_active === true || payload.is_owner_subscription_active === 'true',
           team_permissions: typeof payload.team_permissions === 'string' ? JSON.parse(payload.team_permissions) : (payload.team_permissions || {}),
           terms_accepted: payload.terms_accepted === true || payload.terms_accepted === 'true' || localStorage.getItem('terms_accepted') === 'true',
           profile_picture: payload.profile_picture || localStorage.getItem('profile_picture') || null,
@@ -89,6 +103,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('is_inspector', String(payload.is_inspector || false));
       localStorage.setItem('inspector_level', payload.inspector_level || '');
       localStorage.setItem('is_team_member', String(payload.is_team_member || false));
+      if (payload.team_owner_id) localStorage.setItem('team_owner_id', String(payload.team_owner_id));
+      if (payload.team_owner_username) localStorage.setItem('team_owner_username', payload.team_owner_username);
+      if (payload.business_name) localStorage.setItem('business_name', payload.business_name);
+      if (payload.team_role_preset) localStorage.setItem('team_role_preset', payload.team_role_preset);
+      if (payload.team_role_label) localStorage.setItem('team_role_label', payload.team_role_label);
       localStorage.setItem('team_permissions', JSON.stringify(payload.team_permissions || {}));
       localStorage.setItem('terms_accepted', String(payload.terms_accepted || false));
       if (payload.profile_picture) localStorage.setItem('profile_picture', payload.profile_picture);
@@ -104,6 +123,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('is_inspector', String(userData.is_inspector || false));
       localStorage.setItem('inspector_level', userData.inspector_level || '');
       localStorage.setItem('is_team_member', String(userData.is_team_member || false));
+      if (userData.team_owner_id) localStorage.setItem('team_owner_id', String(userData.team_owner_id));
+      if (userData.team_owner_username) localStorage.setItem('team_owner_username', userData.team_owner_username);
+      if (userData.business_name) localStorage.setItem('business_name', userData.business_name);
+      if (userData.team_role_preset) localStorage.setItem('team_role_preset', userData.team_role_preset);
+      if (userData.team_role_label) localStorage.setItem('team_role_label', userData.team_role_label);
       localStorage.setItem('team_permissions', JSON.stringify(userData.team_permissions || {}));
       localStorage.setItem('terms_accepted', String(userData.terms_accepted || false));
       if (userData.profile_picture) localStorage.setItem('profile_picture', userData.profile_picture);

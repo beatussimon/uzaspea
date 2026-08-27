@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
@@ -146,7 +146,7 @@ const OrdersPage: React.FC = () => {
     }
   }, [highlightId, orders.length]);
 
-  const fetchOrders = (p: number, reset = false) => {
+  const fetchOrders = useCallback((p: number, reset = false) => {
     if (reset) {
       setLoading(true);
       setPage(1);
@@ -154,7 +154,7 @@ const OrdersPage: React.FC = () => {
       setLoadingMore(true);
     }
 
-    api.get(`/api/orders/?page=${p}${filterStatus ? `&status=${filterStatus}` : ''}`)
+    api.get(`/api/orders/?page=${p}`)
       .then((res) => {
         const data = res.data.results || res.data;
         const incomingRaw = Array.isArray(data) ? data : [];
@@ -179,11 +179,11 @@ const OrdersPage: React.FC = () => {
         setLoading(false);
         setLoadingMore(false);
       });
-  };
+  }, []);
 
   useEffect(() => {
     fetchOrders(1, true);
-  }, [filterStatus]);
+  }, [fetchOrders]);
 
   // Infinite Scroll Observer
   useEffect(() => {
@@ -204,7 +204,7 @@ const OrdersPage: React.FC = () => {
     );
     obs.observe(sentinel);
     return () => obs.disconnect();
-  }, [hasMore, loadingMore, loading, filterStatus]);
+  }, [hasMore, loadingMore, loading, fetchOrders]);
 
   useOrderTracking(
     'buyer', 
@@ -316,16 +316,40 @@ const OrdersPage: React.FC = () => {
 
 
 
-  const filtered = filterStatus ? orders.filter(o => o.status === filterStatus) : orders;
-  const activeStatuses = [...new Set(orders.map(o => o.status))];
+  const filtered = useMemo(() => {
+    if (!filterStatus) return orders;
+    if (filterStatus === 'REQUESTED_INVOICE') {
+      return orders.filter(o => o.status === 'REQUESTED_INVOICE' || o.status === 'BUYER_COUNTERED');
+    }
+    if (filterStatus === 'INVOICE_GENERATED') {
+      return orders.filter(o => o.status === 'INVOICE_GENERATED');
+    }
+    return orders.filter(o => o.status === filterStatus);
+  }, [orders, filterStatus]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <Spinner size="md" />
-      </div>
-    );
-  }
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: orders.length,
+      REQUESTED_INVOICE: orders.filter(o => o.status === 'REQUESTED_INVOICE' || o.status === 'BUYER_COUNTERED').length,
+      INVOICE_GENERATED: orders.filter(o => o.status === 'INVOICE_GENERATED').length,
+    };
+    orders.forEach(o => {
+      if (o.status && o.status !== 'REQUESTED_INVOICE' && o.status !== 'BUYER_COUNTERED' && o.status !== 'INVOICE_GENERATED') {
+        counts[o.status] = (counts[o.status] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [orders]);
+
+  const activeStatuses = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach(o => {
+      if (o.status && o.status !== 'REQUESTED_INVOICE' && o.status !== 'BUYER_COUNTERED' && o.status !== 'INVOICE_GENERATED') {
+        set.add(o.status);
+      }
+    });
+    return Array.from(set);
+  }, [orders]);
 
   return (
     <div className="container-page max-w-4xl">
@@ -334,43 +358,119 @@ const OrdersPage: React.FC = () => {
         subtitle={t('track_manage_purchases', 'Track and manage your purchases')}
       />
 
-      <div className="flex overflow-x-auto no-scrollbar gap-2 mb-6 select-none">
-        <button
-          onClick={() => setFilterStatus('')}
-          className={`pill text-xs ${!filterStatus ? 'pill-active' : 'pill-inactive'}`}
-        >
-          {t('all', 'All')}
-        </button>
-        <button
-          onClick={() => setFilterStatus('REQUESTED_INVOICE')}
-          className={`pill text-xs ${filterStatus === 'REQUESTED_INVOICE' ? 'pill-active border-blue-500 text-blue-700 bg-blue-50' : 'pill-inactive'}`}
-        >
-          <Receipt size={14} className="inline mr-1" /> Requested Quotes
-        </button>
-        <button
-          onClick={() => setFilterStatus('INVOICE_GENERATED')}
-          className={`pill text-xs ${filterStatus === 'INVOICE_GENERATED' ? 'pill-active border-green-500 text-green-700 bg-green-50' : 'pill-inactive'}`}
-        >
-          <CheckCircle2 size={14} className="inline mr-1" /> Invoices Ready
-        </button>
-        {activeStatuses.filter(s => s !== 'REQUESTED_INVOICE' && s !== 'INVOICE_GENERATED').map(s => (
+      {loading ? (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-1">
+          {[14, 28, 24, 20, 26].map((w, i) => (
+            <div
+              key={i}
+              className="h-7 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse shrink-0"
+              style={{ width: `${w * 4}px` }}
+            />
+          ))}
+        </div>
+      ) : orders.length > 0 ? (
+        <div data-horizontal-scroll="true" className="flex overflow-x-auto no-scrollbar gap-2 mb-6 select-none pb-1">
           <button
-            key={s}
-            onClick={() => setFilterStatus(s)}
-            className={`pill text-xs ${filterStatus === s ? 'pill-active' : 'pill-inactive'}`}
+            onClick={() => setFilterStatus('')}
+            className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${!filterStatus ? 'pill-active shadow-xs' : 'pill-inactive'}`}
           >
-            {t(`status.${s}`, STATUS_CONFIG[s]?.label || s) as string}
+            <span>{t('all', 'All')}</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+              !filterStatus ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+            }`}>
+              {orders.length}
+            </span>
           </button>
-        ))}
-      </div>
+          {(statusCounts.REQUESTED_INVOICE > 0 || filterStatus === 'REQUESTED_INVOICE') && (
+            <button
+              onClick={() => setFilterStatus('REQUESTED_INVOICE')}
+              className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${
+                filterStatus === 'REQUESTED_INVOICE'
+                  ? 'pill-active border-blue-500 text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 shadow-xs'
+                  : 'pill-inactive'
+              }`}
+            >
+              <Receipt size={14} className="inline mr-0.5" />
+              <span>Requested Quotes</span>
+              {statusCounts.REQUESTED_INVOICE > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  filterStatus === 'REQUESTED_INVOICE' ? 'bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {statusCounts.REQUESTED_INVOICE}
+                </span>
+              )}
+            </button>
+          )}
+          {(statusCounts.INVOICE_GENERATED > 0 || filterStatus === 'INVOICE_GENERATED') && (
+            <button
+              onClick={() => setFilterStatus('INVOICE_GENERATED')}
+              className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${
+                filterStatus === 'INVOICE_GENERATED'
+                  ? 'pill-active border-green-500 text-green-700 bg-green-50 dark:bg-green-900/30 dark:text-green-300 shadow-xs'
+                  : 'pill-inactive'
+              }`}
+            >
+              <CheckCircle2 size={14} className="inline mr-0.5" />
+              <span>Invoices Ready</span>
+              {statusCounts.INVOICE_GENERATED > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  filterStatus === 'INVOICE_GENERATED' ? 'bg-green-200 dark:bg-green-800 text-green-900 dark:text-green-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {statusCounts.INVOICE_GENERATED}
+                </span>
+              )}
+            </button>
+          )}
+          {activeStatuses.map(s => {
+            const count = statusCounts[s] || 0;
+            return (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${filterStatus === s ? 'pill-active shadow-xs' : 'pill-inactive'}`}
+              >
+                <span>{t(`status.${s}`, STATUS_CONFIG[s]?.label || s) as string}</span>
+                {count > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                    filterStatus === s ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 animate-pulse">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+                <div className="flex-1 space-y-2.5">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-md w-1/3" />
+                  <div className="h-3.5 bg-gray-100 dark:bg-gray-700/60 rounded-md w-1/2" />
+                </div>
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-md w-24" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={Package}
           title={orders.length === 0 ? t('no_orders_placed_title', "You haven't placed any orders yet.") : t('no_orders_status_title', "No orders with this status.")}
           action={{
-            label: t('start_shopping', 'Start Shopping'),
-            onClick: () => navigate('/'),
+            label: orders.length === 0 ? t('start_shopping', 'Start Shopping') : t('view_all_orders', 'View All Orders'),
+            onClick: () => {
+              if (orders.length === 0) {
+                navigate('/');
+              } else {
+                setFilterStatus('');
+              }
+            },
           }}
         />
       ) : (

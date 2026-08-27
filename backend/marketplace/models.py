@@ -1365,84 +1365,137 @@ def invalidate_category_cache(sender, instance, **kwargs):
 TEAM_ROLE_PRESETS = {
     'store_manager': {
         'label': 'Store Manager',
-        'permissions': {'manage_orders': True, 'manage_products': True, 'manage_messages': True, 'view_analytics': True},
-        'description': 'Full administrative control over store products, orders, communications, and business performance tracking.',
+        'permissions': {
+            'manage_orders': True, 'manage_products': True, 'manage_messages': True,
+            'manage_invoices': True, 'manage_payments': True, 'manage_logistics': True,
+            'access_pos': True, 'view_analytics': True, 'manage_requests': True,
+            'manage_payment_numbers': True, 'manage_billing': True
+        },
+        'description': 'Full delegated management over all store workflows, product inventory, incoming orders, payments, invoices, chat, POS, and analytics.',
         'tasks': [
-            'Monitor and process customer orders',
-            'Update product catalog and inventory',
-            'Communicate with customers via messages',
-            'Analyze sales and customer metrics'
+            'Oversee all daily store operations and staff tasks',
+            'Manage orders, catalog, payments, invoices, and POS',
+            'Engage with customers and review business analytics'
         ]
     },
-    'inventory': {
-        'label': 'Inventory Staff',
-        'permissions': {'manage_orders': False, 'manage_products': True, 'manage_messages': False, 'view_analytics': False},
-        'description': 'Responsible for managing catalog items, stock levels, and product descriptions.',
+    'accountant': {
+        'label': 'Accountant / Finance',
+        'permissions': {
+            'manage_orders': False, 'manage_products': False, 'manage_messages': False,
+            'manage_invoices': True, 'manage_payments': True, 'manage_logistics': False,
+            'access_pos': False, 'view_analytics': True, 'manage_requests': False,
+            'manage_payment_numbers': True, 'manage_billing': True
+        },
+        'description': 'Approves and verifies payment proofs, generates invoices, manages store lipa numbers, reviews platform commission ledger, and analyzes financial reports.',
         'tasks': [
-            'Create and edit product listings',
-            'Update inventory counts and pricing',
-            'Manage product categories'
+            'Verify and approve customer payment proofs',
+            'Generate, counter, and issue custom business invoices and quotes',
+            'Manage store Lipa payment numbers and account details',
+            'Review monthly commission invoices and billing receipts',
+            'Analyze store financial and sales performance'
+        ]
+    },
+    'orders_coordinator': {
+        'label': 'Orders Coordinator',
+        'permissions': {
+            'manage_orders': True, 'manage_products': False, 'manage_messages': False,
+            'manage_invoices': True, 'manage_payments': False, 'manage_logistics': False,
+            'access_pos': False, 'view_analytics': False, 'manage_requests': False,
+            'manage_payment_numbers': False, 'manage_billing': False
+        },
+        'description': 'Manages incoming customer orders, advances fulfillment statuses (Preparing, Packaging, Handover), and tracks order fulfillment notes.',
+        'tasks': [
+            'Process incoming customer orders in real time',
+            'Update order fulfillment stages and tracking notes',
+            'Coordinate order packaging and dispatch readiness'
+        ]
+    },
+    'logistics_coordinator': {
+        'label': 'Logistics & Delivery',
+        'permissions': {
+            'manage_orders': True, 'manage_products': False, 'manage_messages': False,
+            'manage_invoices': False, 'manage_payments': False, 'manage_logistics': True,
+            'access_pos': False, 'view_analytics': False, 'manage_requests': False,
+            'manage_payment_numbers': False, 'manage_billing': False
+        },
+        'description': 'Coordinates dispatch, manages delivery zones and shipping rates, tracks parcel handovers, and verifies pickup codes.',
+        'tasks': [
+            'Coordinate order shipment dispatches and driver allocation',
+            'Configure delivery zones and shipping charges',
+            'Verify handover and delivery pickup codes',
+            'Track live transit and shipment milestones'
+        ]
+    },
+    'cashier_pos': {
+        'label': 'POS Cashier',
+        'permissions': {
+            'manage_orders': True, 'manage_products': False, 'manage_messages': False,
+            'manage_invoices': False, 'manage_payments': False, 'manage_logistics': False,
+            'access_pos': True, 'view_analytics': False, 'manage_requests': False,
+            'manage_payment_numbers': False, 'manage_billing': False
+        },
+        'description': 'Operates point of sale cash registers, handles fast barcode/catalog checkout, processes cash/mobile payments, and prints sales receipts.',
+        'tasks': [
+            'Operate in-store Point of Sale terminal',
+            'Lookup products, barcodes, and calculate instant totals',
+            'Collect cash and mobile money payments',
+            'Issue digital and printable sales receipts'
         ]
     },
     'support_staff': {
-        'label': 'Support Staff',
-        'permissions': {'manage_orders': True, 'manage_products': False, 'manage_messages': True, 'view_analytics': False},
-        'description': 'Handles client questions, support requests, and processes incoming orders.',
+        'label': 'Customer Support & Chat',
+        'permissions': {
+            'manage_orders': False, 'manage_products': False, 'manage_messages': True,
+            'manage_invoices': False, 'manage_payments': False, 'manage_logistics': False,
+            'access_pos': False, 'view_analytics': False, 'manage_requests': True,
+            'manage_payment_numbers': False, 'manage_billing': False
+        },
+        'description': 'Communicates with buyers, responds to store chat messages, handles customer questions, and reviews customer product requests.',
         'tasks': [
-            'Respond to client messages and queries',
-            'Manage and fulfill customer orders',
-            'Track customer shipment requests'
+            'Respond to live customer messages and store inquiries',
+            'Assist buyers with product specifications and questions',
+            'Review incoming product requests and customer suggestions'
+        ]
+    },
+    'inventory': {
+        'label': 'Inventory Specialist',
+        'permissions': {
+            'manage_orders': False, 'manage_products': True, 'manage_messages': False,
+            'manage_invoices': False, 'manage_payments': False, 'manage_logistics': False,
+            'access_pos': False, 'view_analytics': False, 'manage_requests': True,
+            'manage_payment_numbers': False, 'manage_billing': False
+        },
+        'description': 'Maintains product catalog, uploads images, sets inventory stock levels, configures tiered pricing and variants, and fulfills product requests.',
+        'tasks': [
+            'Create, edit, and publish product listings',
+            'Manage inventory counts, variants, and price tiers',
+            'Upload high-resolution product photography',
+            'Fulfill customer requested product listings'
         ]
     },
     'bookkeeper': {
         'label': 'Bookkeeper',
-        'permissions': {'manage_orders': False, 'manage_products': False, 'manage_messages': False, 'view_analytics': True},
-        'description': 'Monitors revenue, processes, billing information, and checks overall store sales statistics.',
+        'permissions': {
+            'manage_orders': False, 'manage_products': False, 'manage_messages': False,
+            'manage_invoices': True, 'manage_payments': True, 'manage_logistics': False,
+            'access_pos': False, 'view_analytics': True, 'manage_requests': False,
+            'manage_payment_numbers': False, 'manage_billing': True
+        },
+        'description': 'Monitors revenue, processes billing information, reviews transactions, and checks store sales statistics.',
         'tasks': [
             'Generate revenue and billing reports',
             'Verify store subscription status',
             'Review dashboard transaction logs'
         ]
     },
-    'cashier': {
-        'label': 'Cashier',
-        'permissions': {'manage_orders': True, 'manage_products': False, 'manage_messages': False, 'view_analytics': False},
-        'description': 'Focuses on confirming order statuses and verifying payments.',
+    'custom': {
+        'label': 'Custom Role',
+        'permissions': {},
+        'description': 'Custom tailored permission set configured specifically by the business owner.',
         'tasks': [
-            'Review pending order transactions',
-            'Update order status to paid / processing'
+            'Custom assigned operations and responsibilities'
         ]
-    },
-    'sales_representative': {
-        'label': 'Sales Representative',
-        'permissions': {'manage_orders': True, 'manage_products': True, 'manage_messages': True, 'view_analytics': False},
-        'description': 'Responsible for client engagement, catalog optimization, and sales processing.',
-        'tasks': [
-            'Consult clients on product specifications',
-            'Assist customers through checkout processes',
-            'Maintain product details'
-        ]
-    },
-    'marketing_specialist': {
-        'label': 'Marketing Specialist',
-        'permissions': {'manage_orders': False, 'manage_products': True, 'manage_messages': True, 'view_analytics': True},
-        'description': 'Develops campaigns, launches promos, and tracks engagement metrics.',
-        'tasks': [
-            'Create discount vouchers and promo codes',
-            'Manage product showcase listings',
-            'Analyze marketing campaign effectiveness'
-        ]
-    },
-    'logistics_coordinator': {
-        'label': 'Logistics Coordinator',
-        'permissions': {'manage_orders': True, 'manage_products': True, 'manage_messages': False, 'view_analytics': True},
-        'description': 'Handles warehouse allocations, inventory movement, and dispatch coordination.',
-        'tasks': [
-            'Coordinate shipment fulfillment times',
-            'Liaise with local warehousing team members',
-            'Inspect product quality checks'
-        ]
-    },
+    }
 }
 
 class TeamMember(models.Model):
@@ -1457,6 +1510,9 @@ class TeamMember(models.Model):
     invitation_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     is_active = models.BooleanField(default=True, help_text="Set to False to suspend access without losing the permission configuration.")
     role_preset = models.CharField(max_length=30, blank=True, help_text="Optional label of the role preset this member was invited under, for display purposes only. The `permissions` field is always the actual source of truth.")
+    created_by_owner = models.BooleanField(default=False, help_text="True if the user account was directly provisioned by the business owner.")
+    contact_phone = models.CharField(max_length=30, blank=True, help_text="Optional direct phone number for team member.")
+    notes = models.TextField(blank=True, help_text="Internal notes by the business owner regarding this team member.")
     created_at = models.DateTimeField(auto_now_add=True)
     responded_at = models.DateTimeField(null=True, blank=True)
 
@@ -1468,12 +1524,15 @@ class TeamMember(models.Model):
 
 class TeamMemberAuditLog(models.Model):
     ACTION_CHOICES = [
+        ('user_created', 'User Account Created'),
         ('invited', 'Invited'),
         ('accepted', 'Accepted'),
         ('declined', 'Declined'),
         ('permissions_changed', 'Permissions Changed'),
+        ('password_reset', 'Password Reset'),
         ('suspended', 'Suspended'),
         ('reactivated', 'Reactivated'),
+        ('transferred', 'Role Transferred'),
         ('removed', 'Removed'),
     ]
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_audit_entries')

@@ -780,7 +780,9 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
             return qs
             
         if self.request.user.is_authenticated:
-            return LipaNumber.objects.filter(seller=self.request.user, is_system=False).select_related('network')
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(self.request.user, required_permission='manage_payment_numbers')
+            return LipaNumber.objects.filter(seller_id__in=sellers, is_system=False).select_related('network')
         return LipaNumber.objects.none()
 
     def get_permissions(self):
@@ -796,7 +798,13 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
         if str(is_system_flag).lower() == 'true' and self.request.user.is_superuser:
             serializer.save(seller=self.request.user, is_system=True)
         else:
-            serializer.save(seller=self.request.user, is_system=False)
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(self.request.user, required_permission='manage_payment_numbers', include_self=False)
+            seller_to_use = self.request.user
+            if sellers and (not self.request.user.profile or self.request.user.profile.tier in ['customer', 'worker']):
+                from django.contrib.auth import get_user_model
+                seller_to_use = get_user_model().objects.get(id=sellers[0])
+            serializer.save(seller=seller_to_use, is_system=False)
 
 @method_decorator(cache_page(60 * 60 * 24), name='dispatch')
 class FAQViewSet(viewsets.ReadOnlyModelViewSet):
@@ -2065,19 +2073,30 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff:
+        if user.is_staff or user.is_superuser:
             return Payment.objects.all()
-        # Buyers see their own payments, Sellers see payments for their products
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(user, required_permission='manage_payments') or get_effective_sellers(user, required_permission='manage_orders')
+        # Buyers see their own payments, Sellers and authorized team members see payments for their products
         return Payment.objects.filter(
-            django_models.Q(order__user=user) | django_models.Q(order__orderitem_set__product__seller=user)
+            django_models.Q(order__user=user) | django_models.Q(order__orderitem_set__product__seller_id__in=sellers)
         ).distinct()
 
-    # FIX: C-04 — Add payment verify/approve/reject actions for staff
-    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsStaffMember])
+    # Add payment verify/approve/reject actions for staff, business owners, and accountant team members
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def verify(self, request, pk=None):
-        """Staff: approve a pending marketplace payment and advance order to PAID."""
+        """Staff, Seller, or Accountant Team Member: approve a pending marketplace payment."""
         from .services import OrderStateMachine
+        from uzachuo.permissions import get_effective_sellers
         payment = self.get_object()
+        
+        is_staff = request.user.is_staff or request.user.is_superuser
+        sellers = get_effective_sellers(request.user, required_permission='manage_payments')
+        is_seller_or_team = payment.order and payment.order.orderitem_set.filter(product__seller_id__in=sellers).exists()
+        
+        if not (is_staff or is_seller_or_team):
+            return Response({'error': 'You do not have permission to verify this payment.'}, status=403)
+
         if payment.status != 'PENDING_VERIFICATION':
             return Response({'error': 'Payment is not pending verification.'}, status=400)
         payment.status = 'VERIFIED'
@@ -2095,11 +2114,20 @@ class PaymentViewSet(viewsets.ModelViewSet):
             'order_status': payment.order.status if payment.order else None
         })
 
-    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsStaffMember])
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def reject(self, request, pk=None):
-        """Staff: reject a pending payment and return order to AWAITING_PAYMENT."""
+        """Staff, Seller, or Accountant Team Member: reject a pending payment."""
         from .services import OrderStateMachine
+        from uzachuo.permissions import get_effective_sellers
         payment = self.get_object()
+        
+        is_staff = request.user.is_staff or request.user.is_superuser
+        sellers = get_effective_sellers(request.user, required_permission='manage_payments')
+        is_seller_or_team = payment.order and payment.order.orderitem_set.filter(product__seller_id__in=sellers).exists()
+        
+        if not (is_staff or is_seller_or_team):
+            return Response({'error': 'You do not have permission to reject this payment.'}, status=403)
+
         if payment.status != 'PENDING_VERIFICATION':
             return Response({'error': 'Payment is not pending verification.'}, status=400)
         payment.status = 'REJECTED'
@@ -2156,14 +2184,38 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             if hasattr(self.user, 'inspector_profile') else None
         )
 
-        from marketplace.models import TeamMember
-        member_record = TeamMember.objects.filter(user=self.user).first()
+        from marketplace.models import TeamMember, TEAM_ROLE_PRESETS
+        member_record = TeamMember.objects.filter(user=self.user, invitation_status='accepted').select_related('owner', 'owner__profile').first()
         if member_record:
+            owner = member_record.owner
+            is_owner_business = (
+                getattr(getattr(owner, 'profile', None), 'tier', None) == 'business' or
+                owner.subscriptions.filter(is_active=True, tier__tier_level='business').exists() or
+                owner.is_superuser
+            )
+            role_preset = member_record.role_preset or 'custom'
+            role_label = TEAM_ROLE_PRESETS.get(role_preset, {}).get('label', role_preset.replace('_', ' ').title())
+
             data['is_team_member'] = True
-            data['team_permissions'] = member_record.permissions
-            data['tier'] = 'business'
+            data['team_owner_id'] = owner.id
+            data['team_owner_username'] = owner.username
+            data['business_name'] = getattr(getattr(owner, 'profile', None), 'bio', None) or owner.get_full_name() or owner.username
+            data['team_role_preset'] = role_preset
+            data['team_role_label'] = role_label
+            data['is_team_suspended'] = not member_record.is_active
+            data['is_owner_subscription_active'] = is_owner_business
+            data['team_permissions'] = member_record.permissions if (member_record.is_active and is_owner_business) else {}
+            if data.get('tier') == 'customer':
+                data['tier'] = 'worker'
         else:
             data['is_team_member'] = False
+            data['team_owner_id'] = None
+            data['team_owner_username'] = None
+            data['business_name'] = None
+            data['team_role_preset'] = None
+            data['team_role_label'] = None
+            data['is_team_suspended'] = False
+            data['is_owner_subscription_active'] = False
             data['team_permissions'] = {}
 
         return data
@@ -2195,14 +2247,38 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             if hasattr(user, 'inspector_profile') else None
         )
         
-        from marketplace.models import TeamMember
-        member_record = TeamMember.objects.filter(user=user).first()
+        from marketplace.models import TeamMember, TEAM_ROLE_PRESETS
+        member_record = TeamMember.objects.filter(user=user, invitation_status='accepted').select_related('owner', 'owner__profile').first()
         if member_record:
+            owner = member_record.owner
+            is_owner_business = (
+                getattr(getattr(owner, 'profile', None), 'tier', None) == 'business' or
+                owner.subscriptions.filter(is_active=True, tier__tier_level='business').exists() or
+                owner.is_superuser
+            )
+            role_preset = member_record.role_preset or 'custom'
+            role_label = TEAM_ROLE_PRESETS.get(role_preset, {}).get('label', role_preset.replace('_', ' ').title())
+
             token['is_team_member'] = True
-            token['team_permissions'] = member_record.permissions
-            token['tier'] = 'business'
+            token['team_owner_id'] = owner.id
+            token['team_owner_username'] = owner.username
+            token['business_name'] = getattr(getattr(owner, 'profile', None), 'bio', None) or owner.get_full_name() or owner.username
+            token['team_role_preset'] = role_preset
+            token['team_role_label'] = role_label
+            token['is_team_suspended'] = not member_record.is_active
+            token['is_owner_subscription_active'] = is_owner_business
+            token['team_permissions'] = member_record.permissions if (member_record.is_active and is_owner_business) else {}
+            if token.get('tier') == 'customer':
+                token['tier'] = 'worker'
         else:
             token['is_team_member'] = False
+            token['team_owner_id'] = None
+            token['team_owner_username'] = None
+            token['business_name'] = None
+            token['team_role_preset'] = None
+            token['team_role_label'] = None
+            token['is_team_suspended'] = False
+            token['is_owner_subscription_active'] = False
             token['team_permissions'] = {}
             
         from marketplace.models import Subscription
@@ -2662,8 +2738,10 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(user, required_permission='manage_messages')
         return Conversation.objects.filter(
-            Q(buyer=user) | Q(seller=user)
+            Q(buyer=user) | Q(seller=user) | Q(seller_id__in=sellers)
         ).select_related(
             'buyer', 'buyer__profile', 'seller', 'seller__profile', 'product'
         ).prefetch_related(
@@ -2728,7 +2806,10 @@ class ConversationViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=['post'])
     def read(self, request, pk=None):
         conv = self.get_object()
-        if not (conv.buyer == request.user or conv.seller == request.user):
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(request.user, required_permission='manage_messages')
+        is_participant = conv.buyer == request.user or conv.seller == request.user or conv.seller_id in sellers
+        if not is_participant:
             return Response(status=403)
             
         unread_msgs = Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user)
@@ -2755,7 +2836,10 @@ class ConversationViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=['get', 'post'])
     def messages(self, request, pk=None):
         conv = self.get_object()
-        if not (conv.buyer == request.user or conv.seller == request.user):
+        from uzachuo.permissions import get_effective_sellers
+        sellers = get_effective_sellers(request.user, required_permission='manage_messages')
+        is_participant = conv.buyer == request.user or conv.seller == request.user or conv.seller_id in sellers
+        if not is_participant:
             return Response(status=403)
         if request.method == 'POST':
             # Create a mutable copy of request data or just set the conversation
@@ -3373,15 +3457,172 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         )
         return Response({'status': 'declined'})
 
-    @decorators.action(detail=False, methods=['get'])
+    @decorators.action(detail=True, methods=['post'], url_path='reset-password')
+    def reset_password(self, request, pk=None):
+        """Business Owner: reset password for a team member directly."""
+        member = self.get_object()
+        if member.owner != request.user and not request.user.is_superuser:
+            return Response({'error': 'Only the business owner can reset passwords for team members.'}, status=403)
+        
+        from .serializers import TeamMemberPasswordResetSerializer
+        serializer = TeamMemberPasswordResetSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+        
+        new_password = serializer.validated_data['new_password']
+        member.user.set_password(new_password)
+        member.user.save()
+
+        from .models import TeamMemberAuditLog
+        TeamMemberAuditLog.objects.create(
+            owner=member.owner,
+            target_user=member.user,
+            performed_by=request.user,
+            action='password_reset',
+            detail={'target_username': member.user.username}
+        )
+        return Response({'status': 'password_reset_success', 'message': f'Password for {member.user.username} has been updated successfully.'})
+
+    @decorators.action(detail=True, methods=['post'], url_path='toggle-suspend')
+    def toggle_suspend(self, request, pk=None):
+        """Business Owner: toggle suspend/reactivate for a team member."""
+        member = self.get_object()
+        if member.owner != request.user and not request.user.is_superuser:
+            return Response({'error': 'Only the business owner can suspend or reactivate team members.'}, status=403)
+        
+        member.is_active = not member.is_active
+        member.save(update_fields=['is_active'])
+
+        action_name = 'reactivated' if member.is_active else 'suspended'
+        from .models import TeamMemberAuditLog
+        TeamMemberAuditLog.objects.create(
+            owner=member.owner,
+            target_user=member.user,
+            performed_by=request.user,
+            action=action_name,
+            detail={'is_active': member.is_active}
+        )
+        return Response({
+            'status': 'success',
+            'is_active': member.is_active,
+            'message': f'Team member @{member.user.username} is now {"active" if member.is_active else "suspended"}.'
+        })
+
+    @decorators.action(detail=True, methods=['post'], url_path='transfer-role')
+    def transfer_role(self, request, pk=None):
+        """Business Owner: transfer role & permissions from one member to another."""
+        member = self.get_object()
+        if member.owner != request.user and not request.user.is_superuser:
+            return Response({'error': 'Only the business owner can transfer team roles.'}, status=403)
+        
+        from .serializers import TeamMemberTransferSerializer
+        serializer = TeamMemberTransferSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+        
+        target_user = serializer.validated_data['target_username']
+        if target_user == member.owner:
+            return Response({'error': 'Cannot transfer role to the business owner.'}, status=400)
+        if target_user == member.user:
+            return Response({'error': 'Source and target user are the same.'}, status=400)
+
+        # Check target user profile tier
+        target_profile = getattr(target_user, 'profile', None)
+        if target_profile and target_profile.tier not in ['customer', 'worker']:
+            return Response({'error': 'Target user must have a regular customer or worker account.'}, status=400)
+
+        # Update or create target membership
+        from .models import TeamMember, TeamMemberAuditLog
+        target_member, created = TeamMember.objects.get_or_create(
+            owner=member.owner,
+            user=target_user,
+            defaults={
+                'permissions': dict(member.permissions),
+                'role_preset': member.role_preset,
+                'invitation_status': 'accepted',
+                'is_active': True,
+                'created_by_owner': True,
+                'contact_phone': member.contact_phone
+            }
+        )
+        if not created:
+            target_member.permissions = dict(member.permissions)
+            target_member.role_preset = member.role_preset
+            target_member.is_active = True
+            target_member.invitation_status = 'accepted'
+            target_member.save()
+
+        if target_profile:
+            target_profile.tier = 'worker'
+            target_profile.save(update_fields=['tier'])
+
+        # Deactivate / remove old member
+        old_user = member.user
+        member.is_active = False
+        member.save(update_fields=['is_active'])
+
+        TeamMemberAuditLog.objects.create(
+            owner=member.owner,
+            target_user=target_user,
+            performed_by=request.user,
+            action='transferred',
+            detail={
+                'from_user': old_user.username,
+                'to_user': target_user.username,
+                'role_preset': member.role_preset,
+                'permissions': dict(member.permissions)
+            }
+        )
+        return Response({
+            'status': 'transfer_success',
+            'message': f'Role {member.role_preset} successfully transferred from @{old_user.username} to @{target_user.username}.'
+        })
+
+    @decorators.action(detail=False, methods=['get'], url_path='my-team-info')
+    def my_team_info(self, request):
+        """Team Member: get detailed team context and permissions."""
+        from .models import TeamMember, TEAM_ROLE_PRESETS
+        member = TeamMember.objects.filter(user=request.user, invitation_status='accepted').select_related('owner', 'owner__profile').first()
+        if not member:
+            return Response({'is_team_member': False, 'message': 'No active team membership found.'}, status=200)
+
+        owner = member.owner
+        is_owner_business = (
+            getattr(getattr(owner, 'profile', None), 'tier', None) == 'business' or
+            owner.subscriptions.filter(is_active=True, tier__tier_level='business').exists() or
+            owner.is_superuser
+        )
+        role_preset = member.role_preset or 'custom'
+        preset_info = TEAM_ROLE_PRESETS.get(role_preset, {
+            'label': role_preset.replace('_', ' ').title(),
+            'description': 'Custom team role',
+            'tasks': []
+        })
+
+        return Response({
+            'is_team_member': True,
+            'membership_id': member.id,
+            'owner_id': owner.id,
+            'owner_username': owner.username,
+            'business_name': getattr(getattr(owner, 'profile', None), 'bio', None) or owner.get_full_name() or owner.username,
+            'business_email': owner.email,
+            'role_preset': role_preset,
+            'role_label': preset_info.get('label'),
+            'role_description': preset_info.get('description'),
+            'role_tasks': preset_info.get('tasks', []),
+            'permissions': member.permissions if (member.is_active and is_owner_business) else {},
+            'is_active': member.is_active,
+            'is_owner_subscription_active': is_owner_business,
+            'created_at': member.created_at.isoformat(),
+        })
+
+    @decorators.action(detail=False, methods=['get'], url_path='audit-log')
     def audit_log(self, request):
         from .models import TeamMemberAuditLog
-        entries = TeamMemberAuditLog.objects.filter(owner=request.user).select_related('target_user', 'performed_by')[:100]
-        data = [{
-            'id': e.id, 'target_user': e.target_user.username, 'performed_by': e.performed_by.username if e.performed_by else None,
-            'action': e.action, 'detail': e.detail, 'created_at': e.created_at.isoformat(),
-        } for e in entries]
-        return Response(data)
+        from .serializers import TeamMemberAuditLogSerializer
+        entries = TeamMemberAuditLog.objects.filter(owner=request.user).select_related('target_user', 'performed_by').order_by('-created_at')[:200]
+        serializer = TeamMemberAuditLogSerializer(entries, many=True)
+        return Response(serializer.data)
 
 # --- Web Push Subscription Views ---
 class PushSubscriptionView(APIView):
