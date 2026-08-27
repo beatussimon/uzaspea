@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { Shield, User, ClipboardList, CheckCircle } from 'lucide-react';
+import { Spinner } from '../../components/ui/Spinner';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 interface UserDetails {
   id: number;
@@ -119,20 +121,24 @@ export const MyTeamPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12 bg-black text-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500"></div>
+      <div className="flex justify-center py-16">
+        <Spinner size="lg" />
       </div>
     );
   }
 
   if (!membership) {
     return (
-      <div className="card p-8 text-center text-gray-500 max-w-xl mx-auto border border-gray-800 bg-[#0a0a0a] rounded-2xl space-y-4">
-        <Shield size={48} className="mx-auto text-gray-700" />
-        <h3 className="text-lg font-bold text-white uppercase tracking-wider">No Active Team Found</h3>
-        <p className="text-xs text-gray-400">
-          You are currently not associated with any active business team as a worker. Ask your business owner to invite you using your username.
-        </p>
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Team Details</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Review your roles, responsibilities, and jobs in the team</p>
+        </header>
+        <EmptyState
+          icon={Shield}
+          title="No Active Team Found"
+          description="You are currently not associated with any active business team as a worker. Ask your business owner to invite you using your username."
+        />
       </div>
     );
   }
@@ -148,46 +154,46 @@ export const MyTeamPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-800 pb-4">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-            <Shield className="text-amber-500" size={22} />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Shield className="text-brand-500" size={24} />
             My Team Details
-          </h2>
-          <p className="text-xs text-gray-500 mt-1">
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             Review your roles, responsibilities, and jobs in the team
           </p>
         </div>
-      </div>
+      </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column: Role Details */}
         <div className="md:col-span-2 space-y-6">
-          <div className="card p-6 bg-[#0a0a0a] border border-gray-800 rounded-xl space-y-4">
+          <div className="card p-5 space-y-3">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-amber-500/10 text-amber-500 rounded-lg">
-                <ClipboardList size={24} />
+              <div className="p-2.5 bg-brand-500/10 text-brand-600 dark:text-brand-400 rounded-btn border border-brand-500/20">
+                <ClipboardList size={20} />
               </div>
               <div>
-                <h3 className="text-lg font-black text-white">{roleInfo.label}</h3>
-                <p className="text-xs text-gray-500 font-mono">Assigned Role Preset</p>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">{roleInfo.label}</h3>
+                <p className="text-2xs text-gray-400 font-mono">Assigned Role Preset</p>
               </div>
             </div>
-            <p className="text-sm text-gray-300 leading-relaxed pt-2 border-t border-gray-900">
+            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed pt-2 border-t border-surface-border dark:border-surface-dark-border">
               {roleInfo.description}
             </p>
           </div>
 
-          <div className="card p-6 bg-[#0a0a0a] border border-gray-800 rounded-xl space-y-4">
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-              <CheckCircle size={14} className="text-amber-500" />
+          <div className="card p-5 space-y-3">
+            <h4 className="text-2xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+              <CheckCircle size={14} className="text-brand-500" />
               Role Responsibilities & Tasks
             </h4>
-            <div className="divide-y divide-gray-900">
+            <div className="divide-y divide-surface-border dark:divide-surface-dark-border">
               {roleInfo.tasks.map((task, idx) => (
-                <div key={idx} className="py-3 flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                  <p className="text-sm text-gray-300 font-medium">{task}</p>
+                <div key={idx} className="py-2.5 flex items-start gap-2.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-brand-500 mt-1.5 shrink-0" />
+                  <p className="text-xs text-gray-700 dark:text-gray-300 font-medium">{task}</p>
                 </div>
               ))}
             </div>
@@ -196,36 +202,36 @@ export const MyTeamPage: React.FC = () => {
 
         {/* Right Column: Business / Owner details */}
         <div className="space-y-6">
-          <div className="card p-6 bg-[#0a0a0a] border border-gray-800 rounded-xl space-y-4">
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+          <div className="card p-5 space-y-3">
+            <h4 className="text-2xs font-bold text-gray-400 uppercase tracking-wider">
               Business Information
             </h4>
-            <div className="pt-2 border-t border-gray-900 space-y-4">
+            <div className="pt-2 border-t border-surface-border dark:border-surface-dark-border space-y-3">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-gray-900 rounded-lg text-gray-400">
-                  <User size={18} />
+                <div className="p-2 bg-surface-muted dark:bg-[#161616] rounded-btn text-gray-500 border border-surface-border dark:border-surface-dark-border">
+                  <User size={16} />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Business Owner</p>
-                  <p className="text-sm text-white font-bold">@{membership.owner_username}</p>
+                  <p className="text-3xs text-gray-400 uppercase tracking-wider font-bold">Business Owner</p>
+                  <p className="text-xs text-gray-900 dark:text-white font-bold">@{membership.owner_username}</p>
                 </div>
               </div>
 
-              <div className="pt-3 text-[11px] text-gray-500 leading-relaxed border-t border-gray-900">
+              <div className="pt-2 text-3xs text-gray-400 leading-relaxed border-t border-surface-border dark:border-surface-dark-border">
                 Joined on {new Date(membership.created_at).toLocaleDateString()}
               </div>
             </div>
           </div>
 
-          <div className="card p-6 bg-[#0a0a0a] border border-gray-800 rounded-xl space-y-3">
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+          <div className="card p-5 space-y-3">
+            <h4 className="text-2xs font-bold text-gray-400 uppercase tracking-wider">
               System Permissions
             </h4>
-            <div className="space-y-2 pt-2 border-t border-gray-900">
+            <div className="space-y-2 pt-2 border-t border-surface-border dark:border-surface-dark-border">
               {Object.entries(membership.permissions).map(([name, val]) => (
                 <div key={name} className="flex justify-between items-center text-xs">
-                  <span className="text-gray-400 capitalize font-medium">{name.replace('_', ' ')}</span>
-                  <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[9px] ${val ? ' text-green-500 border border-green-500/50' : 'bg-gray-950 text-gray-600 border border-gray-900'}`}>
+                  <span className="text-gray-600 dark:text-gray-300 capitalize text-2xs font-medium">{name.replace('_', ' ')}</span>
+                  <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-3xs ${val ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-surface-muted text-gray-400 dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border'}`}>
                     {val ? 'Enabled' : 'Disabled'}
                   </span>
                 </div>

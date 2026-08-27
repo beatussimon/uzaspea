@@ -394,12 +394,12 @@ export const TeamManagerPage: React.FC = () => {
     <div className="space-y-6">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-950 dark:text-white">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Team Members
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             Add staff and assign what parts of your store they can manage.
           </p>
         </div>
@@ -410,34 +410,50 @@ export const TeamManagerPage: React.FC = () => {
             setIsAddModalOpen(true);
           }}
           size="sm"
-          className="self-start sm:self-auto"
+          className="font-bold flex items-center gap-1.5"
         >
-          <Plus className="w-4 h-4 mr-1.5" />
+          <Plus size={14} />
           Add Member
         </Button>
-      </div>
+      </header>
 
       {/* Tabs */}
-      <div className="flex items-center gap-6 border-b border-surface-border dark:border-surface-dark-border text-sm">
+      <div data-horizontal-scroll="true" className="flex items-center gap-2">
         <button
+          type="button"
           onClick={() => setActiveTab('members')}
-          className={`pb-3 font-medium transition-colors border-b-2 -mb-px ${
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'members'
-              ? 'border-brand-500 text-brand-500 dark:text-brand-400 font-semibold'
-              : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+              : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
           }`}
         >
-          Members ({members.length})
+          <span>Members</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
+            activeTab === 'members'
+              ? 'bg-white/20 dark:bg-black/20 text-inherit'
+              : 'bg-surface-border text-gray-500 dark:text-gray-400'
+          }`}>
+            {members.length}
+          </span>
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('audit')}
-          className={`pb-3 font-medium transition-colors border-b-2 -mb-px ${
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'audit'
-              ? 'border-brand-500 text-brand-500 dark:text-brand-400 font-semibold'
-              : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+              : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
           }`}
         >
-          Activity Log ({auditLogs.length})
+          <span>Activity Log</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
+            activeTab === 'audit'
+              ? 'bg-white/20 dark:bg-black/20 text-inherit'
+              : 'bg-surface-border text-gray-500 dark:text-gray-400'
+          }`}>
+            {auditLogs.length}
+          </span>
         </button>
       </div>
 
@@ -447,11 +463,11 @@ export const TeamManagerPage: React.FC = () => {
           
           {members.length > 0 && (
             <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search members..."
-                className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-brand-500"
+                className="input pl-8 py-1.5 text-xs w-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -472,7 +488,7 @@ export const TeamManagerPage: React.FC = () => {
               } : undefined}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {filteredMembers.map((member) => {
                 const role = ROLE_PRESETS[member.role_preset] || {
                   label: member.role_preset.replace('_', ' '),
@@ -489,40 +505,38 @@ export const TeamManagerPage: React.FC = () => {
                 return (
                   <div
                     key={member.id}
-                    className={`bg-white dark:bg-[#0A0A0A] border rounded-xl p-4 flex flex-col justify-between gap-4 transition-colors ${
-                      member.is_active
-                        ? 'border-surface-border dark:border-surface-dark-border'
-                        : 'border-red-200 dark:border-red-900/40 bg-red-50/30 dark:bg-red-950/10'
+                    className={`card p-4 flex flex-col justify-between gap-3 hover:shadow-xs transition ${
+                      !member.is_active ? 'opacity-70 border-red-500/30' : ''
                     }`}
                   >
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       
                       {/* Top Info */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-brand-500/10 text-brand-500 font-semibold flex items-center justify-center text-sm shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 font-extrabold flex items-center justify-center text-xs shrink-0 border border-brand-500/20">
                             {displayName.charAt(0).toUpperCase()}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-gray-900 dark:text-white text-sm">
+                              <h3 className="font-bold text-gray-900 dark:text-white text-xs">
                                 {displayName}
                               </h3>
-                              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400">
+                              <span className="text-3xs font-bold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20">
                                 {role.label}
                               </span>
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                            <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5">
                               @{member.user_details.username}
                               {member.user_details.email && ` • ${member.user_details.email}`}
                             </p>
                           </div>
                         </div>
 
-                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                        <span className={`text-3xs font-bold px-2 py-0.5 rounded-full uppercase ${
                           member.is_active
-                            ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30'
-                            : 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30'
+                            ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                            : 'text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20'
                         }`}>
                           {member.is_active ? 'Active' : 'Suspended'}
                         </span>
@@ -530,11 +544,11 @@ export const TeamManagerPage: React.FC = () => {
 
                       {/* Capabilities */}
                       {grantedPerms.length > 0 && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 flex flex-wrap gap-1.5 pt-1">
+                        <div className="text-2xs text-gray-500 dark:text-gray-400 flex flex-wrap gap-1 pt-0.5">
                           {grantedPerms.map((perm, idx) => (
                             <span
                               key={idx}
-                              className="px-2 py-0.5 rounded bg-gray-100 dark:bg-neutral-900 text-gray-700 dark:text-gray-300 text-[11px]"
+                              className="px-1.5 py-0.5 rounded bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-300 border border-surface-border dark:border-surface-dark-border text-3xs font-medium"
                             >
                               {perm}
                             </span>
@@ -543,18 +557,18 @@ export const TeamManagerPage: React.FC = () => {
                       )}
 
                       {member.notes && (
-                        <p className="text-xs text-gray-500 italic bg-gray-50 dark:bg-neutral-900/50 p-2 rounded">
+                        <p className="text-3xs text-gray-400 italic bg-surface-muted/30 dark:bg-[#161616]/30 p-2 rounded-btn border border-surface-border dark:border-surface-dark-border">
                           "{member.notes}"
                         </p>
                       )}
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center justify-between pt-3 border-t border-surface-border dark:border-surface-dark-border text-xs">
+                    <div className="flex items-center justify-between pt-2.5 border-t border-surface-border dark:border-surface-dark-border text-2xs">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleToggleSuspend(member)}
-                          className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium"
+                          className="text-gray-500 hover:text-gray-900 dark:hover:text-white font-semibold transition"
                         >
                           {member.is_active ? 'Suspend' : 'Reactivate'}
                         </button>
@@ -565,20 +579,20 @@ export const TeamManagerPage: React.FC = () => {
                             setNewPassword('');
                             setConfirmNewPassword('');
                           }}
-                          className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium"
+                          className="text-gray-500 hover:text-gray-900 dark:hover:text-white font-semibold transition"
                         >
-                          Reset password
+                          Reset Password
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         <button
                           onClick={() => {
                             setEditModalMember(member);
                             setEditRolePreset(member.role_preset || 'custom');
                             setEditPerms({ ...member.permissions });
                           }}
-                          className="text-gray-600 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-400 font-medium"
+                          className="text-brand-600 dark:text-brand-400 hover:underline font-bold"
                         >
                           Edit
                         </button>
@@ -587,14 +601,14 @@ export const TeamManagerPage: React.FC = () => {
                             setTransferModalMember(member);
                             setTargetUsername('');
                           }}
-                          className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium"
+                          className="text-gray-500 hover:text-gray-900 dark:hover:text-white font-semibold"
                           title="Transfer role to another user"
                         >
                           Transfer
                         </button>
                         <button
                           onClick={() => handleRemoveMember(member.id, member.user_details.username)}
-                          className="text-red-500 hover:text-red-600 font-medium"
+                          className="text-red-500 hover:underline font-bold"
                         >
                           Remove
                         </button>
@@ -611,37 +625,37 @@ export const TeamManagerPage: React.FC = () => {
 
       {/* Tab: Activity Log */}
       {activeTab === 'audit' && (
-        <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-xl overflow-hidden">
+        <div className="card overflow-hidden">
           {auditLogs.length === 0 ? (
-            <div className="p-8 text-center text-sm text-gray-500">
+            <div className="p-8 text-center text-xs text-gray-500">
               No team activity recorded yet.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-surface-border dark:border-surface-dark-border text-gray-500 bg-gray-50 dark:bg-neutral-900/50">
-                    <th className="p-3 font-medium">Date & Time</th>
-                    <th className="p-3 font-medium">Action</th>
-                    <th className="p-3 font-medium">Team Member</th>
-                    <th className="p-3 font-medium">Performed By</th>
+                <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                  <tr>
+                    <th className="p-3">Date & Time</th>
+                    <th className="p-3">Action</th>
+                    <th className="p-3">Team Member</th>
+                    <th className="p-3">Performed By</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                   {auditLogs.map((entry) => (
-                    <tr key={entry.id} className="text-gray-700 dark:text-gray-300">
-                      <td className="p-3 text-gray-500 whitespace-nowrap">
+                    <tr key={entry.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                      <td className="p-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         {new Date(entry.created_at).toLocaleString()}
                       </td>
                       <td className="p-3 whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 dark:bg-neutral-900">
+                        <span className="px-2 py-0.5 rounded text-3xs font-bold bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border">
                           {entry.action.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="p-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                      <td className="p-3 font-bold text-gray-900 dark:text-white whitespace-nowrap">
                         @{entry.target_username}
                       </td>
-                      <td className="p-3 text-gray-500 whitespace-nowrap">
+                      <td className="p-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         @{entry.performed_by_username || 'System'}
                       </td>
                     </tr>

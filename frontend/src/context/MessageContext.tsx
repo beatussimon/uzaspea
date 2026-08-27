@@ -121,8 +121,9 @@ interface MessageContextType {
   toggleDesktopChat: () => void;
   toggleDesktopMinimize: () => void;
   closeThreadBubble: (convId: number) => void;
-  openThreadBubble: (convId: number) => void;
   startOrderInquiryChat: (sellerUsername: string, itemsSummary: string, sellerId?: number) => Promise<number | null>;
+  startDirectChat: (targetUsername: string, targetUserId?: number, prefillMessage?: string) => Promise<number | null>;
+  loadConversations: (silent?: boolean) => Promise<void>;
 }
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
@@ -226,7 +227,7 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return existingConv.id;
         }
         const profRes = await api.get(`/api/profiles/${sellerUsername}/`);
-        targetSellerId = profRes.data?.user?.id || profRes.data?.id;
+        targetSellerId = profRes.data?.user_id || profRes.data?.user || (typeof profRes.data?.id === 'number' ? profRes.data.id : undefined);
       }
       if (!targetSellerId) {
         toast.error('Could not identify seller.');
@@ -246,6 +247,55 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return null;
     }
   }, [conversations, openChatWindow]);
+
+  const startDirectChat = useCallback(async (targetUsername: string, targetUserId?: number, prefillMessage?: string) => {
+    try {
+      if (user && targetUsername.toLowerCase() === user.username.toLowerCase()) {
+        toast.error('You cannot message yourself');
+        return null;
+      }
+
+      // Check existing conversation
+      const existingConv = conversations.find(c =>
+        c.seller_username?.toLowerCase() === targetUsername.toLowerCase() ||
+        c.buyer_username?.toLowerCase() === targetUsername.toLowerCase()
+      );
+
+      if (existingConv) {
+        if (window.innerWidth >= 768) {
+          openChatWindow(existingConv.id, prefillMessage);
+        }
+        return existingConv.id;
+      }
+
+      let uid = targetUserId;
+      if (!uid) {
+        const profRes = await api.get(`/api/profiles/${targetUsername}/`);
+        uid = profRes.data?.user_id || profRes.data?.user || (typeof profRes.data?.id === 'number' ? profRes.data.id : undefined);
+      }
+
+      if (!uid) {
+        toast.error('Could not identify user to message');
+        return null;
+      }
+
+      const res = await api.post('/api/conversations/', { seller: uid });
+      const newConv = res.data;
+      setConversations(prev => {
+        if (prev.some(c => c.id === newConv.id)) return prev;
+        return [newConv, ...prev];
+      });
+
+      if (window.innerWidth >= 768) {
+        openChatWindow(newConv.id, prefillMessage);
+      }
+      return newConv.id;
+    } catch (err) {
+      console.error('Failed to start direct chat', err);
+      toast.error('Could not open chat with user');
+      return null;
+    }
+  }, [user, conversations, openChatWindow]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -804,6 +854,8 @@ const subscribeToWebPush = async () => {
     openThreadBubble,
     closeThreadBubble,
     startOrderInquiryChat,
+    startDirectChat,
+    loadConversations,
   }), [
     conversations, totalUnread, activeConversationId, setActiveConversationId,
     messages, fetchMessages, sendMessage, toasts, dismissToast, loading,
@@ -813,7 +865,7 @@ const subscribeToWebPush = async () => {
     isDesktopPopupOpen, setIsDesktopPopupOpen, desktopActiveConvId, setDesktopActiveConvId,
     isDesktopMinimized, setIsDesktopMinimized, desktopPrefillMessage, setDesktopPrefillMessage,
     openConvIds, minimizedConvIds, openDesktopChat, closeDesktopChat, toggleDesktopChat, toggleDesktopMinimize,
-    openThreadBubble, closeThreadBubble, startOrderInquiryChat,
+    openThreadBubble, closeThreadBubble, startOrderInquiryChat, startDirectChat, loadConversations,
   ]);
 
   return (

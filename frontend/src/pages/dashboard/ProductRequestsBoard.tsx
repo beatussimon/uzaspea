@@ -254,264 +254,274 @@ const ProductRequestsBoard: React.FC = () => {
   return (
     <div className="space-y-6 print:m-0 print:space-y-0">
       <div className="print:hidden space-y-6">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t('product_requests', 'Demand Analytics')}
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            {t('product_requests_desc', 'Analyze customer demand and convert requested items directly into your inventory.')}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 shadow-sm whitespace-nowrap text-sm">
-            <Plus size={16} />
-            {t('create_demand', 'Create Demand')}
-          </Button>
-          <button 
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition shadow-sm font-bold text-sm"
-          >
-            <Printer size={16} /> Print
-          </button>
-        </div>
-      </header>
-
-      {requests.length === 0 ? (
-        <EmptyState
-          icon={Lightbulb}
-          title={t('no_requests', 'No Requests Yet')}
-          description={t('no_requests_desc', 'Create a demand card to gauge interest on a "Product in Making".')}
-        />
-      ) : (
-        <div className="space-y-6 animate-fade-in">
-          {/* KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition">
-              <div className="p-3   text-blue-500 dark:text-blue-500 rounded-xl">
-                <Package size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Active Unfulfilled Cards</p>
-                <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">{totalRequests}</p>
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition">
-              <div className="p-3   text-brand-500 dark:text-brand-500 rounded-xl">
-                <Users size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Active Demand</p>
-                <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">{totalVotes} <span className="text-sm text-gray-400 font-normal">votes</span></p>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition">
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl">
-                <TrendingUp size={24} />
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Top Trending Item</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white mt-1 truncate">
-                  {topRequested?.name || 'N/A'}
-                </p>
-                <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-1">
-                  {topRequested?.request_count || 0} votes
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition">
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                <DollarSign size={24} />
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">Total Missed Cost</p>
-                <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-1 truncate">
-                  {formatCompactCurrency(totalMissedCost)}
-                </p>
-                <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Projected Total Cost</p>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition">
-              <div className="p-3   text-purple-500 dark:text-purple-500 rounded-xl">
-                <TrendingUp size={24} />
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">Potential Profit</p>
-                <p className="text-lg font-black text-purple-500 dark:text-purple-500 mt-1 truncate">
-                  {formatCompactCurrency(potentialProfit)}
-                </p>
-                <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">From Costs</p>
-              </div>
-            </div>
+        {/* Header */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {t('product_requests', 'Demand Analytics')}
+            </h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+              {t('product_requests_desc', 'Analyze customer demand and convert requested items directly into your inventory.')}
+            </p>
           </div>
-
-          {/* Chart Section */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 mb-6">
-              <TrendingUp size={20} className="text-brand-500" />
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Demand Curve (All Active Requests)</h3>
-            </div>
-            {chartData.length > 0 && chartData.some(d => d.votes > 0) ? (
-              <div className="h-[280px] w-full">
-                <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                  <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.2} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} angle={-45} textAnchor="end" height={60} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} />
-                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(107, 114, 128, 0.2)', strokeWidth: 2, fill: 'transparent' }} />
-                    <Area type="monotone" dataKey="votes" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorVotes)">
-                      <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={11} fontWeight={600} offset={10} />
-                    </Area>
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="h-[280px] w-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-                <BarChart2 size={40} className="mb-3 opacity-20" />
-                <p>Not enough votes yet to display chart.</p>
-              </div>
-            )}
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              size="sm"
+              className="flex items-center gap-1.5 font-bold"
+            >
+              <Plus size={14} />
+              {t('create_demand', 'Create Demand')}
+            </Button>
+            <button 
+              onClick={() => window.print()}
+              className="btn-ghost border border-surface-border dark:border-surface-dark-border px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 rounded-btn hover:bg-surface-muted dark:hover:bg-[#161616]"
+            >
+              <Printer size={14} /> Print
+            </button>
           </div>
+        </header>
 
-          {/* Data Table */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="p-5 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Raw Data</h3>
+        {requests.length === 0 ? (
+          <EmptyState
+            icon={Lightbulb}
+            title={t('no_requests', 'No Requests Yet')}
+            description={t('no_requests_desc', 'Create a demand card to gauge interest on a "Product in Making".')}
+          />
+        ) : (
+          <div className="space-y-6">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="card p-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Active Cards</span>
+                  <div className="p-2 rounded-btn bg-blue-500/10 text-blue-500">
+                    <Package size={16} />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-xl font-extrabold text-gray-900 dark:text-white">{totalRequests}</p>
+                </div>
+              </div>
+
+              <div className="card p-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Total Demand</span>
+                  <div className="p-2 rounded-btn bg-brand-500/10 text-brand-500">
+                    <Users size={16} />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-xl font-extrabold text-gray-900 dark:text-white">
+                    {totalVotes} <span className="text-2xs font-normal text-gray-400">votes</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="card p-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Top Trending</span>
+                  <div className="p-2 rounded-btn bg-amber-500/10 text-amber-500">
+                    <TrendingUp size={16} />
+                  </div>
+                </div>
+                <div className="mt-2 overflow-hidden">
+                  <p className="text-sm font-extrabold text-gray-900 dark:text-white truncate">
+                    {topRequested?.name || 'N/A'}
+                  </p>
+                  <p className="text-2xs text-amber-500 font-bold">
+                    {topRequested?.request_count || 0} votes
+                  </p>
+                </div>
+              </div>
+
+              <div className="card p-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Missed Cost</span>
+                  <div className="p-2 rounded-btn bg-emerald-500/10 text-emerald-500">
+                    <DollarSign size={16} />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-xl font-extrabold text-emerald-500">
+                    {formatCompactCurrency(totalMissedCost)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="card p-4 flex flex-col justify-between col-span-2 md:col-span-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Potential Profit</span>
+                  <div className="p-2 rounded-btn bg-purple-500/10 text-purple-500">
+                    <TrendingUp size={16} />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-xl font-extrabold text-purple-500">
+                    {formatCompactCurrency(potentialProfit)}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700/50 dark:text-gray-400">
-                  <tr>
-                    <th scope="col" className="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition select-none" onClick={() => handleSort('name')}>
-                      <div className="flex items-center gap-1">
-                        {t('product_name', 'Product Info')} {getSortIcon('name')}
-                      </div>
-                    </th>
-                    <th scope="col" className="px-2 py-4 w-24 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition select-none" onClick={() => handleSort('request_count')}>
-                      <div className="flex items-center gap-1">
-                        <TrendingUp size={14} />
-                        Demand {getSortIcon('request_count')}
-                      </div>
-                    </th>
-                    <th scope="col" className="px-6 py-4">Status</th>
-                    <th scope="col" className="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition select-none" onClick={() => handleSort('created_at')}>
-                      <div className="flex items-center gap-1">
-                        <Calendar size={14} />
-                        Created {getSortIcon('created_at')}
-                      </div>
-                    </th>
-                    <th scope="col" className="px-6 py-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedRequests.map((req) => (
-                    <tr key={req.id} className={`border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition ${req.is_fulfilled ? 'bg-gray-50 dark:bg-gray-800/50 opacity-75' : 'bg-white dark:bg-gray-800'}`}>
-                      <td className="px-6 py-4 max-w-[250px] align-middle">
-                        <div className="flex items-center gap-3">
-                          {req.image ? (
-                            <img src={req.image} alt={req.name} className="w-10 h-10 rounded-lg object-cover" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
-                              <ImageIcon size={20} className="text-gray-400" />
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white truncate">{req.name}</p>
-                            <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-xs text-gray-500 mt-1 items-center">
-                              {req.buying_price && (
-                                <>
-                                  <span className="text-gray-400">Buy:</span>
-                                  <span className="font-medium text-blue-500 dark:text-blue-500 whitespace-nowrap">{formatCompactCurrency(req.buying_price)}</span>
-                                </>
-                              )}
-                              {req.price && (
-                                <>
-                                  <span className="text-gray-400">Sell:</span>
-                                  <span className="font-medium text-brand-500 dark:text-brand-500 whitespace-nowrap">{formatCompactCurrency(req.price)}</span>
-                                </>
-                              )}
-                            </div>
-                            {req.condition && <div className="text-xs text-gray-400 mt-0.5 whitespace-nowrap">• {req.condition}</div>}
-                          </div>
+
+            {/* Chart Section */}
+            <div className="card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp size={18} className="text-brand-500" />
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Demand Curve (All Active Requests)</h3>
+              </div>
+              {chartData.length > 0 && chartData.some(d => d.votes > 0) ? (
+                <div className="h-[260px] w-full min-h-[260px]">
+                  <ResponsiveContainer width="100%" height={260} minWidth={0} minHeight={260} debounce={50}>
+                    <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.15} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} dy={10} angle={-45} textAnchor="end" height={60} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(107, 114, 128, 0.2)', strokeWidth: 2, fill: 'transparent' }} />
+                      <Area type="monotone" dataKey="votes" stroke="#8b5cf6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVotes)">
+                        <LabelList dataKey="votes" position="top" fill="#6B7280" fontSize={11} fontWeight={600} offset={10} />
+                      </Area>
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-[220px] w-full flex flex-col items-center justify-center text-gray-400">
+                  <BarChart2 size={36} className="mb-2 opacity-30" />
+                  <p className="text-xs font-medium">Not enough votes yet to display chart.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Data Table */}
+            <div className="card overflow-hidden">
+              <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Demand Requests</h3>
+                <span className="text-2xs text-gray-400">{sortedRequests.length} total items</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                    <tr>
+                      <th scope="col" className="p-3 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('name')}>
+                        <div className="flex items-center gap-1">
+                          {t('product_name', 'Product Info')} {getSortIcon('name')}
                         </div>
-                      </td>
-                      <td className="px-2 py-4 text-center align-middle">
-                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full  text-brand-500  dark:text-brand-500 font-bold">
-                          {req.request_count}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 align-middle">
-                        {req.is_fulfilled ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-                            <CheckCircle2 size={14} /> In Inventory
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs font-semibold">
-                            <Clock size={14} /> Gathering Demand
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm align-middle">
-                        {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right align-middle">
-                        <div className="flex justify-end gap-2 items-center">
-                          {!req.is_fulfilled ? (
-                             <>
-                             <Button 
-                               type="button"
-                               size="sm" 
-                               variant="outline"
-                               className="text-xs h-8"
-                               onClick={() => handleEditClick(req)}
-                             >
-                               <Edit size={14} className="mr-1" /> Edit
-                             </Button>
-                             <Button 
-                               type="button"
-                               size="sm" 
-                               variant="outline"
-                               className="text-xs h-8"
-                               loading={votingId === req.id}
-                               onClick={() => handleVote(req)}
-                             >
-                               +1 Demand
-                             </Button>
-                             <Button 
-                               type="button"
-                               size="sm" 
-                               variant="default"
-                               className="text-xs h-8"
-                               loading={convertingId === req.id}
-                               onClick={() => handleConvert(req)}
-                             >
-                               <ArrowRightCircle size={14} className="mr-1" />
-                               Convert to Product
-                             </Button>
-                            </>
-                        ) : (
-                          <span className="text-gray-400 dark:text-gray-600 text-xs italic">Fulfilled</span>
-                        )}
+                      </th>
+                      <th scope="col" className="p-3 text-center w-24 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('request_count')}>
+                        <div className="flex items-center justify-center gap-1">
+                          <TrendingUp size={12} />
+                          Demand {getSortIcon('request_count')}
                         </div>
-                      </td>
+                      </th>
+                      <th scope="col" className="p-3">Status</th>
+                      <th scope="col" className="p-3 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('created_at')}>
+                        <div className="flex items-center gap-1">
+                          <Calendar size={12} />
+                          Created {getSortIcon('created_at')}
+                        </div>
+                      </th>
+                      <th scope="col" className="p-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
+                    {sortedRequests.map((req) => (
+                      <tr key={req.id} className={`hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition ${req.is_fulfilled ? 'opacity-60' : ''}`}>
+                        <td className="p-3 max-w-[250px] align-middle">
+                          <div className="flex items-center gap-3">
+                            {req.image ? (
+                              <img src={req.image} alt={req.name} className="w-10 h-10 rounded-lg object-cover bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center shrink-0">
+                                <ImageIcon size={18} className="text-gray-400" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-bold text-gray-900 dark:text-white truncate">{req.name}</p>
+                              <div className="flex items-center gap-2 text-2xs text-gray-400 mt-0.5">
+                                {req.buying_price && (
+                                  <span>Buy: <strong className="text-blue-500">{formatCompactCurrency(req.buying_price)}</strong></span>
+                                )}
+                                {req.price && (
+                                  <span>Sell: <strong className="text-emerald-500">{formatCompactCurrency(req.price)}</strong></span>
+                                )}
+                                {req.condition && <span>• {req.condition}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3 text-center align-middle">
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-black bg-brand-500/10 text-brand-600 dark:text-brand-400">
+                            {req.request_count}
+                          </span>
+                        </td>
+                        <td className="p-3 align-middle">
+                          {req.is_fulfilled ? (
+                            <span className="inline-flex items-center gap-1 text-emerald-500 text-2xs font-bold">
+                              <CheckCircle2 size={12} /> In Inventory
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-amber-500 text-2xs font-bold">
+                              <Clock size={12} /> Gathering Demand
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-2xs text-gray-400 align-middle">
+                          {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
+                        </td>
+                        <td className="p-3 text-right align-middle">
+                          <div className="flex justify-end gap-1.5 items-center">
+                            {!req.is_fulfilled ? (
+                              <>
+                                <Button 
+                                  type="button"
+                                  size="sm" 
+                                  variant="outline"
+                                  className="text-xs py-1"
+                                  onClick={() => handleEditClick(req)}
+                                >
+                                  <Edit size={12} className="mr-1" /> Edit
+                                </Button>
+                                <Button 
+                                  type="button"
+                                  size="sm" 
+                                  variant="outline"
+                                  className="text-xs py-1"
+                                  loading={votingId === req.id}
+                                  onClick={() => handleVote(req)}
+                                >
+                                  +1 Demand
+                                </Button>
+                                <Button 
+                                  type="button"
+                                  size="sm" 
+                                  variant="default"
+                                  className="text-xs py-1 font-bold"
+                                  loading={convertingId === req.id}
+                                  onClick={() => handleConvert(req)}
+                                >
+                                  <ArrowRightCircle size={12} className="mr-1" />
+                                  Convert
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-gray-400 text-2xs italic">Fulfilled</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title={editingRequestId ? "Edit Demand Card" : "Create Product in Making"}>

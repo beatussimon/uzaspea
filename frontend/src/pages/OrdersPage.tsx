@@ -632,185 +632,230 @@ const OrdersPage: React.FC = () => {
 
                     {/* Offline Payment Instructions & Form */}
                     {order.status === 'AWAITING_PAYMENT' && (
-                      <div className="px-6 py-6 bg-yellow-50/50 dark:bg-yellow-900/10 border-b border-yellow-100 dark:border-yellow-900/20">
-                        <div className="flex items-start gap-4 mb-4">
-                          <CreditCard className="text-yellow-600 shrink-0 mt-1" size={24} />
-                          <div className="flex-1">
-                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">Offline Payment Required</h4>
-                            <div className="mb-4">
-                                <p className="text-xs font-bold text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wider">
-                                    Pay to these numbers:
+                      <div className="px-5 py-6 bg-surface-muted/40 dark:bg-[#0d0d0d] border-b border-surface-border dark:border-[#222222]">
+                        <div className="flex flex-col lg:flex-row gap-6 items-start">
+                          
+                          {/* Left side: Payment Instructions & Lipa Numbers */}
+                          <div className="flex-1 space-y-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500">
+                                <CreditCard size={18} />
+                              </div>
+                              <div>
+                                <h4 className="font-extrabold text-gray-900 dark:text-white text-sm">Payment Required</h4>
+                                <p className="text-2xs text-gray-500 dark:text-gray-400">
+                                  Send <strong className="text-gray-900 dark:text-white font-extrabold">TSh {parseInt(order.total_amount || 0).toLocaleString()}</strong> to the seller's account below, then upload proof of payment.
                                 </p>
-                                {(sellerLipa[order.id] || []).length === 0 ? (
-                                    <p className="text-sm text-yellow-600">The seller has not added payment numbers yet. Contact them directly.</p>
-                                ) : (
-                                    <div className="flex flex-wrap gap-3">
-                                        {(sellerLipa[order.id] || []).map((lipa: any) => (
-                                            <div key={lipa.id} className="flex-1 min-w-[240px] flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
-                                                <div className={`rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700 ${lipa.network_logo ? 'w-24 h-12' : 'w-12 h-12'}`}>
-                                                    {lipa.network_logo ? (
-                                                        <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
-                                                    ) : (
-                                                        <Smartphone size={24} className="text-green-600" />
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <p className="text-[11px] font-bold text-gray-400 uppercase">{lipa.network_name}</p>
-                                                    <p className="font-mono font-black text-gray-900 dark:text-white text-sm">{lipa.number}</p>
-                                                    <p className="text-xs text-gray-500">{lipa.name}</p>
-                                                </div>
-                                                <button onClick={() => {navigator.clipboard.writeText(lipa.number); toast.success('Copied!');}}
-                                                    className="ml-auto btn-ghost text-xs py-1 px-2 border border-gray-300 dark:border-gray-600 rounded">Copy</button>
-                                            </div>
-                                        ))}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <p className="text-2xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                Seller Lipa Numbers
+                              </p>
+                              {(sellerLipa[order.id] || []).length === 0 ? (
+                                <p className="text-xs text-amber-500 font-medium bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                                  The seller has not added payment numbers yet. Contact them directly.
+                                </p>
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                  {(sellerLipa[order.id] || []).map((lipa: any) => (
+                                    <div
+                                      key={lipa.id}
+                                      className="flex items-center gap-3 bg-white dark:bg-[#141414] border border-surface-border dark:border-[#262626] rounded-xl p-3 shadow-xs hover:border-brand-500/40 transition"
+                                    >
+                                      <div className={`rounded-lg bg-gray-50 dark:bg-[#1c1c1c] flex items-center justify-center overflow-hidden shrink-0 border border-surface-border dark:border-[#262626] ${lipa.network_logo ? 'w-16 h-10' : 'w-10 h-10'}`}>
+                                        {lipa.network_logo ? (
+                                          <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain p-1" />
+                                        ) : (
+                                          <Smartphone size={18} className="text-brand-500" />
+                                        )}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{lipa.network_name}</p>
+                                        <p className="font-mono font-extrabold text-gray-900 dark:text-white text-xs tracking-wider select-all">{lipa.number}</p>
+                                        <p className="text-2xs text-gray-500 truncate">{lipa.name}</p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => { navigator.clipboard.writeText(lipa.number); toast.success('Number copied!'); }}
+                                        className="px-2.5 py-1 text-2xs font-bold text-brand-600 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 rounded-md transition shrink-0"
+                                      >
+                                        Copy
+                                      </button>
                                     </div>
-                                )}
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                        
-                        <div className="space-y-4 max-w-lg">
-                          <div>
-                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Transaction ID / Reference</label>
-                            <input 
-                              type="text" 
-                              value={transactionId} 
-                              onChange={(e) => setTransactionId(e.target.value)}
-                              placeholder="e.g. 5K97QW4R"
-                              className="input text-sm h-10"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Receipt Image (Required)</label>
-                            <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <Upload size={20} className="text-gray-400 mb-1" />
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                      {proofFile ? proofFile.name : 'Click to upload proof'}
-                                    </p>
+
+                          {/* Right side: Verification Form Card */}
+                          <div className="w-full lg:w-80 shrink-0 bg-white dark:bg-[#141414] border border-surface-border dark:border-[#262626] rounded-xl p-4 shadow-sm space-y-3.5">
+                            <h5 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
+                              <Shield size={14} className="text-brand-500" />
+                              Submit Payment Proof
+                            </h5>
+
+                            <div className="space-y-1.5">
+                              <label className="text-2xs font-extrabold uppercase tracking-wider text-gray-500">Transaction ID / Reference</label>
+                              <input
+                                type="text"
+                                value={transactionId}
+                                onChange={(e) => setTransactionId(e.target.value)}
+                                placeholder="e.g. 5K97QW4R"
+                                className="input text-xs h-9 bg-surface-muted dark:bg-[#1c1c1c] border-surface-border dark:border-[#2e2e2e] focus:border-brand-500"
+                              />
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-2xs font-extrabold uppercase tracking-wider text-gray-500">Receipt Screenshot</label>
+                              <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-surface-border dark:border-[#2e2e2e] hover:border-brand-500/50 dark:hover:border-brand-500/50 rounded-lg cursor-pointer bg-surface-muted/30 dark:bg-[#1c1c1c]/50 transition group">
+                                <div className="flex flex-col items-center justify-center p-2 text-center">
+                                  <Upload size={16} className="text-gray-400 group-hover:text-brand-500 transition mb-1" />
+                                  <p className="text-2xs text-gray-500 dark:text-gray-400 truncate max-w-[220px]">
+                                    {proofFile ? <span className="text-brand-500 font-bold">{proofFile.name}</span> : 'Upload receipt image'}
+                                  </p>
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
-                            </label>
+                              </label>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={submittingProof === order.id || !transactionId || !proofFile}
+                              onClick={() => handleProofSubmit(order.id)}
+                              className="btn-primary w-full py-2 text-xs font-bold flex items-center justify-center gap-1.5"
+                            >
+                              {submittingProof === order.id ? <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" /> : <CheckCircle2 size={14} />}
+                              Confirm Payment
+                            </button>
                           </div>
-                          <button 
-                            disabled={submittingProof === order.id}
-                            onClick={() => handleProofSubmit(order.id)}
-                            className="btn-primary w-full py-2.5 flex items-center justify-center gap-2"
-                          >
-                            {submittingProof === order.id ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <CheckCircle2 size={18} />}
-                            Submit Payment Proof
-                          </button>
                         </div>
                       </div>
                     )}
 
                     {/* Delivery Fee Payment section */}
                     {order.status === 'AWAITING_DELIVERY_PAYMENT' && (
-                      <div className="px-6 py-8 bg-gradient-to-br from-brand-900 via-brand-800 to-brand-900 border-b border-brand-700/50 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-                        <div className="relative z-10 flex flex-col md:flex-row items-start gap-8">
-                          <div className="flex-1 text-white">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="p-2.5 bg-brand-500/30 rounded-xl backdrop-blur-sm border border-brand-400/30">
-                                <Truck className="text-brand-300" size={24} />
+                      <div className="px-5 py-6 bg-surface-muted/40 dark:bg-[#0d0d0d] border-b border-surface-border dark:border-[#222222]">
+                        <div className="flex flex-col lg:flex-row gap-6 items-start">
+                          
+                          {/* Left side: Instructions & Logistics Numbers */}
+                          <div className="flex-1 space-y-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500">
+                                <Truck size={18} />
                               </div>
-                              <h4 className="font-black text-xl tracking-tight">Delivery Payment Required</h4>
-                            </div>
-                            <p className="text-sm font-medium text-brand-100/90 leading-relaxed max-w-md mb-6">
-                              Your items have been processed at our regional warehouse! The final, optimized delivery fee is <span className="font-black text-white text-lg bg-brand-950/40 px-2 py-0.5 rounded-md ml-1 inline-block">TSh {parseInt(order.shipping_fee || '0').toLocaleString()}</span>. 
-                              Please pay this fee to our official platform accounts below to instantly dispatch your package to its final destination.
-                            </p>
-                            
-                            <div className="mb-4">
-                                <p className="text-[10px] font-bold text-brand-300/80 mb-2 uppercase tracking-widest">
-                                    Official Logistics Payment Numbers:
+                              <div>
+                                <h4 className="font-extrabold text-gray-900 dark:text-white text-sm">Delivery Payment Required</h4>
+                                <p className="text-2xs text-gray-500 dark:text-gray-400">
+                                  Your items have arrived at the local hub. Please pay the delivery fee of <strong className="text-gray-900 dark:text-white font-extrabold">TSh {parseInt(order.shipping_fee || '0').toLocaleString()}</strong> to dispatch for last-mile delivery.
                                 </p>
-                                {systemLipa.length === 0 ? (
-                                    <p className="text-sm text-yellow-300/80 font-medium">
-                                      {systemLipaLoaded
-                                        ? 'No logistics payment numbers configured yet. Contact support for payment instructions.'
-                                        : 'Loading payment numbers...'}
-                                    </p>
-                                ) : (
-                                    <div className="flex flex-wrap gap-3">
-                                        {systemLipa.map((lipa: any) => (
-                                            <div key={lipa.id} className="flex-1 min-w-[240px] flex items-center gap-3 bg-brand-950/40 backdrop-blur-md border border-brand-400/20 rounded-xl p-3 shadow-xl">
-                                                <div className={`rounded-lg bg-white/10 flex items-center justify-center overflow-hidden shrink-0 border border-white/5 ${lipa.network_logo ? 'w-16 h-10' : 'w-10 h-10'}`}>
-                                                    {lipa.network_logo ? (
-                                                        <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain p-1" />
-                                                    ) : (
-                                                        <Smartphone size={20} className="text-brand-300" />
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-brand-300/70 uppercase">{lipa.network_name}</p>
-                                                    <p className="font-mono font-black text-white text-sm tracking-wider">{lipa.number}</p>
-                                                    <p className="text-[11px] text-brand-200/80">{lipa.name}</p>
-                                                </div>
-                                                <button onClick={() => {navigator.clipboard.writeText(lipa.number); toast.success('Copied!');}}
-                                                    className="ml-auto text-[10px] py-1.5 px-3 bg-brand-500/20 hover:bg-brand-500/40 text-brand-100 font-bold uppercase tracking-wider rounded-lg transition border border-brand-400/30">Copy</button>
-                                            </div>
-                                        ))}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <p className="text-2xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                Official Logistics Payment Numbers
+                              </p>
+                              {systemLipa.length === 0 ? (
+                                <p className="text-xs text-amber-500 font-medium bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                                  {systemLipaLoaded
+                                    ? 'No logistics payment numbers configured yet. Contact support for instructions.'
+                                    : 'Loading payment numbers...'}
+                                </p>
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                  {systemLipa.map((lipa: any) => (
+                                    <div
+                                      key={lipa.id}
+                                      className="flex items-center gap-3 bg-white dark:bg-[#141414] border border-surface-border dark:border-[#262626] rounded-xl p-3 shadow-xs hover:border-brand-500/40 transition"
+                                    >
+                                      <div className={`rounded-lg bg-gray-50 dark:bg-[#1c1c1c] flex items-center justify-center overflow-hidden shrink-0 border border-surface-border dark:border-[#262626] ${lipa.network_logo ? 'w-16 h-10' : 'w-10 h-10'}`}>
+                                        {lipa.network_logo ? (
+                                          <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain p-1" />
+                                        ) : (
+                                          <Smartphone size={18} className="text-brand-500" />
+                                        )}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{lipa.network_name}</p>
+                                        <p className="font-mono font-extrabold text-gray-900 dark:text-white text-xs tracking-wider select-all">{lipa.number}</p>
+                                        <p className="text-2xs text-gray-500 truncate">{lipa.name}</p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => { navigator.clipboard.writeText(lipa.number); toast.success('Number copied!'); }}
+                                        className="px-2.5 py-1 text-2xs font-bold text-brand-600 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 rounded-md transition shrink-0"
+                                      >
+                                        Copy
+                                      </button>
                                     </div>
-                                )}
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
-                          
-                          <div className="w-full md:w-[340px] shrink-0 bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-2xl border border-brand-500/20">
-                            <h5 className="font-bold text-gray-900 dark:text-white text-sm mb-4 flex items-center gap-2">
-                                <Shield size={16} className="text-brand-500" /> Verify Payment
+
+                          {/* Right side: Verification Form Card */}
+                          <div className="w-full lg:w-80 shrink-0 bg-white dark:bg-[#141414] border border-surface-border dark:border-[#262626] rounded-xl p-4 shadow-sm space-y-3.5">
+                            <h5 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
+                              <Shield size={14} className="text-brand-500" />
+                              Verify Delivery Payment
                             </h5>
-                            <div className="space-y-4">
-                              <div>
-                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Transaction ID / Reference</label>
-                                <input 
-                                  type="text" 
-                                  value={transactionId} 
-                                  onChange={(e) => setTransactionId(e.target.value)}
-                                  placeholder="e.g. 8K91QW2R"
-                                  className="input text-sm h-10 bg-gray-50 dark:bg-gray-800"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Receipt Screenshot (Required)</label>
-                                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-brand-200 dark:border-brand-800/50 rounded-xl cursor-pointer hover:bg-brand-50 dark:hover:bg-brand-900/10 transition group">
-                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                        <Upload size={20} className="text-brand-400 group-hover:text-brand-600 transition mb-1" />
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center px-4">
-                                          {proofFile ? <span className="text-brand-600 font-bold">{proofFile.name}</span> : 'Click to upload screenshot'}
-                                        </p>
-                                    </div>
-                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
-                                </label>
-                              </div>
-                              <button 
-                                disabled={submittingProof === order.id || !transactionId || !proofFile}
-                                onClick={async () => {
-                                  if (!proofFile || !transactionId) return toast.error('Please provide transaction ID and receipt');
-                                  setSubmittingProof(order.id);
-                                  const formData = new FormData();
-                                  formData.append('status', 'ASSIGNED_TRANSPORT');
-                                  formData.append('notes', 'Submitted delivery fee payment proof.');
-                                  formData.append('transaction_id', transactionId);
-                                  formData.append('proof_image', proofFile);
-                                  
-                                  try {
-                                    await api.post(`/api/orders/${order.id}/advance/`, formData, { headers: { 'Content-Type': 'multipart/form-data' }});
-                                    toast.success('Delivery fee paid successfully! Dispatching order...');
-                                    setProofFile(null); setTransactionId('');
-                                    fetchOrders(1, true);
-                                  } catch (err: any) {
-                                    toast.error(err.response?.data?.error || 'Failed to pay delivery fee');
-                                  } finally {
-                                    setSubmittingProof(null);
-                                  }
-                                }}
-                                className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-sm uppercase tracking-wider rounded-xl transition shadow-lg shadow-brand-500/20 flex items-center justify-center gap-2"
-                              >
-                                {submittingProof === order.id ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <CheckCircle2 size={18} />}
-                                Confirm Payment
-                              </button>
+
+                            <div className="space-y-1.5">
+                              <label className="text-2xs font-extrabold uppercase tracking-wider text-gray-500">Transaction ID / Reference</label>
+                              <input
+                                type="text"
+                                value={transactionId}
+                                onChange={(e) => setTransactionId(e.target.value)}
+                                placeholder="e.g. 8K91QW2R"
+                                className="input text-xs h-9 bg-surface-muted dark:bg-[#1c1c1c] border-surface-border dark:border-[#2e2e2e] focus:border-brand-500"
+                              />
                             </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-2xs font-extrabold uppercase tracking-wider text-gray-500">Receipt Screenshot</label>
+                              <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-surface-border dark:border-[#2e2e2e] hover:border-brand-500/50 dark:hover:border-brand-500/50 rounded-lg cursor-pointer bg-surface-muted/30 dark:bg-[#1c1c1c]/50 transition group">
+                                <div className="flex flex-col items-center justify-center p-2 text-center">
+                                  <Upload size={16} className="text-gray-400 group-hover:text-brand-500 transition mb-1" />
+                                  <p className="text-2xs text-gray-500 dark:text-gray-400 truncate max-w-[220px]">
+                                    {proofFile ? <span className="text-brand-500 font-bold">{proofFile.name}</span> : 'Upload receipt image'}
+                                  </p>
+                                </div>
+                                <input type="file" className="hidden" accept="image/*" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
+                              </label>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={submittingProof === order.id || !transactionId || !proofFile}
+                              onClick={async () => {
+                                if (!proofFile || !transactionId) return toast.error('Please provide transaction ID and receipt');
+                                setSubmittingProof(order.id);
+                                const formData = new FormData();
+                                formData.append('status', 'ASSIGNED_TRANSPORT');
+                                formData.append('notes', 'Submitted delivery fee payment proof.');
+                                formData.append('transaction_id', transactionId);
+                                formData.append('proof_image', proofFile);
+                                
+                                try {
+                                  await api.post(`/api/orders/${order.id}/advance/`, formData, { headers: { 'Content-Type': 'multipart/form-data' }});
+                                  toast.success('Delivery fee paid successfully! Dispatching order...');
+                                  setProofFile(null); setTransactionId('');
+                                  fetchOrders(1, true);
+                                } catch (err: any) {
+                                  toast.error(err.response?.data?.error || 'Failed to pay delivery fee');
+                                } finally {
+                                  setSubmittingProof(null);
+                                }
+                              }}
+                              className="btn-primary w-full py-2 text-xs font-bold flex items-center justify-center gap-1.5"
+                            >
+                              {submittingProof === order.id ? <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" /> : <CheckCircle2 size={14} />}
+                              Confirm Payment
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -828,6 +873,7 @@ const OrdersPage: React.FC = () => {
                         {/* Soft Banner for Codes */}
                         {(order.delivery_code || pickupCodesMap[order.id]) && (
                           (order.fulfillment_type === 'SELLER_PICKUP' && ['PACKAGING', 'READY_FOR_PICKUP', 'DELIVERED', 'COMPLETED'].includes(order.status)) ||
+                          (order.fulfillment_type === 'DIRECT_DELIVERY' && ['PACKAGING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(order.status)) ||
                           (['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(order.status))
                         ) && (
                           <div className="bg-brand-50/50 dark:bg-brand-900/10 rounded-xl border border-brand-100 dark:border-brand-900/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -838,6 +884,8 @@ const OrdersPage: React.FC = () => {
                                 <p className="text-[11px] text-brand-700/80 dark:text-brand-300/80">
                                   {order.fulfillment_type === 'SELLER_PICKUP' 
                                     ? 'Show this 6-digit code to the seller to pick up your package.' 
+                                    : order.fulfillment_type === 'DIRECT_DELIVERY'
+                                    ? 'Show this 6-digit code to the seller or courier upon delivery.'
                                     : 'Show this to the agent to collect your items.'}
                                 </p>
                             </div>
