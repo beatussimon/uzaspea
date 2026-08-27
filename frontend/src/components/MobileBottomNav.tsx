@@ -34,6 +34,7 @@ const MobileBottomNav = () => {
   const isSuperuser = user?.is_superuser || false;
   const username = user?.username || 'User';
   const isSeller = userTier === 'seller_pro' || userTier === 'business' || isStaff || isSuperuser;
+  const isTeamMember = !!user?.is_team_member || userTier === 'worker';
 
   // Active state helper
   const isActive = (path: string) => location.pathname === path;
@@ -222,10 +223,12 @@ const MobileBottomNav = () => {
                         <ShoppingBag size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
                         <span className="text-sm font-medium">{t('my_orders')}</span>
                       </Link>
-                      <Link to="/teams" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
-                        <Shield size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
-                        <span className="text-sm font-medium">Teams</span>
-                      </Link>
+                      {isTeamMember && (
+                        <Link to="/teams-dashboard" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
+                          <Shield size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                          <span className="text-sm font-medium">{t('teams_dashboard', 'Teams Portal')}</span>
+                        </Link>
+                      )}
                       {(isSeller || isInspector) && (
                         <Link to="/inspections" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
                           <ClipboardList size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />

@@ -26,6 +26,7 @@ export const Tabs: React.FC<TabsProps> = ({
 }) => {
   return (
     <div
+      data-horizontal-scroll="true"
       className={cn(
         'flex overflow-x-auto no-scrollbar border-b border-surface-border dark:border-surface-dark-border gap-2 select-none mb-6',
         variant === 'pills' && 'border-b-0 bg-surface-muted dark:bg-[#111] p-1 rounded-btn',

@@ -158,7 +158,7 @@ const InvoicesPage: React.FC = () => {
       {/* Filter Pills & Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
         {/* Status Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <button
             type="button"
             onClick={() => setActiveTab('all')}

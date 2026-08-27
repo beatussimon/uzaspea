@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
@@ -10,6 +10,7 @@ import { MessageProvider } from './context/MessageContext';
 import { ChatToastContainer } from './components/ChatToast';
 import { PwaInstallPrompt } from './components/PwaInstallPrompt';
 import { useStatusBar } from './hooks/useStatusBar';
+import { initGlobalHorizontalScroll } from './hooks/useHorizontalScroll';
 import { ScrollToTopFab } from './components/ui/ScrollToTopFab';
 import { SearchProvider } from './context/SearchContext';
 import GlobalSearchModal from './components/GlobalSearchModal';
@@ -51,6 +52,7 @@ const PublicVerifyPage = lazy(() => import('./pages/inspections/PublicVerifyPage
 const TermsAndConditionsPage = lazy(() => import('./pages/legal/TermsAndConditionsPage'));
 const PrivacyPolicyPage = lazy(() => import('./pages/legal/PrivacyPolicyPage'));
 const SellerContractPage = lazy(() => import('./pages/legal/SellerContractPage'));
+const TeamsDashboardLayout = lazy(() => import('./pages/teams/TeamsDashboardLayout'));
 
 import GlobalTermsModal from './components/GlobalTermsModal';
 import DesktopChatDock from './components/chat/DesktopChatDock';
@@ -123,6 +125,7 @@ function AppRoutes() {
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/seller-contract" element={<SellerContractPage />} />
         <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
+        <Route path="/teams-dashboard/*" element={<ProtectedRoute><TeamsDashboardLayout /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
         <Route path="/messages/:id" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
@@ -146,6 +149,11 @@ function AppLayout() {
   const isMessagesPage = location.pathname.startsWith('/messages');
   
   useStatusBar();
+
+  useEffect(() => {
+    const cleanup = initGlobalHorizontalScroll();
+    return cleanup;
+  }, []);
 
   return (
     <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
@@ -87,8 +87,7 @@ const DashboardOrders: React.FC = () => {
     } else {
       setLoadingMore(true);
     }
-    const params = filterStatus ? `&status=${filterStatus}` : '&exclude_statuses=REQUESTED_INVOICE,INVOICE_GENERATED';
-    api.get(`/api/orders/incoming/?page=${p}${params}`)
+    api.get(`/api/orders/incoming/?page=${p}&exclude_statuses=REQUESTED_INVOICE,INVOICE_GENERATED`)
       .then(res => {
         const data = res.data.results || res.data;
         const incoming = Array.isArray(data) ? data : [];
@@ -109,7 +108,7 @@ const DashboardOrders: React.FC = () => {
         setLoading(false);
         setLoadingMore(false);
       });
-  }, [filterStatus]);
+  }, []);
 
   useEffect(() => {
     fetchOrders(1, true);
@@ -193,14 +192,37 @@ const DashboardOrders: React.FC = () => {
     if (reason === null) return;
     setAdvancing(orderId);
     try {
-        await api.post(`/api/orders/${orderId}/cancel/`, { notes: reason || 'Cancelled by seller.' });
-        toast.success(`Order #${orderId} cancelled.`);
-        fetchOrders(1, true);
+      await api.post(`/api/orders/${orderId}/cancel/`, { notes: reason || 'Cancelled by seller.' });
+      toast.success(`Order #${orderId} cancelled.`);
+      fetchOrders(1, true);
     } catch { toast.error('Failed to cancel order'); }
     finally { setAdvancing(null); }
   };
 
   const filterTabs = ['', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 'PENDING_DELIVERY_VERIFICATION', 'PAID', 'SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'AWAITING_DELIVERY_PAYMENT', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'DELIVERED', 'FAILED_DELIVERY', 'COMPLETED', 'CANCELLED'];
+
+  const filteredOrders = useMemo(() => {
+    if (!filterStatus) return orders;
+    if (filterStatus === 'PENDING_VERIFICATION') {
+      return orders.filter(o => o.status === 'PENDING_VERIFICATION' || o.status === 'PENDING_DELIVERY_VERIFICATION');
+    }
+    if (filterStatus === 'PROCESSING') {
+      return orders.filter(o => ['PREPARING', 'PACKAGING', 'PROCESSING', 'SELLER_CONFIRMED'].includes(o.status));
+    }
+    if (filterStatus === 'SHIPPED') {
+      return orders.filter(o => ['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'SHIPPED'].includes(o.status));
+    }
+    return orders.filter(o => o.status === filterStatus);
+  }, [orders, filterStatus]);
+
+  const statCounts = useMemo(() => {
+    return {
+      PENDING_VERIFICATION: orders.filter(o => o.status === 'PENDING_VERIFICATION' || o.status === 'PENDING_DELIVERY_VERIFICATION').length,
+      PAID: orders.filter(o => o.status === 'PAID').length,
+      PROCESSING: orders.filter(o => ['PREPARING', 'PACKAGING', 'PROCESSING', 'SELLER_CONFIRMED'].includes(o.status)).length,
+      SHIPPED: orders.filter(o => ['SHIPPED_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE', 'ASSIGNED_TRANSPORT', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'SHIPPED'].includes(o.status)).length,
+    };
+  }, [orders]);
 
   return (
     <div className="space-y-4 w-full min-w-0">
@@ -210,14 +232,22 @@ const DashboardOrders: React.FC = () => {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-1 overflow-x-auto mb-4 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm [&::-webkit-scrollbar]:hidden w-full">
-        {filterTabs.map(s => (
-          <button key={s} onClick={() => setFilterStatus(s)}
-            className={`shrink-0 px-3 py-1.5 text-[10px] sm:text-xs rounded-lg font-bold transition uppercase tracking-wider ${filterStatus === s ? 'bg-brand-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-            {s ? (ORDER_STATUS_CFG[s]?.label || s) : 'All Orders'}
-          </button>
-        ))}
-      </div>
+      {loading ? (
+        <div className="flex gap-2 overflow-x-auto mb-4 p-1.5 [&::-webkit-scrollbar]:hidden w-full">
+          {[16, 24, 20, 28, 22].map((w, i) => (
+            <div key={i} className="h-7 rounded-lg bg-gray-200 dark:bg-gray-800 animate-pulse shrink-0" style={{ width: `${w * 4}px` }} />
+          ))}
+        </div>
+      ) : orders.length > 0 ? (
+        <div data-horizontal-scroll="true" className="flex gap-1 overflow-x-auto mb-4 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm [&::-webkit-scrollbar]:hidden w-full">
+          {filterTabs.map(s => (
+            <button key={s} onClick={() => setFilterStatus(s)}
+              className={`shrink-0 px-3 py-1.5 text-[10px] sm:text-xs rounded-lg font-bold transition uppercase tracking-wider ${filterStatus === s ? 'bg-brand-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              {s ? (ORDER_STATUS_CFG[s]?.label || s) : 'All Orders'}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {/* Status Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -227,9 +257,7 @@ const DashboardOrders: React.FC = () => {
               { id: 'PROCESSING', label: 'In Processing', icon: Clock, color: 'text-brand-500', bg: ' ' },
               { id: 'SHIPPED', label: 'Active Shipments', icon: Truck, color: 'text-brand-500', bg: ' ' },
           ].map((stat) => {
-              const count = stat.id === 'PENDING_VERIFICATION' 
-                ? orders.filter(o => o.status === 'PENDING_VERIFICATION' || o.status === 'PENDING_DELIVERY_VERIFICATION').length
-                : orders.filter(o => o.status === stat.id).length;
+              const count = statCounts[stat.id as keyof typeof statCounts] || 0;
               return (
                   <button key={stat.id} onClick={() => setFilterStatus(stat.id)} 
                     className={`card p-4 flex flex-col items-center text-center transition-all ${filterStatus === stat.id ? 'ring-2 ring-brand-500 scale-105' : 'hover:scale-[1.02]'}`}>
@@ -242,10 +270,21 @@ const DashboardOrders: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <Spinner size="md" />
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 animate-pulse">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                  <div className="h-3.5 bg-gray-100 dark:bg-gray-700/60 rounded w-1/2" />
+                </div>
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-24" />
+              </div>
+            </div>
+          ))}
         </div>
-      ) : orders.length === 0 ? (
+      ) : filteredOrders.length === 0 ? (
         <EmptyState
           icon={ShoppingCart}
           title={t('no_incoming_orders', 'No incoming orders found')}
@@ -256,7 +295,7 @@ const DashboardOrders: React.FC = () => {
         />
       ) : (
         <div className="space-y-4">
-          {orders.map((order: any) => {
+          {filteredOrders.map((order: any) => {
             const isExpanded = expandedId === order.id;
 
 

@@ -8,7 +8,7 @@ from .models import (
     ProductImage, Like, LipaNumber, FAQ, SupportTicket,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork, SellerApplication,
-    TeamMember, StoreImage, ProductPriceTier, ProductRequest,
+    TeamMember, TeamMemberAuditLog, StoreImage, ProductPriceTier, ProductRequest,
     VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
     Brand, ReferenceProduct
 )
@@ -1642,41 +1642,47 @@ class SellerApplicationSerializer(serializers.ModelSerializer):
 
 class TeamMemberSerializer(serializers.ModelSerializer):
     username = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
+    first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    create_user = serializers.BooleanField(write_only=True, required=False, default=False)
+    
     user_details = serializers.SerializerMethodField(read_only=True)
     owner_username = serializers.CharField(source='owner.username', read_only=True)
 
     class Meta:
         model = TeamMember
-        fields = ['id', 'owner', 'owner_username', 'user', 'username', 'user_details', 'permissions', 'invitation_status', 'is_active', 'role_preset', 'created_at']
-        read_only_fields = ['id', 'owner', 'user', 'invitation_status', 'created_at']
+        fields = [
+            'id', 'owner', 'owner_username', 'user', 'username', 'password',
+            'email', 'first_name', 'last_name', 'phone_number', 'create_user',
+            'user_details', 'permissions', 'invitation_status', 'is_active',
+            'role_preset', 'created_by_owner', 'contact_phone', 'notes', 'created_at'
+        ]
+        read_only_fields = ['id', 'owner', 'user', 'invitation_status', 'created_by_owner', 'created_at']
 
     def get_user_details(self, obj):
+        profile = getattr(obj.user, 'profile', None)
         return {
             'id': obj.user.id,
             'username': obj.user.username,
             'email': obj.user.email,
             'first_name': obj.user.first_name,
-            'last_name': obj.user.last_name
+            'last_name': obj.user.last_name,
+            'phone_number': profile.phone_number if profile else obj.contact_phone,
+            'tier': profile.tier if profile else 'customer',
         }
 
-    def validate_username(self, value):
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        try:
-            user = User.objects.get(username=value)
-            if user.profile.tier != 'customer':
-                raise serializers.ValidationError("Invited team members must have a regular customer account (not a seller or business account).")
-            return user
-        except User.DoesNotExist:
-            raise serializers.ValidationError("User with this username does not exist.")
-
-    def create(self, validated_data):
+    def validate(self, attrs):
         owner = self.context['request'].user
-        user = validated_data.pop('username')  # user object after validation
-
-        is_business = owner.profile.tier == 'business' or owner.subscriptions.filter(is_active=True, tier__tier_level='business').exists()
+        is_business = (
+            getattr(getattr(owner, 'profile', None), 'tier', None) == 'business' or
+            owner.subscriptions.filter(is_active=True, tier__tier_level='business').exists() or
+            owner.is_superuser
+        )
         if not is_business:
-            raise serializers.ValidationError("Only users with a Business tier subscription can invite team members.")
+            raise serializers.ValidationError("Only users with an active Business tier subscription can assemble and manage teams.")
 
         # Enforce seat limit if the owner's active Business subscription defines one.
         active_sub = owner.subscriptions.filter(is_active=True, tier__tier_level='business').select_related('tier').first()
@@ -1684,41 +1690,181 @@ class TeamMemberSerializer(serializers.ModelSerializer):
             current_count = TeamMember.objects.filter(owner=owner, invitation_status__in=['pending', 'accepted']).count()
             if current_count >= active_sub.tier.max_team_members:
                 raise serializers.ValidationError(
-                    f"Your Business plan allows up to {active_sub.tier.max_team_members} team members. Remove an existing member or upgrade your plan to invite more."
+                    f"Your Business plan allows up to {active_sub.tier.max_team_members} team members. Remove an existing member or upgrade your plan to add more."
                 )
 
-        if owner == user:
-            raise serializers.ValidationError("You cannot invite yourself to your own team.")
+        username = attrs.get('username')
+        create_user = attrs.get('create_user') or bool(attrs.get('password'))
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
 
-        if TeamMember.objects.filter(owner=owner, user=user).exists():
-            raise serializers.ValidationError("This user is already a member of your team.")
+        if create_user:
+            # Direct user provisioning mode
+            if User.objects.filter(username=username).exists():
+                raise serializers.ValidationError({"username": f"Username '{username}' is already taken. Choose a different username or invite this user instead."})
+            
+            email = attrs.get('email')
+            if email and User.objects.filter(email=email).exists():
+                raise serializers.ValidationError({"email": f"An account with email '{email}' already exists."})
+
+            password = attrs.get('password')
+            if not password:
+                raise serializers.ValidationError({"password": "A password is required when creating a new team member account."})
+
+            from django.contrib.auth.password_validation import validate_password
+            try:
+                validate_password(password)
+            except Exception as e:
+                err_msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+                raise serializers.ValidationError({"password": err_msg})
+        else:
+            # Invite existing user mode
+            try:
+                existing_user = User.objects.get(username=username)
+                if existing_user == owner:
+                    raise serializers.ValidationError({"username": "You cannot invite yourself to your own team."})
+                if TeamMember.objects.filter(owner=owner, user=existing_user).exists():
+                    raise serializers.ValidationError({"username": "This user is already a member of your team."})
+                attrs['_existing_user'] = existing_user
+            except User.DoesNotExist:
+                raise serializers.ValidationError({"username": f"User '{username}' does not exist. Check 'Create User' to provision a brand new account for this member."})
+
+        return attrs
+
+    def create(self, validated_data):
+        owner = self.context['request'].user
+        username = validated_data.pop('username')
+        password = validated_data.pop('password', None)
+        email = validated_data.pop('email', '')
+        first_name = validated_data.pop('first_name', '')
+        last_name = validated_data.pop('last_name', '')
+        phone_number = validated_data.pop('phone_number', '')
+        create_user = validated_data.pop('create_user', False) or bool(password)
+        existing_user = validated_data.pop('_existing_user', None)
 
         permissions = validated_data.get('permissions', {})
         if not isinstance(permissions, dict):
             permissions = {}
-        # manage_messages permission is reserved for future seller-messaging-as-team-member support; not yet enforced
-            
-        role_preset = validated_data.get('role_preset', '')
+        role_preset = validated_data.get('role_preset', 'custom')
+        contact_phone = validated_data.get('contact_phone') or phone_number
+        notes = validated_data.get('notes', '')
 
-        member = TeamMember.objects.create(
-            owner=owner, user=user, permissions=permissions, 
-            invitation_status='pending', role_preset=role_preset
-        )
+        from django.contrib.auth import get_user_model
         from .models import push_notification, TeamMemberAuditLog
-        try:
-            push_notification(
-                user, 'order_status', 'Team invitation',
-                f'{owner.username} has invited you to join their business team. Review and accept in your account settings.',
-                '/dashboard/team-invitations'
+        User = get_user_model()
+
+        if create_user:
+            # Provision brand new user directly
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name
             )
-        except Exception:
-            pass
-            
-        TeamMemberAuditLog.objects.create(
-            owner=owner, target_user=user, performed_by=owner,
-            action='invited', detail={'permissions': permissions, 'role_preset': role_preset}
-        )
-        return member
+            profile = getattr(user, 'profile', None)
+            if profile:
+                profile.tier = 'worker'
+                profile.terms_accepted = True
+                if phone_number:
+                    profile.phone_number = phone_number
+                profile.save()
+
+            member = TeamMember.objects.create(
+                owner=owner,
+                user=user,
+                permissions=permissions,
+                invitation_status='accepted',
+                is_active=True,
+                role_preset=role_preset,
+                created_by_owner=True,
+                contact_phone=contact_phone,
+                notes=notes
+            )
+
+            TeamMemberAuditLog.objects.create(
+                owner=owner,
+                target_user=user,
+                performed_by=owner,
+                action='user_created',
+                detail={'permissions': permissions, 'role_preset': role_preset, 'created_by_owner': True}
+            )
+            return member
+        else:
+            # Invite existing user
+            user = existing_user
+            member = TeamMember.objects.create(
+                owner=owner,
+                user=user,
+                permissions=permissions,
+                invitation_status='pending',
+                is_active=True,
+                role_preset=role_preset,
+                created_by_owner=False,
+                contact_phone=contact_phone,
+                notes=notes
+            )
+
+            try:
+                push_notification(
+                    user, 'order_status', 'Team invitation',
+                    f'{owner.username} has invited you to join their business team ({role_preset.replace("_", " ").title()}). Review and accept in your account settings.',
+                    '/dashboard/team-invitations'
+                )
+            except Exception:
+                pass
+
+            TeamMemberAuditLog.objects.create(
+                owner=owner,
+                target_user=user,
+                performed_by=owner,
+                action='invited',
+                detail={'permissions': permissions, 'role_preset': role_preset}
+            )
+            return member
+
+
+class TeamMemberPasswordResetSerializer(serializers.Serializer):
+    new_password = serializers.CharField(write_only=True, required=True)
+    confirm_password = serializers.CharField(write_only=True, required=True)
+
+    def validate(self, attrs):
+        new_pw = attrs.get('new_password')
+        confirm_pw = attrs.get('confirm_password')
+        if new_pw != confirm_pw:
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+
+        from django.contrib.auth.password_validation import validate_password
+        try:
+            validate_password(new_pw)
+        except Exception as e:
+            err_msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+            raise serializers.ValidationError({'new_password': err_msg})
+
+        return attrs
+
+
+class TeamMemberTransferSerializer(serializers.Serializer):
+    target_username = serializers.CharField(write_only=True, required=True)
+
+    def validate_target_username(self, value):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            target = User.objects.get(username=value)
+            return target
+        except User.DoesNotExist:
+            raise serializers.ValidationError(f"Target user '{value}' does not exist.")
+
+
+class TeamMemberAuditLogSerializer(serializers.ModelSerializer):
+    target_username = serializers.CharField(source='target_user.username', read_only=True)
+    performed_by_username = serializers.CharField(source='performed_by.username', read_only=True, default='System')
+
+    class Meta:
+        model = TeamMemberAuditLog
+        fields = ['id', 'owner', 'target_user', 'target_username', 'performed_by', 'performed_by_username', 'action', 'detail', 'created_at']
+        read_only_fields = ['id', 'owner', 'target_user', 'performed_by', 'created_at']
 
 class VehicleMakeSerializer(serializers.ModelSerializer):
     class Meta:

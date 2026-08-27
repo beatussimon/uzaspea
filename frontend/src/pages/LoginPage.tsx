@@ -84,7 +84,15 @@ const LoginPage: React.FC = () => {
       toast.success(t('login_success', 'Login successful!'));
       const urlParams = new URLSearchParams(window.location.search);
       const nextParam = urlParams.get('next');
-      const redirectTo = nextParam || sessionStorage.getItem('loginRedirect') || '/';
+
+      let defaultRedirect = '/';
+      if (res.data.is_team_member && !res.data.is_staff && !res.data.is_superuser && res.data.tier !== 'business') {
+        defaultRedirect = '/teams-dashboard';
+      } else if (res.data.tier === 'seller_pro' || res.data.tier === 'business') {
+        defaultRedirect = '/dashboard';
+      }
+
+      const redirectTo = nextParam || sessionStorage.getItem('loginRedirect') || defaultRedirect;
       sessionStorage.removeItem('loginRedirect');
       window.location.href = redirectTo;
     } catch (err: any) {

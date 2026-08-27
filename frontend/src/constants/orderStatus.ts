@@ -9,6 +9,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   AWAITING_PAYMENT: { label: 'Awaiting Payment', color: 'text-yellow-500', bg: ' ', solidBg: 'bg-yellow-500', icon: CreditCard },
   PENDING_VERIFICATION: { label: 'Verifying Payment', color: 'text-orange-500', bg: ' ', solidBg: 'bg-orange-500', icon: Clock },
   PAID: { label: 'Paid', color: 'text-green-500', bg: ' ', solidBg: 'bg-green-500', icon: CheckCircle2 },
+  PAID_PRODUCT: { label: 'Product Paid', color: 'text-green-500', bg: ' ', solidBg: 'bg-green-500', icon: CheckCircle2 },
   
   // SokoniMax Managed Logistics States
   SELLER_CONFIRMED: { label: 'Seller Confirmed', color: 'text-green-500', bg: ' ', solidBg: 'bg-green-500', icon: Clipboard },
@@ -31,6 +32,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   COMPLETED: { label: 'Completed', color: 'text-green-500', bg: ' ', solidBg: 'bg-green-500', icon: CheckCircle2 },
   FAILED_DELIVERY: { label: 'Failed Delivery', color: 'text-red-500', bg: ' ', solidBg: 'bg-red-500', icon: XCircle },
   CANCELLED: { label: 'Cancelled', color: 'text-red-500', bg: ' ', solidBg: 'bg-red-500', icon: XCircle },
+  RETURNED_TO_WAREHOUSE: { label: 'Returned to Warehouse', color: 'text-amber-500', bg: ' ', solidBg: 'bg-amber-500', icon: Archive },
   EXPIRED: { label: 'Expired', color: 'text-gray-500', bg: 'bg-gray-100 dark:bg-gray-700', solidBg: 'bg-gray-500', icon: XCircle },
   DISPUTED: { label: 'Disputed', color: 'text-red-500', bg: ' ', solidBg: 'bg-red-500', icon: ShieldAlert },
 };
@@ -117,6 +119,7 @@ export const SHORT_STATUS_LABELS: Record<string, string> = {
   AWAITING_PAYMENT: 'Awaiting Pay', 
   PENDING_VERIFICATION: 'Verifying',
   PAID: 'Paid',
+  PAID_PRODUCT: 'Paid Product',
   SELLER_CONFIRMED: 'Confirmed',
   PREPARING: 'Preparing',
   PACKAGING: 'Packaging',
@@ -135,6 +138,7 @@ export const SHORT_STATUS_LABELS: Record<string, string> = {
   DELIVERED: 'Delivered', 
   COMPLETED: 'Completed', 
   CANCELLED: 'Cancelled', 
+  RETURNED_TO_WAREHOUSE: 'Returned WH',
   FAILED_DELIVERY: 'Failed',
   DISPUTED: 'Disputed',
   BUYER_COUNTERED: 'Counter Offer'
