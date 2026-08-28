@@ -8,6 +8,7 @@ import ProductCard from '../components/ProductCard';
 import SponsorCard from '../components/SponsorCard';
 import { ProductCardSkeleton } from '../components/Skeleton';
 import { apiCache } from '../utils/apiCache';
+import { ensureArray } from '../utils/arrayUtils';
 import SEO from '../components/SEO';
 import ExpandableSearch from '../components/ExpandableSearch';
 
@@ -317,8 +318,8 @@ const ProductList = () => {
 
   useEffect(() => {
     api.get('/api/categories/')
-      .then((r: any) => setCategories(r.data.results || r.data))
-      .catch(() => {});
+      .then((r: any) => setCategories(ensureArray(r.data)))
+      .catch(() => setCategories([]));
   }, []);
 
   // Infinite scroll
@@ -345,6 +346,9 @@ const ProductList = () => {
   }, [hasMore, loadingMore, loading, fetchProducts]);
 
   const topCategories = useMemo(() => {
+    const catsList = ensureArray(categories);
+    if (catsList.length === 0) return [];
+
     const getDeepCount = (cat: any): number => {
       let count = cat.product_count || 0;
       if (cat.children && Array.isArray(cat.children)) {
@@ -355,7 +359,7 @@ const ProductList = () => {
       return count;
     };
 
-    return categories
+    return catsList
       .filter((c: any) => !c.parent)
       .map((c: any) => ({ ...c, total_products: getDeepCount(c) }))
       .filter((c: any) => c.total_products > 0)

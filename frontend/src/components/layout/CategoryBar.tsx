@@ -6,6 +6,7 @@ import api from '../../api';
 import SafeImage from '../SafeImage';
 import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
 import { preloadProductList } from '../../App';
+import { ensureArray } from '../../utils/arrayUtils';
 
 let categoriesCache: any[] | null = null;
 let categoriesPromise: Promise<any> | null = null;
@@ -35,20 +36,20 @@ const CategoryBar: React.FC = () => {
 
   useEffect(() => {
     if (categoriesCache) {
-      setCategories(categoriesCache);
+      setCategories(ensureArray(categoriesCache));
       setLoading(false);
     } else if (categoriesPromise) {
       categoriesPromise.then(cats => {
-        setCategories(cats);
+        setCategories(ensureArray(cats));
         setLoading(false);
       });
     } else {
       categoriesPromise = api.get('/api/categories/').then(res => {
-        categoriesCache = res.data.results || res.data;
+        categoriesCache = ensureArray(res.data);
         return categoriesCache;
       });
       categoriesPromise.then(cats => {
-        setCategories(cats);
+        setCategories(ensureArray(cats));
         setLoading(false);
       }).catch(() => setLoading(false));
     }
@@ -76,6 +77,9 @@ const CategoryBar: React.FC = () => {
   }, [productSlug]);
 
   const topCategories = useMemo(() => {
+    const catsList = ensureArray(categories);
+    if (catsList.length === 0) return [];
+
     const getDeepCount = (cat: any): number => {
       let count = cat.product_count || 0;
       if (cat.children && Array.isArray(cat.children)) {
@@ -86,7 +90,7 @@ const CategoryBar: React.FC = () => {
       return count;
     };
 
-    return categories
+    return catsList
       .filter((c: any) => !c.parent)
       .map((c: any) => ({ ...c, total_products: getDeepCount(c) }))
       .filter((c: any) => c.total_products > 0)
