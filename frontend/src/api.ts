@@ -61,22 +61,18 @@ api.interceptors.response.use(
           originalRequest.headers['Authorization'] = `Bearer ${res.data.access}`;
           return api(originalRequest);
         } catch (refreshError) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
           if (logoutCallback) {
             logoutCallback();
-          } else {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            window.location.href = '/login';
           }
           return Promise.reject(refreshError);
         }
       } else {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
         if (logoutCallback) {
           logoutCallback();
-        } else {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
         }
       }
       }
