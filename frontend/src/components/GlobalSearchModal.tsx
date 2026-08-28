@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import api from '../api';
 import SafeImage from './SafeImage';
 import VehicleSelector from './VehicleSelector';
+import { ensureArray } from '../utils/arrayUtils';
 
 // In-memory filter for seller-scoped search (0ms instant response)
 const filterSellerProductsInMemory = (
@@ -142,8 +143,8 @@ const GlobalSearchModal: React.FC = () => {
   // Fetch categories once
   useEffect(() => {
     api.get('/api/categories/')
-      .then((r: any) => setCategories(r.data.results || r.data))
-      .catch(() => {});
+      .then((r: any) => setCategories(ensureArray(r.data)))
+      .catch(() => setCategories([]));
   }, []);
 
   const activeCategorySlug = subcategory || category;
@@ -151,10 +152,10 @@ const GlobalSearchModal: React.FC = () => {
   useEffect(() => {
     if (activeCategorySlug) {
       api.get(`/api/categories/${activeCategorySlug}/spec-schema/`)
-        .then((r: any) => setSpecSchema(r.data))
+        .then((r: any) => setSpecSchema(ensureArray(r.data)))
         .catch(() => setSpecSchema([]));
       api.get(`/api/categories/${activeCategorySlug}/brands/`)
-        .then((r: any) => setCategoryBrands(Array.isArray(r.data) ? r.data : r.data.results || []))
+        .then((r: any) => setCategoryBrands(ensureArray(r.data)))
         .catch(() => setCategoryBrands([]));
     } else {
       setSpecSchema([]);
@@ -165,6 +166,9 @@ const GlobalSearchModal: React.FC = () => {
   }, [activeCategorySlug]);
 
   const rootCategories = useMemo(() => {
+    const catsList = ensureArray(categories);
+    if (catsList.length === 0) return [];
+
     const getDeepCount = (cat: any): number => {
       let count = cat.product_count || 0;
       if (cat.children && Array.isArray(cat.children)) {
@@ -175,15 +179,16 @@ const GlobalSearchModal: React.FC = () => {
       return count;
     };
 
-    return categories
+    return catsList
       .filter((c: any) => !c.parent)
       .map((c: any) => ({ ...c, total_products: getDeepCount(c) }))
       .filter((c: any) => c.total_products > 0);
   }, [categories]);
 
   const activeRootCategory = useMemo(() => {
-    if (!category || !categories.length) return null;
-    return categories.find((c: any) => 
+    const catsList = ensureArray(categories);
+    if (!category || !catsList.length) return null;
+    return catsList.find((c: any) => 
       c.slug === category || (c.children && c.children.some((child: any) => child.slug === category))
     );
   }, [category, categories]);
@@ -206,6 +211,9 @@ const GlobalSearchModal: React.FC = () => {
   };
 
   const popularCategories = useMemo(() => {
+    const catsList = ensureArray(categories);
+    if (catsList.length === 0) return [];
+
     const flattenCategories = (cats: any[]): any[] => {
       let flat: any[] = [];
       cats.forEach(cat => {
@@ -217,7 +225,7 @@ const GlobalSearchModal: React.FC = () => {
       return flat;
     };
 
-    const allFlattened = flattenCategories(categories);
+    const allFlattened = flattenCategories(catsList);
     return allFlattened
       .filter((c: any) => (!c.children || c.children.length === 0) && (c.product_count || c.annotated_product_count || 0) > 0)
       .sort((a, b) => (b.product_count || b.annotated_product_count || 0) - (a.product_count || a.annotated_product_count || 0));

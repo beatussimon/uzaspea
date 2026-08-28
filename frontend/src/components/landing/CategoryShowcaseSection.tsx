@@ -8,6 +8,8 @@ import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
 import api from '../../api';
 import { apiCache } from '../../utils/apiCache';
 
+import { ensureArray } from '../../utils/arrayUtils';
+
 interface CategoryShowcaseSectionProps {
   isActive?: boolean;
 }
@@ -18,7 +20,7 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
   const { t } = useTranslation();
   const [categories, setCategories] = useState<any[]>(() => {
     const cached = apiCache.get<any>('categories:all');
-    return cached ? (cached.data.results || cached.data) : [];
+    return cached ? ensureArray(cached.data) : [];
   });
   const [loading, setLoading] = useState(!categories.length);
 
@@ -27,7 +29,11 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
     api.get('/api/categories/')
       .then((res) => {
         apiCache.set('categories:all', res.data);
-        const allCats = res.data.results || res.data;
+        const allCats = ensureArray(res.data);
+        if (allCats.length === 0) {
+          setLoading(false);
+          return;
+        }
         
         const getDeepCount = (cat: any): number => {
           let count = cat.product_count || 0;
