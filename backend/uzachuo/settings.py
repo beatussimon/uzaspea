@@ -71,7 +71,7 @@ INSTALLED_APPS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'uzachuo.authentication.GracefulJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PAGINATION_CLASS': 'uzachuo.pagination.CustomPageNumberPagination',
@@ -176,6 +176,10 @@ else:
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "socket_connect_timeout": 3,
+                "socket_timeout": 3,
+            },
         }
     }
 
@@ -200,8 +204,16 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
-if 'sqlite3' in DATABASES['default']['ENGINE']:
+if 'sqlite3' in DATABASES['default'].get('ENGINE', ''):
     DATABASES['default']['OPTIONS'] = {'timeout': 20}
+elif 'postgresql' in DATABASES['default'].get('ENGINE', ''):
+    DATABASES['default']['OPTIONS'] = {
+        'connect_timeout': 5,
+        'keepalives': 1,
+        'keepalives_idle': 30,
+        'keepalives_interval': 10,
+        'keepalives_count': 5,
+    }
 
 # FIX: S-03 — Enforce password strength
 AUTH_PASSWORD_VALIDATORS = [

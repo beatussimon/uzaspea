@@ -17,7 +17,7 @@ echo "Pushing latest code to GitHub..."
 echo "=========================================="
 echo " Deploying to Data Node ($DATA_INSTANCE)  "
 echo "=========================================="
-ssh -o StrictHostKeyChecking=no -i $DATA_SSH_KEY ubuntu@$DATA_INSTANCE << EOF
+ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i $DATA_SSH_KEY ubuntu@$DATA_INSTANCE << EOF
   set -e
   APP_INSTANCE="${APP_INSTANCE}"
   echo "=> Entering deployment directory..."
@@ -38,10 +38,12 @@ ssh -o StrictHostKeyChecking=no -i $DATA_SSH_KEY ubuntu@$DATA_INSTANCE << EOF
   sudo iptables -N DOCKER-USER 2>/dev/null || true
   sudo iptables -C DOCKER-USER -j RETURN 2>/dev/null || sudo iptables -A DOCKER-USER -j RETURN
   sudo iptables -F DOCKER-USER
-  # Allow internal docker networks
+  # Allow internal docker and private VPC networks
   sudo iptables -A DOCKER-USER -i docker0 -j RETURN
-  sudo iptables -A DOCKER-USER -i br-+ -j RETURN
-  # Allow App Node
+  sudo iptables -A DOCKER-USER -s 172.16.0.0/12 -j RETURN
+  sudo iptables -A DOCKER-USER -s 10.0.0.0/8 -j RETURN
+  sudo iptables -A DOCKER-USER -s 127.0.0.1 -j RETURN
+  # Allow App Node public IP
   sudo iptables -A DOCKER-USER -s $APP_INSTANCE -j RETURN
   # Drop all other external traffic to 5432 and 6379
   sudo iptables -A DOCKER-USER -p tcp -m multiport --dports 5432,6379 -j DROP

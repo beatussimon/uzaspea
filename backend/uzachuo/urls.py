@@ -5,13 +5,38 @@ from django.conf.urls.static import static
 from staff.api_urls import api_urlpatterns as staff_api_urlpatterns
 from django.contrib.sitemaps.views import sitemap
 from marketplace.sitemaps import StaticViewSitemap, CategorySitemap, ProductSitemap
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.db import connection
+from django.core.cache import cache
+import time
 
 sitemaps = {
     'static': StaticViewSitemap,
     'categories': CategorySitemap,
     'products': ProductSitemap,
 }
+
+def health_check(request):
+    status = {'status': 'healthy', 'db': 'ok', 'redis': 'ok', 'timestamp': time.time()}
+    http_status = 200
+    
+    try:
+        connection.ensure_connection()
+    except Exception as e:
+        status['db'] = f'unhealthy: {str(e)}'
+        status['status'] = 'degraded'
+        http_status = 503
+        
+    try:
+        cache.set('_health', '1', 5)
+        if cache.get('_health') != '1':
+            raise Exception('cache read failed')
+    except Exception as e:
+        status['redis'] = f'unhealthy: {str(e)}'
+        status['status'] = 'degraded'
+        http_status = 503
+
+    return JsonResponse(status, status=http_status)
 
 def robots_txt(request):
     host = request.get_host()
@@ -28,6 +53,7 @@ def robots_txt(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/health/', health_check, name='health_check'),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     path('robots.txt', robots_txt, name='robots_txt'),
     path('api/staff/', include(staff_api_urlpatterns)),
