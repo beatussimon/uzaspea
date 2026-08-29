@@ -207,11 +207,13 @@ const StaffRequestDetail: React.FC = () => {
   const [overrideReason, setOverrideReason] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [generatingBill, setGeneratingBill] = useState(false);
-  const [travel, setTravel] = useState('');
+  const [baseRate, setBaseRate] = useState(50000);
+  const [timePercent, setTimePercent] = useState(0);
+  const [complexityPercent, setComplexityPercent] = useState(0);
+  const [travelKm, setTravelKm] = useState(0);
+  const [includeWarranty, setIncludeWarranty] = useState(false);
   const [qaNote, setQaNote] = useState('');
   const [showAllInspectors, setShowAllInspectors] = useState(false);
-
-
 
   const load = () => {
     const numericId = Number(id);
@@ -223,6 +225,16 @@ const StaffRequestDetail: React.FC = () => {
       .then((r: any) => {
         const req = r.data;
         setRequest(req);
+
+        if (!req.bill) {
+          const catBase = 50000;
+          setBaseRate(catBase);
+          setTimePercent(req.turnaround === 'instant' ? 60 : req.turnaround === 'express' ? 30 : 0);
+          setComplexityPercent(req.is_complex ? 30 : (req.item_age_years && req.item_age_years > 5) ? 15 : 0);
+          setTravelKm(0);
+          setIncludeWarranty(Boolean(req.reinspection_coverage));
+        }
+
         return inspectionApi.inspectors.available(req.category, showAllInspectors);
       })
       .then((r: any) => setInspectors(r.data.results || r.data))
@@ -232,15 +244,40 @@ const StaffRequestDetail: React.FC = () => {
 
   useEffect(() => { load(); }, [id, showAllInspectors]);
 
+  // Real-time bill calculations
+  const numBase = Math.max(0, Number(baseRate) || 0);
+  const turnaroundSurcharge = Math.round(numBase * (timePercent / 100));
+  const complexitySurcharge = Math.round(numBase * (complexityPercent / 100));
+  const travelSurcharge = travelKm * 1000;
+  const warrantyFee = includeWarranty ? Math.round(numBase * 0.1) : 0;
+
+  const totalBillAmount = numBase + turnaroundSurcharge + complexitySurcharge + travelSurcharge + warrantyFee;
+  const depositBillAmount = Math.round(totalBillAmount * 0.3);
+  const remainingBillAmount = totalBillAmount - depositBillAmount;
+
   const handleGenerateBill = async () => {
     if (!request) return;
+    if (totalBillAmount <= 0) {
+      toast.error('Please enter a valid base rate');
+      return;
+    }
     setGeneratingBill(true);
     try {
-      await inspectionApi.requests.generateBill(request.id, { travel_surcharge: Number(travel) || 0 });
+      await inspectionApi.requests.generateBill(request.id, {
+        base_rate: numBase,
+        turnaround_surcharge: turnaroundSurcharge,
+        inspector_level_surcharge: 0,
+        complexity_surcharge: complexitySurcharge,
+        travel_surcharge: travelSurcharge,
+        reinspection_coverage_fee: warrantyFee,
+      });
       toast.success('Bill generated and sent to client');
       load();
-    } catch { toast.error('Failed to generate bill'); }
-    finally { setGeneratingBill(false); }
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to generate bill');
+    } finally {
+      setGeneratingBill(false);
+    }
   };
 
   const handleAssign = async () => {
@@ -288,84 +325,241 @@ const StaffRequestDetail: React.FC = () => {
   if (!request) return <p className="text-center py-12 text-gray-400">Request not found</p>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
-
-      <div className="card p-5">
-        <div className="flex items-start justify-between flex-wrap gap-3">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="card p-5 space-y-4">
+        <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge text={STATUS_LABELS[request.status] || request.status} className={STATUS_COLORS[request.status] || 'badge-gray'} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link to="/staff/inspections" className="text-xs text-brand-500 hover:underline">
+                ← Back
+              </Link>
+              <Badge text={STATUS_LABELS[request.status] || request.status}
+                className={STATUS_COLORS[request.status] || 'badge-gray'} />
+              <span className="font-mono text-xs text-gray-400">{request.inspection_id}</span>
             </div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{request.item_name}</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{request.category_path}</p>
-            <p className="text-xs text-gray-400 mt-1">Client: {request.client_username} • {fmtDate(request.created_at)}</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+              {request.item_name}
+            </h1>
+            <p className="text-sm text-gray-500">
+              Client: {request.client_username} • Category: {request.category_path}
+            </p>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {['blocked', 'cancelled', 'rescheduled'].map((s) => (
-              <button key={s} onClick={() => handleUpdateStatus(s)}
-                className="btn-ghost text-xs px-3 py-1.5 capitalize">
-                Mark {s}
+
+          {/* Quick status actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {request.status === 'deposit_paid' && (
+              <button onClick={() => handleUpdateStatus('assigned')} className="btn-secondary text-xs py-1.5 px-3">
+                Mark Assigned
               </button>
-            ))}
+            )}
+            {request.status === 'assigned' && (
+              <button onClick={() => handleUpdateStatus('in_progress')} className="btn-secondary text-xs py-1.5 px-3">
+                Start Inspection
+              </button>
+            )}
+            {request.status === 'submitted' && (
+              <button onClick={() => handleUpdateStatus('qa_review')} className="btn-secondary text-xs py-1.5 px-3">
+                Move to QA Review
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-sm">
-          <div><span className="text-gray-500">Scope</span><p className="font-medium text-gray-900 dark:text-white capitalize">{request.scope}</p></div>
-          <div><span className="text-gray-500">Turnaround</span><p className="font-medium text-gray-900 dark:text-white capitalize">{request.turnaround}</p></div>
-          <div><span className="text-gray-500">Age</span><p className="font-medium text-gray-900 dark:text-white">{request.item_age_years ? `${request.item_age_years} yrs` : '—'}</p></div>
-          <div><span className="text-gray-500">Complex</span><p className="font-medium text-gray-900 dark:text-white">{request.is_complex ? 'Yes' : 'No'}</p></div>
+        {/* Item metadata */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-surface-border dark:border-surface-dark-border text-xs">
+          <div>
+            <span className="text-gray-400 block">Scope</span>
+            <span className="font-medium text-gray-900 dark:text-white capitalize">{request.scope}</span>
+          </div>
+          <div>
+            <span className="text-gray-400 block">Turnaround</span>
+            <span className="font-medium text-gray-900 dark:text-white capitalize">{request.turnaround}</span>
+          </div>
+          <div>
+            <span className="text-gray-400 block">Location</span>
+            <span className="font-medium text-gray-900 dark:text-white truncate block">{request.item_address}</span>
+          </div>
+          <div>
+            <span className="text-gray-400 block">Re-inspection</span>
+            <span className="font-medium text-gray-900 dark:text-white">
+              {request.reinspection_coverage ? 'Yes (+10%)' : 'No'}
+            </span>
+          </div>
         </div>
 
-        <div className="mt-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-sm">
-          <p className="text-gray-500 mb-1">Location</p>
-          <p className="text-gray-700 dark:text-gray-300">{request.item_address}</p>
-        </div>
-        <div className="mt-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-sm">
-          <p className="text-gray-500 mb-1">Description</p>
-          <p className="text-gray-700 dark:text-gray-300">{request.item_description}</p>
-        </div>
+        {request.item_description && (
+          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-xs">
+            <span className="text-gray-400 font-bold uppercase tracking-wider block mb-1">Item Description / Client Notes</span>
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{request.item_description}</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Bill & Generate */}
-        <div className="card p-5 space-y-4">
-          <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <CreditCard size={16} className="text-brand-500" /> Bill
-          </h3>
+        {/* Bill */}
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CreditCard size={15} className="text-brand-500" />
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Inspection Bill</h3>
+            </div>
+            {request.bill ? (
+              <span className="text-2xs font-medium px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                Bill Sent
+              </span>
+            ) : (
+              <span className="text-2xs font-medium px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                Pending Staff Entry
+              </span>
+            )}
+          </div>
+
+          {/* Minimal requested specs */}
+          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 flex-wrap pb-1 border-b border-gray-100 dark:border-gray-800">
+            <span>Scope: <strong className="text-gray-700 dark:text-gray-200 capitalize">{request.scope}</strong></span>
+            <span>•</span>
+            <span>Speed: <strong className="text-gray-700 dark:text-gray-200 capitalize">{request.turnaround}</strong></span>
+            <span>•</span>
+            <span>Category: <strong className="text-gray-700 dark:text-gray-200">{request.category_name}</strong></span>
+          </div>
+
           {request.bill ? (
-            <div className="space-y-2 text-sm">
-              {[
-                ['Base Rate', request.bill.base_rate],
-                ['Turnaround', request.bill.turnaround_surcharge],
-                ['Inspector Level', request.bill.inspector_level_surcharge],
-                ['Complexity', request.bill.complexity_surcharge],
-                ['Travel', request.bill.travel_surcharge],
-                ['Re-inspection', request.bill.reinspection_coverage_fee],
-              ].filter(([, v]) => Number(v) > 0).map(([l, v]) => (
-                <div key={l as string} className="flex justify-between">
-                  <span className="text-gray-500">{l}</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{fmtMoney(v as string, request.bill!.currency)}</span>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between text-gray-500">
+                <span>Base Rate</span>
+                <span className="font-medium text-gray-900 dark:text-white">{fmtMoney(request.bill.base_rate)}</span>
+              </div>
+              {Number(request.bill.turnaround_surcharge) > 0 && (
+                <div className="flex justify-between text-gray-500">
+                  <span>Turnaround Urgency</span>
+                  <span className="font-medium text-gray-900 dark:text-white">+{fmtMoney(request.bill.turnaround_surcharge)}</span>
                 </div>
-              ))}
-              <div className="border-t border-surface-border dark:border-surface-dark-border pt-2">
-                <div className="flex justify-between font-bold">
-                  <span>Total</span>
-                  <span>{fmtMoney(request.bill.total_amount, request.bill.currency)}</span>
+              )}
+              {Number(request.bill.complexity_surcharge) > 0 && (
+                <div className="flex justify-between text-gray-500">
+                  <span>Complexity Factor</span>
+                  <span className="font-medium text-gray-900 dark:text-white">+{fmtMoney(request.bill.complexity_surcharge)}</span>
                 </div>
-                <div className="flex justify-between text-brand-500 mt-1">
-                  <span>Deposit</span>
-                  <span className="font-semibold">{fmtMoney(request.bill.deposit_amount, request.bill.currency)}</span>
+              )}
+              {Number(request.bill.travel_surcharge) > 0 && (
+                <div className="flex justify-between text-gray-500">
+                  <span>Travel Surcharge</span>
+                  <span className="font-medium text-gray-900 dark:text-white">+{fmtMoney(request.bill.travel_surcharge)}</span>
                 </div>
+              )}
+              {Number(request.bill.reinspection_coverage_fee) > 0 && (
+                <div className="flex justify-between text-gray-500">
+                  <span>Re-inspection Warranty</span>
+                  <span className="font-medium text-gray-900 dark:text-white">+{fmtMoney(request.bill.reinspection_coverage_fee)}</span>
+                </div>
+              )}
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-2 flex justify-between font-bold text-xs text-gray-900 dark:text-white">
+                <span>Total: {fmtMoney(request.bill.total_amount)}</span>
+                <span className="text-2xs text-brand-500 font-normal">
+                  Deposit: {fmtMoney(request.bill.deposit_amount)} • Balance: {fmtMoney(request.bill.remaining_balance)}
+                </span>
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
-              <input className="input text-sm" type="number" placeholder="Travel surcharge (optional)"
-                value={travel} onChange={(e) => setTravel(e.target.value)} />
-              <button onClick={handleGenerateBill} disabled={generatingBill} className="w-full btn-primary text-sm py-2">
-                {generatingBill ? 'Generating…' : 'Generate & Send Bill'}
-              </button>
+            <div className="space-y-3 pt-0.5">
+              {/* Base Rate */}
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Base Rate (TZS)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="5000"
+                  className="input py-1 px-2.5 text-xs w-36 text-right font-semibold"
+                  value={baseRate}
+                  onChange={(e) => setBaseRate(Number(e.target.value))}
+                />
+              </div>
+
+              {/* Time / Speed Slider */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                  <span>Time / Urgency ({timePercent === 0 ? 'Standard' : timePercent === 30 ? 'Express' : 'Urgent'})</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {turnaroundSurcharge > 0 ? `+TZS ${turnaroundSurcharge.toLocaleString()}` : 'TZS 0'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="60"
+                  step="15"
+                  className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-brand-500"
+                  value={timePercent}
+                  onChange={(e) => setTimePercent(Number(e.target.value))}
+                />
+              </div>
+
+              {/* Complexity Slider */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                  <span>Complexity ({complexityPercent === 0 ? 'Standard' : complexityPercent <= 15 ? 'Moderate' : complexityPercent <= 30 ? 'High' : 'Specialized'})</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {complexitySurcharge > 0 ? `+TZS ${complexitySurcharge.toLocaleString()}` : 'TZS 0'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="45"
+                  step="15"
+                  className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-brand-500"
+                  value={complexityPercent}
+                  onChange={(e) => setComplexityPercent(Number(e.target.value))}
+                />
+              </div>
+
+              {/* Travel Distance Slider */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                  <span>Travel Distance ({travelKm} km)</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {travelSurcharge > 0 ? `+TZS ${travelSurcharge.toLocaleString()}` : 'TZS 0'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-brand-500"
+                  value={travelKm}
+                  onChange={(e) => setTravelKm(Number(e.target.value))}
+                />
+              </div>
+
+              {/* Re-inspection Warranty Checkbox */}
+              <label className="flex items-center gap-2 pt-1 cursor-pointer text-xs text-gray-700 dark:text-gray-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={includeWarranty}
+                  onChange={(e) => setIncludeWarranty(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-gray-300 text-brand-500 focus:ring-0"
+                />
+                <span>Include re-inspection warranty (+10%: TZS {warrantyFee.toLocaleString()})</span>
+              </label>
+
+              {/* Compact Summary & Send Action */}
+              <div className="pt-2.5 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                <div className="flex justify-between items-baseline text-xs">
+                  <span className="font-bold text-gray-900 dark:text-white">Total: TZS {totalBillAmount.toLocaleString()}</span>
+                  <span className="text-2xs text-gray-500">
+                    Deposit (30%): TZS {depositBillAmount.toLocaleString()} • Balance (70%): TZS {remainingBillAmount.toLocaleString()}
+                  </span>
+                </div>
+                <button
+                  onClick={handleGenerateBill}
+                  disabled={generatingBill || totalBillAmount <= 0}
+                  className="w-full btn-primary py-2 text-xs font-semibold rounded-lg shadow-none"
+                >
+                  {generatingBill ? 'Generating Bill...' : 'Generate & Send Bill'}
+                </button>
+              </div>
             </div>
           )}
         </div>

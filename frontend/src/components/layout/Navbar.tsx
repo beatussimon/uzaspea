@@ -381,12 +381,10 @@ const Navbar = () => {
                               <span className="text-sm font-medium">{t('teams_dashboard', 'Teams Portal')}</span>
                             </Link>
                           )}
-                          {(isSeller || isInspector) && (
-                            <Link to="/inspections" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
-                              <ClipboardList size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
-                              <span className="text-sm font-medium">{t('my_inspections')}</span>
-                            </Link>
-                          )}
+                          <Link to="/inspections" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                            <ClipboardList size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                            <span className="text-sm font-medium">{t('my_inspections', 'My Inspections')}</span>
+                          </Link>
                         </div>
                       </div>
 

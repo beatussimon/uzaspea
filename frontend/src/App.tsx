@@ -14,6 +14,8 @@ import { initGlobalHorizontalScroll } from './hooks/useHorizontalScroll';
 import { ScrollToTopFab } from './components/ui/ScrollToTopFab';
 import { SearchProvider } from './context/SearchContext';
 import GlobalSearchModal from './components/GlobalSearchModal';
+import { LocationProvider } from './context/LocationContext';
+import LocationPromptBanner from './components/layout/LocationPromptBanner';
 
 
 import LandingPage from './pages/LandingPage';
@@ -159,6 +161,7 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300">
+      <LocationPromptBanner />
       <Navbar />
       {!isLandingPage && <div className="h-14 md:h-20 pt-safe print-hide" />} {/* Spacer matching navbar height, hidden on landing */}
       
@@ -200,17 +203,19 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <SearchProvider>
-            <MessageProvider>
-              <CartProvider>
-                <DialogProvider>
-                  <AppLayout />
-                </DialogProvider>
-              </CartProvider>
-            </MessageProvider>
-          </SearchProvider>
-        </BrowserRouter>
+        <LocationProvider>
+          <BrowserRouter>
+            <SearchProvider>
+              <MessageProvider>
+                <CartProvider>
+                  <DialogProvider>
+                    <AppLayout />
+                  </DialogProvider>
+                </CartProvider>
+              </MessageProvider>
+            </SearchProvider>
+          </BrowserRouter>
+        </LocationProvider>
       </AuthProvider>
     </ThemeProvider>
   );

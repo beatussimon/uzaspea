@@ -79,6 +79,8 @@ const CheckoutPage: React.FC = () => {
   const [selectedCity, setSelectedCity] = useState('Dar es Salaam');
   const [quotes, setQuotes] = useState<any[]>([]);
   const [selectedQuoteCode, setSelectedQuoteCode] = useState('standard');
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [distanceMiles, setDistanceMiles] = useState<number | null>(null);
 
   const [sellerCoords, setSellerCoords] = useState<{ lat: number; lng: number; region?: string } | null>(null);
   const [deliveryCoords, setDeliveryCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -273,6 +275,8 @@ const CheckoutPage: React.FC = () => {
         size: maxSize
       });
       setQuotes(res.data.quotes || []);
+      setDistanceKm(res.data.distance_km ?? null);
+      setDistanceMiles(res.data.distance_miles ?? null);
       const hasSelected = (res.data.quotes || []).some((q: any) => q.code === selectedQuoteCode);
       if (!hasSelected && res.data.quotes?.length > 0) {
         const hasStd = res.data.quotes.find((q: any) => q.code === 'standard');
@@ -625,6 +629,12 @@ const CheckoutPage: React.FC = () => {
                   {/* Delivery Speed Dropdown (Only when PLATFORM_DELIVERY and quotes exist) */}
                   {shippingMethod === 'DELIVERY' && fulfillmentType === 'PLATFORM_DELIVERY' && quotes.length > 0 && (
                     <div className="space-y-1.5 pt-1">
+                      {distanceKm !== null && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 dark:bg-blue-950/20 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+                          <MapPin size={13} className="shrink-0 text-blue-500" />
+                          <span>Estimated Transit: <strong>~{distanceKm} km</strong> ({distanceMiles} mi)</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <label className="text-2xs font-extrabold uppercase tracking-wider text-gray-500">
                           {t('delivery_speed_pricing', 'Delivery Speed & Pricing')} *

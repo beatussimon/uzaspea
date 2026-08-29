@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.core.serializers.json import DjangoJSONEncoder
 from marketplace.utils import convert_and_save_image
 
 
@@ -253,6 +254,7 @@ class InspectionRequest(models.Model):
     )
     product_snapshot = models.JSONField(
         null=True, blank=True,
+        encoder=DjangoJSONEncoder,
         help_text='State of the product at the time of inspection request'
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -397,7 +399,7 @@ class InspectionEvidence(models.Model):
         ChecklistItem, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='evidence'
     )
-    image = models.ImageField(upload_to='inspection_evidence/')
+    image = models.FileField(upload_to='inspection_evidence/')
     captured_at = models.DateTimeField(auto_now_add=True)
     latitude = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     longitude = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
@@ -409,13 +411,19 @@ class InspectionEvidence(models.Model):
 
     def save(self, *args, **kwargs):
         if self.image and not self.file_hash:
-            h = hashlib.sha256()
-            for chunk in self.image.chunks():
-                h.update(chunk)
-            self.file_hash = h.hexdigest()
+            try:
+                h = hashlib.sha256()
+                for chunk in self.image.chunks():
+                    h.update(chunk)
+                self.file_hash = h.hexdigest()
+            except Exception:
+                pass
         super().save(*args, **kwargs)
-        if self.image:
-            convert_and_save_image(self, 'image', max_width=1000)
+        if self.image and hasattr(self.image, 'name') and str(self.image.name).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+            try:
+                convert_and_save_image(self, 'image', max_width=1000)
+            except Exception:
+                pass
 
     def __str__(self):
         return f'Evidence for {self.request.inspection_id}'

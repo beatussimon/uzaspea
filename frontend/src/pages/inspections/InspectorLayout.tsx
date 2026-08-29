@@ -3,6 +3,7 @@ import { Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ClipboardList, Camera, MapPin, CheckCircle,
   AlertTriangle, ChevronRight, Send, LogIn, LogOut, PlusCircle,
+  SwitchCamera, RefreshCw, FileText, Check, X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
@@ -201,36 +202,66 @@ const InspectorJobs: React.FC = () => {
   );
 };
 
-// ─── Capture Photo with GPS ─────────────────
+// ─── Capture Photo with Live Full-Frame & Review ──────
 const PhotoCapture: React.FC<{
   label: string;
   onCapture: (file: File, lat: number | null, lng: number | null) => void;
   captured?: boolean;
 }> = ({ label, onCapture, captured }) => {
-
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'acquiring' | 'ready' | 'unavailable'>('idle');
   const [showCamera, setShowCamera] = useState(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [capturedPreview, setCapturedPreview] = useState<{
+    file: File;
+    url: string;
+    lat: number | null;
+    lng: number | null;
+  } | null>(null);
+  const [takingShot, setTakingShot] = useState(false);
 
-  const startCamera = async () => {
+  const startCamera = async (mode = facingMode) => {
     setShowCamera(true);
+    setCapturedPreview(null);
     setGpsStatus('idle');
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+        video: {
+          facingMode: mode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false,
       });
       streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.muted = true;
+        videoRef.current.play().catch(() => {});
+      }
       setTimeout(() => {
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+          if (!videoRef.current.srcObject) videoRef.current.srcObject = stream;
+          videoRef.current.muted = true;
+          videoRef.current.play().catch(() => {});
         }
       }, 100);
     } catch (err) {
       console.error("Camera access failed:", err);
-      toast.error("Could not start live camera. Please allow camera permissions to proceed.");
+      toast.error("Could not access camera. Please allow camera permissions in your browser.");
       setShowCamera(false);
     }
+  };
+
+  const toggleCameraFacing = () => {
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextMode);
+    startCamera(nextMode);
   };
 
   const stopCamera = () => {
@@ -239,123 +270,212 @@ const PhotoCapture: React.FC<{
       streamRef.current = null;
     }
     setShowCamera(false);
+    setCapturedPreview(null);
   };
 
-  const capturePhoto = () => {
-    if (!videoRef.current) return;
-    
-    setGpsStatus('acquiring');
-    getLocation().then(pos => {
-      setGpsStatus('ready');
-      finishCapture(pos.lat, pos.lng);
-    }).catch(() => {
-      setGpsStatus('unavailable');
-      const confirmNoGps = window.confirm('GPS Location is unavailable. Proceed without GPS?');
-      if (confirmNoGps) {
-        finishCapture(null, null);
-      } else {
-        setGpsStatus('idle');
-      }
-    });
-  };
-
-  const finishCapture = (lat: number | null, lng: number | null) => {
-    if (!videoRef.current) return;
+  const capturePhoto = async () => {
+    if (!videoRef.current || takingShot) return;
     const video = videoRef.current;
+    setTakingShot(true);
+    setGpsStatus('acquiring');
+
+    let lat: number | null = null;
+    let lng: number | null = null;
+
+    try {
+      const pos = await getLocation();
+      lat = pos.lat;
+      lng = pos.lng;
+      setGpsStatus('ready');
+    } catch {
+      setGpsStatus('unavailable');
+    }
+
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       canvas.toBlob((blob) => {
         if (blob) {
-          const file = new File([blob], `${label.toLowerCase().replace(/[^a-z0-9]/g, '_')}_live.jpg`, { type: 'image/jpeg' });
-          onCapture(file, lat, lng);
-          if (lat !== null) {
-            toast.success(`${label} captured with GPS`);
-          } else {
-            toast.success(`${label} captured (no GPS)`);
-          }
-          stopCamera();
+          const file = new File(
+            [blob],
+            `${label.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}.jpg`,
+            { type: 'image/jpeg' }
+          );
+          const previewUrl = URL.createObjectURL(blob);
+          setCapturedPreview({ file, url: previewUrl, lat, lng });
         }
-      }, 'image/jpeg', 0.85);
+        setTakingShot(false);
+      }, 'image/jpeg', 0.90);
+    } else {
+      setTakingShot(false);
+    }
+  };
+
+  const confirmPhoto = () => {
+    if (!capturedPreview) return;
+    onCapture(capturedPreview.file, capturedPreview.lat, capturedPreview.lng);
+    toast.success(
+      capturedPreview.lat !== null
+        ? `${label} captured with GPS coordinates`
+        : `${label} captured`
+    );
+    stopCamera();
+  };
+
+  const retakePhoto = () => {
+    if (capturedPreview?.url) {
+      URL.revokeObjectURL(capturedPreview.url);
+    }
+    setCapturedPreview(null);
+    if (!streamRef.current) {
+      startCamera(facingMode);
     }
   };
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      {gpsStatus !== 'idle' && !showCamera && (
-        <div className={`flex items-center justify-center gap-1.5 text-xs font-semibold py-1 px-2 rounded-md ${
-          gpsStatus === 'acquiring' ? ' text-blue-500  dark:text-blue-500 animate-pulse' :
-          gpsStatus === 'ready' ? ' text-green-500  dark:text-green-500' :
-          ' text-red-500  dark:text-red-500'
-        }`}>
-          {gpsStatus === 'acquiring' && '📍 Acquiring GPS...'}
-          {gpsStatus === 'ready' && '📍 GPS Ready'}
-          {gpsStatus === 'unavailable' && '⚠️ GPS Unavailable'}
-        </div>
-      )}
-      
       <button 
         type="button"
-        onClick={startCamera}
+        onClick={() => startCamera(facingMode)}
         className={`flex flex-col items-center gap-2 p-5 border-2 border-dashed rounded-xl cursor-pointer transition w-full ${
           captured
-            ? 'border-green-500  '
+            ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20'
             : 'border-surface-border dark:border-surface-dark-border hover:border-brand-500 bg-white dark:bg-gray-800'
         }`}
       >
         {captured ? (
-          <CheckCircle size={28} className="text-green-500" />
+          <CheckCircle size={28} className="text-emerald-500" />
         ) : (
           <Camera size={28} className="text-gray-400" />
         )}
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {captured ? `${label} ✓` : `Take Live ${label}`}
+        <span className="text-sm font-bold text-gray-800 dark:text-gray-200">
+          {captured ? `${label} Recorded ✓` : `Take Live ${label}`}
         </span>
-        <span className="text-xs text-gray-400">Live Camera only</span>
+        <span className="text-2xs text-gray-400">Full-frame live camera &amp; GPS</span>
       </button>
 
       {showCamera && (
-        <div className="fixed inset-0 bg-neutral-950/95 z-[9999] flex flex-col items-center justify-between p-6">
-          <div className="w-full flex items-center justify-between max-w-md">
-            <h3 className="text-white font-bold text-lg">Live Capture: {label}</h3>
-            <button 
-              type="button" 
-              onClick={stopCamera} 
-              className="p-2 bg-neutral-800 text-white rounded-full hover:bg-neutral-700 transition"
-            >
-              ✕
-            </button>
+        <div className="fixed inset-0 bg-black/95 z-[9999] flex flex-col items-center justify-between p-4 sm:p-6 select-none">
+          {/* Header */}
+          <div className="w-full flex items-center justify-between max-w-lg text-white">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+              <h3 className="font-bold text-base sm:text-lg">{label}</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {!capturedPreview && (
+                <button
+                  type="button"
+                  onClick={toggleCameraFacing}
+                  className="p-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full transition flex items-center gap-1 text-xs"
+                  title="Switch Camera"
+                >
+                  <SwitchCamera size={16} />
+                </button>
+              )}
+              <button 
+                type="button" 
+                onClick={stopCamera} 
+                className="p-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
-          <div className="relative w-full max-w-md aspect-[3/4] bg-neutral-900 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              className="w-full h-full object-cover" 
-            />
-            {gpsStatus === 'acquiring' && (
-              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 text-white">
-                <div className="animate-spin w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full" />
-                <span className="text-sm font-semibold">Acquiring GPS location...</span>
+          {/* Viewfinder / Review Container */}
+          <div className="relative w-full max-w-md aspect-4/3 sm:aspect-16/9 my-auto flex items-center justify-center overflow-hidden rounded-2xl bg-black border border-neutral-800 shadow-2xl">
+            {capturedPreview ? (
+              /* Review Screen */
+              <div className="relative w-full h-full flex flex-col items-center justify-center">
+                <img
+                  src={capturedPreview.url}
+                  alt="Captured photo preview"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute bottom-3 left-3 right-3 bg-black/75 backdrop-blur-xs p-2.5 rounded-xl border border-white/10 text-white flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5 font-mono">
+                    <MapPin size={14} className="text-emerald-400 shrink-0" />
+                    {capturedPreview.lat !== null ? (
+                      <span className="truncate">GPS: {capturedPreview.lat.toFixed(4)}, {capturedPreview.lng?.toFixed(4)}</span>
+                    ) : (
+                      <span className="text-amber-400">GPS unavailable</span>
+                    )}
+                  </div>
+                  <span className="text-2xs uppercase tracking-wider text-emerald-400 font-bold shrink-0 ml-2">Ready</span>
+                </div>
+              </div>
+            ) : (
+              /* Live Camera Feed */
+              <div className="relative w-full h-full flex items-center justify-center bg-black">
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted
+                  className="w-full h-full object-cover" 
+                />
+                {/* Viewfinder Target Guidelines */}
+                <div className="absolute inset-4 sm:inset-6 border border-white/20 rounded-xl pointer-events-none flex flex-col justify-between p-3">
+                  <div className="flex justify-between">
+                    <div className="w-5 h-5 border-t-2 border-l-2 border-emerald-400" />
+                    <div className="w-5 h-5 border-t-2 border-r-2 border-emerald-400" />
+                  </div>
+                  <div className="flex justify-between">
+                    <div className="w-5 h-5 border-b-2 border-l-2 border-emerald-400" />
+                    <div className="w-5 h-5 border-b-2 border-r-2 border-emerald-400" />
+                  </div>
+                </div>
+
+                {gpsStatus === 'acquiring' && (
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 text-white">
+                    <div className="animate-spin w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full" />
+                    <span className="text-xs font-semibold">Acquiring GPS coordinates...</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          <div className="w-full flex flex-col items-center gap-4 max-w-md">
-            <button 
-              type="button" 
-              onClick={capturePhoto} 
-              className="w-20 h-20 bg-white border-[6px] border-neutral-300 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition cursor-pointer"
-            >
-              <div className="w-14 h-14 bg-red-500 rounded-full" />
-            </button>
-            <p className="text-xs text-neutral-400 text-center">
-              Align the item in frame and press the shutter button.
-            </p>
+          {/* Action Controls */}
+          <div className="w-full max-w-lg flex flex-col items-center gap-3">
+            {capturedPreview ? (
+              <div className="flex items-center gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={retakePhoto}
+                  className="flex-1 py-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition"
+                >
+                  <RefreshCw size={16} /> Retake
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmPhoto}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition shadow-lg"
+                >
+                  <Check size={18} /> Use Photo ✓
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <button 
+                  type="button" 
+                  onClick={capturePhoto} 
+                  disabled={takingShot}
+                  className="w-20 h-20 bg-white border-[6px] border-neutral-300 rounded-full flex items-center justify-center shadow-lg active:scale-95 hover:border-white transition cursor-pointer"
+                >
+                  <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center">
+                    <Camera size={22} className="text-white" />
+                  </div>
+                </button>
+                <p className="text-2xs text-neutral-400 text-center">
+                  Align the full subject in frame and tap the shutter button.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -378,6 +498,7 @@ const ChecklistForm: React.FC<{
   const [localTemplate, setLocalTemplate] = useState<ChecklistTemplate>(template);
   const [newLabel, setNewLabel] = useState('');
   const [newType, setNewType] = useState('pass_fail');
+  const [newSeverity, setNewSeverity] = useState('major');
   const [addingItem, setAddingItem] = useState(false);
 
   useEffect(() => {
@@ -387,15 +508,19 @@ const ChecklistForm: React.FC<{
   const handleAddCustomItem = async () => {
     if (!newLabel.trim()) return toast.error('Please enter what to check');
     setAddingItem(true);
+    const targetSection = activeSection || 'General';
     try {
       const res = await api.post(`/api/inspections/templates/${localTemplate.id}/add-item/`, {
-        label: newLabel,
+        label: newLabel.trim(),
         item_type: newType,
         is_mandatory: true,
-        section: activeSection || 'General',
-        severity: 'major'
+        section: targetSection,
+        severity: newSeverity,
       });
-      setLocalTemplate(res.data);
+      if (res.data && res.data.items) {
+        setLocalTemplate(res.data);
+      }
+      setActiveSection(targetSection);
       setNewLabel('');
       toast.success('Custom item added to checklist!');
     } catch (err: any) {
@@ -561,13 +686,19 @@ const ChecklistForm: React.FC<{
 
       // Upload evidence photos
       for (const [itemIdStr, ev] of Object.entries(evidence)) {
-        const fd = new FormData();
-        fd.append('request', String(requestId));
-        fd.append('checklist_item', itemIdStr);
-        fd.append('image', ev.file);
-        if (ev.lat !== null) fd.append('latitude', String(ev.lat.toFixed(6)));
-        if (ev.lng !== null) fd.append('longitude', String(ev.lng.toFixed(6)));
-        await inspectionApi.evidence.submit(fd);
+        try {
+          const fd = new FormData();
+          fd.append('request', String(requestId));
+          if (itemIdStr && !isNaN(Number(itemIdStr))) {
+            fd.append('checklist_item', itemIdStr);
+          }
+          fd.append('image', ev.file);
+          if (ev.lat !== null) fd.append('latitude', String(ev.lat.toFixed(6)));
+          if (ev.lng !== null) fd.append('longitude', String(ev.lng.toFixed(6)));
+          await inspectionApi.evidence.submit(fd);
+        } catch (evErr) {
+          console.warn('Evidence upload skipped or warning:', evErr);
+        }
       }
 
       toast.success('Checklist submitted!');
@@ -822,7 +953,7 @@ const ChecklistForm: React.FC<{
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <select
               className="select text-xs h-9 py-1 px-2 border dark:border-neutral-700 bg-white dark:bg-neutral-850 text-gray-900 dark:text-white rounded-lg"
               value={newType}
@@ -833,6 +964,15 @@ const ChecklistForm: React.FC<{
               <option value="measurement">Measurement</option>
               <option value="text">Text Note</option>
               <option value="media">Photo / Attachment</option>
+            </select>
+            <select
+              className="select text-xs h-9 py-1 px-2 border dark:border-neutral-700 bg-white dark:bg-neutral-850 text-gray-900 dark:text-white rounded-lg"
+              value={newSeverity}
+              onChange={(e) => setNewSeverity(e.target.value)}
+            >
+              <option value="advisory">Advisory Severity</option>
+              <option value="major">Major Severity</option>
+              <option value="critical">Critical Severity</option>
             </select>
             <button
               type="button"
@@ -941,10 +1081,14 @@ const JobExecution: React.FC = () => {
 
       // Upload extra supporting documents
       for (const file of extraDocs) {
-        const fd = new FormData();
-        fd.append('request', String(job.id));
-        fd.append('image', file);
-        await inspectionApi.evidence.submit(fd);
+        try {
+          const fd = new FormData();
+          fd.append('request', String(job.id));
+          fd.append('image', file);
+          await inspectionApi.evidence.submit(fd);
+        } catch (docErr) {
+          console.warn('Extra doc upload warning:', docErr);
+        }
       }
 
       // Finalize the existing report with verdict and summary
@@ -1142,28 +1286,87 @@ const JobExecution: React.FC = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Supporting Documents / Photos
+              Supporting Documents / Photos / Diagnostic Scans
             </label>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <input
-                type="file" multiple accept="image/*,application/pdf"
-                className="hidden" id="extra-docs"
+                type="file" 
+                multiple 
+                accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                className="hidden" 
+                id="extra-docs"
                 onChange={(e) => {
-                  if (e.target.files) setExtraDocs(Array.from(e.target.files));
+                  if (e.target.files && e.target.files.length > 0) {
+                    const newFiles = Array.from(e.target.files);
+                    setExtraDocs(prev => [...prev, ...newFiles]);
+                    e.target.value = '';
+                  }
                 }}
               />
-              <label htmlFor="extra-docs" className="flex items-center gap-2 p-3 border border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                <Camera size={16} className="text-gray-400" />
-                <span className="text-sm text-gray-600">Select Files...</span>
-                {extraDocs.length > 0 && <span className="ml-auto text-xs font-bold text-brand-500">{extraDocs.length} selected</span>}
+              <label 
+                htmlFor="extra-docs" 
+                className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl cursor-pointer hover:border-brand-500 bg-gray-50/50 dark:bg-gray-800/50 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-gray-900 dark:text-white block">
+                      Add Diagnostic Documents &amp; Photos
+                    </span>
+                    <span className="text-2xs text-gray-400">
+                      Images (JPG, PNG), PDF reports, Diagnostic scans, Service records
+                    </span>
+                  </div>
+                </div>
+                <span className="btn-secondary text-2xs py-1.5 px-3 rounded-lg font-bold">
+                  Browse Files
+                </span>
               </label>
+
               {extraDocs.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {extraDocs.map((f, i) => (
-                    <div key={i} className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-[10px] text-gray-600 dark:text-gray-400">
-                      {f.name.slice(0, 15)}...
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-2xs font-bold text-gray-500 uppercase tracking-wider">
+                    <span>Selected Documents ({extraDocs.length})</span>
+                    <button
+                      type="button"
+                      onClick={() => setExtraDocs([])}
+                      className="text-red-500 hover:underline"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {extraDocs.map((f, i) => (
+                      <div 
+                        key={i} 
+                        className="flex items-center justify-between p-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                          {f.type.startsWith('image/') ? (
+                            <Camera size={14} className="text-emerald-500 shrink-0" />
+                          ) : (
+                            <FileText size={14} className="text-blue-500 shrink-0" />
+                          )}
+                          <span className="font-medium text-gray-800 dark:text-gray-200 truncate" title={f.name}>
+                            {f.name}
+                          </span>
+                          <span className="text-3xs text-gray-400 shrink-0 font-mono">
+                            ({(f.size / 1024).toFixed(0)} KB)
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExtraDocs(prev => prev.filter((_, idx) => idx !== i))}
+                          className="p-1 text-gray-400 hover:text-red-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                          title="Remove file"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -1202,7 +1405,7 @@ const JobExecution: React.FC = () => {
 // ─── Inspector Layout ───────────────────────
 const InspectorLayout: React.FC = () => {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div className="container-page max-w-4xl py-6">
       <Routes>
         <Route index element={<InspectorJobs />} />
         <Route path="jobs" element={<InspectorJobs />} />

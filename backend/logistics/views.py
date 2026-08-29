@@ -223,6 +223,26 @@ class ShipmentViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
         
+        # Calibrate historical route pricing moving average
+        try:
+            if shipment.origin_warehouse and shipment.destination_warehouse and shipment.order.shipping_fee:
+                from warehouses.models import HistoricalRoutePricing
+                from decimal import Decimal
+                fee = Decimal(str(shipment.order.shipping_fee))
+                if fee > 0:
+                    hrp, created = HistoricalRoutePricing.objects.get_or_create(
+                        origin_warehouse=shipment.origin_warehouse,
+                        destination_warehouse=shipment.destination_warehouse,
+                        defaults={'average_cost': fee, 'data_points': 1}
+                    )
+                    if not created:
+                        total_cost = (hrp.average_cost * hrp.data_points) + fee
+                        hrp.data_points += 1
+                        hrp.average_cost = total_cost / hrp.data_points
+                        hrp.save()
+        except Exception:
+            pass
+
         return Response({'status': 'Delivery confirmed successfully.'})
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
@@ -356,6 +376,17 @@ class DeliveryQuoteView(views.APIView):
         options = DeliveryOption.objects.filter(is_active=True)
         quotes = []
 
+        distance_km = None
+        if start_lat is not None and start_lng is not None and end_lat is not None and end_lng is not None:
+            try:
+                from .pricing import calculate_haversine_distance
+                distance_km = calculate_haversine_distance(
+                    float(start_lat), float(start_lng),
+                    float(end_lat), float(end_lng)
+                )
+            except Exception:
+                distance_km = None
+
         if hrp and hrp.data_points > 0:
             avg_cost = hrp.average_cost
             speed_multipliers = {
@@ -413,7 +444,13 @@ class DeliveryQuoteView(views.APIView):
                         'is_historical_estimate': False
                     })
 
-        return Response({'quotes': quotes})
+        return Response({
+            'quotes': quotes,
+            'distance_km': round(distance_km, 1) if distance_km is not None else None,
+            'distance_miles': round(distance_km * 0.621371, 1) if distance_km is not None else None,
+            'origin_warehouse': origin_wh.name if origin_wh else None,
+            'destination_warehouse': dest_wh.name if dest_wh else None,
+        })
 
 
 class DriverPaymentViewSet(viewsets.ModelViewSet):

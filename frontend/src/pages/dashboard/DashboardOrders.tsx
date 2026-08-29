@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, MessageSquare, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
+import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, getSellerNextStatus } from '../../constants/orderStatus';
@@ -12,6 +11,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/ui/Button';
+import { OrderActionToolbar } from '../../components/ui/OrderActionToolbar';
 
 // ============ Incoming Orders (Seller) ============
 const fmtOrderDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -435,54 +435,64 @@ const DashboardOrders: React.FC = () => {
                   </div>
 
                   {/* Actions & Chevron */}
-                  <div className="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
-                    {nextStatus && (
-                      <Button
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (nextStatus === 'SHIPPED') {
-                            const promptNotes = prompt('Enter tracking number or courier info:') || '';
-                            handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
-                          } else if (nextStatus === 'SHIPPED_TO_WAREHOUSE') {
-                            setShipModalOpen(order.id);
-                          } else {
-                            handleAdvance(order.id, nextStatus, `Moved to ${nextStatus} by seller.`);
-                          }
-                        }}
-                        disabled={advancing === order.id}
-                        className="font-bold flex items-center gap-1"
-                      >
-                        {advancing === order.id ? (
-                          <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
-                        ) : (
-                          <>
-                            <ShieldCheck size={14} />
-                            {nextStatus === 'SELLER_CONFIRMED' && 'Confirm'}
-                            {nextStatus === 'PREPARING' && 'Prepare'}
-                            {nextStatus === 'PACKAGING' && 'Package'}
-                            {nextStatus === 'READY_FOR_PICKUP' && 'Ready for Pickup'}
-                            {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to Warehouse'}
-                            {nextStatus === 'PROCESSING' && 'Process'}
-                            {nextStatus === 'SHIPPED' && 'Mark Shipped'}
-                            {nextStatus === 'DELIVERED' && 'Confirm Delivery'}
-                            {nextStatus === 'COMPLETED' && 'Finalize'}
-                            {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'READY_FOR_PICKUP', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && 'Advance'}
-                          </>
-                        )}
-                      </Button>
-                    )}
+                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto shrink-0 justify-between md:justify-end pt-2 md:pt-0 border-t md:border-t-0 border-surface-border/60 dark:border-surface-dark-border/60 mt-2 md:mt-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {nextStatus && (
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (nextStatus === 'SHIPPED') {
+                              const promptNotes = prompt('Enter tracking number or courier info:') || '';
+                              handleAdvance(order.id, nextStatus, promptNotes || `Moved to ${nextStatus} by seller.`);
+                            } else if (nextStatus === 'SHIPPED_TO_WAREHOUSE') {
+                              setShipModalOpen(order.id);
+                            } else {
+                              handleAdvance(order.id, nextStatus, `Moved to ${nextStatus} by seller.`);
+                            }
+                          }}
+                          disabled={advancing === order.id}
+                          className="font-bold flex items-center gap-1"
+                        >
+                          {advancing === order.id ? (
+                            <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
+                          ) : (
+                            <>
+                              <ShieldCheck size={14} />
+                              {nextStatus === 'SELLER_CONFIRMED' && 'Confirm'}
+                              {nextStatus === 'PREPARING' && 'Prepare'}
+                              {nextStatus === 'PACKAGING' && 'Package'}
+                              {nextStatus === 'READY_FOR_PICKUP' && 'Ready for Pickup'}
+                              {nextStatus === 'SHIPPED_TO_WAREHOUSE' && 'Ship to Warehouse'}
+                              {nextStatus === 'PROCESSING' && 'Process'}
+                              {nextStatus === 'SHIPPED' && 'Mark Shipped'}
+                              {nextStatus === 'DELIVERED' && 'Confirm Delivery'}
+                              {nextStatus === 'COMPLETED' && 'Finalize'}
+                              {!['SELLER_CONFIRMED', 'PREPARING', 'PACKAGING', 'READY_FOR_PICKUP', 'SHIPPED_TO_WAREHOUSE', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(nextStatus) && 'Advance'}
+                            </>
+                          )}
+                        </Button>
+                      )}
 
-                    {!order.delivery_info?.is_pos && (
-                      <Link
-                        to={`/${order.buyer}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-1.5 text-gray-400 hover:text-brand-500 transition rounded-lg hover:bg-surface-muted dark:hover:bg-[#161616]"
-                        title={t('contact_customer', 'Contact Customer')}
-                      >
-                        <MessageSquare size={16} />
-                      </Link>
-                    )}
+                      {!order.delivery_info?.is_pos && (
+                        <OrderActionToolbar
+                          phone={order.delivery_info?.phone || order.buyer_contact?.phone || null}
+                          phoneLabel="Call Buyer"
+                          username={order.buyer_username || order.buyer || null}
+                          messageLabel="Chat"
+                          orderId={order.id}
+                          location={
+                            order.delivery_latitude && order.delivery_longitude
+                              ? { lat: order.delivery_latitude, lng: order.delivery_longitude, address: order.delivery_info?.address }
+                              : order.delivery_info?.address
+                              ? { address: order.delivery_info.address }
+                              : null
+                          }
+                          locationLabel="Directions"
+                          size="sm"
+                        />
+                      )}
+                    </div>
 
                     <div className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
                       {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
