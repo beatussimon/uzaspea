@@ -55,9 +55,24 @@ def perform_expiration_checks():
     results['downgraded_profiles'] = downgraded_count
 
     # 4. Check Sponsored Listings
-    from marketplace.models import SponsoredListing
-    expired_listings = SponsoredListing.objects.filter(status='approved', expires_at__lt=now)
-    list_count = expired_listings.update(status='expired')
+    from marketplace.models import SponsoredListing, push_notification
+    expired_listings = list(SponsoredListing.objects.filter(status='approved', expires_at__lt=now).select_related('product', 'user'))
+    list_count = 0
+    for listing in expired_listings:
+        try:
+            listing.status = 'expired'
+            listing.save(update_fields=['status'])
+            list_count += 1
+            product_name = listing.product.name if listing.product else "Product"
+            push_notification(
+                listing.user,
+                'sponsored_expired',
+                f'Promotion Expired: {listing.title or product_name}',
+                f'Your campaign for "{product_name}" has completed. Re-boost anytime to regain top placement.',
+                '/dashboard/promotions'
+            )
+        except Exception:
+            pass
     results['expired_sponsored_listings'] = list_count
 
     return results

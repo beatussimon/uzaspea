@@ -61,4 +61,4 @@ def convert_and_save_image(instance, field_name='image', max_width=1200):
         # Re-save the model instance updating only the image path in database
         instance.save(update_fields=[field_name])
     except Exception as e:
-        logger.exception("Failed to convert image to WebP format: %s", str(e))
+        logger.debug("Image WebP conversion skipped: %s", str(e))

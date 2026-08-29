@@ -20,6 +20,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { OrderActionToolbar } from '../components/ui/OrderActionToolbar';
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -495,66 +496,93 @@ const OrdersPage: React.FC = () => {
                       handleOrderExpand(order);
                     }
                   }}
-                  className="w-full px-6 py-5 flex items-center justify-between gap-4 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition group cursor-pointer focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="relative w-14 h-14 shrink-0">
-                      <div className="w-full h-full rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex items-center justify-center">
-                        {order.items?.[0]?.product_image ? (
-                          <img src={order.items[0].product_image} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <Package size={20} className="text-gray-400" />
-                        )}
-                      </div>
-                      {order.items?.length > 1 && (
-                        <div className="absolute -bottom-1 -right-1 bg-brand-600 text-white text-[10px] font-black w-5 h-5 rounded-lg flex items-center justify-center border-2 border-white dark:border-gray-800">
-                          +{order.items.length - 1}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-[10px] font-black text-brand-600 uppercase tracking-widest bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">Order #{order.id}</span>
-                        {order.is_bulk_order && (
-                          <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700/50">
-                            Bulk Order
-                          </span>
-                        )}
-                        <span className="text-[10px] font-bold text-gray-400">{fmtDate(order.order_date)}</span>
-                      </div>
-                      <h4 className="text-sm font-black text-gray-900 dark:text-white truncate uppercase">
-                        {order.items?.length > 0 ? order.items[0].product_name : 'Incomplete Order (No Items Found)'}
-                      </h4>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-gray-500 font-medium">Store:</span>
-                        <span className="text-xs font-black text-gray-700 dark:text-gray-300">
-                          {order.items?.length > 0 ? `@${order.items[0].seller_username}` : 'N/A'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  className="w-full p-4 sm:p-5 flex flex-col gap-3 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition group cursor-pointer focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10">
                   
-                  <div className="flex items-center gap-6">
-                    <div className="text-right hidden sm:block">
-                      <p className="font-black text-gray-900 dark:text-white text-lg tracking-tight">TSh {parseInt(order.total_amount || 0).toLocaleString()}</p>
+                  {/* Top Row: Thumbnail + Info + Price & Status */}
+                  <div className="flex items-start justify-between gap-3 w-full">
+                    {/* Left: Thumbnail & Details */}
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="relative w-12 h-12 sm:w-14 sm:h-14 shrink-0 mt-0.5">
+                        <div className="w-full h-full rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex items-center justify-center">
+                          {order.items?.[0]?.product_image ? (
+                            <img src={order.items[0].product_image} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Package size={20} className="text-gray-400" />
+                          )}
+                        </div>
+                        {order.items?.length > 1 && (
+                          <div className="absolute -bottom-1 -right-1 bg-brand-600 text-white text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-md sm:rounded-lg flex items-center justify-center border-2 border-white dark:border-gray-800">
+                            +{order.items.length - 1}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+                          <span className="text-[10px] font-black text-brand-600 uppercase tracking-widest bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
+                            Order #{order.id}
+                          </span>
+                          {order.is_bulk_order && (
+                            <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700/50">
+                              Bulk Order
+                            </span>
+                          )}
+                          <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap">
+                            {fmtDate(order.order_date)}
+                          </span>
+                        </div>
+
+                        <h4 className="text-sm font-black text-gray-900 dark:text-white truncate uppercase">
+                          {order.items?.length > 0 ? order.items[0].product_name : 'Incomplete Order (No Items Found)'}
+                        </h4>
+
+                        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500">
+                          <span>Store:</span>
+                          <span className="font-bold text-gray-700 dark:text-gray-300 truncate">
+                            {order.items?.length > 0 ? `@${order.items[0].seller_username}` : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Price, Status & Chevron */}
+                    <div className="flex flex-col items-end shrink-0 gap-1.5 pl-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <p className="font-black text-gray-900 dark:text-white text-sm sm:text-lg tracking-tight whitespace-nowrap">
+                          TSh {parseInt(order.total_amount || 0).toLocaleString()}
+                        </p>
+                        <div className="p-0.5 sm:p-1 text-gray-400">
+                          {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        </div>
+                      </div>
                       {order.items?.length === 0 ? (
-                        <span className="inline-block px-2 py-0.5 text-[9px] font-black rounded-full bg-red-100 text-red-600 mt-1">
+                        <span className="inline-block px-2 py-0.5 text-[9px] font-black rounded-full bg-red-100 text-red-600">
                           Invalid Order
                         </span>
                       ) : (
-                        <StatusBadge status={order.status} size="sm" className="mt-1" />
+                        <StatusBadge status={order.status} size="sm" />
                       )}
                     </div>
-                    <div className="flex flex-col items-center gap-3">
-                        <Link 
-                            to={`/${order.items?.[0]?.seller_username}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition"
-                            title="Contact Store"
-                        >
-                            <MessageSquare size={18} />
-                        </Link>
-                        {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
-                    </div>
+                  </div>
+
+                  {/* Dedicated Action Strip */}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100/80 dark:border-gray-700/40 gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    <OrderActionToolbar
+                      phone={order.seller_contacts?.[0]?.phone || null}
+                      phoneLabel="Call Store"
+                      username={order.items?.[0]?.seller_username || null}
+                      messageLabel="Chat with Store"
+                      orderId={order.id}
+                      location={
+                        order.fulfillment_type === 'SELLER_PICKUP' && order.delivery_info?.pickup_address
+                          ? { address: order.delivery_info.pickup_address }
+                          : order.shipping_method === 'PICKUP' && order.delivery_info?.warehouse_address
+                          ? { address: order.delivery_info.warehouse_address }
+                          : null
+                      }
+                      locationLabel="Pickup Map"
+                      size="sm"
+                    />
                   </div>
                 </div>
 
@@ -870,13 +898,31 @@ const OrdersPage: React.FC = () => {
 
 
                         
-                        {/* Soft Banner for Codes */}
-                        {(order.delivery_code || pickupCodesMap[order.id]) && (
-                          (order.fulfillment_type === 'SELLER_PICKUP' && ['PACKAGING', 'READY_FOR_PICKUP', 'DELIVERED', 'COMPLETED'].includes(order.status)) ||
-                          (order.fulfillment_type === 'DIRECT_DELIVERY' && ['PACKAGING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(order.status)) ||
-                          (['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(order.status))
-                        ) && (
-                          <div className="bg-brand-50/50 dark:bg-brand-900/10 rounded-xl border border-brand-100 dark:border-brand-900/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        {/* Verified Handover Badge for Completed Orders */}
+                        {['DELIVERED', 'COMPLETED'].includes(order.status) && (
+                          <div className="bg-emerald-500/10 dark:bg-emerald-500/10 rounded-xl border border-emerald-500/20 p-3.5 mb-2 flex items-center justify-between gap-3 animate-fade-in">
+                            <div className="flex items-center gap-2.5">
+                              <CheckCircle2 className="text-emerald-500 shrink-0" size={18} />
+                              <div>
+                                <p className="text-xs font-bold text-emerald-900 dark:text-emerald-300">
+                                  Handover Verified & Completed
+                                </p>
+                                <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80">
+                                  Verification code has been successfully redeemed and package received.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Soft Banner for Codes — Active Pre-Delivery Orders Only */}
+                        {(order.delivery_code || pickupCodesMap[order.id]) &&
+                          !['DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUNDED', 'RETURNED'].includes(order.status) && (
+                            (order.fulfillment_type === 'SELLER_PICKUP' && ['PACKAGING', 'READY_FOR_PICKUP'].includes(order.status)) ||
+                            (order.fulfillment_type === 'DIRECT_DELIVERY' && ['PACKAGING', 'SHIPPED', 'OUT_FOR_DELIVERY'].includes(order.status)) ||
+                            (['ARRIVED_AT_REGIONAL_WAREHOUSE', 'READY_FOR_PICKUP', 'READY_FOR_VEHICLE_HANDOVER', 'OUT_FOR_DELIVERY'].includes(order.status))
+                          ) && (
+                          <div className="bg-brand-50/50 dark:bg-brand-900/10 rounded-xl border border-brand-100 dark:border-brand-900/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
                             <div>
                                 <p className="text-xs font-bold text-brand-900 dark:text-brand-100 uppercase tracking-wider mb-0.5">
                                   {order.fulfillment_type === 'SELLER_PICKUP' ? 'Store Pickup Code' : (order.shipping_method === 'PICKUP' ? 'Warehouse Code' : 'Delivery Code')}

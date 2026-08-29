@@ -1103,9 +1103,13 @@ class OrderSerializer(serializers.ModelSerializer):
         return float(seller_subtotal - commission)
 
     def get_delivery_code(self, obj):
+        # Do not expose delivery verification codes once order is delivered, completed, or cancelled
+        if obj.status in ['COMPLETED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'RETURNED']:
+            return None
+
         request = self.context.get('request')
         if request and hasattr(request, 'user') and not request.user.is_anonymous:
-            # Only the buyer and staff can see the delivery code
+            # Only the buyer and staff can see the active delivery code
             if request.user == obj.user or request.user.is_staff:
                 return obj.delivery_code
         return None
@@ -1423,11 +1427,47 @@ class SponsoredListingSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_slug = serializers.CharField(source='product.slug', read_only=True)
     product_details = ProductSerializer(source='product', read_only=True)
+    is_active = serializers.SerializerMethodField()
+    days_remaining = serializers.SerializerMethodField()
+    seconds_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = SponsoredListing
-        fields = ['id', 'user', 'product', 'product_name', 'product_slug', 'product_details', 'title', 'description', 'status', 'admin_notes', 'duration_days', 'amount', 'transaction_reference', 'payment_proof', 'created_at', 'expires_at']
-        read_only_fields = ['user', 'status', 'admin_notes', 'amount', 'created_at', 'expires_at']
+        fields = [
+            'id', 'user', 'product', 'product_name', 'product_slug', 'product_details',
+            'title', 'description', 'status', 'admin_notes', 'duration_days', 'amount',
+            'transaction_reference', 'payment_proof', 'created_at', 'approved_at', 'expires_at',
+            'is_active', 'days_remaining', 'seconds_remaining'
+        ]
+        read_only_fields = ['user', 'status', 'admin_notes', 'amount', 'created_at', 'approved_at', 'expires_at']
+
+    def get_is_active(self, obj):
+        from django.utils import timezone
+        if obj.status == 'approved' and obj.expires_at:
+            return obj.expires_at > timezone.now()
+        return False
+
+    def get_days_remaining(self, obj):
+        from django.utils import timezone
+        if obj.status == 'approved' and obj.expires_at:
+            diff = obj.expires_at - timezone.now()
+            return max(0, diff.days)
+        return 0
+
+    def get_seconds_remaining(self, obj):
+        from django.utils import timezone
+        if obj.status == 'approved' and obj.expires_at:
+            diff = obj.expires_at - timezone.now()
+            return max(0, int(diff.total_seconds()))
+        return 0
+
+    def validate(self, attrs):
+        if self.instance and self.instance.status == 'approved':
+            if 'product' in attrs and attrs['product'] != self.instance.product:
+                raise serializers.ValidationError({"product": "Cannot change product for an active approved promotion."})
+            if 'duration_days' in attrs and attrs['duration_days'] != self.instance.duration_days:
+                raise serializers.ValidationError({"duration_days": "Cannot change duration for an active approved promotion."})
+        return attrs
 
 
 class SubscriptionTierSerializer(serializers.ModelSerializer):

@@ -524,21 +524,53 @@ class SponsoredListingReviewViewSet(viewsets.ModelViewSet):
         listing.status = 'approved'
         listing.approved_at = timezone.now()
         from datetime import timedelta
-        listing.expires_at = timezone.now() + timedelta(days=30)  # FIX: L-12 — auto-expire after 30 days
+        duration = listing.duration_days if listing.duration_days and listing.duration_days > 0 else 7
+        listing.expires_at = timezone.now() + timedelta(days=duration)
         listing.admin_notes = request.data.get('notes', '')
         listing.save()
         log_audit(request.user, 'action_approved', f"Approved promotion: {listing.title}", request=request)
-        return Response({'status': 'approved', 'id': listing.id})
+
+        # Send push notification to seller
+        try:
+            from marketplace.models import push_notification
+            product_name = listing.product.name if listing.product else "Product"
+            push_notification(
+                listing.user,
+                'sponsored_approved',
+                f'Promotion Approved: {listing.title or product_name}',
+                f'Your campaign for "{product_name}" is now live and will run for {duration} days.',
+                '/dashboard/promotions'
+            )
+        except Exception:
+            pass
+
+        return Response({'status': 'approved', 'id': listing.id, 'expires_at': listing.expires_at})
 
     @decorators.action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         listing = self.get_object()
         if listing.status != 'pending':
             return Response({'error': 'Already reviewed'}, status=status.HTTP_400_BAD_REQUEST)
+        notes = request.data.get('notes', 'Rejected by staff')
         listing.status = 'rejected'
-        listing.admin_notes = request.data.get('notes', 'Rejected by staff')
+        listing.admin_notes = notes
         listing.save()
         log_audit(request.user, 'action_rejected', f"Rejected promotion: {listing.title}", request=request)
+
+        # Send push notification to seller
+        try:
+            from marketplace.models import push_notification
+            product_name = listing.product.name if listing.product else "Product"
+            push_notification(
+                listing.user,
+                'order_status',
+                f'Promotion Request Update: {listing.title or product_name}',
+                f'Your promotion request for "{product_name}" was rejected. Reason: {notes}',
+                '/dashboard/promotions'
+            )
+        except Exception:
+            pass
+
         return Response({'status': 'rejected', 'id': listing.id})
 
 

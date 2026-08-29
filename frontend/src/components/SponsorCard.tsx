@@ -7,29 +7,28 @@ export default function SponsorCard() {
 
   return (
     <Link
-      to="/dashboard"
+      to="/dashboard/promotions?tab=sponsored&new=true"
       className="group cursor-pointer flex flex-col items-center justify-center text-center
-                  from-neutral-50 /50
-                 dark:from-neutral-900/10 dark:/5
-                 rounded-card p-6 border-2 border-dashed border-neutral-300
-                 dark:border-neutral-800 hover:border-brand-500
-                 dark:hover:border-brand-500 hover:shadow-card-hover active:scale-95
+                 bg-surface-muted/60 dark:bg-[#0A0A0A]
+                 rounded-card p-6 border-2 border-dashed border-surface-border
+                 dark:border-surface-dark-border hover:border-brand-500
+                 dark:hover:border-brand-500 hover:shadow-card-hover active:scale-[0.98]
                  transition-all duration-300 min-h-[320px] h-full"
     >
-      <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800/60 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-        <Megaphone className="h-6 w-6 text-neutral-600 dark:text-neutral-300" />
+      <div className="w-12 h-12 rounded-2xl bg-brand-500/10 dark:bg-brand-500/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-brand-500/20 transition-transform">
+        <Megaphone className="h-6 w-6 text-brand-600 dark:text-brand-400" />
       </div>
 
-      <h3 className="font-bold text-sm text-neutral-800 dark:text-neutral-200 mb-1 uppercase tracking-wide">
+      <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1 uppercase tracking-wide">
         {t('sponsor_your_item_here', 'Sponsor Your Item Here')}
       </h3>
 
-      <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed max-w-[180px] mb-4">
-        {t('boost_your_listing', 'Boost your listing visibility and reach more customers')}
+      <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-[200px] mb-4">
+        {t('boost_your_listing', 'Boost your listing visibility and reach more buyers across Tanzania')}
       </p>
 
-      <span className="inline-flex items-center gap-1 text-[10px] font-black text-brand-500 dark:text-brand-500 uppercase tracking-widest group-hover:gap-2 transition-all">
-        {t('get_started', 'Get Started')} <ArrowRight className="h-3 w-3" />
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest group-hover:gap-2.5 transition-all">
+        {t('boost_now', 'Boost Now')} <ArrowRight className="h-3.5 w-3.5" />
       </span>
     </Link>
   );

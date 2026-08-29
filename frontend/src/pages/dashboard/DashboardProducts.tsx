@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { 
   Package, Plus, Printer, Image as ImageIcon, Camera, DollarSign, 
   CheckCircle2, Sliders, Trash2, ArrowRight, ArrowLeft, Check, Tag,
-  Star, ChevronLeft, ChevronRight, Search, X
+  Star, ChevronLeft, ChevronRight, Search, X, Megaphone
 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { timeAgo } from '../../utils/timeAgo';
@@ -17,7 +17,7 @@ import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // ─── Mobile detection (camera option only shown on touch devices) ─────────────
 const isMobile = () =>
@@ -136,6 +136,7 @@ const CATEGORY_VARIATION_DEFAULTS: Record<string, string[]> = {
 
 // ============ Dashboard Products ============
 const DashboardProducts: React.FC = () => {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { showConfirm } = useDialog();
@@ -2600,6 +2601,16 @@ const DashboardProducts: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => navigate(`/dashboard/promotions?tab=sponsored&new=true&product=${product.id}`)}
+                  className="flex-1 sm:flex-initial text-xs py-1 text-brand-600 dark:text-brand-400 border-brand-500/30 hover:bg-brand-500/10 font-bold flex items-center justify-center gap-1"
+                  title="Boost / Sponsor this product"
+                >
+                  <Megaphone size={12} />
+                  Boost
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleEdit(product)}
                   className="flex-1 sm:flex-initial text-xs py-1"
                 >
@@ -2609,7 +2620,7 @@ const DashboardProducts: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => setVariantProductId(product.id.toString())}
-                  className="flex-1 sm:flex-initial text-xs py-1 text-brand-600 dark:text-brand-400 border-brand-500/30"
+                  className="flex-1 sm:flex-initial text-xs py-1 text-gray-700 dark:text-gray-300 border-surface-border dark:border-surface-dark-border"
                 >
                   Variants
                 </Button>

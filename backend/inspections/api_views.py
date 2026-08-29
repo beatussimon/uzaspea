@@ -30,13 +30,43 @@ from uzachuo.permissions import IsSuperUser, IsStaffMember, has_staff_permission
 
 
 def notify(user, notification_type, message, request_obj=None):
-    """Helper to create a notification."""
-    InspectionNotification.objects.create(
+    """Helper to create an InspectionNotification and broadcast live via Redis WebSocket."""
+    notif = InspectionNotification.objects.create(
         user=user,
         notification_type=notification_type,
         message=message,
         related_request=request_obj,
     )
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            payload = {
+                'type': 'notification.push',
+                'notification': {
+                    'id': notif.id,
+                    'type': notification_type,
+                    'title': 'Inspection Update',
+                    'message': message,
+                    'request_id': request_obj.id if request_obj else None,
+                    'inspection_id': request_obj.inspection_id if request_obj else None,
+                    'status': request_obj.status if request_obj else None,
+                    'link': f'/inspections/{request_obj.id}' if request_obj else '/inspections',
+                }
+            }
+            async_to_sync(channel_layer.group_send)(
+                f'notifications_{user.id}',
+                payload
+            )
+            if request_obj:
+                async_to_sync(channel_layer.group_send)(
+                    f'inspection_req_{request_obj.id}',
+                    payload
+                )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"WS notification broadcast failed for inspection: {e}")
 
 
 def auto_fraud_check(inspection_request):
@@ -203,7 +233,7 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = ChecklistTemplateSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'for_category']:
+        if self.action in ['list', 'retrieve', 'for_category', 'add_item']:
             return [permissions.IsAuthenticated()]
         return [IsSuperUser()]
 
@@ -278,7 +308,7 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
             order=next_order,
             help_text=help_text
         )
-
+        template.refresh_from_db()
         return Response(ChecklistTemplateSerializer(template).data, status=201)
 
 
@@ -324,6 +354,11 @@ class InspectorProfileViewSet(viewsets.ModelViewSet):
 class InspectionRequestViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action in ['prefill_marketplace', 'verify']:
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
     def get_serializer_class(self):
         if self.action == 'list':
             return InspectionRequestListSerializer
@@ -357,15 +392,22 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         
         if marketplace_product:
             # Capture snapshot of the product at request time
-            first_image = marketplace_product.images.first()
+            first_image = marketplace_product.images.first() if hasattr(marketplace_product, 'images') else None
+            img_url = None
+            if first_image and getattr(first_image, 'image', None):
+                try:
+                    img_url = first_image.image.url
+                except Exception:
+                    img_url = None
+
             snapshot = {
                 'id': marketplace_product.id,
-                'name': marketplace_product.name,
-                'description': marketplace_product.description,
-                'price': str(marketplace_product.price),
-                'condition': marketplace_product.condition,
-                'stock': marketplace_product.stock,
-                'image_url': first_image.image.url if first_image else None,
+                'name': str(marketplace_product.name or ''),
+                'description': str(marketplace_product.description or ''),
+                'price': str(marketplace_product.price) if marketplace_product.price is not None else '0',
+                'condition': str(marketplace_product.condition or ''),
+                'stock': float(marketplace_product.stock) if marketplace_product.stock is not None else 0,
+                'image_url': img_url,
                 'captured_at': timezone.now().isoformat()
             }
         
@@ -383,19 +425,18 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         
         # 1. Ensure matching InspectionCategory exists
         # Match by linked marketplace category first, then by name (case-insensitive)
-        insp_cat = InspectionCategory.objects.filter(marketplace_category=product.category).first()
-        if not insp_cat:
-            cat_name = product.category.name
-            insp_cat = InspectionCategory.objects.filter(name__iexact=cat_name).first()
+        insp_cat = None
+        if product.category:
+            insp_cat = InspectionCategory.objects.filter(marketplace_category=product.category).first()
+            if not insp_cat:
+                cat_name = product.category.name
+                insp_cat = InspectionCategory.objects.filter(name__iexact=cat_name).first()
         
         if not insp_cat:
-            cat_name = product.category.name
-            if not (request.user.is_staff or request.user.is_superuser):
-                return Response({'detail': f'Inspection category for "{cat_name}" does not exist and auto-creation requires staff privileges.'}, status=403)
-                
+            cat_name = product.category.name if product.category else 'General'
             # Try to find parent by marketplace link or name
             parent = None
-            if product.category.parent:
+            if product.category and product.category.parent:
                 parent = InspectionCategory.objects.filter(marketplace_category=product.category.parent).first()
                 if not parent:
                     parent = InspectionCategory.objects.filter(name__iexact=product.category.parent.name).first()
@@ -410,41 +451,54 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
                         description='Automatic category for marketplace items'
                     )
             
-            slug = product.category.slug
-            if InspectionCategory.objects.filter(slug=slug).exists():
-                slug = f"mkt-{slug}"
+            base_slug = product.category.slug if product.category else 'general'
+            slug = base_slug
+            counter = 1
+            while InspectionCategory.objects.filter(slug=slug).exists():
+                slug = f"mkt-{base_slug}-{counter}"
+                counter += 1
             
             insp_cat = InspectionCategory.objects.create(
                 name=cat_name,
                 slug=slug,
                 level='category',
                 parent=parent,
-                description=f"Auto-created from marketplace: {product.category.description}",
-                marketplace_category=product.category
+                description=f"Auto-created category for: {cat_name}",
+                marketplace_category=product.category,
+                base_price=50000.00
             )
-            # Ensure it has a base price if inherited or default
-            insp_cat.base_price = 50000.00  # Default base price for new categories
-            insp_cat.save()
+
+        first_img = product.images.first() if hasattr(product, 'images') else None
+        img_url = None
+        if first_img and getattr(first_img, 'image', None):
+            try:
+                img_url = first_img.image.url
+            except Exception:
+                img_url = None
 
         return Response({
             'item_name': product.name,
-            'item_description': product.description,
-            'item_address': 'Marketplace Warehouse / Seller Location', # Placeholder or from seller profile if known
+            'item_description': product.description or '',
+            'item_address': product.location_name or getattr(getattr(product.seller, 'profile', None), 'location', None) or 'Seller / Marketplace Location',
             'category': {
                 'id': insp_cat.id,
                 'name': insp_cat.name,
-                'full_path': insp_cat.get_full_path()
+                'full_path': insp_cat.get_full_path(),
+                'base_price': insp_cat.base_price,
             },
             'product': {
                 'id': product.id,
                 'name': product.name,
-                'image': product.images.first().image.url if product.images.exists() else None,
+                'price': float(product.price) if product.price is not None else 0,
+                'image': img_url,
+                'seller_username': product.seller.username if product.seller else '',
+                'location_name': product.location_name or '',
             }
         })
 
     @decorators.action(detail=True, methods=['post'], url_path='generate-bill')
     def generate_bill(self, request, pk=None):
-        """Staff action: generate the inspection bill."""
+        """Staff action: generate or customize the inspection bill."""
         obj = self.get_object()
         
         # PERMISSION CHECK
@@ -457,8 +511,11 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
         if hasattr(obj, 'bill'):
             return Response({'detail': 'Bill already generated.'}, status=400)
 
-        travel_surcharge = request.data.get('travel_surcharge', 0)
-        data = calculate_bill(
+        from decimal import Decimal
+        from .pricing import record_billed_pricing
+
+        # Calculate standard baseline values first
+        calc = calculate_bill(
             category=obj.category,
             scope=obj.scope,
             turnaround=obj.turnaround,
@@ -466,26 +523,55 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
             item_age_years=obj.item_age_years,
             add_reinspection_coverage=obj.reinspection_coverage,
         )
-        from decimal import Decimal
-        travel = Decimal(str(travel_surcharge))
-        total = data['total_amount'] + travel
-        deposit = data['deposit_amount']
+
+        # Allow staff custom inputs with fallback to baseline calculations
+        def parse_decimal(field_name, fallback_val):
+            val = request.data.get(field_name)
+            if val is not None and str(val).strip() != '':
+                try:
+                    return Decimal(str(val))
+                except Exception:
+                    pass
+            return fallback_val
+
+        base_rate = parse_decimal('base_rate', calc['base_rate'])
+        turnaround_surcharge = parse_decimal('turnaround_surcharge', calc['turnaround_surcharge'])
+        inspector_level_surcharge = parse_decimal('inspector_level_surcharge', calc['inspector_level_surcharge'])
+        complexity_surcharge = parse_decimal('complexity_surcharge', calc['complexity_surcharge'])
+        travel_surcharge = parse_decimal('travel_surcharge', Decimal('0.00'))
+        reinspection_coverage_fee = parse_decimal('reinspection_coverage_fee', calc['reinspection_coverage_fee'])
+
+        # Compute accurate split total
+        total = (
+            base_rate
+            + turnaround_surcharge
+            + inspector_level_surcharge
+            + complexity_surcharge
+            + travel_surcharge
+            + reinspection_coverage_fee
+        ).quantize(Decimal('0.01'))
+
+        deposit = (total * Decimal('0.30')).quantize(Decimal('0.01'))
         remaining = total - deposit
 
         bill = InspectionBill.objects.create(
             request=obj,
-            base_rate=data['base_rate'],
-            scope_multiplier=data['scope_multiplier'],
-            turnaround_surcharge=data['turnaround_surcharge'],
-            complexity_surcharge=data['complexity_surcharge'],
-            travel_surcharge=travel,
-            inspector_level_surcharge=data['inspector_level_surcharge'],
-            reinspection_coverage_fee=data['reinspection_coverage_fee'],
+            base_rate=base_rate,
+            scope_multiplier=calc['scope_multiplier'],
+            turnaround_surcharge=turnaround_surcharge,
+            complexity_surcharge=complexity_surcharge,
+            travel_surcharge=travel_surcharge,
+            inspector_level_surcharge=inspector_level_surcharge,
+            reinspection_coverage_fee=reinspection_coverage_fee,
             total_amount=total,
             deposit_amount=deposit,
             remaining_balance=remaining,
-            currency=data['currency'],
+            currency=calc['currency'],
         )
+
+        # Self-learning calibration: train future configuration benchmark
+        record_billed_pricing(bill)
+
         from inspections.state_machine import InspectionStateMachine, StateMachineException
         try:
             InspectionStateMachine.validate_transition(obj, 'bill_sent', request.user)
@@ -689,8 +775,10 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
         if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_inspections')):
             return Response({'detail': 'No permission to approve payments.'}, status=403)
 
-        # FIX: C-03 — allow approval for multiple valid statuses
-        APPROVABLE_STATUSES = ['bill_sent', 'awaiting_payment', 'deposit_paid']
+        # Allow approval for deposit stages and later stages where balance is due
+        APPROVABLE_STATUSES = ['bill_sent', 'awaiting_payment', 'deposit_paid',
+                               'pre_inspection', 'assigned', 'in_progress',
+                               'submitted', 'qa_review', 'published']
         if payment.request.status not in APPROVABLE_STATUSES and not request.user.is_superuser:
             return Response(
                 {'detail': f'Cannot approve payment for request in {payment.request.status} status.'},
@@ -702,16 +790,17 @@ class InspectionPaymentViewSet(viewsets.ModelViewSet):
         payment.confirmed_at = timezone.now()
         payment.save()
 
-        # Update request status
+        # Only advance status for deposit payments; balance payments should NOT regress status
         req = payment.request
-        next_status = 'deposit_paid' if payment.stage == 'deposit' else 'pre_inspection'
-        from inspections.state_machine import InspectionStateMachine, StateMachineException
-        try:
-            InspectionStateMachine.validate_transition(req, next_status, request.user)
-        except StateMachineException as e:
-            return Response({'detail': str(e)}, status=400)
-        req.status = next_status
-        req.save()
+        if payment.stage == 'deposit':
+            next_status = 'deposit_paid'
+            from inspections.state_machine import InspectionStateMachine, StateMachineException
+            try:
+                InspectionStateMachine.validate_transition(req, next_status, request.user)
+            except StateMachineException as e:
+                return Response({'detail': str(e)}, status=400)
+            req.status = next_status
+            req.save()
 
         notify(req.client, 'payment_confirmed',
                f'Your {payment.stage} payment for {req.inspection_id} has been confirmed.', req)
@@ -1300,7 +1389,11 @@ class PublicVerifyView(APIView):
             'inspected_at': None,
             'is_verified': False,
         }
-        if hasattr(obj, 'report') and obj.report.is_locked:
+        from .serializers import is_request_fully_paid
+        is_paid = is_request_fully_paid(obj)
+        data['is_paid'] = is_paid
+
+        if hasattr(obj, 'report') and obj.report.is_locked and is_paid:
             flagged = obj.report.responses.filter(flagged=True)
             flagged_items = [
                 {
@@ -1320,6 +1413,11 @@ class PublicVerifyView(APIView):
                 'grade': obj.report.grade,
                 'quality_score': obj.report.quality_score,
                 'flagged_items': flagged_items,
+            })
+        elif hasattr(obj, 'report') and obj.report.is_locked and not is_paid:
+            data.update({
+                'is_verified': False,
+                'summary': 'Inspection report completed. Pending final balance settlement before public verification is available.',
             })
         return Response(data)
 

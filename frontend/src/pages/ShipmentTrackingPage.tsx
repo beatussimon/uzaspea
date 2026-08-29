@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Spinner } from '../components/ui/Spinner';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { OrderActionToolbar } from '../components/ui/OrderActionToolbar';
 
 const getWsBase = () => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -358,6 +359,18 @@ export const ShipmentTrackingPage: React.FC = () => {
                       : t('calculating', 'Calculating...')}
                   </p>
                 </div>
+              </div>
+
+              {/* Action Toolbar for driver/courier/customer */}
+              <div className="pt-2">
+                <OrderActionToolbar
+                  username={user?.username === shipment.driver_username ? shipment.customer_username : shipment.driver_username}
+                  messageLabel={user?.username === shipment.driver_username ? "Chat with Buyer" : "Chat with Driver"}
+                  location={latestPing ? { lat: latestPing.lat, lng: latestPing.lng } : null}
+                  locationLabel="Live Destination"
+                  orderId={shipment.order}
+                  size="sm"
+                />
               </div>
             </div>
 

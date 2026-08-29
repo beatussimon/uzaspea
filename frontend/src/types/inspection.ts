@@ -6,6 +6,7 @@ export interface InspectionCategory {
   parent: number | null;
   description: string;
   base_price: string;
+  dynamic_base_price?: string | number | null;
   required_inspector_level: 'junior' | 'senior' | 'specialist';
   is_active: boolean;
   children: InspectionCategory[];
@@ -116,6 +117,7 @@ export interface InspectionReport {
   verdict: 'pass' | 'conditional' | 'fail';
   summary: string;
   is_locked: boolean;
+  is_unlocked?: boolean;
   report_hash: string;
   submitted_by_username: string;
   submitted_at: string;
@@ -192,6 +194,7 @@ export interface InspectionRequest {
   report: InspectionReport | null;
   payments: InspectionPayment[];
   evidence: InspectionEvidence[];
+  is_fully_paid?: boolean;
   checkin: InspectionCheckIn | null;
 }
 
@@ -232,25 +235,25 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export const STATUS_COLORS: Record<string, string> = {
-  requested: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-  bill_sent: ' text-brand-500  dark:text-brand-500',
-  awaiting_payment: ' text-brand-500  dark:text-brand-500',
-  deposit_paid: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-  pre_inspection: ' text-yellow-500  dark:text-yellow-500',
-  assigned: ' text-blue-500  dark:text-blue-500',
-  in_progress: ' text-purple-500  dark:text-purple-500',
-  submitted: ' text-orange-500  dark:text-orange-500',
-  qa_review: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-  published: ' text-green-500  dark:text-green-500',
-  cancelled: ' text-red-500  dark:text-red-500',
-  blocked: ' text-red-500  dark:text-red-500',
-  rescheduled: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  requested: 'text-gray-500 dark:text-gray-400',
+  bill_sent: 'text-brand-500 dark:text-brand-400',
+  awaiting_payment: 'text-amber-500 dark:text-amber-400',
+  deposit_paid: 'text-green-500 dark:text-green-400',
+  pre_inspection: 'text-yellow-500 dark:text-yellow-400',
+  assigned: 'text-blue-500 dark:text-blue-400',
+  in_progress: 'text-purple-500 dark:text-purple-400',
+  submitted: 'text-orange-500 dark:text-orange-400',
+  qa_review: 'text-indigo-500 dark:text-indigo-400',
+  published: 'text-green-500 dark:text-green-400',
+  cancelled: 'text-red-500 dark:text-red-400',
+  blocked: 'text-red-500 dark:text-red-400',
+  rescheduled: 'text-amber-500 dark:text-amber-400',
 };
 
 export const VERDICT_COLORS: Record<string, string> = {
-  pass: ' text-green-500  dark:text-green-500',
-  conditional: ' text-yellow-500  dark:text-yellow-500',
-  fail: ' text-red-500  dark:text-red-500',
+  pass: 'text-green-500 dark:text-green-400',
+  conditional: 'text-amber-500 dark:text-amber-400',
+  fail: 'text-red-500 dark:text-red-400',
 };
 
 export const fmtDate = (d: string) =>
@@ -259,5 +262,9 @@ export const fmtDate = (d: string) =>
     hour: '2-digit', minute: '2-digit',
   });
 
-export const fmtMoney = (amount: string | number, currency = 'TZS') =>
-  `${currency} ${Number(amount).toLocaleString()}`;
+export const fmtMoney = (amount: string | number | null | undefined, currency = 'TZS') => {
+  if (amount === null || amount === undefined) return `${currency} 0`;
+  const num = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
+  if (isNaN(num)) return `${currency} 0`;
+  return `${currency} ${num.toLocaleString()}`;
+};

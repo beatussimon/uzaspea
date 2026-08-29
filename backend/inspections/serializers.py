@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from uzachuo.permissions import has_staff_permission
 from .models import (
     InspectionCategory, ChecklistTemplate, ChecklistItem,
     InspectorProfile, InspectionRequest, InspectionBill,
@@ -9,17 +10,39 @@ from .models import (
 )
 
 
+def is_request_fully_paid(req):
+    """Returns True if the inspection request has been settled in full."""
+    if not req:
+        return False
+    # If balance payment stage is approved
+    if req.payments.filter(stage='balance', status='approved').exists():
+        return True
+    # If deposit payment is approved and remaining balance is 0
+    if hasattr(req, 'bill') and req.bill:
+        if req.payments.filter(stage='deposit', status='approved').exists() and req.bill.remaining_balance <= 0:
+            return True
+    return False
+
+
 class InspectionCategorySerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()
     full_path = serializers.SerializerMethodField()
+    dynamic_base_price = serializers.SerializerMethodField()
 
     class Meta:
         model = InspectionCategory
         fields = [
             'id', 'name', 'slug', 'level', 'parent', 'description',
-            'base_price', 'required_inspector_level', 'is_active',
+            'base_price', 'dynamic_base_price', 'required_inspector_level', 'is_active',
             'children', 'full_path',
         ]
+
+    def get_dynamic_base_price(self, obj):
+        try:
+            from .pricing import get_category_intelligent_base_price
+            return float(get_category_intelligent_base_price(obj))
+        except Exception:
+            return float(obj.base_price or 50000)
 
     def get_children(self, obj):
         children_map = self.context.get('children_map')
@@ -187,6 +210,10 @@ class InspectionCheckInSerializer(serializers.ModelSerializer):
 
 class InspectionEvidenceSerializer(serializers.ModelSerializer):
     item_label = serializers.CharField(source='checklist_item.label', read_only=True)
+    checklist_item = serializers.PrimaryKeyRelatedField(
+        queryset=ChecklistItem.objects.all(), required=False, allow_null=True
+    )
+    image = serializers.FileField(required=True)
 
     class Meta:
         model = InspectionEvidence
@@ -195,6 +222,27 @@ class InspectionEvidenceSerializer(serializers.ModelSerializer):
             'captured_at', 'latitude', 'longitude', 'file_hash', 'caption',
         ]
         read_only_fields = ['file_hash', 'captured_at']
+
+    def to_internal_value(self, data):
+        if hasattr(data, 'copy'):
+            mutable_data = data.copy()
+        else:
+            mutable_data = dict(data)
+
+        if 'checklist_item' in mutable_data:
+            val = mutable_data.get('checklist_item')
+            if val in ['', 'null', 'undefined', None]:
+                mutable_data.pop('checklist_item', None)
+            elif isinstance(val, str) and not val.isdigit():
+                mutable_data.pop('checklist_item', None)
+            elif isinstance(val, (int, str)):
+                try:
+                    pk = int(val)
+                    if not ChecklistItem.objects.filter(id=pk).exists():
+                        mutable_data.pop('checklist_item', None)
+                except Exception:
+                    mutable_data.pop('checklist_item', None)
+        return super().to_internal_value(mutable_data)
 
 
 class ChecklistResponseSerializer(serializers.ModelSerializer):
@@ -235,6 +283,33 @@ class InspectionReportSerializer(serializers.ModelSerializer):
             'approved_by', 'approved_at',
         ]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        req_context = self.context.get('request')
+        user = req_context.user if req_context and req_context.user.is_authenticated else None
+
+        is_staff_or_inspector = False
+        if user:
+            if user.is_superuser or has_staff_permission(user, 'can_manage_inspections'):
+                is_staff_or_inspector = True
+            elif hasattr(instance, 'request') and instance.request and instance.request.assignments.filter(inspector__user=user, is_active=True).exists():
+                is_staff_or_inspector = True
+
+        is_paid = is_request_fully_paid(instance.request) if hasattr(instance, 'request') else False
+        data['is_unlocked'] = bool(is_paid or is_staff_or_inspector)
+
+        # REDACT IF UNPAID CLIENT
+        if not data['is_unlocked']:
+            data['verdict'] = 'LOCKED'
+            data['grade'] = 'LOCKED'
+            data['quality_score'] = None
+            data['summary'] = 'Inspection report is ready. Pay the remaining 70% balance to unlock the full findings and certificate.'
+            data['responses'] = []
+            data['qa_notes'] = ''
+            data['report_hash'] = None
+
+        return data
+
 
 class InspectionRequestSerializer(serializers.ModelSerializer):
     client_username = serializers.CharField(source='client.username', read_only=True)
@@ -274,6 +349,27 @@ class InspectionRequestSerializer(serializers.ModelSerializer):
         if not request or not request.user.is_authenticated:
             return 0
         return obj.notifications.filter(user=request.user, is_read=False).count()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        req_context = self.context.get('request')
+        user = req_context.user if req_context and req_context.user.is_authenticated else None
+
+        is_staff_or_inspector = False
+        if user:
+            if user.is_superuser or has_staff_permission(user, 'can_manage_inspections'):
+                is_staff_or_inspector = True
+            elif instance.assignments.filter(inspector__user=user, is_active=True).exists():
+                is_staff_or_inspector = True
+
+        is_paid = is_request_fully_paid(instance)
+        data['is_fully_paid'] = bool(is_paid or is_staff_or_inspector)
+
+        # Redact evidence if unpaid client
+        if not data['is_fully_paid']:
+            data['evidence'] = []
+
+        return data
 
 
 class InspectionRequestListSerializer(serializers.ModelSerializer):

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, MapPin, Clock, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
+import { Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, MapPin, Clock, ChevronLeft, ChevronRight, ShieldCheck, MoreVertical, Navigation, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
@@ -257,9 +257,23 @@ const ProductMap = ({ lat, lng, isDesktop, locationName }: { lat: string | numbe
             src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(lng)-0.02}%2C${Number(lat)-0.02}%2C${Number(lng)+0.02}%2C${Number(lat)+0.02}&layer=mapnik&marker=${lat}%2C${lng}`}
             className="w-full h-full"
           />
-          <div className="absolute bottom-2 right-2 bg-white/90 dark:bg-black/90 px-3 py-1.5 text-[11px] rounded-lg shadow-lg z-10 backdrop-blur-md border border-gray-200 dark:border-gray-800">
-            <a href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`} target="_blank" rel="noreferrer" className="text-brand-500 dark:text-brand-500 font-bold hover:underline flex items-center gap-1">
-               Open Map
+          <div className="absolute bottom-2 right-2 bg-white/90 dark:bg-black/90 px-3 py-1.5 text-[11px] rounded-lg shadow-lg z-10 backdrop-blur-md border border-gray-200 dark:border-gray-800 flex items-center gap-2.5">
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-500 font-bold hover:underline flex items-center gap-1"
+            >
+              <Navigation size={12} /> Navigate
+            </a>
+            <span className="text-gray-300 dark:text-neutral-700">•</span>
+            <a
+              href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-brand-500 dark:text-brand-500 font-bold hover:underline flex items-center gap-1"
+            >
+              Open Map
             </a>
           </div>
         </div>
@@ -275,7 +289,7 @@ const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
-  const { openDesktopChat, toggleDesktopChat, totalUnread: messageUnreadCount } = useMessages();
+  const { startDirectChat, openDesktopChat, toggleDesktopChat, totalUnread: messageUnreadCount } = useMessages();
   const initialProduct = (location.state as any)?.initialProduct || null;
 
   const [product, setProduct] = useState<ProductData | null>(initialProduct);
@@ -289,6 +303,18 @@ const ProductDetailPage: React.FC = () => {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
+        setActionMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const images = React.useMemo(() => {
     if (!product) return [{ id: 0, image: '' }];
@@ -808,8 +834,8 @@ const ProductDetailPage: React.FC = () => {
               )}
             </div>
             
-            {/* Action Buttons (Like, Share) */}
-            <div className="flex items-center gap-2 mt-3">
+            {/* Action Buttons (Like, Share, Action Menu Dropdown) */}
+            <div className="flex items-center gap-2 mt-3 relative">
               <button
                 onClick={handleLike}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm transition-all active:scale-95 ${
@@ -829,6 +855,70 @@ const ProductDetailPage: React.FC = () => {
                 <Share2 size={16} />
                 Share
               </button>
+
+              {/* 3-Dots Action Menu */}
+              <div className="relative" ref={actionMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setActionMenuOpen((prev) => !prev)}
+                  className="p-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-bold transition-all active:scale-95 flex items-center justify-center"
+                  aria-label="More actions"
+                >
+                  <MoreVertical size={16} />
+                </button>
+
+                {actionMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-60 bg-white dark:bg-[#121212] border border-surface-border dark:border-surface-dark-border rounded-xl shadow-2xl z-50 py-1.5 text-xs font-semibold animate-slide-up">
+                    <Link
+                      to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name || '')}&marketplace_product_id=${product.id}&seller_username=${encodeURIComponent(product.seller_username || '')}`}
+                      onClick={() => setActionMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-amber-500/10 hover:text-amber-500 transition-colors"
+                    >
+                      <Shield size={15} className="text-amber-500 shrink-0" />
+                      <span>Request Inspection</span>
+                    </Link>
+
+                    {product.seller_username && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          startDirectChat(product.seller_username, undefined, `Hi! Inquiring about ${product.name}.`);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-brand-500/10 hover:text-brand-500 transition-colors text-left"
+                      >
+                        <MessageSquare size={15} className="text-brand-500 shrink-0" />
+                        <span>Chat with Seller</span>
+                      </button>
+                    )}
+
+                    {product.latitude && product.longitude && (
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${product.latitude},${product.longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => setActionMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-blue-500/10 hover:text-blue-500 transition-colors"
+                      >
+                        <Navigation size={15} className="text-blue-500 shrink-0" />
+                        <span>Navigate to Item</span>
+                      </a>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        handleShare();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors text-left"
+                    >
+                      <Copy size={15} className="text-gray-400 shrink-0" />
+                      <span>Copy Listing Link</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1071,45 +1161,59 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Verification & Inspection Services */}
-          {(isOwnProduct || (product.inspections && product.inspections.length > 0)) && (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <Shield size={16} className="text-brand-500" />
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                    {product.inspections?.length > 0 ? t('inspection_history') : t('professional_inspection')}
-                  </h4>
-                  {product.is_verified && (
-                    <span className="px-1.5 py-0.5 bg-brand-500 text-white text-[8px] font-black rounded-card uppercase tracking-widest">Verified</span>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  {product.inspections?.map((insp) => (
-                    <Link key={insp.id} to={`/verify/${insp.inspection_id}`} className={`w-full flex items-center justify-between p-2.5 rounded-lg border transition-all ${
-                      insp.verdict === 'pass' ? 'bg-emerald-50/40 border-emerald-100 dark:bg-emerald-950/10 dark:border-emerald-900/30' : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800'
-                    }`}>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                          {new Date(insp.created_at).toLocaleDateString()} • {insp.inspection_id}
-                        </span>
-                        <span className={`text-[11px] font-extrabold mt-0.5 ${insp.verdict === 'pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                          {insp.verdict ? `Verdict: ${insp.verdict.toUpperCase()}` : `Status: ${insp.status.replace('_', ' ').toUpperCase()}`}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-bold text-brand-500 dark:text-brand-500 uppercase">{t('report')} →</span>
-                    </Link>
-                  ))}
-
-                  {isOwnProduct && (
-                    <Link to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name)}&marketplace_product_id=${product.id}`}
-                      className="block w-full py-2.5 rounded-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest text-center transition"
-                    >
-                      {product.inspections?.length > 0 ? t('request_reinspection') : t('request_inspection')}
-                    </Link>
-                  )}
-              </div>
+          <div className="p-4 rounded-xl bg-gray-50/80 dark:bg-gray-800/40 border border-gray-200/80 dark:border-gray-700/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                {product.inspections && product.inspections.length > 0
+                  ? t('inspection_history', 'Inspection Reports')
+                  : t('professional_inspection', 'Item Inspection')}
+              </h4>
+              {product.is_verified && (
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 text-2xs font-bold rounded-full">
+                  Verified
+                </span>
+              )}
             </div>
-          )}
+
+            {product.inspections && product.inspections.length > 0 ? (
+              <div className="space-y-1.5">
+                {product.inspections.map((insp) => (
+                  <Link
+                    key={insp.id}
+                    to={`/verify/${insp.inspection_id}`}
+                    className="w-full flex items-center justify-between p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-brand-500 transition-all text-xs"
+                  >
+                    <div>
+                      <span className="text-gray-400 text-2xs block">
+                        {new Date(insp.created_at).toLocaleDateString()} • {insp.inspection_id}
+                      </span>
+                      <span className={`font-bold ${insp.verdict === 'pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                        {insp.verdict ? `Verdict: ${insp.verdict.toUpperCase()}` : `Status: ${insp.status.replace('_', ' ')}`}
+                      </span>
+                    </div>
+                    <span className="text-2xs font-bold text-brand-500 hover:underline">View Report →</span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                {isOwnProduct
+                  ? 'Request a physical inspection to verify item condition and add a verified badge to your listing.'
+                  : 'Optional physical verification by a specialist before purchasing this item.'}
+              </p>
+            )}
+
+            <Link
+              to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name || '')}&marketplace_product_id=${product.id}&seller_username=${encodeURIComponent(product.seller_username || '')}`}
+              className="btn-secondary w-full py-2 px-3 text-xs font-bold text-center block rounded-lg transition-colors"
+            >
+              {isOwnProduct
+                ? product.inspections?.length > 0
+                  ? t('request_reinspection', 'Request Re-inspection')
+                  : t('request_inspection', 'Request Inspection')
+                : t('request_pre_purchase_inspection', 'Request Inspection')}
+            </Link>
+          </div>
 
           {/* Map Location */}
           {product.latitude && product.longitude && (

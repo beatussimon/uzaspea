@@ -1433,6 +1433,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         if order.user != request.user and not (request.user.is_staff or request.user.is_superuser):
             return Response({'error': 'You are not authorized to view this pickup code.'}, status=status.HTTP_403_FORBIDDEN)
         
+        # Suppress pickup code for completed or cancelled orders
+        if order.status in ('COMPLETED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'RETURNED'):
+            return Response({'error': 'Pickup code is no longer active for completed or cancelled orders.'}, status=status.HTTP_400_BAD_REQUEST)
+
         if order.fulfillment_type in ('SELLER_PICKUP', 'DIRECT_DELIVERY'):
             return Response({'code': order.delivery_code})
 
@@ -2640,19 +2644,11 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
         if user.is_staff:
             return SponsoredListing.objects.all().order_by('-created_at')
         if user.is_authenticated:
-            from django.utils import timezone as _tz
-            # FIX S-16: show own listings + all public approved (non-expired) ones
-            return SponsoredListing.objects.filter(
-                django_models.Q(user=user) | django_models.Q(
-                    status='approved',
-                )
-            ).filter(
-                django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=_tz.now())
-            ).distinct().order_by('-created_at')
+            return SponsoredListing.objects.filter(user=user).order_by('-created_at')
         return SponsoredListing.objects.filter(
             status='approved'
         ).filter(
-            django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now())  # FIX: L-12
+            django_models.Q(expires_at__isnull=True) | django_models.Q(expires_at__gt=tz.now())
         ).order_by('-created_at')
 
     def get_object(self):  # FIX: S-08 — enforce queryset scope on detail views
