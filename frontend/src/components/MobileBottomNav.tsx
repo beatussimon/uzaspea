@@ -32,6 +32,8 @@ const MobileBottomNav = () => {
   const isStaff = user?.is_staff || false;
   const isInspector = user?.is_inspector || false;
   const isSuperuser = user?.is_superuser || false;
+  const hasStaffPermissions = user?.has_staff_permissions || false;
+  const showStaffDashboard = isSuperuser || (isStaff && (!isInspector || hasStaffPermissions));
   const username = user?.username || 'User';
   const isSeller = userTier === 'seller_pro' || userTier === 'business' || isStaff || isSuperuser;
   const isTeamMember = !!user?.is_team_member || userTier === 'worker';
@@ -265,7 +267,7 @@ const MobileBottomNav = () => {
                   )}
 
                   {/* Management Group */}
-                  {(isStaff || isInspector) && (
+                  {(showStaffDashboard || isInspector) && (
                     <div className="mb-2 border-t border-gray-100 dark:border-neutral-900 pt-2 mt-2">
                       <p className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('management')}</p>
                       <div className="space-y-0.5">
@@ -275,7 +277,7 @@ const MobileBottomNav = () => {
                             <span className="text-sm font-semibold">{t('staff_admin_panel')}</span>
                           </Link>
                         )}
-                        {(isStaff || isSuperuser) && (
+                        {showStaffDashboard && (
                           <Link to="/staff" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-brand-600 dark:text-brand-400 transition-colors group" onClick={() => setIsMenuOpen(false)}>
                             <LayoutDashboard size={20} />
                             <span className="text-sm font-semibold">{t('staff_dashboard')}</span>

@@ -37,6 +37,8 @@ const Navbar = () => {
   const isStaff = user?.is_staff || false;
   const isInspector = user?.is_inspector || false;
   const isSuperuser = user?.is_superuser || false;
+  const hasStaffPermissions = user?.has_staff_permissions || false;
+  const showStaffDashboard = isSuperuser || (isStaff && (!isInspector || hasStaffPermissions));
   const username = user?.username || 'User';
   const isSeller = userTier === 'seller_pro' || userTier === 'business' || isStaff || isSuperuser;
   const isTeamMember = !!user?.is_team_member || userTier === 'worker';
@@ -406,17 +408,17 @@ const Navbar = () => {
                       )}
 
                       {/* Management Group */}
-                      {(isStaff || isInspector) && (
+                      {(showStaffDashboard || isInspector) && (
                         <div className="mb-1 border-t border-gray-100 dark:border-neutral-900 pt-1 mt-1">
                           <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('management')}</p>
                           <div className="space-y-0.5">
                             {isSuperuser && (
                               <Link to="/staff-admin" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-brand-600 dark:text-brand-400 transition-colors group" onClick={() => setProfileOpen(false)}>
-                                <ShieldCheck size={16} />
-                                <span className="text-sm font-semibold">{t('admin_panel')}</span>
-                              </Link>
+                                 <ShieldCheck size={16} />
+                                 <span className="text-sm font-semibold">{t('admin_panel')}</span>
+                               </Link>
                             )}
-                            {(isStaff || isSuperuser) && (
+                            {showStaffDashboard && (
                               <Link to="/staff" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-brand-600 dark:text-brand-400 transition-colors group" onClick={() => setProfileOpen(false)}>
                                 <LayoutDashboard size={16} />
                                 <span className="text-sm font-semibold">{t('staff_dashboard')}</span>

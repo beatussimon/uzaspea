@@ -11,6 +11,7 @@ interface User {
   is_staff: boolean;
   is_superuser: boolean;
   is_inspector: boolean;
+  has_staff_permissions: boolean;
   inspector_level: string;
   subscription_active?: boolean;
   subscription_end_date?: string | null;
@@ -63,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_staff: payload.is_staff === true || payload.is_staff === 'true',
           is_superuser: payload.is_superuser === true || payload.is_superuser === 'true',
           is_inspector: payload.is_inspector === true || payload.is_inspector === 'true',
+          has_staff_permissions: payload.has_staff_permissions === true || payload.has_staff_permissions === 'true',
           inspector_level: payload.inspector_level || '',
           subscription_active: payload.subscription_active,
           subscription_end_date: payload.subscription_end_date,
@@ -101,6 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('is_staff', String(payload.is_staff || false));
       localStorage.setItem('is_superuser', String(payload.is_superuser || false));
       localStorage.setItem('is_inspector', String(payload.is_inspector || false));
+      localStorage.setItem('has_staff_permissions', String(payload.has_staff_permissions || false));
       localStorage.setItem('inspector_level', payload.inspector_level || '');
       localStorage.setItem('is_team_member', String(payload.is_team_member || false));
       if (payload.team_owner_id) localStorage.setItem('team_owner_id', String(payload.team_owner_id));
@@ -121,6 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('is_staff', String(userData.is_staff || false));
       localStorage.setItem('is_superuser', String(userData.is_superuser || false));
       localStorage.setItem('is_inspector', String(userData.is_inspector || false));
+      localStorage.setItem('has_staff_permissions', String(userData.has_staff_permissions || false));
       localStorage.setItem('inspector_level', userData.inspector_level || '');
       localStorage.setItem('is_team_member', String(userData.is_team_member || false));
       if (userData.team_owner_id) localStorage.setItem('team_owner_id', String(userData.team_owner_id));

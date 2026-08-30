@@ -130,7 +130,10 @@ def auto_fraud_check(inspection_request):
             InspectorProfile.objects.filter(pk=active.inspector_id).update(
                 total_flags=_F('total_flags') + len(flags)
             )
-    return len(flags) > 0
+    if flags:
+        reasons = '; '.join(f'{f.flag_type}: {f.details}' for f in flags)
+        return True, f'AUTO-FLAGGED: {reasons}'
+    return False, ''
 
 
 # ──────────────────────────────────────────────
@@ -1058,9 +1061,9 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
             report.grade = grade
             report.save()
             # Auto fraud check only on real submissions
-            has_flags = auto_fraud_check(req)
+            has_flags, flag_reasons = auto_fraud_check(req)
             if has_flags:
-                report.qa_notes = 'AUTO-FLAGGED: Anomalies detected. Review before approving.'
+                report.qa_notes = flag_reasons
                 report.save()
 
     @decorators.action(detail=True, methods=['patch'], url_path='finalize')
@@ -1100,9 +1103,9 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         req.status = 'qa_review'
         req.save()
         # Run fraud check
-        has_flags = auto_fraud_check(req)
+        has_flags, flag_reasons = auto_fraud_check(req)
         if has_flags:
-            report.qa_notes = 'AUTO-FLAGGED: Anomalies detected. Review before approving.'
+            report.qa_notes = flag_reasons
             report.save()
         return Response(InspectionReportSerializer(report).data)
 

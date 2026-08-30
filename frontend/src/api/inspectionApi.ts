@@ -60,7 +60,7 @@ export const inspectionApi = {
   // Payments
   payments: {
     list: () => api.get(`${BASE}/payments/`),
-    pending: () => api.get(`${BASE}/payments/pending/`),
+    pending: (page?: number) => api.get(`${BASE}/payments/pending/${page ? `?page=${page}` : ''}`),
     submit: (data: FormData) =>
       api.post(`${BASE}/payments/`, data),
     approve: (id: number) => api.post(`${BASE}/payments/${id}/approve/`),

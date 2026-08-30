@@ -1868,7 +1868,7 @@ const MyInspections: React.FC = () => {
           <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">Verify an Inspection</h3>
         </div>
         <p className="text-2xs sm:text-xs text-gray-500 dark:text-gray-400 mb-3">
-          Paste a public inspection ID (e.g. UZ-VEH-20260428-00001) to verify its authenticity and view the report summary.
+          Paste a public inspection ID (e.g. OKO-VEH-20260428-00001) to verify its authenticity and view the report summary.
         </p>
         <form onSubmit={handleVerify} className="flex flex-col sm:flex-row gap-2.5">
           <input

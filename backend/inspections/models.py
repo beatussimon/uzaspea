@@ -273,7 +273,7 @@ class InspectionRequest(models.Model):
         domain_code = self.category.name[:3].upper() if self.category_id else 'GEN'
         date_str = timezone.now().strftime('%Y%m%d')
         suffix = uuid.uuid4().hex[:6].upper()
-        return f'UZ-{domain_code}-{date_str}-{suffix}'
+        return f'OKO-{domain_code}-{date_str}-{suffix}'
 
     def __str__(self):
         return f'{self.inspection_id} — {self.item_name}'
