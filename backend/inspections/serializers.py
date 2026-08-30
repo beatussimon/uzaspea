@@ -111,6 +111,9 @@ class InspectionPaymentSerializer(serializers.ModelSerializer):
     confirmed_by_username = serializers.CharField(
         source='confirmed_by.username', read_only=True
     )
+    client_name = serializers.SerializerMethodField()
+    client_phone = serializers.SerializerMethodField()
+    client_email = serializers.EmailField(source='request.client.email', read_only=True)
     # Use any queryset here, we will filter it in the view if needed, 
     # but for create validation, we need to ensure it's a valid PK.
     # However, to be strict, we'll override __init__ or just handle it in validate.
@@ -120,7 +123,7 @@ class InspectionPaymentSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'request', 'stage', 'amount', 'proof_image',
             'transaction_reference', 'status', 'confirmed_by',
-            'confirmed_by_username', 'confirmed_at', 'rejection_reason', 'created_at',
+            'confirmed_by_username', 'client_name', 'client_phone', 'client_email', 'confirmed_at', 'rejection_reason', 'created_at',
         ]
         read_only_fields = ['status', 'confirmed_by', 'confirmed_at']
 
@@ -133,11 +136,22 @@ class InspectionPaymentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("You do not have permission to submit payment for this request.")
 
         # Status check
-        allowed_statuses = ['awaiting_payment', 'deposit_paid', 'bill_sent']
+        allowed_statuses = [
+            'awaiting_payment', 'bill_sent', 'deposit_paid',
+            'pre_inspection', 'assigned', 'in_progress',
+            'submitted', 'qa_review', 'published',
+        ]
         if request_obj.status not in allowed_statuses and not user.is_superuser:
              raise serializers.ValidationError(f"Payments cannot be submitted for requests in {request_obj.status} status.")
              
         return data
+
+    def get_client_name(self, obj):
+        return obj.request.client.get_full_name() or obj.request.client.username
+
+    def get_client_phone(self, obj):
+        profile = getattr(obj.request.client, 'profile', None)
+        return profile.phone_number if profile else ''
 
 
 class InspectionAssignmentSerializer(serializers.ModelSerializer):
@@ -311,6 +325,17 @@ class InspectionReportSerializer(serializers.ModelSerializer):
         return data
 
 
+class FraudFlagSerializer(serializers.ModelSerializer):
+    request_id = serializers.CharField(source='request.inspection_id', read_only=True)
+
+    class Meta:
+        model = FraudFlag
+        fields = [
+            'id', 'request', 'request_id', 'flag_type',
+            'details', 'resolved', 'resolved_by', 'created_at',
+        ]
+
+
 class InspectionRequestSerializer(serializers.ModelSerializer):
     client_username = serializers.CharField(source='client.username', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
@@ -322,6 +347,7 @@ class InspectionRequestSerializer(serializers.ModelSerializer):
     evidence = InspectionEvidenceSerializer(many=True, read_only=True)
     checkin = InspectionCheckInSerializer(read_only=True)
     unread_notifications = serializers.SerializerMethodField()
+    fraud_flags = FraudFlagSerializer(many=True, read_only=True)
 
     class Meta:
         model = InspectionRequest
@@ -334,7 +360,7 @@ class InspectionRequestSerializer(serializers.ModelSerializer):
             'status', 'pre_inspection_notes', 'reinspection_coverage',
             'created_at', 'updated_at',
             'bill', 'assignment', 'report', 'payments', 'evidence',
-            'checkin', 'unread_notifications',
+            'checkin', 'unread_notifications', 'fraud_flags',
         ]
         read_only_fields = ['inspection_id', 'client', 'status', 'product_snapshot']
 
@@ -463,17 +489,6 @@ class InspectionNotificationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'notification_type', 'message',
             'related_request', 'request_id', 'is_read', 'created_at',
-        ]
-
-
-class FraudFlagSerializer(serializers.ModelSerializer):
-    request_id = serializers.CharField(source='request.inspection_id', read_only=True)
-
-    class Meta:
-        model = FraudFlag
-        fields = [
-            'id', 'request', 'request_id', 'flag_type',
-            'details', 'resolved', 'resolved_by', 'created_at',
         ]
 
 

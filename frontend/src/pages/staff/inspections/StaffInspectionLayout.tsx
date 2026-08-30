@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Routes, Route, Link, useLocation, useParams, Navigate } from 'react-router-dom';
 import {
   ChevronRight, Shield, Clock, Eye, ClipboardList, CheckCircle2, CreditCard,
   AlertTriangle, XCircle, LayoutDashboard, BarChart2, Search, Users, ChevronLeft,
+  Phone, Mail, User, AlertOctagon, Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Breadcrumbs from '../../../components/Breadcrumbs';
@@ -644,16 +645,46 @@ const StaffRequestDetail: React.FC = () => {
 
       {/* Payments */}
       {request.payments && request.payments.length > 0 && (
-        <div className="card p-5 text-sm">
-           <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Payments</h3>
-           <div className="space-y-2">
-             {request.payments.map((p: any) => (
-               <div key={p.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
-                 <span className="capitalize">{p.stage} ({p.status})</span>
-                 <span className="font-bold">{fmtMoney(p.amount)}</span>
-               </div>
-             ))}
-           </div>
+        <div className="card p-5 text-sm space-y-3">
+          <h3 className="font-semibold text-gray-900 dark:text-white">Payments</h3>
+          <div className="space-y-2">
+            {request.payments.map((p: any) => (
+              <div key={p.id} className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-surface-border dark:border-surface-dark-border flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900 dark:text-white capitalize">{p.stage} Payment</span>
+                    <Badge text={p.status} className={p.status === 'approved' ? 'text-green-500 bg-green-50 dark:bg-green-950/40' : p.status === 'rejected' ? 'text-red-500 bg-red-50 dark:bg-red-950/40' : 'text-amber-500 bg-amber-50 dark:bg-amber-950/40'} />
+                  </div>
+                  {p.transaction_reference && (
+                    <p className="text-xs text-gray-400 font-mono">Ref: {p.transaction_reference}</p>
+                  )}
+                  {(p.client_name || p.client_phone || p.client_email) && (
+                    <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 flex-wrap pt-0.5">
+                      {p.client_name && (
+                        <span className="flex items-center gap-1 font-medium text-gray-700 dark:text-gray-300">
+                          <User size={12} className="text-gray-400" /> {p.client_name}
+                        </span>
+                      )}
+                      {p.client_phone && (
+                        <a href={`tel:${p.client_phone}`} className="flex items-center gap-1 text-brand-600 dark:text-brand-400 hover:underline">
+                          <Phone size={12} /> {p.client_phone}
+                        </a>
+                      )}
+                      {p.client_email && (
+                        <a href={`mailto:${p.client_email}`} className="flex items-center gap-1 text-brand-600 dark:text-brand-400 hover:underline">
+                          <Mail size={12} /> {p.client_email}
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="sm:text-right">
+                  <span className="text-base font-black text-gray-900 dark:text-white">{fmtMoney(p.amount)}</span>
+                  <p className="text-[11px] text-gray-400">{fmtDate(p.created_at)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -663,6 +694,33 @@ const StaffRequestDetail: React.FC = () => {
           <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <CheckCircle2 size={16} className="text-purple-500" /> QA Review
           </h3>
+
+          {/* Auto-Flag Warning & Reasons */}
+          {((request.fraud_flags && request.fraud_flags.length > 0) || (request.report.qa_notes && request.report.qa_notes.includes('AUTO-FLAGGED'))) && (
+            <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border-2 border-red-500/50 space-y-2">
+              <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-sm">
+                <AlertOctagon size={18} className="shrink-0" />
+                <span>Auto-Flagged Anomalies Detected</span>
+              </div>
+              {request.fraud_flags && request.fraud_flags.length > 0 ? (
+                <div className="space-y-1.5 mt-2">
+                  {request.fraud_flags.map((flag: any) => (
+                    <div key={flag.id} className="text-xs flex items-start gap-2 bg-white/70 dark:bg-black/40 p-2.5 rounded-lg border border-red-200 dark:border-red-900/50">
+                      <span className="font-bold uppercase tracking-wider text-[10px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 shrink-0">
+                        {flag.flag_type.replace(/_/g, ' ')}
+                      </span>
+                      <span className="text-gray-800 dark:text-gray-200 flex-1">{flag.details}</span>
+                      <span className="text-[10px] text-gray-400 shrink-0">{fmtDate(flag.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : request.report.qa_notes && (
+                <p className="text-xs text-red-700 dark:text-red-300 bg-white/70 dark:bg-black/40 p-2.5 rounded-lg border border-red-200 dark:border-red-900/50">
+                  {request.report.qa_notes}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Report summary */}
           <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-surface-border dark:border-surface-dark-border space-y-3">
@@ -733,7 +791,7 @@ const StaffRequestDetail: React.FC = () => {
             </div>
           )}
 
-          {request.report.qa_notes && (
+          {request.report.qa_notes && !request.report.qa_notes.includes('AUTO-FLAGGED') && (
             <div className="p-3 rounded-lg   border border-orange-500 dark:border-orange-500">
               <p className="text-xs font-bold text-orange-500 dark:text-orange-500 uppercase tracking-wide mb-1">Previous QA Notes</p>
               <p className="text-sm text-orange-500 dark:text-orange-500">{request.report.qa_notes}</p>
@@ -850,16 +908,26 @@ const QAQueue: React.FC = () => {
           {reports.map((report: any) => (
             <Link key={report.id} to={`${base}/request/${report.request}`}
               className="card p-4 flex items-center justify-between gap-3 hover:shadow-card-hover transition group">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <Badge text={report.verdict.toUpperCase()} className={VERDICT_COLORS[report.verdict]} />
-                  {report.qa_notes && (
-                    <Badge text="Auto-flagged" className=" text-red-500  dark:text-red-500" />
+                  {report.qa_notes && report.qa_notes.includes('AUTO-FLAGGED') && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400">
+                      <AlertTriangle size={11} /> Auto-Flagged
+                    </span>
+                  )}
+                  {report.qa_notes && !report.qa_notes.includes('AUTO-FLAGGED') && (
+                    <Badge text="Has QA Notes" className="bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400" />
                   )}
                 </div>
                 <p className="font-medium text-gray-900 dark:text-white group-hover:text-brand-500 transition">
                   {report.submitted_by_username}
                 </p>
+                {report.qa_notes && report.qa_notes.includes('AUTO-FLAGGED') && (
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-1 line-clamp-1">
+                    {report.qa_notes.replace('AUTO-FLAGGED:', '').trim()}
+                  </p>
+                )}
                 <p className="text-xs text-gray-400 mt-0.5">Finalized: {fmtDate(report.finalized_at || report.submitted_at)}</p>
               </div>
               <ChevronRight size={16} className="text-gray-400 shrink-0" />
@@ -875,20 +943,66 @@ const QAQueue: React.FC = () => {
 const PaymentApprovals: React.FC = () => {
   const [payments, setPayments] = useState<InspectionPayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const load = () => {
-    inspectionApi.payments.pending()
-      .then((r: any) => setPayments(r.data.results || r.data))
-      .catch(() => toast.error('Failed to load payments'))
-      .finally(() => setLoading(false));
-  };
-  useEffect(() => { load(); }, []);
+  const fetchPayments = useCallback(async (pageNum: number, isAppend: boolean = false) => {
+    if (isAppend) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const r: any = await inspectionApi.payments.pending(pageNum);
+      const data = r.data;
+      const results: InspectionPayment[] = Array.isArray(data) ? data : (data.results || []);
+      const nextUrl = data.next;
+
+      setPayments(prev => isAppend ? [...prev, ...results] : results);
+      setHasMore(Boolean(nextUrl));
+      setPage(pageNum);
+    } catch {
+      toast.error('Failed to load payments');
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPayments(1, false);
+  }, [fetchPayments]);
+
+  // Infinite scroll intersection observer
+  useEffect(() => {
+    if (loading || loadingMore || !hasMore) return;
+
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        fetchPayments(page + 1, true);
+      }
+    }, { threshold: 0.1 });
+
+    if (sentinelRef.current) {
+      observerRef.current.observe(sentinelRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+    };
+  }, [hasMore, loadingMore, loading, page, fetchPayments]);
 
   const handleApprove = async (id: number) => {
     try {
       await inspectionApi.payments.approve(id);
       toast.success('Payment approved');
-      load();
+      setPayments(prev => prev.filter(p => p.id !== id));
     } catch { toast.error('Failed to approve'); }
   };
 
@@ -898,15 +1012,23 @@ const PaymentApprovals: React.FC = () => {
     try {
       await inspectionApi.payments.reject(id, reason || 'Rejected');
       toast.success('Payment rejected');
-      load();
+      setPayments(prev => prev.filter(p => p.id !== id));
     } catch { toast.error('Failed to reject'); }
   };
 
-  if (loading) return <Spinner />;
+  if (loading && payments.length === 0) return <Spinner />;
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Approvals</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Approvals</h2>
+        {payments.length > 0 && (
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {payments.length} pending record{payments.length !== 1 ? 's' : ''} loaded
+          </span>
+        )}
+      </div>
+
       {payments.length === 0 ? (
         <div className="card p-10 text-center">
           <CreditCard size={40} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -929,27 +1051,73 @@ const PaymentApprovals: React.FC = () => {
                     <p className="text-[9px] text-center text-gray-400 mt-1">View full</p>
                   </a>
                 )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 dark:text-white capitalize">{p.stage} Payment</p>
-                  <p className="text-sm text-gray-500 mt-0.5">Amount: <span className="font-medium text-gray-900 dark:text-white">{fmtMoney(p.amount)}</span></p>
-                  {p.transaction_reference && (
-                    <p className="text-xs text-gray-400 mt-0.5 font-mono">Ref: {p.transaction_reference}</p>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-900 dark:text-white capitalize">{p.stage} Payment</p>
+                    <span className="text-base font-black text-brand-600 dark:text-brand-400 ml-auto sm:ml-0">
+                      {fmtMoney(p.amount)}
+                    </span>
+                  </div>
+
+                  {/* Client Contact Info for Accountant */}
+                  {(p.client_name || p.client_phone || p.client_email) && (
+                    <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-surface-border dark:border-surface-dark-border text-xs space-y-1 my-1.5">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Client Contact Info</p>
+                      <div className="flex items-center gap-3 flex-wrap text-gray-600 dark:text-gray-300">
+                        {p.client_name && (
+                          <span className="flex items-center gap-1 font-medium text-gray-900 dark:text-white">
+                            <User size={13} className="text-gray-400" /> {p.client_name}
+                          </span>
+                        )}
+                        {p.client_phone && (
+                          <a href={`tel:${p.client_phone}`} className="flex items-center gap-1 text-brand-600 dark:text-brand-400 font-semibold hover:underline">
+                            <Phone size={13} /> {p.client_phone}
+                          </a>
+                        )}
+                        {p.client_email && (
+                          <a href={`mailto:${p.client_email}`} className="flex items-center gap-1 text-brand-600 dark:text-brand-400 hover:underline">
+                            <Mail size={13} /> {p.client_email}
+                          </a>
+                        )}
+                      </div>
+                    </div>
                   )}
-                  <p className="text-xs text-gray-400 mt-0.5">{fmtDate(p.created_at)}</p>
+
+                  <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                    {p.transaction_reference && (
+                      <span className="font-mono">Ref: {p.transaction_reference}</span>
+                    )}
+                    <span>•</span>
+                    <span>Submitted: {fmtDate(p.created_at)}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap shrink-0">
+
+                <div className="flex items-center gap-3 flex-wrap shrink-0 mt-2 sm:mt-0">
                   <button onClick={() => handleApprove(p.id)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition">
+                    className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition shadow-sm">
                     <CheckCircle2 size={14} /> Approve
                   </button>
                   <button onClick={() => handleReject(p.id)}
-                    className="flex items-center gap-1.5 px-4 py-2 border border-red-500 text-red-500   rounded-lg text-sm font-medium transition">
+                    className="flex items-center gap-1.5 px-4 py-2 border border-red-500 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-sm font-medium transition">
                     <XCircle size={14} /> Reject
                   </button>
                 </div>
               </div>
             </div>
           ))}
+
+          {/* Infinite scroll trigger / loader */}
+          <div ref={sentinelRef} className="py-4 text-center">
+            {loadingMore && (
+              <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+                <Loader2 size={16} className="animate-spin text-brand-500" />
+                <span>Loading more payment records...</span>
+              </div>
+            )}
+            {!hasMore && payments.length > 0 && (
+              <p className="text-xs text-gray-400 italic">All pending payments loaded</p>
+            )}
+          </div>
         </div>
       )}
     </div>

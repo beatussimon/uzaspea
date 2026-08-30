@@ -74,6 +74,9 @@ export interface InspectionPayment {
   status: 'pending' | 'approved' | 'rejected';
   confirmed_by_username: string | null;
   rejection_reason: string;
+  client_name: string;
+  client_phone: string;
+  client_email: string;
   created_at: string;
 }
 
@@ -196,6 +199,7 @@ export interface InspectionRequest {
   evidence: InspectionEvidence[];
   is_fully_paid?: boolean;
   checkin: InspectionCheckIn | null;
+  fraud_flags?: FraudFlag[];
 }
 
 export interface InspectionNotification {

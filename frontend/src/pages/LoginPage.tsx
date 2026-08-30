@@ -40,6 +40,7 @@ const LoginPage: React.FC = () => {
       localStorage.setItem('is_staff', String(res.data.is_staff || false));
       localStorage.setItem('is_superuser', String(res.data.is_superuser || false));
       localStorage.setItem('is_inspector', String(res.data.is_inspector || false));
+      localStorage.setItem('has_staff_permissions', String(res.data.has_staff_permissions || false));
       localStorage.setItem('inspector_level', res.data.inspector_level || '');
       
       setIsBanned(false);
@@ -86,7 +87,9 @@ const LoginPage: React.FC = () => {
       const nextParam = urlParams.get('next');
 
       let defaultRedirect = '/';
-      if (res.data.is_team_member && !res.data.is_staff && !res.data.is_superuser && res.data.tier !== 'business') {
+      if (res.data.is_inspector && !res.data.is_staff) {
+        defaultRedirect = '/inspector/jobs';
+      } else if (res.data.is_team_member && !res.data.is_staff && !res.data.is_superuser && res.data.tier !== 'business') {
         defaultRedirect = '/teams-dashboard';
       } else if (res.data.tier === 'seller_pro' || res.data.tier === 'business') {
         defaultRedirect = '/dashboard';

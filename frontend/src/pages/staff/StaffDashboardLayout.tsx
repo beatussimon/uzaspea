@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
   CheckCircle2, XCircle, Clock, AlertTriangle, Shield, Star,
@@ -1333,6 +1333,7 @@ export const SupportTicketsManager: React.FC = () => {
 // ============ Staff Dashboard Layout ============
 const StaffDashboardLayout: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -1346,13 +1347,23 @@ const StaffDashboardLayout: React.FC = () => {
   useEffect(() => {
     api.get('/api/staff/dashboard-summary/')
       .then((res) => setData(res.data))
-      .catch(() => toast.error('Failed to load staff dashboard summary'))
+      .catch((err) => {
+        if (err.response?.status === 403) {
+          const isInspector = localStorage.getItem('is_inspector') === 'true';
+          if (isInspector) {
+            navigate('/inspector/jobs', { replace: true });
+            return;
+          }
+        }
+        toast.error('Failed to load staff dashboard summary');
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [navigate]);
 
   const isSuper = !!data?.user?.is_superuser;
   const perms = data?.user?.permissions || [];
-  
+  const isInspectorOnly = !!data?.user?.is_inspector && !isSuper && perms.length === 0;
+
   const canVerify = perms.includes('can_verify_requests') || isSuper;
   const canModerate = perms.includes('can_moderate') || isSuper;
   const canApprove = perms.includes('can_approve_content') || isSuper;
@@ -1360,6 +1371,10 @@ const StaffDashboardLayout: React.FC = () => {
   const canManageInspections = perms.includes('can_manage_inspections') || isSuper;
   const canManageWarehouse = perms.includes('can_manage_warehouse_intake') || isSuper;
   const canManageLogistics = perms.includes('can_manage_logistics') || isSuper;
+
+  if (!loading && isInspectorOnly) {
+    return <Navigate to="/inspector/jobs" replace />;
+  }
 
   const navItems = [
     { path: '/staff', label: 'Overview', icon: LayoutDashboard },

@@ -2190,6 +2190,15 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             if hasattr(self.user, 'inspector_profile') else None
         )
 
+        from staff.models import StaffPermission
+        from django.db.models import Q as _Q
+        _has_perms = self.user.is_superuser or StaffPermission.objects.filter(
+            user=self.user, is_active=True
+        ).filter(
+            _Q(expires_at__isnull=True) | _Q(expires_at__gt=timezone.now())
+        ).exists()
+        data['has_staff_permissions'] = _has_perms
+
         from marketplace.models import TeamMember, TEAM_ROLE_PRESETS
         member_record = TeamMember.objects.filter(user=self.user, invitation_status='accepted').select_related('owner', 'owner__profile').first()
         if member_record:
@@ -2252,7 +2261,16 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             user.inspector_profile.level
             if hasattr(user, 'inspector_profile') else None
         )
-        
+
+        from staff.models import StaffPermission
+        from django.db.models import Q as _Q
+        _has_perms = user.is_superuser or StaffPermission.objects.filter(
+            user=user, is_active=True
+        ).filter(
+            _Q(expires_at__isnull=True) | _Q(expires_at__gt=timezone.now())
+        ).exists()
+        token['has_staff_permissions'] = _has_perms
+
         from marketplace.models import TeamMember, TEAM_ROLE_PRESETS
         member_record = TeamMember.objects.filter(user=user, invitation_status='accepted').select_related('owner', 'owner__profile').first()
         if member_record:
@@ -2422,7 +2440,8 @@ class RegisterView(APIView):
             'tier': profile.tier,
             'terms_accepted': True,
             'is_inspector': False,
-            'inspector_level': None
+            'inspector_level': None,
+            'has_staff_permissions': False
         }
         return Response(data, status=status.HTTP_201_CREATED)
 

@@ -58,7 +58,7 @@ const PublicVerifyPage: React.FC = () => {
         </p>
 
         <form onSubmit={handleSearch} className="flex gap-2">
-          <input className="input" placeholder="e.g. UZ-AUT-20240424-00001"
+          <input className="input" placeholder="e.g. OKO-AUT-20240424-00001"
             value={query} onChange={(e) => setQuery(e.target.value)} />
           <button type="submit" className="btn-primary px-4 py-2 shrink-0">
             <Search size={16} />
