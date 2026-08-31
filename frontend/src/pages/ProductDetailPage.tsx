@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Heart, ShoppingCart, Star, X, Share2, Shield, MessageSquare, MapPin, 
+  Heart, Star, X, Share2, Shield, MessageSquare, MapPin, 
   Clock, ChevronLeft, ChevronRight, ChevronDown, ShieldCheck, MoreVertical, Navigation, 
   Search 
 } from 'lucide-react';
@@ -328,6 +328,7 @@ const ProductDetailPage: React.FC = () => {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [isSpecsExpanded, setIsSpecsExpanded] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [showInspectionHistory, setShowInspectionHistory] = useState(false);
@@ -1264,9 +1265,8 @@ const ProductDetailPage: React.FC = () => {
                   {/* Add to Cart CTA */}
                   <button 
                     onClick={handleAddToCart} 
-                    className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 sm:gap-2 h-10 px-4 bg-amber-400 hover:bg-amber-500 text-black font-extrabold rounded-full transition shadow-md active:scale-98 text-xs sm:text-sm tracking-wide select-none cursor-pointer"
+                    className="flex-1 min-w-[130px] flex items-center justify-center h-10 px-4 bg-amber-400 hover:bg-amber-500 text-black font-extrabold rounded-full transition shadow-md active:scale-98 text-xs sm:text-sm tracking-wide select-none cursor-pointer"
                   >
-                    <ShoppingCart size={16} strokeWidth={2.5} className="shrink-0" />
                     <span className="truncate">{t('add_to_cart')}</span>
                   </button>
 
@@ -1302,11 +1302,29 @@ const ProductDetailPage: React.FC = () => {
             const specEntries = Object.entries(allSpecs).filter(([k, v]) => v !== null && v !== undefined && String(v).trim() !== '' && !k.startsWith('_'));
             if (specEntries.length === 0) return null;
 
+            const INITIAL_SPECS_COUNT = 4;
+            const hasMoreSpecs = specEntries.length > INITIAL_SPECS_COUNT;
+            const visibleSpecs = isSpecsExpanded ? specEntries : specEntries.slice(0, INITIAL_SPECS_COUNT);
+
             return (
               <div>
-                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Specifications</h3>
-                <div className="bg-gray-50 dark:bg-[#242526] rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
-                  {specEntries.map(([key, value], idx) => (
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
+                    Specifications
+                  </h3>
+                  {hasMoreSpecs && (
+                    <button
+                      type="button"
+                      onClick={() => setIsSpecsExpanded(!isSpecsExpanded)}
+                      className="text-xs font-bold text-brand-500 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <span>{isSpecsExpanded ? t('show_less', 'Show Less') : t('view_all_specs', 'View All Specs')}</span>
+                      <ChevronDown size={14} className={`transition-transform duration-200 ${isSpecsExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                  )}
+                </div>
+                <div className="bg-gray-50 dark:bg-[#242526] rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden transition-all">
+                  {visibleSpecs.map(([key, value], idx) => (
                     <div key={key} className={`flex items-center justify-between p-3.5 ${idx !== 0 ? 'border-t border-gray-200 dark:border-neutral-800' : ''}`}>
                       <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 capitalize">
                         {key.replace(/_/g, ' ')}
@@ -1317,6 +1335,16 @@ const ProductDetailPage: React.FC = () => {
                     </div>
                   ))}
                 </div>
+                {hasMoreSpecs && !isSpecsExpanded && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSpecsExpanded(true)}
+                    className="w-full mt-2 py-2 text-xs font-bold text-brand-500 dark:text-brand-400 hover:underline flex items-center justify-center gap-1 transition-all cursor-pointer"
+                  >
+                    <span>View all {specEntries.length} specifications</span>
+                    <ChevronDown size={14} />
+                  </button>
+                )}
               </div>
             );
           })()}
