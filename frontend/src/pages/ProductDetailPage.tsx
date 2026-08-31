@@ -681,14 +681,14 @@ const ProductDetailPage: React.FC = () => {
       {/* ═══ MOBILE IMAGE GRID (< lg only) ═══ */}
       <div className="block lg:hidden relative w-full bg-neutral-950 shrink-0">
         <div className="absolute top-3 left-3 right-3 z-40 flex items-center justify-between pointer-events-none">
-          {/* Left: Close, Logo, Search */}
+          {/* Left: Close, Logo */}
           <div className="flex items-center gap-2 pointer-events-auto">
             <button
               onPointerDown={(e) => { e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/products'); }}
               className="w-10 h-10 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
               aria-label="Close product view"
             >
-              <X size={18} />
+              <ChevronLeft size={20} strokeWidth={2.5} />
             </button>
             <button 
               onClick={() => navigate('/')} 
@@ -697,6 +697,10 @@ const ProductDetailPage: React.FC = () => {
             >
               <img src="/logo.png" alt="OKO" className="w-full h-full object-contain drop-shadow-md" />
             </button>
+          </div>
+
+          {/* Right: Search, Save / Wishlist, Share */}
+          <div className="flex items-center gap-2 pointer-events-auto">
             <button
               onClick={openSearch}
               className="w-10 h-10 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
@@ -705,39 +709,6 @@ const ProductDetailPage: React.FC = () => {
             >
               <Search size={17} />
             </button>
-          </div>
-
-          {/* Right: Message (with Story Ring), Like, Share, 3-Dots */}
-          <div className="flex items-center gap-2 pointer-events-auto">
-            <div className="relative flex items-center justify-center">
-              {isSendingMessage && (
-                <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 animate-spin p-[2.5px] pointer-events-none shadow-lg shadow-rose-500/30 transition-all duration-300" />
-              )}
-              {messageSent && !isSendingMessage && (
-                <div className="absolute -inset-1 rounded-full border-2 border-emerald-400 animate-pulse pointer-events-none transition-all duration-300" />
-              )}
-              <button
-                onClick={() => {
-                  if (existingConversation && window.innerWidth >= 768) {
-                    openDesktopChat(existingConversation.id);
-                  } else if (window.innerWidth >= 768) {
-                    toggleDesktopChat();
-                  } else {
-                    navigate(existingConversation ? `/messages/${existingConversation.id}` : '/messages');
-                  }
-                }}
-                className="relative w-10 h-10 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md z-10"
-                title="Messages"
-                aria-label="View messages"
-              >
-                <MessageSquare size={17} />
-                {messageUnreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center border border-black animate-pulse">
-                    {messageUnreadCount > 99 ? '99' : messageUnreadCount}
-                  </span>
-                )}
-              </button>
-            </div>
 
             {/* Save / Wishlist */}
             <button
@@ -763,47 +734,8 @@ const ProductDetailPage: React.FC = () => {
             >
               <Share2 size={17} />
             </button>
-
-            {/* 3-Dots More Options Menu */}
-            <div className="relative" ref={actionMenuRef}>
-              <button
-                type="button"
-                onClick={() => setActionMenuOpen((prev) => !prev)}
-                className="w-10 h-10 flex items-center justify-center bg-[#242526]/80 hover:bg-[#3a3b3c] text-white rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xl backdrop-blur-md"
-                title="More actions"
-                aria-label="More actions"
-              >
-                <MoreVertical size={17} />
-              </button>
-
-              {actionMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-xl shadow-2xl z-50 py-1.5 text-xs font-semibold animate-slide-up">
-                  <Link
-                    to={`/inspections/new?item_name=${encodeURIComponent(product.name)}&category_name=${encodeURIComponent(product.category_name || '')}&marketplace_product_id=${product.id}&seller_username=${encodeURIComponent(product.seller_username || '')}`}
-                    onClick={() => setActionMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-amber-500/10 hover:text-amber-500 transition-colors"
-                  >
-                    <Shield size={15} className="text-amber-500 shrink-0" />
-                    <span>Request Inspection</span>
-                  </Link>
-
-                  {product.latitude && product.longitude && (
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${product.latitude},${product.longitude}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => setActionMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-blue-500/10 hover:text-blue-500 transition-colors"
-                    >
-                      <Navigation size={15} className="text-blue-500 shrink-0" />
-                      <span>Navigate to Item</span>
-                    </a>
-                  )}
-                </div>
-              )}
           </div>
         </div>
-      </div>
 
         {images.length <= 1 ? (
           <div className="w-full aspect-square relative cursor-pointer" onClick={() => setLightboxOpen(true)}>
