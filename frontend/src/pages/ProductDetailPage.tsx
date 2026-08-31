@@ -1302,27 +1302,15 @@ const ProductDetailPage: React.FC = () => {
             const specEntries = Object.entries(allSpecs).filter(([k, v]) => v !== null && v !== undefined && String(v).trim() !== '' && !k.startsWith('_'));
             if (specEntries.length === 0) return null;
 
-            const INITIAL_SPECS_COUNT = 4;
+            const INITIAL_SPECS_COUNT = 3;
             const hasMoreSpecs = specEntries.length > INITIAL_SPECS_COUNT;
             const visibleSpecs = isSpecsExpanded ? specEntries : specEntries.slice(0, INITIAL_SPECS_COUNT);
 
             return (
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                    Specifications
-                  </h3>
-                  {hasMoreSpecs && (
-                    <button
-                      type="button"
-                      onClick={() => setIsSpecsExpanded(!isSpecsExpanded)}
-                      className="text-xs font-bold text-brand-500 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <span>{isSpecsExpanded ? t('show_less', 'Show Less') : t('view_all_specs', 'View All Specs')}</span>
-                      <ChevronDown size={14} className={`transition-transform duration-200 ${isSpecsExpanded ? 'rotate-180' : ''}`} />
-                    </button>
-                  )}
-                </div>
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
+                  Specifications
+                </h3>
                 <div className="bg-gray-50 dark:bg-[#242526] rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden transition-all">
                   {visibleSpecs.map(([key, value], idx) => (
                     <div key={key} className={`flex items-center justify-between p-3.5 ${idx !== 0 ? 'border-t border-gray-200 dark:border-neutral-800' : ''}`}>
@@ -1334,17 +1322,22 @@ const ProductDetailPage: React.FC = () => {
                       </span>
                     </div>
                   ))}
+
+                  {/* Centered Flip Chevron Toggle */}
+                  {hasMoreSpecs && (
+                    <button
+                      type="button"
+                      onClick={() => setIsSpecsExpanded(!isSpecsExpanded)}
+                      aria-label={isSpecsExpanded ? "Collapse specifications" : "Expand specifications"}
+                      className="w-full flex items-center justify-center py-2.5 hover:bg-gray-100 dark:hover:bg-neutral-800/60 border-t border-gray-200 dark:border-neutral-800 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors cursor-pointer"
+                    >
+                      <ChevronDown 
+                        size={18} 
+                        className={`transition-transform duration-300 ${isSpecsExpanded ? 'rotate-180' : ''}`} 
+                      />
+                    </button>
+                  )}
                 </div>
-                {hasMoreSpecs && !isSpecsExpanded && (
-                  <button
-                    type="button"
-                    onClick={() => setIsSpecsExpanded(true)}
-                    className="w-full mt-2 py-2 text-xs font-bold text-brand-500 dark:text-brand-400 hover:underline flex items-center justify-center gap-1 transition-all cursor-pointer"
-                  >
-                    <span>View all {specEntries.length} specifications</span>
-                    <ChevronDown size={14} />
-                  </button>
-                )}
               </div>
             );
           })()}
