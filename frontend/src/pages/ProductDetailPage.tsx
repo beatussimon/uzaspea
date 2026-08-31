@@ -1174,21 +1174,17 @@ const ProductDetailPage: React.FC = () => {
                         key={tier.id}
                         type="button"
                         onClick={() => setQuantity(minQ)}
-                        className={`px-3.5 py-2 rounded-full text-xs font-bold transition-all border-2 flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border-2 flex items-center gap-1.5 cursor-pointer bg-transparent ${
                           isCurrentActive
-                            ? 'border-amber-400 bg-amber-400/10 text-amber-500 dark:text-amber-400 dark:border-amber-400'
-                            : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                            ? 'border-amber-400 text-amber-500 dark:text-amber-400'
+                            : 'border-transparent bg-gray-100/80 hover:bg-gray-200 dark:bg-[#242526] dark:hover:bg-[#2d2e30] text-gray-700 dark:text-gray-300'
                         }`}
                       >
                         <span>
                           {formatQtyNum(minQ)}{maxQ ? `–${formatQtyNum(maxQ)}` : '+'} {formatUnit(maxQ || minQ, uom)}
                         </span>
                         {savingsPercent > 0 && (
-                          <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full ${
-                            isCurrentActive 
-                              ? 'bg-amber-400/20 text-amber-600 dark:text-amber-300' 
-                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                          }`}>
+                          <span className="text-[11px] font-extrabold text-emerald-500 dark:text-emerald-400">
                             -{savingsPercent}%
                           </span>
                         )}
