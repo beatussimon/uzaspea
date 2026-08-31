@@ -541,11 +541,14 @@ const ProductDetailPage: React.FC = () => {
     if (product) {
       const p = selectedVariant ? {
         ...product,
-        price: selectedVariant.final_price,
+        price: activeTier ? effectivePrice : selectedVariant.final_price,
         name: `${product.name} (${selectedVariant.name})`,
         stock: selectedVariant.stock,
         id: `${product.id}-${selectedVariant.id}` as any
-      } : product;
+      } : {
+        ...product,
+        price: effectivePrice
+      };
 
       if (!isAuthenticated) {
         const returnUrl = location.pathname + location.search;
@@ -626,9 +629,15 @@ const ProductDetailPage: React.FC = () => {
   const currentImageSrc = images[selectedImage]?.image || '';
   const currentUsername = localStorage.getItem('username');
   const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
-  const effectivePrice = selectedVariant ? (parseInt(selectedVariant.price_adjustment) + parseInt(product.price)) : parseInt(product.sale_price || product.price);
-  const isDiscounted = product.sale_price && !selectedVariant && !product.requires_quote && parseInt(product.price) > parseInt(product.sale_price);
-  const discountPercent = isDiscounted ? Math.round(((parseInt(product.price) - parseInt(product.sale_price!)) / parseInt(product.price)) * 100) : 0;
+  const baseUnitPrice = selectedVariant ? (parseInt(selectedVariant.price_adjustment) + parseInt(product.price)) : parseInt(product.sale_price || product.price);
+  const activeTier = useMemo(() => {
+    if (!product?.price_tiers || product.price_tiers.length === 0) return null;
+    const sorted = [...product.price_tiers].sort((a, b) => parseFloat(b.min_quantity) - parseFloat(a.min_quantity));
+    return sorted.find(t => quantity >= parseFloat(t.min_quantity)) || null;
+  }, [product?.price_tiers, quantity]);
+  const effectivePrice = activeTier ? parseInt(activeTier.unit_price) : baseUnitPrice;
+  const isDiscounted = (product.sale_price && !selectedVariant && !product.requires_quote && parseInt(product.price) > parseInt(product.sale_price)) || Boolean(activeTier && parseInt(product.price) > effectivePrice);
+  const discountPercent = isDiscounted ? Math.round(((parseInt(product.price) - effectivePrice) / parseInt(product.price)) * 100) : 0;
 
   const productSchema = {
     "@context": "https://schema.org/",
@@ -1135,28 +1144,63 @@ const ProductDetailPage: React.FC = () => {
             </div>
           )}
 
-          {/* UOM and Tiered Pricing info */}
+          {/* Volume Pricing Cards */}
           {((product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1) || (product.price_tiers && product.price_tiers.length > 0)) && (
-            <div className="flex flex-col gap-2 p-4 rounded-2xl border border-transparent bg-gray-50 dark:bg-[#242526]">
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
+                  Volume Pricing
+                </span>
                 {product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1 && (
-                  <div className="flex justify-between items-center text-xs text-brand-500 dark:text-brand-500">
-                     <span className="font-semibold">Minimum Order (MOQ):</span>
-                     <span className="font-bold">{formatQtyNum(product.minimum_order_quantity)} {formatUnit(parseFloat(product.minimum_order_quantity || '1'), product.unit_of_measure)}</span>
-                  </div>
+                  <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20">
+                    Min. order: {formatQtyNum(product.minimum_order_quantity)} {formatUnit(parseFloat(product.minimum_order_quantity), product.unit_of_measure)}
+                  </span>
                 )}
-                {product.price_tiers && product.price_tiers.length > 0 && (
-                  <div className="mt-2 text-xs border-t border-brand-500/50 dark:border-brand-500/50 pt-2">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Volume Discounts:</span>
-                    <div className="space-y-1">
-                      {product.price_tiers.map(tier => (
-                        <div key={tier.id} className="flex justify-between text-gray-600 dark:text-gray-400">
-                          <span>{formatQtyNum(tier.min_quantity)} {tier.max_quantity ? `- ${formatQtyNum(tier.max_quantity)}` : '+'} {formatUnit(parseFloat(tier.min_quantity), product.unit_of_measure)}</span>
-                          <span className="font-bold text-gray-900 dark:text-white">TSh {parseInt(tier.unit_price).toLocaleString()} / {product.unit_of_measure || 'piece'}</span>
+              </div>
+
+              {product.price_tiers && product.price_tiers.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {product.price_tiers.map((tier) => {
+                    const minQ = parseFloat(tier.min_quantity);
+                    const maxQ = tier.max_quantity ? parseFloat(tier.max_quantity) : null;
+                    const isCurrentActive = quantity >= minQ && (!maxQ || quantity <= maxQ);
+                    const tierPrice = parseInt(tier.unit_price);
+                    const baseP = parseInt(product.price);
+                    const savingsPercent = baseP > tierPrice ? Math.round(((baseP - tierPrice) / baseP) * 100) : 0;
+                    const uom = product.unit_of_measure || 'piece';
+
+                    return (
+                      <button
+                        key={tier.id}
+                        type="button"
+                        onClick={() => setQuantity(minQ)}
+                        className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          isCurrentActive
+                            ? 'border-amber-400 bg-amber-400/10 text-gray-900 dark:text-white shadow-xs ring-1 ring-amber-400/40'
+                            : 'border-gray-200 dark:border-neutral-800 bg-gray-50/70 dark:bg-[#242526]/70 hover:border-gray-300 dark:hover:border-neutral-700 text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-[11px] font-bold tracking-tight text-gray-600 dark:text-gray-400">
+                            {formatQtyNum(minQ)}{maxQ ? `–${formatQtyNum(maxQ)}` : '+'} {formatUnit(maxQ || minQ, uom)}
+                          </span>
+                          {savingsPercent > 0 && (
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                              -{savingsPercent}%
+                            </span>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                        <span className="text-sm font-black text-gray-900 dark:text-white">
+                          TSh {tierPrice.toLocaleString()}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-medium">
+                          per {formatUnit(1, uom)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
