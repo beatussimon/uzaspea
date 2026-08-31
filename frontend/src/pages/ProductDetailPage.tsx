@@ -822,7 +822,7 @@ const ProductDetailPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="w-full grid grid-cols-[2.2fr_1fr] gap-[2px]" style={{ aspectRatio: '4/3' }}>
+          <div className="w-full grid grid-cols-[2.2fr_1fr] gap-[2px]" style={{ aspectRatio: '1.08/1' }}>
             <div className="relative cursor-pointer overflow-hidden" onClick={() => { setSelectedImage(0); setLightboxOpen(true); }}>
               <img src={images[0]?.image || ''} alt={product.name} className="w-full h-full object-cover" loading="eager" />
             </div>
