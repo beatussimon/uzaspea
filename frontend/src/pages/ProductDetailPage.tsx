@@ -368,6 +368,12 @@ const ProductDetailPage: React.FC = () => {
     });
   }, [product, existingConversation, messages, messageSent]);
 
+  const activeTier = useMemo(() => {
+    if (!product?.price_tiers || product.price_tiers.length === 0) return null;
+    const sorted = [...product.price_tiers].sort((a, b) => parseFloat(b.min_quantity) - parseFloat(a.min_quantity));
+    return sorted.find(t => quantity >= parseFloat(t.min_quantity)) || null;
+  }, [product?.price_tiers, quantity]);
+
   const handleDirectSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const textToSend = customMessage.trim();
@@ -630,11 +636,6 @@ const ProductDetailPage: React.FC = () => {
   const currentUsername = localStorage.getItem('username');
   const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
   const baseUnitPrice = selectedVariant ? (parseInt(selectedVariant.price_adjustment) + parseInt(product.price)) : parseInt(product.sale_price || product.price);
-  const activeTier = useMemo(() => {
-    if (!product?.price_tiers || product.price_tiers.length === 0) return null;
-    const sorted = [...product.price_tiers].sort((a, b) => parseFloat(b.min_quantity) - parseFloat(a.min_quantity));
-    return sorted.find(t => quantity >= parseFloat(t.min_quantity)) || null;
-  }, [product?.price_tiers, quantity]);
   const effectivePrice = activeTier ? parseInt(activeTier.unit_price) : baseUnitPrice;
   const isDiscounted = (product.sale_price && !selectedVariant && !product.requires_quote && parseInt(product.price) > parseInt(product.sale_price)) || Boolean(activeTier && parseInt(product.price) > effectivePrice);
   const discountPercent = isDiscounted ? Math.round(((parseInt(product.price) - effectivePrice) / parseInt(product.price)) * 100) : 0;
