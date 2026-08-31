@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { BarChart3, ShieldAlert, Package, ShoppingCart, DollarSign, Star, AlertTriangle, Printer } from 'lucide-react';
-import { Spinner } from '../../components/ui/Spinner';
 import { Button } from '../../components/ui/Button';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
@@ -19,63 +18,24 @@ import { SHORT_STATUS_LABELS as STATUS_LABELS } from '../../constants/orderStatu
 
 const formatCompactCurrency = (num: number, currency = 'TSh') => {
   if (!num || isNaN(num)) return `${currency} 0`;
-  if (num >= 1_000_000) {
-    return `${currency} ${(num / 1_000_000).toFixed(2).replace(/\.00$/, '')}M`;
+  if (num >= 1_000_000_000) {
+    return `${currency} ${(num / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
   }
-  if (num >= 10_000) {
+  if (num >= 1_000_000) {
+    return `${currency} ${(num / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  }
+  if (num >= 1_000) {
     return `${currency} ${(num / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
   }
   return `${currency} ${num.toLocaleString()}`;
 };
 
-const CommissionPaidCard = ({ amount, rate }: { amount: number; rate: number }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const cardRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const handleClose = (e?: Event) => {
-      if (e && e.type === 'click' && cardRef.current && cardRef.current.contains(e.target as Node)) {
-        return;
-      }
-      setIsOpen(false);
-    };
-
-    if (isOpen) {
-      document.addEventListener('click', handleClose);
-      window.addEventListener('scroll', handleClose, { capture: true });
-    }
-    return () => {
-      document.removeEventListener('click', handleClose);
-      window.removeEventListener('scroll', handleClose, { capture: true });
-    };
-  }, [isOpen]);
-
-  return (
-    <div 
-      ref={cardRef}
-      onClick={(e) => {
-        e.stopPropagation();
-        setIsOpen(prev => !prev);
-      }}
-      className="card p-5 space-y-2 relative overflow-hidden group cursor-pointer select-none active:scale-[0.98] transition-all"
-    >
-      {isOpen && (
-        <div className="absolute inset-x-2 top-2 z-30 bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-2.5 rounded-xl shadow-2xl text-center text-xs font-black border border-white/10 dark:border-black/10 animate-fade-in">
-          <p className="text-[9px] uppercase tracking-wider opacity-70 mb-0.5 font-bold">Commission Paid</p>
-          <p className="text-xs sm:text-sm font-black tracking-tight">TZS {amount.toLocaleString()}</p>
-        </div>
-      )}
-      <div className="absolute -right-4 -bottom-4 text-brand-500 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity pointer-events-none">
-        <DollarSign size={120} />
-      </div>
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Commission Paid (This Month)</p>
-      <p className="text-2xl font-black text-gray-900 dark:text-white">
-        {formatCompactCurrency(amount, 'TZS')}
-      </p>
-      <p className="text-xs text-gray-400">Calculated at {rate}% on completed orders</p>
-    </div>
-  );
-};
+import {
+  KpiGridSkeleton,
+  ChartSkeleton,
+  CardListSkeleton
+} from '../../components/Skeleton';
+import { cn } from '../../lib/utils';
 
 // ============ Dashboard Overview ============
 const DashboardOverview: React.FC = () => {
@@ -103,14 +63,6 @@ const DashboardOverview: React.FC = () => {
       .finally(() => setLoading(false));
   }, [dateRange]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size="md" />
-      </div>
-    );
-  }
-
   const trendUp = (stats?.revenue_trend_pct || 0) >= 0;
 
   const kpis = [
@@ -133,12 +85,6 @@ const DashboardOverview: React.FC = () => {
         value: `${Math.abs(stats?.revenue_trend_pct || 0)}%`,
         direction: trendUp ? 'up' as const : 'down' as const,
       },
-    },
-    {
-      label: t('avg_order', 'Avg Order'),
-      value: formatCompactCurrency(stats?.avg_order_value || 0),
-      fullValue: `TSh ${(stats?.avg_order_value || 0).toLocaleString()}`,
-      icon: DollarSign,
     },
     {
       label: t('avg_rating', 'Avg Rating'),
@@ -184,21 +130,37 @@ const DashboardOverview: React.FC = () => {
         </div>
       </header>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 print-hide">
-        {kpis.map((kpi, i) => (
-          <KpiCard
-            key={i}
-            label={kpi.label}
-            value={kpi.value}
-            fullValue={kpi.fullValue}
-            icon={kpi.icon}
-            trend={kpi.trend}
-            sub={kpi.sub}
-            className={kpi.className}
-          />
-        ))}
-      </div>
+      {loading && !stats ? (
+        <div className="space-y-6">
+          <KpiGridSkeleton count={5} cols={5} />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <ChartSkeleton type="area" />
+            </div>
+            <ChartSkeleton type="pie" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <CardListSkeleton count={3} />
+            <CardListSkeleton count={2} />
+          </div>
+        </div>
+      ) : (
+        <div className={cn("space-y-6", loading && "opacity-75 transition-opacity")}>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 print-hide">
+            {kpis.map((kpi, i) => (
+              <KpiCard
+                key={i}
+                label={kpi.label}
+                value={kpi.value}
+                fullValue={kpi.fullValue}
+                icon={kpi.icon}
+                trend={kpi.trend}
+                sub={kpi.sub}
+                className={kpi.className}
+              />
+            ))}
+          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print-hide">
         {/* Revenue Area Chart */}
@@ -251,7 +213,7 @@ const DashboardOverview: React.FC = () => {
           <div className="card overflow-hidden">
             <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
               <h3 className="text-xs font-bold text-gray-900 dark:text-white">Top Performing Products</h3>
-              <span className="text-3xs font-black text-brand-600 dark:text-brand-400 bg-brand-500/10 border border-brand-500/20 px-2 py-0.5 rounded-full uppercase">Best Sellers</span>
+              <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400 bg-brand-500/10 border border-brand-500/20 px-2.5 py-0.5 rounded-full capitalize">Best Sellers</span>
             </div>
             <div className="divide-y divide-surface-border dark:divide-surface-dark-border">
               {(stats?.top_products || []).map((p: any, i: number) => (
@@ -271,9 +233,12 @@ const DashboardOverview: React.FC = () => {
             </div>
           </div>
 
-          <CommissionPaidCard 
-            amount={stats?.commission_paid || 0} 
-            rate={stats?.commission_rate || 10} 
+          <KpiCard
+            label="Commission Paid (This Month)"
+            value={formatCompactCurrency(stats?.commission_paid || 0, 'TZS')}
+            fullValue={`TZS ${(stats?.commission_paid || 0).toLocaleString()}`}
+            icon={DollarSign}
+            sub={`Calculated at ${stats?.commission_rate || 10}% on completed orders`}
           />
 
           {/* Store QR Code */}
@@ -324,7 +289,8 @@ const DashboardOverview: React.FC = () => {
               {stats.stock_alerts.map((s: any, i: number) => (
                 <div key={i} className="p-3 flex items-center justify-between hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
                   <span className="text-xs font-medium text-gray-900 dark:text-white truncate pr-2">{s.name}</span>
-                  <span className={`text-3xs font-bold px-2 py-0.5 rounded-full uppercase shrink-0 ${s.stock === 0 ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}`}>
+                  <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border capitalize shrink-0 ${s.stock === 0 ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${s.stock === 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
                     {s.stock === 0 ? 'Out of Stock' : `${s.stock} left`}
                   </span>
                 </div>
@@ -385,7 +351,7 @@ const DashboardOverview: React.FC = () => {
                       {formatCompactCurrency(item.total)}
                     </td>
                     <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                      <span className="text-3xs font-bold px-2 py-0.5 rounded-full bg-surface-muted text-gray-600 dark:bg-[#161616] dark:text-gray-400 border border-surface-border dark:border-surface-dark-border print:bg-transparent print:border print:border-gray-300 print:text-black">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-surface-muted text-gray-600 dark:bg-[#161616] dark:text-gray-400 border border-surface-border dark:border-surface-dark-border capitalize print:bg-transparent print:border print:border-gray-300 print:text-black">
                         {item.status}
                       </span>
                     </td>
@@ -413,9 +379,10 @@ const DashboardOverview: React.FC = () => {
           </div>
         </div>
       )}
+        </div>
+      )}
     </div>
   );
 };
-
 
 export default DashboardOverview;

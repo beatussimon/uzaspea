@@ -17,18 +17,13 @@ import {
   InspectionCategory, InspectionRequest, InspectionNotification, ChecklistResponse,
   STATUS_LABELS, STATUS_COLORS, VERDICT_COLORS, fmtDate, fmtMoney,
 } from '../../types/inspection';
+import { CardListSkeleton } from '../../components/Skeleton';
 
 // ─── Helpers ───────────────────────────────
 const Badge: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => (
   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
     {text}
   </span>
-);
-
-const Spinner = () => (
-  <div className="flex justify-center py-16">
-    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
-  </div>
 );
 
 // ─── Category Dropdown Selector ──────────────
@@ -1972,14 +1967,15 @@ const MyInspections: React.FC = () => {
       {loading ? (
         <div className="space-y-3.5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 animate-pulse">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-                <div className="flex-1 space-y-2.5">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-md w-1/3" />
-                  <div className="h-3.5 bg-gray-100 dark:bg-gray-700/60 rounded-md w-1/2" />
+            <div key={i} className="bg-white dark:bg-[#181818] rounded-xl border border-gray-100 dark:border-neutral-800 p-4 sm:p-5 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gray-200 dark:bg-neutral-800 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3.5 bg-gray-200 dark:bg-neutral-800 rounded w-1/4" />
+                  <div className="h-4 bg-gray-200 dark:bg-neutral-800 rounded w-1/2" />
+                  <div className="h-3 bg-gray-100 dark:bg-neutral-800/60 rounded w-1/3" />
                 </div>
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-md w-24" />
+                <div className="h-6 bg-gray-200 dark:bg-neutral-800 rounded-full w-20 shrink-0" />
               </div>
             </div>
           ))}
@@ -2102,7 +2098,7 @@ const NotificationsPanel: React.FC = () => {
     setNotifications((n) => n.map((x) => ({ ...x, is_read: true })));
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return <CardListSkeleton count={4} />;
 
   return (
     <div className="space-y-4">

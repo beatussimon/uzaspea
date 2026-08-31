@@ -17,6 +17,7 @@ import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
+import { ProductGridSkeleton } from '../../components/Skeleton';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 // ─── Mobile detection (camera option only shown on touch devices) ─────────────
@@ -2496,9 +2497,7 @@ const DashboardProducts: React.FC = () => {
 
       {/* Products Table */}
       {loading && products.length === 0 ? (
-        <div className="flex justify-center py-12">
-          <Spinner size="md" />
-        </div>
+        <ProductGridSkeleton count={4} />
       ) : products.length === 0 ? (
         <EmptyState
           icon={Package}
@@ -2529,19 +2528,23 @@ const DashboardProducts: React.FC = () => {
                     {product.name}
                   </h4>
                   {product.is_draft ? (
-                    <span className="text-3xs font-black uppercase px-2 py-0.5 rounded-full bg-surface-muted dark:bg-[#161616] text-gray-500 dark:text-gray-400 border border-surface-border dark:border-surface-dark-border">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20 capitalize">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
                       Draft
                     </span>
                   ) : (
                     <span
-                      className={`text-3xs font-black uppercase px-2 py-0.5 rounded-full ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize ${
                         product.stock === 0
-                          ? 'bg-red-500/10 text-red-500 border border-red-500/20'
+                          ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
                           : product.stock <= 3
-                          ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                          : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                       }`}
                     >
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        product.stock === 0 ? 'bg-red-500' : product.stock <= 3 ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`} />
                       {product.stock === 0 ? 'Out of Stock' : product.stock <= 3 ? 'Low Stock' : 'In Stock'}
                     </span>
                   )}

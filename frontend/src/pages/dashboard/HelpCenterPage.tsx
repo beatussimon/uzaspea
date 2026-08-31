@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Mail, Phone, MapPin, Search, ChevronDown, ChevronUp, Send, MessageCircle, Clock, CheckCircle, Lock, RotateCcw } from 'lucide-react';
+import { 
+  Mail, Phone, Search, ChevronDown, Send, 
+  MessageCircle, Clock, CheckCircle, Lock, RotateCcw, MessageSquare, 
+  HelpCircle, ArrowLeft, X, Check
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { Button } from '../../components/ui/Button';
 
 const HelpCenterPage: React.FC = () => {
     const { t } = useTranslation();
@@ -13,6 +18,9 @@ const HelpCenterPage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
     
+    // Right panel active tab: 'new' (Send Inquiry) | 'history' (My Inquiries)
+    const [activeTab, setActiveTab] = useState<'new' | 'history'>('new');
+
     // Ticket Form State
     const [ticketForm, setTicketForm] = useState({
         subject: '',
@@ -27,6 +35,7 @@ const HelpCenterPage: React.FC = () => {
 
     // Ticket History State (Authenticated Only)
     const [userTickets, setUserTickets] = useState<any[]>([]);
+    const [ticketSearch, setTicketSearch] = useState('');
     const [siteSettings, setSiteSettings] = useState<any>({});
     const [activeTicket, setActiveTicket] = useState<any | null>(null);
     const [replyMessage, setReplyMessage] = useState('');
@@ -65,25 +74,13 @@ const HelpCenterPage: React.FC = () => {
     }, [isAuthenticated]);
 
     const categories = [
-        { id: 'order_issue', label: t('category_order_issue', 'Order & Delivery Issue'), prefix: '[Order Issue]' },
-        { id: 'payment_issue', label: t('category_payment_issue', 'Payment & Billing Issue'), prefix: '[Payment Issue]' },
+        { id: 'order_issue', label: t('category_order_issue', 'Order & Delivery'), prefix: '[Order Issue]' },
+        { id: 'payment_issue', label: t('category_payment_issue', 'Payment & Billing'), prefix: '[Payment Issue]' },
         { id: 'account_issue', label: t('category_account_issue', 'Account & Security'), prefix: '[Account Issue]' },
         { id: 'inspection_issue', label: t('category_inspection_issue', 'Inspection & Verification'), prefix: '[Inspection Issue]' },
-        { id: 'bug_report', label: t('category_bug_report', 'Bug Report / Technical Issue'), prefix: '[Bug Report]' },
+        { id: 'bug_report', label: t('category_bug_report', 'Technical & Bug Report'), prefix: '[Bug Report]' },
         { id: 'other', label: t('category_general_feedback', 'General Inquiry & Feedback'), prefix: '[General Inquiry]' },
     ];
-
-    const handleCategoryChange = (catId: string) => {
-        setSelectedCategory(catId);
-        const cat = categories.find(c => c.id === catId);
-        if (cat) {
-            const cleanSubject = ticketForm.subject.replace(/^\[.*?\]\s*/, '');
-            setTicketForm(prev => ({
-                ...prev,
-                subject: cleanSubject ? `${cat.prefix} ${cleanSubject}` : `${cat.prefix} `
-            }));
-        }
-    };
 
     const handleTicketSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -95,8 +92,13 @@ const HelpCenterPage: React.FC = () => {
 
         setSubmitting(true);
         try {
+            const cat = categories.find(c => c.id === selectedCategory);
+            const prefix = cat?.prefix || '[General]';
+            const cleanSubject = ticketForm.subject.trim();
+            const fullSubject = cleanSubject.startsWith('[') ? cleanSubject : `${prefix} ${cleanSubject}`;
+
             const payload = {
-                subject: ticketForm.subject.trim() || `[${selectedCategory}] Customer Inquiry`,
+                subject: fullSubject || `${prefix} Customer Inquiry`,
                 message: ticketForm.message.trim(),
                 category: selectedCategory,
                 name: isAuthenticated ? (user?.username || 'User') : ticketForm.name.trim(),
@@ -120,13 +122,15 @@ const HelpCenterPage: React.FC = () => {
 
     const handleTicketReply = async (e: React.FormEvent, ticketId: number) => {
         e.preventDefault();
+        if (!replyMessage.trim()) return;
         setReplying(true);
         try {
-            await api.post(`/api/support-tickets/${ticketId}/reply/`, { message: replyMessage });
+            await api.post(`/api/support-tickets/${ticketId}/reply/`, { message: replyMessage.trim() });
             setReplyMessage('');
             const res = await api.get('/api/support-tickets/');
-            setUserTickets(res.data.results || res.data);
-            setActiveTicket((res.data.results || res.data).find((t: any) => t.id === ticketId) || null);
+            const allTickets = res.data.results || res.data;
+            setUserTickets(allTickets);
+            setActiveTicket(allTickets.find((t: any) => t.id === ticketId) || null);
             toast.success('Reply sent.');
         } catch (error) {
             toast.error('Failed to send reply.');
@@ -135,356 +139,449 @@ const HelpCenterPage: React.FC = () => {
         }
     };
 
+    const filteredTickets = useMemo(() => {
+        if (!ticketSearch.trim()) return userTickets;
+        const q = ticketSearch.toLowerCase();
+        return userTickets.filter(t => 
+            t.subject?.toLowerCase().includes(q) || 
+            t.message?.toLowerCase().includes(q)
+        );
+    }, [userTickets, ticketSearch]);
+
     return (
-        <div className="max-w-4xl mx-auto space-y-8 p-4">
-            <div className="text-center space-y-2">
-                <h1 className="text-3xl font-black text-gray-900 dark:text-white">Help & Support</h1>
-                <p className="text-gray-500">How can we assist you today?</p>
+        <div className="max-w-6xl mx-auto space-y-8 p-4 sm:p-6 animate-fade-in">
+            {/* Header */}
+            <div className="text-center space-y-2 max-w-2xl mx-auto">
+                <h1 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">Help & Support</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Find instant answers in our FAQ or connect directly with our support team.
+                </p>
             </div>
 
-            {/* Contact Info */}
-            {(siteSettings.support_phone || siteSettings.whatsapp_number || siteSettings.support_email || siteSettings.address) && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Quick Contact Chips */}
+            {(siteSettings.support_phone || siteSettings.whatsapp_number || siteSettings.support_email) && (
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 {siteSettings.support_phone && (
-                  <a href={`tel:${siteSettings.support_phone}`} className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
-                    <div className="w-12 h-12   text-brand-500 flex items-center justify-center rounded-full">
-                      <Phone size={24} />
-                    </div>
-                    <h3 className="font-bold text-gray-900 dark:text-white">Call Us</h3>
-                    <p className="text-sm text-gray-500">{siteSettings.support_phone}</p>
+                  <a 
+                    href={`tel:${siteSettings.support_phone}`} 
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface-muted/60 dark:bg-[#141414] hover:bg-surface-muted dark:hover:bg-[#1c1c1c] border border-surface-border dark:border-surface-dark-border text-xs font-medium text-gray-700 dark:text-gray-300 transition-all select-none"
+                  >
+                    <Phone size={14} className="text-brand-500" />
+                    <span>{siteSettings.support_phone}</span>
                   </a>
                 )}
                 {siteSettings.whatsapp_number && (
-                  <a href={`https://wa.me/${siteSettings.whatsapp_number.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
-                    <div className="w-12 h-12   text-green-500 flex items-center justify-center rounded-full">
-                      <MessageCircle size={24} />
-                    </div>
-                    <h3 className="font-bold text-gray-900 dark:text-white">WhatsApp</h3>
-                    <p className="text-sm text-gray-500">{siteSettings.whatsapp_number}</p>
+                  <a 
+                    href={`https://wa.me/${siteSettings.whatsapp_number.replace(/\D/g, '')}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-xs font-medium text-emerald-600 dark:text-emerald-400 transition-all select-none"
+                  >
+                    <MessageCircle size={14} />
+                    <span>WhatsApp Support</span>
                   </a>
                 )}
                 {siteSettings.support_email && (
-                  <a href={`mailto:${siteSettings.support_email}`} className="card p-6 flex flex-col items-center text-center space-y-2 hover:shadow-lg transition-shadow">
-                    <div className="w-12 h-12   text-blue-500 flex items-center justify-center rounded-full">
-                      <Mail size={24} />
-                    </div>
-                    <h3 className="font-bold text-gray-900 dark:text-white">Email Us</h3>
-                    <p className="text-sm text-gray-500">{siteSettings.support_email}</p>
+                  <a 
+                    href={`mailto:${siteSettings.support_email}`} 
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface-muted/60 dark:bg-[#141414] hover:bg-surface-muted dark:hover:bg-[#1c1c1c] border border-surface-border dark:border-surface-dark-border text-xs font-medium text-gray-700 dark:text-gray-300 transition-all select-none"
+                  >
+                    <Mail size={14} className="text-blue-500" />
+                    <span>{siteSettings.support_email}</span>
                   </a>
-                )}
-                {siteSettings.address && (
-                  <div className="card p-6 flex flex-col items-center text-center space-y-2">
-                    <div className="w-12 h-12   text-purple-500 flex items-center justify-center rounded-full">
-                      <MapPin size={24} />
-                    </div>
-                    <h3 className="font-bold text-gray-900 dark:text-white">Visit Us</h3>
-                    <p className="text-sm text-gray-500">{siteSettings.address}</p>
-                  </div>
                 )}
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* FAQs */}
-                <div className="space-y-4">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Frequently Asked Questions</h2>
+            {/* 2-Column Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                {/* Left Column: FAQs (5 cols on lg) */}
+                <div className="lg:col-span-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Frequently Asked Questions</h2>
+                            <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5">Quick solutions to standard inquiries</p>
+                        </div>
+                        <HelpCircle size={18} className="text-gray-400" />
+                    </div>
+
                     <div className="relative">
+                        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Search FAQs..."
+                            placeholder="Search topics, questions, policies..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="input pl-10 w-full"
+                            className="input pl-9 pr-8 py-2 text-xs w-full"
                         />
-                        <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    </div>
-                    <div className="space-y-2">
-                        {faqs.map(faq => (
-                            <div key={faq.id} className="card border border-gray-100 dark:border-gray-700 overflow-hidden">
-                                <button
-                                    onClick={() => setExpandedFaq(expandedFaq === faq.id ? null : faq.id)}
-                                    className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                                >
-                                    <span className="font-semibold text-sm text-gray-900 dark:text-white">{faq.question}</span>
-                                    {expandedFaq === faq.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                </button>
-                                {expandedFaq === faq.id && (
-                                    <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 text-sm text-gray-600 dark:text-gray-300 border-t border-gray-100 dark:border-gray-700">
-                                        {faq.answer}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                        {faqs.length === 0 && (
-                            <p className="text-sm text-gray-500 text-center py-4">No FAQs found.</p>
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                <X size={13} />
+                            </button>
                         )}
                     </div>
-                </div>
 
-                {/* Right Column: Support & Feedback Section */}
-                <div className="card p-6 h-fit">
-                    {submittedTicket ? (
-                        /* Submission Confirmation Card with Tick & Hotline Revelation */
-                        <div className="text-center space-y-6 py-4 animate-fade-in">
-                            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto ring-8 ring-emerald-50 dark:ring-emerald-950/20">
-                                <CheckCircle className="w-10 h-10" />
-                            </div>
-                            <div className="space-y-2">
-                                <h3 className="text-2xl font-black text-gray-900 dark:text-white">
-                                    {t('inquiry_received_title', 'Inquiry Received!')}
-                                </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 max-w-sm mx-auto">
-                                    {t('inquiry_received_desc', 'Thank you for contacting us. Your ticket has been registered under reference')} <strong className="text-gray-900 dark:text-white font-mono">#{submittedTicket.id}</strong>. {t('inquiry_received_review', 'Our support team will review your message.')}
-                                </p>
-                            </div>
-
-                            {/* Hotline & Urgent Contact Section */}
-                            {(siteSettings.support_phone || siteSettings.whatsapp_number) && (
-                                <div className="p-4 rounded-xl bg-gray-50 dark:bg-neutral-800/80 border border-gray-200 dark:border-neutral-700 text-left space-y-3">
-                                    <p className="text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
-                                        {t('need_urgent_help', 'Need Urgent Assistance?')}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {siteSettings.support_phone && (
-                                            <a
-                                                href={`tel:${siteSettings.support_phone}`}
-                                                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400 hover:bg-brand-500/20 text-xs font-bold transition-colors"
-                                            >
-                                                <Phone size={14} />
-                                                <span>{siteSettings.support_phone}</span>
-                                            </a>
-                                        )}
-                                        {siteSettings.whatsapp_number && (
-                                            <a
-                                                href={`https://wa.me/${siteSettings.whatsapp_number.replace(/\D/g, '')}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20 text-xs font-bold transition-colors"
-                                            >
-                                                <MessageCircle size={14} />
-                                                <span>WhatsApp Support</span>
-                                            </a>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div>
-                                <button
-                                    type="button"
-                                    onClick={() => setSubmittedTicket(null)}
-                                    className="btn-secondary inline-flex items-center gap-2 text-xs font-bold py-2.5 px-6"
+                    <div className="space-y-2.5">
+                        {faqs.map(faq => {
+                            const isOpen = expandedFaq === faq.id;
+                            return (
+                                <div 
+                                    key={faq.id} 
+                                    className="card transition-all overflow-hidden border border-surface-border dark:border-surface-dark-border hover:border-gray-900/20 dark:hover:border-white/20"
                                 >
-                                    <RotateCcw size={14} />
-                                    <span>{t('submit_another_inquiry', 'Submit Another Inquiry')}</span>
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        /* Standard Form View */
-                        <>
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{t('contact_support_feedback', 'Contact Support & Give Feedback')}</h2>
-                            <p className="text-sm text-gray-500 mb-6">{t('contact_support_desc', 'Need assistance or have feedback? Send us a direct message and our team will get back to you promptly.')}</p>
-                            
-                            <form onSubmit={handleTicketSubmit} className="space-y-4">
-                                {/* Category Dropdown */}
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                        {t('what_are_you_contacting_us_about', 'What are you contacting us about?')}
-                                    </label>
-                                    <select
-                                        value={selectedCategory}
-                                        onChange={(e) => handleCategoryChange(e.target.value)}
-                                        className="input w-full font-medium"
+                                    <button
+                                        onClick={() => setExpandedFaq(isOpen ? null : faq.id)}
+                                        className="w-full px-4 py-3.5 flex items-center justify-between text-left transition select-none"
                                     >
-                                        {categories.map((cat) => (
-                                            <option key={cat.id} value={cat.id}>
-                                                {cat.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Guest Identification Fields */}
-                                {!isAuthenticated && (
-                                    <div className="space-y-3 pt-1">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{t('your_name', 'Your Name')} <span className="text-red-500">*</span></label>
-                                                <input
-                                                    required
-                                                    type="text"
-                                                    value={ticketForm.name}
-                                                    onChange={e => setTicketForm({...ticketForm, name: e.target.value})}
-                                                    className="input w-full"
-                                                    placeholder={t('enter_name_placeholder', 'e.g. Juma Ali')}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{t('your_email', 'Email Address')} <span className="text-red-500">*</span></label>
-                                                <input
-                                                    required
-                                                    type="email"
-                                                    value={ticketForm.email}
-                                                    onChange={e => setTicketForm({...ticketForm, email: e.target.value})}
-                                                    className="input w-full"
-                                                    placeholder={t('enter_email_placeholder', 'e.g. juma@example.com')}
-                                                />
-                                            </div>
+                                        <span className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-white leading-snug">
+                                            {faq.question}
+                                        </span>
+                                        <div className={`p-1 rounded-full text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-brand-500' : ''}`}>
+                                            <ChevronDown size={15} />
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{t('phone_number_optional', 'Phone / WhatsApp Number (Optional)')}</label>
-                                            <input
-                                                type="tel"
-                                                value={ticketForm.phone_number}
-                                                onChange={e => setTicketForm({...ticketForm, phone_number: e.target.value})}
-                                                className="input w-full"
-                                                placeholder="+255 7XX XXX XXX"
-                                            />
+                                    </button>
+                                    {isOpen && (
+                                        <div className="px-4 pb-4 pt-1 text-xs text-gray-600 dark:text-gray-300 leading-relaxed border-t border-surface-border dark:border-surface-dark-border/40 bg-surface-muted/20 dark:bg-[#111]/30 animate-fade-in">
+                                            {faq.answer}
                                         </div>
-                                    </div>
-                                )}
-
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{t('subject', 'Subject')} <span className="text-red-500">*</span></label>
-                                    <input
-                                        required
-                                        type="text"
-                                        value={ticketForm.subject}
-                                        onChange={e => setTicketForm({...ticketForm, subject: e.target.value})}
-                                        className="input w-full"
-                                        placeholder={t('describe_question_placeholder', 'Briefly describe your question or feedback...')}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{t('message', 'Message')} <span className="text-red-500">*</span></label>
-                                    <textarea
-                                        required
-                                        value={ticketForm.message}
-                                        onChange={e => setTicketForm({...ticketForm, message: e.target.value})}
-                                        className="input w-full resize-none h-32"
-                                        placeholder={t('provide_details_placeholder', 'Provide as much detail as possible...')}
-                                    ></textarea>
-                                </div>
-                                <button type="submit" disabled={submitting} className="btn-primary w-full flex items-center justify-center gap-2 font-bold py-3">
-                                    <Send size={16} />
-                                    {submitting ? t('sending', 'Sending...') : t('send_message_and_feedback', 'Send Message & Feedback')}
-                                </button>
-                            </form>
-                        </>
-                    )}
-
-                    {/* Support & Feedback History: Authenticated vs Guest */}
-                    <div className="mt-8 border-t border-gray-100 dark:border-gray-700 pt-6">
-                        {isAuthenticated ? (
-                            /* Authenticated View: User's History */
-                            <>
-                                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('your_support_and_feedback_history', 'Your Support & Feedback History')}</h2>
-                                <div className="space-y-4">
-                                    {userTickets.map(ticket => {
-                                        const isResolved = ticket.status === 'resolved' || ticket.status === 'closed';
-                                        const isInProgress = ticket.status === 'in_progress';
-                                        const isActive = activeTicket?.id === ticket.id;
-                                        
-                                        return (
-                                            <div key={ticket.id} className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 transition-all">
-                                                <div 
-                                                    className="flex justify-between items-start mb-2 cursor-pointer group"
-                                                    onClick={() => setActiveTicket(isActive ? null : ticket)}
-                                                >
-                                                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm group-hover:text-brand-500 transition-colors">{ticket.subject}</h3>
-                                                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0 ${
-                                                        isInProgress ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300' :
-                                                        isResolved ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300' :
-                                                        'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                                                    }`}>
-                                                        {isResolved ? <CheckCircle size={12} /> : <Clock size={12} />}
-                                                        <span>
-                                                            {isResolved ? t('status_resolved', 'Resolved') : isInProgress ? t('status_in_review', 'In Review') : t('status_received', 'Received')}
-                                                        </span>
-                                                    </span>
-                                                </div>
-                                                
-                                                {!isActive && (
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                                                        {ticket.messages && ticket.messages.length > 0 ? ticket.messages[ticket.messages.length - 1].body : (ticket.message || 'No messages yet.')}
-                                                    </p>
-                                                )}
-
-                                                {isActive && (
-                                                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
-                                                        <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-                                                            {ticket.messages?.map((msg: any) => {
-                                                                const isStaff = !!msg.is_internal || msg.sender_name === 'Staff' || (msg.sender && ticket.assigned_to && msg.sender === ticket.assigned_to);
-                                                                return (
-                                                                    <div key={msg.id} className={`flex flex-col ${isStaff ? 'items-start' : 'items-end'}`}>
-                                                                        <span className="text-xs text-gray-500 mb-1 font-bold">{isStaff ? t('support_team', 'Support Team') : t('you', 'You')}</span>
-                                                                        <div className={`p-3 rounded-xl max-w-[90%] text-sm ${
-                                                                            isStaff 
-                                                                                ? 'bg-brand-50 dark:bg-brand-950/40 border-l-4 border-brand-500 rounded-tl-none text-gray-800 dark:text-gray-200' 
-                                                                                : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-tr-none text-gray-700 dark:text-gray-300'
-                                                                        }`}>
-                                                                            {msg.body}
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                        
-                                                        {!isResolved && (
-                                                            <form onSubmit={(e) => handleTicketReply(e, ticket.id)} className="mt-4 flex gap-2">
-                                                                <input 
-                                                                    type="text" 
-                                                                    className="input flex-1" 
-                                                                    placeholder={t('type_a_reply', 'Type a reply...')} 
-                                                                    value={replyMessage}
-                                                                    onChange={e => setReplyMessage(e.target.value)}
-                                                                    required
-                                                                />
-                                                                <button type="submit" disabled={replying} className="btn-primary shrink-0 px-4">
-                                                                    {replying ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={16} />}
-                                                                </button>
-                                                            </form>
-                                                        )}
-                                                        {isResolved && (
-                                                            <p className="text-xs text-center text-gray-500 italic mt-2">{t('ticket_resolved_notice', 'This ticket is resolved. Please submit a new inquiry for further questions.')}</p>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                    {userTickets.length === 0 && (
-                                        <p className="text-sm text-gray-500 text-center py-3">{t('no_support_requests_yet', 'You haven\'t submitted any support requests or feedback yet.')}</p>
                                     )}
                                 </div>
-                            </>
-                        ) : (
-                            /* Guest Notice: Prompt Login for History Access */
-                            <div className="p-5 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-dashed border-gray-200 dark:border-gray-700 text-center space-y-3">
-                                <div className="w-10 h-10 bg-brand-500/10 text-brand-600 dark:text-brand-400 rounded-full flex items-center justify-center mx-auto">
-                                    <Lock size={18} />
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">
-                                        {t('track_inquiries_title', 'Want to track your ticket history?')}
-                                    </h4>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1">
-                                        {t('track_inquiries_desc', 'Sign in or create an account to view previous conversations, responses, and real-time status updates.')}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Link
-                                        to="/login?next=/help"
-                                        className="btn-primary inline-flex items-center gap-2 text-xs font-bold py-2 px-5"
-                                    >
-                                        {t('sign_in_to_view_history', 'Sign In to View History')}
-                                    </Link>
-                                </div>
+                            );
+                        })}
+                        {faqs.length === 0 && (
+                            <div className="card p-8 text-center text-xs text-gray-400">
+                                No FAQs matching "{searchQuery}"
                             </div>
                         )}
                     </div>
                 </div>
+
+                {/* Right Column: Support & Inquiries Console (6 cols on lg) */}
+                <div className="lg:col-span-6">
+                    <div className="card p-5 sm:p-6 border border-surface-border dark:border-surface-dark-border space-y-5">
+                        
+                        {/* Segmented Top Switcher */}
+                        <div className="flex bg-surface-muted dark:bg-[#161616] p-1 rounded-full border border-surface-border dark:border-surface-dark-border select-none">
+                            <button
+                                type="button"
+                                onClick={() => { setActiveTab('new'); setSubmittedTicket(null); }}
+                                className={`flex-1 py-1.5 px-3 rounded-full text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                                    activeTab === 'new'
+                                        ? 'bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white shadow-xs'
+                                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                                }`}
+                            >
+                                <Send size={13} />
+                                <span>Send Inquiry</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('history')}
+                                className={`flex-1 py-1.5 px-3 rounded-full text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                                    activeTab === 'history'
+                                        ? 'bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white shadow-xs'
+                                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                                }`}
+                            >
+                                <MessageSquare size={13} />
+                                <span>My Inquiries</span>
+                                {isAuthenticated && userTickets.length > 0 && (
+                                    <span className={`px-1.5 py-0.2 rounded-full text-3xs font-black ${
+                                        activeTab === 'history'
+                                            ? 'bg-brand-500 text-white'
+                                            : 'bg-surface-border dark:bg-[#262626] text-gray-600 dark:text-gray-400'
+                                    }`}>
+                                        {userTickets.length}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* TAB 1: SEND INQUIRY */}
+                        {activeTab === 'new' && (
+                            <div className="space-y-4 animate-fade-in">
+                                {submittedTicket ? (
+                                    /* Success State */
+                                    <div className="text-center space-y-5 py-6 animate-fade-in">
+                                        <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto ring-4 ring-emerald-500/10">
+                                            <Check className="w-6 h-6 stroke-[2.5]" />
+                                        </div>
+                                        <div className="space-y-1.5 max-w-sm mx-auto">
+                                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                                                Inquiry Submitted
+                                            </h3>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                                Registered under Ticket Reference <strong className="font-mono text-gray-900 dark:text-white">#{submittedTicket.id}</strong>. Our support operations team will review your inquiry shortly.
+                                            </p>
+                                        </div>
+
+                                        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
+                                            {isAuthenticated && (
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setActiveTab('history');
+                                                        setActiveTicket(submittedTicket);
+                                                        setSubmittedTicket(null);
+                                                    }}
+                                                    className="w-full sm:w-auto text-xs"
+                                                >
+                                                    View in My Inquiries
+                                                </Button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => setSubmittedTicket(null)}
+                                                className="btn-secondary w-full sm:w-auto text-xs py-2 px-4 inline-flex items-center justify-center gap-1.5"
+                                            >
+                                                <RotateCcw size={13} />
+                                                <span>Submit Another</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* Inquiry Form */
+                                    <form onSubmit={handleTicketSubmit} className="space-y-3.5">
+                                        <div>
+                                            <label className="block text-2xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                                Inquiry Topic
+                                            </label>
+                                            <select
+                                                value={selectedCategory}
+                                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                                className="input w-full py-2 text-xs font-medium"
+                                            >
+                                                {categories.map((cat) => (
+                                                    <option key={cat.id} value={cat.id}>
+                                                        {cat.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {!isAuthenticated && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-2xs font-bold text-gray-500 uppercase tracking-wider mb-1">Your Name *</label>
+                                                    <input
+                                                        required
+                                                        type="text"
+                                                        value={ticketForm.name}
+                                                        onChange={e => setTicketForm({...ticketForm, name: e.target.value})}
+                                                        className="input w-full py-2 text-xs"
+                                                        placeholder="e.g. Juma Ali"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-2xs font-bold text-gray-500 uppercase tracking-wider mb-1">Email Address *</label>
+                                                    <input
+                                                        required
+                                                        type="email"
+                                                        value={ticketForm.email}
+                                                        onChange={e => setTicketForm({...ticketForm, email: e.target.value})}
+                                                        className="input w-full py-2 text-xs"
+                                                        placeholder="e.g. juma@example.com"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <label className="block text-2xs font-bold text-gray-500 uppercase tracking-wider mb-1">Subject *</label>
+                                            <input
+                                                required
+                                                type="text"
+                                                value={ticketForm.subject}
+                                                onChange={e => setTicketForm({...ticketForm, subject: e.target.value})}
+                                                className="input w-full py-2 text-xs"
+                                                placeholder="Brief summary of your question or issue..."
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-2xs font-bold text-gray-500 uppercase tracking-wider mb-1">Detailed Message *</label>
+                                            <textarea
+                                                required
+                                                value={ticketForm.message}
+                                                onChange={e => setTicketForm({...ticketForm, message: e.target.value})}
+                                                className="input w-full py-2 text-xs resize-none h-28 leading-relaxed"
+                                                placeholder="Provide relevant order numbers, item details, or steps to help us resolve your inquiry faster..."
+                                            />
+                                        </div>
+
+                                        <Button
+                                            type="submit"
+                                            disabled={submitting}
+                                            className="w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5"
+                                        >
+                                            <Send size={13} />
+                                            {submitting ? 'Sending Message...' : 'Send Message & Feedback'}
+                                        </Button>
+                                    </form>
+                                )}
+                            </div>
+                        )}
+
+                        {/* TAB 2: MY INQUIRIES */}
+                        {activeTab === 'history' && (
+                            <div className="space-y-4 animate-fade-in">
+                                {!isAuthenticated ? (
+                                    /* Guest Notice */
+                                    <div className="p-6 rounded-card bg-surface-muted/40 dark:bg-[#141414] border border-dashed border-surface-border dark:border-surface-dark-border text-center space-y-3">
+                                        <div className="w-10 h-10 bg-brand-500/10 text-brand-600 dark:text-brand-400 rounded-full flex items-center justify-center mx-auto">
+                                            <Lock size={16} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-900 dark:text-white">Sign In to Track Inquiries</h4>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-xs mx-auto">
+                                                View your ongoing conversations, staff replies, and resolution statuses.
+                                            </p>
+                                        </div>
+                                        <div className="pt-1">
+                                            <Link
+                                                to="/login?next=/help"
+                                                className="btn-primary inline-flex items-center gap-1.5 text-xs font-bold py-2 px-4"
+                                            >
+                                                Sign In Now
+                                            </Link>
+                                        </div>
+                                    </div>
+                                ) : activeTicket ? (
+                                    /* Active Ticket Conversation Thread View */
+                                    <div className="space-y-3 animate-fade-in">
+                                        <div className="flex items-center justify-between pb-3 border-b border-surface-border dark:border-surface-dark-border">
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveTicket(null)}
+                                                className="btn-ghost p-1 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-1 text-xs"
+                                            >
+                                                <ArrowLeft size={14} /> Back
+                                            </button>
+                                            <span className={`text-3xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 ${
+                                                activeTicket.status === 'resolved' || activeTicket.status === 'closed'
+                                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                                    : activeTicket.status === 'in_progress'
+                                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                                    : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                                            }`}>
+                                                {activeTicket.status === 'resolved' || activeTicket.status === 'closed' ? <CheckCircle size={10} /> : <Clock size={10} />}
+                                                <span className="capitalize">{activeTicket.status?.replace(/_/g, ' ') || 'Received'}</span>
+                                            </span>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="text-xs font-bold text-gray-900 dark:text-white leading-tight">{activeTicket.subject}</h4>
+                                            <p className="text-3xs text-gray-400 mt-0.5">Ticket #{activeTicket.id}</p>
+                                        </div>
+
+                                        {/* Messages Thread */}
+                                        <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                                            {activeTicket.messages?.map((msg: any) => {
+                                                const isStaff = !!msg.is_internal || msg.sender_name === 'Staff' || (msg.sender && activeTicket.assigned_to && msg.sender === activeTicket.assigned_to);
+                                                return (
+                                                    <div key={msg.id} className={`flex flex-col ${isStaff ? 'items-start' : 'items-end'}`}>
+                                                        <span className="text-3xs text-gray-400 font-semibold mb-0.5">
+                                                            {isStaff ? 'Support Team' : 'You'}
+                                                        </span>
+                                                        <div className={`p-3 rounded-card text-xs max-w-[88%] leading-relaxed ${
+                                                            isStaff 
+                                                                ? 'bg-brand-500/10 border border-brand-500/20 text-gray-900 dark:text-gray-100 rounded-tl-xs' 
+                                                                : 'bg-surface-muted dark:bg-[#1a1a1a] border border-surface-border dark:border-surface-dark-border text-gray-800 dark:text-gray-200 rounded-tr-xs'
+                                                        }`}>
+                                                            {msg.body}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Reply Composer */}
+                                        {activeTicket.status !== 'resolved' && activeTicket.status !== 'closed' ? (
+                                            <form onSubmit={(e) => handleTicketReply(e, activeTicket.id)} className="flex gap-2 pt-2 border-t border-surface-border dark:border-surface-dark-border">
+                                                <input 
+                                                    type="text" 
+                                                    className="input flex-1 py-1.5 text-xs" 
+                                                    placeholder="Type your response..." 
+                                                    value={replyMessage}
+                                                    onChange={e => setReplyMessage(e.target.value)}
+                                                    required
+                                                />
+                                                <Button type="submit" disabled={replying} size="sm" className="px-3 text-xs">
+                                                    <Send size={13} />
+                                                </Button>
+                                            </form>
+                                        ) : (
+                                            <p className="text-3xs text-center text-gray-400 italic pt-2 border-t border-surface-border dark:border-surface-dark-border">
+                                                This inquiry is resolved. Please submit a new inquiry if you have further questions.
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    /* Inquiries List View */
+                                    <div className="space-y-3 animate-fade-in">
+                                        <div className="relative">
+                                            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                            <input
+                                                type="text"
+                                                placeholder="Search past inquiries..."
+                                                value={ticketSearch}
+                                                onChange={(e) => setTicketSearch(e.target.value)}
+                                                className="input pl-8 py-1.5 text-xs w-full"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                            {filteredTickets.map(ticket => {
+                                                const isResolved = ticket.status === 'resolved' || ticket.status === 'closed';
+                                                const isInProgress = ticket.status === 'in_progress';
+                                                const latestMsg = ticket.messages && ticket.messages.length > 0 ? ticket.messages[ticket.messages.length - 1].body : (ticket.message || '');
+                                                
+                                                return (
+                                                    <div 
+                                                        key={ticket.id} 
+                                                        onClick={() => setActiveTicket(ticket)}
+                                                        className="p-3 rounded-btn bg-surface-muted/30 dark:bg-[#121212] border border-surface-border dark:border-surface-dark-border hover:border-gray-900/20 dark:hover:border-white/20 transition cursor-pointer space-y-1 select-none"
+                                                    >
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <h4 className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                                                                {ticket.subject}
+                                                            </h4>
+                                                            <span className={`text-3xs px-2 py-0.2 rounded-full font-bold shrink-0 ${
+                                                                isResolved
+                                                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                                                    : isInProgress
+                                                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                                                    : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                                            }`}>
+                                                                {isResolved ? 'Resolved' : isInProgress ? 'In Review' : 'Received'}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-2xs text-gray-500 dark:text-gray-400 truncate">
+                                                            {latestMsg}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {filteredTickets.length === 0 && (
+                                                <div className="py-8 text-center text-xs text-gray-400">
+                                                    {ticketSearch ? 'No inquiries matching your search.' : 'You have no submitted inquiries.'}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
             </div>
         </div>
     );

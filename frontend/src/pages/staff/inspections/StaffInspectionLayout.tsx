@@ -13,6 +13,14 @@ import {
   STATUS_LABELS, STATUS_COLORS, VERDICT_COLORS,
   fmtDate, fmtMoney,
 } from '../../../types/inspection';
+import { KpiCard } from '../../../components/ui/KpiCard';
+import {
+  PageHeaderSkeleton,
+  KpiGridSkeleton,
+  TableSkeleton,
+  CardListSkeleton,
+  CardGridSkeleton
+} from '../../../components/Skeleton';
 
 const Spinner = () => (
   <div className="flex justify-center py-16">
@@ -47,7 +55,15 @@ const StaffInspectionDashboard: React.FC<{ hasPerm?: boolean }> = ({ hasPerm = t
       .finally(() => setLoading(false));
   }, [hasPerm]);
 
-  if (loading) return <Spinner />;
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <PageHeaderSkeleton />
+        <KpiGridSkeleton count={4} cols={4} />
+        <CardGridSkeleton count={6} cols={3} />
+      </div>
+    );
+  }
 
   if (!hasPerm) {
     return (
@@ -65,10 +81,10 @@ const StaffInspectionDashboard: React.FC<{ hasPerm?: boolean }> = ({ hasPerm = t
   }
 
   const statCards = [
-    { label: 'Total Requests', val: stats?.total || 0, color: 'text-brand-500', bg: ' ' },
-    { label: 'Pending QA', val: stats?.pending_qa || 0, color: 'text-purple-500', bg: ' ' },
-    { label: 'Fraud Flags', val: stats?.fraud_flags || 0, color: 'text-red-500', bg: ' ' },
-    { label: 'SLA Breaches', val: stats?.sla_breaches || 0, color: 'text-orange-500', bg: ' ' },
+    { label: 'Total Requests', val: stats?.total || 0, icon: LayoutDashboard },
+    { label: 'Pending QA', val: stats?.pending_qa || 0, icon: CheckCircle2, color: '#a855f7' },
+    { label: 'Fraud Flags', val: stats?.fraud_flags || 0, icon: AlertTriangle, color: '#ef4444' },
+    { label: 'SLA Breaches', val: stats?.sla_breaches || 0, icon: Clock, color: '#f97316' },
   ];
 
   const statusRows = Object.entries(stats?.by_status || {}).filter(([, v]) => (v as number) > 0);
@@ -77,12 +93,15 @@ const StaffInspectionDashboard: React.FC<{ hasPerm?: boolean }> = ({ hasPerm = t
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-900 dark:text-white">Inspection Overview</h2>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         {statCards.map((c) => (
-          <div key={c.label} className={`rounded-xl border border-surface-border dark:border-surface-dark-border p-4 ${c.bg}`}>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{c.label}</p>
-            <p className={`text-3xl font-bold ${c.color}`}>{c.val}</p>
-          </div>
+          <KpiCard
+            key={c.label}
+            label={c.label}
+            value={c.val}
+            icon={c.icon}
+            color={c.color}
+          />
         ))}
       </div>
 
@@ -145,7 +164,7 @@ const AllRequests: React.FC = () => {
     return matchesStatus && matchesSearch;
   });
 
-  if (loading) return <Spinner />;
+  if (loading) return <TableSkeleton rows={6} cols={6} />;
 
   return (
     <div className="space-y-4">
@@ -840,7 +859,7 @@ const DispatcherQueue: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Spinner />;
+  if (loading) return <CardListSkeleton count={4} />;
 
   return (
     <div className="space-y-4">
@@ -893,7 +912,7 @@ const QAQueue: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Spinner />;
+  if (loading) return <CardListSkeleton count={4} />;
 
   return (
     <div className="space-y-4">
@@ -1016,7 +1035,7 @@ const PaymentApprovals: React.FC = () => {
     } catch { toast.error('Failed to reject'); }
   };
 
-  if (loading && payments.length === 0) return <Spinner />;
+  if (loading && payments.length === 0) return <CardGridSkeleton count={6} cols={3} />;
 
   return (
     <div className="space-y-4">
@@ -1150,7 +1169,7 @@ const FraudFlagsPanel: React.FC = () => {
     } catch { toast.error('Failed to resolve'); }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return <CardListSkeleton count={4} />;
 
   const unresolved = flags.filter((f) => !f.resolved);
   const resolved = flags.filter((f) => f.resolved);
@@ -1214,7 +1233,7 @@ const InspectorPerformance: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Spinner />;
+  if (loading) return <CardGridSkeleton count={6} cols={3} />;
 
   return (
     <div className="space-y-4">

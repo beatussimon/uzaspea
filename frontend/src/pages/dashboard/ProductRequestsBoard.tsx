@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Clock, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, CheckCircle2, Printer, DollarSign, Edit } from 'lucide-react';
+import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { Spinner } from '../../components/ui/Spinner';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
@@ -12,6 +11,11 @@ import { useAuth } from '../../context/AuthContext';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
+import { KpiCard } from '../../components/ui/KpiCard';
+import {
+  KpiGridSkeleton,
+  CardGridSkeleton
+} from '../../components/Skeleton';
 
 const formatCompactCurrency = (num: number, currency = 'TSh') => {
   if (!num) return `${currency} 0`;
@@ -243,14 +247,6 @@ const ProductRequestsBoard: React.FC = () => {
     return null;
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-[400px] items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 print:m-0 print:space-y-0">
       <div className="print:hidden space-y-6">
@@ -282,7 +278,12 @@ const ProductRequestsBoard: React.FC = () => {
           </div>
         </header>
 
-        {requests.length === 0 ? (
+        {loading && requests.length === 0 ? (
+          <div className="space-y-6">
+            <KpiGridSkeleton count={4} cols={4} />
+            <CardGridSkeleton count={2} cols={2} />
+          </div>
+        ) : requests.length === 0 ? (
           <EmptyState
             icon={Lightbulb}
             title={t('no_requests', 'No Requests Yet')}
@@ -291,77 +292,40 @@ const ProductRequestsBoard: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <div className="card p-4 flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Active Cards</span>
-                  <div className="p-2 rounded-btn bg-blue-500/10 text-blue-500">
-                    <Package size={16} />
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <p className="text-xl font-extrabold text-gray-900 dark:text-white">{totalRequests}</p>
-                </div>
-              </div>
-
-              <div className="card p-4 flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Total Demand</span>
-                  <div className="p-2 rounded-btn bg-brand-500/10 text-brand-500">
-                    <Users size={16} />
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <p className="text-xl font-extrabold text-gray-900 dark:text-white">
-                    {totalVotes} <span className="text-2xs font-normal text-gray-400">votes</span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="card p-4 flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Top Trending</span>
-                  <div className="p-2 rounded-btn bg-amber-500/10 text-amber-500">
-                    <TrendingUp size={16} />
-                  </div>
-                </div>
-                <div className="mt-2 overflow-hidden">
-                  <p className="text-sm font-extrabold text-gray-900 dark:text-white truncate">
-                    {topRequested?.name || 'N/A'}
-                  </p>
-                  <p className="text-2xs text-amber-500 font-bold">
-                    {topRequested?.request_count || 0} votes
-                  </p>
-                </div>
-              </div>
-
-              <div className="card p-4 flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Missed Cost</span>
-                  <div className="p-2 rounded-btn bg-emerald-500/10 text-emerald-500">
-                    <DollarSign size={16} />
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <p className="text-xl font-extrabold text-emerald-500">
-                    {formatCompactCurrency(totalMissedCost)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="card p-4 flex flex-col justify-between col-span-2 md:col-span-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xs font-bold uppercase tracking-wider text-gray-400">Potential Profit</span>
-                  <div className="p-2 rounded-btn bg-purple-500/10 text-purple-500">
-                    <TrendingUp size={16} />
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <p className="text-xl font-extrabold text-purple-500">
-                    {formatCompactCurrency(potentialProfit)}
-                  </p>
-                </div>
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+              <KpiCard
+                label="Active Cards"
+                value={totalRequests}
+                icon={Package}
+              />
+              <KpiCard
+                label="Total Demand"
+                value={totalVotes}
+                sub="votes"
+                icon={Users}
+              />
+              <KpiCard
+                label="Top Trending"
+                value={topRequested?.name || 'N/A'}
+                sub={topRequested ? `${topRequested.request_count} votes` : undefined}
+                icon={TrendingUp}
+                color="#f59e0b"
+              />
+              <KpiCard
+                label="Missed Cost"
+                value={formatCompactCurrency(totalMissedCost)}
+                fullValue={`TZS ${totalMissedCost.toLocaleString()}`}
+                icon={DollarSign}
+                color="#10b981"
+              />
+              <KpiCard
+                label="Potential Profit"
+                value={formatCompactCurrency(potentialProfit)}
+                fullValue={`TZS ${potentialProfit.toLocaleString()}`}
+                icon={TrendingUp}
+                color="#a855f7"
+                className="col-span-2 md:col-span-1"
+              />
             </div>
 
             {/* Chart Section */}
@@ -462,12 +426,14 @@ const ProductRequestsBoard: React.FC = () => {
                         </td>
                         <td className="p-3 align-middle">
                           {req.is_fulfilled ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-500 text-2xs font-bold">
-                              <CheckCircle2 size={12} /> In Inventory
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 capitalize">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              In Inventory
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-amber-500 text-2xs font-bold">
-                              <Clock size={12} /> Gathering Demand
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 capitalize">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              Gathering Demand
                             </span>
                           )}
                         </td>

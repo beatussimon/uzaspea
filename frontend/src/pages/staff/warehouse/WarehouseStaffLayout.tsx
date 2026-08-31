@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import api from '../../../api';
 import toast from 'react-hot-toast';
 import { 
-  Package, CheckCircle, Clock, Truck, QrCode, X, Activity, Camera, PenTool, ShieldCheck, Key, MapPin, Zap,
-  RefreshCw
+  Package, Truck, QrCode, X, 
+  Search, RefreshCw
 } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Html5Qrcode } from 'html5-qrcode';
-import { useOrderTracking } from '../../../hooks/useOrderTracking';
+import { Spinner } from '../../../components/ui/Spinner';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { Button } from '../../../components/ui/Button';
+import { CardGridSkeleton } from '../../../components/Skeleton';
 
 interface Warehouse {
   id: number | string;
@@ -49,7 +50,9 @@ interface Transfer {
 
 interface Driver {
   id: number | string;
-  name: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
   [key: string]: any;
 }
 
@@ -66,51 +69,45 @@ const WarehouseStaffLayout: React.FC = () => {
   const [incomingTransfers, setIncomingTransfers] = useState<Transfer[]>([]);
   const [outgoingTransfers, setOutgoingTransfers] = useState<Transfer[]>([]);
 
-  // Smart Filters
-  const [queueFilter, setQueueFilter] = useState<'all' | 'origin' | 'destination'>('all');
-  const [activeTab, setActiveTab] = useState<'line_haul' | 'local_logistics'>('line_haul');
+  // Navigation & Filtering
+  const [activeTab, setActiveTab] = useState<'local' | 'transfers'>('local');
+  const [queueFilter, setQueueFilter] = useState<string>('pending_intake');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Smart Scan
-  const [scanQuery, setScanQuery] = useState('');
-  const [scanning, setScanning] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
-  const scanInputRef = useRef<HTMLInputElement>(null);
+  // Modals & Forms
+  const [activeModal, setActiveModal] = useState<'intake' | 'pricing' | 'dispatch' | 'pickup' | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // Modals & Context
-  const [activeModal, setActiveModal] = useState<'intake' | 'origin_intake' | 'destination_intake' | 'last_mile_sorting' | 'pricing' | 'dispatch' | 'pickup' | 'verify' | 'confirm_delivery' | null>(null);
-  const [orderPreview, setOrderPreview] = useState<Order | null>(null);
-
-  // Intake Form State
+  // Intake State
   const [condition, setCondition] = useState('good');
-  const [notes, setNotes] = useState('');
+  const [intakeNotes, setIntakeNotes] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [requireSignatures, setRequireSignatures] = useState(true);
   const sellerSigRef = useRef<SignatureCanvas>(null);
   const staffSigRef = useRef<SignatureCanvas>(null);
 
-  // Pricing Form State
+  // Pricing State
   const [deliveryFee, setDeliveryFee] = useState('');
   const [destinationWarehouseCode, setDestinationWarehouseCode] = useState('');
   const [suggestedFee, setSuggestedFee] = useState<number | null>(null);
-  const [feeDataPoints, setFeeDataPoints] = useState(0);
 
-  // Pickup Form State
+  // Pickup State
   const [pickupCode, setPickupCode] = useState('');
-  const [deliveryCodeInput, setDeliveryCodeInput] = useState('');
 
-  // Dispatch Form State
+  // Dispatch State
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [carrierType, setCarrierType] = useState<'driver' | 'third_party'>('driver');
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
-  const [thirdPartyDriverInfo, setThirdPartyDriverInfo] = useState('');
   const [estimatedDelivery, setEstimatedDelivery] = useState('');
 
+  // Quick Scanner
+  const [scanCode, setScanCode] = useState('');
+  const [scanning, setScanning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Initialize
+  // Load Warehouses & Drivers
   useEffect(() => {
     api.get('/api/warehouses/warehouses/')
       .then(res => {
@@ -128,34 +125,30 @@ const WarehouseStaffLayout: React.FC = () => {
       .catch(() => toast.error('Failed to load warehouses list'));
 
     api.get('/api/logistics/shipments/drivers/')
-      .then(res => {
-        setDrivers(res.data.results || res.data || []);
-      })
+      .then(res => setDrivers(res.data.results || res.data || []))
       .catch(() => toast.error('Failed to load drivers list'));
   }, []);
 
+  // Fetch suggested delivery fee
   useEffect(() => {
     if (activeModal === 'pricing' && destinationWarehouseCode && selectedWarehouseId) {
       api.get(`/api/warehouses/warehouses/${selectedWarehouseId}/suggested-fee/?destination_warehouse=${destinationWarehouseCode}`)
         .then(res => {
           if (res.data.suggested_fee) {
             setSuggestedFee(res.data.suggested_fee);
-            setFeeDataPoints(res.data.data_points);
             setDeliveryFee(res.data.suggested_fee.toString());
           } else {
             setSuggestedFee(null);
-            setFeeDataPoints(0);
             setDeliveryFee('');
           }
         })
         .catch(() => {
           setSuggestedFee(null);
-          setFeeDataPoints(0);
         });
     }
   }, [destinationWarehouseCode, activeModal, selectedWarehouseId]);
 
-  // Fetch all queues
+  // Fetch all queues for selected warehouse
   const fetchAllQueues = async (whId: string) => {
     if (!whId) return;
     setLoading(true);
@@ -184,8 +177,8 @@ const WarehouseStaffLayout: React.FC = () => {
         (t: Transfer) => t.source_warehouse?.toString() === whId
       );
       setOutgoingTransfers(outgoing);
-    } catch (err) {
-      toast.error('Failed to sync warehouse data');
+    } catch {
+      toast.error('Failed to sync warehouse inventory queues');
     } finally {
       setLoading(false);
     }
@@ -195,1273 +188,697 @@ const WarehouseStaffLayout: React.FC = () => {
     if (selectedWarehouseId) {
       localStorage.setItem('sokonimax_warehouse_id', selectedWarehouseId);
       fetchAllQueues(selectedWarehouseId);
-      const interval = setInterval(() => fetchAllQueues(selectedWarehouseId), 30000);
-      return () => clearInterval(interval);
     }
   }, [selectedWarehouseId]);
 
-  const currentWh = warehouses.find(w => w.id.toString() === selectedWarehouseId);
-  useOrderTracking(currentWh?.code ? `warehouse_${currentWh.code}` : null, () => {
-    if (selectedWarehouseId) fetchAllQueues(selectedWarehouseId);
-  });
-
-  const applyFilter = (list: Order[]) => {
-    if (queueFilter === 'all') return list;
-    return list.filter(order => {
-      const isDestination = order.delivery_info?.destination_warehouse_code === currentWh?.code;
-      if (queueFilter === 'destination') return isDestination;
-      return !isDestination;
-    });
-  };
-
-  // Handle Smart Scan
-  const processScan = async (queryText: string) => {
-    if (!queryText.trim()) return;
-    setScanning(true);
-    try {
-      const cleanQuery = queryText.trim();
-      const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${encodeURIComponent(cleanQuery)}`);
-      const order = res.data;
-      setOrderPreview(order);
-      if (order.delivery_info?.destination_warehouse_code) {
-        setDestinationWarehouseCode(order.delivery_info.destination_warehouse_code);
-      }
-      setScanQuery('');
-      scanInputRef.current?.blur();
-
-      switch (order.status) {
-        case 'SHIPPED_TO_WAREHOUSE':
-        case 'PAID':
-        case 'SELLER_CONFIRMED':
-        case 'PREPARING':
-        case 'PACKAGING':
-        case 'PROCESSING':
-          setActiveModal('origin_intake');
-          break;
-        case 'RECEIVED_AT_WAREHOUSE':
-          setActiveModal('pricing');
-          break;
-        case 'AWAITING_DELIVERY_PAYMENT':
-        case 'PENDING_DELIVERY_VERIFICATION':
-          setActiveModal('verify');
-          break;
-        case 'ASSIGNED_TRANSPORT':
-        case 'READY_FOR_TRANSIT':
-          setActiveModal('dispatch');
-          break;
-        case 'IN_TRANSIT':
-          setActiveModal('destination_intake');
-          break;
-        case 'ARRIVED_AT_REGIONAL_WAREHOUSE':
-          setActiveModal('last_mile_sorting');
-          break;
-        case 'READY_FOR_PICKUP':
-        case 'READY_FOR_VEHICLE_HANDOVER':
-          setActiveModal('pickup');
-          break;
-        case 'FAILED_DELIVERY':
-        case 'RETURNED_TO_WAREHOUSE':
-          setActiveModal('destination_intake');
-          break;
-        default:
-          toast.success(`Order #${order.id} loaded (${order.status.replace(/_/g, ' ')})`);
-      }
-    } catch (err: any | unknown) {
-      toast.error(err.response?.data?.error || 'Order not found or invalid barcode.');
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  const handleSmartScan = async (e: React.FormEvent) => {
+  // Quick Scan handler
+  const handleScanLookup = async (e: React.FormEvent) => {
     e.preventDefault();
-    await processScan(scanQuery);
-  };
-
-  useEffect(() => {
-    let html5QrCode: Html5Qrcode | null = null;
-    let isMounted = true;
-    let scanTimeout: ReturnType<typeof setTimeout>;
-
-    if (showScanner) {
-      scanTimeout = setTimeout(() => {
-        if (!isMounted) return;
-        try {
-          html5QrCode = new Html5Qrcode("reader");
-          html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            (decodedText) => {
-              if (html5QrCode) {
-                html5QrCode.stop().then(() => { html5QrCode?.clear(); }).catch(() => {});
-              }
-              setShowScanner(false);
-              setScanQuery(decodedText);
-              processScan(decodedText);
-            },
-            () => { /* ignore frame errors */ }
-          ).catch((err) => {
-            console.error("Camera access failed", err);
-            toast.error("Could not access camera. Please check permissions.");
-            setShowScanner(false);
-          });
-        } catch(e) {
-          console.error("Scanner init error", e);
-        }
-      }, 300); // Wait for modal to render
-    }
-
-    return () => {
-      isMounted = false;
-      clearTimeout(scanTimeout);
-      if (html5QrCode) {
-        html5QrCode.stop().then(() => html5QrCode?.clear()).catch(() => {});
-      }
-    };
-  }, [showScanner]);
-
-  const handleActionClick = async (orderId: string, actionType: string) => {
+    if (!scanCode.trim()) return;
     setScanning(true);
     try {
-      const res = await api.get(`/api/warehouses/intakes/preview-order/?order_id=${encodeURIComponent(orderId)}`);
+      const res = await api.get(`/api/warehouses/warehouses/scan_order/?query=${encodeURIComponent(scanCode.trim())}`);
       const order = res.data;
-      setOrderPreview(order);
-      if (order.delivery_info?.destination_warehouse_code) {
-        setDestinationWarehouseCode(order.delivery_info.destination_warehouse_code);
-      }
-      if (actionType === 'intake') {
-        if (order.status === 'SHIPPED_TO_WAREHOUSE') setActiveModal('origin_intake');
-        else if (order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE') setActiveModal('last_mile_sorting');
-        else if (order.status === 'IN_TRANSIT' || order.status === 'FAILED_DELIVERY') setActiveModal('destination_intake');
-        else setActiveModal('origin_intake');
+      if (order && order.id) {
+        setSelectedOrder(order);
+        toast.success(`Found Order #${order.id}`);
+        if (order.status === 'confirmed' || order.status === 'processing') {
+          setActiveModal('intake');
+        } else if (order.status === 'received_at_warehouse') {
+          setActiveModal('pricing');
+        } else if (order.status === 'ready_for_pickup') {
+          setActiveModal('pickup');
+        } else {
+          setActiveModal('dispatch');
+        }
       } else {
-        setActiveModal(actionType as typeof activeModal);
+        toast.error('Order not found with that tracking code');
       }
     } catch {
-      toast.error('Failed to load order details');
+      toast.error('Scan lookup failed. Please verify code.');
     } finally {
       setScanning(false);
+      setScanCode('');
     }
   };
 
-  // Intake Submission
-  const submitIntake = async () => {
-    if (requireSignatures && (sellerSigRef.current?.isEmpty() || staffSigRef.current?.isEmpty())) {
-      toast.error('Both signatures are required for handover custody.');
-      return;
-    }
+  // Submit Intake
+  const handleSubmitIntake = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrder) return;
     setSubmitting(true);
-    const formData = new FormData();
-    formData.append('warehouse', selectedWarehouseId);
-    if (!orderPreview) return;
-    formData.append('order', orderPreview.id.toString());
-    formData.append('package_condition', condition);
-    formData.append('notes', notes || (requireSignatures ? '' : 'Intake check-in (Signatures bypassed)'));
-    formData.append('seller_signature', requireSignatures ? sellerSigRef.current?.toDataURL() || '' : '');
-    formData.append('staff_signature', requireSignatures ? staffSigRef.current?.toDataURL() || '' : '');
-    if (photo) formData.append('photo', photo);
-
     try {
-      await api.post('/api/warehouses/intakes/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(`Order #${orderPreview.id} securely checked into warehouse!`);
-      closeModal();
+      const formData = new FormData();
+      formData.append('order_id', selectedOrder.id.toString());
+      formData.append('condition', condition);
+      formData.append('notes', intakeNotes);
+      if (photo) formData.append('package_photo', photo);
+
+      if (sellerSigRef.current && !sellerSigRef.current.isEmpty()) {
+        const sellerSig = sellerSigRef.current.getTrimmedCanvas().toDataURL('image/png');
+        formData.append('seller_signature', sellerSig);
+      }
+      if (staffSigRef.current && !staffSigRef.current.isEmpty()) {
+        const staffSig = staffSigRef.current.getTrimmedCanvas().toDataURL('image/png');
+        formData.append('staff_signature', staffSig);
+      }
+
+      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/intake/`, formData);
+      toast.success('Package intake recorded successfully!');
+      setActiveModal(null);
+      setSelectedOrder(null);
       fetchAllQueues(selectedWarehouseId);
-    } catch (err: any | unknown) {
-      toast.error(err.response?.data?.detail || err.response?.data?.error || 'Failed to record intake.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Intake recording failed');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Pricing Submission
-  const submitPricing = async () => {
-    if (!destinationWarehouseCode) {
-      toast.error('Please select a destination warehouse.');
-      return;
-    }
-    if (!deliveryFee || isNaN(Number(deliveryFee))) {
-      toast.error('Please enter a valid amount.');
-      return;
-    }
+  // Submit Pricing
+  const handleSubmitPricing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrder) return;
     setSubmitting(true);
-    if (!orderPreview) return;
     try {
-      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/set-delivery-fee/`, {
-        order_id: orderPreview.id,
-        fee: Number(deliveryFee),
-        destination_warehouse: destinationWarehouseCode
+      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/set-pricing/`, {
+        order_id: selectedOrder.id,
+        delivery_fee: deliveryFee,
+        destination_warehouse_code: destinationWarehouseCode
       });
-      toast.success('Delivery fee confirmed!');
-      closeModal();
+      toast.success('Delivery fee updated!');
+      setActiveModal(null);
+      setSelectedOrder(null);
       fetchAllQueues(selectedWarehouseId);
-    } catch (err: any | unknown) {
-      toast.error(err.response?.data?.error || 'Failed to set fee.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to set pricing');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Dispatch Submission
-  const submitDispatch = async () => {
+  // Submit Dispatch
+  const handleSubmitDispatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrder) return;
     setSubmitting(true);
-    if (!orderPreview) return;
     try {
-      // 1. Check if shipment already exists for this order, or create it
-      const shipRes = await api.get(`/api/logistics/shipments/?order=${orderPreview.id}`);
-      const shipmentsList = shipRes.data.results || shipRes.data || [];
-      const existingShipment = shipmentsList[0];
-
-      const driverId = carrierType === 'driver' && selectedDriverId ? parseInt(selectedDriverId) : null;
-      const shipmentData: Record<string, unknown> = {
-        order: orderPreview.id,
+      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/dispatch/`, {
+        order_id: selectedOrder.id,
         carrier_type: carrierType,
-        driver: driverId,
+        driver_id: carrierType === 'driver' && selectedDriverId ? parseInt(selectedDriverId) : null,
         tracking_number: trackingNumber,
-        estimated_delivery: estimatedDelivery ? new Date(estimatedDelivery).toISOString() : null,
-      };
-
-      if (carrierType === 'third_party') {
-        shipmentData.third_party_driver_info = thirdPartyDriverInfo;
-      }
-
-      if (existingShipment) {
-        await api.patch(`/api/logistics/shipments/${existingShipment.id}/`, shipmentData);
-      } else {
-        await api.post(`/api/logistics/shipments/`, shipmentData);
-      }
-
-      // 2. Call dispatch-order in warehouses ViewSet
-      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/dispatch-order/`, {
-        order_id: orderPreview.id
+        estimated_delivery: estimatedDelivery ? new Date(estimatedDelivery).toISOString() : null
       });
-      toast.success('Order dispatched successfully with carrier details!');
-      closeModal();
+      toast.success('Order dispatched successfully!');
+      setActiveModal(null);
+      setSelectedOrder(null);
       fetchAllQueues(selectedWarehouseId);
-    } catch (err: any | unknown) {
-      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Failed to dispatch order.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Dispatch failed');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Verify Submission
-  const submitVerify = async (status: string) => {
-    setSubmitting(true);
-    if (!orderPreview) return;
-    try {
-      const formData = new FormData();
-      formData.append('status', status);
-      formData.append('notes', 'Payment verified by warehouse staff.');
-      
-      await api.post(`/api/orders/${orderPreview.id}/advance/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      toast.success(status === 'ASSIGNED_TRANSPORT' ? 'Payment verified and assigned to transport!' : 'Payment rejected, customer notified.');
-      closeModal();
-      if (selectedWarehouseId) fetchAllQueues(selectedWarehouseId);
-    } catch (err: any | unknown) {
-      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Failed to verify payment');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Pickup Submission
-  const submitPickup = async () => {
-    if (!pickupCode || pickupCode.length !== 6) {
-      toast.error('Please enter 6-digit code.');
-      return;
-    }
+  // Submit Customer Pickup
+  const handleSubmitPickup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrder) return;
     setSubmitting(true);
     try {
-      await api.post('/api/warehouses/pickup/verify/', { code: pickupCode });
-      toast.success(`Order released successfully!`);
-      closeModal();
-      fetchAllQueues(selectedWarehouseId);
-    } catch (err: any | unknown) {
-      toast.error(err.response?.data?.error || 'Verification failed.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Confirm Last-Mile Delivery by Code
-  const submitConfirmDelivery = async () => {
-    if (!deliveryCodeInput || deliveryCodeInput.trim().length < 4) {
-      toast.error('Please enter the delivery code provided by the recipient.');
-      return;
-    }
-    setSubmitting(true);
-    if (!orderPreview) return;
-    try {
-      const formData = new FormData();
-      formData.append('delivery_code', deliveryCodeInput.trim());
-      formData.append('status', 'DELIVERED');
-      await api.post(`/api/orders/${orderPreview.id}/advance/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      await api.post(`/api/warehouses/warehouses/${selectedWarehouseId}/confirm-pickup/`, {
+        order_id: selectedOrder.id,
+        pickup_code: pickupCode
       });
-      toast.success('Delivery confirmed! Order marked as DELIVERED.');
-      closeModal();
+      toast.success('Customer pickup confirmed!');
+      setActiveModal(null);
+      setSelectedOrder(null);
       fetchAllQueues(selectedWarehouseId);
-    } catch (err: any | unknown) {
-      const msg = err.response?.data?.error || err.response?.data?.detail || 'Code verification failed. Check the code and try again.';
-      toast.error(msg);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Pickup verification failed');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const closeModal = () => {
-    setActiveModal(null);
-    setOrderPreview(null);
-    setCondition('good');
-    setNotes('');
-    setPhoto(null);
-    setPhotoPreview(null);
-    setDeliveryFee('');
-    setDestinationWarehouseCode('');
-    setPickupCode('');
-    setDeliveryCodeInput('');
-  };
+  // Filter queue items
+  const activeOrders = useMemo(() => {
+    let list: Order[] = [];
+    if (queueFilter === 'pending_intake') list = pendingIntakes;
+    else if (queueFilter === 'received') list = receivedIntakes;
+    else if (queueFilter === 'awaiting_payment') list = awaitingPayments;
+    else if (queueFilter === 'outbound') list = outboundOrders;
+    else if (queueFilter === 'ready_for_pickup') list = readyForPickup;
+
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(
+      (o) =>
+        String(o.id).includes(q) ||
+        (o.delivery_info?.full_name || '').toLowerCase().includes(q) ||
+        (o.delivery_info?.phone || '').includes(q)
+    );
+  }, [queueFilter, pendingIntakes, receivedIntakes, awaitingPayments, outboundOrders, readyForPickup, searchQuery]);
+
+  const activeTransfers = useMemo(() => {
+    let list: Transfer[] = [];
+    if (queueFilter === 'incoming_transfers') list = incomingTransfers;
+    else if (queueFilter === 'outgoing_transfers') list = outgoingTransfers;
+
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(
+      (t) =>
+        String(t.id).includes(q) ||
+        String(t.order).includes(q) ||
+        (t.source_warehouse_name || '').toLowerCase().includes(q) ||
+        (t.destination_warehouse_name || '').toLowerCase().includes(q)
+    );
+  }, [queueFilter, incomingTransfers, outgoingTransfers, searchQuery]);
+
+  const localFilterTabs = [
+    { key: 'pending_intake', label: 'Pending Intake', count: pendingIntakes.length },
+    { key: 'received', label: 'Received / Set Pricing', count: receivedIntakes.length },
+    { key: 'awaiting_payment', label: 'Awaiting Buyer Payment', count: awaitingPayments.length },
+    { key: 'outbound', label: 'Outbound Dispatch', count: outboundOrders.length },
+    { key: 'ready_for_pickup', label: 'Ready for Pickup', count: readyForPickup.length },
+  ];
+
+  const transferFilterTabs = [
+    { key: 'incoming_transfers', label: 'Incoming In-Transit', count: incomingTransfers.length },
+    { key: 'outgoing_transfers', label: 'Pending Dispatch', count: outgoingTransfers.length },
+  ];
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-8 min-h-screen">
-      
-      {/* Header & Smart Scan */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white border border-gray-200 rounded-[28px] p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] relative">
-        <div className="absolute top-0 left-0 w-2 h-full bg-[#F59E0B] rounded-l-[28px]"></div>
-        <div className="pl-4">
-          <h1 className="text-2xl font-black text-black flex items-center gap-3">
-            <Activity className="text-[#F59E0B]" size={28} />
-            Operations Board
-          </h1>
-          <div className="mt-1 flex items-center gap-2">
-            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Warehouse</span>
-            <select
-              className="text-xs font-bold text-[#F59E0B] outline-none cursor-pointer bg-transparent border-none p-0"
-              value={selectedWarehouseId}
-              onChange={(e) => setSelectedWarehouseId(e.target.value)}
-            >
-              {warehouses.map(w => (
-                <option key={w.id} value={w.id}>{w.name} ({w.code})</option>
-              ))}
-            </select>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Warehouse Intake & Hub Operations</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Physical package intake, inspection logs, shipping tariffs, cross-docking, and customer pickup fulfillment.
+          </p>
         </div>
 
-        {/* Universal Scanner */}
-        <div className="w-full md:w-auto flex items-center gap-2">
-          <form onSubmit={handleSmartScan} className="relative group flex-1">
-            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-              <QrCode className={`${scanning ? 'animate-pulse text-[#F59E0B]' : 'text-gray-400 group-focus-within:text-[#F59E0B]'} transition-colors`} size={20} />
-            </div>
-            <input
-              ref={scanInputRef}
-              type="text"
-              placeholder="Scan Barcode / Order ID..."
-              value={scanQuery}
-              onChange={(e) => setScanQuery(e.target.value)}
-              disabled={scanning}
-              className="w-full md:w-80 h-14 pl-12 pr-12 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 focus:border-[#F59E0B] focus:ring-4 focus:ring-[#F59E0B]/10 transition-all shadow-sm disabled:opacity-50"
-            />
-            {scanning && (
-              <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                <div className="animate-spin h-5 w-5 border-2 border-[#F59E0B] border-t-transparent rounded-full" />
-              </div>
-            )}
-          </form>
-          <button 
-            type="button"
-            onClick={() => setShowScanner(true)}
-            className="w-14 h-14 bg-[#FFF5E5] hover:bg-[#FFEAD0] text-[#F59E0B] rounded-2xl flex items-center justify-center transition-colors shadow-sm shrink-0"
+        {/* Warehouse Selector & Refresh */}
+        <div className="flex items-center gap-2">
+          <select
+            className="input text-xs font-bold py-1.5 min-w-[200px]"
+            value={selectedWarehouseId}
+            onChange={(e) => setSelectedWarehouseId(e.target.value)}
           >
-            <Camera size={24} />
+            {warehouses.map(w => (
+              <option key={w.id} value={w.id.toString()}>{w.name} ({w.code})</option>
+            ))}
+          </select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchAllQueues(selectedWarehouseId)}
+            className="p-2 shrink-0"
+            title="Refresh Queues"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </Button>
+        </div>
+      </header>
+
+      {/* Quick Scanner & Tabs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+        {/* Universal Mode Switcher */}
+        <div className="flex bg-surface-muted dark:bg-[#161616] p-1 rounded-full border border-surface-border dark:border-surface-dark-border w-fit">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('local');
+              setQueueFilter('pending_intake');
+            }}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${
+              activeTab === 'local'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            Local Logistics
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('transfers');
+              setQueueFilter('incoming_transfers');
+            }}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${
+              activeTab === 'transfers'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            Inter-Warehouse Line-Haul
           </button>
         </div>
+
+        {/* Scan / Barcode Form */}
+        <form onSubmit={handleScanLookup} className="md:col-span-2 flex gap-2">
+          <div className="relative flex-1">
+            <QrCode size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={scanCode}
+              onChange={(e) => setScanCode(e.target.value)}
+              placeholder="Scan Barcode / Waybill / Order #..."
+              className="input pl-8 py-1.5 text-xs w-full font-mono"
+            />
+          </div>
+          <Button type="submit" variant="default" size="sm" disabled={scanning}>
+            {scanning ? <Spinner size="sm" /> : 'Lookup'}
+          </Button>
+        </form>
       </div>
 
-      {/* Smart Filters */}
-      <div className="flex items-center gap-3 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 hide-scrollbar">
-        <button 
-          onClick={() => setQueueFilter('all')}
-          className={`whitespace-nowrap px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all ${queueFilter === 'all' ? 'bg-[#D97706] text-white shadow-md' : 'bg-[#F3F4F6] text-gray-500 hover:bg-gray-200'}`}
-        >
-          All Tasks
-        </button>
-        <button 
-          onClick={() => setQueueFilter('origin')}
-          className={`whitespace-nowrap px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all ${queueFilter === 'origin' ? 'bg-[#D97706] text-white shadow-md' : 'bg-[#F3F4F6] text-gray-500 hover:bg-gray-200'}`}
-        >
-          Origin Warehouse
-        </button>
-        <button 
-          onClick={() => setQueueFilter('destination')}
-          className={`whitespace-nowrap px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all ${queueFilter === 'destination' ? 'bg-[#D97706] text-white shadow-md' : 'bg-[#F3F4F6] text-gray-500 hover:bg-gray-200'}`}
-        >
-          Destination Warehouse
-        </button>
-      </div>
-
-      {/* Tab Switcher */}
-      <div className="flex border-b border-gray-200 mb-8 gap-8">
-        <button 
-          onClick={() => setActiveTab('line_haul')}
-          className={`pb-3 font-black uppercase tracking-widest text-[13px] transition-all border-b-[3px] ${
-            activeTab === 'line_haul' 
-              ? 'border-[#F59E0B] text-[#F59E0B]' 
-              : 'border-transparent text-gray-400 hover:text-gray-600'
-          }`}
-        >
-          Line-Haul & Origin Logistics
-        </button>
-        <button 
-          onClick={() => setActiveTab('local_logistics')}
-          className={`pb-3 font-black uppercase tracking-widest text-[13px] transition-all border-b-[3px] ${
-            activeTab === 'local_logistics' 
-              ? 'border-[#F59E0B] text-[#F59E0B]' 
-              : 'border-transparent text-gray-400 hover:text-gray-600'
-          }`}
-        >
-          Local Warehouse Logistics (Last-Mile)
-        </button>
-      </div>
-
-      {activeTab === 'line_haul' ? (
-        <>
-          {/* KPI Cards (Line-Haul) */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[
-              { title: 'Origin Intake', count: applyFilter(pendingIntakes.filter(o => o.status === 'SHIPPED_TO_WAREHOUSE')).length, icon: Package, color: 'text-blue-500', bg: '' },
-              { title: 'Pricing Queue', count: applyFilter(receivedIntakes).length, icon: Clock, color: 'text-[#F59E0B]', bg: 'bg-[#FFF5E5]' },
-              { title: 'Hold Shelf', count: applyFilter(awaitingPayments).length, icon: ShieldCheck, color: 'text-yellow-500', bg: '' },
-              { title: 'Line-Haul Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code !== currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: '' }
-            ].map((kpi, idx) => (
-              <motion.div 
-                key={kpi.title}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="bg-white border border-gray-100 rounded-[24px] p-5 flex items-center gap-4 hover:shadow-md transition-shadow shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)]"
+      {/* Filter Pills & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {(activeTab === 'local' ? localFilterTabs : transferFilterTabs).map((tab) => {
+            const isActive = queueFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setQueueFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
               >
-                <div className={`w-[60px] h-[60px] rounded-[18px] flex flex-shrink-0 items-center justify-center ${kpi.bg} ${kpi.color}`}>
-                  <kpi.icon size={26} />
+                {tab.label}
+                <span className={`px-1.5 py-0.2 rounded-full text-3xs font-black ${
+                  isActive
+                    ? 'bg-white/20 dark:bg-black/20 text-inherit'
+                    : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search orders, customers, phone..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
+        </div>
+      </div>
+
+      {/* Orders or Transfers Grid */}
+      {loading ? (
+        <CardGridSkeleton count={6} cols={3} />
+      ) : activeTab === 'local' ? (
+        activeOrders.length === 0 ? (
+          <EmptyState
+            icon={Package}
+            title="Queue is Empty"
+            description={searchQuery ? 'No orders match your search query.' : 'There are currently no orders in this warehouse queue.'}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {activeOrders.map((order) => (
+              <div key={order.id} className="card p-5 flex flex-col justify-between space-y-4 hover:border-gray-900/20 dark:hover:border-white/20 transition">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-3xs font-mono font-bold text-gray-400 uppercase">ORD-{order.id}</span>
+                      <h3 className="font-bold text-gray-900 dark:text-white text-base">Order #{order.id}</h3>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-500/10 text-brand-500 border border-brand-500/20 capitalize">
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+                      {order.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+
+                  {/* Clean Unboxed Metadata */}
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 dark:text-gray-500 font-normal">Customer</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-200">{order.delivery_info?.full_name || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 dark:text-gray-500 font-normal">Phone</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-200">{order.delivery_info?.phone || 'N/A'}</span>
+                    </div>
+                    {order.delivery_info?.destination_warehouse_code && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400 dark:text-gray-500 font-normal">Dest. Hub</span>
+                        <span className="font-medium text-brand-500">{order.delivery_info.destination_warehouse_code}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-3xl font-black text-black leading-none mb-1 truncate">{loading ? '-' : kpi.count}</p>
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest truncate">{kpi.title}</p>
+
+                {/* Contextual Action Button */}
+                <div className="pt-2 border-t border-surface-border/40">
+                  {queueFilter === 'pending_intake' && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => { setSelectedOrder(order); setActiveModal('intake'); }}
+                      className="w-full"
+                    >
+                      Record Package Intake
+                    </Button>
+                  )}
+                  {queueFilter === 'received' && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => { setSelectedOrder(order); setActiveModal('pricing'); }}
+                      className="w-full"
+                    >
+                      Set Delivery Fee
+                    </Button>
+                  )}
+                  {queueFilter === 'awaiting_payment' && (
+                    <div className="text-center py-2 text-[11px] text-amber-500 font-medium bg-amber-500/5 rounded-btn border border-amber-500/10">
+                      Waiting for buyer payment
+                    </div>
+                  )}
+                  {queueFilter === 'outbound' && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => { setSelectedOrder(order); setActiveModal('dispatch'); }}
+                      className="w-full"
+                    >
+                      Dispatch / Route Shipment
+                    </Button>
+                  )}
+                  {queueFilter === 'ready_for_pickup' && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => { setSelectedOrder(order); setActiveModal('pickup'); }}
+                      className="w-full"
+                    >
+                      Verify Customer Pickup
+                    </Button>
+                  )}
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
-
-          {/* Swimlanes (Line-Haul) */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Lane 1: Awaiting Intake */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Package size={16} /> Origin Intake
-              </h3>
-              {loading ? <SkeletonCards /> : applyFilter(pendingIntakes.filter(o => o.status === 'SHIPPED_TO_WAREHOUSE')).length === 0 ? <EmptyState text="No pending intakes" /> : (
-                <div className="space-y-3">
-                  {applyFilter(pendingIntakes.filter(o => o.status === 'SHIPPED_TO_WAREHOUSE')).map(order => (
-                    <QueueCard key={order.id} order={order} badge="Inbound" onClick={() => handleActionClick(order.id.toString(), 'intake')} />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Lane 2: Delivery Pricing */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Clock size={16} /> Delivery Pricing
-              </h3>
-              {loading ? <SkeletonCards /> : applyFilter(receivedIntakes).length === 0 ? <EmptyState text="No pricing tasks" /> : (
-                <div className="space-y-3">
-                  {applyFilter(receivedIntakes).map(order => (
-                    <QueueCard key={order.id} order={order} badge="Received" onClick={() => handleActionClick(order.id.toString(), 'pricing')} />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Lane 3: Hold Shelf */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <ShieldCheck size={16} /> Hold Shelf
-              </h3>
-              {loading ? <SkeletonCards /> : applyFilter(awaitingPayments).length === 0 ? <EmptyState text="No items held" /> : (
-                <div className="space-y-3">
-                  {applyFilter(awaitingPayments).map(order => (
-                    <QueueCard 
-                      key={order.id} 
-                      order={order} 
-                      badge={order.status === 'PENDING_DELIVERY_VERIFICATION' ? 'Verifying' : 'Hold'} 
-                      onClick={() => {
-                        if (order.status === 'PENDING_DELIVERY_VERIFICATION') {
-                          handleActionClick(order.id.toString(), 'verify');
-                        }
-                      }} 
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Lane 4: Line-Haul Dispatch */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Truck size={16} /> Line-Haul Dispatch
-              </h3>
-              {loading ? <SkeletonCards /> : applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code !== currentWh?.code)).length === 0 ? <EmptyState text="No dispatch tasks" /> : (
-                <div className="space-y-3">
-                  {applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code !== currentWh?.code)).map(order => (
-                    <QueueCard key={order.id} order={order} badge="Ready" onClick={() => handleActionClick(order.id.toString(), 'dispatch')} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Inter-Warehouse Transfers Section */}
-          <div className="mt-12 space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-              <div>
-                <h2 className="text-xl font-black text-black uppercase tracking-tight flex items-center gap-2">
-                  <RefreshCw size={20} className="text-[#F59E0B]" />
-                  Inter-Warehouse Transfers
-                </h2>
-                <p className="text-xs font-medium text-gray-500 mt-1">
-                  Manage transfer shipments moving between regional warehouses
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold px-3 py-1.5 rounded-full  text-blue-500">
-                  Incoming: {incomingTransfers.length}
-                </span>
-                <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-500">
-                  Outgoing: {outgoingTransfers.length}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Incoming Transfers (Road Transit) */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <RefreshCw size={14} className="text-blue-500" /> Incoming Transfers
-                </h3>
-                {incomingTransfers.length === 0 ? <EmptyState text="No incoming transfers" /> : (
-                  <div className="space-y-3">
-                    {incomingTransfers.map(transfer => (
-                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-white rounded-2xl border border-gray-200 shadow-sm">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-black">Order #{transfer.order}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded  text-blue-500">In Transit</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Origin: <span className="font-semibold text-gray-900">{transfer.source_warehouse_name}</span>
-                          </p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">
-                            Shipped: {transfer.shipped_at ? new Date(transfer.shipped_at).toLocaleString() : 'N/A'}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleActionClick(transfer.order.toString(), 'intake')}
-                          className="px-4 py-2 bg-blue-500 hover:bg-blue-500 text-white text-xs font-black rounded-lg uppercase tracking-wider transition-all"
-                        >
-                          Receive Package
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Outgoing Transfers (Ready to Ship) */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <RefreshCw size={14} className="text-[#F59E0B]" /> Outgoing Transfers
-                </h3>
-                {outgoingTransfers.length === 0 ? <EmptyState text="No outgoing transfers pending" /> : (
-                  <div className="space-y-3">
-                    {outgoingTransfers.map(transfer => (
-                      <div key={transfer.id} className="flex justify-between items-center p-4 bg-white rounded-2xl border border-gray-200 shadow-sm">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-black">Order #{transfer.order}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#FFF5E5] text-[#F59E0B]">Pending</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Destination: <span className="font-semibold text-gray-900">{transfer.destination_warehouse_name}</span>
-                          </p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">
-                            Created: {new Date(transfer.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await api.post(`/api/warehouses/transfers/${transfer.id}/ship/`);
-                              toast.success(`Transfer #${transfer.id} shipped successfully.`);
-                              fetchAllQueues(selectedWarehouseId);
-                            } catch {
-                              toast.error('Failed to dispatch transfer.');
-                            }
-                          }}
-                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-lg uppercase tracking-wider transition-all"
-                        >
-                          Ship Package
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
+        )
       ) : (
-        <>
-          {/* KPI Cards (Local Logistics) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { title: 'Dest WH Intake', count: applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).length, icon: Package, color: 'text-blue-500', bg: '' },
-              { title: 'Local Delivery Dispatch', count: applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).length, icon: Truck, color: 'text-green-500', bg: '' },
-              { title: 'Ready for Pickup / Release', count: applyFilter(readyForPickup).length, icon: Key, color: 'text-purple-500', bg: '' }
-            ].map((kpi, idx) => (
-              <motion.div 
-                key={kpi.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="glass-dark border border-gray-200 shadow-sm dark:border-neutral-800 rounded-3xl p-6 flex items-center gap-5 hover:shadow-lg transition-shadow"
-              >
-                <div className={`p-4 rounded-2xl ${kpi.bg} ${kpi.color}`}>
-                  <kpi.icon size={28} />
+        activeTransfers.length === 0 ? (
+          <EmptyState
+            icon={Truck}
+            title="No Transfers Found"
+            description="No line-haul transfers found matching this filter."
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {activeTransfers.map((t) => (
+              <div key={t.id} className="card p-5 flex flex-col justify-between space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-3xs font-mono font-bold text-gray-400 uppercase">TRF-{t.id}</span>
+                      <h3 className="font-bold text-gray-900 dark:text-white text-base">Order #{t.order}</h3>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20 capitalize">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      {t.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+
+                  {/* Clean Unboxed Metadata */}
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 dark:text-gray-500 font-normal">Origin</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-200">{t.source_warehouse_name || `Hub #${t.source_warehouse}`}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 dark:text-gray-500 font-normal">Destination</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-200">{t.destination_warehouse_name || `Hub #${t.destination_warehouse}`}</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-3xl font-black text-gray-900 dark:text-white">{loading ? '-' : kpi.count}</p>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{kpi.title}</p>
+
+                <div className="pt-2 border-t border-surface-border/40">
+                  {queueFilter === 'incoming_transfers' ? (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await api.post(`/api/warehouses/transfers/${t.id}/receive/`);
+                          toast.success('Transfer package received at destination hub!');
+                          fetchAllQueues(selectedWarehouseId);
+                        } catch {
+                          toast.error('Failed to receive transfer');
+                        }
+                      }}
+                      className="w-full"
+                    >
+                      Confirm Hub Intake
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await api.post(`/api/warehouses/transfers/${t.id}/dispatch/`);
+                          toast.success('Transfer package dispatched for line-haul transit!');
+                          fetchAllQueues(selectedWarehouseId);
+                        } catch {
+                          toast.error('Failed to dispatch transfer');
+                        }
+                      }}
+                      className="w-full"
+                    >
+                      Dispatch Line-Haul
+                    </Button>
+                  )}
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
-
-          {/* Swimlanes (Local Logistics) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Lane 1: Dest Hub Intake */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Package size={16} /> Destination Warehouse Intake
-              </h3>
-              {loading ? <SkeletonCards /> : applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).length === 0 ? <EmptyState text="No pending intakes" /> : (
-                <div className="space-y-3">
-                  {applyFilter(pendingIntakes.filter(o => ['IN_TRANSIT', 'ARRIVED_AT_REGIONAL_WAREHOUSE'].includes(o.status))).map(order => (
-                    <QueueCard key={order.id} order={order} badge={order.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE' ? 'WH Arrived' : 'Inbound Transfer'} onClick={() => handleActionClick(order.id.toString(), 'intake')} />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Lane 2: Local Delivery Dispatch */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Truck size={16} /> Local Delivery Dispatch
-              </h3>
-              {loading ? <SkeletonCards /> : applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).length === 0 ? <EmptyState text="No deliveries" /> : (
-                <div className="space-y-3">
-                  {applyFilter(outboundOrders.filter(o => o.delivery_info?.destination_warehouse_code === currentWh?.code)).map(order => (
-                    order.status === 'OUT_FOR_DELIVERY' ? (
-                      <div key={order.id} className="p-4 bg-white dark:bg-neutral-900 rounded-2xl border-2 border-green-500/40 shadow-sm flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-black text-gray-900 dark:text-white">Order #{order.id}</span>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full  text-green-500">Out for Delivery</span>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1 truncate max-w-[200px]">
-                              {order.delivery_info?.full_name} · {order.delivery_info?.address}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleActionClick(order.id.toString(), 'confirm_delivery')}
-                          className="w-full px-4 py-2.5 bg-green-500 hover:bg-green-500 text-white text-xs font-black rounded-xl uppercase tracking-wider transition-all flex items-center justify-center gap-2"
-                        >
-                          <Key size={14} /> Confirm Delivery (Enter Code)
-                        </button>
-                      </div>
-                    ) : (
-                      <QueueCard key={order.id} order={order} badge="Last Mile" onClick={() => handleActionClick(order.id.toString(), 'dispatch')} />
-                    )
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Lane 3: Customer Release / Pickup */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Key size={16} /> Customer Release / Pickup
-              </h3>
-              {loading ? <SkeletonCards /> : applyFilter(readyForPickup).length === 0 ? <EmptyState text="No pickups" /> : (
-                <div className="space-y-3">
-                  {applyFilter(readyForPickup).map(order => (
-                    <QueueCard key={order.id} order={order} badge="Pickup" onClick={() => handleActionClick(order.id.toString(), 'pickup')} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </>
+        )
       )}
 
-
-      {/* MODALS */}
-      <AnimatePresence>
-        {activeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white dark:bg-neutral-900 rounded-3xl w-full max-w-2xl shadow-2xl relative flex flex-col max-h-[90vh]"
-            >
-              <button onClick={closeModal} className="absolute top-4 right-4 p-2 bg-gray-100 dark:bg-neutral-800 rounded-full text-gray-500 hover:text-gray-900 dark:hover:text-white transition z-10">
-                <X size={20} />
+      {/* Intake Modal */}
+      {activeModal === 'intake' && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setActiveModal(null)}>
+          <div className="card max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-2 border-b border-surface-border dark:border-surface-dark-border">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-white">Record Intake: Order #{selectedOrder.id}</h3>
+              <button onClick={() => setActiveModal(null)} className="p-1 rounded-full text-gray-400 hover:text-gray-600">
+                <X size={18} />
               </button>
+            </div>
 
-              <div className="p-6 md:p-8 overflow-y-auto flex-1">
-                {/* Modal Header */}
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-16 h-16 rounded-2xl  flex items-center justify-center text-brand-500">
-                    {activeModal === 'intake' && <Package size={32} />}
-                    {activeModal === 'pricing' && <Clock size={32} />}
-                    {activeModal === 'dispatch' && <Truck size={32} />}
-                    {activeModal === 'verify' && <ShieldCheck size={32} />}
-                    {activeModal === 'confirm_delivery' && <Key size={32} className="text-green-500" />}
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                      {activeModal === 'origin_intake' && 'Package Intake (From Seller)'}
-                      {activeModal === 'destination_intake' && 'Regional WH Receipt'}
-                      {activeModal === 'last_mile_sorting' && 'Last-Mile Sorting'}
-                      {activeModal === 'pricing' && 'Confirm Pricing'}
-                      {activeModal === 'dispatch' && 'Dispatch Transfer'}
-                      {activeModal === 'pickup' && 'Verify Pickup'}
-                      {activeModal === 'verify' && 'Verify Payment'}
-                      {activeModal === 'confirm_delivery' && 'Confirm Last-Mile Delivery'}
-                    </h2>
-                    <p className="text-sm text-gray-500 font-bold">Order #{orderPreview?.id}</p>
-                  </div>
-                </div>
+            <form onSubmit={handleSubmitIntake} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Package Condition</label>
+                <select className="input" value={condition} onChange={(e) => setCondition(e.target.value)}>
+                  <option value="good">Good / Sealed (No visible damage)</option>
+                  <option value="damaged">Damaged Box / Torn Packaging</option>
+                  <option value="missing_items">Missing Items / Incomplete</option>
+                </select>
+              </div>
 
-                {/* Context Details */}
-                <div className="bg-gray-50 dark:bg-neutral-800/50 rounded-2xl p-5 mb-8 grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Departure Date</p>
-                    <p className="font-bold text-gray-900 dark:text-white">
-                      {orderPreview?.logistics_info?.departure_date ? new Date(orderPreview.logistics_info.departure_date).toLocaleDateString() : 'Pending'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Expected Arrival</p>
-                    <p className="font-bold text-gray-900 dark:text-white">
-                      {orderPreview?.logistics_info?.expected_arrival ? new Date(orderPreview.logistics_info.expected_arrival).toLocaleDateString() : 'Pending'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Carrier / Courier</p>
-                    <p className="font-bold text-gray-900 dark:text-white">
-                      {orderPreview?.logistics_info?.carrier_name || 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Tracking Number</p>
-                    <p className="font-bold text-gray-900 dark:text-white">
-                      {orderPreview?.logistics_info?.tracking_number || 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Buyer Username</p>
-                    <p className="font-bold text-gray-900 dark:text-white">{orderPreview?.buyer_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Seller Username</p>
-                    <p className="font-bold text-gray-900 dark:text-white">{orderPreview?.seller_name}</p>
-                  </div>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Intake Notes</label>
+                <textarea
+                  rows={2}
+                  className="input"
+                  placeholder="Verification notes or inspection observations..."
+                  value={intakeNotes}
+                  onChange={(e) => setIntakeNotes(e.target.value)}
+                />
+              </div>
 
-                {/* Origin Intake Specific */}
-                {activeModal === 'origin_intake' && (
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Condition</label>
-                      <select 
-                        className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-sm font-bold outline-none"
-                        value={condition} onChange={e => setCondition(e.target.value)}
-                      >
-                        <option value="good">Good (No damage)</option>
-                        <option value="damaged">Damaged (Issues present)</option>
-                        <option value="needs_repack">Needs Repackaging</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Package Photo (Optional)</label>
-                      <label className="border-2 border-dashed border-gray-300 dark:border-neutral-700 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition">
-                        <Camera size={24} className="text-gray-400 mb-2" />
-                        <span className="text-sm font-bold text-gray-600 dark:text-gray-300">Tap to take photo</span>
-                        <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => {
-                          if (e.target.files && e.target.files[0]) {
-                            setPhoto(e.target.files[0]);
-                            setPhotoPreview(URL.createObjectURL(e.target.files[0]));
-                          }
-                        }} />
-                      </label>
-                      {photoPreview && <img src={photoPreview} alt="Preview" className="w-full h-32 object-cover rounded-xl mt-2" />}
-                    </div>
-
-                    <div className="flex items-center gap-3   p-4 rounded-xl cursor-pointer" onClick={() => setRequireSignatures(!requireSignatures)}>
-                      <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${requireSignatures ? 'bg-brand-500 text-white' : 'bg-gray-200 dark:bg-neutral-700'}`}>
-                        {requireSignatures && <CheckCircle size={14} />}
-                      </div>
-                      <span className="text-sm font-bold text-brand-500 dark:text-brand-500">Require Physical Signatures</span>
-                    </div>
-
-                    {requireSignatures && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Courier/Seller Signature</label>
-                          <div className="border-2 border-gray-200 shadow-sm dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
-                            <SignatureCanvas ref={sellerSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
-                          </div>
-                          <button type="button" onClick={() => sellerSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Staff Signature</label>
-                          <div className="border-2 border-gray-200 shadow-sm dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
-                            <SignatureCanvas ref={staffSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
-                          </div>
-                          <button type="button" onClick={() => staffSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
-                        </div>
-                      </div>
-                    )}
-
-                    <button onClick={submitIntake} disabled={submitting} className="w-full py-4 bg-brand-500 hover:bg-brand-500 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6">
-                      {submitting ? 'Checking In...' : 'Confirm Intake'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Destination Intake Specific */}
-                {activeModal === 'destination_intake' && (
-                  <div className="space-y-6">
-                    <p className="text-sm text-gray-600 dark:text-gray-300 font-bold mb-4">
-                      Please confirm receipt from the regional transport driver. A photo of the package is required.
-                    </p>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Condition After Transit</label>
-                      <select 
-                        className="w-full bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 text-sm font-bold outline-none"
-                        value={condition} onChange={e => setCondition(e.target.value)}
-                      >
-                        <option value="good">Good (No damage)</option>
-                        <option value="damaged">Damaged (Issues present)</option>
-                        <option value="needs_repack">Needs Repackaging</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-brand-500 uppercase tracking-wider flex items-center gap-2">
-                        Package Photo (Required) *
-                      </label>
-                      <label className="border-2 border-dashed border-brand-500 dark:border-brand-500 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer   transition">
-                        <Camera size={24} className="text-brand-500 mb-2" />
-                        <span className="text-sm font-bold text-brand-500 dark:text-brand-500">Tap to take photo</span>
-                        <input type="file" className="hidden" accept="image/*" capture="environment" onChange={e => {
-                          if (e.target.files && e.target.files[0]) {
-                            setPhoto(e.target.files[0]);
-                            setPhotoPreview(URL.createObjectURL(e.target.files[0]));
-                          }
-                        }} />
-                      </label>
-                      {photoPreview && <img src={photoPreview} alt="Preview" className="w-full h-32 object-cover rounded-xl mt-2" />}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Transport Driver Signature</label>
-                        <div className="border-2 border-gray-200 shadow-sm dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
-                          <SignatureCanvas ref={sellerSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
-                        </div>
-                        <button type="button" onClick={() => sellerSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PenTool size={14}/> Staff Signature</label>
-                        <div className="border-2 border-gray-200 shadow-sm dark:border-neutral-700 rounded-xl bg-gray-50 dark:bg-neutral-800 overflow-hidden">
-                          <SignatureCanvas ref={staffSigRef} penColor="currentColor" canvasProps={{ className: 'w-full h-32 text-gray-900 dark:text-white' }} />
-                        </div>
-                        <button type="button" onClick={() => staffSigRef.current?.clear()} className="text-xs text-brand-500 font-bold">Clear</button>
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={() => {
-                        if (!photo) {
-                          toast.error('A package photo is required for destination warehouse receipt.');
-                          return;
-                        }
-                        if (sellerSigRef.current?.isEmpty() || staffSigRef.current?.isEmpty()) {
-                          toast.error('Both signatures are required for transport handover.');
-                          return;
-                        }
-                        setRequireSignatures(true);
-                        submitIntake();
-                      }} 
-                      disabled={submitting} 
-                      className="w-full py-4 bg-brand-500 hover:bg-brand-500 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6"
-                    >
-                      {submitting ? 'Confirming Receipt...' : 'Confirm WH Receipt'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Last-Mile Sorting Specific */}
-                {activeModal === 'last_mile_sorting' && (
-                  <div className="space-y-6">
-                    <p className="text-gray-600 dark:text-gray-300 font-bold text-center">
-                      This package is ready to be sorted for final delivery.
-                    </p>
-                    <div className="bg-gray-50 dark:bg-neutral-800 p-6 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
-                      {orderPreview?.status === 'ARRIVED_AT_REGIONAL_WAREHOUSE' && (
-                        <>
-                          <div className="w-16 h-16 rounded-full   flex items-center justify-center text-blue-500">
-                            <MapPin size={32} />
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-black text-gray-900 dark:text-white">Sort for Last-Mile</h3>
-                            <p className="text-sm text-gray-500 mt-1">Assign to courier or pickup shelf.</p>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <button 
-                      onClick={() => {
-                        setRequireSignatures(false);
-                        submitIntake();
-                      }} 
-                      disabled={submitting} 
-                      className="w-full py-4 bg-blue-500 hover:bg-blue-500 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-blue-500/30 mt-6 flex items-center justify-center gap-2"
-                    >
-                      <Truck size={20} /> {submitting ? 'Sorting...' : 'Confirm Sorting Complete'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Pricing Specific */}
-                {activeModal === 'pricing' && (
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Destination Warehouse</label>
-                      <select 
-                        value={destinationWarehouseCode}
-                        onChange={e => setDestinationWarehouseCode(e.target.value)}
-                        className="w-full text-lg font-bold bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none"
-                      >
-                        <option value="" disabled>-- Select Destination --</option>
-                        {warehouses.map(w => (
-                          <option key={w.code} value={w.code}>{w.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Actual Delivery Fee (TSh)</label>
-                      <input 
-                        type="number"
-                        placeholder="e.g. 5000"
-                        value={deliveryFee}
-                        onChange={e => setDeliveryFee(e.target.value)}
-                        className="w-full text-2xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-4 outline-none"
-                      />
-                      {suggestedFee !== null && (
-                        <p className="text-sm text-brand-500 dark:text-brand-500 mt-1">
-                          <Zap size={14} className="inline mb-1 mr-1" />
-                          Suggested fee based on {feeDataPoints} past {feeDataPoints === 1 ? 'delivery' : 'deliveries'}: TSh {suggestedFee.toLocaleString()}
-                        </p>
-                      )}
-                    </div>
-                    <button onClick={submitPricing} disabled={submitting} className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-amber-500/30 mt-6">
-                      {submitting ? 'Setting...' : 'Confirm & Notify Customer'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Dispatch Specific */}
-                {activeModal === 'dispatch' && (
-                  <div className="space-y-6">
-                    <div className="border-b border-gray-200 shadow-sm dark:border-neutral-800 pb-4 mb-4">
-                      <h3 className="text-sm font-black text-gray-505 dark:text-neutral-400 uppercase tracking-wider mb-2">Carrier Assignment</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <button
-                          type="button"
-                          onClick={() => setCarrierType('driver')}
-                          className={`py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${carrierType === 'driver' ? 'border-brand-500  text-brand-500' : 'border-gray-250 dark:border-neutral-700 text-gray-500'}`}
-                        >
-                          Fleet Driver
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCarrierType('third_party')}
-                          className={`py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all ${carrierType === 'third_party' ? 'border-brand-500  text-brand-500' : 'border-gray-250 dark:border-neutral-700 text-gray-500'}`}
-                        >
-                          External Courier
-                        </button>
-                      </div>
-                    </div>
-
-                    {carrierType === 'driver' ? (
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Select Fleet Driver</label>
-                        <select
-                          value={selectedDriverId}
-                          onChange={e => setSelectedDriverId(e.target.value)}
-                          className="w-full text-sm font-bold bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none"
-                        >
-                          <option value="">-- Select Driver --</option>
-                          {drivers.map((d: Driver) => (
-                            <option key={d.id} value={d.id}>
-                              {d.username} ({d.vehicle_type || 'No Vehicle'} - {d.assigned_region || 'No Region'})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Courier Info (Name, Phone, Co.)</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. DHL - Juma Omar, +255 712..."
-                            value={thirdPartyDriverInfo}
-                            onChange={e => setThirdPartyDriverInfo(e.target.value)}
-                            className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tracking Number</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. TRK987654321"
-                            value={trackingNumber}
-                            onChange={e => setTrackingNumber(e.target.value)}
-                            className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Estimated Delivery Time</label>
-                      <input
-                        type="datetime-local"
-                        value={estimatedDelivery}
-                        onChange={e => setEstimatedDelivery(e.target.value)}
-                        className="w-full text-sm bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-3 outline-none animate-none"
-                      />
-                    </div>
-
-                    <p className="text-xs text-gray-400 dark:text-neutral-500 text-center italic mt-2">
-                      {orderPreview?.delivery_info?.current_warehouse_code === orderPreview?.delivery_info?.destination_warehouse_code
-                        ? 'Ready for local delivery. Dispatching will mark order as OUT_FOR_DELIVERY.'
-                        : 'Transfer shipment. Dispatching will mark order as IN_TRANSIT.'}
-                    </p>
-
-                    <button onClick={submitDispatch} disabled={submitting} className="w-full py-4 bg-green-500 hover:bg-green-500 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30 mt-6 flex justify-center items-center gap-2">
-                      <Truck size={24} />
-                      {submitting ? 'Dispatching...' : 'Confirm Dispatch & Handover'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Pickup Specific */}
-                {activeModal === 'pickup' && (
-                  <div className="space-y-6">
-                    <div className="space-y-2 text-center">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer 6-Digit PIN</label>
-                      <input 
-                        type="text"
-                        maxLength={6}
-                        placeholder="••••••"
-                        value={pickupCode}
-                        onChange={e => setPickupCode(e.target.value.toUpperCase())}
-                        className="w-full text-center tracking-[1em] text-4xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-gray-900 dark:focus:border-white rounded-xl px-4 py-6 outline-none uppercase"
-                      />
-                    </div>
-                    <button onClick={submitPickup} disabled={submitting} className="w-full py-4 bg-brand-500 hover:bg-brand-500 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-brand-500/30 mt-6 flex justify-center items-center gap-2">
-                      <ShieldCheck size={24} /> {submitting ? 'Verifying...' : 'Verify & Release'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Confirm Delivery (Last Mile) */}
-                {activeModal === 'confirm_delivery' && (
-                  <div className="space-y-6">
-                    <div className="  border border-green-500 dark:border-green-500/40 rounded-2xl p-4">
-                      <p className="text-sm font-bold text-green-500 dark:text-green-500 flex items-center gap-2">
-                        <Key size={16} /> Ask the recipient for their delivery code and enter it below to confirm hand-off.
-                      </p>
-                      {orderPreview?.delivery_info && (
-                        <div className="mt-3 text-xs text-green-500 dark:text-green-500 space-y-1">
-                          <p><span className="font-bold">Recipient:</span> {orderPreview.delivery_info.full_name}</p>
-                          <p><span className="font-bold">Phone:</span> {orderPreview.delivery_info.phone}</p>
-                          <p><span className="font-bold">Address:</span> {orderPreview.delivery_info.address}</p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-2 text-center">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Recipient's Delivery Code</label>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="••••••"
-                        value={deliveryCodeInput}
-                        onChange={e => setDeliveryCodeInput(e.target.value.replace(/\D/g, ''))}
-                        className="w-full text-center tracking-[1em] text-4xl font-black bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus:border-green-500 rounded-xl px-4 py-6 outline-none"
-                        autoFocus
-                      />
-                      <p className="text-xs text-gray-400">The buyer received this code in their orders page</p>
-                    </div>
-                    <button
-                      onClick={submitConfirmDelivery}
-                      disabled={submitting || deliveryCodeInput.length < 4}
-                      className="w-full py-4 bg-green-500 hover:bg-green-500 disabled:opacity-40 text-white font-black rounded-xl text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30 flex justify-center items-center gap-2"
-                    >
-                      <CheckCircle size={24} /> {submitting ? 'Confirming...' : 'Confirm Delivery & Complete Order'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Verify Specific */}
-                {activeModal === 'verify' && (
-                  <div className="space-y-6">
-                    {(() => {
-                       const payment = orderPreview?.payments?.find((p) => p.status === 'PENDING_VERIFICATION');
-                       if (!payment) return <p className="text-sm text-gray-500 text-center">No pending payment records found.</p>;
-                       return (
-                         <div className="space-y-4">
-                            <div className="bg-gray-50 dark:bg-neutral-800 p-4 rounded-xl space-y-2">
-                               <p className="text-xs font-bold text-gray-500 uppercase">Transaction ID</p>
-                               <p className="font-mono text-lg font-bold dark:text-white bg-gray-100 dark:bg-neutral-900 px-3 py-2 rounded-lg inline-block">{payment.transaction_id || 'N/A'}</p>
-                            </div>
-                            
-                            {payment.proof_image && (
-                              <div className="space-y-2">
-                                 <p className="text-xs font-bold text-gray-500 uppercase">Proof Image</p>
-                                 <a href={payment.proof_image} target="_blank" rel="noreferrer" className="block w-full overflow-hidden rounded-xl border border-gray-200 dark:border-neutral-700 hover:opacity-90 transition">
-                                    <img src={payment.proof_image} alt="Proof" className="w-full object-contain max-h-64 bg-black/5" />
-                                 </a>
-                              </div>
-                            )}
-
-                            <div className="flex gap-3 pt-4">
-                               <button onClick={() => submitVerify('ASSIGNED_TRANSPORT')} disabled={submitting} className="flex-1 py-4 bg-green-500 hover:bg-green-500 text-white font-black rounded-xl text-sm md:text-lg uppercase tracking-widest transition-all shadow-lg shadow-green-500/30">
-                                 {submitting ? 'Processing...' : 'Verify & Assign Transport'}
-                               </button>
-                               <button onClick={() => submitVerify('AWAITING_DELIVERY_PAYMENT')} disabled={submitting} className="flex-1 py-4   text-red-500 font-black rounded-xl text-sm md:text-lg uppercase tracking-widest transition-colors">
-                                 Reject
-                               </button>
-                            </div>
-                         </div>
-                       );
-                    })()}
-                  </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Package Photograph</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setPhoto(f);
+                      setPhotoPreview(URL.createObjectURL(f));
+                    }
+                  }}
+                  className="input text-xs"
+                />
+                {photoPreview && (
+                  <img src={photoPreview} alt="Intake preview" className="mt-2 h-28 rounded-btn object-cover border border-surface-border" />
                 )}
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
-      <AnimatePresence>
-        {showScanner && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white dark:bg-neutral-900 rounded-3xl overflow-hidden w-full max-w-md shadow-2xl relative p-6">
-              <button onClick={() => setShowScanner(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors z-10"><X size={24} /></button>
-              <h2 className="text-lg font-black text-gray-900 dark:text-white mb-4 uppercase tracking-widest text-center">Scan QR Code</h2>
-              <div id="reader" className="w-full overflow-hidden rounded-xl border border-gray-200 dark:border-neutral-800"></div>
-            </motion.div>
+              <div className="pt-4 flex justify-end gap-2 border-t border-surface-border dark:border-surface-dark-border">
+                <Button type="button" variant="outline" size="sm" onClick={() => setActiveModal(null)}>Cancel</Button>
+                <Button type="submit" variant="default" size="sm" disabled={submitting}>
+                  {submitting ? 'Recording...' : 'Confirm Intake'}
+                </Button>
+              </div>
+            </form>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
+
+      {/* Pricing Modal */}
+      {activeModal === 'pricing' && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setActiveModal(null)}>
+          <div className="card max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-2 border-b border-surface-border">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-white">Set Delivery Tariff</h3>
+              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleSubmitPricing} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Destination Hub Code</label>
+                <input
+                  type="text"
+                  className="input font-mono"
+                  placeholder="e.g. DAR-01"
+                  value={destinationWarehouseCode}
+                  onChange={(e) => setDestinationWarehouseCode(e.target.value.toUpperCase())}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+                  Delivery Fee (TZS) {suggestedFee && <span className="text-brand-500 font-normal">(Suggested: {suggestedFee.toLocaleString()})</span>}
+                </label>
+                <input
+                  type="number"
+                  required
+                  className="input font-bold"
+                  placeholder="e.g. 5000"
+                  value={deliveryFee}
+                  onChange={(e) => setDeliveryFee(e.target.value)}
+                />
+              </div>
+
+              <div className="pt-4 flex justify-end gap-2 border-t border-surface-border">
+                <Button type="button" variant="outline" size="sm" onClick={() => setActiveModal(null)}>Cancel</Button>
+                <Button type="submit" variant="default" size="sm" disabled={submitting}>
+                  {submitting ? 'Saving...' : 'Save & Notify Buyer'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dispatch Modal */}
+      {activeModal === 'dispatch' && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setActiveModal(null)}>
+          <div className="card max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-2 border-b border-surface-border">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-white">Dispatch Order #{selectedOrder.id}</h3>
+              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleSubmitDispatch} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Carrier Mode</label>
+                <select className="input" value={carrierType} onChange={(e) => setCarrierType(e.target.value as any)}>
+                  <option value="driver">SokoniMax Fleet Driver</option>
+                  <option value="third_party">Third-Party Courier</option>
+                </select>
+              </div>
+
+              {carrierType === 'driver' && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Assign Driver</label>
+                  <select className="input" value={selectedDriverId} onChange={(e) => setSelectedDriverId(e.target.value)}>
+                    <option value="">-- Select Driver --</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id.toString()}>@{d.username} ({d.first_name} {d.last_name})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Waybill / Tracking Reference</label>
+                <input
+                  type="text"
+                  className="input font-mono"
+                  placeholder="e.g. TRK-98319"
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">Est. Delivery / Handover Window</label>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  value={estimatedDelivery}
+                  onChange={(e) => setEstimatedDelivery(e.target.value)}
+                />
+              </div>
+
+              <div className="pt-4 flex justify-end gap-2 border-t border-surface-border">
+                <Button type="button" variant="outline" size="sm" onClick={() => setActiveModal(null)}>Cancel</Button>
+                <Button type="submit" variant="default" size="sm" disabled={submitting}>
+                  {submitting ? 'Dispatching...' : 'Dispatch Shipment'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Pickup Modal */}
+      {activeModal === 'pickup' && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setActiveModal(null)}>
+          <div className="card max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-2 border-b border-surface-border">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-white">Customer Pickup Verification</h3>
+              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleSubmitPickup} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+                  6-Digit Pickup Code from Customer
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 593021"
+                  value={pickupCode}
+                  onChange={(e) => setPickupCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="input text-center font-mono font-black text-xl tracking-[0.25em]"
+                />
+              </div>
+
+              <div className="pt-4 flex justify-end gap-2 border-t border-surface-border">
+                <Button type="button" variant="outline" size="sm" onClick={() => setActiveModal(null)}>Cancel</Button>
+                <Button type="submit" variant="default" size="sm" disabled={submitting || pickupCode.length !== 6}>
+                  {submitting ? 'Verifying...' : 'Confirm Handover & Finalize'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
-// UI Subcomponents
-const SkeletonCards = () => (
-  <div className="space-y-3">
-    {[1,2,3].map(i => (
-      <div key={i} className="h-20 bg-gray-100 dark:bg-neutral-800/50 rounded-2xl animate-pulse"></div>
-    ))}
-  </div>
-);
-
-const EmptyState = ({ text }: { text: string }) => (
-  <div className="py-8 text-center border-[1.5px] border-dashed border-gray-200 bg-gray-50/50 rounded-2xl">
-    <CheckCircle size={20} className="mx-auto text-gray-300 mb-2 stroke-[2.5]" />
-    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{text}</p>
-  </div>
-);
-
-const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return 'Pending';
-  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-};
-
-const QueueCard = ({ order, badge, onClick }: { order: Order, badge?: string, onClick: () => void }) => (
-  <motion.div 
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
-    onClick={onClick}
-    className="p-3 bg-white border border-gray-200 rounded-2xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] hover:shadow-md transition cursor-pointer flex justify-between items-center group w-full relative"
-  >
-    <div className="flex items-center gap-3 w-full">
-      <div className="relative shrink-0">
-        <div className="w-[64px] h-[64px] bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center border border-gray-100">
-          {order.items?.[0]?.product_image ? (
-            <img src={order.items[0].product_image} className="w-full h-full object-cover" alt="" />
-          ) : (
-            <Package size={24} className="text-gray-300" />
-          )}
-        </div>
-        {order.items && order.items.length > 1 && (
-          <div className="absolute -bottom-1 -right-1 bg-[#F59E0B] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-white">
-            +{order.items.length - 1}
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[10px] font-black uppercase tracking-widest bg-[#FFF5E5] text-[#F59E0B] px-1.5 py-0.5 rounded">
-            {badge || `ORDER #${order.id}`}
-          </span>
-          <span className="text-[10px] font-bold text-gray-400">
-            {formatDate(order.order_date)}
-          </span>
-        </div>
-        <p className="text-sm font-black text-black truncate uppercase tracking-tight">
-          {order.items?.[0]?.product_name || 'SokoniMax Package'}
-        </p>
-        <p className="text-xs text-gray-500 font-bold truncate">
-          Store: <span className="text-gray-900">@{order.items?.[0]?.seller_username || 'seller'}</span>
-        </p>
-      </div>
-    </div>
-  </motion.div>
-);
 
 export default WarehouseStaffLayout;

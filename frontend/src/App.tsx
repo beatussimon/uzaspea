@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
@@ -21,51 +21,44 @@ import LocationPromptBanner from './components/layout/LocationPromptBanner';
 import LandingPage from './pages/LandingPage';
 import CartPage from './pages/CartPage';
 import LoginPage from './pages/LoginPage';
+import ProductList from './pages/ProductList';
+import ProductDetailPage from './pages/ProductDetailPage';
+
+// Preload helper functions for instant navigation on hover
+export const preloadProductDetail = () => Promise.resolve({ default: ProductDetailPage });
+export const preloadProductList = () => Promise.resolve({ default: ProductList });
 import MobileBottomNav from './components/MobileBottomNav';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import CategoryBar from './components/layout/CategoryBar';
 
-// Eager imports for small/core public views
+// Application Views
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
 
-const ProductList = lazy(() => import('./pages/ProductList'));
-const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage'));
-
-// Export preload functions for instant navigation on hover
-export const preloadProductDetail = () => import('./pages/ProductDetailPage');
-export const preloadProductList = () => import('./pages/ProductList');
-const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const TeamsPage = lazy(() => import('./pages/TeamsPage'));
-const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
-const OrdersPage = lazy(() => import('./pages/OrdersPage'));
-const MessagesPage = lazy(() => import('./pages/MessagesPage'));
-const DashboardLayout = lazy(() => import('./pages/dashboard/DashboardLayout'));
-const StaffAdminLayout = lazy(() => import('./pages/staff/StaffAdminLayout'));
-const StaffDashboardLayout = lazy(() => import('./pages/staff/StaffDashboardLayout'));
-const InspectionLayout = lazy(() => import('./pages/inspections/InspectionLayout'));
-const InspectorLayout = lazy(() => import('./pages/inspections/InspectorLayout'));
-const SellerUpgradePage = lazy(() => import('./pages/SellerUpgradePage'));
-const ShipmentTrackingPage = lazy(() => import('./pages/ShipmentTrackingPage'));
-const HelpCenterPage = lazy(() => import('./pages/dashboard/HelpCenterPage'));
-const PublicVerifyPage = lazy(() => import('./pages/inspections/PublicVerifyPage'));
-const TermsAndConditionsPage = lazy(() => import('./pages/legal/TermsAndConditionsPage'));
-const PrivacyPolicyPage = lazy(() => import('./pages/legal/PrivacyPolicyPage'));
-const SellerContractPage = lazy(() => import('./pages/legal/SellerContractPage'));
-const TeamsDashboardLayout = lazy(() => import('./pages/teams/TeamsDashboardLayout'));
-const SettingsPage = lazy(() => import('./pages/dashboard/SettingsPage'));
+import RegisterPage from './pages/RegisterPage';
+import ProfilePage from './pages/ProfilePage';
+import TeamsPage from './pages/TeamsPage';
+import CheckoutPage from './pages/CheckoutPage';
+import OrdersPage from './pages/OrdersPage';
+import MessagesPage from './pages/MessagesPage';
+import DashboardLayout from './pages/dashboard/DashboardLayout';
+import StaffAdminLayout from './pages/staff/StaffAdminLayout';
+import StaffDashboardLayout from './pages/staff/StaffDashboardLayout';
+import InspectionLayout from './pages/inspections/InspectionLayout';
+import InspectorLayout from './pages/inspections/InspectorLayout';
+import SellerUpgradePage from './pages/SellerUpgradePage';
+import ShipmentTrackingPage from './pages/ShipmentTrackingPage';
+import HelpCenterPage from './pages/dashboard/HelpCenterPage';
+import PublicVerifyPage from './pages/inspections/PublicVerifyPage';
+import TermsAndConditionsPage from './pages/legal/TermsAndConditionsPage';
+import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
+import SellerContractPage from './pages/legal/SellerContractPage';
+import TeamsDashboardLayout from './pages/teams/TeamsDashboardLayout';
+import SettingsPage from './pages/dashboard/SettingsPage';
 
 import GlobalTermsModal from './components/GlobalTermsModal';
 import DesktopChatDock from './components/chat/DesktopChatDock';
-
-// Fallback loader for Lazy views
-const SuspenseLoader = () => (
-  <div className="flex items-center justify-center min-h-[50vh]">
-    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-500"></div>
-  </div>
-);
 
 // ProtectedRoute extracted outside App component body to prevent unmount/remount cycles
 const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = false, requireInspector = false, requireSeller = false }: any) => {
@@ -76,10 +69,10 @@ const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = fal
     return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
-  // If role checks are required but user hasn't loaded yet, show loading
+  // If role checks are required but user hasn't loaded yet, return null
   const needsRoleCheck = requireStaff || requireSuperuser || requireInspector || requireSeller;
   if (needsRoleCheck && !user) {
-    return <SuspenseLoader />;
+    return null;
   }
   
   if (user) {
@@ -171,7 +164,7 @@ function AppLayout() {
 
       <main className={`flex-1 print:pt-0 ${isLandingPage ? 'h-full p-0 overflow-hidden' : isMessagesPage ? '' : 'pt-4 md:pt-6'}`}>
         <ErrorBoundary>
-          <Suspense fallback={<SuspenseLoader />}>
+          <Suspense fallback={null}>
             <AppRoutes />
           </Suspense>
         </ErrorBoundary>

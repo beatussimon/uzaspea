@@ -72,19 +72,19 @@ const PaymentNumbersManager: React.FC = () => {
       </header>
 
       {/* Form Card */}
-      <div className="card p-5">
-        <div className="border-b border-surface-border dark:border-surface-dark-border pb-3 mb-4">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+      <div className="card p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
             {editingId ? 'Edit Payment Number' : 'Add New Payment Number'}
           </h3>
-          <p className="text-2xs text-gray-400">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             Provide your official mobile money number for direct buyer payments
           </p>
         </div>
 
-        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div>
-            <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wider">Mobile Network</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Mobile Network</label>
             <select
               value={form.network}
               onChange={e => setForm({ ...form, network: e.target.value })}
@@ -96,7 +96,7 @@ const PaymentNumbersManager: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wider">Phone / Till Number</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone / Till Number</label>
             <input
               placeholder="e.g. 0712345678"
               value={form.number}
@@ -106,7 +106,7 @@ const PaymentNumbersManager: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wider">Account Name</label>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Account Name</label>
             <input
               placeholder="Registered owner name"
               value={form.name}
@@ -130,7 +130,7 @@ const PaymentNumbersManager: React.FC = () => {
             <Button
               type="submit"
               size="sm"
-              className="font-bold flex items-center gap-1.5"
+              className="font-medium flex items-center gap-1.5"
             >
               <Plus size={14} />
               {editingId ? 'Update Number' : 'Save Payment Number'}
@@ -157,17 +157,15 @@ const PaymentNumbersManager: React.FC = () => {
             {lipaNumbers.map(lipa => (
               <div key={lipa.id} className="card p-4 flex flex-col justify-between hover:shadow-xs transition">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className={`rounded-btn bg-surface-muted dark:bg-[#161616] flex items-center justify-center overflow-hidden shrink-0 border border-surface-border dark:border-surface-dark-border ${lipa.network_logo ? 'w-16 h-10' : 'w-10 h-10'}`}>
-                    {lipa.network_logo ? (
-                      <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain p-1" />
-                    ) : (
-                      <Smartphone size={20} className="text-gray-400" />
-                    )}
-                  </div>
+                  {lipa.network_logo ? (
+                    <img src={lipa.network_logo} alt={lipa.network_name} className="h-8 max-w-[64px] object-contain shrink-0" />
+                  ) : (
+                    <Smartphone size={22} className="text-gray-400 shrink-0" />
+                  )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider truncate">{lipa.network_name}</p>
-                    <p className="text-sm font-black font-mono text-gray-900 dark:text-white truncate">{lipa.number}</p>
-                    <p className="text-2xs text-gray-500 truncate">{lipa.name}</p>
+                    <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{lipa.network_name}</p>
+                    <p className="text-sm font-bold font-mono text-gray-900 dark:text-white truncate">{lipa.number}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{lipa.name}</p>
                   </div>
                 </div>
 

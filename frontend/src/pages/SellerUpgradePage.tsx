@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/Input';
-import { Spinner } from '../components/ui/Spinner';
+import { FormSkeleton } from '../components/Skeleton';
 
 const SellerUpgradePage: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
@@ -340,9 +340,8 @@ const SellerUpgradePage: React.FC = () => {
         </div>
       ) : loading ? (
         /* Loading */
-        <div className="flex flex-col items-center justify-center py-16 space-y-3">
-          <Spinner size="md" />
-          <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Checking application status...</p>
+        <div className="max-w-2xl mx-auto py-8 animate-fade-in">
+          <FormSkeleton fields={3} />
         </div>
       ) : application ? (
         /* Step 4: Existing Application Status / Wait Screen */
@@ -359,17 +358,17 @@ const SellerUpgradePage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Submission Details Card */}
-              <div className="bg-white dark:bg-neutral-950 p-4 rounded-xl border border-gray-100 dark:border-neutral-800 text-left text-xs space-y-2">
-                <div className="flex justify-between border-b border-gray-100 dark:border-neutral-900 pb-2">
+              {/* Submission Details */}
+              <div className="text-left text-xs space-y-2.5 max-w-md mx-auto pt-2 border-t border-surface-border/40">
+                <div className="flex justify-between border-b border-surface-border/30 pb-2">
                   <span className="text-gray-400">Application ID:</span>
                   <span className="font-mono font-bold text-gray-800 dark:text-gray-200">#{application.id}</span>
                 </div>
-                <div className="flex justify-between border-b border-gray-100 dark:border-neutral-900 pb-2">
+                <div className="flex justify-between border-b border-surface-border/30 pb-2">
                   <span className="text-gray-400">Plan Tier:</span>
                   <span className="font-bold capitalize text-brand-500">{application.requested_tier_name || selectedTier.replace('_', ' ')}</span>
                 </div>
-                <div className="flex justify-between border-b border-gray-100 dark:border-neutral-900 pb-2">
+                <div className="flex justify-between border-b border-surface-border/30 pb-2">
                   <span className="text-gray-400">Business Name:</span>
                   <span className="font-bold text-gray-800 dark:text-gray-200">{application.business_name}</span>
                 </div>

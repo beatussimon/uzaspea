@@ -12,12 +12,7 @@ import {
   InspectionRequest, ChecklistTemplate, ChecklistItem,
   STATUS_LABELS, STATUS_COLORS, fmtDate,
 } from '../../types/inspection';
-
-const Spinner = () => (
-  <div className="flex justify-center py-16">
-    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
-  </div>
-);
+import { PageHeaderSkeleton, CardListSkeleton, CardGridSkeleton } from '../../components/Skeleton';
 
 const Badge: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => (
   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
@@ -80,7 +75,14 @@ const InspectorJobs: React.FC = () => {
     } catch { toast.error('Failed to update availability'); }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) {
+    return (
+      <div className="space-y-5 animate-fade-in">
+        <PageHeaderSkeleton />
+        <CardGridSkeleton count={4} cols={2} />
+      </div>
+    );
+  }
 
   const active = jobs.filter((j) => !['published', 'cancelled'].includes(j.status));
   const completed = jobs.filter((j) => j.status === 'published');
@@ -1107,7 +1109,14 @@ const JobExecution: React.FC = () => {
     } finally { setSubmittingReport(false); }
   };
 
-  if (loading) return <Spinner />;
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-5 animate-fade-in">
+        <PageHeaderSkeleton />
+        <CardListSkeleton count={4} />
+      </div>
+    );
+  }
   if (!job) return <p className="text-center py-12 text-gray-400">Job not found</p>;
 
   return (

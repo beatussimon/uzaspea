@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Send, Smile, Minus, X, CheckCheck, Check, ShoppingBag 
+  Send, Smile, Minus, X, CheckCheck, Check, ArrowLeft 
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useMessages, Message } from '../../context/MessageContext';
 import VerifiedBadge from '../VerifiedBadge';
-import { Spinner } from '../ui/Spinner';
 import { Button } from '../ui/Button';
+import { ChatSkeleton } from '../Skeleton';
 import api from '../../api';
+import { parseMessageContent } from '../../utils/messageParser';
 
 interface FloatingChatWindowProps {
   convId: number;
@@ -34,6 +35,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
     minimizeChatWindow,
     closeChatWindow,
     prefillMessages,
+    setIsMessengerListOpen,
   } = useMessages();
 
   const [newMessage, setNewMessage] = useState('');
@@ -225,6 +227,16 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
       {/* --- Window Header --- */}
       <div className="px-3.5 py-2.5 bg-surface-muted/90 dark:bg-neutral-900/90 border-b border-gray-200/60 dark:border-neutral-800/60 flex items-center justify-between shrink-0 select-none">
         <div className="flex items-center gap-2 min-w-0">
+          <button
+            onClick={() => {
+              closeChatWindow(convId);
+              setIsMessengerListOpen(true);
+            }}
+            className="p-1 -ml-1 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-full transition-colors cursor-pointer"
+            title="Back to messages"
+          >
+            <ArrowLeft size={15} />
+          </button>
           <div className="relative shrink-0">
             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(otherUsername)} shadow-sm`}>
               {otherUsername.substring(0, 2).toUpperCase()}
@@ -271,34 +283,14 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
         </div>
       </div>
 
-      {/* --- Optional Product Link Banner --- */}
-      {activeConv?.product_name && (
-        <div className="px-3 py-1.5 bg-amber-500/10 dark:bg-amber-500/20 border-b border-amber-500/20 flex items-center justify-between shrink-0 text-xs">
-          <div className="flex items-center gap-1.5 truncate">
-            <ShoppingBag size={12} className="text-brand-500 shrink-0" />
-            <span className="text-[11px] font-medium text-gray-800 dark:text-gray-200 truncate">
-              Re: {activeConv.product_name}
-            </span>
-          </div>
-          {activeConv.product && (
-            <button
-              onClick={() => navigate(`/product/${activeConv.product}`)}
-              className="text-[10px] text-brand-500 dark:text-brand-500 font-bold hover:underline shrink-0 ml-2"
-            >
-              View
-            </button>
-          )}
-        </div>
-      )}
-
       {/* --- Messages History Area --- */}
       <div 
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-3 space-y-3 relative"
       >
         {contextLoading && currentMessages.length === 0 ? (
-          <div className="h-full flex items-center justify-center">
-            <Spinner size="md" />
+          <div className="h-full">
+            <ChatSkeleton className="h-full border-0 shadow-none bg-transparent" />
           </div>
         ) : currentMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
@@ -321,11 +313,13 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
                 const isMe = Number(msg.sender) === userId;
                 const isUnread = unreadMessageIds.has(msg.id);
                 const isFirstUnread = msg.id === firstUnreadMsgId;
+                const parsed = parseMessageContent(msg.content);
+
                 return (
                   <div
                     key={msg.id || index}
                     ref={isFirstUnread ? firstUnreadRef : null}
-                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
                   >
                     {isFirstUnread && (
                       <div className="w-full flex items-center justify-center my-3 relative">
@@ -333,17 +327,58 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
                         <span className="relative bg-white dark:bg-black px-2 text-[10px] font-bold text-brand-500 dark:text-brand-500 uppercase tracking-wider select-none">New Messages</span>
                       </div>
                     )}
-                    <div
-                      className={`max-w-[82%] px-3 py-2 rounded-2xl text-xs leading-relaxed break-words shadow-sm ${
-                        isMe
-                          ? ' bg-brand-500  text-white rounded-br-xs font-sans'
-                          : isUnread
-                            ? '  text-gray-900 dark:text-gray-100 border border-brand-500/50 dark:border-brand-500/30 rounded-bl-xs font-sans'
-                            : 'bg-surface-muted dark:bg-neutral-900 text-gray-900 dark:text-gray-100 rounded-bl-xs border border-gray-200/50 dark:border-neutral-800/50 font-sans'
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
+
+                    {/* Attached Product Preview Card */}
+                    {parsed.product && (
+                      <div
+                        onClick={() => navigate(`/product/${parsed.product?.id}`)}
+                        className="cursor-pointer group max-w-[85%] bg-white dark:bg-[#1f2022] border border-gray-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-md hover:border-brand-500/50 hover:shadow-lg transition-all text-left"
+                      >
+                        <div className="flex items-center gap-2.5 p-2">
+                          {parsed.product.image ? (
+                            <img
+                              src={parsed.product.image}
+                              alt={parsed.product.title}
+                              className="w-12 h-12 rounded-xl object-cover shrink-0 bg-neutral-900"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-gray-400 shrink-0">
+                              Item
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            {parsed.product.category && (
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-amber-500 line-clamp-1">
+                                {parsed.product.category}
+                              </span>
+                            )}
+                            <h4 className="text-[11px] font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 transition-colors">
+                              {parsed.product.title}
+                            </h4>
+                            {parsed.product.price != null && (
+                              <p className="text-[11px] font-extrabold text-brand-600 dark:text-brand-400 mt-0.5">
+                                {typeof parsed.product.price === 'number' ? parsed.product.price.toLocaleString() : parsed.product.price} {parsed.product.currency || 'TZS'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Message Bubble Text */}
+                    {parsed.text && (
+                      <div
+                        className={`max-w-[82%] px-3 py-2 rounded-2xl text-xs leading-relaxed break-words shadow-sm ${
+                          isMe
+                            ? ' bg-brand-500  text-white rounded-br-xs font-sans'
+                            : isUnread
+                              ? '  text-gray-900 dark:text-gray-100 border border-brand-500/50 dark:border-brand-500/30 rounded-bl-xs font-sans'
+                              : 'bg-surface-muted dark:bg-neutral-900 text-gray-900 dark:text-gray-100 rounded-bl-xs border border-gray-200/50 dark:border-neutral-800/50 font-sans'
+                        }`}
+                      >
+                        {parsed.text}
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-1 mt-0.5 px-1 select-none">
                       <span className="text-[9px] text-gray-400 dark:text-gray-500">

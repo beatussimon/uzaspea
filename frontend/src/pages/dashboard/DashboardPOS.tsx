@@ -3,10 +3,10 @@ import api from '../../api';
 import toast from 'react-hot-toast';
 import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, History, Receipt, CalendarDays } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
-import { Spinner } from '../../components/ui/Spinner';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
+import { TableSkeleton, ProductGridSkeleton } from '../../components/Skeleton';
 
 interface Product {
   id: number;
@@ -64,7 +64,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
     });
   }, [orders, dateFilter]);
 
-  if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>;
+  if (loading) return <TableSkeleton rows={5} cols={5} />;
 
   return (
     <div className="card overflow-hidden">
@@ -411,7 +411,7 @@ const DashboardPOS: React.FC = () => {
             {/* Product Grid */}
             <div className="p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
               {loading ? (
-                <div className="flex justify-center py-20"><Spinner size="lg" /></div>
+                <ProductGridSkeleton count={6} />
               ) : filteredProducts.length === 0 ? (
                 <div className="text-center py-16 text-gray-400">
                   <ShoppingCart size={40} className="mx-auto mb-3 opacity-20" />
@@ -421,25 +421,25 @@ const DashboardPOS: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {filteredProducts.map((product) => (
-                    <div key={product.id} className="card p-3 flex flex-col justify-between hover:shadow-xs transition">
+                    <div key={product.id} className="rounded-card bg-surface-muted/40 hover:bg-surface-muted/70 dark:bg-[#141414] dark:hover:bg-[#181818] p-3 flex flex-col justify-between transition border border-transparent hover:border-surface-border dark:hover:border-surface-dark-border group">
                       <div>
-                        <div className="aspect-[4/3] rounded-btn bg-surface-muted dark:bg-[#161616] relative overflow-hidden mb-2 border border-surface-border dark:border-surface-dark-border">
-                          <SafeImage src={product.images?.[0]?.image || ''} alt={product.name} className="w-full h-full object-cover" />
+                        <div className="aspect-[4/3] rounded-btn bg-surface-muted dark:bg-[#1a1a1a] relative overflow-hidden mb-2">
+                          <SafeImage src={product.images?.[0]?.image || ''} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                           {product.stock <= 0 && (
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-10">
-                              <span className="text-white font-black uppercase px-2 py-0.5 bg-red-500 rounded-full text-3xs">Out of Stock</span>
+                              <span className="text-white font-medium uppercase px-2 py-0.5 bg-red-500 rounded-full text-3xs">Out of Stock</span>
                             </div>
                           )}
-                          <div className="absolute top-1 right-1 bg-black/70 text-white backdrop-blur-xs px-1.5 py-0.5 rounded text-3xs font-bold">
+                          <div className="absolute top-1.5 right-1.5 bg-black/60 backdrop-blur-xs text-white px-2 py-0.5 rounded-full text-[10px] font-medium">
                             {product.stock} left
                           </div>
                         </div>
                         
-                        <h3 className="font-bold text-gray-900 dark:text-white text-xs line-clamp-1 mb-0.5">{product.name}</h3>
-                        <p className="text-brand-600 dark:text-brand-400 font-extrabold text-xs mb-2">TSh {parseInt(product.price).toLocaleString()}</p>
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-xs line-clamp-1 mb-0.5">{product.name}</h3>
+                        <p className="text-brand-600 dark:text-brand-400 font-bold text-xs">TSh {parseInt(product.price).toLocaleString()}</p>
                       </div>
                       
-                      <div className="mt-auto pt-2 border-t border-surface-border dark:border-surface-dark-border">
+                      <div className="mt-2.5">
                         {product.variants && product.variants.length > 0 ? (
                           <div className="space-y-1">
                             {product.variants.map((v: any) => (
@@ -447,10 +447,10 @@ const DashboardPOS: React.FC = () => {
                                 key={v.id}
                                 onClick={() => addToCart(product, v)}
                                 disabled={v.stock <= 0}
-                                className="w-full text-left px-2 py-1 rounded-btn border border-surface-border dark:border-surface-dark-border text-3xs font-semibold hover:border-brand-500 disabled:opacity-40 flex justify-between items-center transition"
+                                className="w-full text-left px-2 py-1 rounded-btn bg-surface-muted/60 dark:bg-[#1a1a1a] text-3xs font-medium hover:bg-surface-muted dark:hover:bg-[#222] disabled:opacity-40 flex justify-between items-center transition text-gray-700 dark:text-gray-300"
                               >
-                                <span className="truncate pr-1 text-gray-700 dark:text-gray-300">{v.name}</span>
-                                <span className="font-bold text-brand-600 dark:text-brand-400 shrink-0">+{parseFloat(v.price_adjustment).toLocaleString()}</span>
+                                <span className="truncate pr-1">{v.name}</span>
+                                <span className="font-semibold text-brand-600 dark:text-brand-400 shrink-0">+{parseFloat(v.price_adjustment).toLocaleString()}</span>
                               </button>
                             ))}
                           </div>
@@ -458,11 +458,11 @@ const DashboardPOS: React.FC = () => {
                           <Button 
                             onClick={() => addToCart(product)} 
                             disabled={product.stock <= 0}
-                            className="w-full py-1 text-2xs font-bold"
+                            className="w-full py-1 text-xs font-medium"
                             size="sm"
                             variant={product.stock <= 0 ? 'outline' : 'default'}
                           >
-                            <Plus size={12} className="mr-1" /> Add
+                            <Plus size={13} className="mr-1" /> Add to Cart
                           </Button>
                         )}
                       </div>
@@ -759,35 +759,35 @@ const CartContent = ({
     </div>
 
     <div className="p-3 border-t border-surface-border dark:border-surface-dark-border bg-surface-muted/30 dark:bg-[#161616]/30 shrink-0 space-y-3">
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <div>
-          <label className="text-3xs font-bold text-gray-400 uppercase tracking-wider">Customer Name</label>
+          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block mb-1">Customer Name</label>
           <input
             type="text"
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
             placeholder="Walk-in Customer"
-            className="input py-1 text-xs w-full mt-0.5"
+            className="input py-1.5 text-xs w-full"
           />
         </div>
         <div>
-          <label className="text-3xs font-bold text-gray-400 uppercase tracking-wider">Amount Tendered</label>
-          <div className="relative mt-0.5">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">TSh</span>
+          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block mb-1">Amount Tendered</label>
+          <div className="relative">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-xs">TSh</span>
             <input
               type="number"
               placeholder={cartTotal.toLocaleString()}
               value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
-              className="input pl-10 py-1 text-xs w-full"
+              className="input pl-10 py-1.5 text-xs w-full"
             />
           </div>
         </div>
       </div>
       
       <div className="flex justify-between items-center p-2.5 rounded-btn bg-brand-500/10 border border-brand-500/20">
-        <span className="text-2xs font-bold text-gray-500 uppercase tracking-wider">Total Due</span>
-        <span className="text-base font-extrabold text-brand-600 dark:text-brand-400">TSh {cartTotal.toLocaleString()}</span>
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Due</span>
+        <span className="text-base font-bold text-brand-600 dark:text-brand-400">TSh {cartTotal.toLocaleString()}</span>
       </div>
 
       <Button 

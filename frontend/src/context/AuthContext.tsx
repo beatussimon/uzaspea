@@ -38,8 +38,42 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const getStoredUser = (): User | null => {
+  const token = localStorage.getItem('access_token');
+  if (!token) return null;
+  const payload = decodeJwtPayload(token);
+  if (!payload) return null;
+
+  return {
+    user_id: Number(payload.user_id),
+    username: payload.username || '',
+    first_name: payload.first_name || localStorage.getItem('first_name') || '',
+    last_name: payload.last_name || localStorage.getItem('last_name') || '',
+    is_verified: payload.is_verified === true || payload.is_verified === 'true',
+    tier: payload.tier || 'free',
+    is_staff: payload.is_staff === true || payload.is_staff === 'true',
+    is_superuser: payload.is_superuser === true || payload.is_superuser === 'true',
+    is_inspector: payload.is_inspector === true || payload.is_inspector === 'true',
+    has_staff_permissions: payload.has_staff_permissions === true || payload.has_staff_permissions === 'true',
+    inspector_level: payload.inspector_level || '',
+    subscription_active: payload.subscription_active,
+    subscription_end_date: payload.subscription_end_date,
+    is_team_member: payload.is_team_member === true || payload.is_team_member === 'true',
+    team_owner_id: payload.team_owner_id || (localStorage.getItem('team_owner_id') ? Number(localStorage.getItem('team_owner_id')) : null),
+    team_owner_username: payload.team_owner_username || localStorage.getItem('team_owner_username') || null,
+    business_name: payload.business_name || localStorage.getItem('business_name') || null,
+    team_role_preset: payload.team_role_preset || localStorage.getItem('team_role_preset') || null,
+    team_role_label: payload.team_role_label || localStorage.getItem('team_role_label') || null,
+    is_team_suspended: payload.is_team_suspended === true || payload.is_team_suspended === 'true',
+    is_owner_subscription_active: payload.is_owner_subscription_active === true || payload.is_owner_subscription_active === 'true',
+    team_permissions: typeof payload.team_permissions === 'string' ? JSON.parse(payload.team_permissions) : (payload.team_permissions || {}),
+    terms_accepted: payload.terms_accepted === true || payload.terms_accepted === 'true' || localStorage.getItem('terms_accepted') === 'true',
+    profile_picture: payload.profile_picture || localStorage.getItem('profile_picture') || null,
+  };
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(getStoredUser);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
     () => !!localStorage.getItem('access_token')
   );
@@ -49,37 +83,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (isAuthenticated && token) {
-      const payload = decodeJwtPayload(token);
-      if (payload) {
-        // Let the Axios interceptor handle token expiry and refresh automatically.
-        setUser({
-          user_id: Number(payload.user_id),
-          username: payload.username || '',
-          first_name: payload.first_name || localStorage.getItem('first_name') || '',
-          last_name: payload.last_name || localStorage.getItem('last_name') || '',
-          is_verified: payload.is_verified === true || payload.is_verified === 'true',
-          tier: payload.tier || 'free',
-          is_staff: payload.is_staff === true || payload.is_staff === 'true',
-          is_superuser: payload.is_superuser === true || payload.is_superuser === 'true',
-          is_inspector: payload.is_inspector === true || payload.is_inspector === 'true',
-          has_staff_permissions: payload.has_staff_permissions === true || payload.has_staff_permissions === 'true',
-          inspector_level: payload.inspector_level || '',
-          subscription_active: payload.subscription_active,
-          subscription_end_date: payload.subscription_end_date,
-          is_team_member: payload.is_team_member === true || payload.is_team_member === 'true',
-          team_owner_id: payload.team_owner_id || (localStorage.getItem('team_owner_id') ? Number(localStorage.getItem('team_owner_id')) : null),
-          team_owner_username: payload.team_owner_username || localStorage.getItem('team_owner_username') || null,
-          business_name: payload.business_name || localStorage.getItem('business_name') || null,
-          team_role_preset: payload.team_role_preset || localStorage.getItem('team_role_preset') || null,
-          team_role_label: payload.team_role_label || localStorage.getItem('team_role_label') || null,
-          is_team_suspended: payload.is_team_suspended === true || payload.is_team_suspended === 'true',
-          is_owner_subscription_active: payload.is_owner_subscription_active === true || payload.is_owner_subscription_active === 'true',
-          team_permissions: typeof payload.team_permissions === 'string' ? JSON.parse(payload.team_permissions) : (payload.team_permissions || {}),
-          terms_accepted: payload.terms_accepted === true || payload.terms_accepted === 'true' || localStorage.getItem('terms_accepted') === 'true',
-          profile_picture: payload.profile_picture || localStorage.getItem('profile_picture') || null,
-        });
+    if (isAuthenticated) {
+      const storedUser = getStoredUser();
+      if (storedUser) {
+        setUser(storedUser);
       } else {
         logout();
       }

@@ -2,13 +2,14 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { FileText, Printer, Edit3, CheckCircle, Clock, MessageSquare, Sparkles, Search, ChevronDown, ChevronUp, Package } from 'lucide-react';
-import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import PrintableInvoiceModal from '../../components/orders/PrintableInvoiceModal';
 import toast from 'react-hot-toast';
+import { CardListSkeleton } from '../../components/Skeleton';
+import { cn } from '../../lib/utils';
 
 type TabKey = 'all' | 'action_required' | 'sent' | 'done';
 
@@ -137,10 +138,6 @@ const InvoicesPage: React.FC = () => {
     };
   }, [orders]);
 
-  if (loading) {
-    return <div className="flex justify-center p-12"><Spinner size="lg" /></div>;
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -244,14 +241,16 @@ const InvoicesPage: React.FC = () => {
       </div>
 
       {/* Orders List */}
-      {filteredOrders.length === 0 ? (
+      {loading && orders.length === 0 ? (
+        <CardListSkeleton count={3} />
+      ) : filteredOrders.length === 0 ? (
         <EmptyState
           icon={FileText}
           title={t('no_invoices', 'No Invoices Found')}
           description={t('no_invoices_matching', 'No invoices found matching your selected filters.')}
         />
       ) : (
-        <div className="space-y-3">
+        <div className={cn("space-y-3", loading && "opacity-75 transition-opacity")}>
           {filteredOrders.map(order => {
             const itemsList = order.items || order.relevant_items || [];
             const negData = order.negotiation_data || {};
@@ -354,7 +353,7 @@ const InvoicesPage: React.FC = () => {
                   <div className="p-4 pt-0 border-t border-surface-border dark:border-surface-dark-border space-y-3 text-xs bg-surface-muted/20 dark:bg-[#131313]/30">
                     {/* Buyer Notes */}
                     {negData.buyer_request_note && (
-                      <div className="p-2.5 rounded-btn bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border text-gray-600 dark:text-gray-400 italic">
+                      <div className="text-gray-600 dark:text-gray-400 italic text-2xs py-1">
                         <strong className="not-italic text-gray-900 dark:text-white">Buyer Request: </strong>
                         "{negData.buyer_request_note}"
                       </div>
@@ -445,7 +444,7 @@ const InvoicesPage: React.FC = () => {
           <div className="space-y-4">
             {/* Buyer Counter Offer Callout */}
             {selectedOrder.status === 'BUYER_COUNTERED' && (
-              <div className="p-3 rounded-btn bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border space-y-2 text-xs">
+              <div className="p-3 rounded-btn bg-purple-500/10 border border-purple-500/20 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-gray-900 dark:text-white">
                     {t('buyer_proposed_terms', "Customer's Offer")}

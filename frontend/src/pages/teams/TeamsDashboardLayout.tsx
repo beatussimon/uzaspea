@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, FileText, Package, 
@@ -8,21 +8,20 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-import { Spinner } from '../../components/ui/Spinner';
 import TeamsAccessDenied from './TeamsAccessDenied';
 import TeamsOverview from './TeamsOverview';
 
-// Lazy load shared operational modules
-const DashboardOrders = lazy(() => import('../dashboard/DashboardOrders'));
-const InvoicesPage = lazy(() => import('../dashboard/InvoicesPage'));
-const DashboardPOS = lazy(() => import('../dashboard/DashboardPOS'));
-const DashboardProducts = lazy(() => import('../dashboard/DashboardProducts'));
-const ProductRequestsBoard = lazy(() => import('../dashboard/ProductRequestsBoard'));
-const MessagesPage = lazy(() => import('../MessagesPage'));
-const BillingPage = lazy(() => import('../dashboard/BillingPage'));
-const PaymentNumbersManager = lazy(() => import('../dashboard/PaymentNumbersManager'));
-const DashboardAnalytics = lazy(() => import('../dashboard/DashboardAnalytics'));
-const MyTeamPage = lazy(() => import('../dashboard/MyTeamPage'));
+// Shared operational modules
+import DashboardOrders from '../dashboard/DashboardOrders';
+import InvoicesPage from '../dashboard/InvoicesPage';
+import DashboardPOS from '../dashboard/DashboardPOS';
+import DashboardProducts from '../dashboard/DashboardProducts';
+import ProductRequestsBoard from '../dashboard/ProductRequestsBoard';
+import MessagesPage from '../MessagesPage';
+import BillingPage from '../dashboard/BillingPage';
+import PaymentNumbersManager from '../dashboard/PaymentNumbersManager';
+import DashboardAnalytics from '../dashboard/DashboardAnalytics';
+import MyTeamPage from '../dashboard/MyTeamPage';
 
 export const TeamsDashboardLayout: React.FC = () => {
   const { t } = useTranslation();
@@ -203,69 +202,63 @@ export const TeamsDashboardLayout: React.FC = () => {
 
         {/* Content Outlet */}
         <main className="flex-1 min-w-0">
-          <Suspense fallback={
-            <div className="flex justify-center items-center py-16">
-              <Spinner size="lg" />
-            </div>
-          }>
-            <Routes>
-              <Route index element={<TeamsOverview />} />
-              
-              <Route 
-                path="orders/*" 
-                element={perms.manage_orders ? <DashboardOrders /> : <TeamsAccessDenied requiredPermission="manage_orders" moduleName="Orders" />} 
-              />
-              
-              <Route 
-                path="invoices/*" 
-                element={perms.manage_invoices ? <InvoicesPage /> : <TeamsAccessDenied requiredPermission="manage_invoices" moduleName="Invoices & Quotes" />} 
-              />
-              
-              <Route 
-                path="pos/*" 
-                element={perms.access_pos ? <DashboardPOS /> : <TeamsAccessDenied requiredPermission="access_pos" moduleName="Point of Sale" />} 
-              />
-              
-              <Route 
-                path="products/*" 
-                element={perms.manage_products ? <DashboardProducts /> : <TeamsAccessDenied requiredPermission="manage_products" moduleName="Products & Stock" />} 
-              />
-              
-              <Route 
-                path="product-requests/*" 
-                element={(perms.manage_requests || perms.manage_products) ? <ProductRequestsBoard /> : <TeamsAccessDenied requiredPermission="manage_requests" moduleName="Product Requests" />} 
-              />
-              
-              <Route 
-                path="messages/*" 
-                element={perms.manage_messages ? <MessagesPage /> : <TeamsAccessDenied requiredPermission="manage_messages" moduleName="Customer Messages" />} 
-              />
-              
-              <Route 
-                path="payment-numbers/*" 
-                element={(perms.manage_payment_numbers || perms.manage_payments) ? <PaymentNumbersManager /> : <TeamsAccessDenied requiredPermission="manage_payment_numbers" moduleName="Payment Numbers" />} 
-              />
-              
-              <Route 
-                path="payments/*" 
-                element={(perms.manage_payments || perms.manage_payment_numbers) ? <PaymentNumbersManager /> : <TeamsAccessDenied requiredPermission="manage_payments" moduleName="Payment Approvals" />} 
-              />
-              
-              <Route 
-                path="billing/*" 
-                element={perms.manage_billing ? <BillingPage /> : <TeamsAccessDenied requiredPermission="manage_billing" moduleName="Billing & Ledger" />} 
-              />
-              
-              <Route 
-                path="analytics/*" 
-                element={perms.view_analytics ? <DashboardAnalytics /> : <TeamsAccessDenied requiredPermission="view_analytics" moduleName="Sales Reports" />} 
-              />
-              
-              <Route path="my-role" element={<MyTeamPage />} />
-              
-              <Route path="*" element={<Navigate to="/teams-dashboard" replace />} />
-            </Routes>
-          </Suspense>
+          <Routes>
+            <Route index element={<TeamsOverview />} />
+            
+            <Route 
+              path="orders/*" 
+              element={perms.manage_orders ? <DashboardOrders /> : <TeamsAccessDenied requiredPermission="manage_orders" moduleName="Orders" />} 
+            />
+            
+            <Route 
+              path="invoices/*" 
+              element={perms.manage_invoices ? <InvoicesPage /> : <TeamsAccessDenied requiredPermission="manage_invoices" moduleName="Invoices & Quotes" />} 
+            />
+            
+            <Route 
+              path="pos/*" 
+              element={perms.access_pos ? <DashboardPOS /> : <TeamsAccessDenied requiredPermission="access_pos" moduleName="Point of Sale" />} 
+            />
+            
+            <Route 
+              path="products/*" 
+              element={perms.manage_products ? <DashboardProducts /> : <TeamsAccessDenied requiredPermission="manage_products" moduleName="Products & Stock" />} 
+            />
+            
+            <Route 
+              path="product-requests/*" 
+              element={(perms.manage_requests || perms.manage_products) ? <ProductRequestsBoard /> : <TeamsAccessDenied requiredPermission="manage_requests" moduleName="Product Requests" />} 
+            />
+            
+            <Route 
+              path="messages/*" 
+              element={perms.manage_messages ? <MessagesPage /> : <TeamsAccessDenied requiredPermission="manage_messages" moduleName="Customer Messages" />} 
+            />
+            
+            <Route 
+              path="payment-numbers/*" 
+              element={(perms.manage_payment_numbers || perms.manage_payments) ? <PaymentNumbersManager /> : <TeamsAccessDenied requiredPermission="manage_payment_numbers" moduleName="Payment Numbers" />} 
+            />
+            
+            <Route 
+              path="payments/*" 
+              element={(perms.manage_payments || perms.manage_payment_numbers) ? <PaymentNumbersManager /> : <TeamsAccessDenied requiredPermission="manage_payments" moduleName="Payment Approvals" />} 
+            />
+            
+            <Route 
+              path="billing/*" 
+              element={perms.manage_billing ? <BillingPage /> : <TeamsAccessDenied requiredPermission="manage_billing" moduleName="Billing & Ledger" />} 
+            />
+            
+            <Route 
+              path="analytics/*" 
+              element={perms.view_analytics ? <DashboardAnalytics /> : <TeamsAccessDenied requiredPermission="view_analytics" moduleName="Sales Reports" />} 
+            />
+            
+            <Route path="my-role" element={<MyTeamPage />} />
+            
+            <Route path="*" element={<Navigate to="/teams-dashboard" replace />} />
+          </Routes>
         </main>
 
       </div>
