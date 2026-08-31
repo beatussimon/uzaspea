@@ -1144,22 +1144,22 @@ const ProductDetailPage: React.FC = () => {
             </div>
           )}
 
-          {/* Volume Pricing Cards */}
+          {/* Super Minimal Volume Pricing Chips */}
           {((product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1) || (product.price_tiers && product.price_tiers.length > 0)) && (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
                   Volume Pricing
                 </span>
                 {product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1 && (
-                  <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20">
-                    Min. order: {formatQtyNum(product.minimum_order_quantity)} {formatUnit(parseFloat(product.minimum_order_quantity), product.unit_of_measure)}
+                  <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                    Min: {formatQtyNum(product.minimum_order_quantity)} {formatUnit(parseFloat(product.minimum_order_quantity), product.unit_of_measure)}
                   </span>
                 )}
               </div>
 
               {product.price_tiers && product.price_tiers.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="flex flex-wrap gap-2">
                   {product.price_tiers.map((tier) => {
                     const minQ = parseFloat(tier.min_quantity);
                     const maxQ = tier.max_quantity ? parseFloat(tier.max_quantity) : null;
@@ -1174,28 +1174,24 @@ const ProductDetailPage: React.FC = () => {
                         key={tier.id}
                         type="button"
                         onClick={() => setQuantity(minQ)}
-                        className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        className={`px-3.5 py-2 rounded-full text-xs font-bold transition-all border-2 flex items-center gap-1.5 cursor-pointer ${
                           isCurrentActive
-                            ? 'border-amber-400 bg-amber-400/10 text-gray-900 dark:text-white shadow-xs ring-1 ring-amber-400/40'
-                            : 'border-gray-200 dark:border-neutral-800 bg-gray-50/70 dark:bg-[#242526]/70 hover:border-gray-300 dark:hover:border-neutral-700 text-gray-700 dark:text-gray-300'
+                            ? 'border-amber-400 bg-amber-400/10 text-amber-500 dark:text-amber-400 dark:border-amber-400'
+                            : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <span className="text-[11px] font-bold tracking-tight text-gray-600 dark:text-gray-400">
-                            {formatQtyNum(minQ)}{maxQ ? `–${formatQtyNum(maxQ)}` : '+'} {formatUnit(maxQ || minQ, uom)}
+                        <span>
+                          {formatQtyNum(minQ)}{maxQ ? `–${formatQtyNum(maxQ)}` : '+'} {formatUnit(maxQ || minQ, uom)}
+                        </span>
+                        {savingsPercent > 0 && (
+                          <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                            isCurrentActive 
+                              ? 'bg-amber-400/20 text-amber-600 dark:text-amber-300' 
+                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          }`}>
+                            -{savingsPercent}%
                           </span>
-                          {savingsPercent > 0 && (
-                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-                              -{savingsPercent}%
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-sm font-black text-gray-900 dark:text-white">
-                          TSh {tierPrice.toLocaleString()}
-                        </span>
-                        <span className="text-[10px] text-gray-400 font-medium">
-                          per {formatUnit(1, uom)}
-                        </span>
+                        )}
                       </button>
                     );
                   })}
