@@ -1,6 +1,5 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
-import { Spinner } from './Spinner';
 
 export interface Column<T> {
   header: string;
@@ -40,13 +39,20 @@ export function DataTable<T>({
           </thead>
           <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border text-sm text-gray-700 dark:text-gray-300">
             {loading ? (
-              <tr>
-                <td colSpan={columns.length} className="px-6 py-12 text-center">
-                  <div className="flex justify-center items-center">
-                    <Spinner size="md" />
-                  </div>
-                </td>
-              </tr>
+              Array.from({ length: 5 }).map((_, r) => (
+                <tr key={r} className="border-b border-surface-border/40 dark:border-surface-dark-border/40">
+                  {columns.map((col, c) => (
+                    <td key={c} className={cn('px-6 py-4', col.className)}>
+                      <div
+                        className={cn(
+                          'relative overflow-hidden bg-gray-200 dark:bg-white/5 h-4 rounded-md animate-pulse',
+                          c === 0 ? 'w-4/5' : c === columns.length - 1 ? 'w-1/2 ml-auto' : 'w-2/3'
+                        )}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))
             ) : data.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-6 py-12 text-center text-xs font-bold uppercase tracking-wider text-gray-400 select-none">

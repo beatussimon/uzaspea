@@ -1,24 +1,22 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle, Lightbulb, FileText, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-const SettingsPage = lazy(() => import('./SettingsPage'));
-
-const HelpCenterPage = lazy(() => import('./HelpCenterPage'));
-
-const DashboardOverview = lazy(() => import('./DashboardOverview'));
-const DashboardAnalytics = lazy(() => import('./DashboardAnalytics'));
-const DashboardProducts = lazy(() => import('./DashboardProducts'));
-const DashboardPromotions = lazy(() => import('./DashboardPromotions'));
-const DashboardOrders = lazy(() => import('./DashboardOrders'));
-const PaymentNumbersManager = lazy(() => import('./PaymentNumbersManager'));
-const BillingPage = lazy(() => import('./BillingPage'));
-const TeamManagerPage = lazy(() => import('./TeamManagerPage'));
-const MyTeamPage = lazy(() => import('./MyTeamPage'));
-const DashboardPOS = lazy(() => import('./DashboardPOS'));
-const ProductRequestsBoard = lazy(() => import('./ProductRequestsBoard'));
-const InvoicesPage = lazy(() => import('./InvoicesPage'));
+import SettingsPage from './SettingsPage';
+import HelpCenterPage from './HelpCenterPage';
+import DashboardOverview from './DashboardOverview';
+import DashboardAnalytics from './DashboardAnalytics';
+import DashboardProducts from './DashboardProducts';
+import DashboardPromotions from './DashboardPromotions';
+import DashboardOrders from './DashboardOrders';
+import PaymentNumbersManager from './PaymentNumbersManager';
+import BillingPage from './BillingPage';
+import TeamManagerPage from './TeamManagerPage';
+import MyTeamPage from './MyTeamPage';
+import DashboardPOS from './DashboardPOS';
+import ProductRequestsBoard from './ProductRequestsBoard';
+import InvoicesPage from './InvoicesPage';
 
 // ============ Dashboard Layout ============
 const DashboardLayout: React.FC = () => {
@@ -144,24 +142,22 @@ const DashboardLayout: React.FC = () => {
 
       {/* Content */}
       <main className="flex-1 min-w-0 animate-fade-in">
-        <Suspense fallback={<div className="p-8 text-center text-sm text-gray-500 animate-pulse">Loading Help Center...</div>}>
-          <Routes>
-            <Route index element={<DashboardOverview />} />
-            <Route path="analytics" element={<DashboardAnalytics />} />
-            <Route path="products" element={<DashboardProducts />} />
-            <Route path="product-requests" element={<ProductRequestsBoard />} />
-            <Route path="pos" element={<DashboardPOS />} />
-            <Route path="orders" element={<DashboardOrders />} />
-            <Route path="invoices" element={<InvoicesPage />} />
-            <Route path="promotions" element={<DashboardPromotions />} />
-            <Route path="billing" element={<BillingPage />} />
-            <Route path="payment-numbers" element={<PaymentNumbersManager />} />
-            {isBusiness && <Route path="team" element={<TeamManagerPage />} />}
-            {isWorker && <Route path="my-team" element={<MyTeamPage />} />}
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="help-center" element={<HelpCenterPage />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route index element={<DashboardOverview />} />
+          <Route path="analytics" element={<DashboardAnalytics />} />
+          <Route path="products" element={<DashboardProducts />} />
+          <Route path="product-requests" element={<ProductRequestsBoard />} />
+          <Route path="pos" element={<DashboardPOS />} />
+          <Route path="orders" element={<DashboardOrders />} />
+          <Route path="invoices" element={<InvoicesPage />} />
+          <Route path="promotions" element={<DashboardPromotions />} />
+          <Route path="billing" element={<BillingPage />} />
+          <Route path="payment-numbers" element={<PaymentNumbersManager />} />
+          {isBusiness && <Route path="team" element={<TeamManagerPage />} />}
+          {isWorker && <Route path="my-team" element={<MyTeamPage />} />}
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="help-center" element={<HelpCenterPage />} />
+        </Routes>
       </main>
       </div>
     </div>

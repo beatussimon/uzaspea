@@ -8,12 +8,13 @@ import toast from 'react-hot-toast';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import VerifiedBadge from '../components/VerifiedBadge';
-import { useMessages, Message } from '../context/MessageContext';
+import { useMessages, Message, Conversation } from '../context/MessageContext';
 import { useTranslation } from 'react-i18next';
-import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
+import { ChatSkeleton } from '../components/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
+import { parseMessageContent, getMessageDisplayText } from '../utils/messageParser';
 
 interface ChatInputConsoleProps {
   conversationId: number;
@@ -373,8 +374,30 @@ const MessagesPage: React.FC = () => {
     return colors[idx];
   };
 
-  const sokoniConversations = useMemo(() => conversations.filter(c => !!c.product || !!c.product_name), [conversations]);
-  const regularConversations = useMemo(() => conversations.filter(c => !c.product && !c.product_name), [conversations]);
+  const getConvProductInfo = (c: Conversation) => {
+    if (c.product_name) {
+      return { title: c.product_name, image: c.product_image, id: c.product };
+    }
+    if (c.last_message) {
+      const parsed = parseMessageContent(c.last_message.content);
+      if (parsed.product) {
+        return { title: parsed.product.title, image: parsed.product.image, id: parsed.product.id };
+      }
+    }
+    return null;
+  };
+
+  const isSokoniConversation = (c: Conversation) => {
+    if (c.product || c.product_name) return true;
+    if (c.last_message) {
+      const parsed = parseMessageContent(c.last_message.content);
+      if (parsed.product) return true;
+    }
+    return false;
+  };
+
+  const sokoniConversations = useMemo(() => conversations.filter(isSokoniConversation), [conversations]);
+  const regularConversations = useMemo(() => conversations.filter(c => !isSokoniConversation(c)), [conversations]);
 
   const displayedConversations = useMemo(() => {
     const list = viewMode === 'sokoni' ? sokoniConversations : regularConversations;
@@ -383,8 +406,9 @@ const MessagesPage: React.FC = () => {
     return list.filter(c => {
       const isBuyer = Number(c.buyer) === Number(userId);
       const otherUser = isBuyer ? c.seller_username : c.buyer_username;
-      const product = c.product_name || '';
-      return otherUser.toLowerCase().includes(q) || product.toLowerCase().includes(q);
+      const productInfo = getConvProductInfo(c);
+      const productTitle = productInfo?.title || c.product_name || '';
+      return otherUser.toLowerCase().includes(q) || productTitle.toLowerCase().includes(q);
     });
   }, [viewMode, sokoniConversations, regularConversations, searchQuery, userId]);
 
@@ -419,11 +443,8 @@ const MessagesPage: React.FC = () => {
 
   if (contextLoading && conversations.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[70vh]">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner size="md" />
-          <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{t('loading_chats', 'Loading your chats...')}</p>
-        </div>
+      <div className="h-[calc(100vh-4.5rem)] md:h-[calc(100vh-6.5rem)] flex flex-col p-4 animate-fade-in">
+        <ChatSkeleton className="h-full" />
       </div>
     );
   }
@@ -439,7 +460,14 @@ const MessagesPage: React.FC = () => {
         <div className={`w-full md:w-80 lg:w-96 flex flex-col md:border-r md:border-gray-200/60 dark:md:border-neutral-800/60 ${isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
           <div className="px-4 md:px-5 pt-4 pb-3 flex flex-col gap-3">
             {viewMode === 'main' ? (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <button 
+                  onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+                  className="md:hidden p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-300 transition-colors"
+                  title="Back"
+                >
+                  <ArrowLeft size={18} />
+                </button>
                 <h1 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
                   <MessageSquare className="text-brand-500" size={20} /> {t('chats')}
                 </h1>
@@ -559,41 +587,44 @@ const MessagesPage: React.FC = () => {
                     </div>
 
                     {/* Chat details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline gap-1.5">
-                        <span 
-                          className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 truncate hover:underline hover:text-brand-500 transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/${otherUsername}`);
-                          }}
-                        >
-                          {viewMode === 'sokoni' ? `${otherUsername} · ${conv.product_name || 'Product'}` : otherUsername}
-                          {isVerified && viewMode !== 'sokoni' && (
-                            <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
-                          )}
-                        </span>
-                        {conv.last_message && (
-                          <span className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                            {formatRelativeTime(conv.last_message.created_at)}
-                          </span>
-                        )}
-                      </div>
+                    {(() => {
+                      const productInfo = getConvProductInfo(conv);
+                      return (
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline gap-1.5">
+                            <span 
+                              className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 truncate hover:underline hover:text-brand-500 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/${otherUsername}`);
+                              }}
+                            >
+                              {viewMode === 'sokoni' ? `${otherUsername} · ${productInfo?.title || conv.product_name || 'Product'}` : otherUsername}
+                              {isVerified && viewMode !== 'sokoni' && (
+                                <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
+                              )}
+                            </span>
+                            {conv.last_message && (
+                              <span className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                                {formatRelativeTime(conv.last_message.created_at)}
+                              </span>
+                            )}
+                          </div>
 
-                      {conv.product_name && viewMode !== 'sokoni' && (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          {conv.product_image && (
-                            <img
-                              src={conv.product_image}
-                              alt={conv.product_name}
-                              className="w-4 h-4 rounded object-cover border border-gray-150 dark:border-neutral-800 shrink-0"
-                            />
+                          {productInfo && viewMode !== 'sokoni' && (
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {productInfo.image && (
+                                <img
+                                  src={productInfo.image}
+                                  alt={productInfo.title}
+                                  className="w-4 h-4 rounded object-cover border border-gray-150 dark:border-neutral-800 shrink-0"
+                                />
+                              )}
+                              <p className="text-[10px] font-bold text-brand-500 truncate">
+                                Re: {productInfo.title}
+                              </p>
+                            </div>
                           )}
-                          <p className="text-[10px] font-bold text-brand-500 truncate">
-                            Re: {conv.product_name}
-                          </p>
-                        </div>
-                      )}
 
                       <div className="flex justify-between items-center gap-1.5 mt-0.5">
                         {typingStatus[conv.id] ? (
@@ -606,7 +637,7 @@ const MessagesPage: React.FC = () => {
                               ? 'text-gray-900 dark:text-white font-extrabold' 
                               : 'text-gray-500 dark:text-gray-400'
                           }`}>
-                            {conv.last_message ? conv.last_message.content : 'No messages yet'}
+                            {conv.last_message ? getMessageDisplayText(conv.last_message.content) : 'No messages yet'}
                           </p>
                         )}
                         {conv.unread_count > 0 && (
@@ -616,10 +647,11 @@ const MessagesPage: React.FC = () => {
                         )}
                       </div>
                     </div>
-                  </div>
-                );
-              })
-              }
+                  );
+                })()}
+              </div>
+            );
+          })}
           </div>
         </div>
 
@@ -697,23 +729,6 @@ const MessagesPage: React.FC = () => {
               </div>
 
 
-              {/* Product Reference Banner */}
-              {activeConv && activeConv.product_name && (
-                <div className="px-4 md:px-5 py-2 border-b border-gray-200/60 dark:border-neutral-800/50 flex items-center justify-between gap-3 text-xs shrink-0 font-medium  ">
-                  <span className="text-gray-600 dark:text-gray-300">
-                    Regarding: <strong className="text-brand-500 dark:text-brand-500">{activeConv.product_name}</strong>
-                  </span>
-                  {activeConv.product && (
-                    <button 
-                      onClick={() => navigate(`/product/${activeConv.product}`)}
-                      className="text-brand-500 hover:underline font-bold text-[11px]"
-                    >
-                      View item
-                    </button>
-                  )}
-                </div>
-              )}
-
               {/* Chat Messages Log Scroll */}
               <div 
                 className="flex-1 overflow-y-auto px-4 md:px-5 py-4 space-y-6 relative" 
@@ -741,6 +756,7 @@ const MessagesPage: React.FC = () => {
                         const isMe = Number(msg.sender) === Number(userId);
                         const showAvatar = !isMe;
                         const isFirstUnread = msg.id === firstUnreadMsgId;
+                        const parsed = parseMessageContent(msg.content);
                         
                         // Display precise date on hover
                         const messageTime = new Date(msg.created_at).toLocaleTimeString(undefined, {
@@ -772,27 +788,66 @@ const MessagesPage: React.FC = () => {
 
                             {/* Bubble Container */}
                             <div 
-                              className={`max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                              className={`max-w-[75%] sm:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
                             >
-                              {/* Message Bubble wrapper with tooltip-like time reveal */}
-                              <div className="group relative">
-                                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all whitespace-pre-wrap break-words ${
-                                  isMe
-                                    ? 'bg-brand-500 text-white rounded-br-sm shadow-sm'
-                                    : unreadMessageIds.has(msg.id)
-                                    ? '  text-gray-900 dark:text-gray-100 border border-brand-500/50 dark:border-brand-500/30 rounded-bl-sm'
-                                    : 'bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] text-gray-900 dark:text-white rounded-bl-sm'
-                                }`}>
-                                  {msg.content}
+                              {/* Attached Product Preview Card */}
+                              {parsed.product && (
+                                <div
+                                  onClick={() => navigate(`/product/${parsed.product?.id}`)}
+                                  className="cursor-pointer group max-w-full sm:max-w-[300px] bg-white dark:bg-[#1f2022] border border-gray-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-md hover:border-brand-500/50 hover:shadow-lg transition-all text-left mb-0.5"
+                                >
+                                  <div className="flex items-center gap-3 p-2.5">
+                                    {parsed.product.image ? (
+                                      <img
+                                        src={parsed.product.image}
+                                        alt={parsed.product.title}
+                                        className="w-14 h-14 rounded-xl object-cover shrink-0 bg-neutral-900"
+                                      />
+                                    ) : (
+                                      <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-xs font-bold text-gray-400 shrink-0">
+                                        Item
+                                      </div>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                      {parsed.product.category && (
+                                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-500 line-clamp-1">
+                                          {parsed.product.category}
+                                        </span>
+                                      )}
+                                      <h4 className="text-xs font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 transition-colors">
+                                        {parsed.product.title}
+                                      </h4>
+                                      {parsed.product.price != null && (
+                                        <p className="text-xs font-extrabold text-brand-600 dark:text-brand-400 mt-0.5">
+                                          {typeof parsed.product.price === 'number' ? parsed.product.price.toLocaleString() : parsed.product.price} {parsed.product.currency || 'TZS'}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
+                              )}
 
-                                {/* Hover timestamp */}
-                                <span className={`absolute top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap ${
-                                  isMe ? '-left-14' : '-right-14'
-                                }`}>
-                                  {messageTime}
-                                </span>
-                              </div>
+                              {/* Message Bubble wrapper with tooltip-like time reveal */}
+                              {parsed.text && (
+                                <div className="group relative">
+                                  <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all whitespace-pre-wrap break-words ${
+                                    isMe
+                                      ? 'bg-brand-500 text-white rounded-br-sm shadow-sm'
+                                      : unreadMessageIds.has(msg.id)
+                                      ? '  text-gray-900 dark:text-gray-100 border border-brand-500/50 dark:border-brand-500/30 rounded-bl-sm'
+                                      : 'bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] text-gray-900 dark:text-white rounded-bl-sm'
+                                  }`}>
+                                    {parsed.text}
+                                  </div>
+
+                                  {/* Hover timestamp */}
+                                  <span className={`absolute top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap ${
+                                    isMe ? '-left-14' : '-right-14'
+                                  }`}>
+                                    {messageTime}
+                                  </span>
+                                </div>
+                              )}
 
                               {/* Unread / status indicators below own messages */}
                               {isMe && index === groupedMessages[dateStr].length - 1 && (

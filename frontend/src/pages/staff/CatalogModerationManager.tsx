@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  CheckCircle2, AlertCircle, Edit3, Trash2, Search, 
-  GitMerge, RefreshCw, Sparkles, Building2, 
-  X, Sliders, Smartphone
+  CheckCircle2, Edit3, Trash2, Search, 
+  GitMerge, Building2, Sliders, Smartphone
 } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Button } from '../../components/ui/Button';
+import { CardGridSkeleton } from '../../components/Skeleton';
 
 interface BrandItem {
   id: number;
@@ -79,10 +81,6 @@ export const CatalogModerationManager: React.FC = () => {
   const [mergeSource, setMergeSource] = useState<BrandItem | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
 
-  // Edit Model State
-  const [editModel, setEditModel] = useState<ReferenceModelItem | null>(null);
-  const [editModelName, setEditModelName] = useState('');
-
   // Standardize Spec State
   const [standardizeSpec, setStandardizeSpec] = useState<DiscoveredSpecItem | null>(null);
   const [standardizedValue, setStandardizedValue] = useState('');
@@ -101,7 +99,7 @@ export const CatalogModerationManager: React.FC = () => {
       setLoading(true);
       const res = await api.get('/api/brands/unverified/');
       setUnverifiedBrands(res.data);
-    } catch (e) {
+    } catch {
       toast.error('Failed to load unverified brands');
     } finally {
       setLoading(false);
@@ -113,7 +111,7 @@ export const CatalogModerationManager: React.FC = () => {
       setLoading(true);
       const res = await api.get('/api/brands/?all=true&include_unverified=true');
       setAllBrands(res.data);
-    } catch (e) {
+    } catch {
       toast.error('Failed to load brands catalog');
     } finally {
       setLoading(false);
@@ -125,7 +123,7 @@ export const CatalogModerationManager: React.FC = () => {
       setLoading(true);
       const res = await api.get('/api/reference-products/?only_unverified=true');
       setUnverifiedModels(res.data?.results || res.data || []);
-    } catch (e) {
+    } catch {
       toast.error('Failed to load reference models queue');
     } finally {
       setLoading(false);
@@ -137,7 +135,7 @@ export const CatalogModerationManager: React.FC = () => {
       setLoading(true);
       const res = await api.get('/api/categories/discovered_specs/');
       setDiscoveredSpecs(res.data);
-    } catch (e) {
+    } catch {
       toast.error('Failed to load discovered specifications');
     } finally {
       setLoading(false);
@@ -178,22 +176,16 @@ export const CatalogModerationManager: React.FC = () => {
     try {
       setActionLoading(true);
       const fd = new FormData();
-      if (editName.trim()) fd.append('name', editName.trim());
+      fd.append('name', editName);
       if (editLogo) fd.append('logo', editLogo);
 
-      await api.post(`/api/brands/${editBrand.id}/verify/`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      toast.success(`Brand "${editName.trim() || editBrand.name}" updated & verified!`);
+      await api.patch(`/api/brands/${editBrand.id}/`, fd);
+      toast.success('Brand details updated');
       setEditBrand(null);
-      setEditName('');
-      setEditLogo(null);
       if (brandSubTab === 'queue') fetchUnverified();
       else fetchAllBrands();
-      fetchStats();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to update brand');
+    } catch {
+      toast.error('Failed to update brand');
     } finally {
       setActionLoading(false);
     }
@@ -202,52 +194,38 @@ export const CatalogModerationManager: React.FC = () => {
   // Merge Brands
   const handleMerge = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mergeSource || !mergeTargetId) {
-      toast.error('Please select a target brand to merge into');
-      return;
-    }
+    if (!mergeSource || !mergeTargetId) return;
     try {
       setActionLoading(true);
-      const res = await api.post('/api/brands/merge/', {
-        source_brand_id: mergeSource.id,
-        target_brand_id: Number(mergeTargetId)
-      });
-      toast.success(res.data.message || 'Brands merged successfully!');
+      await api.post(`/api/brands/${mergeSource.id}/merge/`, { target_brand_id: parseInt(mergeTargetId) });
+      toast.success(`Merged "${mergeSource.name}" successfully!`);
       setMergeSource(null);
       setMergeTargetId('');
       if (brandSubTab === 'queue') fetchUnverified();
       else fetchAllBrands();
       fetchStats();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Merge failed');
+    } catch {
+      toast.error('Failed to merge brands');
     } finally {
       setActionLoading(false);
     }
   };
 
   // Delete Brand
-  const handleDelete = async (brand: BrandItem) => {
-    if (!window.confirm(`Are you sure you want to delete brand "${brand.name}"? Active listings will lose this brand association.`)) {
-      return;
-    }
+  const handleDeleteBrand = async (brand: BrandItem) => {
+    if (!window.confirm(`Are you sure you want to delete "${brand.name}"?`)) return;
     try {
-      setActionLoading(true);
       await api.delete(`/api/brands/${brand.id}/`);
-      toast.success(`Brand "${brand.name}" deleted.`);
-      if (brandSubTab === 'queue') {
-        setUnverifiedBrands(prev => prev.filter(b => b.id !== brand.id));
-      } else {
-        setAllBrands(prev => prev.filter(b => b.id !== brand.id));
-      }
+      toast.success('Brand deleted');
+      if (brandSubTab === 'queue') fetchUnverified();
+      else fetchAllBrands();
       fetchStats();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to delete brand');
-    } finally {
-      setActionLoading(false);
+    } catch {
+      toast.error('Failed to delete brand');
     }
   };
 
-  // 1-Click Verify Model
+  // Verify Model
   const handleVerifyModel = async (model: ReferenceModelItem) => {
     try {
       setActionLoading(true);
@@ -255,740 +233,471 @@ export const CatalogModerationManager: React.FC = () => {
       toast.success(`Model "${model.name}" verified!`);
       setUnverifiedModels(prev => prev.filter(m => m.id !== model.id));
       fetchStats();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Verification failed');
+    } catch {
+      toast.error('Model verification failed');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Save Edit Model
-  const handleSaveEditModel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editModel || !editModelName.trim()) return;
-    try {
-      setActionLoading(true);
-      await api.post(`/api/reference-products/${editModel.id}/verify/`, {
-        name: editModelName.trim()
-      });
-      toast.success(`Model "${editModelName.trim()}" updated & verified!`);
-      setEditModel(null);
-      setEditModelName('');
-      fetchUnverifiedModels();
-      fetchStats();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to update model');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Delete Model
-  const handleDeleteModel = async (model: ReferenceModelItem) => {
-    if (!window.confirm(`Are you sure you want to delete model "${model.name}"?`)) return;
-    try {
-      setActionLoading(true);
-      await api.delete(`/api/reference-products/${model.id}/`);
-      toast.success(`Model "${model.name}" deleted.`);
-      setUnverifiedModels(prev => prev.filter(m => m.id !== model.id));
-      fetchStats();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to delete model');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // 1-Click Approve Spec Option into Category Schema
-  const handleApproveSpec = async (spec: DiscoveredSpecItem) => {
-    try {
-      setActionLoading(true);
-      const res = await api.post('/api/categories/approve_spec_option/', {
-        category_id: spec.category_id,
-        spec_key: spec.spec_key,
-        spec_label: spec.spec_label,
-        value: spec.discovered_value
-      });
-      toast.success(res.data.message || `Added "${spec.discovered_value}" to ${spec.category_name}!`);
-      setDiscoveredSpecs(prev => prev.filter(s => !(s.category_id === spec.category_id && s.spec_key === spec.spec_key && s.discovered_value === spec.discovered_value)));
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to approve specification');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Standardize & Replace Spec Option
-  const handleStandardizeSpecSubmit = async (e: React.FormEvent) => {
+  // Standardize Spec Value
+  const handleStandardizeSpec = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!standardizeSpec || !standardizedValue.trim()) return;
     try {
       setActionLoading(true);
-      const res = await api.post('/api/categories/standardize_spec_option/', {
+      await api.post('/api/categories/standardize_spec_value/', {
         category_id: standardizeSpec.category_id,
         spec_key: standardizeSpec.spec_key,
         old_value: standardizeSpec.discovered_value,
-        new_value: standardizedValue.trim()
+        standardized_value: standardizedValue.trim()
       });
-      toast.success(res.data.message || 'Specification standardized!');
+      toast.success('Specification value standardized across listings');
       setStandardizeSpec(null);
       setStandardizedValue('');
       fetchDiscoveredSpecs();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Failed to standardize specification');
+    } catch {
+      toast.error('Failed to standardize spec');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const displayedBrands = (brandSubTab === 'queue' ? unverifiedBrands : allBrands).filter(b => 
-    b.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    b.slug.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filtered lists
+  const filteredBrands = useMemo(() => {
+    const list = brandSubTab === 'queue' ? unverifiedBrands : allBrands;
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(b => b.name.toLowerCase().includes(q) || b.slug.toLowerCase().includes(q));
+  }, [brandSubTab, unverifiedBrands, allBrands, searchQuery]);
 
-  const displayedModels = unverifiedModels.filter(m =>
-    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.brand_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.category_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredModels = useMemo(() => {
+    if (!searchQuery.trim()) return unverifiedModels;
+    const q = searchQuery.toLowerCase();
+    return unverifiedModels.filter(m => 
+      m.name.toLowerCase().includes(q) || 
+      (m.brand_name || '').toLowerCase().includes(q) ||
+      (m.category_name || '').toLowerCase().includes(q)
+    );
+  }, [unverifiedModels, searchQuery]);
 
-  const displayedSpecs = discoveredSpecs.filter(s =>
-    s.category_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.spec_label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.discovered_value.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSpecs = useMemo(() => {
+    if (!searchQuery.trim()) return discoveredSpecs;
+    const q = searchQuery.toLowerCase();
+    return discoveredSpecs.filter(s => 
+      s.spec_label.toLowerCase().includes(q) || 
+      s.discovered_value.toLowerCase().includes(q) ||
+      s.category_name.toLowerCase().includes(q)
+    );
+  }, [discoveredSpecs, searchQuery]);
 
   return (
     <div className="space-y-6">
-      {/* Header & Metric Cards */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-brand-500" /> Catalog & Taxonomy Curation
-          </h2>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-            Review, standardize, and approve crowdsourced brands, device models, specifications, and custom attributes.
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Catalog & Taxonomy Curation</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Review user-created brands, standardize specs, and maintain clean product reference data.
           </p>
         </div>
-        <button 
-          onClick={() => { 
-            fetchStats(); 
-            if (mainTab === 'brands') brandSubTab === 'queue' ? fetchUnverified() : fetchAllBrands();
-            else if (mainTab === 'models') fetchUnverifiedModels();
-            else fetchDiscoveredSpecs(); 
-          }}
-          className="self-start sm:self-auto px-3 py-1.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
-        >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh Data
-        </button>
-      </div>
-
-      {/* Metric Counters */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
-            <Building2 size={20} />
-          </div>
-          <div>
-            <p className="text-2xl font-black text-neutral-900 dark:text-white">{stats.unverified_brands_count}</p>
-            <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider">Pending Brands</p>
-          </div>
+        
+        {/* Universal Mode Switcher */}
+        <div className="flex bg-surface-muted dark:bg-[#161616] p-1 rounded-full border border-surface-border dark:border-surface-dark-border">
+          <button
+            type="button"
+            onClick={() => setMainTab('brands')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 ${
+              mainTab === 'brands'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Building2 size={13} /> Brands
+            {stats.unverified_brands_count > 0 && (
+              <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainTab('models')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 ${
+              mainTab === 'models'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Smartphone size={13} /> Reference Models
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainTab('specs')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 ${
+              mainTab === 'specs'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Sliders size={13} /> Dynamic Specs
+          </button>
         </div>
+      </header>
 
-        <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-            <Smartphone size={20} />
-          </div>
-          <div>
-            <p className="text-2xl font-black text-neutral-900 dark:text-white">{unverifiedModels.length}</p>
-            <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider">Pending Models</p>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-            <Sliders size={20} />
-          </div>
-          <div>
-            <p className="text-2xl font-black text-neutral-900 dark:text-white">{discoveredSpecs.length}</p>
-            <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider">Discovered Spec Options</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Primary Tab Selector */}
-      <div className="flex items-center gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-3">
-        <button
-          onClick={() => setMainTab('brands')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-            mainTab === 'brands'
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black shadow-sm'
-              : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-          }`}
-        >
-          <Building2 size={14} /> Brands Queue ({stats.unverified_brands_count})
-        </button>
-
-        <button
-          onClick={() => setMainTab('models')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-            mainTab === 'models'
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black shadow-sm'
-              : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-          }`}
-        >
-          <Smartphone size={14} /> Models Queue ({unverifiedModels.length})
-        </button>
-
-        <button
-          onClick={() => setMainTab('specs')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-            mainTab === 'specs'
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black shadow-sm'
-              : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-          }`}
-        >
-          <Sliders size={14} /> Spec Options & Attributes ({discoveredSpecs.length})
-        </button>
-      </div>
-
-      {/* Sub-Filters & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {mainTab === 'brands' ? (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setBrandSubTab('queue')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                brandSubTab === 'queue'
-                  ? 'bg-brand-500 text-black shadow-sm'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-            >
-              <AlertCircle size={13} /> Unverified Queue ({stats.unverified_brands_count})
-            </button>
-            <button
-              onClick={() => setBrandSubTab('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                brandSubTab === 'all'
-                  ? 'bg-brand-500 text-black shadow-sm'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-            >
-              <Building2 size={13} /> All Brands ({stats.total_brands_count})
-            </button>
-          </div>
-        ) : mainTab === 'models' ? (
-          <div className="text-xs text-neutral-500">
-            Unverified device & product models added by sellers. Click <strong>"Verify"</strong> to promote them to the canonical series list.
-          </div>
-        ) : (
-          <div className="text-xs text-neutral-500">
-            Custom specification values submitted by sellers. Click <strong>"Add to Dropdown"</strong> to promote them into category picklists.
-          </div>
-        )}
-
-        <div className="relative w-full sm:w-64">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            type="text"
-            placeholder={mainTab === 'brands' ? "Search brands or slugs..." : mainTab === 'models' ? "Search models or brands..." : "Search categories or specs..."}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-neutral-200 dark:border-neutral-800 rounded-lg bg-white dark:bg-[#111] text-neutral-900 dark:text-white outline-none focus:border-brand-500"
-          />
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      {mainTab === 'brands' ? (
-        /* Brands Table */
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm">
-          {loading ? (
-            <div className="p-12 text-center text-xs text-neutral-400">Loading catalog items...</div>
-          ) : displayedBrands.length === 0 ? (
-            <div className="p-12 text-center space-y-2">
-              <CheckCircle2 size={32} className="mx-auto text-emerald-500" />
-              <p className="text-sm font-bold text-neutral-800 dark:text-neutral-200">
-                {brandSubTab === 'queue' ? 'Queue is clean!' : 'No brands matched your search.'}
-              </p>
-              <p className="text-xs text-neutral-400">
-                {brandSubTab === 'queue' ? 'All user-submitted brands have been verified or standardized.' : 'Try a different search query.'}
-              </p>
+      {/* Main Tab: Brands */}
+      {mainTab === 'brands' && (
+        <>
+          {/* Sub-Tabs Pills & Search */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+              <button
+                type="button"
+                onClick={() => setBrandSubTab('queue')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  brandSubTab === 'queue'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                Verification Queue
+                <span className="px-1.5 py-0.2 rounded-full text-3xs font-black bg-brand-500/20 text-brand-500">
+                  {stats.unverified_brands_count}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setBrandSubTab('all')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  brandSubTab === 'all'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                All Directory Brands ({stats.total_brands_count})
+              </button>
             </div>
+
+            <div className="relative min-w-[240px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search brands by name..."
+                className="input pl-8 py-1.5 text-xs w-full"
+              />
+            </div>
+          </div>
+
+          {loading ? (
+            <CardGridSkeleton count={6} cols={3} />
+          ) : filteredBrands.length === 0 ? (
+            <EmptyState
+              icon={Building2}
+              title="No Brands Found"
+              description={searchQuery ? 'No brands match your search query.' : 'There are currently no brands in this queue.'}
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400 font-semibold uppercase tracking-wider text-[10px]">
-                  <tr>
-                    <th className="py-3 px-4">Brand</th>
-                    <th className="py-3 px-4">Slug</th>
-                    <th className="py-3 px-4">Listings</th>
-                    <th className="py-3 px-4">Submitted By</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                  {displayedBrands.map(brand => (
-                    <tr key={brand.id} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-900/40 transition">
-                      <td className="py-3 px-4 font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredBrands.map((brand) => (
+                <div key={brand.id} className="card p-5 flex flex-col justify-between space-y-4 hover:border-gray-900/20 dark:hover:border-white/20 transition">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
                         {brand.logo ? (
-                          <img src={brand.logo} alt={brand.name} className="w-6 h-6 object-contain rounded border border-neutral-200 dark:border-neutral-800" />
+                          <img src={brand.logo} alt={brand.name} className="w-10 h-10 rounded-btn object-contain border border-surface-border p-1 bg-white" />
                         ) : (
-                          <div className="w-6 h-6 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 font-bold flex items-center justify-center text-[10px]">
-                            {brand.name.charAt(0)}
+                          <div className="w-10 h-10 rounded-btn bg-surface-muted border border-surface-border flex items-center justify-center text-gray-400 font-black text-sm">
+                            {brand.name.substring(0, 2).toUpperCase()}
                           </div>
                         )}
-                        <span>{brand.name}</span>
-                      </td>
-                      <td className="py-3 px-4 font-mono text-neutral-500">{brand.slug}</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold text-[10px]">
-                          {brand.products_count} {brand.products_count === 1 ? 'product' : 'products'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-neutral-500">
-                        {brand.created_by_username ? `@${brand.created_by_username}` : 'System / Seed'}
-                      </td>
-                      <td className="py-3 px-4">
-                        {brand.is_verified ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-                            <CheckCircle2 size={11} /> Verified
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
-                            <AlertCircle size={11} /> Unverified
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {!brand.is_verified && (
-                            <button
-                              onClick={() => handleVerify(brand)}
-                              disabled={actionLoading}
-                              className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-[10px] rounded transition flex items-center gap-1"
-                              title="1-Click Approve"
-                            >
-                              <CheckCircle2 size={11} /> Verify
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              setEditBrand(brand);
-                              setEditName(brand.name);
-                              setEditLogo(null);
-                            }}
-                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded transition"
-                            title="Edit & Standardize Name / Logo"
-                          >
-                            <Edit3 size={13} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setMergeSource(brand);
-                              setMergeTargetId('');
-                            }}
-                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-brand-500 rounded transition"
-                            title="Merge Duplicate into Canonical Brand"
-                          >
-                            <GitMerge size={13} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(brand)}
-                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-red-500 rounded transition"
-                            title="Delete Brand"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                        <div>
+                          <h4 className="font-bold text-gray-900 dark:text-white text-base">{brand.name}</h4>
+                          <p className="text-3xs text-gray-400 font-mono">slug: {brand.slug}</p>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
+                        brand.is_verified
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${brand.is_verified ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                        {brand.is_verified ? 'Verified' : 'Pending'}
+                      </span>
+                    </div>
+
+                    {/* Clean Unboxed Metadata */}
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400 dark:text-gray-500 font-normal">Products Listed</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-200">{brand.products_count || 0}</span>
+                      </div>
+                      {brand.created_by_username && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-400 dark:text-gray-500 font-normal">Submitted By</span>
+                          <span className="font-medium text-brand-500">@{brand.created_by_username}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-surface-border/40">
+                    {!brand.is_verified && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleVerify(brand)}
+                        disabled={actionLoading}
+                        className="py-1 px-2.5 text-3xs flex items-center gap-1"
+                      >
+                        <CheckCircle2 size={12} /> Verify
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditBrand(brand);
+                        setEditName(brand.name);
+                        setEditLogo(null);
+                      }}
+                      className="py-1 px-2.5 text-3xs flex items-center gap-1"
+                    >
+                      <Edit3 size={12} /> Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setMergeSource(brand);
+                        setMergeTargetId('');
+                      }}
+                      className="py-1 px-2.5 text-3xs flex items-center gap-1 text-purple-500"
+                    >
+                      <GitMerge size={12} /> Merge
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDeleteBrand(brand)}
+                      className="py-1 px-2.5 text-3xs flex items-center gap-1 ml-auto"
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-        </div>
-      ) : mainTab === 'models' ? (
-        /* Reference Models Table */
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm">
-          {loading ? (
-            <div className="p-12 text-center text-xs text-neutral-400">Loading reference models...</div>
-          ) : displayedModels.length === 0 ? (
-            <div className="p-12 text-center space-y-2">
-              <CheckCircle2 size={32} className="mx-auto text-emerald-500" />
-              <p className="text-sm font-bold text-neutral-800 dark:text-neutral-200">
-                No pending device models!
-              </p>
-              <p className="text-xs text-neutral-400">
-                When sellers type custom model names for brands, they will appear here for 1-click verification.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400 font-semibold uppercase tracking-wider text-[10px]">
-                  <tr>
-                    <th className="py-3 px-4">Model / Series</th>
-                    <th className="py-3 px-4">Brand</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Listings</th>
-                    <th className="py-3 px-4">Submitted By</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                  {displayedModels.map(model => (
-                    <tr key={model.id} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-900/40 transition">
-                      <td className="py-3 px-4 font-bold text-neutral-900 dark:text-white">
-                        {model.name}
-                      </td>
-                      <td className="py-3 px-4 font-semibold text-brand-600 dark:text-brand-400">
-                        {model.brand_name}
-                      </td>
-                      <td className="py-3 px-4 text-neutral-500">
-                        {model.category_name}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold text-[10px]">
-                          {model.products_count} {model.products_count === 1 ? 'listing' : 'listings'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-neutral-500">
-                        {model.created_by_username ? `@${model.created_by_username}` : 'User'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleVerifyModel(model)}
-                            disabled={actionLoading}
-                            className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-[10px] rounded transition flex items-center gap-1"
-                            title="Verify & Promote to Master Model Series"
-                          >
-                            <CheckCircle2 size={11} /> Verify
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditModel(model);
-                              setEditModelName(model.name);
-                            }}
-                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded transition"
-                            title="Edit Model Name"
-                          >
-                            <Edit3 size={13} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteModel(model)}
-                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-red-500 rounded transition"
-                            title="Delete Model"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Discovered Specs & Attributes Table */
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm">
-          {loading ? (
-            <div className="p-12 text-center text-xs text-neutral-400">Scanning product specifications...</div>
-          ) : displayedSpecs.length === 0 ? (
-            <div className="p-12 text-center space-y-2">
-              <CheckCircle2 size={32} className="mx-auto text-emerald-500" />
-              <p className="text-sm font-bold text-neutral-800 dark:text-neutral-200">
-                All custom specification values have been standardized!
-              </p>
-              <p className="text-xs text-neutral-400">
-                As sellers enter custom attributes or options on listings, they will automatically appear here for review.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 text-neutral-500 dark:text-neutral-400 font-semibold uppercase tracking-wider text-[10px]">
-                  <tr>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Spec Attribute</th>
-                    <th className="py-3 px-4">Discovered Value</th>
-                    <th className="py-3 px-4">Occurrences</th>
-                    <th className="py-3 px-4">Sample Listings</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                  {displayedSpecs.map((spec, idx) => (
-                    <tr key={idx} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-900/40 transition">
-                      <td className="py-3 px-4 font-bold text-neutral-900 dark:text-white">
-                        {spec.category_name}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold text-[11px]">
-                          {spec.spec_label}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">
-                        {spec.discovered_value}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
-                          {spec.occurrences_count} {spec.occurrences_count === 1 ? 'listing' : 'listings'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-neutral-500 text-[11px] max-w-xs truncate">
-                        {spec.sample_products.join(', ') || '—'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleApproveSpec(spec)}
-                            disabled={actionLoading}
-                            className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-[10px] rounded transition flex items-center gap-1"
-                            title="Add directly to Category Schema Dropdown"
-                          >
-                            <CheckCircle2 size={11} /> Add to Dropdown
-                          </button>
-                          <button
-                            onClick={() => {
-                              setStandardizeSpec(spec);
-                              setStandardizedValue(spec.discovered_value);
-                            }}
-                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded transition"
-                            title="Standardize / Format Value"
-                          >
-                            <Edit3 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        </>
       )}
 
-      {/* ═══ Edit Brand Modal ═══ */}
+      {/* Main Tab: Reference Models */}
+      {mainTab === 'models' && (
+        <>
+          <div className="flex justify-end">
+            <div className="relative min-w-[240px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search reference models..."
+                className="input pl-8 py-1.5 text-xs w-full"
+              />
+            </div>
+          </div>
+
+          {loading ? (
+            <CardGridSkeleton count={6} cols={3} />
+          ) : filteredModels.length === 0 ? (
+            <EmptyState
+              icon={Smartphone}
+              title="No Reference Models"
+              description="There are currently no reference models awaiting verification."
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredModels.map((model) => (
+                <div key={model.id} className="card p-5 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-gray-900 dark:text-white text-base">{model.name}</h4>
+                        <p className="text-xs text-brand-500 font-bold">{model.brand_name} • {model.category_name}</p>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        Pending
+                      </span>
+                    </div>
+
+                    {model.structured_specs && Object.keys(model.structured_specs).length > 0 && (
+                      <div className="space-y-1 text-xs">
+                        {Object.entries(model.structured_specs).slice(0, 4).map(([k, v]) => (
+                          <div key={k} className="flex justify-between">
+                            <span className="text-gray-400 dark:text-gray-500 capitalize">{k.replace(/_/g, ' ')}</span>
+                            <span className="font-medium text-gray-800 dark:text-gray-200">{String(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-surface-border/40">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => handleVerifyModel(model)}
+                      disabled={actionLoading}
+                      className="w-full"
+                    >
+                      Confirm & Verify Reference Model
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Main Tab: Discovered Specs */}
+      {mainTab === 'specs' && (
+        <>
+          <div className="flex justify-end">
+            <div className="relative min-w-[240px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search discovered specs..."
+                className="input pl-8 py-1.5 text-xs w-full"
+              />
+            </div>
+          </div>
+
+          {loading ? (
+            <CardGridSkeleton count={6} cols={3} />
+          ) : filteredSpecs.length === 0 ? (
+            <EmptyState
+              icon={Sliders}
+              title="No Dynamic Specs Found"
+              description="No user-submitted dynamic specifications require standardization at this time."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredSpecs.map((spec, idx) => (
+                <div key={idx} className="card p-5 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-3xs font-bold text-brand-500 uppercase">{spec.category_name}</span>
+                        <h4 className="font-bold text-gray-900 dark:text-white text-sm mt-0.5">{spec.spec_label}</h4>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-surface-muted text-gray-600 dark:text-gray-400 border border-surface-border">
+                        {spec.occurrences_count} items
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400 dark:text-gray-500 font-normal">Discovered Value</span>
+                        <span className="font-mono font-medium text-brand-500">"{spec.discovered_value}"</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-surface-border/40">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => {
+                        setStandardizeSpec(spec);
+                        setStandardizedValue(spec.discovered_value);
+                      }}
+                      className="w-full text-xs"
+                    >
+                      Standardize Value
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Edit Brand Modal */}
       {editBrand && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111] rounded-2xl max-w-md w-full p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-3">
-              <h3 className="font-bold text-neutral-900 dark:text-white text-sm flex items-center gap-2">
-                <Edit3 size={16} className="text-brand-500" /> Standardize Brand
-              </h3>
-              <button onClick={() => setEditBrand(null)} className="text-neutral-400 hover:text-neutral-600">
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit} className="space-y-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setEditBrand(null)}>
+          <div className="card max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-base text-gray-900 dark:text-white">Edit & Standardize Brand</h3>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-                  Canonical Brand Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
-                />
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Brand Name</label>
+                <input required type="text" className="input" value={editName} onChange={(e) => setEditName(e.target.value)} />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-                  Official Brand Logo (Optional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setEditLogo(e.target.files?.[0] || null)}
-                  className="w-full text-xs text-neutral-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-neutral-100 file:text-neutral-700 dark:file:bg-neutral-800 dark:file:text-neutral-300 hover:file:bg-neutral-200"
-                />
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Brand Logo (Optional)</label>
+                <input type="file" accept="image/*" className="input text-xs" onChange={(e) => setEditLogo(e.target.files?.[0] || null)} />
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-neutral-100 dark:border-neutral-800">
-                <button
-                  type="button"
-                  onClick={() => setEditBrand(null)}
-                  className="px-3.5 py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-black text-xs font-bold rounded-lg transition"
-                >
-                  {actionLoading ? 'Saving...' : 'Save & Verify'}
-                </button>
+              <div className="flex justify-end gap-2 pt-2 border-t border-surface-border/40">
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditBrand(null)}>Cancel</Button>
+                <Button type="submit" variant="default" size="sm" disabled={actionLoading}>Save Changes</Button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ═══ Edit Model Modal ═══ */}
-      {editModel && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111] rounded-2xl max-w-md w-full p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-3">
-              <h3 className="font-bold text-neutral-900 dark:text-white text-sm flex items-center gap-2">
-                <Edit3 size={16} className="text-brand-500" /> Standardize Model Name
-              </h3>
-              <button onClick={() => setEditModel(null)} className="text-neutral-400 hover:text-neutral-600">
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditModel} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-                  Canonical Model / Series Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editModelName}
-                  onChange={(e) => setEditModelName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-neutral-100 dark:border-neutral-800">
-                <button
-                  type="button"
-                  onClick={() => setEditModel(null)}
-                  className="px-3.5 py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading || !editModelName.trim()}
-                  className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-black text-xs font-bold rounded-lg transition"
-                >
-                  {actionLoading ? 'Saving...' : 'Save & Verify'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ═══ Merge Brand Modal ═══ */}
+      {/* Merge Brands Modal */}
       {mergeSource && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111] rounded-2xl max-w-md w-full p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-3">
-              <h3 className="font-bold text-neutral-900 dark:text-white text-sm flex items-center gap-2">
-                <GitMerge size={16} className="text-brand-500" /> Merge Brand
-              </h3>
-              <button onClick={() => setMergeSource(null)} className="text-neutral-400 hover:text-neutral-600">
-                <X size={16} />
-              </button>
-            </div>
-
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              Merge all listings under <strong className="text-neutral-900 dark:text-white">"{mergeSource.name}"</strong> into a target canonical brand. The source brand will then be deleted.
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setMergeSource(null)}>
+          <div className="card max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-base text-gray-900 dark:text-white">Merge Duplicate Brand</h3>
+            <p className="text-xs text-gray-500">
+              Merge all products listed under <strong className="text-gray-900 dark:text-white">"{mergeSource.name}"</strong> into an existing master verified brand.
             </p>
-
-            <form onSubmit={handleMerge} className="space-y-3">
+            <form onSubmit={handleMerge} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-                  Target Canonical Brand
-                </label>
-                <select
-                  required
-                  value={mergeTargetId}
-                  onChange={(e) => setMergeTargetId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
-                >
-                  <option value="">Select target canonical brand...</option>
-                  {allBrands
-                    .filter(b => b.id !== mergeSource.id)
-                    .map(b => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} ({b.is_verified ? 'Verified' : 'Unverified'})
-                      </option>
-                    ))}
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Target Master Brand</label>
+                <select required className="input" value={mergeTargetId} onChange={(e) => setMergeTargetId(e.target.value)}>
+                  <option value="">-- Select Master Brand --</option>
+                  {allBrands.filter(b => b.id !== mergeSource.id).map(b => (
+                    <option key={b.id} value={b.id.toString()}>{b.name} ({b.slug})</option>
+                  ))}
                 </select>
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-neutral-100 dark:border-neutral-800">
-                <button
-                  type="button"
-                  onClick={() => setMergeSource(null)}
-                  className="px-3.5 py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading || !mergeTargetId}
-                  className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-black text-xs font-bold rounded-lg transition flex items-center gap-1"
-                >
-                  <GitMerge size={12} /> {actionLoading ? 'Merging...' : 'Confirm Merge'}
-                </button>
+              <div className="flex justify-end gap-2 pt-2 border-t border-surface-border/40">
+                <Button type="button" variant="outline" size="sm" onClick={() => setMergeSource(null)}>Cancel</Button>
+                <Button type="submit" variant="default" size="sm" disabled={actionLoading || !mergeTargetId}>Confirm Merge</Button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ═══ Standardize Spec Option Modal ═══ */}
+      {/* Standardize Spec Modal */}
       {standardizeSpec && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111] rounded-2xl max-w-md w-full p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-3">
-              <h3 className="font-bold text-neutral-900 dark:text-white text-sm flex items-center gap-2">
-                <Edit3 size={16} className="text-brand-500" /> Standardize Specification Value
-              </h3>
-              <button onClick={() => setStandardizeSpec(null)} className="text-neutral-400 hover:text-neutral-600">
-                <X size={16} />
-              </button>
-            </div>
-
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              Format or standardize <strong className="text-neutral-900 dark:text-white">"{standardizeSpec.discovered_value}"</strong> under <strong>{standardizeSpec.category_name} ({standardizeSpec.spec_label})</strong>. This will update all {standardizeSpec.occurrences_count} listing(s) and add the standardized value to the category dropdown.
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setStandardizeSpec(null)}>
+          <div className="card max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-base text-gray-900 dark:text-white">Standardize Specification</h3>
+            <p className="text-xs text-gray-500">
+              Clean up user variations for <strong className="text-gray-900 dark:text-white">"{standardizeSpec.spec_label}"</strong> in {standardizeSpec.category_name}.
             </p>
-
-            <form onSubmit={handleStandardizeSpecSubmit} className="space-y-3">
+            <form onSubmit={handleStandardizeSpec} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-                  Standardized Value
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={standardizedValue}
-                  onChange={(e) => setStandardizedValue(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
-                />
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Old Discovered Value</label>
+                <input disabled className="input bg-surface-muted" value={standardizeSpec.discovered_value} />
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-neutral-100 dark:border-neutral-800">
-                <button
-                  type="button"
-                  onClick={() => setStandardizeSpec(null)}
-                  className="px-3.5 py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading || !standardizedValue.trim()}
-                  className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-black text-xs font-bold rounded-lg transition"
-                >
-                  {actionLoading ? 'Saving...' : 'Standardize & Save to Schema'}
-                </button>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Standardized Value</label>
+                <input required className="input font-medium" value={standardizedValue} onChange={(e) => setStandardizedValue(e.target.value)} />
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-surface-border/40">
+                <Button type="button" variant="outline" size="sm" onClick={() => setStandardizeSpec(null)}>Cancel</Button>
+                <Button type="submit" variant="default" size="sm" disabled={actionLoading}>Update Listings</Button>
               </div>
             </form>
           </div>

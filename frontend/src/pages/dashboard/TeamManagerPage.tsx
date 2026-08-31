@@ -4,7 +4,8 @@ import toast from 'react-hot-toast';
 import { Users, Plus, Search, X, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { Spinner } from '../../components/ui/Spinner';
+import { CardGridSkeleton } from '../../components/Skeleton';
+import { cn } from '../../lib/utils';
 
 interface UserDetails {
   id: number;
@@ -382,14 +383,6 @@ export const TeamManagerPage: React.FC = () => {
     );
   }, [members, searchQuery]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-16">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       
@@ -474,7 +467,9 @@ export const TeamManagerPage: React.FC = () => {
             </div>
           )}
 
-          {filteredMembers.length === 0 ? (
+          {loading && members.length === 0 ? (
+            <CardGridSkeleton count={2} cols={2} />
+          ) : filteredMembers.length === 0 ? (
             <EmptyState
               icon={Users}
               title={members.length === 0 ? "No team members yet" : "No matching members"}
@@ -488,7 +483,7 @@ export const TeamManagerPage: React.FC = () => {
               } : undefined}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-3", loading && "opacity-75 transition-opacity")}>
               {filteredMembers.map((member) => {
                 const role = ROLE_PRESETS[member.role_preset] || {
                   label: member.role_preset.replace('_', ' '),
@@ -533,11 +528,12 @@ export const TeamManagerPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <span className={`text-3xs font-bold px-2 py-0.5 rounded-full uppercase ${
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize ${
                           member.is_active
-                            ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
-                            : 'text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/20'
+                            ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                            : 'text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20'
                         }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${member.is_active ? 'bg-emerald-500' : 'bg-red-500'}`} />
                           {member.is_active ? 'Active' : 'Suspended'}
                         </span>
                       </div>
@@ -548,7 +544,7 @@ export const TeamManagerPage: React.FC = () => {
                           {grantedPerms.map((perm, idx) => (
                             <span
                               key={idx}
-                              className="px-1.5 py-0.5 rounded bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-300 border border-surface-border dark:border-surface-dark-border text-3xs font-medium"
+                              className="px-1.5 py-0.5 rounded bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-300 border border-surface-border/40 text-3xs font-medium"
                             >
                               {perm}
                             </span>
@@ -557,7 +553,7 @@ export const TeamManagerPage: React.FC = () => {
                       )}
 
                       {member.notes && (
-                        <p className="text-3xs text-gray-400 italic bg-surface-muted/30 dark:bg-[#161616]/30 p-2 rounded-btn border border-surface-border dark:border-surface-dark-border">
+                        <p className="text-3xs text-gray-400 italic pt-1">
                           "{member.notes}"
                         </p>
                       )}

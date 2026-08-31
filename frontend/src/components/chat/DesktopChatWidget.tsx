@@ -10,8 +10,9 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useMessages, Message } from '../../context/MessageContext';
 import VerifiedBadge from '../VerifiedBadge';
-import { Spinner } from '../ui/Spinner';
 import { Button } from '../ui/Button';
+import { CardListSkeleton } from '../Skeleton';
+import { parseMessageContent, getMessageDisplayText } from '../../utils/messageParser';
 
 export const DesktopChatWidget: React.FC = () => {
   const { t } = useTranslation();
@@ -201,15 +202,38 @@ export const DesktopChatWidget: React.FC = () => {
     return colors[idx];
   };
 
-  const sokoniConversations = conversations.filter(c => !!c.product || !!c.product_name);
-  const regularConversations = conversations.filter(c => !c.product && !c.product_name);
+  const getConvProductInfo = (c: any) => {
+    if (c.product_name) {
+      return { title: c.product_name, image: c.product_image, id: c.product };
+    }
+    if (c.last_message) {
+      const parsed = parseMessageContent(typeof c.last_message === 'string' ? c.last_message : c.last_message.content);
+      if (parsed.product) {
+        return { title: parsed.product.title, image: parsed.product.image, id: parsed.product.id };
+      }
+    }
+    return null;
+  };
+
+  const isSokoniConversation = (c: any) => {
+    if (c.product || c.product_name) return true;
+    if (c.last_message) {
+      const parsed = parseMessageContent(typeof c.last_message === 'string' ? c.last_message : c.last_message.content);
+      if (parsed.product) return true;
+    }
+    return false;
+  };
+
+  const sokoniConversations = conversations.filter(isSokoniConversation);
+  const regularConversations = conversations.filter(c => !isSokoniConversation(c));
 
   const displayedConversations = (viewMode === 'sokoni' ? sokoniConversations : regularConversations).filter(c => {
     const isBuyer = Number(c.buyer) === Number(userId);
     const otherUser = isBuyer ? c.seller_username : c.buyer_username;
-    const product = c.product_name || '';
+    const productInfo = getConvProductInfo(c);
+    const productTitle = productInfo?.title || c.product_name || '';
     return otherUser.toLowerCase().includes(searchQuery.toLowerCase()) || 
-           product.toLowerCase().includes(searchQuery.toLowerCase());
+           productTitle.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const sokoniUnreadCount = sokoniConversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
@@ -436,8 +460,8 @@ export const DesktopChatWidget: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5">
                   {contextLoading && conversations.length === 0 ? (
-                    <div className="py-12 flex justify-center">
-                      <Spinner size="sm" />
+                    <div className="py-4">
+                      <CardListSkeleton count={3} />
                     </div>
                   ) : displayedConversations.length === 0 ? (
                     <div className="py-12 text-center text-xs text-gray-400">
@@ -488,19 +512,24 @@ export const DesktopChatWidget: React.FC = () => {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-baseline">
-                            <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
-                              {otherUser}
-                            </span>
-                            {conv.last_message && (
-                              <span className="text-[9px] text-gray-400 shrink-0">
-                                {formatRelativeTime(conv.last_message.created_at)}
-                              </span>
-                            )}
-                          </div>
+                          {(() => {
+                            const productInfo = getConvProductInfo(conv);
+                            return (
+                              <div className="flex justify-between items-baseline">
+                                <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
+                                  {viewMode === 'sokoni' ? `${otherUser} · ${productInfo?.title || conv.product_name || 'Product'}` : otherUser}
+                                </span>
+                                {conv.last_message && (
+                                  <span className="text-[9px] text-gray-400 shrink-0">
+                                    {formatRelativeTime(conv.last_message.created_at)}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                           <div className="flex justify-between items-center gap-1 mt-0.5">
                             <p className={`text-[11px] truncate flex-1 ${conv.unread_count > 0 ? 'text-gray-900 dark:text-white font-extrabold' : 'text-gray-500 dark:text-gray-400'}`}>
-                              {conv.last_message ? conv.last_message.content : 'No messages yet'}
+                              {conv.last_message ? getMessageDisplayText(conv.last_message.content) : 'No messages yet'}
                             </p>
                             {conv.unread_count > 0 && (
                               <span className="px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full shrink-0">
@@ -515,25 +544,7 @@ export const DesktopChatWidget: React.FC = () => {
                 </div>
               </div>
             ) : (
-              /* --- Active Chat Thread View --- */
               <div className="flex-1 flex flex-col overflow-hidden relative">
-                {/* Product Reference Banner */}
-                {activeConv?.product_name && (
-                  <div className="px-3 py-1.5   border-b border-gray-100 dark:border-neutral-900 flex items-center justify-between text-[11px] shrink-0 font-medium">
-                    <span className="text-gray-600 dark:text-gray-300 truncate">
-                      Re: <strong className="text-brand-500">{activeConv.product_name}</strong>
-                    </span>
-                    {activeConv.product && (
-                      <button 
-                        onClick={() => navigate(`/product/${activeConv.product}`)}
-                        className="text-brand-500 hover:underline font-bold text-[10px] shrink-0 ml-2"
-                      >
-                        View
-                      </button>
-                    )}
-                  </div>
-                )}
-
                 {/* Messages Log */}
                 <div 
                   className="flex-1 overflow-y-auto px-3 py-3 space-y-4 relative" 
@@ -556,17 +567,57 @@ export const DesktopChatWidget: React.FC = () => {
 
                       {groupedMessages[dateStr].map((msg, index) => {
                         const isMe = Number(msg.sender) === Number(userId);
+                        const parsed = parseMessageContent(msg.content);
 
                         return (
                           <div key={msg.id} className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[78%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                              <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed break-words ${
-                                isMe 
-                                  ? 'bg-brand-500 text-white rounded-br-sm shadow-sm' 
-                                  : 'bg-gray-100 dark:bg-neutral-900 text-gray-900 dark:text-white rounded-bl-sm border border-gray-200/40 dark:border-neutral-800/40'
-                              }`}>
-                                {msg.content}
-                              </div>
+                            <div className={`max-w-[80%] flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}>
+                              {/* Attached Product Preview Card */}
+                              {parsed.product && (
+                                <div
+                                  onClick={() => navigate(`/product/${parsed.product?.id}`)}
+                                  className="cursor-pointer group max-w-full bg-white dark:bg-[#1f2022] border border-gray-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-md hover:border-brand-500/50 hover:shadow-lg transition-all text-left mb-0.5"
+                                >
+                                  <div className="flex items-center gap-2.5 p-2">
+                                    {parsed.product.image ? (
+                                      <img
+                                        src={parsed.product.image}
+                                        alt={parsed.product.title}
+                                        className="w-12 h-12 rounded-xl object-cover shrink-0 bg-neutral-900"
+                                      />
+                                    ) : (
+                                      <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-gray-400 shrink-0">
+                                        Item
+                                      </div>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                      {parsed.product.category && (
+                                        <span className="text-[8px] font-bold uppercase tracking-wider text-amber-500 line-clamp-1">
+                                          {parsed.product.category}
+                                        </span>
+                                      )}
+                                      <h4 className="text-[11px] font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 transition-colors">
+                                        {parsed.product.title}
+                                      </h4>
+                                      {parsed.product.price != null && (
+                                        <p className="text-[11px] font-extrabold text-brand-600 dark:text-brand-400 mt-0.5">
+                                          {typeof parsed.product.price === 'number' ? parsed.product.price.toLocaleString() : parsed.product.price} {parsed.product.currency || 'TZS'}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {parsed.text && (
+                                <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed break-words ${
+                                  isMe 
+                                    ? 'bg-brand-500 text-white rounded-br-sm shadow-sm' 
+                                    : 'bg-gray-100 dark:bg-neutral-900 text-gray-900 dark:text-white rounded-bl-sm border border-gray-200/40 dark:border-neutral-800/40'
+                                }`}>
+                                  {parsed.text}
+                                </div>
+                              )}
 
                               {isMe && index === groupedMessages[dateStr].length - 1 && (
                                 <div className="mt-0.5 flex items-center gap-1 text-[9px] text-gray-400">

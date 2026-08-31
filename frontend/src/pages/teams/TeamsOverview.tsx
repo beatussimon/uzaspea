@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
-import { Spinner } from '../../components/ui/Spinner';
+import { CardGridSkeleton } from '../../components/Skeleton';
 
 interface TeamInfo {
   is_team_member: boolean;
@@ -39,14 +39,6 @@ export const TeamsOverview: React.FC = () => {
       })
       .finally(() => setLoading(false));
   }, [user]);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-16">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
 
   const perms = teamInfo?.permissions || user?.team_permissions || {};
 
@@ -151,7 +143,9 @@ export const TeamsOverview: React.FC = () => {
           Your Assigned Modules
         </h2>
 
-        {modules.length === 0 ? (
+        {loading ? (
+          <CardGridSkeleton count={3} cols={3} />
+        ) : modules.length === 0 ? (
           <div className="bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-xl p-8 text-center text-sm text-gray-500">
             No active modules assigned to your account. Contact your store manager to update your permissions.
           </div>

@@ -120,47 +120,47 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
                   <Plus size={14} /> Add Variant Option
                 </button>
               ) : (
-                <form onSubmit={handleSubmit} className="card p-4 space-y-3 text-xs animate-fade-in">
-                  <div className="pb-2 border-b border-surface-border dark:border-surface-dark-border">
-                    <h3 className="font-bold text-xs text-gray-900 dark:text-white">Add New Variation</h3>
+                <form onSubmit={handleSubmit} className="card p-4 space-y-3.5 text-xs animate-fade-in">
+                  <div>
+                    <h3 className="font-semibold text-xs text-gray-900 dark:text-white">Add New Variation</h3>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-2xs font-bold text-gray-400 mb-1 block uppercase tracking-wider">Color</label>
+                      <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Color</label>
                       <input name="color" value={form.color} onChange={e => setForm({...form, color: e.target.value})} placeholder="e.g. Red, Matte Black" className="input py-1.5 text-xs w-full" />
                     </div>
                     <div>
-                      <label className="text-2xs font-bold text-gray-400 mb-1 block uppercase tracking-wider">Size</label>
+                      <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Size</label>
                       <input name="size" value={form.size} onChange={e => setForm({...form, size: e.target.value})} placeholder="e.g. XL, 42, 13-inch" className="input py-1.5 text-xs w-full" />
                     </div>
                     <div>
-                      <label className="text-2xs font-bold text-gray-400 mb-1 block uppercase tracking-wider">Material</label>
+                      <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Material</label>
                       <input name="material" value={form.material} onChange={e => setForm({...form, material: e.target.value})} placeholder="e.g. Leather, Cotton" className="input py-1.5 text-xs w-full" />
                     </div>
                     <div>
-                      <label className="text-2xs font-bold text-gray-400 mb-1 block uppercase tracking-wider">Other (Custom)</label>
+                      <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Other (Custom)</label>
                       <input name="custom" value={form.custom} onChange={e => setForm({...form, custom: e.target.value})} placeholder="e.g. 128GB, v2.0" className="input py-1.5 text-xs w-full" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <div className="grid grid-cols-2 gap-3 pt-1">
                     <div>
-                      <label className="text-2xs font-bold text-gray-400 mb-1 block uppercase tracking-wider">Price Adjustment (+ / -)</label>
+                      <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Price Adjustment (+ / -)</label>
                       <input name="price_adjustment" value={form.price_adjustment} onChange={e => setForm({...form, price_adjustment: e.target.value})} placeholder="0" type="number" required className="input py-1.5 text-xs w-full" />
                     </div>
                     <div>
-                      <label className="text-2xs font-bold text-gray-400 mb-1 block uppercase tracking-wider">Stock Available</label>
+                      <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Stock Available</label>
                       <input name="stock" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} placeholder="0" type="number" required className="input py-1.5 text-xs w-full" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-2xs font-bold text-gray-400 block mb-1 uppercase tracking-wider">Image (Optional)</label>
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block mb-1">Image (Optional)</label>
                     <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} className="input py-1 text-xs w-full file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:bg-surface-muted" />
                   </div>
                   <div className="flex items-center justify-end gap-2 pt-2">
                     <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
-                    <Button type="submit" size="sm" className="font-bold">Save Variant</Button>
+                    <Button type="submit" size="sm" className="font-medium">Save Variant</Button>
                   </div>
                 </form>
               )}

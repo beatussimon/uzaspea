@@ -1,14 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
-  CheckCircle2, XCircle, Clock, AlertTriangle, Shield, Star,
+  CheckCircle2, AlertTriangle, Shield, Star,
   CreditCard, FileText, Layers, MessageSquare, Send, Package, Truck,
-  BarChart2, ChevronLeft, ChevronRight
+  BarChart2, ChevronLeft, ChevronRight, Search, Eye, X, ArrowUpRight,
+  UserCircle, Clock
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../../api';
 import toast from 'react-hot-toast';
+import { Spinner } from '../../components/ui/Spinner';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Button } from '../../components/ui/Button';
+import { KpiCard } from '../../components/ui/KpiCard';
+import {
+  PageHeaderSkeleton,
+  KpiGridSkeleton,
+  CardGridSkeleton,
+  CardListSkeleton
+} from '../../components/Skeleton';
 import StaffInspectionLayout from './inspections/StaffInspectionLayout';
 import WarehouseStaffLayout from './warehouse/WarehouseStaffLayout';
 import LogisticsManager from './logistics/LogisticsManager';
@@ -65,21 +76,39 @@ interface DashboardData {
 const priorityColors: Record<string, string> = {
   low: 'text-gray-500', medium: 'text-brand-500', high: 'text-orange-500', urgent: 'text-red-500',
 };
-const statusBg: Record<string, string> = {
-  pending: ' text-yellow-500  dark:text-yellow-500',
-  in_progress: ' text-brand-500  dark:text-brand-500',
-  on_hold: ' text-orange-500  dark:text-orange-500',
-  completed: ' text-green-500  dark:text-green-500',
-  cancelled: ' text-red-500  dark:text-red-500',
-  approved: ' text-green-500  dark:text-green-500',
-  rejected: ' text-red-500  dark:text-red-500',
+
+const statusConfig: Record<string, { dot: string; color: string; bg: string }> = {
+  pending: { dot: 'bg-amber-500', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
+  in_progress: { dot: 'bg-blue-500', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
+  on_hold: { dot: 'bg-orange-500', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
+  completed: { dot: 'bg-emerald-500', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+  cancelled: { dot: 'bg-red-500', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
+  approved: { dot: 'bg-emerald-500', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+  rejected: { dot: 'bg-red-500', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
+  active: { dot: 'bg-emerald-500', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+  suspended: { dot: 'bg-red-500', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
 };
-const Badge: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => (
-  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
-    {text.replace(/_/g, ' ')}
-  </span>
-);
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+const Badge: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => {
+  const norm = text.toLowerCase().replace(/_/g, ' ');
+  const cfg = statusConfig[text.toLowerCase()] || {
+    dot: 'bg-gray-400',
+    color: 'text-gray-600 dark:text-gray-400',
+    bg: 'bg-gray-500/10 border-gray-500/20'
+  };
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize ${cfg.bg} ${cfg.color} ${className}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+      {norm}
+    </span>
+  );
+};
+
+const fmtDate = (d: string) => {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
 
 // ============ Staff Overview ============
 interface StaffHomeProps {
@@ -90,31 +119,37 @@ interface StaffHomeProps {
 const AdminOverviewPanel: React.FC<{ data: DashboardData['admin_overview'] }> = ({ data }) => {
   if (!data) return null;
   const metrics = [
-    { label: 'Subscriptions', val: data.subscriptions_pending, icon: CreditCard, colorClass: 'text-brand-500', path: '/staff/subscriptions' },
-    { label: 'Seller Upgrades', val: data.seller_upgrades_pending, icon: Shield, colorClass: 'text-blue-500', path: '/staff/seller-applications' },
-    { label: 'Warehouse Intake', val: data.warehouse_intake_pending, icon: Package, colorClass: 'text-orange-500', path: '/staff/warehouse' },
-    { label: 'Logistics', val: data.logistics_in_transit, icon: Truck, colorClass: 'text-green-500', path: '/staff/logistics' },
-    { label: 'Commissions', val: data.commissions_pending, icon: FileText, colorClass: 'text-purple-500', path: '/staff/invoices' },
-    { label: 'Products Mod.', val: data.products_pending, icon: Layers, colorClass: 'text-yellow-500', path: '/staff/products' },
-    { label: 'Reviews', val: data.reviews_pending, icon: Star, colorClass: 'text-pink-500', path: '/staff/reviews' },
-    { label: 'Inspections', val: data.inspections_pending, icon: LayoutDashboard, colorClass: 'text-indigo-500', path: '/staff/inspections' },
+    { label: 'Subscriptions', val: data.subscriptions_pending, icon: CreditCard, path: '/staff/subscriptions' },
+    { label: 'Seller Upgrades', val: data.seller_upgrades_pending, icon: Shield, path: '/staff/seller-applications' },
+    { label: 'Warehouse Intake', val: data.warehouse_intake_pending, icon: Package, path: '/staff/warehouse' },
+    { label: 'Logistics Transit', val: data.logistics_in_transit, icon: Truck, path: '/staff/logistics' },
+    { label: 'Commissions', val: data.commissions_pending, icon: FileText, path: '/staff/invoices' },
+    { label: 'Product Moderation', val: data.products_pending, icon: Layers, path: '/staff/products' },
+    { label: 'Pending Reviews', val: data.reviews_pending, icon: Star, path: '/staff/reviews' },
+    { label: 'Inspections', val: data.inspections_pending, icon: LayoutDashboard, path: '/staff/inspections' },
   ];
 
   return (
-    <div className="mb-8">
-      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Global Admin Metrics (Pending Actions)</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300">Global Operational Queues</h3>
+        <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400 bg-brand-500/10 px-2.5 py-0.5 rounded-full">Live Pipeline</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3.5">
         {metrics.map((m) => (
-          <Link key={m.label} to={m.path} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-4 hover:shadow-md transition group">
-            <div className={`text-xs font-bold ${m.colorClass} flex items-center gap-1 mb-2`}>
-               <m.icon size={14} /> {m.label}
-            </div>
-            <div className="flex items-end justify-between">
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{m.val}</p>
-              <div className="opacity-0 group-hover:opacity-100 transition">
-                <span className="text-[10px] font-bold text-brand-500  px-2 py-1 rounded uppercase tracking-widest">Manage</span>
+          <Link
+            key={m.label}
+            to={m.path}
+            className="card p-3 sm:p-3.5 flex flex-col justify-between hover:border-gray-900/20 dark:hover:border-white/20 transition group select-none"
+          >
+            <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <m.icon size={14} className="text-brand-500 shrink-0" />
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">{m.label}</span>
               </div>
+              <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-gray-400" />
             </div>
+            <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{m.val}</p>
           </Link>
         ))}
       </div>
@@ -124,92 +159,110 @@ const AdminOverviewPanel: React.FC<{ data: DashboardData['admin_overview'] }> = 
 
 const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
   const [claiming, setClaiming] = useState<number | null>(null);
+  const [taskTab, setTaskTab] = useState<'assigned' | 'unassigned'>('assigned');
 
-  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" /></div>;
-  if (!data) return <p className="text-center text-gray-400 py-12">No data available</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <PageHeaderSkeleton />
+        <KpiGridSkeleton count={4} cols={4} />
+        <CardListSkeleton count={4} />
+      </div>
+    );
+  }
+  if (!data) return <EmptyState icon={AlertTriangle} title="No Data Available" description="Could not load staff dashboard metrics." />;
 
   const handleClaim = async (id: number) => {
     setClaiming(id);
     try {
       await api.post(`/api/staff/tasks/${id}/claim/`);
-      toast.success('Task claimed!');
-      window.location.reload(); // Refresh to update counts
-    } catch { toast.error('Failed to claim task'); }
-    setClaiming(null);
+      toast.success('Task claimed successfully');
+      window.location.reload();
+    } catch {
+      toast.error('Failed to claim task');
+    } finally {
+      setClaiming(null);
+    }
   };
 
   const tc = data.admin_task_metrics ? data.admin_task_metrics.global_counts : data.task_counts;
   const isGlobal = !!data.admin_task_metrics;
+  const totalTasks = (tc?.pending || 0) + (tc?.in_progress || 0) + (tc?.on_hold || 0) + (tc?.completed || 0);
+  const completionRate = totalTasks > 0 ? Math.round(((tc?.completed || 0) / totalTasks) * 100) : 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Staff Dashboard</h2>
-        <div className="text-xs text-brand-500 font-bold   px-3 py-1 rounded-full uppercase tracking-widest">
-           {data.user.username}
+      {/* Page Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Staff Control Center</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Real-time oversight of operations, assigned tasks, verification pipelines, and customer disputes.
+          </p>
         </div>
-      </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium bg-surface-muted dark:bg-[#161616] text-gray-700 dark:text-gray-300 border border-surface-border dark:border-surface-dark-border px-3 py-1.5 rounded-full flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            @{data.user.username}
+          </span>
+        </div>
+      </header>
 
+      {/* Superuser Global Overview */}
       {data.user.is_superuser && data.admin_overview && (
         <AdminOverviewPanel data={data.admin_overview} />
       )}
 
-      {/* Task Progress Overview */}
-      <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-8 mb-4">
-        {isGlobal ? "System-Wide Task Overview" : "My Task Progress"}
-      </h3>
-      <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-6 mb-6">
-        <div className="flex justify-between items-end mb-2">
-          <div>
-            <p className="text-sm text-gray-500 font-medium">Overall Completion</p>
-            <h4 className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
-              {tc.completed} <span className="text-lg text-gray-400 font-normal">/ {tc.pending + tc.in_progress + tc.on_hold + tc.completed} tasks</span>
-            </h4>
-          </div>
-          <div className="text-right">
-            <span className="text-brand-500 font-bold text-2xl">
-              {tc.pending + tc.in_progress + tc.on_hold + tc.completed > 0 ? Math.round((tc.completed / (tc.pending + tc.in_progress + tc.on_hold + tc.completed)) * 100) : 0}%
-            </span>
-          </div>
-        </div>
-        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-3 mb-6 overflow-hidden flex">
-          <div className="bg-brand-500 h-3 transition-all duration-1000 ease-out" style={{ width: `${tc.pending + tc.in_progress + tc.on_hold + tc.completed > 0 ? Math.round((tc.completed / (tc.pending + tc.in_progress + tc.on_hold + tc.completed)) * 100) : 0}%` }}></div>
-        </div>
-        
-        <div className="grid grid-cols-4 gap-4 pt-4 border-t border-gray-200 shadow-sm dark:border-gray-700">
-          <div>
-            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><AlertTriangle size={12}/> Unassigned</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white">{tc.unassigned}</p>
-          </div>
-          <div>
-            <p className="text-xs text-yellow-500 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><Clock size={12}/> Pending</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white">{tc.pending}</p>
-          </div>
-          <div>
-            <p className="text-xs text-blue-500 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><ClipboardList size={12}/> In Progress</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white">{tc.in_progress}</p>
-          </div>
-          <div>
-            <p className="text-xs text-orange-500 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><Clock size={12}/> On Hold</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white">{tc.on_hold}</p>
-          </div>
-        </div>
+      {/* High-Level Operational Status KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <KpiCard
+          label={isGlobal ? "Total Workload" : "My Assignments"}
+          value={isGlobal ? totalTasks : data.tasks.length}
+          sub={`${tc?.pending || 0} pending`}
+          icon={ClipboardList}
+          color="#3b82f6"
+        />
+        <KpiCard
+          label="Open Pool"
+          value={tc?.unassigned || data.unassigned_tasks.length || 0}
+          sub="unclaimed tickets"
+          icon={UserCircle}
+          color="#f97316"
+        />
+        <KpiCard
+          label="In Progress"
+          value={tc?.in_progress || 0}
+          sub="active operations"
+          icon={Clock}
+          color="#a855f7"
+        />
+        <KpiCard
+          label="Resolution Rate"
+          value={`${completionRate}%`}
+          sub={`${tc?.completed || 0} completed`}
+          icon={CheckCircle2}
+          color="#10b981"
+        />
       </div>
 
+      {/* Analytics Chart for Admins */}
       {isGlobal && data.admin_task_metrics && (
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-6 mb-6">
-          <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <BarChart2 className="text-brand-500" size={20} />
-            Worker Performance Analytics
+        <div className="card p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <BarChart2 className="text-brand-500" size={16} />
+            Worker Performance Metrics
           </h3>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="99%" height="100%" minWidth={1} minHeight={1}>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.admin_task_metrics.worker_performance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" className="dark:opacity-10" />
-                <XAxis dataKey="worker" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-                <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: '#1f2937', color: '#fff' }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                <XAxis dataKey="worker" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888' }} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #333', backgroundColor: '#111', color: '#fff', fontSize: '12px' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                 <Bar dataKey="completed" name="Completed" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
                 <Bar dataKey="in_progress" name="In Progress" stackId="a" fill="#3b82f6" />
                 <Bar dataKey="pending" name="Pending" stackId="a" fill="#eab308" />
@@ -220,168 +273,227 @@ const StaffHome: React.FC<StaffHomeProps> = ({ data, loading }) => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column: Task Pools */}
+      {/* 2-Column Dashboard Operations Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Cols: Task Operations Queue */}
+        <div className="lg:col-span-2 card p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTaskTab('assigned')}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                  taskTab === 'assigned'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                Assigned to Me ({data.tasks.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTaskTab('unassigned')}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                  taskTab === 'unassigned'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                Open Pool ({data.unassigned_tasks.length})
+              </button>
+            </div>
+            <Link to="/staff/tasks" className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1">
+              Open Task Board <ChevronRight size={13} />
+            </Link>
+          </div>
+
+          {taskTab === 'assigned' ? (
+            data.tasks.length === 0 ? (
+              <div className="text-center py-10 text-xs text-gray-400">No active tasks currently assigned to you.</div>
+            ) : (
+              <div className="space-y-2">
+                {data.tasks.slice(0, 6).map((t) => (
+                  <Link
+                    to="/staff/tasks"
+                    key={t.id}
+                    className="flex items-center justify-between p-3 rounded-btn hover:bg-surface-muted/50 dark:hover:bg-[#161616]/50 transition border border-transparent hover:border-surface-border dark:hover:border-surface-dark-border group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {t.is_overdue && <AlertTriangle size={14} className="text-red-500 shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-900 dark:text-white group-hover:text-brand-500 truncate transition-colors">
+                          {t.title}
+                        </p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {t.category} • <span className={priorityColors[t.priority]}>{t.priority}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <Badge text={t.status} />
+                  </Link>
+                ))}
+              </div>
+            )
+          ) : (
+            data.unassigned_tasks.length === 0 ? (
+              <div className="text-center py-10 text-xs text-gray-400">No unassigned tasks awaiting pickup.</div>
+            ) : (
+              <div className="space-y-2">
+                {data.unassigned_tasks.slice(0, 6).map((t) => (
+                  <div key={t.id} className="flex items-center justify-between p-3 rounded-btn hover:bg-surface-muted/50 dark:hover:bg-[#161616]/50 transition border border-transparent hover:border-surface-border dark:hover:border-surface-dark-border">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{t.title}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        {t.category} • <span className={priorityColors[t.priority] || 'text-gray-500'}>{t.priority}</span>
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => handleClaim(t.id)}
+                      disabled={claiming === t.id}
+                      className="py-1 px-3 text-xs font-medium"
+                    >
+                      {claiming === t.id ? 'Claiming...' : 'Claim'}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+
+        {/* Right 1 Col: Quick Queues & Recent Activity */}
         <div className="space-y-6">
-           {/* Unassigned Pool */}
-           <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5">
-              <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
-                <AlertTriangle size={16} className="text-orange-500" /> Open Task Pool
-              </h3>
-              {data.unassigned_tasks.length === 0 ? (
-                <p className="text-gray-400 text-xs text-center py-4">No open tasks available</p>
+          {/* Promo Queue Preview */}
+          {(data.user.permissions.includes('can_review_promotions') || data.user.permissions.includes('can_approve_content')) && (
+            <div className="card p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                  <Megaphone size={15} className="text-purple-500" /> Promotion Review
+                </h3>
+                <Link to="/staff/promotions" className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1">
+                  Queue ({data.pending_promotions.length}) <ChevronRight size={13} />
+                </Link>
+              </div>
+              {data.pending_promotions.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">No pending sponsored promotions awaiting review.</p>
               ) : (
                 <div className="space-y-2">
-                  {data.unassigned_tasks.map(t => (
-                    <div key={t.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg flex items-center justify-between gap-3">
-                       <div>
-                         <p className="text-sm font-semibold text-gray-900 dark:text-white">{t.title}</p>
-                         <p className="text-xs text-gray-500 dark:text-gray-400">{t.category} • <span className={priorityColors[t.priority]}>{t.priority}</span></p>
-                       </div>
-                       <button 
-                         onClick={() => handleClaim(t.id)}
-                         disabled={claiming === t.id}
-                         className="px-3 py-1 bg-brand-500 hover:bg-brand-500 text-white text-xs font-bold rounded-lg transition"
-                       >
-                         {claiming === t.id ? '...' : 'Claim'}
-                       </button>
+                  {data.pending_promotions.slice(0, 3).map((p) => (
+                    <div key={p.id} className="p-2.5 rounded-btn bg-surface-muted/30 dark:bg-[#161616]/30 flex items-center justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{p.title || p.product_name}</p>
+                        <p className="text-[11px] text-gray-400">{p.product_name} • @{p.seller}</p>
+                      </div>
+                      <Badge text="pending" />
                     </div>
                   ))}
                 </div>
               )}
-           </div>
-
-           {/* My Current Tasks */}
-           <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <ClipboardList size={16} className="text-brand-500" /> Assigned to Me
-              </h3>
-              <Link to="/staff/tasks" className="text-xs text-brand-500 dark:text-brand-500 hover:underline">View all →</Link>
             </div>
-            {data.tasks.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-4">Nothing on your plate right now.</p>
+          )}
+
+          {/* Activity Log */}
+          <div className="card p-5 space-y-4">
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-2">
+              <Activity size={15} className="text-emerald-500" /> Recent Actions
+            </h3>
+            {data.recent_actions.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4">No recorded recent staff actions.</p>
             ) : (
-              <div className="space-y-2">
-                {data.tasks.slice(0, 5).map((t) => (
-                  <Link to="/staff/tasks" key={t.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition group">
-                    <div className="flex items-center gap-3">
-                      {t.is_overdue && <AlertTriangle size={14} className="text-red-500" />}
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-brand-500">{t.title}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{t.category} • <span className={priorityColors[t.priority]}>{t.priority}</span></p>
-                      </div>
+              <div className="space-y-2.5">
+                {data.recent_actions.slice(0, 5).map((a) => (
+                  <div key={a.id} className="flex items-start justify-between gap-3 text-xs">
+                    <div className="min-w-0">
+                      <span className="font-medium text-[11px] text-brand-600 dark:text-brand-400 mr-1.5 capitalize">{a.action_type}</span>
+                      <span className="text-gray-700 dark:text-gray-300 font-normal">{a.task_title}</span>
                     </div>
-                    <Badge text={t.status} className={statusBg[t.status] || ''} />
-                  </Link>
+                    <span className="text-[11px] text-gray-400 shrink-0 font-mono">{fmtDate(a.performed_at).split(',')[0]}</span>
+                  </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
-
-        {/* Right Column: Feed & Queues */}
-        <div className="space-y-6">
-           {/* Promo Queue */}
-           { (data.user.permissions.includes('can_review_promotions') || data.user.permissions.includes('can_approve_content')) && (
-              <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Megaphone size={16} className="text-purple-500" /> Promotion Approvals
-                  </h3>
-                  <Link to="/staff/promotions" className="text-xs text-brand-500 dark:text-brand-500 hover:underline">View all →</Link>
-                </div>
-                {data.pending_promotions.length === 0 ? (
-                   <p className="text-xs text-gray-400 italic">No promotions awaiting review.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {data.pending_promotions.slice(0, 3).map((p) => (
-                      <div key={p.id} className="p-3 border border-gray-50 dark:border-gray-700 rounded-lg flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{p.title}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{p.product_name} • {p.seller}</p>
-                        </div>
-                        <Badge text="pending" className={statusBg.pending} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-           )}
-
-           {/* Inspection Shortcut */}
-           {((data.user.permissions.includes('can_manage_inspections') || data.user.is_superuser)) && (
-              <Link to="/staff/inspections" className="block p-5 bg-brand-500 rounded-card text-white hover:bg-brand-500 transition">
-                 <h3 className="font-bold flex items-center gap-2 mb-1">
-                   <Shield size={18} /> Manage Inspections
-                 </h3>
-                 <p className="text-xs text-brand-500 opacity-80">Access Dispatch Queue, QA Reviews, and Inspector controls.</p>
-              </Link>
-           )}
-
-           {data.user.is_inspector && (
-              <Link to="/inspector/jobs" className="block p-5 bg-emerald-600 rounded-card text-white hover:bg-emerald-700 transition">
-                 <h3 className="font-bold flex items-center gap-2 mb-1">
-                   <ClipboardList size={18} /> My Inspection Jobs
-                 </h3>
-                 <p className="text-xs text-emerald-100 opacity-80">View and execute your assigned inspection requests.</p>
-              </Link>
-           )}
-
-           {/* Activity Log */}
-           <div className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5">
-            <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
-              <Activity size={16} className="text-green-500" /> My Activity
-            </h3>
-            <div className="space-y-3">
-              {data.recent_actions.map((a) => (
-                <div key={a.id} className="flex items-start gap-3 text-xs">
-                  <span className="text-gray-400 shrink-0 w-16">{fmtDate(a.performed_at).split(',')[0]}</span>
-                  <div>
-                    <p className="text-gray-700 dark:text-gray-300">
-                      <span className="font-bold uppercase tracking-tighter text-[10px] text-brand-500 mr-2">{a.action_type}</span>
-                      {a.task_title}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-           </div>
         </div>
       </div>
     </div>
   );
 };
 
-// ============ Staff Tasks (Expanded Kanban) ============
-
-
 // ============ Subscription Upgrades ============
 export const SubscriptionConfirmation: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
   const [filter, setFilter] = useState('pending');
+  const [search, setSearch] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const fetchItems = useCallback(() => {
-    setLoading(true);
-    api.get(`/api/staff/payment-confirmations/?status=${filter}`)
-      .then(res => {
-        setItems(res.data.results || res.data);
+  const fetchItems = useCallback((p: number, reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+    } else {
+      setLoadingMore(true);
+    }
+
+    api.get(`/api/staff/payment-confirmations/?status=${filter}&page=${p}`)
+      .then((res) => {
+        const data = res.data.results || res.data;
+        const incoming = Array.isArray(data) ? data : [];
+        if (reset) setItems(incoming);
+        else {
+          setItems((prev) => {
+            const ids = new Set(prev.map((i) => i.id));
+            return [...prev, ...incoming.filter((i) => !ids.has(i.id))];
+          });
+        }
+        setHasMore(!!res.data.next);
       })
-      .catch(() => toast.error('Failed to load subscription confirmations'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        toast.error('Failed to load subscription confirmations');
+        setHasMore(false);
+      })
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
   }, [filter]);
 
   useEffect(() => {
-    fetchItems();
+    fetchItems(1, true);
   }, [fetchItems]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loading) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => {
+            const nextPage = prev + 1;
+            fetchItems(nextPage);
+            return nextPage;
+          });
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [hasMore, loadingMore, loading, fetchItems]);
 
   const handleVerify = async (id: number) => {
     try {
       await api.post(`/api/staff/payment-confirmations/${id}/verify/`);
       toast.success('Subscription upgrade approved!');
-      fetchItems();
+      fetchItems(1, true);
     } catch {
       toast.error('Failed to approve subscription');
     }
@@ -391,64 +503,135 @@ export const SubscriptionConfirmation: React.FC = () => {
     try {
       await api.post(`/api/staff/payment-confirmations/${id}/reject/`);
       toast.success('Subscription upgrade rejected');
-      fetchItems();
+      fetchItems(1, true);
     } catch {
       toast.error('Failed to reject subscription');
     }
   };
 
+  const filteredItems = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.toLowerCase();
+    return items.filter(
+      (item) =>
+        (item.username || '').toLowerCase().includes(q) ||
+        (item.reference || '').toLowerCase().includes(q) ||
+        (item.tier_name || '').toLowerCase().includes(q) ||
+        String(item.amount).includes(q)
+    );
+  }, [items, search]);
+
+  const filterTabs = [
+    { key: 'pending', label: 'Pending Verification' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Subscription Upgrades</h2>
-        <div className="flex gap-1">
-          {['pending', 'approved', 'rejected'].map((s) => (
-            <button key={s} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
-              {s}
-            </button>
-          ))}
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Subscription Confirmations</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Review and verify tier upgrade payments submitted by sellers.
+          </p>
+        </div>
+      </header>
+
+      {/* Filter Pills & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {filterTabs.map((tab) => {
+            const isActive = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search username, reference..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
         </div>
       </div>
 
+      {/* List */}
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
-      ) : items.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
-          <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-gray-500">No {filter} subscription requests</p>
-        </div>
+        <CardGridSkeleton count={6} cols={3} />
+      ) : filteredItems.length === 0 ? (
+        <EmptyState
+          icon={CreditCard}
+          title={`No ${filter} subscription upgrades`}
+          description={search ? 'No requests match your search criteria.' : `There are currently no ${filter} upgrade requests.`}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {items.map((item) => (
-            <div key={item.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 hover:shadow-sm transition flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-start mb-3">
+          {filteredItems.map((item) => (
+            <div key={item.id} className="card p-5 flex flex-col justify-between space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">@{item.username}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Reference: {item.reference}</p>
+                    <h3 className="font-bold text-gray-900 dark:text-white">@{item.username}</h3>
+                    <p className="text-xs text-gray-400 font-mono mt-0.5">Ref: {item.reference}</p>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold  text-brand-500  dark:text-brand-500">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-500/10 text-brand-500 border border-brand-500/20 uppercase">
                     {item.tier_name}
                   </span>
                 </div>
-                <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">Amount: TZS {parseFloat(item.amount).toLocaleString()}</p>
-                <p className="text-xs text-gray-400 mb-3">Submitted: {fmtDate(item.created_at)}</p>
+
+                {/* Clean Unboxed Metadata */}
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400 dark:text-gray-500 font-normal">Amount</span>
+                    <span className="font-bold text-gray-900 dark:text-white">TZS {parseFloat(item.amount || '0').toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400 dark:text-gray-500 font-normal">Submitted</span>
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">{fmtDate(item.created_at)}</span>
+                  </div>
+                </div>
 
                 {item.proof && (
-                  <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-surface-border dark:border-surface-dark-border mb-4 h-32" onClick={() => setPreviewImage(item.proof)}>
-                    <img src={item.proof} alt="Payment proof" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                  <div
+                    onClick={() => setPreviewImage(item.proof)}
+                    className="relative group cursor-pointer overflow-hidden rounded-btn border border-surface-border/40 h-28 bg-surface-muted"
+                  >
+                    <img src={item.proof} alt="Receipt proof" className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                      <span className="text-white text-xs font-semibold">Click to View Receipt</span>
+                      <span className="text-white text-xs font-bold flex items-center gap-1.5">
+                        <Eye size={14} /> View Receipt
+                      </span>
                     </div>
                   </div>
                 )}
               </div>
 
               {filter === 'pending' && (
-                <div className="flex gap-2">
-                  <button onClick={() => handleVerify(item.id)} className="flex-1 py-2 bg-green-500 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition">Confirm Upgrade</button>
-                  <button onClick={() => handleReject(item.id)} className="flex-1 py-2 border border-red-500 text-red-500   rounded-lg text-xs font-bold transition">Reject</button>
+                <div className="flex gap-2 pt-2 border-t border-surface-border/40">
+                  <Button variant="default" size="sm" onClick={() => handleVerify(item.id)} className="flex-1">
+                    Confirm Upgrade
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleReject(item.id)} className="flex-1 text-red-500 hover:text-red-600">
+                    Reject
+                  </Button>
                 </div>
               )}
             </div>
@@ -456,12 +639,18 @@ export const SubscriptionConfirmation: React.FC = () => {
         </div>
       )}
 
+      {/* Infinite Scroll Sentinel */}
+      {loadingMore && <div className="flex justify-center py-4"><Spinner size="sm" /></div>}
+      <div ref={sentinelRef} className="h-4" />
+
       {/* Modal for image preview */}
       {previewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[85vh] overflow-auto bg-white dark:bg-[#0A0A0A] p-2 rounded-card" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setPreviewImage(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition">✕</button>
-            <img src={previewImage} alt="Payment Proof Full" className="max-w-full max-h-[80vh] object-contain rounded" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-3xl max-h-[85vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition">
+              <X size={16} />
+            </button>
+            <img src={previewImage} alt="Payment Proof" className="max-w-full max-h-[80vh] object-contain rounded-btn" />
           </div>
         </div>
       )}
@@ -473,137 +662,257 @@ export const SubscriptionConfirmation: React.FC = () => {
 export const SellerApplicationsManager: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('pending');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const fetchItems = useCallback(() => {
-    setLoading(true);
-    api.get(`/api/staff/seller-applications/?status=${filter}`)
-      .then(res => {
-        setItems(res.data.results || res.data);
+  const [filter, setFilter] = useState('pending');
+  const [search, setSearch] = useState('');
+  const [previewDoc, setPreviewDoc] = useState<string | null>(null);
+
+  const fetchItems = useCallback((p: number, reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+    } else {
+      setLoadingMore(true);
+    }
+
+    api.get(`/api/staff/seller-applications/?status=${filter}&page=${p}`)
+      .then((res) => {
+        const data = res.data.results || res.data;
+        const incoming = Array.isArray(data) ? data : [];
+        if (reset) setItems(incoming);
+        else {
+          setItems((prev) => {
+            const ids = new Set(prev.map((i) => i.id));
+            return [...prev, ...incoming.filter((i) => !ids.has(i.id))];
+          });
+        }
+        setHasMore(!!res.data.next);
       })
-      .catch(() => toast.error('Failed to load seller upgrade applications'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        toast.error('Failed to load seller upgrade applications');
+        setHasMore(false);
+      })
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
   }, [filter]);
 
   useEffect(() => {
-    fetchItems();
+    fetchItems(1, true);
   }, [fetchItems]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loading) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => {
+            const nextPage = prev + 1;
+            fetchItems(nextPage);
+            return nextPage;
+          });
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [hasMore, loadingMore, loading, fetchItems]);
 
   const handleApprove = async (id: number) => {
     try {
       await api.post(`/api/staff/seller-applications/${id}/approve/`);
       toast.success('Seller application approved!');
-      fetchItems();
+      fetchItems(1, true);
     } catch {
       toast.error('Failed to approve application');
     }
   };
 
   const handleReject = async (id: number) => {
-    const reason = prompt('Reason for rejection:');
+    const reason = prompt('Reason for rejection (shown to applicant):');
     if (reason === null) return;
     try {
       await api.post(`/api/staff/seller-applications/${id}/reject/`, { reason });
       toast.success('Seller application rejected');
-      fetchItems();
+      fetchItems(1, true);
     } catch {
       toast.error('Failed to reject application');
     }
   };
 
+  const filteredItems = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.toLowerCase();
+    return items.filter(
+      (item) =>
+        (item.business_name || '').toLowerCase().includes(q) ||
+        (item.username || '').toLowerCase().includes(q) ||
+        (item.tin_number || '').toLowerCase().includes(q) ||
+        (item.business_registration_number || '').toLowerCase().includes(q)
+    );
+  }, [items, search]);
+
+  const filterTabs = [
+    { key: 'pending', label: 'Pending Applications' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Seller Upgrades</h2>
-        <div className="flex gap-1">
-          {['pending', 'approved', 'rejected'].map((s) => (
-            <button key={s} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
-              {s}
-            </button>
-          ))}
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Seller Upgrade Applications</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Verify official business identities, TIN registrations, and merchant credentials.
+          </p>
+        </div>
+      </header>
+
+      {/* Filter Pills & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {filterTabs.map((tab) => {
+            const isActive = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search business, TIN, username..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
         </div>
       </div>
 
+      {/* Grid */}
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
-      ) : items.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
-          <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-gray-500">No {filter} seller applications</p>
-        </div>
+        <CardGridSkeleton count={6} cols={3} />
+      ) : filteredItems.length === 0 ? (
+        <EmptyState
+          icon={Shield}
+          title={`No ${filter} applications`}
+          description={search ? 'No applications match your search query.' : `There are currently no ${filter} seller upgrade applications.`}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {items.map((item) => (
-            <div key={item.id} className="bg-white dark:bg-[#0A0A0A] border dark:border-gray-700 p-4 rounded-card space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white">{item.business_name}</h3>
-                  <p className="text-xs text-gray-500">Submitted by: @{item.username}</p>
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold   text-brand-500 dark:text-brand-500">
-                  {item.requested_tier_name}
-                </span>
-              </div>
-
-              <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                <div><strong>Submitted:</strong> {new Date(item.created_at).toLocaleString()}</div>
-                {item.rejection_reason && (
-                  <div className="text-red-500"><strong>Reason:</strong> {item.rejection_reason}</div>
-                )}
-              </div>
-
-              <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1 border-t border-b dark:border-gray-700 py-2 my-2">
-                <div><strong>Registration No:</strong> {item.business_registration_number || 'N/A'}</div>
-                <div><strong>TIN:</strong> {item.tin_number || 'N/A'}</div>
-                <div><strong>Address:</strong> {item.business_address || 'N/A'}</div>
-                <div><strong>Region:</strong> {item.business_region || 'N/A'}</div>
-              </div>
-
-              <div className="flex gap-2">
-                <div className="flex-1 space-y-2">
-                  <a href={item.id_document} target="_blank" rel="noreferrer"
-                    className="block text-center py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition">
-                    View ID Document
-                  </a>
-                  {item.id_document && item.id_document.match(/\.(jpeg|jpg|gif|png)$/i) && (
-                    <img src={item.id_document} alt="ID Document Preview" className="w-full h-32 object-cover rounded-lg border border-surface-border dark:border-surface-dark-border" />
-                  )}
-                  {item.id_document && item.id_document.match(/\.(pdf)$/i) && (
-                    <iframe src={item.id_document} className="w-full h-32 rounded-lg border border-surface-border dark:border-surface-dark-border" title="ID Preview" />
-                  )}
-                </div>
-                
-                {item.business_document && (
-                  <div className="flex-1 space-y-2">
-                    <a href={item.business_document} target="_blank" rel="noreferrer"
-                      className="block text-center py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold transition">
-                      View Business Doc
-                    </a>
-                    {item.business_document.match(/\.(jpeg|jpg|gif|png)$/i) && (
-                      <img src={item.business_document} alt="Business Document Preview" className="w-full h-32 object-cover rounded-lg border border-surface-border dark:border-surface-dark-border" />
-                    )}
-                    {item.business_document.match(/\.(pdf)$/i) && (
-                      <iframe src={item.business_document} className="w-full h-32 rounded-lg border border-surface-border dark:border-surface-dark-border" title="Business Doc Preview" />
-                    )}
+          {filteredItems.map((item) => (
+            <div key={item.id} className="card p-5 flex flex-col justify-between space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">{item.business_name}</h3>
+                    <p className="text-xs text-gray-500">Applicant: @{item.username}</p>
                   </div>
-                )}
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20 uppercase">
+                    {item.requested_tier_name || 'Seller Pro'}
+                  </span>
+                </div>
+
+                {/* Structured Metadata - Unboxed */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-400 dark:text-gray-500 font-normal block">Reg Number</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-200">{item.business_registration_number || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 dark:text-gray-500 font-normal block">TIN Number</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-200">{item.tin_number || 'N/A'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-400 dark:text-gray-500 font-normal block">Location</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-200">{item.business_address || 'N/A'}, {item.business_region || ''}</span>
+                  </div>
+                  {item.rejection_reason && (
+                    <div className="col-span-2 pt-1 border-t border-surface-border/40 text-red-500">
+                      <span className="font-medium block">Rejection Note</span>
+                      <span>{item.rejection_reason}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Document Previews */}
+                <div className="flex gap-2 pt-1">
+                  {item.id_document && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDoc(item.id_document)}
+                      className="flex-1 py-1.5 px-3 bg-surface-muted dark:bg-[#161616] hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-btn text-xs font-medium text-gray-700 dark:text-gray-300 border border-surface-border/40 transition flex items-center justify-center gap-1.5"
+                    >
+                      <Eye size={13} /> View ID Doc
+                    </button>
+                  )}
+                  {item.business_document && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDoc(item.business_document)}
+                      className="flex-1 py-1.5 px-3 bg-surface-muted dark:bg-[#161616] hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-btn text-xs font-medium text-gray-700 dark:text-gray-300 border border-surface-border/40 transition flex items-center justify-center gap-1.5"
+                    >
+                      <FileText size={13} /> View Biz Doc
+                    </button>
+                  )}
+                </div>
               </div>
 
               {item.status === 'pending' && (
-                <div className="flex gap-2 pt-2 border-t dark:border-gray-700">
-                  <button onClick={() => handleApprove(item.id)}
-                    className="flex-1 py-2 bg-green-500 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition">
+                <div className="flex gap-2 pt-2 border-t border-surface-border/40">
+                  <Button variant="default" size="sm" onClick={() => handleApprove(item.id)} className="flex-1">
                     Approve
-                  </button>
-                  <button onClick={() => handleReject(item.id)}
-                    className="flex-1 py-2 bg-red-500 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition">
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleReject(item.id)} className="flex-1 text-red-500 hover:text-red-600">
                     Reject
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Infinite Scroll Sentinel */}
+      {loadingMore && <div className="flex justify-center py-4"><Spinner size="sm" /></div>}
+      <div ref={sentinelRef} className="h-4" />
+
+      {/* Document Preview Modal */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setPreviewDoc(null)}>
+          <div className="relative max-w-4xl max-h-[90vh] w-full bg-surface-card dark:bg-[#0A0A0A] p-4 rounded-card border border-surface-border overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewDoc(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition z-10">
+              <X size={16} />
+            </button>
+            {previewDoc.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+              <img src={previewDoc} alt="Document Preview" className="max-w-full max-h-[80vh] object-contain mx-auto rounded-btn" />
+            ) : (
+              <iframe src={previewDoc} title="Document Preview" className="w-full h-[75vh] rounded-btn border border-surface-border" />
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -614,97 +923,218 @@ export const SellerApplicationsManager: React.FC = () => {
 export const CommissionPaymentsManager: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
   const [filter, setFilter] = useState('PENDING');
+  const [search, setSearch] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const fetchItems = useCallback(() => {
-    setLoading(true);
-    api.get(`/api/staff/commission-payments/?status=${filter}`)
-      .then(res => {
-        setItems(res.data.results || res.data);
+  const fetchItems = useCallback((p: number, reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+    } else {
+      setLoadingMore(true);
+    }
+
+    api.get(`/api/staff/commission-payments/?status=${filter}&page=${p}`)
+      .then((res) => {
+        const data = res.data.results || res.data;
+        const incoming = Array.isArray(data) ? data : [];
+        if (reset) setItems(incoming);
+        else {
+          setItems((prev) => {
+            const ids = new Set(prev.map((i) => i.id));
+            return [...prev, ...incoming.filter((i) => !ids.has(i.id))];
+          });
+        }
+        setHasMore(!!res.data.next);
       })
-      .catch(() => toast.error('Failed to load commission payments'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        toast.error('Failed to load commission payments');
+        setHasMore(false);
+      })
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
   }, [filter]);
 
   useEffect(() => {
-    fetchItems();
+    fetchItems(1, true);
   }, [fetchItems]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loading) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => {
+            const nextPage = prev + 1;
+            fetchItems(nextPage);
+            return nextPage;
+          });
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [hasMore, loadingMore, loading, fetchItems]);
 
   const handleVerify = async (id: number) => {
     try {
       await api.post(`/api/staff/commission-payments/${id}/approve/`);
       toast.success('Commission payment approved!');
-      fetchItems();
+      fetchItems(1, true);
     } catch {
       toast.error('Failed to approve payment');
     }
   };
 
   const handleReject = async (id: number) => {
-    const reason = prompt('Reason for rejection:');
+    const reason = prompt('Reason for rejection (shown to seller):');
     if (reason === null) return;
     try {
       await api.post(`/api/staff/commission-payments/${id}/reject/`, { reason });
       toast.success('Commission payment rejected');
-      fetchItems();
+      fetchItems(1, true);
     } catch {
       toast.error('Failed to reject payment');
     }
   };
 
+  const filteredItems = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.toLowerCase();
+    return items.filter(
+      (item) =>
+        (item.seller_username || '').toLowerCase().includes(q) ||
+        (item.transaction_id || '').toLowerCase().includes(q) ||
+        String(item.amount).includes(q)
+    );
+  }, [items, search]);
+
+  const filterTabs = [
+    { key: 'PENDING', label: 'Pending Verification' },
+    { key: 'APPROVED', label: 'Approved' },
+    { key: 'REJECTED', label: 'Rejected' },
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Commission Payments</h2>
-        <div className="flex gap-1">
-          {['PENDING', 'APPROVED', 'REJECTED'].map((s) => (
-            <button key={s} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition capitalize ${filter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
-              {s.toLowerCase()}
-            </button>
-          ))}
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Commission Payments</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Verify monthly seller platform commission invoice settlements and payment receipts.
+          </p>
+        </div>
+      </header>
+
+      {/* Filter Pills & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {filterTabs.map((tab) => {
+            const isActive = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search seller, Tx ID..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
         </div>
       </div>
 
+      {/* List */}
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
-      ) : items.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
-          <Clock size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-gray-500">No {filter.toLowerCase()} commission payments</p>
-        </div>
+        <CardGridSkeleton count={6} cols={3} />
+      ) : filteredItems.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title={`No ${filter.toLowerCase()} payments`}
+          description={search ? 'No payments match your search criteria.' : `There are no ${filter.toLowerCase()} commission payments.`}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {items.map((item) => (
-            <div key={item.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 hover:shadow-sm transition flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-start mb-3">
+          {filteredItems.map((item) => (
+            <div key={item.id} className="card p-5 flex flex-col justify-between space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Seller: @{item.seller_username}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Invoice: {item.invoice_year}/{item.invoice_month}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Tx ID: {item.transaction_id}</p>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">@{item.seller_username}</h3>
+                    <p className="text-xs text-gray-400 font-mono">Invoice: {item.invoice_year}/{item.invoice_month}</p>
+                    <p className="text-xs text-gray-400 font-mono">Tx ID: {item.transaction_id || '—'}</p>
                   </div>
-                  <Badge text={item.status.toLowerCase()} className={statusBg[item.status.toLowerCase()] || ''} />
+                  <Badge text={item.status.toLowerCase()} />
                 </div>
-                <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">Amount: TZS {parseFloat(item.amount).toLocaleString()}</p>
-                <p className="text-xs text-gray-400 mb-3">Submitted: {fmtDate(item.submitted_at)}</p>
-                {item.rejection_reason && <p className="text-xs text-red-500 mb-2">Rejection Reason: {item.rejection_reason}</p>}
+
+                {/* Clean Unboxed Metadata */}
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400 dark:text-gray-500 font-normal">Commission Amount</span>
+                    <span className="font-black text-gray-900 dark:text-white text-sm">TZS {parseFloat(item.amount || '0').toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400 dark:text-gray-500 font-normal">Submitted At</span>
+                    <span className="text-gray-700 dark:text-gray-300">{fmtDate(item.submitted_at)}</span>
+                  </div>
+                  {item.rejection_reason && (
+                    <div className="pt-1 border-t border-surface-border/40 text-red-500">
+                      <span className="font-medium">Reason:</span> {item.rejection_reason}
+                    </div>
+                  )}
+                </div>
 
                 {item.receipt_screenshot && (
-                  <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-surface-border dark:border-surface-dark-border mb-4 h-32" onClick={() => setPreviewImage(item.receipt_screenshot)}>
-                    <img src={item.receipt_screenshot} alt="Receipt Screenshot" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                  <div
+                    onClick={() => setPreviewImage(item.receipt_screenshot)}
+                    className="relative group cursor-pointer overflow-hidden rounded-btn border border-surface-border/40 h-28 bg-surface-muted"
+                  >
+                    <img src={item.receipt_screenshot} alt="Receipt screenshot" className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                      <span className="text-white text-xs font-semibold">Click to View Receipt</span>
+                      <span className="text-white text-xs font-bold flex items-center gap-1.5">
+                        <Eye size={14} /> View Receipt
+                      </span>
                     </div>
                   </div>
                 )}
               </div>
 
               {filter === 'PENDING' && (
-                <div className="flex gap-2">
-                  <button onClick={() => handleVerify(item.id)} className="flex-1 py-2 bg-green-500 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition">Confirm Payment</button>
-                  <button onClick={() => handleReject(item.id)} className="flex-1 py-2 border border-red-500 text-red-500   rounded-lg text-xs font-bold transition">Reject</button>
+                <div className="flex gap-2 pt-2 border-t border-surface-border/40">
+                  <Button variant="default" size="sm" onClick={() => handleVerify(item.id)} className="flex-1">
+                    Confirm Payment
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleReject(item.id)} className="flex-1 text-red-500 hover:text-red-600">
+                    Reject
+                  </Button>
                 </div>
               )}
             </div>
@@ -712,12 +1142,18 @@ export const CommissionPaymentsManager: React.FC = () => {
         </div>
       )}
 
+      {/* Infinite Scroll Sentinel */}
+      {loadingMore && <div className="flex justify-center py-4"><Spinner size="sm" /></div>}
+      <div ref={sentinelRef} className="h-4" />
+
       {/* Modal for image preview */}
       {previewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[85vh] overflow-auto bg-white dark:bg-[#0A0A0A] p-2 rounded-card" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setPreviewImage(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition">✕</button>
-            <img src={previewImage} alt="Receipt Screenshot Full" className="max-w-full max-h-[80vh] object-contain rounded" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-3xl max-h-[85vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition">
+              <X size={16} />
+            </button>
+            <img src={previewImage} alt="Payment Proof" className="max-w-full max-h-[80vh] object-contain rounded-btn" />
           </div>
         </div>
       )}
@@ -729,28 +1165,78 @@ export const CommissionPaymentsManager: React.FC = () => {
 export const ProductModeration: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all'); // all, active, suspended
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const fetchProducts = useCallback(() => {
-    setLoading(true);
-    api.get('/api/staff/products/')
-      .then(res => {
-        setProducts(res.data.results || res.data);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+
+  const fetchProducts = useCallback((p: number, reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+    } else {
+      setLoadingMore(true);
+    }
+
+    let url = `/api/staff/products/?page=${p}`;
+    if (filter === 'active') url += '&is_available=true';
+    if (filter === 'suspended') url += '&is_available=false';
+
+    api.get(url)
+      .then((res) => {
+        const data = res.data.results || res.data;
+        const incoming = Array.isArray(data) ? data : [];
+        if (reset) setProducts(incoming);
+        else {
+          setProducts((prev) => {
+            const ids = new Set(prev.map((i) => i.id));
+            return [...prev, ...incoming.filter((i) => !ids.has(i.id))];
+          });
+        }
+        setHasMore(!!res.data.next);
       })
-      .catch(() => toast.error('Failed to load products'))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch(() => {
+        toast.error('Failed to load products');
+        setHasMore(false);
+      })
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
+  }, [filter]);
 
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(1, true);
   }, [fetchProducts]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loading) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => {
+            const nextPage = prev + 1;
+            fetchProducts(nextPage);
+            return nextPage;
+          });
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [hasMore, loadingMore, loading, fetchProducts]);
 
   const handleSuspend = async (id: number) => {
     try {
       await api.post(`/api/staff/products/${id}/suspend/`);
       toast.success('Listing suspended');
-      fetchProducts();
+      fetchProducts(1, true);
     } catch {
       toast.error('Failed to suspend listing');
     }
@@ -760,7 +1246,7 @@ export const ProductModeration: React.FC = () => {
     try {
       await api.post(`/api/staff/products/${id}/approve/`);
       toast.success('Listing approved & activated');
-      fetchProducts();
+      fetchProducts(1, true);
     } catch {
       toast.error('Failed to approve listing');
     }
@@ -771,74 +1257,123 @@ export const ProductModeration: React.FC = () => {
     try {
       await api.delete(`/api/staff/products/${id}/`);
       toast.success('Listing deleted permanently');
-      fetchProducts();
+      fetchProducts(1, true);
     } catch {
       toast.error('Failed to delete listing');
     }
   };
 
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
-                          p.description.toLowerCase().includes(search.toLowerCase());
-    if (filter === 'active') return matchesSearch && p.is_available;
-    if (filter === 'suspended') return matchesSearch && !p.is_available;
-    return matchesSearch;
-  });
+  const filteredProducts = useMemo(() => {
+    if (!search.trim()) return products;
+    const q = search.toLowerCase();
+    return products.filter(
+      (p) =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q) ||
+        (p.seller_username || '').toLowerCase().includes(q)
+    );
+  }, [products, search]);
+
+  const filterTabs = [
+    { key: 'all', label: 'All Listings' },
+    { key: 'active', label: 'Active Only' },
+    { key: 'suspended', label: 'Suspended Only' },
+  ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Product Moderation</h2>
-        <div className="flex gap-2">
-          <input type="text" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white" />
-          <select value={filter} onChange={e => setFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white">
-            <option value="all">All Listings</option>
-            <option value="active">Active Only</option>
-            <option value="suspended">Suspended Only</option>
-          </select>
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Product Catalog Moderation</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Review listed items, enforce safety standards, and moderate suspicious or policy-violating products.
+          </p>
+        </div>
+      </header>
+
+      {/* Filter Pills & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {filterTabs.map((tab) => {
+            const isActive = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search products by title, seller..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
         </div>
       </div>
 
+      {/* Product List */}
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
+        <CardListSkeleton count={5} />
       ) : filteredProducts.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
-          <AlertTriangle size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-gray-500">No products found matching criteria</p>
-        </div>
+        <EmptyState
+          icon={Layers}
+          title="No Products Found"
+          description={search ? 'No products matching your search query.' : 'There are currently no products in this view.'}
+        />
       ) : (
         <div className="space-y-3">
           {filteredProducts.map((p) => (
-            <div key={p.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-4 hover:shadow-sm transition flex gap-4">
-              <div className="w-24 h-24 rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden shrink-0 border dark:border-gray-600">
+            <div key={p.id} className="card p-4 flex flex-col sm:flex-row gap-4 hover:border-gray-900/20 dark:hover:border-white/20 transition">
+              <div className="w-full sm:w-28 h-28 rounded-btn bg-surface-muted overflow-hidden shrink-0 border border-surface-border/40 flex items-center justify-center">
                 {p.images && p.images.length > 0 ? (
                   <img src={p.images[0].image} alt={p.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">No Image</div>
+                  <Package size={28} className="text-gray-400" />
                 )}
               </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between">
+
+              <div className="flex-1 min-w-0 flex flex-col justify-between space-y-2">
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-gray-900 dark:text-white truncate">{p.name}</h3>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${p.is_available ? ' text-green-500' : ' text-red-500'}`}>
-                      {p.is_available ? 'Active' : 'Suspended'}
-                    </span>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base truncate">{p.name}</h3>
+                    <Badge text={p.is_available ? 'active' : 'suspended'} />
                   </div>
-                  <p className="text-sm font-bold text-brand-500 dark:text-brand-500">TZS {parseFloat(p.price).toLocaleString()}</p>
+                  <p className="text-sm font-black text-brand-500 mt-0.5">
+                    TZS {parseFloat(p.price || '0').toLocaleString()}
+                  </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{p.description}</p>
                 </div>
-                <div className="flex justify-between items-center mt-2 text-[10px] text-gray-400">
-                  <span>Seller ID: {p.seller} · Category ID: {p.category}</span>
-                  <div className="flex gap-2">
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-surface-border/40 text-3xs text-gray-400">
+                  <span>Seller: {p.seller_username ? `@${p.seller_username}` : `ID: ${p.seller}`} • Category: {p.category_name || p.category}</span>
+                  <div className="flex items-center gap-2">
                     {p.is_available ? (
-                      <button onClick={() => handleSuspend(p.id)} className="px-2.5 py-1  text-orange-500   dark:text-orange-500 rounded font-semibold transition">Suspend</button>
+                      <Button variant="outline" size="sm" onClick={() => handleSuspend(p.id)} className="text-orange-500 hover:text-orange-600 py-1 px-2.5 text-3xs">
+                        Suspend
+                      </Button>
                     ) : (
-                      <button onClick={() => handleApprove(p.id)} className="px-2.5 py-1  text-green-500   dark:text-green-500 rounded font-semibold transition">Approve</button>
+                      <Button variant="default" size="sm" onClick={() => handleApprove(p.id)} className="py-1 px-2.5 text-3xs">
+                        Approve
+                      </Button>
                     )}
-                    <button onClick={() => handleDelete(p.id)} className="px-2.5 py-1  text-red-500   dark:text-red-500 rounded font-semibold transition">Delete</button>
+                    <Button variant="danger" size="sm" onClick={() => handleDelete(p.id)} className="py-1 px-2.5 text-3xs">
+                      Delete
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -846,6 +1381,10 @@ export const ProductModeration: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Infinite Scroll Sentinel */}
+      {loadingMore && <div className="flex justify-center py-4"><Spinner size="sm" /></div>}
+      <div ref={sentinelRef} className="h-4" />
     </div>
   );
 };
@@ -857,12 +1396,13 @@ export const PromotionQueue: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const sentinelRef = React.useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const [filter, setFilter] = useState('pending');
+  const [search, setSearch] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const fetch = useCallback((p: number, reset = false) => {
+  const fetchPromos = useCallback((p: number, reset = false) => {
     if (reset) {
       setLoading(true);
       setPage(1);
@@ -874,12 +1414,11 @@ export const PromotionQueue: React.FC = () => {
       .then((res) => {
         const data = res.data.results || res.data;
         const incoming = Array.isArray(data) ? data : [];
-        if (reset) {
-          setPromos(incoming);
-        } else {
+        if (reset) setPromos(incoming);
+        else {
           setPromos((prev) => {
-            const ids = new Set(prev.map((p) => p.id));
-            return [...prev, ...incoming.filter((p) => !ids.has(p.id))];
+            const ids = new Set(prev.map((i) => i.id));
+            return [...prev, ...incoming.filter((i) => !ids.has(i.id))];
           });
         }
         setHasMore(!!res.data.next);
@@ -895,8 +1434,8 @@ export const PromotionQueue: React.FC = () => {
   }, [filter]);
 
   useEffect(() => {
-    fetch(1, true);
-  }, [fetch]);
+    fetchPromos(1, true);
+  }, [fetchPromos]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -907,7 +1446,7 @@ export const PromotionQueue: React.FC = () => {
         if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
           setPage((prev) => {
             const nextPage = prev + 1;
-            fetch(nextPage);
+            fetchPromos(nextPage);
             return nextPage;
           });
         }
@@ -916,14 +1455,16 @@ export const PromotionQueue: React.FC = () => {
     );
     obs.observe(sentinel);
     return () => obs.disconnect();
-  }, [hasMore, loadingMore, loading, fetch]);
+  }, [hasMore, loadingMore, loading, fetchPromos]);
 
   const handleApprove = async (id: number) => {
     try {
       await api.post(`/api/staff/sponsored-review/${id}/approve/`, { notes: 'Approved by staff' });
-      toast.success('Promotion approved');
-      fetch(1, true);
-    } catch { toast.error('Failed to approve'); }
+      toast.success('Promotion campaign approved');
+      fetchPromos(1, true);
+    } catch {
+      toast.error('Failed to approve promotion');
+    }
   };
 
   const handleReject = async (id: number) => {
@@ -932,98 +1473,155 @@ export const PromotionQueue: React.FC = () => {
     try {
       await api.post(`/api/staff/sponsored-review/${id}/reject/`, { notes: reason || 'Rejected by staff' });
       toast.success('Promotion rejected');
-      fetch(1, true);
-    } catch { toast.error('Failed to reject'); }
+      fetchPromos(1, true);
+    } catch {
+      toast.error('Failed to reject');
+    }
   };
 
+  const filteredPromos = useMemo(() => {
+    if (!search.trim()) return promos;
+    const q = search.toLowerCase();
+    return promos.filter(
+      (p) =>
+        (p.title || '').toLowerCase().includes(q) ||
+        (p.product_name || '').toLowerCase().includes(q) ||
+        (p.seller || '').toLowerCase().includes(q) ||
+        (p.transaction_reference || '').toLowerCase().includes(q)
+    );
+  }, [promos, search]);
+
+  const filterTabs = [
+    { key: 'pending', label: 'Pending Approvals' },
+    { key: 'approved', label: 'Active Promotions' },
+    { key: 'rejected', label: 'Rejected' },
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Promotion Queue</h2>
-        <div className="flex gap-1">
-          {['pending', 'approved', 'rejected'].map((s) => (
-            <button key={s} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${filter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Promotion Approvals</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Review sponsored product campaigns, verify payment slips, and activate promoted placements.
+          </p>
+        </div>
+      </header>
+
+      {/* Filter Pills & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {filterTabs.map((tab) => {
+            const isActive = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search promo, product, seller..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
         </div>
       </div>
 
+      {/* List */}
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" /></div>
-      ) : promos.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-[#0A0A0A] rounded-card border dark:border-gray-700">
-          <Megaphone size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-gray-500">No {filter} promotions</p>
-        </div>
+        <CardGridSkeleton count={6} cols={3} />
+      ) : filteredPromos.length === 0 ? (
+        <EmptyState
+          icon={Megaphone}
+          title={`No ${filter} promotions`}
+          description={search ? 'No promotions match your search criteria.' : `There are currently no ${filter} promotion campaigns.`}
+        />
       ) : (
         <div className="space-y-3">
-          {promos.map((p: any) => (
-            <div key={p.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 hover:shadow-sm transition">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">{p.title || `${p.product_name || 'Product'} Promotion`}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Product: <span className="font-medium">{p.product_name}</span>
+          {filteredPromos.map((p) => (
+            <div key={p.id} className="card p-5 space-y-4 hover:border-gray-900/20 dark:hover:border-white/20 transition">
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                      {p.title || `${p.product_name || 'Product'} Promotion`}
+                    </h3>
+                    <Badge text={p.status} />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Product: <span className="font-medium text-gray-900 dark:text-gray-200">{p.product_name}</span> • Seller: @{p.seller}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{p.description || 'No description provided.'}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-300">{p.description || 'No campaign notes.'}</p>
                   
                   {p.transaction_reference && (
-                    <p className="text-xs text-brand-500 dark:text-brand-500 mt-2 font-mono font-bold">
-                      Tx Reference: {p.transaction_reference}
-                    </p>
+                    <div className="flex items-center gap-2 text-xs font-mono pt-1">
+                      <span className="text-gray-400 font-sans">Tx Reference:</span>
+                      <span className="font-semibold text-brand-500">{p.transaction_reference}</span>
+                    </div>
                   )}
+
                   {p.payment_proof && (
-                    <div className="mt-2.5">
-                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-wider mb-1">Payment Proof:</p>
-                      <div className="relative group cursor-pointer overflow-hidden rounded-lg border border-surface-border dark:border-surface-dark-border max-w-[200px] h-24 bg-gray-50" onClick={() => setPreviewImage(p.payment_proof)}>
-                        <img src={p.payment_proof} alt="Promotion payment proof" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                    <div className="pt-2">
+                      <p className="text-3xs text-gray-400 uppercase font-bold tracking-wider mb-1">Payment Proof:</p>
+                      <div
+                        onClick={() => setPreviewImage(p.payment_proof)}
+                        className="relative group cursor-pointer overflow-hidden rounded-btn border border-surface-border/40 max-w-[200px] h-24 bg-surface-muted"
+                      >
+                        <img src={p.payment_proof} alt="Proof" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                          <span className="text-white text-xs font-bold flex items-center gap-1"><Eye size={12} /> View Slip</span>
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  <p className="text-xs text-gray-400 mt-2">{fmtDate(p.created_at)}</p>
-                  {p.admin_notes && <p className="text-xs text-red-500 mt-1">Note: {p.admin_notes}</p>}
+                  <p className="text-3xs text-gray-400 pt-1">Created: {fmtDate(p.created_at)}</p>
                 </div>
-                {filter === 'pending' ? (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => handleApprove(p.id)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition">
-                      <CheckCircle2 size={14} /> Approve
-                    </button>
-                    <button onClick={() => handleReject(p.id)}
-                      className="flex items-center gap-1.5 px-4 py-2 border border-red-500 text-red-500   rounded-lg text-sm font-medium transition">
-                      <XCircle size={14} /> Reject
-                    </button>
+
+                {filter === 'pending' && (
+                  <div className="flex sm:flex-col gap-2 shrink-0 w-full sm:w-auto">
+                    <Button variant="default" size="sm" onClick={() => handleApprove(p.id)} className="flex items-center gap-1.5">
+                      <CheckCircle2 size={14} /> Approve Campaign
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleReject(p.id)} className="text-red-500 hover:text-red-600 flex items-center gap-1.5">
+                      <X size={14} /> Reject
+                    </Button>
                   </div>
-                ) : (
-                  <Badge text={p.status} className={statusBg[p.status] || ''} />
                 )}
               </div>
             </div>
           ))}
-          
-          {loadingMore && (
-            <div className="flex justify-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" />
-            </div>
-          )}
-
-          {!hasMore && promos.length > 0 && (
-            <p className="text-center py-4 text-xs text-gray-400">All promotions loaded</p>
-          )}
-
-          <div ref={sentinelRef} className="h-4" />
         </div>
       )}
 
-      {/* Image Preview Modal */}
+      {/* Infinite Scroll Sentinel */}
+      {loadingMore && <div className="flex justify-center py-4"><Spinner size="sm" /></div>}
+      <div ref={sentinelRef} className="h-4" />
+
+      {/* Preview Modal */}
       {previewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[90vh]">
-            <button onClick={() => setPreviewImage(null)} className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-black/80 transition">✕</button>
-            <img src={previewImage} alt="Payment Proof Full" className="max-w-full max-h-[80vh] object-contain rounded" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-3xl max-h-[90vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition">
+              <X size={16} />
+            </button>
+            <img src={previewImage} alt="Receipt Full" className="max-w-full max-h-[80vh] object-contain rounded-btn" />
           </div>
         </div>
       )}
@@ -1033,108 +1631,360 @@ export const PromotionQueue: React.FC = () => {
 
 // ============ Reviews Manager ============
 export const ReviewsManager: React.FC = () => {
-    const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        api.get('/api/reviews/')
-            .then(r => setReviews(r.data.results || r.data))
-            .catch(() => {});
-    }, []);
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
 
-    const updateReview = async (id: number, approved: boolean) => {
-        try {
-            await api.patch(`/api/reviews/${id}/`, { approved });
-            setReviews(prev => prev.map(r => r.id === id ? {...r, approved} : r));
-            toast.success('Review updated');
-        } catch { toast.error('Failed to update review'); }
-    };
+  const fetchReviews = useCallback((p: number, reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setPage(1);
+    } else {
+      setLoadingMore(true);
+    }
 
-    const deleteReview = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this review?')) return;
-        try {
-            await api.delete(`/api/reviews/${id}/`);
-            setReviews(prev => prev.filter(r => r.id !== id));
-            toast.success('Review deleted');
-        } catch { toast.error('Failed to delete review'); }
-    };
+    let url = `/api/reviews/?page=${p}`;
+    if (filter === 'pending') url += '&approved=false';
+    if (filter === 'approved') url += '&approved=true';
 
-    return (
-        <div className="space-y-4">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Review Moderation</h3>
-            <div className="space-y-3">
-                {reviews.map(review => (
-                    <div key={review.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 hover:shadow-sm transition flex gap-4">
-                        <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="font-bold text-gray-900 dark:text-white">{review.rating}/5 Stars</span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${review.approved ? ' text-green-500' : ' text-red-500'}`}>{review.approved ? 'Approved' : 'Pending'}</span>
-                            </div>
-                            <p className="text-sm text-gray-700 dark:text-gray-300">"{review.comment}"</p>
-                            <p className="text-xs text-gray-500 mt-2">By User {review.user} on Product {review.product}</p>
-                        </div>
-                        <div className="flex flex-col gap-2 shrink-0">
-                            {!review.approved ? (
-                                <button onClick={() => updateReview(review.id, true)} className="bg-green-500 text-white text-xs py-1.5 px-3 rounded font-medium hover:bg-green-500">Approve</button>
-                            ) : (
-                                <button onClick={() => updateReview(review.id, false)} className="bg-yellow-500 text-white text-xs py-1.5 px-3 rounded font-medium hover:bg-yellow-500">Hide</button>
-                            )}
-                            <button onClick={() => deleteReview(review.id)} className=" text-red-500 text-xs py-1.5 px-3 rounded font-medium  border border-red-500">Delete</button>
-                        </div>
-                    </div>
-                ))}
-                {reviews.length === 0 && <p className="text-gray-500 py-4">No reviews found.</p>}
-            </div>
-        </div>
+    api.get(url)
+      .then((r) => {
+        const data = r.data.results || r.data;
+        const incoming = Array.isArray(data) ? data : [];
+        if (reset) setReviews(incoming);
+        else {
+          setReviews((prev) => {
+            const ids = new Set(prev.map((i) => i.id));
+            return [...prev, ...incoming.filter((i) => !ids.has(i.id))];
+          });
+        }
+        setHasMore(!!r.data.next);
+      })
+      .catch(() => {
+        toast.error('Failed to load reviews');
+        setHasMore(false);
+      })
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
+  }, [filter]);
+
+  useEffect(() => {
+    fetchReviews(1, true);
+  }, [fetchReviews]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loading) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => {
+            const nextPage = prev + 1;
+            fetchReviews(nextPage);
+            return nextPage;
+          });
+        }
+      },
+      { rootMargin: '400px' }
     );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [hasMore, loadingMore, loading, fetchReviews]);
+
+  const updateReview = async (id: number, approved: boolean) => {
+    try {
+      await api.patch(`/api/reviews/${id}/`, { approved });
+      setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, approved } : r)));
+      toast.success(approved ? 'Review approved and published' : 'Review hidden from public');
+    } catch {
+      toast.error('Failed to update review');
+    }
+  };
+
+  const deleteReview = async (id: number) => {
+    if (!confirm('Are you sure you want to permanently delete this review?')) return;
+    try {
+      await api.delete(`/api/reviews/${id}/`);
+      setReviews((prev) => prev.filter((r) => r.id !== id));
+      toast.success('Review deleted permanently');
+    } catch {
+      toast.error('Failed to delete review');
+    }
+  };
+
+  const filteredReviews = useMemo(() => {
+    if (!search.trim()) return reviews;
+    const q = search.toLowerCase();
+    return reviews.filter(
+      (r) =>
+        (r.comment || '').toLowerCase().includes(q) ||
+        String(r.user || '').toLowerCase().includes(q) ||
+        String(r.product || '').toLowerCase().includes(q)
+    );
+  }, [reviews, search]);
+
+  const filterTabs = [
+    { key: 'all', label: 'All Reviews' },
+    { key: 'pending', label: 'Pending Approval' },
+    { key: 'approved', label: 'Approved' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Review & Feedback Moderation</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Maintain community integrity by reviewing customer product feedback and ratings.
+          </p>
+        </div>
+      </header>
+
+      {/* Filter Pills & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {filterTabs.map((tab) => {
+            const isActive = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search review comments..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
+        </div>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <CardListSkeleton count={5} />
+      ) : filteredReviews.length === 0 ? (
+        <EmptyState
+          icon={Star}
+          title="No Reviews Found"
+          description={search ? 'No reviews match your search query.' : 'There are currently no reviews in this view.'}
+        />
+      ) : (
+        <div className="space-y-3">
+          {filteredReviews.map((review) => (
+            <div key={review.id} className="card p-5 flex flex-col sm:flex-row justify-between gap-4 hover:border-gray-900/20 dark:hover:border-white/20 transition">
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center text-amber-500">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        size={14}
+                        fill={i < review.rating ? 'currentColor' : 'none'}
+                        className={i < review.rating ? 'text-amber-500' : 'text-gray-300 dark:text-gray-600'}
+                      />
+                    ))}
+                  </div>
+                  <span className="font-bold text-xs text-gray-900 dark:text-white">{review.rating}/5 Stars</span>
+                  <Badge text={review.approved ? 'approved' : 'pending'} />
+                </div>
+                <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed font-medium">
+                  "{review.comment}"
+                </p>
+                <p className="text-3xs text-gray-400">
+                  User ID: {review.user} • Product ID: {review.product} • {fmtDate(review.created_at)}
+                </p>
+              </div>
+
+              <div className="flex sm:flex-col gap-2 shrink-0 justify-center">
+                {!review.approved ? (
+                  <Button variant="default" size="sm" onClick={() => updateReview(review.id, true)}>
+                    Approve
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => updateReview(review.id, false)}>
+                    Hide
+                  </Button>
+                )}
+                <Button variant="danger" size="sm" onClick={() => deleteReview(review.id)}>
+                  Delete
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Infinite Scroll Sentinel */}
+      {loadingMore && <div className="flex justify-center py-4"><Spinner size="sm" /></div>}
+      <div ref={sentinelRef} className="h-4" />
+    </div>
+  );
 };
 
-// ============ Disputes ============
+// ============ Disputes Manager ============
 export const DisputesManager: React.FC = () => {
-    const [disputes, setDisputes] = useState<any[]>([]);
-    const [filter, setFilter] = useState('open');
+  const [disputes, setDisputes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('open');
+  const [search, setSearch] = useState('');
 
-    useEffect(() => {
-        api.get(`/api/disputes/?status=${filter}`)
-            .then(r => setDisputes(r.data.results || r.data)).catch(() => {});
-    }, [filter]);
+  const fetchDisputes = useCallback(() => {
+    setLoading(true);
+    api.get(`/api/disputes/?status=${filter}`)
+      .then((r) => setDisputes(r.data.results || r.data || []))
+      .catch(() => toast.error('Failed to load disputes'))
+      .finally(() => setLoading(false));
+  }, [filter]);
 
-    const handleResolve = async (id: number, resolution: string) => {
-        const notes = prompt('Resolution notes (optional):') || '';
-        await api.post(`/api/disputes/${id}/resolve/`, { resolution, notes });
-        setDisputes(prev => prev.filter(d => d.id !== id));
-        toast.success('Dispute resolved');
-    };
+  useEffect(() => {
+    fetchDisputes();
+  }, [fetchDisputes]);
 
-    return (
-        <div>
-            <h3 className="text-xl font-bold mb-4">Disputes</h3>
-            {['open', 'under_review', 'resolved_buyer', 'resolved_seller'].map(s => (
-                <button key={s} onClick={() => setFilter(s)}
-                    className={`mr-2 text-xs px-3 py-1 rounded-full font-bold ${filter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}>
-                    {s.replace(/_/g, ' ')}
-                </button>
-            ))}
-            <div className="mt-4 space-y-3">
-                {disputes.map(d => (
-                    <div key={d.id} className="bg-white dark:bg-[#0A0A0A] rounded-card border border-surface-border dark:border-surface-dark-border shadow-sm p-5 hover:shadow-sm transition">
-                        <p className="font-bold text-gray-900 dark:text-white">Order #{d.order} — {d.opened_by_username}</p>
-                        <p className="text-sm text-gray-600 mt-1">{d.reason}</p>
-                        {d.status === 'open' && (
-                            <div className="flex gap-2 mt-3">
-                                <button onClick={() => handleResolve(d.id, 'resolved_buyer')}
-                                    className="px-3 py-1.5 border border-brand-500 text-brand-500  rounded-lg text-xs font-medium transition">Favour Buyer</button>
-                                <button onClick={() => handleResolve(d.id, 'resolved_seller')}
-                                    className="px-3 py-1.5 border border-green-500 text-green-500  rounded-lg text-xs font-medium transition">Favour Seller</button>
-                                <button onClick={() => handleResolve(d.id, 'closed')}
-                                    className="px-3 py-1.5 border border-gray-300 text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-medium transition">Close</button>
-                            </div>
-                        )}
-                    </div>
-                ))}
-                {disputes.length === 0 && <p className="text-sm text-gray-400 text-center py-6">No {filter} disputes</p>}
-            </div>
-        </div>
+  const handleResolve = async (id: number, resolution: string) => {
+    const notes = prompt('Resolution notes (recorded for audit):') || '';
+    try {
+      await api.post(`/api/disputes/${id}/resolve/`, { resolution, notes });
+      toast.success('Dispute resolved successfully');
+      fetchDisputes();
+    } catch {
+      toast.error('Failed to resolve dispute');
+    }
+  };
+
+  const filteredDisputes = useMemo(() => {
+    if (!search.trim()) return disputes;
+    const q = search.toLowerCase();
+    return disputes.filter(
+      (d) =>
+        String(d.order || '').includes(q) ||
+        (d.opened_by_username || '').toLowerCase().includes(q) ||
+        (d.reason || '').toLowerCase().includes(q)
     );
+  }, [disputes, search]);
+
+  const filterTabs = [
+    { key: 'open', label: 'Open Disputes' },
+    { key: 'under_review', label: 'Under Review' },
+    { key: 'resolved_buyer', label: 'Resolved (Buyer)' },
+    { key: 'resolved_seller', label: 'Resolved (Seller)' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Customer Disputes Arbitration</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Arbitrate disputes between buyers and sellers, review statements, and disburse refunds or payouts.
+          </p>
+        </div>
+      </header>
+
+      {/* Filter Pills & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {filterTabs.map((tab) => {
+            const isActive = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search Order #, customer..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
+        </div>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <CardListSkeleton count={5} />
+      ) : filteredDisputes.length === 0 ? (
+        <EmptyState
+          icon={AlertTriangle}
+          title={`No ${filter.replace(/_/g, ' ')} disputes`}
+          description={search ? 'No disputes match your search query.' : 'There are currently no disputes in this category.'}
+        />
+      ) : (
+        <div className="space-y-3">
+          {filteredDisputes.map((d) => (
+            <div key={d.id} className="card p-5 space-y-4 hover:border-gray-900/20 dark:hover:border-white/20 transition">
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                      Order #{d.order} — @{d.opened_by_username}
+                    </h3>
+                    <Badge text={d.status} />
+                  </div>
+                  <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium">"{d.reason}"</p>
+                  <p className="text-3xs text-gray-400 font-mono">Opened: {fmtDate(d.created_at)}</p>
+                </div>
+
+                {d.status === 'open' && (
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <Button variant="default" size="sm" onClick={() => handleResolve(d.id, 'resolved_buyer')}>
+                      Favour Buyer
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleResolve(d.id, 'resolved_seller')} className="text-emerald-600 dark:text-emerald-400">
+                      Favour Seller
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleResolve(d.id, 'closed')}>
+                      Close
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 // ============ Support Tickets (Split Pane & Chat) ============
@@ -1145,27 +1995,26 @@ export const SupportTicketsManager: React.FC = () => {
   const [replyText, setReplyText] = useState('');
   const [isInternal, setIsInternal] = useState(false);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const fetchTickets = useCallback(() => {
+    setLoading(true);
     api.get(`/api/staff/support-tickets/?status=${statusFilter}`)
-      .then(r => setTickets(r.data.results || r.data))
-      .catch(() => {});
+      .then((r) => setTickets(r.data.results || r.data || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [statusFilter]);
 
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
 
-  const handleSelectTicket = (t: any) => {
-    setSelectedTicket(t);
-  };
-
   const handleUpdateStatus = async (id: number, status: string) => {
     try {
       await api.patch(`/api/staff/support-tickets/${id}/update_status/`, { status });
       toast.success(`Ticket marked as ${status}`);
       fetchTickets();
-      setSelectedTicket((prev: any) => prev ? { ...prev, status } : null);
+      setSelectedTicket((prev: any) => (prev ? { ...prev, status } : null));
     } catch {
       toast.error('Failed to update ticket status');
     }
@@ -1176,12 +2025,11 @@ export const SupportTicketsManager: React.FC = () => {
     try {
       await api.post(`/api/staff/support-tickets/${selectedTicket.id}/reply/`, {
         reply: replyText,
-        is_internal: isInternal
+        is_internal: isInternal,
       });
       toast.success(isInternal ? 'Internal note added' : 'Reply sent');
       setReplyText('');
-      
-      // Reload tickets to get new messages
+
       const r = await api.get(`/api/staff/support-tickets/?status=${statusFilter}`);
       const newTickets = r.data.results || r.data;
       setTickets(newTickets);
@@ -1191,140 +2039,219 @@ export const SupportTicketsManager: React.FC = () => {
     }
   };
 
-  const filteredTickets = tickets.filter(t => 
-    t.subject.toLowerCase().includes(search.toLowerCase()) || 
-    (t.messages && t.messages.some((m: any) => m.body.toLowerCase().includes(search.toLowerCase())))
-  );
+  const filteredTickets = useMemo(() => {
+    if (!search.trim()) return tickets;
+    const q = search.toLowerCase();
+    return tickets.filter(
+      (t) =>
+        (t.subject || '').toLowerCase().includes(q) ||
+        (t.messages && t.messages.some((m: any) => (m.body || '').toLowerCase().includes(q)))
+    );
+  }, [tickets, search]);
+
+  const filterTabs = [
+    { key: 'open', label: 'Open' },
+    { key: 'in_progress', label: 'In Progress' },
+    { key: 'resolved', label: 'Resolved' },
+    { key: 'closed', label: 'Closed' },
+  ];
 
   return (
-    <div className="h-[75vh] flex rounded-card border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] overflow-hidden shadow-sm">
-      {/* Left Pane - Tickets list */}
-      <div className="w-1/3 border-r border-surface-border dark:border-surface-dark-border flex flex-col">
-        <div className="p-4 border-b border-surface-border dark:border-surface-dark-border space-y-3 bg-gray-50/50 dark:bg-gray-900/10">
-          <h3 className="font-bold text-gray-900 dark:text-white">Support Inbox</h3>
-          <input type="text" placeholder="Search tickets..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:outline-none" />
-          <div className="flex gap-1 overflow-x-auto pb-1">
-            {['open', 'in_progress', 'resolved', 'closed'].map(s => (
-              <button key={s} onClick={() => { setStatusFilter(s); setSelectedTicket(null); }}
-                className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition capitalize shrink-0 ${statusFilter === s ? 'bg-brand-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}>
-                {s.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
-          {filteredTickets.length === 0 ? (
-            <p className="text-xs text-gray-400 text-center py-8 italic">No {statusFilter.replace('_', ' ')} tickets</p>
-          ) : filteredTickets.map(t => {
-            const latestMsg = t.messages && t.messages.length > 0 ? t.messages[t.messages.length - 1].body : '';
-            return (
-              <div key={t.id} onClick={() => handleSelectTicket(t)}
-                className={`p-4 cursor-pointer transition flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 ${selectedTicket?.id === t.id ? '  border-l-4 border-brand-500' : ''}`}>
-                <div>
-                  <div className="flex justify-between items-start gap-1">
-                    <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{t.subject}</p>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${t.status === 'open' ? ' text-red-500' : t.status === 'resolved' ? ' text-green-500' : ' text-yellow-500'}`}>
-                      {t.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center mt-1">
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Category: {t.category}</p>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                      t.priority === 'urgent' ? 'bg-red-500 text-white' : 
-                      t.priority === 'high' ? ' text-orange-500' : 
-                      'bg-gray-100 text-gray-600'
-                    }`}>{t.priority}</span>
-                  </div>
-                  <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{latestMsg}</p>
-                </div>
-                <p className="text-[9px] text-gray-400 mt-2 self-end">{fmtDate(t.created_at)}</p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+    <div className="space-y-4">
+      <header>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Customer Support Desk</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+          Respond to user inquiries, add internal collaboration notes, and resolve tickets.
+        </p>
+      </header>
 
-      {/* Right Pane - Chat Window */}
-      <div className="flex-1 flex flex-col bg-gray-50/30 dark:bg-gray-900/5">
-        {selectedTicket ? (
-          <div className="flex-1 flex flex-col h-full overflow-hidden">
-            {/* Header */}
-            <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] flex justify-between items-center">
-              <div>
-                <h4 className="font-bold text-gray-900 dark:text-white text-sm">{selectedTicket.subject}</h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400">By: {selectedTicket.name} ({selectedTicket.email})</p>
-              </div>
-              <div className="flex gap-2">
-                {selectedTicket.status === 'open' && (
-                  <button onClick={() => handleUpdateStatus(selectedTicket.id, 'in_progress')} className="px-3 py-1.5 bg-brand-500 hover:bg-brand-500 text-white rounded-lg text-xs font-bold transition">Accept</button>
-                )}
-                {['open', 'in_progress'].includes(selectedTicket.status) && (
-                  <button onClick={() => handleUpdateStatus(selectedTicket.id, 'resolved')} className="px-3 py-1.5 bg-green-500 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition">Resolve</button>
-                )}
-              </div>
+      <div className="h-[75vh] flex rounded-card border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] overflow-hidden shadow-card">
+        {/* Left Pane - Tickets list */}
+        <div className="w-full md:w-1/3 border-r border-surface-border dark:border-surface-dark-border flex flex-col">
+          <div className="p-3 border-b border-surface-border dark:border-surface-dark-border space-y-2 bg-surface-muted/30 dark:bg-[#161616]/30">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search tickets..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input pl-8 py-1.5 text-xs w-full"
+              />
             </div>
+            <div className="flex gap-1 overflow-x-auto pb-1" data-horizontal-scroll="true">
+              {filterTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter(tab.key);
+                    setSelectedTicket(null);
+                  }}
+                  className={`text-3xs px-2.5 py-1 rounded-full font-bold transition whitespace-nowrap ${
+                    statusFilter === tab.key
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-black'
+                      : 'bg-surface-muted dark:bg-[#161616] text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-            {/* Message Thread */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50/50 dark:bg-gray-900/20">
-              {selectedTicket.messages?.map((msg: any) => {
-                const isUser = !msg.is_internal && msg.sender_name === selectedTicket.name;
-                const isInternal = msg.is_internal;
-                
+          <div className="flex-1 overflow-y-auto divide-y divide-surface-border dark:divide-surface-dark-border">
+            {loading ? (
+              <div className="p-3">
+                <CardListSkeleton count={4} />
+              </div>
+            ) : filteredTickets.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-12 italic">No {statusFilter} tickets found.</p>
+            ) : (
+              filteredTickets.map((t) => {
+                const latestMsg = t.messages && t.messages.length > 0 ? t.messages[t.messages.length - 1].body : '';
                 return (
-                  <div key={msg.id} className={`flex items-start gap-2 max-w-[80%] ${isUser ? '' : 'ml-auto flex-row-reverse'}`}>
-                    <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${
-                      isUser ? ' text-brand-500' : isInternal ? ' text-yellow-500' : ' text-green-500'
-                    }`}>
-                      {isUser ? 'U' : 'S'}
+                  <div
+                    key={t.id}
+                    onClick={() => setSelectedTicket(t)}
+                    className={`p-3.5 cursor-pointer transition flex flex-col justify-between hover:bg-surface-muted/50 dark:hover:bg-[#161616]/50 ${
+                      selectedTicket?.id === t.id ? 'bg-surface-muted/80 dark:bg-[#161616]/80 border-l-4 border-brand-500' : ''
+                    }`}
+                  >
+                    <div>
+                      <div className="flex justify-between items-start gap-1">
+                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{t.subject}</p>
+                        <Badge text={t.status} />
+                      </div>
+                      <div className="flex justify-between items-center mt-1 text-3xs text-gray-400">
+                        <span>{t.category}</span>
+                        <span className={`font-bold ${priorityColors[t.priority]}`}>{t.priority}</span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{latestMsg}</p>
                     </div>
-                    <div className={`p-3 rounded-2xl text-xs ${
-                      isUser ? 'bg-white dark:bg-[#0A0A0A] border dark:border-gray-700 text-gray-700 dark:text-gray-300' :
-                      isInternal ? '  border border-yellow-500 dark:border-yellow-500 text-yellow-500 dark:text-yellow-500' :
-                      'bg-brand-500 text-white'
-                    }`}>
-                      <p className={`font-semibold mb-1 text-[10px] ${isUser ? 'text-gray-400' : isInternal ? 'text-yellow-500' : 'text-brand-500'}`}>
-                        {msg.sender_name} {isInternal && '(Internal Note)'} · {fmtDate(msg.created_at)}
-                      </p>
-                      <p>{msg.body}</p>
-                    </div>
+                    <p className="text-3xs text-gray-400 mt-2 self-end font-mono">{fmtDate(t.created_at)}</p>
                   </div>
                 );
-              })}
-            </div>
-
-            {/* Input Box */}
-            {['open', 'in_progress'].includes(selectedTicket.status) ? (
-              <div className="p-4 border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A]">
-                <div className="flex gap-4 mb-2 border-b border-gray-100 dark:border-gray-800">
-                  <button onClick={() => setIsInternal(false)} className={`text-xs font-bold pb-2 border-b-2 ${!isInternal ? 'border-brand-500 text-brand-500' : 'border-transparent text-gray-400'}`}>Public Reply</button>
-                  <button onClick={() => setIsInternal(true)} className={`text-xs font-bold pb-2 border-b-2 ${isInternal ? 'border-yellow-500 text-yellow-500' : 'border-transparent text-gray-400'}`}>Internal Note</button>
-                </div>
-                <div className="flex gap-2">
-                  <input type="text" placeholder={isInternal ? "Type an internal note..." : "Type your response to the user..."} value={replyText} onChange={e => setReplyText(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleSendReply()}
-                    className={`flex-1 px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 bg-white dark:bg-[#0A0A0A] ${
-                      isInternal ? 'border-yellow-500 focus:ring-yellow-500 focus:border-yellow-500 text-yellow-500 dark:text-yellow-500' : 'border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-900 dark:focus:border-white'
-                    }`} />
-                  <button onClick={handleSendReply} className={`px-4 py-2 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 ${
-                    isInternal ? 'bg-yellow-500 hover:bg-yellow-500' : 'bg-brand-500 hover:bg-brand-500'
-                  }`}>
-                    <Send size={12} /> {isInternal ? 'Add Note' : 'Reply'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] text-center text-xs text-gray-400 italic">
-                This ticket is resolved/closed. You cannot send replies.
-              </div>
+              })
             )}
           </div>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-            <MessageSquare size={48} className="mb-2 text-gray-300 dark:text-gray-600" />
-            <p className="text-sm">Select a ticket from the inbox to view details</p>
-          </div>
-        )}
+        </div>
+
+        {/* Right Pane - Chat Window */}
+        <div className="flex-1 flex flex-col bg-surface-muted/20 dark:bg-neutral-950/20">
+          {selectedTicket ? (
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
+              {/* Header */}
+              <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A] flex justify-between items-center">
+                <div>
+                  <h4 className="font-bold text-gray-900 dark:text-white text-sm">{selectedTicket.subject}</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    By: {selectedTicket.name} ({selectedTicket.email})
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {selectedTicket.status === 'open' && (
+                    <Button size="sm" variant="default" onClick={() => handleUpdateStatus(selectedTicket.id, 'in_progress')}>
+                      Accept Ticket
+                    </Button>
+                  )}
+                  {['open', 'in_progress'].includes(selectedTicket.status) && (
+                    <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(selectedTicket.id, 'resolved')} className="text-emerald-600 dark:text-emerald-400">
+                      Mark Resolved
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Thread */}
+              <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-surface-muted/30 dark:bg-[#161616]/30">
+                {selectedTicket.messages?.map((msg: any) => {
+                  const isUser = !msg.is_internal && msg.sender_name === selectedTicket.name;
+                  const isInternal = msg.is_internal;
+
+                  return (
+                    <div key={msg.id} className={`flex items-start gap-2 max-w-[80%] ${isUser ? '' : 'ml-auto flex-row-reverse'}`}>
+                      <div
+                        className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${
+                          isUser ? 'bg-surface-muted text-gray-700 dark:text-gray-300' : isInternal ? 'bg-amber-500/20 text-amber-500' : 'bg-brand-500 text-white'
+                        }`}
+                      >
+                        {isUser ? 'U' : isInternal ? 'N' : 'S'}
+                      </div>
+                      <div
+                        className={`p-3 rounded-card text-xs border ${
+                          isUser
+                            ? 'bg-white dark:bg-[#0A0A0A] border-surface-border dark:border-surface-dark-border text-gray-800 dark:text-gray-200'
+                            : isInternal
+                            ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200'
+                            : 'bg-brand-500 text-white border-brand-500'
+                        }`}
+                      >
+                        <p className={`font-bold mb-1 text-3xs ${isUser ? 'text-gray-400' : isInternal ? 'text-amber-600 dark:text-amber-400' : 'text-white/80'}`}>
+                          {msg.sender_name} {isInternal && '(Internal Note)'} • {fmtDate(msg.created_at)}
+                        </p>
+                        <p className="leading-relaxed">{msg.body}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Composer */}
+              {['open', 'in_progress'].includes(selectedTicket.status) ? (
+                <div className="p-3 border-t border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#0A0A0A]">
+                  <div className="flex gap-3 mb-2 border-b border-surface-border dark:border-surface-dark-border pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsInternal(false)}
+                      className={`text-xs font-bold pb-1 border-b-2 transition ${
+                        !isInternal ? 'border-brand-500 text-brand-500' : 'border-transparent text-gray-400'
+                      }`}
+                    >
+                      Public Reply
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsInternal(true)}
+                      className={`text-xs font-bold pb-1 border-b-2 transition ${
+                        isInternal ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-400'
+                      }`}
+                    >
+                      Internal Note
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={isInternal ? 'Type internal staff note...' : 'Type response to user...'}
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
+                      className={`input py-2 text-xs flex-1 ${isInternal ? 'border-amber-400 focus:border-amber-500' : ''}`}
+                    />
+                    <Button
+                      variant={isInternal ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={handleSendReply}
+                      className="px-4"
+                    >
+                      <Send size={13} /> {isInternal ? 'Save Note' : 'Send'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 border-t border-surface-border bg-surface-muted text-center text-xs text-gray-400 italic">
+                  This ticket has been resolved or closed.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+              <MessageSquare size={40} className="mb-2 opacity-40" />
+              <p className="text-xs font-medium">Select a ticket from the inbox to view the conversation</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1385,101 +2312,74 @@ const StaffDashboardLayout: React.FC = () => {
     { path: '/staff/logistics', label: 'Logistics Manager', icon: Truck, show: canManageLogistics },
     { path: '/staff/invoices', label: 'Commission Payments', icon: FileText, show: canVerify },
     { path: '/staff/products', label: 'Product Moderation', icon: Layers, show: canModerate },
-    { 
-      path: '/staff/promotions', 
-      label: 'Promotions', 
-      icon: Megaphone,
-      show: canReviewPromo || canApprove
-    },
-    { 
-      path: '/staff/reviews', 
-      label: 'Reviews', 
-      icon: Star,
-      show: canApprove
-    },
-    { 
-      path: '/staff/inspections', 
-      label: 'Inspections', 
-      icon: LayoutDashboard,
-      show: canManageInspections
-    },
-    { 
-      path: '/staff/tickets', 
-      label: 'Support Tickets', 
-      icon: AlertTriangle,
-      show: canModerate || canApprove
-    },
-    { 
-      path: '/inspector/jobs', 
-      label: 'Inspector Jobs', 
-      icon: ClipboardList,
-      show: data?.user?.is_inspector && !canManageInspections
-    },
-    {
-      path: '/staff-admin',
-      label: 'Admin Panel',
-      icon: Shield,
-      show: isSuper
-    },
-  ].filter(item => item.show === undefined || item.show);
+    { path: '/staff/promotions', label: 'Promotions', icon: Megaphone, show: canReviewPromo || canApprove },
+    { path: '/staff/reviews', label: 'Reviews', icon: Star, show: canApprove },
+    { path: '/staff/inspections', label: 'Inspections', icon: LayoutDashboard, show: canManageInspections },
+    { path: '/staff/tickets', label: 'Support Tickets', icon: AlertTriangle, show: canModerate || canApprove },
+    { path: '/staff-admin', label: 'Admin Panel', icon: Shield, show: isSuper },
+  ].filter((item) => item.show === undefined || item.show);
 
   return (
-    <div className="max-w-7xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
-      <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0`}>
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border shadow-sm p-2 space-y-1 relative">
-          
-          <button 
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
-            title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
-          >
-            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
+    <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+      <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
+        {/* Sidebar */}
+        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 ${location.pathname !== '/staff' ? 'hidden lg:block' : ''}`}>
+          <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1 relative h-full">
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="hidden lg:flex absolute -right-3 top-4 bg-white dark:bg-[#0A0A0A] border border-surface-border dark:border-surface-dark-border rounded-full p-1 shadow-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors z-10"
+              title={isSidebarCollapsed ? 'Expand' : 'Collapse'}
+            >
+              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
 
-          <div className={`px-3 py-2 mb-1 border-b dark:border-gray-700 transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0 border-none' : 'opacity-100'}`}>
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
-              {data?.user?.is_inspector && !canManageInspections ? 'Inspector Panel' : 'Staff Panel'}
-            </h3>
-            {data?.user.username && <p className="text-[10px] text-brand-500 font-bold mt-1 truncate">@{data.user.username}</p>}
-          </div>
+            <div className={`px-3 py-2 mb-1 border-b border-surface-border dark:border-surface-dark-border transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0 border-none' : 'opacity-100'}`}>
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                Staff Panel
+              </h3>
+              {data?.user?.username && <p className="text-xs text-brand-500 font-bold mt-0.5 truncate">@{data.user.username}</p>}
+            </div>
 
-          <div className="flex flex-col gap-1">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = location.pathname === item.path || (item.path !== '/staff' && location.pathname.startsWith(item.path));
               return (
-                <Link key={item.path} to={item.path}
-                  title={isSidebarCollapsed ? item.label : undefined}
-                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-lg text-sm transition group ${
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
                     isActive
-                      ? '  text-brand-500 dark:text-brand-500 font-medium'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}>
-                  <item.icon size={16} className={isSidebarCollapsed ? 'shrink-0' : ''} />
-                  {!isSidebarCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
+                      ? 'text-brand-500 font-medium bg-brand-500/5'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-surface-muted/50 dark:hover:bg-neutral-900/50'
+                  }`}
+                  title={isSidebarCollapsed ? item.label : undefined}
+                >
+                  <item.icon size={18} className="shrink-0" />
+                  {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
                 </Link>
               );
             })}
-          </div>
-        </div>
-      </aside>
+          </nav>
+        </aside>
 
-      <main className="flex-1 min-w-0">
-        <Routes>
-          <Route index element={<StaffHome data={data} loading={loading} />} />
-          <Route path="tasks" element={<StaffTasks />} />
-          <Route path="subscriptions" element={canVerify ? <SubscriptionConfirmation /> : <Navigate to="/staff" />} />
-          <Route path="seller-applications" element={canVerify ? <SellerApplicationsManager /> : <Navigate to="/staff" />} />
-          <Route path="warehouse" element={canManageWarehouse ? <WarehouseStaffLayout /> : <Navigate to="/staff" />} />
-          <Route path="logistics" element={canManageLogistics ? <LogisticsManager /> : <Navigate to="/staff" />} />
-          <Route path="invoices" element={canVerify ? <CommissionPaymentsManager /> : <Navigate to="/staff" />} />
-          <Route path="products" element={canModerate ? <ProductModeration /> : <Navigate to="/staff" />} />
-          <Route path="promotions" element={(canReviewPromo || canApprove) ? <PromotionQueue /> : <Navigate to="/staff" />} />
-          <Route path="reviews" element={canApprove ? <ReviewsManager /> : <Navigate to="/staff" />} />
-          <Route path="disputes" element={canModerate ? <DisputesManager /> : <Navigate to="/staff" />} />
-          <Route path="tickets" element={(canModerate || canApprove) ? <SupportTicketsManager /> : <Navigate to="/staff" />} />
-          <Route path="inspections/*" element={<StaffInspectionLayout user={data?.user} />} />
-        </Routes>
-      </main>
+        {/* Main Content */}
+        <main className="flex-1 min-w-0 animate-fade-in">
+          <Routes>
+            <Route index element={<StaffHome data={data} loading={loading} />} />
+            <Route path="tasks" element={<StaffTasks />} />
+            <Route path="subscriptions" element={canVerify ? <SubscriptionConfirmation /> : <Navigate to="/staff" />} />
+            <Route path="seller-applications" element={canVerify ? <SellerApplicationsManager /> : <Navigate to="/staff" />} />
+            <Route path="warehouse" element={canManageWarehouse ? <WarehouseStaffLayout /> : <Navigate to="/staff" />} />
+            <Route path="logistics" element={canManageLogistics ? <LogisticsManager /> : <Navigate to="/staff" />} />
+            <Route path="invoices" element={canVerify ? <CommissionPaymentsManager /> : <Navigate to="/staff" />} />
+            <Route path="products" element={canModerate ? <ProductModeration /> : <Navigate to="/staff" />} />
+            <Route path="promotions" element={canReviewPromo || canApprove ? <PromotionQueue /> : <Navigate to="/staff" />} />
+            <Route path="reviews" element={canApprove ? <ReviewsManager /> : <Navigate to="/staff" />} />
+            <Route path="disputes" element={canModerate ? <DisputesManager /> : <Navigate to="/staff" />} />
+            <Route path="tickets" element={canModerate || canApprove ? <SupportTicketsManager /> : <Navigate to="/staff" />} />
+            <Route path="inspections/*" element={<StaffInspectionLayout user={data?.user} />} />
+          </Routes>
+        </main>
+      </div>
     </div>
   );
 };

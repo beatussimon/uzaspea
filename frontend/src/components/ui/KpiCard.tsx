@@ -56,43 +56,56 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         e.stopPropagation();
         setIsOpen(prev => !prev);
       }}
-      className={cn('card p-5 flex flex-col relative overflow-hidden group cursor-pointer select-none active:scale-[0.98] transition-all', className)}
+      className={cn('card p-3 sm:p-3.5 relative overflow-hidden group cursor-pointer select-none active:scale-[0.98] transition-all hover:shadow-xs hover:border-gray-900/20 dark:hover:border-white/20', className)}
     >
       {isOpen && (
-        <div className="absolute inset-x-2 top-2 z-30 bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-2.5 rounded-xl shadow-2xl text-center text-xs font-black border border-white/10 dark:border-black/10 animate-fade-in">
-          <p className="text-[9px] uppercase tracking-wider opacity-70 mb-0.5 font-bold">{label}</p>
-          <p className="text-xs sm:text-sm font-black tracking-tight">{displayTooltip}</p>
+        <div className="absolute inset-x-2 top-2 z-30 bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-2 rounded-xl shadow-2xl text-center text-xs font-bold border border-white/10 dark:border-black/10 animate-fade-in">
+          <p className="text-[10px] opacity-75 mb-0.5 font-medium">{label}</p>
+          <p className="text-xs sm:text-sm font-bold tracking-tight">{displayTooltip}</p>
         </div>
       )}
 
-      {Icon && (
-        <div className="absolute right-4 top-4 text-gray-100 dark:text-neutral-900 opacity-20 dark:opacity-30 select-none pointer-events-none">
-          <Icon size={44} strokeWidth={1.5} />
+      <div>
+        <div className="flex items-center gap-1.5 mb-1 min-w-0">
+          {Icon && (
+            <Icon 
+              size={14} 
+              className={cn("shrink-0", color ? "" : "text-brand-500")} 
+              style={color ? { color } : undefined} 
+            />
+          )}
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">
+            {label}
+          </span>
         </div>
-      )}
-      <span className="text-2xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">
-        {label}
-      </span>
-      <span
-        className="text-heading-md font-black text-gray-900 dark:text-white"
-        style={color ? { color } : undefined}
-      >
-        {value}
-      </span>
-      {(sub || trend) && (
-        <div className="flex items-center gap-1.5 mt-1 text-2xs font-bold select-none">
+
+        <div className="flex items-baseline gap-2 min-w-0">
+          <span
+            className={cn(
+              "font-bold text-gray-900 dark:text-white leading-tight truncate",
+              typeof value === 'string' && value.length > 13 ? 'text-sm sm:text-base' : typeof value === 'string' && value.length > 9 ? 'text-base sm:text-lg' : 'text-xl'
+            )}
+            style={color ? { color } : undefined}
+          >
+            {value}
+          </span>
           {trend && (
             <span
               className={cn(
-                trend.direction === 'up' ? 'text-green-500' : 'text-red-500'
+                'text-xs font-medium shrink-0',
+                trend.direction === 'up' ? 'text-emerald-500' : 'text-red-500'
               )}
             >
-              {trend.direction === 'up' ? '↑' : '↓'} {trend.value}
+              {trend.direction === 'up' ? '↑' : '↓'}{trend.value}
             </span>
           )}
-          {sub && <span className="text-gray-400 dark:text-gray-500">{sub}</span>}
+          {sub && (
+            <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate leading-tight">
+              {sub}
+            </span>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

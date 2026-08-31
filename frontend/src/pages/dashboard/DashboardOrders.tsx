@@ -12,6 +12,8 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/ui/Button';
 import { OrderActionToolbar } from '../../components/ui/OrderActionToolbar';
+import { CardListSkeleton } from '../../components/Skeleton';
+import { cn } from '../../lib/utils';
 
 // ============ Incoming Orders (Seller) ============
 const fmtOrderDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -256,8 +258,8 @@ const DashboardOrders: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 border border-surface-border dark:border-surface-dark-border px-3 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full capitalize flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             {t('live_view', 'Live View')}
           </span>
         </div>
@@ -317,10 +319,8 @@ const DashboardOrders: React.FC = () => {
       </div>
 
       {/* Orders List */}
-      {loading ? (
-        <div className="flex justify-center p-12">
-          <Spinner size="lg" />
-        </div>
+      {loading && orders.length === 0 ? (
+        <CardListSkeleton count={3} />
       ) : filteredOrders.length === 0 ? (
         <EmptyState
           icon={ShoppingCart}
@@ -343,7 +343,7 @@ const DashboardOrders: React.FC = () => {
           }
         />
       ) : (
-        <div className="space-y-3">
+        <div className={cn("space-y-3", loading && "opacity-75 transition-opacity")}>
           {filteredOrders.map((order: any) => {
             const isExpanded = expandedId === order.id;
             const itemsList = order.items || [];
@@ -516,7 +516,7 @@ const DashboardOrders: React.FC = () => {
                             {order.payments
                               .filter((p: any) => p.status === 'PENDING_VERIFICATION')
                               .map((p: any) => (
-                                <div key={p.id} className="p-3 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border space-y-2">
+                                <div key={p.id} className="p-3 rounded-btn bg-white dark:bg-[#111] border border-brand-500/20 space-y-2">
                                   <div className="flex justify-between text-2xs font-bold text-gray-500">
                                     <span>TRANSACTION ID</span>
                                     <span className="font-mono text-gray-900 dark:text-white select-all">{p.transaction_id || 'N/A'}</span>
@@ -528,7 +528,7 @@ const DashboardOrders: React.FC = () => {
                                   {p.proof_image && (
                                     <div
                                       onClick={() => setZoomImage(p.proof_image)}
-                                      className="relative rounded-lg overflow-hidden cursor-zoom-in border border-surface-border dark:border-surface-dark-border group h-28"
+                                      className="relative rounded-btn overflow-hidden cursor-zoom-in border border-surface-border/40 group h-28"
                                     >
                                       <img src={p.proof_image} alt="Proof" className="w-full h-full object-cover" />
                                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-2xs font-bold gap-1">
@@ -540,7 +540,7 @@ const DashboardOrders: React.FC = () => {
                               ))}
                           </div>
 
-                          <div className="flex flex-col justify-center gap-2 p-3 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border">
+                          <div className="flex flex-col justify-center gap-2 p-3 rounded-btn bg-white dark:bg-[#111] border border-brand-500/20">
                             <p className="text-2xs text-gray-500 dark:text-gray-400">
                               {isDeliveryPayment
                                 ? 'Verify customer delivery payment receipt before handing to transport.'

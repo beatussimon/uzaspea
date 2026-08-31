@@ -7,6 +7,8 @@ import { useDialog } from '../../components/ui/Dialogs';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { KpiCard } from '../../components/ui/KpiCard';
+import { CardGridSkeleton } from '../../components/Skeleton';
 
 const TIER_RANKS: Record<string, number> = {
   'customer': 1,
@@ -254,13 +256,33 @@ const BillingPage: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PAID':
-        return <span className="px-2.5 py-0.5 text-[10px] font-bold  text-green-500  dark:text-green-500 rounded-full uppercase">Paid</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full capitalize">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Paid
+          </span>
+        );
       case 'PENDING_REVIEW':
-        return <span className="px-2.5 py-0.5 text-[10px] font-bold  text-yellow-500  dark:text-yellow-500 rounded-full uppercase">Pending Review</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-full capitalize">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Pending Review
+          </span>
+        );
       case 'OVERDUE':
-        return <span className="px-2.5 py-0.5 text-[10px] font-bold  text-red-500  dark:text-red-500 rounded-full uppercase">Overdue</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 rounded-full capitalize">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            Overdue
+          </span>
+        );
       default:
-        return <span className="px-2.5 py-0.5 text-[10px] font-bold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-full uppercase">Unpaid</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20 rounded-full capitalize">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+            Unpaid
+          </span>
+        );
     }
   };
 
@@ -343,9 +365,7 @@ const BillingPage: React.FC = () => {
       )}
 
       {initialLoading ? (
-        <div className="flex justify-center py-16">
-          <Spinner size="lg" />
-        </div>
+        <CardGridSkeleton count={3} cols={3} />
       ) : (
         <div className={`transition-opacity duration-200 ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
           {activeTab === 'subscriptions' ? (
@@ -391,9 +411,15 @@ const BillingPage: React.FC = () => {
                         {sub.tier?.name || 'Seller'} Plan
                       </h3>
                       {sub.is_expired ? (
-                        <span className="px-2 py-0.5 bg-red-500/10 text-red-500 border border-red-500/20 text-3xs rounded-full uppercase tracking-wider font-bold">Expired</span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 text-[11px] rounded-full font-medium capitalize">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                          Expired
+                        </span>
                       ) : (
-                        <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-3xs rounded-full uppercase tracking-wider font-bold">Active</span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] rounded-full font-medium capitalize">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Active
+                        </span>
                       )}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
@@ -556,29 +582,18 @@ const BillingPage: React.FC = () => {
       ) : activeTab === 'ledger' ? (
         <div className="space-y-4">
           {ledger.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="card p-4 flex items-center gap-4">
-                <div className="p-3 rounded-btn bg-blue-500/10 text-blue-500">
-                  <Receipt size={20} />
-                </div>
-                <div>
-                  <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Total Order Amount</p>
-                  <p className="text-lg font-extrabold text-gray-900 dark:text-white mt-0.5">
-                    TSh {Number(ledgerTotals?.total_order_amount || ledger.reduce((sum, entry) => sum + Number(entry.order_amount || 0), 0)).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-              <div className="card p-4 flex items-center gap-4">
-                <div className="p-3 rounded-btn bg-brand-500/10 text-brand-500">
-                  <Wallet size={20} />
-                </div>
-                <div>
-                  <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Total Commission</p>
-                  <p className="text-lg font-extrabold text-brand-500 mt-0.5">
-                    TSh {Number(ledgerTotals?.total_commission || ledger.reduce((sum, entry) => sum + Number(entry.commission_amount || 0), 0)).toLocaleString()}
-                  </p>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <KpiCard
+                label="Total Order Amount"
+                value={`TSh ${Number(ledgerTotals?.total_order_amount || ledger.reduce((sum, entry) => sum + Number(entry.order_amount || 0), 0)).toLocaleString()}`}
+                icon={Receipt}
+              />
+              <KpiCard
+                label="Total Commission"
+                value={`TSh ${Number(ledgerTotals?.total_commission || ledger.reduce((sum, entry) => sum + Number(entry.commission_amount || 0), 0)).toLocaleString()}`}
+                icon={Wallet}
+                color="#f97316"
+              />
             </div>
           )}
           {ledger.length === 0 ? (
@@ -661,34 +676,24 @@ const BillingPage: React.FC = () => {
               These are the driver compensation costs SokoniMax has incurred fulfilling your orders via our fleet. Note that these delivery fees are automatically deducted from payouts.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="card p-4 flex items-center gap-4">
-              <div className="p-3 rounded-btn bg-brand-500/10 text-brand-500">
-                <Truck size={20} />
-              </div>
-              <div>
-                <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Total Delivery Costs</p>
-                <p className="text-lg font-extrabold text-gray-900 dark:text-white mt-0.5">TSh {Number(driverPaymentsTotals?.total_amount || driverPayments.reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="card p-4 flex items-center gap-4">
-              <div className="p-3 rounded-btn bg-emerald-500/10 text-emerald-500">
-                <CheckCircle2 size={20} />
-              </div>
-              <div>
-                <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Paid to Drivers</p>
-                <p className="text-lg font-extrabold text-emerald-500 mt-0.5">TSh {Number(driverPaymentsTotals?.total_paid || driverPayments.filter(dp => dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="card p-4 flex items-center gap-4">
-              <div className="p-3 rounded-btn bg-amber-500/10 text-amber-500">
-                <Wallet size={20} />
-              </div>
-              <div>
-                <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Pending Delivery Costs</p>
-                <p className="text-lg font-extrabold text-amber-500 mt-0.5">TSh {Number(driverPaymentsTotals?.total_unpaid || driverPayments.filter(dp => !dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}</p>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            <KpiCard
+              label="Total Delivery Costs"
+              value={`TSh ${Number(driverPaymentsTotals?.total_amount || driverPayments.reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}`}
+              icon={Truck}
+            />
+            <KpiCard
+              label="Paid to Drivers"
+              value={`TSh ${Number(driverPaymentsTotals?.total_paid || driverPayments.filter(dp => dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}`}
+              icon={CheckCircle2}
+              color="#10b981"
+            />
+            <KpiCard
+              label="Pending Delivery Costs"
+              value={`TSh ${Number(driverPaymentsTotals?.total_unpaid || driverPayments.filter(dp => !dp.is_paid).reduce((sum, dp) => sum + Number(dp.amount), 0)).toLocaleString()}`}
+              icon={Wallet}
+              color="#f59e0b"
+            />
           </div>
 
           {driverPayments.length === 0 ? (

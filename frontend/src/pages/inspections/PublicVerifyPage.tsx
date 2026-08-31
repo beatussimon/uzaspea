@@ -3,17 +3,12 @@ import { useParams } from 'react-router-dom';
 import { Shield, Search, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import inspectionApi from '../../api/inspectionApi';
 import { STATUS_COLORS, VERDICT_COLORS, fmtDate } from '../../types/inspection';
+import { CardListSkeleton } from '../../components/Skeleton';
 
 const Badge: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => (
   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
     {text}
   </span>
-);
-
-const Spinner = () => (
-  <div className="flex justify-center py-16">
-    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
-  </div>
 );
 
 const PublicVerifyPage: React.FC = () => {
@@ -65,7 +60,7 @@ const PublicVerifyPage: React.FC = () => {
           </button>
         </form>
 
-        {loading && <div className="mt-6"><Spinner /></div>}
+        {loading && <div className="mt-6 text-left"><CardListSkeleton count={1} /></div>}
 
         {searched && !loading && !result && (
           <div className="mt-6 p-4 rounded-lg   border border-red-500 dark:border-red-500/30 text-red-500 dark:text-red-500 text-sm">

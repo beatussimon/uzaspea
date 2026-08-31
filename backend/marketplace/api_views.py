@@ -1,5 +1,7 @@
 import json
 from decimal import Decimal
+from datetime import timedelta, datetime, date
+from django.utils import timezone
 from rest_framework import viewsets, permissions, status, decorators, serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -1978,16 +1980,28 @@ class ReviewViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # FIX: L-05 — non-staff only see approved reviews, plus their own unapproved reviews
         product_id = self.request.query_params.get('product', None)
-        qs = Review.objects.all()
+        approved_param = self.request.query_params.get('approved', None)
+        search = self.request.query_params.get('search') or self.request.query_params.get('q')
+
+        qs = Review.objects.select_related('user', 'product').all()
         if not self.request.user.is_staff:
-            from django.db.models import Q
             if self.request.user.is_authenticated:
                 qs = qs.filter(Q(approved=True) | Q(user=self.request.user))
             else:
                 qs = qs.filter(approved=True)
+        else:
+            if approved_param in ['true', 'True', '1']:
+                qs = qs.filter(approved=True)
+            elif approved_param in ['false', 'False', '0']:
+                qs = qs.filter(approved=False)
+
         if product_id:
             qs = qs.filter(product_id=product_id)
-        return qs
+        if search:
+            qs = qs.filter(
+                Q(comment__icontains=search) | Q(user__username__icontains=search) | Q(product__name__icontains=search)
+            )
+        return qs.order_by('-created_at')
 
     def get_permissions(self):  # FIX: L-06
         if self.action in ['update', 'partial_update', 'destroy']:
@@ -2306,7 +2320,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             token['team_permissions'] = {}
             
         from marketplace.models import Subscription
-        from django.utils import timezone
         sub = Subscription.objects.filter(user=user).order_by('-start_date').first()
         if sub and sub.end_date:
             token['subscription_active'] = timezone.now() <= sub.end_date

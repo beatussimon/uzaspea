@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { TrendingUp, Package, ShoppingCart, AlertTriangle, DollarSign, ArrowUpRight } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Spinner } from '../../components/ui/Spinner';
 
 interface SellerAnalytics {
   total_revenue: number;
@@ -22,6 +21,28 @@ interface SellerAnalytics {
     total: number;
   }>;
 }
+
+import { KpiCard } from '../../components/ui/KpiCard';
+
+const formatCompactCurrency = (num: number, currency = 'TZS') => {
+  if (!num || isNaN(num)) return `${currency} 0`;
+  if (num >= 1_000_000_000) {
+    return `${currency} ${(num / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
+  }
+  if (num >= 1_000_000) {
+    return `${currency} ${(num / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  }
+  if (num >= 1_000) {
+    return `${currency} ${(num / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  }
+  return `${currency} ${num.toLocaleString()}`;
+};
+
+import {
+  KpiGridSkeleton,
+  CardListSkeleton,
+  TableSkeleton
+} from '../../components/Skeleton';
 
 const DashboardAnalytics: React.FC = () => {
   const { t } = useTranslation();
@@ -44,16 +65,6 @@ const DashboardAnalytics: React.FC = () => {
     fetchAnalytics();
   }, [t]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-16">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
-  if (!data) return null;
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -69,39 +80,40 @@ const DashboardAnalytics: React.FC = () => {
         </div>
       </header>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="card p-4 hover:shadow-xs transition">
-          <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 mb-1.5">
-            <DollarSign size={16} />
-            <span className="text-2xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Revenue (30d)</span>
+      {loading && !data ? (
+        <div className="space-y-6">
+          <KpiGridSkeleton count={4} cols={4} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <CardListSkeleton count={3} />
+            <TableSkeleton rows={4} cols={4} />
           </div>
-          <p className="text-xl font-extrabold text-gray-900 dark:text-white">TZS {(data.total_revenue ?? 0).toLocaleString()}</p>
         </div>
-
-        <div className="card p-4 hover:shadow-xs transition">
-          <div className="flex items-center gap-2 text-blue-500 mb-1.5">
-            <Package size={16} />
-            <span className="text-2xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Active Listings</span>
-          </div>
-          <p className="text-xl font-extrabold text-gray-900 dark:text-white">{data.active_listings_count}</p>
-        </div>
-
-        <div className="card p-4 hover:shadow-xs transition">
-          <div className="flex items-center gap-2 text-amber-500 mb-1.5">
-            <ShoppingCart size={16} />
-            <span className="text-2xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Unfulfilled Orders</span>
-          </div>
-          <p className="text-xl font-extrabold text-gray-900 dark:text-white">{data.unfulfilled_orders_count}</p>
-        </div>
-
-        <div className="card p-4 hover:shadow-xs transition">
-          <div className="flex items-center gap-2 text-red-500 mb-1.5">
-            <AlertTriangle size={16} />
-            <span className="text-2xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Out of Stock</span>
-          </div>
-          <p className="text-xl font-extrabold text-gray-900 dark:text-white">{data.out_of_stock_count}</p>
-        </div>
+      ) : data ? (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <KpiCard
+          label="Revenue (30d)"
+          value={formatCompactCurrency(data.total_revenue, 'TZS')}
+          fullValue={`TZS ${(data.total_revenue ?? 0).toLocaleString()}`}
+          icon={DollarSign}
+        />
+        <KpiCard
+          label="Active Listings"
+          value={data.active_listings_count}
+          icon={Package}
+        />
+        <KpiCard
+          label="Unfulfilled Orders"
+          value={data.unfulfilled_orders_count}
+          icon={ShoppingCart}
+        />
+        <KpiCard
+          label="Out of Stock"
+          value={data.out_of_stock_count}
+          icon={AlertTriangle}
+          className={data.out_of_stock_count > 0 ? 'border-red-500/30' : undefined}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -159,11 +171,15 @@ const DashboardAnalytics: React.FC = () => {
                       <td className="p-3 font-mono font-bold text-gray-900 dark:text-white">#{order.id}</td>
                       <td className="p-3 text-gray-500 dark:text-gray-400">{new Date(order.date).toLocaleDateString()}</td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded-full text-3xs font-bold uppercase ${
-                          order.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 
-                          order.status === 'PAID' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' : 
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize ${
+                          order.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 
+                          order.status === 'PAID' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' : 
                           'bg-surface-muted text-gray-600 dark:bg-[#161616] dark:text-gray-400 border border-surface-border dark:border-surface-dark-border'
                         }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            order.status === 'COMPLETED' ? 'bg-emerald-500' :
+                            order.status === 'PAID' ? 'bg-blue-500' : 'bg-gray-400'
+                          }`} />
                           {order.status}
                         </span>
                       </td>
@@ -176,6 +192,8 @@ const DashboardAnalytics: React.FC = () => {
           )}
         </div>
       </div>
+        </>
+      ) : null}
     </div>
   );
 };

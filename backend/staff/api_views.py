@@ -327,11 +327,16 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
         action_filter = self.request.query_params.get('action', None)
         user_filter = self.request.query_params.get('user', None)
+        search = self.request.query_params.get('search') or self.request.query_params.get('q')
 
-        if action_filter:
+        if action_filter and action_filter != 'all':
             queryset = queryset.filter(action=action_filter)
         if user_filter:
             queryset = queryset.filter(user_id=user_filter)
+        if search:
+            queryset = queryset.filter(
+                Q(username__icontains=search) | Q(description__icontains=search) | Q(action__icontains=search) | Q(ip_address__icontains=search)
+            )
 
         return queryset.order_by('-timestamp')
 
@@ -815,9 +820,29 @@ class CanManageUsers(permissions.BasePermission):
 
 
 class UserManagementViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.select_related('profile', 'inspector_profile').all()
     serializer_class = UserManagementSerializer
     permission_classes = [permissions.IsAuthenticated, CanManageUsers]
+
+    def get_queryset(self):
+        queryset = User.objects.select_related('profile', 'inspector_profile').all()
+
+        is_staff = self.request.query_params.get('is_staff')
+        is_superuser = self.request.query_params.get('is_superuser')
+        is_inspector = self.request.query_params.get('is_inspector')
+        search = self.request.query_params.get('search') or self.request.query_params.get('q')
+
+        if is_staff in ['true', 'True', '1']:
+            queryset = queryset.filter(is_staff=True)
+        if is_superuser in ['true', 'True', '1']:
+            queryset = queryset.filter(is_superuser=True)
+        if is_inspector in ['true', 'True', '1']:
+            queryset = queryset.filter(inspector_profile__isnull=False)
+        if search:
+            queryset = queryset.filter(
+                Q(username__icontains=search) | Q(email__icontains=search) | Q(first_name__icontains=search) | Q(last_name__icontains=search)
+            )
+
+        return queryset.order_by('-date_joined')
 
     @decorators.action(detail=True, methods=['post'])
     def toggle_active(self, request, pk=None):

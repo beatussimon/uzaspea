@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useMessages } from '../../context/MessageContext';
 import VerifiedBadge from '../VerifiedBadge';
+import { getMessageDisplayText, parseMessageContent } from '../../utils/messageParser';
 
 export const MessengerListWidget: React.FC = () => {
   const { t } = useTranslation();
@@ -41,15 +42,38 @@ export const MessengerListWidget: React.FC = () => {
 
   if (!isMessengerListOpen) return null;
 
-  const sokoniConversations = conversations.filter(c => !!c.product || !!c.product_name);
-  const regularConversations = conversations.filter(c => !c.product && !c.product_name);
+  const getConvProductInfo = (c: any) => {
+    if (c.product_name) {
+      return { title: c.product_name, image: c.product_image, id: c.product };
+    }
+    if (c.last_message) {
+      const parsed = parseMessageContent(typeof c.last_message === 'string' ? c.last_message : c.last_message.content);
+      if (parsed.product) {
+        return { title: parsed.product.title, image: parsed.product.image, id: parsed.product.id };
+      }
+    }
+    return null;
+  };
+
+  const isSokoniConversation = (c: any) => {
+    if (c.product || c.product_name) return true;
+    if (c.last_message) {
+      const parsed = parseMessageContent(typeof c.last_message === 'string' ? c.last_message : c.last_message.content);
+      if (parsed.product) return true;
+    }
+    return false;
+  };
+
+  const sokoniConversations = conversations.filter(isSokoniConversation);
+  const regularConversations = conversations.filter(c => !isSokoniConversation(c));
 
   const displayedConversations = (viewMode === 'sokoni' ? sokoniConversations : regularConversations).filter(c => {
     const isBuyer = Number(c.buyer) === userId;
     const otherUser = isBuyer ? c.seller_username : c.buyer_username;
-    const product = c.product_name || '';
+    const productInfo = getConvProductInfo(c);
+    const productTitle = productInfo?.title || c.product_name || '';
     return otherUser.toLowerCase().includes(searchQuery.toLowerCase()) || 
-           product.toLowerCase().includes(searchQuery.toLowerCase());
+           productTitle.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const sokoniUnreadCount = sokoniConversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
@@ -146,8 +170,8 @@ export const MessengerListWidget: React.FC = () => {
             const hasUnread = (c.unread_count || 0) > 0;
             const timeStr = c.last_message?.created_at || c.updated_at;
             const lastMsgText = typeof c.last_message === 'string' 
-              ? c.last_message 
-              : (c.last_message?.content || 'Start conversation...');
+              ? getMessageDisplayText(c.last_message)
+              : (c.last_message?.content ? getMessageDisplayText(c.last_message.content) : 'Start conversation...');
 
             return (
               <div
@@ -184,9 +208,9 @@ export const MessengerListWidget: React.FC = () => {
                     )}
                   </div>
 
-                  {c.product_name && (
+                  {(getConvProductInfo(c)?.title || c.product_name) && (
                     <p className="text-[10px] text-brand-500 dark:text-brand-500 font-bold truncate">
-                      Item: {c.product_name}
+                      Item: {getConvProductInfo(c)?.title || c.product_name}
                     </p>
                   )}
 

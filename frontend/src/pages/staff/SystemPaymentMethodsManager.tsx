@@ -1,13 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { CreditCard, Plus, Trash2, Edit2, Shield, Save } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { CreditCard, Plus, Trash2, Edit2, Save, X, Search } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Button } from '../../components/ui/Button';
+import { PageHeaderSkeleton, CardGridSkeleton } from '../../components/Skeleton';
 
 const SystemPaymentMethodsManager: React.FC = () => {
   const [methods, setMethods] = useState<any[]>([]);
   const [networks, setNetworks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<number | null>(null);
+  const [filterPurpose, setFilterPurpose] = useState('all');
+  const [search, setSearch] = useState('');
 
   const [formData, setFormData] = useState({
     network: '',
@@ -21,7 +26,7 @@ const SystemPaymentMethodsManager: React.FC = () => {
     try {
       const res = await api.get('/api/lipa-numbers/?is_system=true');
       setMethods(res.data.results || res.data || []);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load payment methods');
     }
   };
@@ -29,21 +34,18 @@ const SystemPaymentMethodsManager: React.FC = () => {
   const fetchNetworks = async () => {
     try {
       const res = await api.get('/api/mobile-networks/');
-      setNetworks(res.data.results || res.data || []);
-      if (res.data.results?.length > 0) {
-        setFormData(prev => ({ ...prev, network: res.data.results[0].id }));
-      } else if (res.data?.length > 0) {
-        setFormData(prev => ({ ...prev, network: res.data[0].id }));
+      const list = res.data.results || res.data || [];
+      setNetworks(list);
+      if (list.length > 0) {
+        setFormData(prev => ({ ...prev, network: list[0].id }));
       }
-    } catch (err) {
-      toast.error('Failed to load networks');
+    } catch {
+      toast.error('Failed to load mobile networks');
     }
   };
 
   useEffect(() => {
-    fetchMethods();
-    fetchNetworks();
-    setLoading(false);
+    Promise.all([fetchMethods(), fetchNetworks()]).finally(() => setLoading(false));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,16 +53,16 @@ const SystemPaymentMethodsManager: React.FC = () => {
     try {
       if (isEditing) {
         await api.patch(`/api/lipa-numbers/${isEditing}/`, formData);
-        toast.success('Payment method updated');
+        toast.success('Payment channel updated');
       } else {
         await api.post('/api/lipa-numbers/', formData);
-        toast.success('Payment method added');
+        toast.success('New payment channel added');
       }
       setIsEditing(null);
       setFormData({ network: networks[0]?.id || '', number: '', name: '', purpose: 'general', is_system: true });
       fetchMethods();
-    } catch (err) {
-      toast.error('Failed to save payment method');
+    } catch {
+      toast.error('Failed to save payment channel');
     }
   };
 
@@ -70,182 +72,264 @@ const SystemPaymentMethodsManager: React.FC = () => {
       await api.delete(`/api/lipa-numbers/${id}/`);
       toast.success('Payment method deleted');
       fetchMethods();
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete payment method');
     }
   };
 
+  const filteredMethods = useMemo(() => {
+    return methods.filter(m => {
+      if (filterPurpose !== 'all' && m.purpose !== filterPurpose) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        if (!m.name.toLowerCase().includes(q) && !m.number.includes(q) && !(m.network_name || '').toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [methods, filterPurpose, search]);
+
+  const purposePills = [
+    { key: 'all', label: 'All Channels' },
+    { key: 'general', label: 'General / Fallback' },
+    { key: 'subscriptions', label: 'Subscriptions' },
+    { key: 'commissions', label: 'Commissions' },
+    { key: 'logistics', label: 'Logistics' },
+  ];
+
   if (loading) {
-    return <div className="p-8 text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500 mx-auto" /></div>;
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <PageHeaderSkeleton />
+        <CardGridSkeleton count={4} cols={2} />
+      </div>
+    );
   }
+
+  const getPurposeBadge = (purpose: string) => {
+    switch (purpose) {
+      case 'subscriptions':
+        return { label: 'Subscriptions', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', dot: 'bg-emerald-500' };
+      case 'commissions':
+        return { label: 'Commissions', className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', dot: 'bg-amber-500' };
+      case 'logistics':
+        return { label: 'Logistics', className: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20', dot: 'bg-purple-500' };
+      default:
+        return { label: 'General', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20', dot: 'bg-blue-500' };
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">System Payment Methods</h2>
-        <p className="text-gray-500 text-sm mt-1">Manage global Lipa Numbers used by sellers to pay the platform.</p>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-200 shadow-sm dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-          <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-            {isEditing ? <Edit2 size={16} /> : <Plus size={16} />}
-            {isEditing ? 'Edit Payment Method' : 'Add New Payment Method'}
-          </h3>
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Official Payment Channels</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Manage Lipa na M-Pesa / Airtel Money / Tigo Pesa numbers used by sellers to pay platform dues.
+          </p>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      </header>
+
+      {/* Editor / Creator Card */}
+      <div className="card p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-2">
+            {isEditing ? <Edit2 size={16} className="text-brand-500" /> : <Plus size={16} className="text-brand-500" />}
+            {isEditing ? 'Edit Payment Method' : 'Add System Payment Channel'}
+          </h3>
+          {isEditing && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditing(null);
+                setFormData({ network: networks[0]?.id || '', number: '', name: '', purpose: 'general', is_system: true });
+              }}
+              className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
+            >
+              <X size={14} /> Cancel Editing
+            </button>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Network</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Mobile Network</label>
               <select
                 required
                 value={formData.network}
                 onChange={e => setFormData({ ...formData, network: e.target.value })}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-gray-900 dark:focus:ring-white focus:border-gray-900 dark:focus:border-white"
+                className="input text-xs"
               >
                 {networks.map(n => (
                   <option key={n.id} value={n.id}>{n.name}</option>
                 ))}
               </select>
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Account Number</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Account / Till Number</label>
               <input
                 required
                 type="text"
-                placeholder="e.g. 0700 000 000"
+                placeholder="e.g. 5493021 or 0700..."
                 value={formData.number}
                 onChange={e => setFormData({ ...formData, number: e.target.value })}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-gray-900 dark:focus:ring-white focus:border-gray-900 dark:focus:border-white"
+                className="input text-xs font-mono"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Account Name</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Account Holder Name</label>
               <input
                 required
                 type="text"
-                placeholder="Uzaspea Limited"
+                placeholder="e.g. SOKONIMAX LTD"
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-gray-900 dark:focus:ring-white focus:border-gray-900 dark:focus:border-white"
+                className="input text-xs"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Purpose</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Channel Purpose</label>
               <select
                 required
                 value={formData.purpose}
                 onChange={e => setFormData({ ...formData, purpose: e.target.value })}
-                className="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-gray-900 dark:focus:ring-white focus:border-gray-900 dark:focus:border-white"
+                className="input text-xs"
               >
                 <option value="general">General (Fallback)</option>
-                <option value="subscriptions">Subscriptions & Upgrades</option>
+                <option value="subscriptions">Tier Subscriptions</option>
                 <option value="commissions">Commission Payments</option>
+                <option value="logistics">Logistics & Delivery Fees</option>
               </select>
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            {isEditing ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditing(null);
-                  setFormData({ network: networks[0]?.id || '', number: '', name: '', purpose: 'general', is_system: true });
-                }}
-                className="px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-              >
-                Cancel
-              </button>
-            ) : null}
-            <button
-              type="submit"
-              className="btn-primary py-2 px-6 rounded-lg text-sm font-bold shadow-md flex items-center gap-2"
-            >
-              {isEditing ? <Save size={16} /> : <Plus size={16} />}
-              {isEditing ? 'Save Changes' : 'Add Payment Method'}
-            </button>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="submit" variant="default" size="sm" className="flex items-center gap-1.5 font-medium">
+              {isEditing ? <Save size={14} /> : <Plus size={14} />}
+              {isEditing ? 'Save Changes' : 'Register Channel'}
+            </Button>
           </div>
         </form>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 shadow-sm dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-200 shadow-sm dark:border-gray-700">
-              <tr>
-                <th className="px-6 py-4 font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">Network</th>
-                <th className="px-6 py-4 font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">Details</th>
-                <th className="px-6 py-4 font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">Purpose</th>
-                <th className="px-6 py-4 font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {methods.map((method) => (
-                <tr key={method.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      {method.network_logo ? (
-                        <img src={method.network_logo} alt={method.network_name} className="h-8 w-8 rounded object-cover border border-gray-200 shadow-sm dark:border-gray-700" />
-                      ) : (
-                        <div className="h-8 w-8 rounded bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                          <CreditCard size={16} className="text-gray-400" />
-                        </div>
-                      )}
-                      <span className="font-bold text-gray-900 dark:text-white">{method.network_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-mono text-gray-900 dark:text-white font-bold">{method.number}</div>
-                    <div className="text-gray-500 text-xs mt-0.5">{method.name}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                      method.purpose === 'subscriptions' ? ' text-purple-500  dark:text-purple-500' :
-                      method.purpose === 'commissions' ? ' text-blue-500  dark:text-blue-500' :
-                      'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                    }`}>
-                      {method.purpose}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setIsEditing(method.id);
-                          setFormData({
-                            network: method.network,
-                            number: method.number,
-                            name: method.name,
-                            purpose: method.purpose,
-                            is_system: method.is_system,
-                          });
-                        }}
-                        className="p-2 text-brand-500   rounded-lg transition"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(method.id)}
-                        className="p-2 text-red-500   rounded-lg transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {methods.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
-                    <Shield size={32} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-                    <p className="text-gray-500">No system payment methods found.</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {/* Filter Pills & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {purposePills.map((tab) => {
+            const isActive = filterPurpose === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilterPurpose(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search channel number, name..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
         </div>
       </div>
+
+      {/* Channels List */}
+      {filteredMethods.length === 0 ? (
+        <EmptyState
+          icon={CreditCard}
+          title="No Payment Channels Found"
+          description="There are currently no active system payment channels in this category."
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredMethods.map((method) => (
+            <div key={method.id} className="card p-5 flex flex-col justify-between space-y-4 hover:border-gray-900/20 dark:hover:border-white/20 transition">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    {method.network_logo ? (
+                      <img src={method.network_logo} alt={method.network_name} className="h-8 max-w-[64px] object-contain shrink-0" />
+                    ) : (
+                      <CreditCard size={22} className="text-gray-400 shrink-0" />
+                    )}
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{method.network_name || 'Network'}</h4>
+                    </div>
+                  </div>
+                  {(() => {
+                    const badge = getPurposeBadge(method.purpose);
+                    return (
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize ${badge.className}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                        {badge.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {/* Clean Unboxed Metadata */}
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between items-center font-mono">
+                    <span className="text-gray-400 dark:text-gray-500 font-sans font-normal">Account / Number</span>
+                    <span className="font-bold text-gray-900 dark:text-white">{method.number}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 dark:text-gray-500 font-normal">Account Name</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-200">{method.name}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-surface-border/40">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditing(method.id);
+                    setFormData({
+                      network: method.network,
+                      number: method.number,
+                      name: method.name,
+                      purpose: method.purpose,
+                      is_system: method.is_system,
+                    });
+                  }}
+                  className="py-1 px-2.5 text-3xs flex items-center gap-1"
+                >
+                  <Edit2 size={12} /> Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => handleDelete(method.id)}
+                  className="py-1 px-2.5 text-3xs flex items-center gap-1"
+                >
+                  <Trash2 size={12} /> Delete
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

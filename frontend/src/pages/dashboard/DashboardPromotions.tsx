@@ -31,10 +31,10 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useDialog } from '../../components/ui/Dialogs';
 import { Button } from '../../components/ui/Button';
-import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { KpiCard } from '../../components/ui/KpiCard';
 import SafeImage from '../../components/SafeImage';
+import { KpiGridSkeleton, TableSkeleton, CardGridSkeleton } from '../../components/Skeleton';
 
 interface BoostPlan {
   days: number;
@@ -455,14 +455,6 @@ export const DashboardPromotions: React.FC = () => {
     return Math.round(pct);
   };
 
-  if (initialLoading) {
-    return (
-      <div className="flex justify-center py-20">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -499,29 +491,33 @@ export const DashboardPromotions: React.FC = () => {
       </header>
 
       {/* KPI Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard
-          label={t('active_placements', 'Active Placements')}
-          value={activeCampaignsCount}
-          sub={pendingCampaignsCount > 0 ? `${pendingCampaignsCount} ${t('pending', 'pending review')}` : undefined}
-          icon={Megaphone}
-        />
-        <KpiCard
-          label={t('active_coupons', 'Active Coupons')}
-          value={activeCouponsCount}
-          icon={Ticket}
-        />
-        <KpiCard
-          label={t('total_redemptions', 'Coupon Uses')}
-          value={totalRedemptions}
-          icon={TrendingUp}
-        />
-        <KpiCard
-          label={t('total_inventory', 'Store Products')}
-          value={products.length}
-          icon={Package}
-        />
-      </div>
+      {initialLoading ? (
+        <KpiGridSkeleton count={4} cols={4} />
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <KpiCard
+            label={t('active_placements', 'Active Placements')}
+            value={activeCampaignsCount}
+            sub={pendingCampaignsCount > 0 ? `${pendingCampaignsCount} ${t('pending', 'pending review')}` : undefined}
+            icon={Megaphone}
+          />
+          <KpiCard
+            label={t('active_coupons', 'Active Coupons')}
+            value={activeCouponsCount}
+            icon={Ticket}
+          />
+          <KpiCard
+            label={t('total_redemptions', 'Coupon Uses')}
+            value={totalRedemptions}
+            icon={TrendingUp}
+          />
+          <KpiCard
+            label={t('total_inventory', 'Store Products')}
+            value={products.length}
+            icon={Package}
+          />
+        </div>
+      )}
 
       {/* Main Tab Bar */}
       <div className="flex items-center gap-2 border-b border-surface-border dark:border-surface-dark-border pb-3">
@@ -699,7 +695,7 @@ export const DashboardPromotions: React.FC = () => {
               </div>
 
               {/* Payment Verification Box */}
-              <div className="pt-3 border-t border-surface-border dark:border-surface-dark-border space-y-3 bg-surface-muted/60 dark:bg-[#111111] p-3.5 rounded-card border border-surface-border dark:border-surface-dark-border">
+              <div className="pt-3 border-t border-surface-border/40 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-semibold text-gray-900 dark:text-white text-xs flex items-center gap-1.5">
@@ -858,7 +854,9 @@ export const DashboardPromotions: React.FC = () => {
           </div>
 
           {/* Campaign List Grid */}
-          {filteredPromotions.length === 0 ? (
+          {initialLoading ? (
+            <CardGridSkeleton count={3} cols={3} />
+          ) : filteredPromotions.length === 0 ? (
             <EmptyState
               icon={Megaphone}
               title={campaignFilter === 'all' ? t('no_promotions_title', "No Sponsored Placements") : `${t('no_campaigns_status', 'No')} ${campaignFilter} ${t('placements', 'placements')}`}
@@ -916,8 +914,8 @@ export const DashboardPromotions: React.FC = () => {
                       </div>
 
                       {/* Product Snippet Header */}
-                      <div className="flex items-center gap-3 p-2.5 rounded bg-surface-muted dark:bg-[#121212] border border-surface-border dark:border-surface-dark-border mb-3">
-                        <div className="w-10 h-10 rounded overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800 border border-surface-border dark:border-surface-dark-border">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800 border border-surface-border/40">
                           {productImg ? (
                             <SafeImage src={productImg} alt={p.product_name} className="w-full h-full object-cover" />
                           ) : (
@@ -961,7 +959,7 @@ export const DashboardPromotions: React.FC = () => {
 
                       {/* Rejection Note if Rejected */}
                       {status === 'rejected' && p.admin_notes && (
-                        <div className="p-2.5 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 text-xs mb-3 space-y-0.5">
+                        <div className="p-2.5 rounded bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs mb-3 space-y-0.5">
                           <p className="font-medium text-[11px] uppercase tracking-wider">
                             {t('rejection_reason', 'Staff Note:')}
                           </p>
@@ -971,7 +969,7 @@ export const DashboardPromotions: React.FC = () => {
 
                       {/* Active Timeline & Countdown */}
                       {status === 'approved' && p.expires_at && (
-                        <div className="p-2.5 rounded bg-surface-muted dark:bg-[#121212] border border-surface-border dark:border-surface-dark-border mb-3 space-y-1.5">
+                        <div className="mb-3 space-y-1.5">
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-500 dark:text-gray-400">
                               {t('time_remaining', 'Time Remaining')}:
@@ -1196,7 +1194,9 @@ export const DashboardPromotions: React.FC = () => {
             </form>
           )}
 
-          {promoCodes.length === 0 ? (
+          {initialLoading ? (
+            <TableSkeleton rows={3} cols={5} />
+          ) : promoCodes.length === 0 ? (
             <EmptyState
               icon={Ticket}
               title={t('no_coupons_title', 'No Store Coupons Created')}
