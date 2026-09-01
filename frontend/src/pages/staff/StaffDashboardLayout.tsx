@@ -135,21 +135,29 @@ const AdminOverviewPanel: React.FC<{ data: DashboardData['admin_overview'] }> = 
         <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300">Global Operational Queues</h3>
         <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400 bg-brand-500/10 px-2.5 py-0.5 rounded-full">Live Pipeline</span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
         {metrics.map((m) => (
           <Link
             key={m.label}
             to={m.path}
-            className="card p-3 sm:p-3.5 flex flex-col justify-between hover:border-gray-900/20 dark:hover:border-white/20 transition group select-none"
+            className="card p-3 flex flex-col justify-between hover:border-gray-900/30 dark:hover:border-white/30 transition-all hover:shadow-xs group select-none min-h-[78px]"
           >
-            <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <m.icon size={14} className="text-brand-500 shrink-0" />
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">{m.label}</span>
+            <div className="flex items-center justify-between gap-1.5">
+              <div className="w-6 h-6 rounded-lg bg-brand-500/10 dark:bg-brand-500/15 flex items-center justify-center shrink-0">
+                <m.icon size={13} className="text-brand-500 shrink-0" />
               </div>
-              <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-gray-400" />
+              <div className="flex items-center gap-1">
+                <span className="text-lg font-black text-gray-900 dark:text-white leading-none tracking-tight">
+                  {m.val}
+                </span>
+                <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-gray-400" />
+              </div>
             </div>
-            <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{m.val}</p>
+            <div className="mt-2">
+              <span className="text-[11px] sm:text-xs font-bold text-gray-700 dark:text-gray-300 leading-tight block line-clamp-2" title={m.label}>
+                {m.label}
+              </span>
+            </div>
           </Link>
         ))}
       </div>

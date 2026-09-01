@@ -369,10 +369,11 @@ const ProductDetailPage: React.FC = () => {
   }, [product, existingConversation, messages, messageSent]);
 
   const activeTier = useMemo(() => {
+    if (product?.requires_quote) return null;
     if (!product?.price_tiers || product.price_tiers.length === 0) return null;
     const sorted = [...product.price_tiers].sort((a, b) => parseFloat(b.min_quantity) - parseFloat(a.min_quantity));
     return sorted.find(t => quantity >= parseFloat(t.min_quantity)) || null;
-  }, [product?.price_tiers, quantity]);
+  }, [product?.requires_quote, product?.price_tiers, quantity]);
 
   const handleDirectSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -637,7 +638,10 @@ const ProductDetailPage: React.FC = () => {
   const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
   const baseUnitPrice = selectedVariant ? (parseInt(selectedVariant.price_adjustment) + parseInt(product.price)) : parseInt(product.sale_price || product.price);
   const effectivePrice = activeTier ? parseInt(activeTier.unit_price) : baseUnitPrice;
-  const isDiscounted = (product.sale_price && !selectedVariant && !product.requires_quote && parseInt(product.price) > parseInt(product.sale_price)) || Boolean(activeTier && parseInt(product.price) > effectivePrice);
+  const isDiscounted = !product.requires_quote && (
+    Boolean(product.sale_price && !selectedVariant && parseInt(product.price) > parseInt(product.sale_price)) ||
+    Boolean(activeTier && parseInt(product.price) > effectivePrice)
+  );
   const discountPercent = isDiscounted ? Math.round(((parseInt(product.price) - effectivePrice) / parseInt(product.price)) * 100) : 0;
 
   const productSchema = {
@@ -1008,7 +1012,7 @@ const ProductDetailPage: React.FC = () => {
                   : `TSh ${effectivePrice.toLocaleString()}`
                 }
               </span>
-              {isDiscounted && (
+              {!product.requires_quote && isDiscounted && (
                 <div className="flex items-center gap-2">
                   <span className="text-base font-bold text-gray-400 line-through decoration-red-500/50 decoration-2">
                     TSh {parseInt(product.price).toLocaleString()}
@@ -1089,11 +1093,6 @@ const ProductDetailPage: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Select Variation</span>
-                {selectedVariant && (
-                  <span className="text-xs font-bold text-brand-500 dark:text-brand-500">
-                    TSh {(parseInt(product.price) + parseInt(selectedVariant.price_adjustment)).toLocaleString()}
-                  </span>
-                )}
               </div>
                 
               <div className="flex flex-wrap gap-2">
@@ -1134,7 +1133,7 @@ const ProductDetailPage: React.FC = () => {
                     <span className={v.stock <= 0 ? 'line-through opacity-70' : ''}>{v.name}</span>
                     {v.stock <= 0 ? (
                       <span className="text-[10px] uppercase text-red-500/80 dark:text-red-500/80 font-black ml-1">(Out of stock)</span>
-                    ) : v.price_adjustment !== '0.00' && (
+                    ) : !product.requires_quote && v.price_adjustment !== '0.00' && (
                       <span className="opacity-75 text-xs ml-1">
                         (+TSh {parseInt(v.price_adjustment).toLocaleString()})
                       </span>
@@ -1146,11 +1145,11 @@ const ProductDetailPage: React.FC = () => {
           )}
 
           {/* Super Minimal Volume Pricing Chips */}
-          {((product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1) || (product.price_tiers && product.price_tiers.length > 0)) && (
+          {((product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1) || (!product.requires_quote && product.price_tiers && product.price_tiers.length > 0)) && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                  Volume Pricing
+                  {product.requires_quote ? 'Order Requirements' : 'Volume Pricing'}
                 </span>
                 {product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1 && (
                   <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
@@ -1159,7 +1158,7 @@ const ProductDetailPage: React.FC = () => {
                 )}
               </div>
 
-              {product.price_tiers && product.price_tiers.length > 0 && (
+              {!product.requires_quote && product.price_tiers && product.price_tiers.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {product.price_tiers.map((tier) => {
                     const minQ = parseFloat(tier.min_quantity);
