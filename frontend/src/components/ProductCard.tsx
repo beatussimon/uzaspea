@@ -145,7 +145,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
           <span className={`text-[9px] px-2 py-0.5 rounded-card font-bold text-white shadow-md uppercase tracking-wider w-fit ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
             {product.condition === 'New' ? t('new', 'New') : t('used', 'Used')}
           </span>
-          {product.old_price > product.price && (
+          {!product.requires_quote && product.old_price > product.price && (
             <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-card font-black shadow-md uppercase w-fit">
               -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
             </span>
@@ -296,12 +296,20 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
             
             <div className="flex items-end justify-between">
               <div className="flex flex-col">
-                 {product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) && (
-                   <span className="text-[10px] text-gray-400 line-through">TSh {parseInt(product.price).toLocaleString()}</span>
+                 {product.requires_quote ? (
+                   <span className="font-black text-gray-900 dark:text-white text-base md:text-lg">
+                     {t('price_on_request', 'Price on Request')}
+                   </span>
+                 ) : (
+                   <>
+                     {product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) && (
+                       <span className="text-[10px] text-gray-400 line-through">TSh {parseInt(product.price).toLocaleString()}</span>
+                     )}
+                     <span className="font-black text-gray-900 dark:text-white text-base md:text-lg">
+                       TSh {parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price).toLocaleString()}
+                     </span>
+                   </>
                  )}
-                 <span className="font-black text-gray-900 dark:text-white text-base md:text-lg">
-                   TSh {parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price).toLocaleString()}
-                 </span>
               </div>
               <div className="flex gap-1 items-center mb-1">
                 {[1,2,3,4,5].map((s) => (
@@ -367,12 +375,20 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
           
           {/* Price Bubble */}
           <div className="w-fit px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm flex items-baseline gap-1.5">
-            {product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) && (
-              <span className="text-[10px] text-gray-400 line-through font-medium">TSh {parseInt(product.price).toLocaleString()}</span>
+            {product.requires_quote ? (
+              <span className="font-black text-gray-900 dark:text-white text-sm">
+                {t('price_on_request', 'Price on Request')}
+              </span>
+            ) : (
+              <>
+                {product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) && (
+                  <span className="text-[10px] text-gray-400 line-through font-medium">TSh {parseInt(product.price).toLocaleString()}</span>
+                )}
+                <span className="font-black text-gray-900 dark:text-white text-sm">
+                  TSh {parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price).toLocaleString()}
+                </span>
+              </>
             )}
-            <span className="font-black text-gray-900 dark:text-white text-sm">
-              TSh {parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price).toLocaleString()}
-            </span>
           </div>
 
           {/* Seller Info Bubbles */}

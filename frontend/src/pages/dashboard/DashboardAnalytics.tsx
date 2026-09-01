@@ -24,7 +24,9 @@ interface SellerAnalytics {
 
 import { KpiCard } from '../../components/ui/KpiCard';
 
-const formatCompactCurrency = (num: number, currency = 'TZS') => {
+const formatCompactCurrency = (rawNum: number | string | undefined | null, currency = 'TZS') => {
+  if (rawNum === undefined || rawNum === null) return `${currency} 0`;
+  const num = typeof rawNum === 'string' ? parseFloat(rawNum.replace(/,/g, '')) : Number(rawNum);
   if (!num || isNaN(num)) return `${currency} 0`;
   if (num >= 1_000_000_000) {
     return `${currency} ${(num / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;

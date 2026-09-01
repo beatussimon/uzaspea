@@ -49,6 +49,16 @@ export const KpiCard: React.FC<KpiCardProps> = ({
 
   const displayTooltip = fullValue !== undefined ? String(fullValue) : String(value);
 
+  const getValueFontSize = () => {
+    const strVal = String(value);
+    const len = strVal.length;
+    if (len > 15) return 'text-xs sm:text-sm';
+    if (len > 11) return 'text-xs sm:text-sm lg:text-sm xl:text-base';
+    if (len > 7) return 'text-sm sm:text-base lg:text-base xl:text-lg';
+    if (len > 5) return 'text-base sm:text-lg lg:text-lg xl:text-xl';
+    return 'text-lg sm:text-xl';
+  };
+
   return (
     <div 
       ref={cardRef}
@@ -74,25 +84,26 @@ export const KpiCard: React.FC<KpiCardProps> = ({
               style={color ? { color } : undefined} 
             />
           )}
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 leading-snug line-clamp-1" title={label}>
             {label}
           </span>
         </div>
 
-        <div className="flex items-baseline gap-2 min-w-0">
+        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 min-w-0">
           <span
             className={cn(
-              "font-bold text-gray-900 dark:text-white leading-tight truncate",
-              typeof value === 'string' && value.length > 13 ? 'text-sm sm:text-base' : typeof value === 'string' && value.length > 9 ? 'text-base sm:text-lg' : 'text-xl'
+              "font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight whitespace-nowrap",
+              getValueFontSize()
             )}
             style={color ? { color } : undefined}
+            title={displayTooltip}
           >
             {value}
           </span>
           {trend && (
             <span
               className={cn(
-                'text-xs font-medium shrink-0',
+                'text-[11px] font-bold shrink-0 inline-flex items-center',
                 trend.direction === 'up' ? 'text-emerald-500' : 'text-red-500'
               )}
             >
@@ -100,7 +111,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
             </span>
           )}
           {sub && (
-            <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate leading-tight">
+            <span className="text-[10px] sm:text-[11px] text-gray-400 dark:text-gray-500 truncate leading-tight shrink-0">
               {sub}
             </span>
           )}

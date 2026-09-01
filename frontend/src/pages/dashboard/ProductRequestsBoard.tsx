@@ -17,13 +17,18 @@ import {
   CardGridSkeleton
 } from '../../components/Skeleton';
 
-const formatCompactCurrency = (num: number, currency = 'TSh') => {
-  if (!num) return `${currency} 0`;
-  if (num >= 1000000) {
-    return `${currency} ${(num / 1000000).toFixed(1)}M`;
+const formatCompactCurrency = (rawNum: number | string | undefined | null, currency = 'TSh') => {
+  if (rawNum === undefined || rawNum === null) return `${currency} 0`;
+  const num = typeof rawNum === 'string' ? parseFloat(rawNum.replace(/,/g, '')) : Number(rawNum);
+  if (!num || isNaN(num)) return `${currency} 0`;
+  if (num >= 1_000_000_000) {
+    return `${currency} ${(num / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
   }
-  if (num >= 1000) {
-    return `${currency} ${(num / 1000).toFixed(1)}k`;
+  if (num >= 1_000_000) {
+    return `${currency} ${(num / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  }
+  if (num >= 1_000) {
+    return `${currency} ${(num / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
   }
   return `${currency} ${num.toLocaleString()}`;
 };
