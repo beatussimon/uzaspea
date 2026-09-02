@@ -284,7 +284,7 @@ class Category(models.Model):
         return self.name
 
     def get_absolute_url(self):
-        return reverse('product_list') + f"?category={self.slug}"
+        return f"/products?category={self.slug}"
 
     def get_ancestors(self, include_self=False):  # For breadcrumbs and schema inheritance
         ancestors = []
@@ -396,7 +396,7 @@ class Product(models.Model):
         return self.name
 
     def get_absolute_url(self):
-        return reverse('product_detail', kwargs={'slug': self.slug})
+        return f"/product/{self.slug}"
 
     def average_rating(self):
         reviews = self.reviews.all()

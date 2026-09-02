@@ -113,24 +113,39 @@ const LandingPage = () => {
     return () => observer.disconnect();
   }, [navigate]);
 
-  // Schema for Sitelinks Search Box
+  // Schemas for Sitelinks Search Box and Organization
+  const siteUrl = (import.meta.env.VITE_SITE_URL || 'https://pasifiq.store').replace(/\/$/, '');
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "url": import.meta.env.VITE_SITE_URL || "https://pasifiq.store",
+    "name": "SokoniMax",
+    "url": siteUrl,
     "potentialAction": {
       "@type": "SearchAction",
       "target": {
         "@type": "EntryPoint",
-        "urlTemplate": `${import.meta.env.VITE_SITE_URL || "https://pasifiq.store"}/products?q={search_term_string}`
+        "urlTemplate": `${siteUrl}/products?q={search_term_string}`
       },
       "query-input": "required name=search_term_string"
     }
   };
 
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "SokoniMax",
+    "url": siteUrl,
+    "logo": `${siteUrl}/logo.png`,
+    "description": "Buy and sell car parts, vehicles, electronics, and goods in Tanzania. Verified sellers and secure payments."
+  };
+
   return (
     <>
-      <SEO schema={websiteSchema} />
+      <SEO 
+        title="SokoniMax - Tanzania Marketplace for Spare Parts, Vehicles & Electronics"
+        description="Buy and sell car parts, electronics, vehicles, and goods in Tanzania. Verified sellers, secure payments, and fast delivery across Dar es Salaam and nationwide."
+        schema={[websiteSchema, organizationSchema]} 
+      />
       {/* Global Fixed Background */}
       <div className="fixed inset-0 z-0 overflow-hidden flex pointer-events-none bg-black">
         <div 

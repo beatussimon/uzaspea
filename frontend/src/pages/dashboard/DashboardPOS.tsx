@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, History, Receipt, CalendarDays } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronLeft, History, Receipt, CalendarDays } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
@@ -136,6 +137,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
 };
 
 const DashboardPOS: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'sale' | 'history'>('sale');
   
@@ -351,39 +353,50 @@ const DashboardPOS: React.FC = () => {
   return (
     <div className="space-y-6 pb-24 lg:pb-0 relative">
       {/* Header & Tab Switcher */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Point of Sale (POS)
+      <header className="space-y-1">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+              title="Back"
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <span>Point of Sale (POS)</span>
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Process walk-in customer sales, print physical receipts, and manage direct orders.
-          </p>
+
+          <div data-horizontal-scroll="true" className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none">
+            <button 
+              type="button"
+              onClick={() => setActiveTab('sale')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === 'sale'
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                  : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+              }`}
+            >
+              <Receipt size={13} />
+              <span>New Sale</span>
+            </button>
+            <button 
+              type="button"
+              onClick={() => setActiveTab('history')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === 'history'
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                  : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+              }`}
+            >
+              <History size={13} />
+              <span>Sales History</span>
+            </button>
+          </div>
         </div>
-        <div data-horizontal-scroll="true" className="flex items-center gap-2">
-          <button 
-            type="button"
-            onClick={() => setActiveTab('sale')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'sale'
-                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-            }`}
-          >
-            <Receipt size={14} /> New Sale
-          </button>
-          <button 
-            type="button"
-            onClick={() => setActiveTab('history')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'history'
-                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-            }`}
-          >
-            <History size={14} /> Sales History
-          </button>
-        </div>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
+          Process walk-in customer sales, print physical receipts, and manage direct orders.
+        </p>
       </header>
 
       {activeTab === 'sale' ? (
@@ -592,7 +605,7 @@ const DashboardPOS: React.FC = () => {
 
                 {/* Logo Area */}
                 <div className="text-center mb-4">
-                  <img src="/logo.png" alt="Sokonimax" className="w-20 mx-auto grayscale object-contain mb-2" />
+                  <img src="/logo_dark.png" alt="Sokonimax" className="w-24 mx-auto grayscale object-contain mb-2" style={{ maxWidth: '96px', maxHeight: '42px' }} />
                   <h3 className="font-black text-lg tracking-widest leading-none">SOKONIMAX</h3>
                   <p className="text-[10px] text-gray-500 mt-1">Premium Quality Products</p>
                 </div>

@@ -85,6 +85,7 @@ export const printInspectionReport = (request: InspectionRequest) => {
           }
           .logo {
             height: 38px;
+            max-width: 130px;
             width: auto;
             object-fit: contain;
           }
@@ -414,10 +415,10 @@ export const printInspectionReport = (request: InspectionRequest) => {
           <!-- Header -->
           <table class="header-table">
             <tr>
-              <td style="width: 44px;">
-                <img src="/logo.png" alt="SokoniMax" class="logo" onerror="this.style.display='none'" />
+              <td style="width: 130px;">
+                <img src="/logo_dark.png" alt="SokoniMax" class="logo" onerror="this.style.display='none'" />
               </td>
-              <td style="padding-left: 8px;">
+              <td style="padding-left: 12px;">
                 <h1 class="brand-title">SokoniMax Inspection Certificate</h1>
                 <div class="brand-subtitle">Official Physical Verification & Quality Assurance Report</div>
               </td>

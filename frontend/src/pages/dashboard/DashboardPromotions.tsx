@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
@@ -26,7 +26,8 @@ import {
   Eye,
   Tag,
   ArrowUpRight,
-  Info
+  Info,
+  ChevronLeft
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDialog } from '../../components/ui/Dialogs';
@@ -77,6 +78,7 @@ const BOOST_PLANS: BoostPlan[] = [
 
 export const DashboardPromotions: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const location = useLocation();
   const { showConfirm } = useDialog();
   const formRef = useRef<HTMLFormElement>(null);
@@ -458,36 +460,45 @@ export const DashboardPromotions: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t('promotions', 'Promotions')}
+      <header className="space-y-1">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+              title="Back"
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <span>{t('promotions', 'Promotions')}</span>
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm mt-1">
-            {t('promotions_subtitle', 'Manage sponsored product placements and store coupons.')}
-          </p>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {activeTab === 'sponsored' ? (
+              <Button
+                size="sm"
+                onClick={() => setShowForm(!showForm)}
+                className="font-semibold whitespace-nowrap flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs px-3 py-1.5 shrink-0"
+              >
+                {showForm ? <X size={14} /> : <Plus size={14} />}
+                {showForm ? t('close', 'Close') : t('new_promotion', 'New Promotion')}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => setShowPromoForm(!showPromoForm)}
+                className="font-semibold whitespace-nowrap flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black shadow-xs text-xs px-3 py-1.5 shrink-0"
+              >
+                {showPromoForm ? <X size={14} /> : <Plus size={14} />}
+                {showPromoForm ? t('close', 'Close') : t('new_coupon', 'New Coupon')}
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {activeTab === 'sponsored' ? (
-            <Button
-              size="sm"
-              onClick={() => setShowForm(!showForm)}
-              className="font-semibold whitespace-nowrap flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black shadow-xs"
-            >
-              {showForm ? <X size={14} /> : <Plus size={14} />}
-              {showForm ? t('close', 'Close') : t('new_promotion', 'New Promotion')}
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={() => setShowPromoForm(!showPromoForm)}
-              className="font-semibold whitespace-nowrap flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-black shadow-xs"
-            >
-              {showPromoForm ? <X size={14} /> : <Plus size={14} />}
-              {showPromoForm ? t('close', 'Close') : t('new_coupon', 'New Coupon')}
-            </Button>
-          )}
-        </div>
+        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
+          {t('promotions_subtitle', 'Manage sponsored product placements and store coupons.')}
+        </p>
       </header>
 
       {/* KPI Metrics Row */}
@@ -520,19 +531,19 @@ export const DashboardPromotions: React.FC = () => {
       )}
 
       {/* Main Tab Bar */}
-      <div className="flex items-center gap-2 border-b border-surface-border dark:border-surface-dark-border pb-3">
+      <div className="flex items-center gap-2 border-b border-surface-border dark:border-surface-dark-border pb-3 overflow-x-auto scrollbar-none">
         <button
           type="button"
           onClick={() => setActiveTab('sponsored')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
             activeTab === 'sponsored'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border'
           }`}
         >
-          <Megaphone size={13} />
-          <span>{t('sponsored_listings', 'Sponsored Products')}</span>
-          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+          <Megaphone size={13} className="shrink-0" />
+          <span className="whitespace-nowrap">{t('sponsored_listings', 'Sponsored Products')}</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
             activeTab === 'sponsored' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
           }`}>
             {promotions.length}
@@ -541,15 +552,15 @@ export const DashboardPromotions: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('coupons')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
             activeTab === 'coupons'
-              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+              ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
               : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-surface-muted dark:bg-neutral-900 border border-surface-border dark:border-surface-dark-border'
           }`}
         >
-          <Ticket size={13} />
-          <span>{t('promo_coupons', 'Promo Codes')}</span>
-          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+          <Ticket size={13} className="shrink-0" />
+          <span className="whitespace-nowrap">{t('promo_coupons', 'Promo Codes')}</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ${
             activeTab === 'coupons' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-500'
           }`}>
             {promoCodes.length}

@@ -11,7 +11,7 @@ export const ReportPrintHeader: React.FC<ReportPrintHeaderProps> = ({
   title, 
   user, 
   date = new Date().toLocaleDateString(),
-  logoUrl = '/logo.png' 
+  logoUrl = '/logo_dark.png' 
 }) => {
   const fullName = (user?.first_name || user?.last_name)
     ? `${user?.first_name || ''} ${user?.last_name || ''}`.trim()

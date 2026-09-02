@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, MapPin, Clock, ArrowRight, Store, Sparkles } from 'lucide-react';
+import { User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, MapPin, Clock, ArrowRight, Store, Sparkles, ChevronLeft } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 
@@ -15,6 +15,7 @@ const CITIES_COORDS: Record<string, { lat: number; lng: number }> = {
 };
 
 const SettingsPage: React.FC = () => {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const isSeller = user?.tier === 'seller_pro' || user?.tier === 'business' || user?.is_staff || user?.is_superuser;
     const isCustomer = !isSeller && !user?.is_team_member && user?.tier !== 'worker';
@@ -151,8 +152,16 @@ const SettingsPage: React.FC = () => {
         <div className="max-w-3xl mx-auto space-y-6">
             {/* Header */}
             <header>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {isCustomer ? 'Account Settings' : 'Account & Store Settings'}
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                    <button
+                        type="button"
+                        onClick={() => navigate(-1)}
+                        className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+                        title="Back"
+                    >
+                        <ChevronLeft size={22} />
+                    </button>
+                    <span>{isCustomer ? 'Account Settings' : 'Account & Store Settings'}</span>
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
                     {isCustomer

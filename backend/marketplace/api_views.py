@@ -281,7 +281,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             'seller', 'lat', 'lng', 'radius', 'brand', 'reference_product', 
             'mine', 'following', 'saved', 'saved_time', 'view', 'page', 'page_size',
             'limit', 'offset', 'cursor', 'ordering', 'format', 'search', 'vehicle_id',
-            'make_id', 'model_id', 'year', 'oem_part_number', 'highlight', 't', '_', 'expand'
+            'make_id', 'model_id', 'year', 'oem_part_number', 'highlight', 't', '_', 'expand',
+            'is_draft', 'include_unlisted', 'status', 'is_available', 'all', 'moderation'
         }
         for key, value in self.request.query_params.items():
             if key not in reserved_params and value and not key.startswith('_'):
@@ -293,25 +294,101 @@ class ProductViewSet(viewsets.ModelViewSet):
                 )
 
         if query:
-            from django.db import connection
-            if connection.vendor == 'postgresql':
-                from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
-                search_vector = SearchVector('name', weight='A') + SearchVector('sku', weight='A') + SearchVector('description', weight='B') + SearchVector('category__name', weight='C') + SearchVector('brand__name', weight='C')
-                search_query = SearchQuery(query, search_type='websearch')
-                queryset = queryset.annotate(
-                    search_rank=SearchRank(search_vector, search_query)
-                ).filter(
-                    Q(search_rank__gte=0.01) |
-                    Q(name__icontains=query) | Q(description__icontains=query) | Q(sku__icontains=query) | Q(brand__name__icontains=query)
-                ).order_by('-search_rank')
-            else:
-                queryset = queryset.filter(
-                    Q(name__icontains=query) | 
-                    Q(description__icontains=query) |
-                    Q(category__name__icontains=query) |
-                    Q(sku__icontains=query) |
-                    Q(brand__name__icontains=query)
+            clean_query = query.strip()[:100]
+            if clean_query:
+                import re
+                import operator
+                from functools import reduce
+                from django.db.models import Case, When, Value, IntegerField, FloatField
+
+                tokens = [t for t in re.split(r'[\s,\-_/]+', clean_query) if len(t) >= 1]
+                
+                phrase_q = (
+                    Q(name__icontains=clean_query) |
+                    Q(sku__icontains=clean_query) |
+                    Q(description__icontains=clean_query) |
+                    Q(brand__name__icontains=clean_query) |
+                    Q(category__name__icontains=clean_query)
                 )
+
+                token_q_list = []
+                for t in tokens:
+                    token_q_list.append(
+                        Q(name__icontains=t) |
+                        Q(sku__icontains=t) |
+                        Q(brand__name__icontains=t) |
+                        Q(category__name__icontains=t) |
+                        Q(description__icontains=t)
+                    )
+                all_tokens_q = reduce(operator.and_, token_q_list) if token_q_list else Q()
+
+                condensed = re.sub(r'[\s\-_]+', '', clean_query)
+                condensed_q = Q()
+                if len(condensed) >= 3 and condensed.lower() != clean_query.lower():
+                    condensed_q = Q(name__icontains=condensed) | Q(sku__icontains=condensed)
+
+                combined_filter = phrase_q | all_tokens_q | condensed_q
+
+                from django.db import connection
+                if connection.vendor == 'postgresql':
+                    from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+                    search_vector = (
+                        SearchVector('name', weight='A') +
+                        SearchVector('sku', weight='A') +
+                        SearchVector('brand__name', weight='B') +
+                        SearchVector('category__name', weight='B') +
+                        SearchVector('description', weight='C')
+                    )
+                    try:
+                        prefix_expr = ' & '.join([f"{t}:*" for t in tokens if t.isalnum()])
+                        if prefix_expr:
+                            combined_sq = SearchQuery(clean_query, search_type='websearch') | SearchQuery(prefix_expr, search_type='raw')
+                        else:
+                            combined_sq = SearchQuery(clean_query, search_type='websearch')
+                    except Exception:
+                        combined_sq = SearchQuery(clean_query, search_type='websearch')
+
+                    queryset = queryset.annotate(
+                        search_rank=SearchRank(search_vector, combined_sq),
+                        relevance_score=(
+                            Case(
+                                When(name__iexact=clean_query, then=Value(100.0)),
+                                When(name__istartswith=clean_query, then=Value(50.0)),
+                                When(name__icontains=clean_query, then=Value(30.0)),
+                                default=Value(0.0),
+                                output_field=FloatField()
+                            ) +
+                            Case(
+                                When(search_rank__isnull=False, then=SearchRank(search_vector, combined_sq) * 20.0),
+                                default=Value(0.0),
+                                output_field=FloatField()
+                            ) +
+                            Case(
+                                When(stock__gt=0, then=Value(10.0)),
+                                default=Value(0.0),
+                                output_field=FloatField()
+                            )
+                        )
+                    ).filter(
+                        Q(search_rank__gte=0.01) | combined_filter
+                    ).order_by('-relevance_score', '-created_at')
+                else:
+                    queryset = queryset.annotate(
+                        relevance_score=(
+                            Case(
+                                When(name__iexact=clean_query, then=Value(100)),
+                                When(name__istartswith=clean_query, then=Value(50)),
+                                When(name__icontains=clean_query, then=Value(30)),
+                                default=Value(0),
+                                output_field=IntegerField()
+                            ) +
+                            Case(
+                                When(stock__gt=0, then=Value(10)),
+                                default=Value(0),
+                                output_field=IntegerField()
+                            )
+                        )
+                    ).filter(combined_filter).order_by('-relevance_score', '-created_at')
         if min_price:
             try:
                 queryset = queryset.filter(price__gte=float(min_price))
@@ -660,12 +737,16 @@ class ProductViewSet(viewsets.ModelViewSet):
             
             trend_pct = round(((total_current_period - prev_period_rev) / prev_period_rev * 100) if prev_period_rev else 0, 1)
 
-            # --- Top 5 products by order count ---
+            # --- Top products by order count ---
+            try:
+                top_limit = min(max(int(request.GET.get('top_limit', 50)), 1), 100)
+            except (ValueError, TypeError):
+                top_limit = 50
             top_prods = (
                 base_order_items
                 .values('product__name', 'product__slug')
                 .annotate(sold=Count('id'), rev=Sum(django_models.F('price') * django_models.F('quantity')))
-                .order_by('-sold')[:5]
+                .order_by('-sold')[:top_limit]
             )
             top_products = [{'name': t['product__name'], 'slug': t['product__slug'], 'sold': t['sold'], 'revenue': float(t['rev'] or 0)} for t in top_prods]
 

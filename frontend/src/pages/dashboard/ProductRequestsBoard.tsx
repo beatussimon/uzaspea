@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit } from 'lucide-react';
+import { Lightbulb, TrendingUp, Plus, BarChart2, Package, Users, ChevronUp, ChevronDown, ChevronLeft, Calendar, Image as ImageIcon, ArrowRightCircle, Printer, DollarSign, Edit } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -16,6 +16,7 @@ import {
   KpiGridSkeleton,
   CardGridSkeleton
 } from '../../components/Skeleton';
+import { printElement } from '../../utils/printHelper';
 
 const formatCompactCurrency = (rawNum: number | string | undefined | null, currency = 'TSh') => {
   if (rawNum === undefined || rawNum === null) return `${currency} 0`;
@@ -45,6 +46,7 @@ const ProductRequestsBoard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState<number | null>(null);
+  const [votingId, setVotingId] = useState<number | null>(null);
   
   // Form State
   const [newReqName, setNewReqName] = useState('');
@@ -57,10 +59,23 @@ const ProductRequestsBoard: React.FC = () => {
   const [newReqImage, setNewReqImage] = useState<File | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const printDemandRef = useRef<HTMLDivElement>(null);
+  const [isPrintingDemand, setIsPrintingDemand] = useState(false);
 
-  // Convert State
-  const [convertingId] = useState<number | null>(null);
-  const [votingId, setVotingId] = useState<number | null>(null);
+  const handlePrintDemand = async () => {
+    if (!printDemandRef.current) return;
+    try {
+      setIsPrintingDemand(true);
+      await printElement(printDemandRef.current, {
+        pageTitle: `Demand Analytics Report - SokoniMax`,
+        pageStyle: `@page { size: A4 portrait; margin: 12mm 14mm; }`,
+      });
+    } catch (err) {
+      console.error('Failed to print demand report:', err);
+    } finally {
+      setIsPrintingDemand(false);
+    }
+  };
 
   // Sorting
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'request_count', direction: 'desc' });
@@ -256,31 +271,43 @@ const ProductRequestsBoard: React.FC = () => {
     <div className="space-y-6 print:m-0 print:space-y-0">
       <div className="print:hidden space-y-6">
         {/* Header */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {t('product_requests', 'Demand Analytics')}
+        <header className="space-y-1">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+                title="Back"
+              >
+                <ChevronLeft size={22} />
+              </button>
+              <span>{t('product_requests', 'Demand Analytics')}</span>
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-              {t('product_requests_desc', 'Analyze customer demand and convert requested items directly into your inventory.')}
-            </p>
+
+            <div className="flex items-center gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
+              <Button
+                onClick={() => setIsModalOpen(true)}
+                size="sm"
+                className="flex items-center gap-1.5 font-bold text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
+              >
+                <Plus size={14} />
+                <span>{t('create_demand', 'Create Demand')}</span>
+              </Button>
+              <button 
+                type="button"
+                onClick={handlePrintDemand}
+                disabled={isPrintingDemand}
+                className="inline-flex items-center gap-1.5 border border-surface-border dark:border-surface-dark-border px-3 py-1.5 text-xs font-bold rounded-btn hover:bg-surface-muted dark:hover:bg-[#161616] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition disabled:opacity-50"
+                title="Print Demand Report"
+              >
+                <Printer size={14} /> <span>{isPrintingDemand ? 'Printing...' : 'Print'}</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setIsModalOpen(true)}
-              size="sm"
-              className="flex items-center gap-1.5 font-bold"
-            >
-              <Plus size={14} />
-              {t('create_demand', 'Create Demand')}
-            </Button>
-            <button 
-              onClick={() => window.print()}
-              className="btn-ghost border border-surface-border dark:border-surface-dark-border px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 rounded-btn hover:bg-surface-muted dark:hover:bg-[#161616]"
-            >
-              <Printer size={14} /> Print
-            </button>
-          </div>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            {t('product_requests_desc', 'Analyze customer demand and convert requested items directly into your inventory.')}
+          </p>
         </header>
 
         {loading && requests.length === 0 ? (
@@ -473,7 +500,6 @@ const ProductRequestsBoard: React.FC = () => {
                                   size="sm" 
                                   variant="default"
                                   className="text-xs py-1 font-bold"
-                                  loading={convertingId === req.id}
                                   onClick={() => handleConvert(req)}
                                 >
                                   <ArrowRightCircle size={12} className="mr-1" />
@@ -618,59 +644,62 @@ const ProductRequestsBoard: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Print View */}
-      <div className="hidden print:block font-sans text-black bg-white absolute top-0 left-0 w-full h-full min-h-screen z-[9999]">
-        <ReportPrintHeader 
-          title="Demand Analytics Report" 
-          user={user} 
-        />
-        
-        <table className="w-full text-left text-sm border-collapse mt-6">
-          <thead>
-            <tr className="border-b-2 border-black">
-              <th className="py-2 px-1 w-12 font-black">S/N</th>
-              <th className="py-2 px-2 font-black">PRODUCT</th>
-              <th className="py-2 px-2 font-black">CATEGORY</th>
-              <th className="py-2 px-2 font-black text-center">VOTES</th>
-              <th className="py-2 px-2 font-black text-right">EST. COST (TSH)</th>
-              <th className="py-2 px-2 font-black text-right">EST. PRICE (TSH)</th>
-              <th className="py-2 px-2 font-black text-center">STATUS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRequests.map((req, idx) => (
-              <tr key={req.id} className="border-b border-gray-200">
-                <td className="py-2 px-1 font-bold">{idx + 1}</td>
-                <td className="py-2 px-2 font-bold">{req.name}</td>
-                <td className="py-2 px-2">{req.category_name || '-'}</td>
-                <td className="py-2 px-2 text-center">{req.request_count}</td>
-                <td className="py-2 px-2 text-right font-mono">{req.buying_price ? parseFloat(req.buying_price).toLocaleString() : '-'}</td>
-                <td className="py-2 px-2 text-right font-mono">{req.price ? parseFloat(req.price).toLocaleString() : '-'}</td>
-                <td className="py-2 px-2 text-center">{req.is_fulfilled ? 'Fulfilled' : 'Active'}</td>
+      {/* Hidden Isolated Print Canvas for Demand Analytics (Processed via printElement) */}
+      <div className="hidden">
+        <div ref={printDemandRef} className="p-4 bg-white text-black font-sans w-full">
+          <ReportPrintHeader 
+            title="Demand Analytics Report" 
+            user={user} 
+            logoUrl="/logo_dark.png"
+          />
+          
+          <table className="w-full text-left text-xs border-collapse table-fixed mt-6">
+            <thead>
+              <tr className="border-b-2 border-black bg-gray-100/70 text-black">
+                <th className="py-2 px-1 w-10 font-black">S/N</th>
+                <th className="py-2 px-2 w-auto font-black">PRODUCT</th>
+                <th className="py-2 px-2 w-32 font-black">CATEGORY</th>
+                <th className="py-2 px-2 w-16 font-black text-center">VOTES</th>
+                <th className="py-2 px-2 w-28 font-black text-right">EST. COST (TSH)</th>
+                <th className="py-2 px-2 w-28 font-black text-right">EST. PRICE (TSH)</th>
+                <th className="py-2 px-2 w-20 font-black text-center">STATUS</th>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-black font-black">
-              <td colSpan={4} className="py-2 px-2 text-right">TOTAL MISSED COST:</td>
-              <td colSpan={3} className="py-2 px-2 text-right font-mono text-rose-700">
-                {totalMissedCost.toLocaleString()} TZS
-              </td>
-            </tr>
-            <tr className="font-black">
-              <td colSpan={4} className="py-2 px-2 text-right">PROJECTED REVENUE:</td>
-              <td colSpan={3} className="py-2 px-2 text-right font-mono text-emerald-700">
-                {projectedRevenue.toLocaleString()} TZS
-              </td>
-            </tr>
-            <tr className="font-black border-t border-gray-200">
-              <td colSpan={4} className="py-2 px-2 text-right">POTENTIAL PROFIT:</td>
-              <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-500">
-                {potentialProfit.toLocaleString()} TZS
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {sortedRequests.map((req, idx) => (
+                <tr key={req.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <td className="py-2 px-1 font-bold text-gray-500">{idx + 1}</td>
+                  <td className="py-2 px-2 font-bold text-black">{req.name}</td>
+                  <td className="py-2 px-2 text-gray-600">{req.category_name || '-'}</td>
+                  <td className="py-2 px-2 text-center font-bold">{req.request_count}</td>
+                  <td className="py-2 px-2 text-right font-mono">{req.buying_price ? parseFloat(req.buying_price).toLocaleString() : '-'}</td>
+                  <td className="py-2 px-2 text-right font-mono font-bold">{req.price ? parseFloat(req.price).toLocaleString() : '-'}</td>
+                  <td className="py-2 px-2 text-center font-semibold">{req.is_fulfilled ? 'Fulfilled' : 'Active'}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <td colSpan={4} className="py-2 px-2 text-right uppercase text-xs">TOTAL MISSED COST:</td>
+                <td colSpan={3} className="py-2 px-2 text-right font-mono text-rose-700 font-black">
+                  {totalMissedCost.toLocaleString()} TZS
+                </td>
+              </tr>
+              <tr className="font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <td colSpan={4} className="py-2 px-2 text-right uppercase text-xs">PROJECTED REVENUE:</td>
+                <td colSpan={3} className="py-2 px-2 text-right font-mono text-emerald-700 font-black">
+                  {projectedRevenue.toLocaleString()} TZS
+                </td>
+              </tr>
+              <tr className="font-black border-t border-gray-200 bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <td colSpan={4} className="py-2 px-2 text-right uppercase text-xs">POTENTIAL PROFIT:</td>
+                <td colSpan={3} className="py-2 px-2 text-right font-mono text-brand-500 font-black">
+                  {potentialProfit.toLocaleString()} TZS
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
     </div>
   );

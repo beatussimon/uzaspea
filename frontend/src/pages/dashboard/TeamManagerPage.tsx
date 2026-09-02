@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Users, Plus, Search, X, Eye, EyeOff } from 'lucide-react';
+import { Users, Plus, Search, X, Eye, EyeOff, ChevronLeft } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { CardGridSkeleton } from '../../components/Skeleton';
@@ -137,6 +138,7 @@ const PERMISSION_OPTIONS = [
 ];
 
 export const TeamManagerPage: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'members' | 'audit'>('members');
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
@@ -389,8 +391,16 @@ export const TeamManagerPage: React.FC = () => {
       {/* Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Team Members
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+              title="Back"
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <span>Team Members</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             Add staff and assign what parts of your store they can manage.

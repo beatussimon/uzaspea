@@ -577,17 +577,39 @@ const ProductList = () => {
 
   const gridEntries = buildGridEntries(products, sponsoredAds);
 
+  const siteUrl = (import.meta.env.VITE_SITE_URL || 'https://pasifiq.store').replace(/\/$/, '');
+  const activeCategoryObj = categories.find((c: any) => c.slug === selectedCategory);
+  const activeCategoryName = activeCategoryObj?.name || selectedCategory;
+
   const seoTitle = urlQuery 
-    ? `Search Results for "${urlQuery}" - SokoniMax`
+    ? `Search: "${urlQuery}" - SokoniMax`
     : selectedCategory 
-      ? `${categories.find((c: any) => c.slug === selectedCategory)?.name || 'Category'} - SokoniMax`
-      : 'Browse Products - SokoniMax';
+      ? `Buy ${activeCategoryName} in Tanzania | SokoniMax`
+      : 'Browse Products | SokoniMax Tanzania';
+
+  const seoDesc = selectedCategory
+    ? `Find genuine ${activeCategoryName} for sale in Tanzania on SokoniMax. Verified sellers, fair prices, and direct contact.`
+    : `Find the best ${urlQuery || 'products'} on SokoniMax. Verified sellers, secure payments, and fast delivery in Tanzania.`;
+
+  const categoryBreadcrumbSchema = selectedCategory ? {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": siteUrl },
+      { "@type": "ListItem", "position": 2, "name": "Products", "item": `${siteUrl}/products` },
+      { "@type": "ListItem", "position": 3, "name": activeCategoryName, "item": `${siteUrl}/products?category=${selectedCategory}` }
+    ]
+  } : undefined;
+
+  const isSearchPage = Boolean(urlQuery || saved);
 
   return (
     <div className="bg-surface-muted dark:bg-surface-dark min-h-screen -mt-4 pt-4 md:-mt-6 md:pt-6">
       <SEO 
         title={seoTitle} 
-        description={`Find the best ${urlQuery || selectedCategory || 'products'} on SokoniMax. Verified sellers, secure payments, and fast delivery in Tanzania.`} 
+        description={seoDesc}
+        noindex={isSearchPage}
+        schema={categoryBreadcrumbSchema}
       />
       <div id="browse" className="container-page pb-24 md:pb-8">
       <div className="mb-6 space-y-4">

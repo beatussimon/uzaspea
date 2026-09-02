@@ -644,43 +644,86 @@ const ProductDetailPage: React.FC = () => {
   );
   const discountPercent = isDiscounted ? Math.round(((parseInt(product.price) - effectivePrice) / parseInt(product.price)) * 100) : 0;
 
-  const productSchema = {
+  const siteUrl = (import.meta.env.VITE_SITE_URL || 'https://pasifiq.store').replace(/\/$/, '');
+  const activePrice = product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) 
+    ? product.sale_price 
+    : product.price;
+  const priceFormatted = parseInt(activePrice).toLocaleString();
+  const brandName = product.brand_name || product.brand_details?.name || 'SokoniMax';
+
+  const productSchema: Record<string, any> = {
     "@context": "https://schema.org/",
     "@type": "Product",
     "name": product.name,
     "image": images.map(img => img.image).filter(Boolean),
-    "description": product.description,
+    "description": product.description ? product.description.substring(0, 160).replace(/\n/g, ' ') : `Buy ${product.name} on SokoniMax Tanzania.`,
     "sku": product.id.toString(),
     "brand": {
       "@type": "Brand",
-      "name": product.seller_username
+      "name": brandName
     },
     "offers": {
       "@type": "Offer",
-      "url": `${import.meta.env.VITE_SITE_URL || 'https://pasifiq.store'}/product/${product.slug}`,
+      "url": `${siteUrl}/product/${product.slug}`,
       "priceCurrency": "TZS",
-      "price": product.sale_price ? product.sale_price : product.price,
+      "price": activePrice,
+      "priceValidUntil": "2027-12-31",
       "availability": product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      "itemCondition": product.condition === 'New' ? "https://schema.org/NewCondition" : "https://schema.org/UsedCondition"
+      "itemCondition": product.condition === 'New' ? "https://schema.org/NewCondition" : "https://schema.org/UsedCondition",
+      "seller": {
+        "@type": "Organization",
+        "name": product.seller_username
+      }
     }
   };
   
   if (product.avg_rating > 0) {
-    (productSchema as any).aggregateRating = {
+    productSchema.aggregateRating = {
       "@type": "AggregateRating",
       "ratingValue": product.avg_rating,
       "reviewCount": product.like_count > 0 ? product.like_count : 1
     };
   }
 
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": siteUrl },
+      { "@type": "ListItem", "position": 2, "name": "Products", "item": `${siteUrl}/products` },
+      ...(product.category_parent_slug ? [{
+        "@type": "ListItem",
+        "position": 3,
+        "name": product.category_parent_name || 'Category',
+        "item": `${siteUrl}/products?category=${product.category_parent_slug}`
+      }] : []),
+      {
+        "@type": "ListItem",
+        "position": product.category_parent_slug ? 4 : 3,
+        "name": product.category_name,
+        "item": `${siteUrl}/products?category=${product.category_slug || product.category_name}`
+      },
+      {
+        "@type": "ListItem",
+        "position": product.category_parent_slug ? 5 : 4,
+        "name": product.name,
+        "item": `${siteUrl}/product/${product.slug}`
+      }
+    ]
+  };
+
   return (
     <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
       <SEO 
-        title={`${product.name} - SokoniMax`} 
-        description={product.description.substring(0, 160)}
-        image={currentImageSrc}
+        title={`${product.name} - TSh ${priceFormatted} | SokoniMax Tanzania`} 
+        description={product.description ? product.description.substring(0, 160).replace(/\n/g, ' ') : `Buy ${product.name} on SokoniMax Tanzania.`}
+        image={currentImageSrc || '/logo.png'}
         type="product"
-        schema={productSchema}
+        price={activePrice}
+        priceCurrency="TZS"
+        availability={product.stock > 0 ? 'in stock' : 'out of stock'}
+        condition={product.condition}
+        schema={[productSchema, breadcrumbSchema]}
       />
 
       {/* Lightbox */}
