@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { BarChart3, ShieldAlert, Package, ShoppingCart, DollarSign, Star, AlertTriangle, Printer } from 'lucide-react';
+import { BarChart3, ShieldAlert, Package, ShoppingCart, DollarSign, Star, AlertTriangle, Printer, ChevronDown, Check } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { DateRangePicker, DateRange } from '../../components/ui/DateRangePicker';
-import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { printElement } from '../../utils/printHelper';
 import {
   XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, Area, AreaChart
@@ -51,12 +51,31 @@ const DashboardOverview: React.FC = () => {
     label: t('all_time', 'All Time')
   });
 
+  // Top Products limit customization
+  const [topProductsLimit, setTopProductsLimit] = useState<number>(5);
+  const [isTopLimitOpen, setIsTopLimitOpen] = useState<boolean>(false);
+  const [customTopInput, setCustomTopInput] = useState<string>('');
+  const topLimitRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (topLimitRef.current && !topLimitRef.current.contains(e.target as Node)) {
+        setIsTopLimitOpen(false);
+      }
+    };
+    if (isTopLimitOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isTopLimitOpen]);
+
   useEffect(() => {
     setLoading(true);
     let url = '/api/products/seller_stats/';
     const params = new URLSearchParams();
     if (dateRange.startDate) params.append('start_date', dateRange.startDate);
     if (dateRange.endDate) params.append('end_date', dateRange.endDate);
+    params.append('top_limit', '50');
     if (params.toString()) url += `?${params.toString()}`;
 
     api.get(url)
@@ -106,31 +125,87 @@ const DashboardOverview: React.FC = () => {
   // Prepare pie data
   const pieData = Object.entries(stats?.orders_by_status || {}).map(([k, v]) => ({ name: STATUS_LABELS[k] || k, value: v as number }));
 
+  const printReportRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPdf = async () => {
+    if (!printReportRef.current) return;
+    try {
+      setIsExporting(true);
+      await printElement(printReportRef.current, {
+        pageTitle: `Store Analytics Report - SokoniMax`,
+        pageStyle: `@page { size: A4 portrait; margin: 12mm 14mm; }`,
+      });
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 print:space-y-0 print:m-0">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print-hide">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+    <div className="space-y-6">
+      <header className="space-y-1">
+        <div className="flex items-center justify-between gap-2 flex-nowrap min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">
             {t('store_analytics', 'Store Analytics')}
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Real-time sales breakdown, order conversion pipeline, and inventory status.
-          </p>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={handleExportPdf}
+              disabled={isExporting}
+              className="font-bold flex items-center justify-center gap-1.5 text-xs px-2.5 sm:px-3 py-1.5 sm:py-2 shrink-0 whitespace-nowrap"
+              title="Export to PDF"
+              aria-label="Export to PDF"
+            >
+              <Printer size={15} className="shrink-0" />
+              <span className="hidden sm:inline">{isExporting ? 'Exporting...' : 'Export'}</span>
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <DateRangePicker value={dateRange} onChange={setDateRange} />
-          <Button 
-            variant="outline"
-            size="sm"
-            onClick={() => window.print()}
-            className="font-bold flex items-center gap-1.5"
-            title="Export to PDF"
-          >
-            <Printer size={14} />
-            <span>Export</span>
-          </Button>
-        </div>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
+          Real-time sales breakdown, order conversion pipeline, and inventory status.
+        </p>
       </header>
+
+      {/* Hidden Isolated Printable Report Header & KPI Summary for PDF Export */}
+      <div className="hidden">
+        <div ref={printReportRef} className="p-4 bg-white text-black font-sans w-full">
+          <ReportPrintHeader 
+            title="Store Analytics & Sales Report" 
+            user={{ ...user, store_profile: stats?.store_profile }} 
+            date={`${new Date().toLocaleDateString()} (${dateRange.label})`}
+            logoUrl="/logo_dark.png"
+          />
+          
+          {/* KPI Metrics Summary Strip */}
+          <div className="grid grid-cols-5 gap-3 p-3.5 mb-6 border border-gray-300 rounded-lg bg-gray-50/80 text-center">
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-500">Total Revenue</p>
+              <p className="text-sm font-black text-black mt-0.5">{kpis[0]?.fullValue || kpis[0]?.value || 'TSh 0'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-500">Total Orders</p>
+              <p className="text-sm font-black text-black mt-0.5">{kpis[1]?.value || '0'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-500">Avg Order Value</p>
+              <p className="text-sm font-black text-black mt-0.5">{kpis[2]?.value || 'TSh 0'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-500">Conversion Rate</p>
+              <p className="text-sm font-black text-black mt-0.5">{kpis[3]?.value || '0%'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-500">Stock Alerts</p>
+              <p className="text-sm font-black text-black mt-0.5">{kpis[4]?.value || '0'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {loading && !stats ? (
         <div className="space-y-6">
@@ -159,7 +234,7 @@ const DashboardOverview: React.FC = () => {
                 icon={kpi.icon}
                 trend={kpi.trend}
                 sub={kpi.sub}
-                className={kpi.className}
+                className={cn(kpi.className, i === 4 && "col-span-2 sm:col-span-1")}
               />
             ))}
           </div>
@@ -213,12 +288,91 @@ const DashboardOverview: React.FC = () => {
         {/* Top Products */}
         <div className="space-y-6">
           <div className="card overflow-hidden">
-            <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
+            <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between gap-2">
               <h3 className="text-xs font-bold text-gray-900 dark:text-white">Top Performing Products</h3>
-              <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400 bg-brand-500/10 border border-brand-500/20 px-2.5 py-0.5 rounded-full capitalize">Best Sellers</span>
+              
+              <div className="flex items-center gap-2">
+                {/* Customizable Limit Dropdown Pill */}
+                <div className="relative" ref={topLimitRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsTopLimitOpen(!isTopLimitOpen)}
+                    className="text-[11px] font-medium text-gray-700 dark:text-gray-300 bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border hover:border-gray-400 dark:hover:border-neutral-600 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 transition select-none"
+                    title="Customize item limit"
+                  >
+                    <span>Top {topProductsLimit}</span>
+                    <ChevronDown size={11} className={`text-gray-400 transition-transform ${isTopLimitOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isTopLimitOpen && (
+                    <div className="absolute right-0 top-full mt-1.5 w-44 bg-white dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 rounded-xl shadow-xl z-30 p-1.5 space-y-1 animate-fade-in text-gray-900 dark:text-gray-100">
+                      <div className="space-y-0.5">
+                        {[3, 5, 10, 20].map((num) => {
+                          const isSelected = topProductsLimit === num;
+                          return (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => {
+                                setTopProductsLimit(num);
+                                setIsTopLimitOpen(false);
+                              }}
+                              className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition flex items-center justify-between ${
+                                isSelected
+                                  ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white font-semibold'
+                                  : 'text-gray-600 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-neutral-800/50'
+                              }`}
+                            >
+                              <span>Top {num}</span>
+                              {isSelected && <Check size={12} className="text-gray-900 dark:text-white" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Custom count input */}
+                      <div className="pt-1.5 border-t border-gray-100 dark:border-neutral-800/80 p-1 space-y-1.5">
+                        <label className="block text-2xs font-medium text-gray-500 dark:text-neutral-400">Custom count</label>
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const val = parseInt(customTopInput, 10);
+                            if (!isNaN(val) && val > 0 && val <= 50) {
+                              setTopProductsLimit(val);
+                              setIsTopLimitOpen(false);
+                              setCustomTopInput('');
+                            } else {
+                              toast.error('Enter a number between 1 and 50');
+                            }
+                          }}
+                          className="flex items-center gap-1.5"
+                        >
+                          <input
+                            type="number"
+                            min="1"
+                            max="50"
+                            placeholder="e.g. 15"
+                            value={customTopInput}
+                            onChange={(e) => setCustomTopInput(e.target.value)}
+                            className="w-full px-2 py-1 text-xs bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-neutral-800 rounded-lg text-gray-900 dark:text-white outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                          />
+                          <button
+                            type="submit"
+                            className="px-2.5 py-1 text-xs font-semibold bg-gray-900 text-white dark:bg-white dark:text-black rounded-lg hover:bg-gray-800 dark:hover:bg-neutral-200 transition shrink-0"
+                          >
+                            Set
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400 bg-brand-500/10 border border-brand-500/20 px-2.5 py-0.5 rounded-full capitalize">Best Sellers</span>
+              </div>
             </div>
-            <div className="divide-y divide-surface-border dark:divide-surface-dark-border">
-              {(stats?.top_products || []).map((p: any, i: number) => (
+            <div className="divide-y divide-surface-border dark:divide-surface-dark-border max-h-96 overflow-y-auto">
+              {(stats?.top_products || []).slice(0, topProductsLimit).map((p: any, i: number) => (
                 <div key={i} className="p-3 flex items-center justify-between hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
                   <div className="flex items-center gap-3 overflow-hidden pr-2">
                     <div className="w-7 h-7 shrink-0 rounded-btn bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center font-bold text-gray-400 text-xs">#{i+1}</div>
@@ -228,10 +382,15 @@ const DashboardOverview: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right shrink-0 max-w-[120px]">
-                    <p className="text-xs font-extrabold text-brand-600 dark:text-brand-400 truncate" title={`TSh ${(p.revenue ?? 0).toLocaleString()}`}>TSh {(p.revenue ?? 0).toLocaleString()}</p>
+                    <p className="text-xs font-extrabold text-brand-600 dark:text-brand-400 truncate" title={`TSh ${(p.revenue ?? 0).toLocaleString()}`}>TSh ${(p.revenue ?? 0).toLocaleString()}</p>
                   </div>
                 </div>
               ))}
+              {(!stats?.top_products || stats.top_products.length === 0) && (
+                <div className="p-6 text-center text-xs text-gray-400">
+                  No product sales recorded for this period
+                </div>
+              )}
             </div>
           </div>
 
@@ -242,40 +401,6 @@ const DashboardOverview: React.FC = () => {
             icon={DollarSign}
             sub={`Calculated at ${stats?.commission_rate || 10}% on completed orders`}
           />
-
-          {/* Store QR Code */}
-          <div className="card p-5 space-y-4">
-            <h3 className="text-xs font-bold text-gray-900 dark:text-white border-b border-surface-border dark:border-surface-dark-border pb-2">Your Store QR Code</h3>
-            <div className="flex flex-col sm:flex-row items-center gap-5">
-              <div className="bg-white p-2.5 rounded-btn border-2 border-brand-500 shadow-xs shrink-0">
-                {user?.username ? (
-                  <QRCodeSVG 
-                    value={`${window.location.origin}/${user.username}`} 
-                    size={100} 
-                    level="H" 
-                    includeMargin={true}
-                    fgColor="#000000"
-                  />
-                ) : (
-                  <div className="w-[100px] h-[100px] bg-gray-100 rounded-lg animate-pulse" />
-                )}
-              </div>
-              <div className="space-y-1.5 text-center sm:text-left">
-                <p className="text-xs font-bold text-gray-900 dark:text-white">Scan to visit store</p>
-                <p className="text-2xs text-gray-500 dark:text-gray-400">
-                  Customers can scan this code to browse your products and place direct orders.
-                </p>
-                <a 
-                  href={`/${user?.username}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block px-3 py-1.5 bg-brand-500/10 border border-brand-500/20 text-brand-600 dark:text-brand-400 font-bold text-2xs rounded-btn hover:bg-brand-500/20 transition"
-                >
-                  View Storefront
-                </a>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Low Stock Alerts */}
@@ -305,13 +430,6 @@ const DashboardOverview: React.FC = () => {
       {/* Items Sold List */}
       {stats?.has_advanced_analytics && stats?.items_sold_list?.length > 0 && (
         <div className="card overflow-hidden !border-none print:shadow-none print:m-0 print:p-0">
-          {/* Print-only Header (Redesigned) */}
-          <ReportPrintHeader 
-            title="Sales Report" 
-            user={{...user, store_profile: stats?.store_profile}} 
-            date={new Date().toLocaleDateString() + ' - ' + dateRange.label}
-          />
-
           <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between print-hide">
             <h3 className="text-xs font-bold text-gray-900 dark:text-white">Items Sold ({dateRange.label})</h3>
             <span className="text-3xs font-bold text-gray-400 uppercase">Recent 100</span>

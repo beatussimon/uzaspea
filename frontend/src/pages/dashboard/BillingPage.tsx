@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck, Shield, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Receipt, Smartphone, Upload, CheckCircle2, X, Wallet, ArrowDownRight, Truck, Shield, ChevronLeft, ChevronRight, Calendar, ChevronDown, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDialog } from '../../components/ui/Dialogs';
 import { Button } from '../../components/ui/Button';
@@ -18,6 +19,7 @@ const TIER_RANKS: Record<string, number> = {
 
 const BillingPage: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { showConfirm } = useDialog();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
@@ -32,6 +34,33 @@ const BillingPage: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<'all' | 'this_month' | 'last_month' | 'this_year' | 'custom'>('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target as Node)) {
+        setIsDateDropdownOpen(false);
+      }
+    };
+    if (isDateDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDateDropdownOpen]);
+
+  const getDateFilterLabel = () => {
+    switch (dateFilter) {
+      case 'this_month': return 'This Month';
+      case 'last_month': return 'Last Month';
+      case 'this_year': return 'This Year';
+      case 'custom':
+        if (customStartDate && customEndDate) return `${customStartDate} – ${customEndDate}`;
+        if (customStartDate) return `From ${customStartDate}`;
+        return 'Custom Range';
+      default: return 'All Time';
+    }
+  };
   
   const [pageLedger, setPageLedger] = useState(1);
   const [pageInvoices, setPageInvoices] = useState(1);
@@ -291,8 +320,16 @@ const BillingPage: React.FC = () => {
       {/* Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t('billing_commission', 'Billing & Commission')}
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+              title="Back"
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <span>{t('billing_commission', 'Billing & Commission')}</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             {t('billing_desc', 'Manage your subscriptions, monthly invoices, commission ledger, and logistics payouts.')}
@@ -300,69 +337,130 @@ const BillingPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Tabs */}
-      <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 pt-2">
-        {[
-          { key: 'subscriptions', label: 'My Subscriptions' },
-          { key: 'invoices', label: 'Monthly Invoices' },
-          { key: 'ledger', label: 'Commission Ledger' },
-          ...(driverPayments.length > 0 ? [{ key: 'driver_payments', label: 'Logistics Costs' }] : []),
-        ].map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                isActive
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                  : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {activeTab !== 'subscriptions' && (
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between p-3 rounded-btn bg-surface-muted/40 dark:bg-[#161616]/40 border border-surface-border dark:border-surface-dark-border">
-          <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-            <Filter size={14} className="text-gray-400 shrink-0 mr-1" />
-            {[
-              { key: 'all', label: 'All Time' },
-              { key: 'this_month', label: 'This Month' },
-              { key: 'last_month', label: 'Last Month' },
-              { key: 'this_year', label: 'This Year' },
-              { key: 'custom', label: 'Custom' },
-            ].map((f) => {
-              const isSelected = dateFilter === f.key;
-              return (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setDateFilter(f.key as any)}
-                  className={`px-2.5 py-1 rounded-full text-2xs font-bold transition-all whitespace-nowrap ${
-                    isSelected
-                      ? 'bg-brand-500 text-white shadow-xs'
-                      : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              );
-            })}
-          </div>
-          {dateFilter === 'custom' && (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="input text-xs py-1 h-auto w-full sm:w-auto" />
-              <span className="text-gray-400 text-xs">to</span>
-              <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="input text-xs py-1 h-auto w-full sm:w-auto" />
-            </div>
-          )}
+      {/* Tabs & Date Filter Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+        {/* Left: Tabs Switcher */}
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          {[
+            { key: 'subscriptions', label: 'My Subscriptions' },
+            { key: 'invoices', label: 'Monthly Invoices' },
+            { key: 'ledger', label: 'Commission Ledger' },
+            ...(driverPayments.length > 0 ? [{ key: 'driver_payments', label: 'Logistics Costs' }] : []),
+          ].map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap select-none ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
-      )}
+
+        {/* Right: Date Filter Dropdown */}
+        {activeTab !== 'subscriptions' && (
+          <div className="relative shrink-0" ref={dateDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition select-none"
+            >
+              <Calendar size={13} className="text-gray-400" />
+              <span>{getDateFilterLabel()}</span>
+              <ChevronDown size={13} className={`text-gray-400 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isDateDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white dark:bg-[#141414] border border-gray-200 dark:border-neutral-800 rounded-xl shadow-xl z-30 p-1.5 space-y-1 animate-fade-in text-gray-900 dark:text-gray-100">
+                <div className="space-y-0.5">
+                  {[
+                    { key: 'all', label: 'All Time' },
+                    { key: 'this_month', label: 'This Month' },
+                    { key: 'last_month', label: 'Last Month' },
+                    { key: 'this_year', label: 'This Year' },
+                    { key: 'custom', label: 'Custom Range...' },
+                  ].map((option) => {
+                    const isSelected = dateFilter === option.key;
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => {
+                          setDateFilter(option.key as any);
+                          if (option.key !== 'custom') {
+                            setIsDateDropdownOpen(false);
+                          }
+                        }}
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs transition flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white font-semibold'
+                            : 'text-gray-600 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-neutral-800/50 font-normal'
+                        }`}
+                      >
+                        <span>{option.label}</span>
+                        {isSelected && <Check size={13} className="text-gray-900 dark:text-white" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom Date Inputs if Custom is selected */}
+                {dateFilter === 'custom' && (
+                  <div className="pt-2 border-t border-gray-100 dark:border-neutral-800/80 space-y-2 p-1">
+                    <div className="space-y-1">
+                      <label className="block text-2xs font-medium text-gray-500 dark:text-neutral-400">From</label>
+                      <input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-neutral-800 rounded-lg text-gray-900 dark:text-white outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-2xs font-medium text-gray-500 dark:text-neutral-400">To</label>
+                      <input
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-neutral-800 rounded-lg text-gray-900 dark:text-white outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                      />
+                    </div>
+                    <div className="pt-1.5 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomStartDate('');
+                          setCustomEndDate('');
+                          setDateFilter('all');
+                          setIsDateDropdownOpen(false);
+                        }}
+                        className="flex-1 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 dark:text-neutral-400 dark:hover:text-white transition text-center rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800/50"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsDateDropdownOpen(false)}
+                        className="flex-1 py-1.5 text-xs font-semibold bg-gray-900 text-white dark:bg-white dark:text-black rounded-lg hover:bg-gray-800 dark:hover:bg-neutral-200 transition shadow-xs"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {initialLoading ? (
         <CardGridSkeleton count={3} cols={3} />

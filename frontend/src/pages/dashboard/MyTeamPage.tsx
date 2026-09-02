@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Shield, User, ClipboardList, CheckCircle } from 'lucide-react';
+import { Shield, User, ClipboardList, CheckCircle, ChevronLeft } from 'lucide-react';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { CardGridSkeleton } from '../../components/Skeleton';
 
@@ -101,6 +102,7 @@ const ROLE_DETAILS: Record<string, { label: string; description: string; tasks: 
 };
 
 export const MyTeamPage: React.FC = () => {
+  const navigate = useNavigate();
   const [membership, setMembership] = useState<TeamMember | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -125,8 +127,16 @@ export const MyTeamPage: React.FC = () => {
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+              title="Back"
+            >
+              <ChevronLeft size={22} />
+            </button>
             <Shield className="text-brand-500" size={24} />
-            My Team Details
+            <span>My Team Details</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             Review your roles, responsibilities, and jobs in the team

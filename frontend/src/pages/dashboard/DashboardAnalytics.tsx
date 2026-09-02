@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { TrendingUp, Package, ShoppingCart, AlertTriangle, DollarSign, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, Package, ShoppingCart, AlertTriangle, DollarSign, ArrowUpRight, ChevronLeft } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 
@@ -48,6 +49,7 @@ import {
 
 const DashboardAnalytics: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [data, setData] = useState<SellerAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -73,8 +75,16 @@ const DashboardAnalytics: React.FC = () => {
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+              title="Back"
+            >
+              <ChevronLeft size={22} />
+            </button>
             <TrendingUp className="text-brand-500" size={24} />
-            {t('seller_analytics', 'Seller Analytics')}
+            <span>{t('seller_analytics', 'Seller Analytics')}</span>
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {t('analytics_desc', 'Track your sales performance and store health over the last 30 days.')}

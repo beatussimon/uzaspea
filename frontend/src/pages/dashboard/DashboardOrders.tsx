@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, ChevronDown, ChevronUp, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
+import { Package, ShoppingCart, ChevronDown, ChevronUp, ChevronLeft, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, getSellerNextStatus } from '../../constants/orderStatus';
@@ -58,6 +59,7 @@ export const getStatusExplanation = (status: string, fulfillmentType?: string) =
 
 const DashboardOrders: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { showPrompt } = useDialog();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -248,21 +250,30 @@ const DashboardOrders: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t('incoming_orders', 'Incoming Orders')}
+      <header className="space-y-1">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+              title="Back"
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <span>{t('incoming_orders', 'Incoming Orders')}</span>
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            {t('orders_desc', 'Track incoming customer orders, verify payments, manage shipments, and fulfill orders in real-time.')}
-          </p>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full capitalize flex items-center gap-1.5 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              {t('live_view', 'Live View')}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full capitalize flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            {t('live_view', 'Live View')}
-          </span>
-        </div>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
+          {t('orders_desc', 'Track incoming customer orders, verify payments, manage shipments, and fulfill orders in real-time.')}
+        </p>
       </header>
 
       {/* Filter Pills & Search Bar */}

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { FileText, Printer, Edit3, CheckCircle, Clock, MessageSquare, Sparkles, Search, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { FileText, Printer, Edit3, CheckCircle, Clock, MessageSquare, Sparkles, Search, ChevronDown, ChevronUp, ChevronLeft, Package, X } from 'lucide-react';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
@@ -15,6 +16,7 @@ type TabKey = 'all' | 'action_required' | 'sent' | 'done';
 
 const InvoicesPage: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('all');
@@ -35,7 +37,6 @@ const InvoicesPage: React.FC = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      // Fetch active invoice statuses as well as bulk orders
       const [resQuotes, resBulk] = await Promise.all([
         api.get('/api/orders/incoming/?status=REQUESTED_INVOICE,BUYER_COUNTERED,INVOICE_GENERATED'),
         api.get('/api/orders/incoming/?is_bulk_order=true'),
@@ -44,7 +45,6 @@ const InvoicesPage: React.FC = () => {
       const quotesData = resQuotes.data.results || resQuotes.data || [];
       const bulkData = resBulk.data.results || resBulk.data || [];
       
-      // Merge unique orders by ID
       const orderMap = new Map<number, any>();
       [...quotesData, ...bulkData].forEach((o: any) => {
         orderMap.set(o.id, o);
@@ -96,37 +96,36 @@ const InvoicesPage: React.FC = () => {
       setSelectedOrder(null);
       fetchInvoices();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || t('error_generating_invoice', 'Failed to generate invoice.'));
+      toast.error(err.response?.data?.detail || err.response?.data?.error || 'Failed to generate invoice');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Filter orders by tab and search
   const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
-      // Tab filter
-      if (activeTab === 'action_required') {
-        if (order.status !== 'REQUESTED_INVOICE' && order.status !== 'BUYER_COUNTERED') return false;
-      } else if (activeTab === 'sent') {
-        if (order.status !== 'INVOICE_GENERATED') return false;
-      } else if (activeTab === 'done') {
-        if (['REQUESTED_INVOICE', 'BUYER_COUNTERED', 'INVOICE_GENERATED', 'CANCELLED'].includes(order.status)) return false;
-      }
+    let list = [...orders];
 
-      // Search query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const idMatch = String(order.id).includes(q);
-        const buyerMatch = (order.buyer || order.buyer_username || '').toLowerCase().includes(q);
-        const itemsMatch = (order.items || order.relevant_items || []).some((i: any) =>
-          (i.product_name || '').toLowerCase().includes(q)
-        );
-        if (!idMatch && !buyerMatch && !itemsMatch) return false;
-      }
+    // Status tabs
+    if (activeTab === 'action_required') {
+      list = list.filter(o => o.status === 'REQUESTED_INVOICE' || o.status === 'BUYER_COUNTERED');
+    } else if (activeTab === 'sent') {
+      list = list.filter(o => o.status === 'INVOICE_GENERATED');
+    } else if (activeTab === 'done') {
+      list = list.filter(o => !['REQUESTED_INVOICE', 'BUYER_COUNTERED', 'INVOICE_GENERATED'].includes(o.status));
+    }
 
-      return true;
-    });
+    // Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(o => 
+        String(o.id).includes(q) ||
+        o.order_number?.toLowerCase().includes(q) ||
+        o.buyer_username?.toLowerCase().includes(q) ||
+        (o.items || []).some((it: any) => it.product_name?.toLowerCase().includes(q))
+      );
+    }
+
+    return list;
   }, [orders, activeTab, searchQuery]);
 
   const counts = useMemo(() => {
@@ -134,109 +133,95 @@ const InvoicesPage: React.FC = () => {
       all: orders.length,
       action_required: orders.filter(o => o.status === 'REQUESTED_INVOICE' || o.status === 'BUYER_COUNTERED').length,
       sent: orders.filter(o => o.status === 'INVOICE_GENERATED').length,
-      done: orders.filter(o => !['REQUESTED_INVOICE', 'BUYER_COUNTERED', 'INVOICE_GENERATED', 'CANCELLED'].includes(o.status)).length,
+      done: orders.filter(o => !['REQUESTED_INVOICE', 'BUYER_COUNTERED', 'INVOICE_GENERATED'].includes(o.status)).length,
     };
   }, [orders]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t('invoices', 'Invoices & Bulk Orders')}
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            {t('invoices_desc', 'Manage customer requests for quotes, counter-offers, and invoice records.')}
-          </p>
-        </div>
+      <header className="space-y-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+            title="Back"
+          >
+            <ChevronLeft size={22} />
+          </button>
+          <span>{t('invoices', 'Invoices & Bulk Orders')}</span>
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
+          {t('invoices_desc', 'Manage customer requests for quotes, counter-offers, and invoice records.')}
+        </p>
       </header>
 
-      {/* Filter Pills & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+      {/* Filter Pills & Search Bar on the SAME line */}
+      <div className="flex items-center gap-2 pt-1">
         {/* Status Filter Pills */}
-        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab('all')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'all'
-                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-            }`}
-          >
-            {t('all', 'All')}
-            <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
-              activeTab === 'all' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-            }`}>
-              {counts.all}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('action_required')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'action_required'
-                ? 'bg-brand-500 text-white shadow-xs'
-                : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-            }`}
-          >
-            {t('action_required', 'Action Required')}
-            {counts.action_required > 0 && (
-              <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
-                activeTab === 'action_required' ? 'bg-white text-brand-600' : 'bg-brand-500 text-white'
-              }`}>
-                {counts.action_required}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('sent')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'sent'
-                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-            }`}
-          >
-            {t('awaiting_buyer', 'Awaiting Buyer')}
-            <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
-              activeTab === 'sent' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-            }`}>
-              {counts.sent}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('done')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'done'
-                ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-            }`}
-          >
-            {t('done_accepted', 'Done / Accepted')}
-            <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black ${
-              activeTab === 'done' ? 'bg-white/20 dark:bg-black/20 text-inherit' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-            }`}>
-              {counts.done}
-            </span>
-          </button>
+        <div data-horizontal-scroll="true" className="flex items-center gap-1 overflow-x-auto pb-0.5 sm:pb-0 scrollbar-none shrink-0">
+          {[
+            { key: 'all' as const, label: t('all', 'All'), count: counts.all },
+            { key: 'action_required' as const, label: t('action_required', 'Action Required'), count: counts.action_required, isAction: true },
+            { key: 'sent' as const, label: t('awaiting_buyer', 'Awaiting Buyer'), count: counts.sent },
+            { key: 'done' as const, label: t('done_accepted', 'Done / Accepted'), count: counts.done },
+          ].map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  isActive
+                    ? tab.isAction
+                      ? 'bg-brand-500 text-white shadow-xs'
+                      : 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                <span>{tab.label}</span>
+                {tab.count !== undefined && (tab.count > 0 || !tab.isAction) && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-3xs font-black ${
+                      isActive
+                        ? tab.isAction
+                          ? 'bg-white text-brand-600'
+                          : 'bg-white/20 dark:bg-black/20 text-inherit'
+                        : tab.isAction
+                        ? 'bg-brand-500 text-white'
+                        : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Search Box */}
-        <div className="relative min-w-[220px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        {/* Search Box on the SAME row */}
+        <div className="relative flex-1 min-w-[130px] sm:max-w-xs sm:ml-auto">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('search_invoices', 'Search Order #, Buyer, item...')}
-            className="input pl-8 py-1.5 text-xs w-full"
+            className="input pl-7 pr-6 py-1.5 text-xs w-full rounded-lg"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              aria-label="Clear search"
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
       </div>
 

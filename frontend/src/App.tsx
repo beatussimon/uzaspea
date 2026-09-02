@@ -50,6 +50,7 @@ import InspectorLayout from './pages/inspections/InspectorLayout';
 import SellerUpgradePage from './pages/SellerUpgradePage';
 import ShipmentTrackingPage from './pages/ShipmentTrackingPage';
 import HelpCenterPage from './pages/dashboard/HelpCenterPage';
+import BlogPlaceholderPage from './pages/BlogPlaceholderPage';
 import PublicVerifyPage from './pages/inspections/PublicVerifyPage';
 import TermsAndConditionsPage from './pages/legal/TermsAndConditionsPage';
 import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
@@ -115,6 +116,7 @@ function AppRoutes() {
         <Route path="/inspector/*" element={<ProtectedRoute requireInspector><InspectorLayout /></ProtectedRoute>} />
         <Route path="/verify/:inspection_id" element={<PublicVerifyPage />} />
         <Route path="/help" element={<HelpCenterPage />} />
+        <Route path="/blog" element={<BlogPlaceholderPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/terms" element={<TermsAndConditionsPage />} />

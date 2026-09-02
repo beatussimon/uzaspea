@@ -8,7 +8,6 @@ import {
   Star, ChevronLeft, ChevronRight, Search, X, Megaphone
 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
-import { timeAgo } from '../../utils/timeAgo';
 import { useDialog } from '../../components/ui/Dialogs';
 import ProductVariantsModal from './ProductVariantsModal';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +18,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { ProductGridSkeleton } from '../../components/Skeleton';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { printElement } from '../../utils/printHelper';
 
 // ─── Mobile detection (camera option only shown on touch devices) ─────────────
 const isMobile = () =>
@@ -659,107 +659,179 @@ const DashboardProducts: React.FC = () => {
     }
   };
 
+  const printInventoryRef = React.useRef<HTMLDivElement>(null);
+  const [isPrintingInventory, setIsPrintingInventory] = useState(false);
+
+  const handlePrintInventory = async () => {
+    if (!printInventoryRef.current) return;
+    try {
+      setIsPrintingInventory(true);
+      await printElement(printInventoryRef.current, {
+        pageTitle: `Inventory Report - SokoniMax`,
+        pageStyle: `@page { size: A4 portrait; margin: 12mm 14mm; }`,
+      });
+    } catch (err) {
+      console.error('Failed to print inventory:', err);
+    } finally {
+      setIsPrintingInventory(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t('my_products', 'My Products')}
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            {t('manage_inventory_desc', 'Manage inventory, update pricing, bulk import items, and track listing statuses.')}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            onClick={() => setShowBatchModal(true)}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5"
-          >
-            <Package size={14} />
-            Batch Import (CSV)
-          </Button>
-          <Button
-            onClick={() => {
-              setShowForm(!showForm);
-              setEditingId(null);
-              setExistingImages([]);
-              setNewVariants([]);
-              setForm(INITIAL_FORM);
-            }}
-            disabled={user?.tier === 'customer'}
-            variant={showForm ? 'outline' : 'default'}
-            size="sm"
-            className="flex items-center gap-1.5 font-bold"
-          >
-            <Plus size={14} />
-            {showForm ? 'Cancel' : t('add_new', 'Add New')}
-          </Button>
-          <button 
-            onClick={() => window.print()}
-            className="btn-ghost border border-surface-border dark:border-surface-dark-border px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 rounded-btn hover:bg-surface-muted dark:hover:bg-[#161616]"
-          >
-            <Printer size={14} /> Print
-          </button>
-        </div>
-      </header>
+      {/* Screen Interactive UI */}
+      <div className="print:hidden space-y-6">
+        {/* Header */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+                title="Back"
+              >
+                <ChevronLeft size={22} />
+              </button>
+              <span>{t('my_products', 'My Products')}</span>
+            </h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+              {t('manage_inventory_desc', 'Manage inventory, update pricing, bulk import items, and track listing statuses.')}
+            </p>
+          </div>
+
+          {/* Action Buttons: strictly on the SAME horizontal line */}
+          <div className="flex items-center gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
+            <Button
+              onClick={() => setShowBatchModal(true)}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
+            >
+              <Package size={14} />
+              <span>Batch Import (CSV)</span>
+            </Button>
+            <Button
+              onClick={() => {
+                setShowForm(!showForm);
+                setEditingId(null);
+                setExistingImages([]);
+                setNewVariants([]);
+                setForm(INITIAL_FORM);
+              }}
+              disabled={user?.tier === 'customer'}
+              variant={showForm ? 'outline' : 'default'}
+              size="sm"
+              className="flex items-center gap-1.5 font-bold text-xs px-3 py-1.5 whitespace-nowrap shrink-0"
+            >
+              <Plus size={14} />
+              {showForm ? 'Cancel' : t('add_new', 'Add New')}
+            </Button>
+            <button 
+              type="button"
+              onClick={handlePrintInventory}
+              disabled={isPrintingInventory}
+              className="inline-flex items-center gap-1.5 border border-surface-border dark:border-surface-dark-border px-3 py-1.5 text-xs font-bold rounded-btn hover:bg-surface-muted dark:hover:bg-[#161616] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition disabled:opacity-50"
+              title="Print Inventory Report"
+            >
+              <Printer size={14} />
+              <span>{isPrintingInventory ? 'Printing...' : 'Print'}</span>
+            </button>
+          </div>
+        </header>
 
       {/* Search and Filters */}
       {!showForm && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-          {/* Status Pills */}
-          <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-            {([
-              { key: 'all' as const, label: t('all', 'All') },
-              { key: 'published' as const, label: t('published', 'Published') },
-              { key: 'drafts' as const, label: t('drafts', 'Drafts') },
-            ]).map((tab) => {
-              const isActive = filterStatus === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setFilterStatus(tab.key)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                    isActive
-                      ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
-                      : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="space-y-2 md:space-y-0 md:flex md:items-center md:justify-between md:gap-3 pt-1">
+          {/* Mobile Row 1 / Desktop Left: Status Pills (+ Search on mobile) */}
+          <div className="flex items-center gap-2 md:gap-1.5 shrink-0">
+            {/* Status Pills */}
+            <div data-horizontal-scroll="true" className="flex items-center gap-1 overflow-x-auto pb-0.5 sm:pb-0 scrollbar-none shrink-0">
+              {([
+                { key: 'all' as const, label: t('all', 'All') },
+                { key: 'published' as const, label: t('published', 'Published') },
+                { key: 'drafts' as const, label: t('drafts', 'Drafts') },
+              ]).map((tab) => {
+                const isActive = filterStatus === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setFilterStatus(tab.key)}
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer ${
+                      isActive
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                        : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Search Box & Dropdowns */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 flex-1 sm:justify-end">
-            <div className="relative flex-1 sm:max-w-xs min-w-[180px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            {/* Search Box on Mobile (hidden on desktop) */}
+            <div className="relative flex-1 min-w-[130px] md:hidden">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
                 placeholder={t('search_products', 'Search by Name or SKU...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input pl-8 py-1.5 text-xs w-full"
+                className="input pl-7 pr-6 py-1.5 text-xs w-full rounded-lg"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
+          </div>
+
+          {/* Mobile Row 2 / Desktop Right: (Desktop: Search + Category + Condition; Mobile: Category + Condition) */}
+          <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-2">
+            {/* Search Box on Desktop (hidden on mobile) */}
+            <div className="relative hidden md:block w-48 lg:w-64">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder={t('search_products', 'Search by Name or SKU...')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input pl-7 pr-6 py-1.5 text-xs w-full rounded-lg"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="input py-1.5 text-xs w-auto min-w-[140px]"
+              className="input py-1.5 px-2.5 text-xs w-full md:w-auto md:min-w-[140px] rounded-lg truncate cursor-pointer"
             >
               <option value="">All Categories</option>
               {flatCategories.map((c: any) => (
                 <option key={c.slug} value={c.slug}>{c.name}</option>
               ))}
             </select>
+
             <select
               value={filterCondition}
               onChange={(e) => setFilterCondition(e.target.value)}
-              className="input py-1.5 text-xs w-auto min-w-[110px]"
+              className="input py-1.5 px-2.5 text-xs w-full md:w-auto md:min-w-[110px] rounded-lg truncate cursor-pointer"
             >
               <option value="">Any Condition</option>
               <option value="New">New</option>
@@ -2514,27 +2586,28 @@ const DashboardProducts: React.FC = () => {
             {products.map((product: any) => (
             <div
               key={product.id}
-              className="card p-4 hover:shadow-xs transition flex flex-col sm:flex-row items-start sm:items-center gap-4"
+              className="card p-3 sm:p-4 hover:shadow-xs transition flex flex-row items-start gap-3 sm:gap-4"
             >
               <SafeImage
                 src={product.images?.[0]?.image || ''}
                 alt={product.name}
                 category={product.category_name}
-                className="w-16 h-16 rounded-xl object-cover shrink-0 bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border"
+                className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl object-cover shrink-0 bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border"
               />
-              <div className="flex-1 min-w-0 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-extrabold text-sm text-gray-900 dark:text-white truncate max-w-[200px]">
+              <div className="flex-1 min-w-0 space-y-1.5">
+                {/* Row 1: Title & Stock status */}
+                <div className="flex items-center justify-between gap-1.5">
+                  <h4 className="font-extrabold text-xs sm:text-sm text-gray-900 dark:text-white truncate" title={product.name}>
                     {product.name}
                   </h4>
                   {product.is_draft ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20 capitalize">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20 shrink-0">
+                      <span className="w-1 h-1 rounded-full bg-gray-400" />
                       Draft
                     </span>
                   ) : (
                     <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize ${
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border shrink-0 ${
                         product.stock === 0
                           ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
                           : product.stock <= 3
@@ -2542,99 +2615,88 @@ const DashboardProducts: React.FC = () => {
                           : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${
+                      <span className={`w-1 h-1 rounded-full ${
                         product.stock === 0 ? 'bg-red-500' : product.stock <= 3 ? 'bg-amber-500' : 'bg-emerald-500'
                       }`} />
-                      {product.stock === 0 ? 'Out of Stock' : product.stock <= 3 ? 'Low Stock' : 'In Stock'}
-                    </span>
-                  )}
-                  {product.sku && (
-                    <span className="text-3xs font-mono text-gray-400 ml-auto">
-                      SKU: {product.sku}
+                      {product.stock === 0 ? 'Out' : product.stock <= 3 ? 'Low' : 'In Stock'}
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap text-xs">
-                  <span className="font-extrabold text-gray-900 dark:text-white">
-                    TSh {parseInt(product.price).toLocaleString()}
-                  </span>
-                  {product.buying_price && (
-                    <span className="text-2xs text-gray-400 font-normal">
-                      Cost: TSh {parseInt(product.buying_price).toLocaleString()}
+                {/* Row 2: Price, Cost, Stock & Quick Edit */}
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-baseline gap-1.5 truncate">
+                    <span className="font-extrabold text-gray-900 dark:text-white">
+                      TSh {parseInt(product.price).toLocaleString()}
                     </span>
-                  )}
+                    {product.buying_price && (
+                      <span className="text-[10px] text-gray-400 font-normal hidden xs:inline">
+                        (Cost: {parseInt(product.buying_price).toLocaleString()})
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-[11px] text-gray-400 shrink-0">
+                    {editingStockId === product.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          value={quickStockValue}
+                          onChange={(e) => setQuickStockValue(e.target.value)}
+                          className="input py-0.5 px-1.5 text-xs w-14"
+                          autoFocus
+                        />
+                        <button onClick={() => handleQuickStockUpdate(product.id)} className="text-emerald-500 hover:text-emerald-600 px-1 font-bold">✓</button>
+                        <button onClick={() => setEditingStockId(null)} className="text-red-500 hover:text-red-600 px-1 font-bold">✕</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 group">
+                        <span>Stock: <strong className="text-gray-700 dark:text-gray-300">{product.stock}</strong></span>
+                        <button
+                          onClick={() => { setEditingStockId(product.id); setQuickStockValue(String(product.stock)); }}
+                          className="text-brand-500 hover:text-brand-600 ml-0.5 text-3xs font-bold"
+                          title="Quick Edit Stock"
+                        >
+                          ✎
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-2xs text-gray-400">
-                  {editingStockId === product.id ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        value={quickStockValue}
-                        onChange={(e) => setQuickStockValue(e.target.value)}
-                        className="input py-0.5 px-1.5 text-xs w-16"
-                        autoFocus
-                      />
-                      <button onClick={() => handleQuickStockUpdate(product.id)} className="text-emerald-500 hover:text-emerald-600 px-1 font-bold">✓</button>
-                      <button onClick={() => setEditingStockId(null)} className="text-red-500 hover:text-red-600 px-1 font-bold">✕</button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 group">
-                      <span>Stock: <strong className="text-gray-700 dark:text-gray-300">{product.stock}</strong></span>
-                      <button
-                        onClick={() => { setEditingStockId(product.id); setQuickStockValue(String(product.stock)); }}
-                        className="opacity-0 group-hover:opacity-100 text-brand-500 hover:text-brand-600 ml-1 transition text-3xs font-bold"
-                        title="Quick Edit Stock"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  )}
-                  {product.created_at && (
-                    <>
-                      <span>•</span>
-                      <span>{timeAgo(product.created_at)}</span>
-                    </>
-                  )}
+                {/* Row 3: Action Buttons placed beside the image and details */}
+                <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto scrollbar-none">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/dashboard/promotions?tab=sponsored&new=true&product=${product.id}`)}
+                    className="px-2 py-1 text-[11px] font-bold text-brand-600 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/30 rounded-lg transition inline-flex items-center gap-1 shrink-0"
+                    title="Boost / Sponsor this product"
+                  >
+                    <Megaphone size={11} />
+                    <span>Boost</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(product)}
+                    className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVariantProductId(product.id.toString())}
+                    className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 rounded-lg transition shrink-0"
+                  >
+                    Variants
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(product.slug)}
+                    className="px-2.5 py-1 text-[11px] font-semibold text-red-500 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition shrink-0 ml-auto"
+                  >
+                    Delete
+                  </button>
                 </div>
-              </div>
-
-              <div className="flex sm:flex-col gap-1.5 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-surface-border dark:border-surface-dark-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/dashboard/promotions?tab=sponsored&new=true&product=${product.id}`)}
-                  className="flex-1 sm:flex-initial text-xs py-1 text-brand-600 dark:text-brand-400 border-brand-500/30 hover:bg-brand-500/10 font-bold flex items-center justify-center gap-1"
-                  title="Boost / Sponsor this product"
-                >
-                  <Megaphone size={12} />
-                  Boost
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(product)}
-                  className="flex-1 sm:flex-initial text-xs py-1"
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setVariantProductId(product.id.toString())}
-                  className="flex-1 sm:flex-initial text-xs py-1 text-gray-700 dark:text-gray-300 border-surface-border dark:border-surface-dark-border"
-                >
-                  Variants
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDelete(product.slug)}
-                  className="flex-1 sm:flex-initial text-xs py-1 text-red-500 border-red-500/30 hover:bg-red-500/10"
-                >
-                  Delete
-                </Button>
               </div>
             </div>
           ))}
@@ -2650,58 +2712,63 @@ const DashboardProducts: React.FC = () => {
           onClose={() => setVariantProductId(null)} 
         />
       )}
+      </div>
 
-      {/* Print View */}
-      <div className="hidden print:block font-sans text-black bg-white absolute top-0 left-0 w-full h-full min-h-screen z-[9999]">
-        <ReportPrintHeader 
-          title="Inventory Report" 
-          user={user} 
-        />
-        
-        <table className="w-full text-left text-sm border-collapse">
-          <thead>
-            <tr className="border-b-2 border-black">
-              <th className="py-2 px-1 w-12 font-black">S/N</th>
-              <th className="py-2 px-2 font-black">PRODUCT</th>
-              <th className="py-2 px-2 font-black">SKU/CODE</th>
-              <th className="py-2 px-2 font-black">CATEGORY</th>
-              <th className="py-2 px-2 font-black text-right">COST (TSH)</th>
-              <th className="py-2 px-2 font-black text-right">PRICE (TSH)</th>
-              <th className="py-2 px-2 font-black text-right">STOCK</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((product, idx) => (
-              <tr key={product.id} className="border-b border-gray-200">
-                <td className="py-2 px-1 font-bold">{idx + 1}</td>
-                <td className="py-2 px-2 font-bold">{product.name}</td>
-                <td className="py-2 px-2">{product.sku || '-'}</td>
-                <td className="py-2 px-2">{product.category_name || product.category || '-'}</td>
-                <td className="py-2 px-2 text-right font-mono">{product.buying_price ? parseFloat(product.buying_price).toLocaleString() : '-'}</td>
-                <td className="py-2 px-2 text-right font-mono">{parseFloat(product.price || 0).toLocaleString()}</td>
-                <td className="py-2 px-2 text-right font-mono">{product.stock}</td>
+      {/* Hidden Isolated Print Canvas for Inventory (Processed via printElement) */}
+      <div className="hidden">
+        <div ref={printInventoryRef} className="p-4 bg-white text-black font-sans w-full">
+          <ReportPrintHeader 
+            title="Inventory Report" 
+            user={user} 
+            logoUrl="/logo_dark.png"
+          />
+          
+          <table className="w-full text-left text-xs border-collapse table-fixed mt-4">
+            <thead>
+              <tr className="border-b-2 border-black bg-gray-100/70 text-black">
+                <th className="py-2 px-1.5 w-10 font-black">S/N</th>
+                <th className="py-2 px-2 w-auto font-black">PRODUCT</th>
+                <th className="py-2 px-2 w-28 font-black">SKU/CODE</th>
+                <th className="py-2 px-2 w-28 font-black">CATEGORY</th>
+                <th className="py-2 px-2 w-28 font-black text-right">COST (TSH)</th>
+                <th className="py-2 px-2 w-28 font-black text-right">PRICE (TSH)</th>
+                <th className="py-2 px-2 w-16 font-black text-right">STOCK</th>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-black font-black">
-              <td colSpan={4} className="py-2 px-2 text-right">TOTAL INVENTORY VALUE:</td>
-              <td colSpan={2} className="py-2 px-2 text-right font-mono">
-                {products.reduce((acc, p) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
-              </td>
-            </tr>
-            <tr>
-              <td colSpan={4} className="py-1 px-2 text-right">TOTAL ITEMS IN STOCK:</td>
-              <td colSpan={2} className="py-1 px-2 text-right font-mono">
-                {products.reduce((acc, p) => acc + parseInt(p.stock || 0), 0).toLocaleString()}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {products.map((product, idx) => (
+                <tr key={product.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <td className="py-2 px-1.5 font-bold text-gray-500">{idx + 1}</td>
+                  <td className="py-2 px-2 font-bold text-black">{product.name}</td>
+                  <td className="py-2 px-2 text-gray-600">{product.sku || '-'}</td>
+                  <td className="py-2 px-2 text-gray-600">{product.category_name || product.category || '-'}</td>
+                  <td className="py-2 px-2 text-right font-mono">{product.buying_price ? parseFloat(product.buying_price).toLocaleString() : '-'}</td>
+                  <td className="py-2 px-2 text-right font-mono font-bold text-black">{parseFloat(product.price || 0).toLocaleString()}</td>
+                  <td className="py-2 px-2 text-right font-mono font-bold text-black">{product.stock}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <td colSpan={4} className="py-2.5 px-2 text-right text-xs uppercase">TOTAL INVENTORY VALUE:</td>
+                <td colSpan={2} className="py-2.5 px-2 text-right font-mono text-sm font-black">
+                  {products.reduce((acc, p) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
+                </td>
+                <td></td>
+              </tr>
+              <tr className="bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <td colSpan={4} className="py-1.5 px-2 text-right text-xs uppercase">TOTAL ITEMS IN STOCK:</td>
+                <td colSpan={2} className="py-1.5 px-2 text-right font-mono font-bold">
+                  {products.reduce((acc, p) => acc + parseInt(p.stock || 0), 0).toLocaleString()}
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
     </div>
   );
 };
-
 
 export default DashboardProducts;
