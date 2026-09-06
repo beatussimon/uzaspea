@@ -6,7 +6,7 @@ import {
   UserPlus, Building2, Briefcase,
   CreditCard, Layers,
   ChevronLeft, ChevronRight, Search, Check, X,
-  ArrowUpRight, BarChart2, DollarSign
+  ArrowUpRight, BarChart2, DollarSign, KeyRound
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import api from '../../api';
@@ -24,6 +24,7 @@ import {
 } from '../../components/Skeleton';
 import SystemPaymentMethodsManager from './SystemPaymentMethodsManager';
 import CatalogModerationManager from './CatalogModerationManager';
+import PasswordChangeRequestsManager from './PasswordChangeRequestsManager';
 
 // ============ Types ============
 interface Staffer {
@@ -1098,6 +1099,7 @@ const StaffAdminLayout: React.FC = () => {
     { path: '/staff-admin/users', label: 'User Explorer', icon: Users },
     { path: '/staff-admin/employees', label: 'Employees', icon: Briefcase },
     { path: '/staff-admin/permissions', label: 'Permissions', icon: Shield },
+    { path: '/staff-admin/password-requests', label: 'Password Requests', icon: KeyRound },
     { path: '/staff-admin/audit', label: 'Audit Logs', icon: ScrollText },
     { path: '/staff-admin/payment-methods', label: 'Payment Channels', icon: CreditCard },
     { path: '/staff-admin/catalog-moderation', label: 'Brand & Catalog', icon: Layers },
@@ -1153,6 +1155,7 @@ const StaffAdminLayout: React.FC = () => {
             <Route path="users" element={<PlatformUserExplorer />} />
             <Route path="employees" element={<EmployeeManager />} />
             <Route path="permissions" element={<PermissionMatrix />} />
+            <Route path="password-requests" element={<PasswordChangeRequestsManager />} />
             <Route path="audit" element={<AuditLogViewer />} />
             <Route path="payment-methods" element={<SystemPaymentMethodsManager />} />
             <Route path="catalog-moderation" element={<CatalogModerationManager />} />

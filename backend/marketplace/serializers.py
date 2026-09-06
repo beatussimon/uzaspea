@@ -10,7 +10,7 @@ from .models import (
     Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork, SellerApplication,
     TeamMember, TeamMemberAuditLog, StoreImage, ProductPriceTier, ProductRequest,
     VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
-    Brand, ReferenceProduct
+    Brand, ReferenceProduct, PasswordResetRequest
 )
 
 
@@ -1962,3 +1962,44 @@ class VehicleSerializer(serializers.ModelSerializer):
             'trim', 'engine', 'drivetrain', 'transmission', 'body_style',
             'region', 'created_at'
         ]
+
+
+class PasswordResetRequestStaffSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    user_full_name = serializers.SerializerMethodField()
+    user_tier = serializers.CharField(source='user.profile.tier', read_only=True, default='customer')
+    user_profile_pic = serializers.SerializerMethodField()
+    dispatched_by_username = serializers.CharField(source='dispatched_by.username', read_only=True, default=None)
+    reset_url = serializers.SerializerMethodField()
+    email_draft = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PasswordResetRequest
+        fields = [
+            'id', 'username', 'user_email', 'user_full_name', 'user_tier', 'user_profile_pic',
+            'request_type', 'status', 'token', 'reset_url', 'email_draft',
+            'is_used', 'used_at', 'created_at', 'expires_at',
+            'dispatched_by_username', 'dispatched_at',
+            'ip_address', 'user_agent', 'is_active'
+        ]
+        read_only_fields = fields
+
+    def get_user_full_name(self, obj):
+        return obj.user.get_full_name() or obj.user.username
+
+    def get_user_profile_pic(self, obj):
+        if hasattr(obj.user, 'profile') and obj.user.profile.profile_picture:
+            return obj.user.profile.profile_picture.url
+        return None
+
+    def get_reset_url(self, obj):
+        return obj.get_reset_url()
+
+    def get_email_draft(self, obj):
+        return obj.get_email_draft()
+
+    def get_is_active(self, obj):
+        return obj.is_active()
+

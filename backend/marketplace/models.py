@@ -1744,3 +1744,99 @@ class ProductVehicleFitment(models.Model):
 
     def __str__(self):
         return f"{self.product.name} fits {self.vehicle}"
+
+
+class PasswordResetRequest(models.Model):
+    """
+    Admin-mediated out-of-band password reset & change request.
+    Generates single-use, time-limited tokens that admins inspect and dispatch manually to registered emails.
+    """
+    REQUEST_TYPE_CHOICES = [
+        ('settings_change', 'Settings Password Change'),
+        ('forgot_password', 'Forgot Password'),
+    ]
+    STATUS_CHOICES = [
+        ('pending', 'Pending Admin Dispatch'),
+        ('dispatched', 'Dispatched by Admin'),
+        ('completed', 'Completed'),
+        ('expired', 'Expired'),
+        ('superseded', 'Superseded'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_requests')
+    request_type = models.CharField(max_length=20, choices=REQUEST_TYPE_CHOICES, default='forgot_password')
+    token = models.CharField(max_length=128, unique=True, db_index=True)
+    pending_password_hash = models.CharField(
+        max_length=255, blank=True, null=True,
+        help_text="Hashed new password for settings change requests"
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    dispatched_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='dispatched_password_resets'
+    )
+    dispatched_at = models.DateTimeField(null=True, blank=True)
+    is_used = models.BooleanField(default=False, db_index=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Password Change Request'
+        verbose_name_plural = 'Password Change Requests'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['token']),
+            models.Index(fields=['status', 'is_used', 'expires_at']),
+            models.Index(fields=['user', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_request_type_display()} for {self.user.username} ({self.status})"
+
+    def is_active(self):
+        return not self.is_used and self.status in ['pending', 'dispatched'] and timezone.now() < self.expires_at
+
+    def get_reset_url(self, base_url=None):
+        if not base_url:
+            base_url = getattr(settings, 'SITE_URL', 'https://pasifiq.store').rstrip('/')
+        return f"{base_url}/reset-password?token={self.token}"
+
+    def get_email_draft(self, base_url=None):
+        url = self.get_reset_url(base_url)
+        expires_str = self.expires_at.strftime('%Y-%m-%d %H:%M UTC')
+        site_base = getattr(settings, 'SITE_URL', 'https://pasifiq.store').rstrip('/')
+        if self.request_type == 'settings_change':
+            subject = "[SokoniMax] Confirm Your Password Change Request"
+            body = (
+                f"Hello {self.user.get_full_name() or self.user.username},\n\n"
+                f"A password change was requested for your SokoniMax account.\n\n"
+                f"To confirm and activate your new password, please click the secure link below:\n"
+                f"{url}\n\n"
+                f"This single-use link will expire in 24 hours (at {expires_str}).\n\n"
+                f"If you did not request this change, please contact SokoniMax Support immediately at {site_base}/help and secure your account.\n\n"
+                f"Best regards,\n"
+                f"The SokoniMax Security Team"
+            )
+        else:
+            subject = "[SokoniMax] Your One-Time Password Reset Link"
+            body = (
+                f"Hello {self.user.get_full_name() or self.user.username},\n\n"
+                f"We received a request to reset the password for your SokoniMax account.\n\n"
+                f"Please click the secure link below to choose your new password:\n"
+                f"{url}\n\n"
+                f"This single-use link will expire in 24 hours (at {expires_str}).\n\n"
+                f"If you did not request a password reset, you can safely ignore this email. Your current password remains unchanged.\n\n"
+                f"Need help? Contact our support team at {site_base}/help\n\n"
+                f"Best regards,\n"
+                f"The SokoniMax Security Team"
+            )
+        return {
+            'to': self.user.email,
+            'subject': subject,
+            'body': body,
+            'reset_url': url,
+        }
+

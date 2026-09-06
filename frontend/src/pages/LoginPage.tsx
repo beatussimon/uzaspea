@@ -158,9 +158,17 @@ const LoginPage: React.FC = () => {
           />
 
           <div className="flex flex-col gap-1.5 w-full">
-            <label htmlFor="password" className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
-              {t('password')}
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-0.5">
+                {t('password')}
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-xs font-semibold text-brand-500 hover:underline"
+              >
+                {t('forgot_password', 'Forgot password?')}
+              </Link>
+            </div>
             <div className="relative w-full">
               <input
                 id="password"
@@ -196,6 +204,15 @@ const LoginPage: React.FC = () => {
             {t('create_account_link')}
           </Link>
         </p>
+
+        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-neutral-800 text-center">
+          <p className="text-xs text-gray-400 dark:text-neutral-500">
+            {t('trouble_accessing', 'Trouble accessing your account?')}{' '}
+            <Link to="/help" className="text-gray-600 dark:text-neutral-300 font-medium hover:underline">
+              {t('contact_support', 'Visit Help & Support')}
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

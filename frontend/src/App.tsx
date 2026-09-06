@@ -56,6 +56,8 @@ import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
 import SellerContractPage from './pages/legal/SellerContractPage';
 import TeamsDashboardLayout from './pages/teams/TeamsDashboardLayout';
 import SettingsPage from './pages/dashboard/SettingsPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import GlobalTermsModal from './components/GlobalTermsModal';
 import DesktopChatDock from './components/chat/DesktopChatDock';
@@ -118,6 +120,8 @@ function AppRoutes() {
         <Route path="/blog" element={<BlogPlaceholderPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/terms" element={<TermsAndConditionsPage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/seller-contract" element={<SellerContractPage />} />
@@ -154,13 +158,15 @@ function AppLayout() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300">
+    <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300 w-full max-w-full overflow-x-hidden">
       <Navbar />
       {!isLandingPage && <div className="h-14 md:h-20 pt-safe print-hide" />} {/* Spacer matching navbar height, hidden on landing */}
       
-      <div className="print-hide">
-        <CategoryBar />
-      </div>
+      {!isLandingPage && !isMessagesPage && (
+        <div className="print-hide">
+          <CategoryBar />
+        </div>
+      )}
 
       <main className={`flex-1 print:pt-0 ${isLandingPage ? 'h-full p-0 overflow-hidden' : isMessagesPage ? '' : 'pt-4 md:pt-6'}`}>
         <ErrorBoundary>

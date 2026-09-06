@@ -514,48 +514,44 @@ export const TeamManagerPage: React.FC = () => {
                       !member.is_active ? 'opacity-70 border-red-500/30' : ''
                     }`}
                   >
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                       
                       {/* Top Info */}
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 font-extrabold flex items-center justify-center text-xs shrink-0 border border-brand-500/20">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-surface-muted dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 font-bold flex items-center justify-center text-xs shrink-0">
                             {displayName.charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-bold text-gray-900 dark:text-white text-xs">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h3 className="font-semibold text-gray-900 dark:text-white text-xs truncate">
                                 {displayName}
                               </h3>
-                              <span className="text-3xs font-bold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20">
-                                {role.label}
+                              <span className="text-2xs text-gray-500 dark:text-neutral-400 font-normal">
+                                • {role.label}
                               </span>
                             </div>
-                            <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            <p className="text-2xs text-gray-400 dark:text-neutral-500 truncate mt-0.5">
                               @{member.user_details.username}
                               {member.user_details.email && ` • ${member.user_details.email}`}
                             </p>
                           </div>
                         </div>
 
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize ${
-                          member.is_active
-                            ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                            : 'text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20'
-                        }`}>
+                        <span className="inline-flex items-center gap-1.5 text-2xs font-normal text-gray-500 dark:text-neutral-400 shrink-0">
                           <span className={`w-1.5 h-1.5 rounded-full ${member.is_active ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                          {member.is_active ? 'Active' : 'Suspended'}
+                          <span className={member.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}>
+                            {member.is_active ? 'Active' : 'Suspended'}
+                          </span>
                         </span>
                       </div>
 
-                      {/* Capabilities */}
+                      {/* Capabilities: clean, borderless list */}
                       {grantedPerms.length > 0 && (
-                        <div className="text-2xs text-gray-500 dark:text-gray-400 flex flex-wrap gap-1 pt-0.5">
+                        <div className="text-2xs text-gray-500 dark:text-neutral-400 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pt-1 leading-relaxed">
                           {grantedPerms.map((perm, idx) => (
-                            <span
-                              key={idx}
-                              className="px-1.5 py-0.5 rounded bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-300 border border-surface-border/40 text-3xs font-medium"
-                            >
+                            <span key={idx} className="inline-flex items-center">
+                              {idx > 0 && <span className="mr-1.5 text-gray-300 dark:text-neutral-700 select-none">•</span>}
                               {perm}
                             </span>
                           ))}
@@ -563,7 +559,7 @@ export const TeamManagerPage: React.FC = () => {
                       )}
 
                       {member.notes && (
-                        <p className="text-3xs text-gray-400 italic pt-1">
+                        <p className="text-2xs text-gray-400 italic pt-0.5">
                           "{member.notes}"
                         </p>
                       )}
@@ -573,48 +569,53 @@ export const TeamManagerPage: React.FC = () => {
                     <div className="flex items-center justify-between pt-2.5 border-t border-surface-border dark:border-surface-dark-border text-2xs">
                       <div className="flex items-center gap-2">
                         <button
+                          type="button"
                           onClick={() => handleToggleSuspend(member)}
-                          className="text-gray-500 hover:text-gray-900 dark:hover:text-white font-semibold transition"
+                          className="text-gray-500 hover:text-gray-900 dark:hover:text-white font-normal transition"
                         >
                           {member.is_active ? 'Suspend' : 'Reactivate'}
                         </button>
-                        <span className="text-gray-300 dark:text-gray-700">•</span>
+                        <span className="text-gray-300 dark:text-neutral-700">•</span>
                         <button
+                          type="button"
                           onClick={() => {
                             setResetModalMember(member);
                             setNewPassword('');
                             setConfirmNewPassword('');
                           }}
-                          className="text-gray-500 hover:text-gray-900 dark:hover:text-white font-semibold transition"
+                          className="text-gray-500 hover:text-gray-900 dark:hover:text-white font-normal transition"
                         >
                           Reset Password
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-3">
                         <button
+                          type="button"
                           onClick={() => {
                             setEditModalMember(member);
                             setEditRolePreset(member.role_preset || 'custom');
                             setEditPerms({ ...member.permissions });
                           }}
-                          className="text-brand-600 dark:text-brand-400 hover:underline font-bold"
+                          className="text-gray-600 dark:text-neutral-300 hover:text-gray-900 dark:hover:text-white font-normal transition"
                         >
                           Edit
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
                             setTransferModalMember(member);
                             setTargetUsername('');
                           }}
-                          className="text-gray-500 hover:text-gray-900 dark:hover:text-white font-semibold"
+                          className="text-gray-500 hover:text-gray-900 dark:hover:text-white font-normal transition"
                           title="Transfer role to another user"
                         >
                           Transfer
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleRemoveMember(member.id, member.user_details.username)}
-                          className="text-red-500 hover:underline font-bold"
+                          className="text-red-500 hover:text-red-600 font-normal transition"
                         >
                           Remove
                         </button>
@@ -654,7 +655,7 @@ export const TeamManagerPage: React.FC = () => {
                         {new Date(entry.created_at).toLocaleString()}
                       </td>
                       <td className="p-3 whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded text-3xs font-bold bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border">
+                        <span className="text-2xs font-medium text-gray-700 dark:text-gray-300 capitalize">
                           {entry.action.replace('_', ' ')}
                         </span>
                       </td>

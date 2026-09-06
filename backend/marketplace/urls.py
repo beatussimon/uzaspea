@@ -7,6 +7,8 @@ from .api_views import (
     CustomTokenObtainPairView, CustomTokenRefreshView, RegisterView, AcceptTermsView,
     SponsoredListingViewSet, UserProfileViewSet,
     LipaNumberViewSet, FAQViewSet, SupportTicketViewSet, ChangePasswordView,
+    RequestPasswordChangeView, ForgotPasswordRequestView, VerifyResetTokenView, ConfirmPasswordResetView,
+    PasswordResetRequestStaffViewSet,
     VerifySuperuserView, NotificationViewSet, ConversationViewSet,
     SavedSearchViewSet, PriceAlertViewSet, DisputeViewSet,
     DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet,
@@ -51,6 +53,7 @@ router.register(r'price-alerts', PriceAlertViewSet, basename='price-alert')
 router.register(r'disputes', DisputeViewSet, basename='dispute')
 router.register(r'delivery-zones', DeliveryZoneViewSet, basename='delivery-zone')
 router.register(r'variants', ProductVariantViewSet, basename='variant')
+router.register(r'staff-admin/password-requests', PasswordResetRequestStaffViewSet, basename='staff-password-request')
 urlpatterns = [
     path('api/', include(router.urls)),
     path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -58,6 +61,10 @@ urlpatterns = [
     path('api/auth/register/', RegisterView.as_view(), name='auth_register'),
     path('api/auth/accept-terms/', AcceptTermsView.as_view(), name='accept_terms'),
     path('api/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
+    path('api/auth/request-password-change/', RequestPasswordChangeView.as_view(), name='request_password_change'),
+    path('api/auth/forgot-password/', ForgotPasswordRequestView.as_view(), name='forgot_password'),
+    path('api/auth/verify-reset-token/', VerifyResetTokenView.as_view(), name='verify_reset_token'),
+    path('api/auth/confirm-password-reset/', ConfirmPasswordResetView.as_view(), name='confirm_password_reset'),
     path('api/auth/verify-superuser/', VerifySuperuserView.as_view(), name='verify_superuser'),  # FIX D-02/D-03
     path('api/site-settings/', SiteSettingsView.as_view(), name='site-settings'),  # FIX B-18
     path('api/analytics/trending/', TrendingAnalyticsView.as_view(), name='analytics-trending'),

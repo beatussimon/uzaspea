@@ -21,10 +21,8 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle2,
-  ExternalLink,
   RefreshCw,
   Eye,
-  Tag,
   ArrowUpRight,
   Info,
   ChevronLeft
@@ -599,7 +597,7 @@ export const DashboardPromotions: React.FC = () => {
               {/* Product Selection */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('select_product_to_promote', 'Select Product *')}
+                  {t('select_product_to_promote', 'Select Product')} <span className="text-red-500">*</span>
                 </label>
                 {products.length === 0 ? (
                   <div className="p-3 rounded bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs text-amber-700 dark:text-amber-300">
@@ -632,46 +630,42 @@ export const DashboardPromotions: React.FC = () => {
               {/* Tiered Duration Package Selector */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('choose_duration_plan', 'Placement Duration & Rate *')}
+                  {t('choose_duration_plan', 'Placement Duration & Rate')} <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {BOOST_PLANS.map(plan => {
                     const isSelected = Number(form.duration_days) === plan.days;
                     return (
-                      <div
+                      <button
                         key={plan.days}
+                        type="button"
                         onClick={() => setForm({ ...form, duration_days: plan.days })}
-                        className={`relative rounded-card p-3 border cursor-pointer transition-colors flex flex-col justify-between ${
+                        className={`p-3 rounded-xl text-left transition flex flex-col justify-between cursor-pointer select-none bg-surface-muted/60 dark:bg-neutral-900/60 ${
                           isSelected
-                            ? 'border-brand-500 bg-brand-500/5 ring-1 ring-brand-500'
-                            : 'border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#121212] hover:border-neutral-400 dark:hover:border-neutral-700'
+                            ? 'border-2 border-brand-500 text-gray-900 dark:text-white'
+                            : 'border-2 border-transparent text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
                         }`}
                       >
-                        {plan.badge && (
-                          <span className={`absolute -top-2 right-2.5 px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider ${
-                            plan.popular 
-                              ? 'bg-brand-500 text-black' 
-                              : 'bg-neutral-800 text-neutral-200 border border-neutral-700'
-                          }`}>
-                            {plan.badge}
-                          </span>
-                        )}
-                        <div>
-                          <p className="font-semibold text-xs text-gray-900 dark:text-white flex items-center gap-1.5">
-                            <Clock size={12} className={isSelected ? 'text-brand-500' : 'text-gray-400'} />
+                        <div className="flex items-center justify-between w-full">
+                          <span className="font-semibold text-xs text-gray-900 dark:text-white">
                             {plan.days} {t('days', 'Days')}
-                          </p>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
-                            {plan.description}
-                          </p>
+                          </span>
+                          {plan.badge && (
+                            <span className="text-3xs text-brand-600 dark:text-brand-400 font-medium uppercase tracking-wider">
+                              {plan.badge}
+                            </span>
+                          )}
                         </div>
-                        <div className="mt-2.5 pt-2 border-t border-surface-border dark:border-surface-dark-border/60 flex items-baseline justify-between">
-                          <span className="text-[10px] text-gray-400 uppercase font-medium">{t('rate', 'Rate')}</span>
+                        <p className="text-[11px] text-gray-500 dark:text-neutral-400 mt-1 leading-snug">
+                          {plan.description}
+                        </p>
+                        <div className="mt-2.5 pt-1.5 flex items-baseline justify-between w-full">
+                          <span className="text-3xs text-gray-400 uppercase font-medium">{t('rate', 'Rate')}</span>
                           <span className="font-semibold font-mono text-xs text-gray-900 dark:text-white">
                             TSh {plan.price.toLocaleString()}
                           </span>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -729,8 +723,8 @@ export const DashboardPromotions: React.FC = () => {
                 {adminLipa.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {adminLipa.map((lipa: any) => (
-                      <div key={lipa.id} className="flex items-center gap-2.5 bg-white dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border rounded p-2">
-                        <div className={`rounded bg-surface-muted dark:bg-[#121212] flex items-center justify-center overflow-hidden shrink-0 border border-surface-border dark:border-surface-dark-border ${lipa.network_logo ? 'w-10 h-5' : 'w-5 h-5'}`}>
+                      <div key={lipa.id} className="flex items-center gap-2.5 bg-surface-muted/50 dark:bg-neutral-900/50 rounded-xl p-2.5">
+                        <div className={`rounded flex items-center justify-center overflow-hidden shrink-0 ${lipa.network_logo ? 'w-10 h-5' : 'w-5 h-5'}`}>
                           {lipa.network_logo ? (
                             <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
                           ) : (
@@ -738,21 +732,21 @@ export const DashboardPromotions: React.FC = () => {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-[10px] text-gray-400 uppercase leading-none font-medium">{lipa.network_name}</p>
+                          <p className="text-3xs text-gray-400 uppercase leading-none font-medium">{lipa.network_name}</p>
                           <p className="font-mono font-bold text-gray-900 dark:text-white text-xs mt-0.5">{lipa.number}</p>
                         </div>
                         <button 
                           type="button" 
                           onClick={() => handleCopy(lipa.number)}
-                          className="text-[10px] py-1 px-2 border border-surface-border dark:border-surface-dark-border rounded hover:border-brand-500 transition cursor-pointer text-gray-600 dark:text-gray-300"
+                          className="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white transition px-2 py-1 cursor-pointer font-medium"
                         >
-                          {copiedCode === lipa.number ? <Check size={11} className="text-emerald-500" /> : t('copy', 'Copy')}
+                          {copiedCode === lipa.number ? <Check size={12} className="text-emerald-500" /> : t('copy', 'Copy')}
                         </button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="p-2.5 bg-white dark:bg-[#161616] rounded text-xs text-gray-500">
+                  <div className="p-2.5 bg-surface-muted/50 dark:bg-neutral-900/50 rounded-xl text-xs text-gray-500">
                     {t('pay_via_admin_number', 'Pay via the official platform merchant Lipa number and input your transaction code.')}
                   </div>
                 )}
@@ -760,7 +754,7 @@ export const DashboardPromotions: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {t('transaction_ref_code', 'Transaction Reference Code *')}
+                      {t('transaction_ref_code', 'Transaction Reference Code')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -773,12 +767,12 @@ export const DashboardPromotions: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {t('payment_receipt_proof', 'Payment Receipt Screenshot *')}
+                      {t('payment_receipt_proof', 'Payment Receipt Screenshot')} <span className="text-red-500">*</span>
                     </label>
                     {proofPreview ? (
-                      <div className="flex items-center justify-between p-2 rounded bg-white dark:bg-[#121212] border border-surface-border dark:border-surface-dark-border">
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-surface-muted/50 dark:bg-neutral-900/50">
                         <div className="flex items-center gap-2 min-w-0">
-                          <img src={proofPreview} alt="Receipt preview" className="w-6 h-6 object-cover rounded shrink-0 border" />
+                          <img src={proofPreview} alt="Receipt preview" className="w-6 h-6 object-cover rounded shrink-0" />
                           <span className="text-xs text-gray-700 dark:text-gray-300 truncate font-mono">
                             {proofFile?.name}
                           </span>
@@ -793,7 +787,7 @@ export const DashboardPromotions: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <label className="flex items-center justify-between w-full h-9 border border-dashed border-surface-border dark:border-surface-dark-border rounded cursor-pointer bg-white dark:bg-[#121212] hover:border-neutral-400 dark:hover:border-neutral-600 transition px-3">
+                      <label className="flex items-center justify-between w-full h-9 rounded-xl cursor-pointer bg-surface-muted/50 dark:bg-neutral-900/50 hover:bg-surface-muted dark:hover:bg-neutral-900 transition px-3">
                         <div className="flex items-center gap-2 truncate">
                           <Upload size={13} className="text-gray-400 shrink-0" />
                           <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
@@ -924,37 +918,54 @@ export const DashboardPromotions: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* Product Snippet Header */}
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800/80">
-                          {productImg ? (
-                            <SafeImage src={productImg} alt={p.product_name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400">
-                              <Package size={16} />
-                            </div>
-                          )}
+                      {/* Product Snippet Header - Clickable Product */}
+                      {p.product_slug ? (
+                        <a
+                          href={`/product/${p.product_slug}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-3 mb-3 group select-none"
+                          title={t('view_product_page', 'View Product Page')}
+                        >
+                          <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800/80">
+                            {productImg ? (
+                              <SafeImage src={productImg} alt={p.product_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <Package size={16} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-medium text-gray-900 dark:text-white text-xs truncate group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                              {p.product_name || 'Product'}
+                            </h4>
+                            <p className="font-mono text-gray-500 dark:text-gray-400 text-[11px] mt-0.5">
+                              {product.price ? `TSh ${parseInt(product.price).toLocaleString()}` : ''}
+                            </p>
+                          </div>
+                        </a>
+                      ) : (
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800/80">
+                            {productImg ? (
+                              <SafeImage src={productImg} alt={p.product_name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <Package size={16} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-medium text-gray-900 dark:text-white text-xs truncate">
+                              {p.product_name || 'Product'}
+                            </h4>
+                            <p className="font-mono text-gray-500 dark:text-gray-400 text-[11px] mt-0.5">
+                              {product.price ? `TSh ${parseInt(product.price).toLocaleString()}` : ''}
+                            </p>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-medium text-gray-900 dark:text-white text-xs truncate">
-                            {p.product_name || 'Product'}
-                          </h4>
-                          <p className="font-mono text-gray-500 dark:text-gray-400 text-[11px] mt-0.5">
-                            {product.price ? `TSh ${parseInt(product.price).toLocaleString()}` : ''}
-                          </p>
-                        </div>
-                        {p.product_slug && (
-                          <a
-                            href={`/product/${p.product_slug}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
-                            title={t('view_product_page', 'View Product Page')}
-                          >
-                            <ExternalLink size={13} />
-                          </a>
-                        )}
-                      </div>
+                      )}
 
                       {/* Campaign Title & Description */}
                       {p.title && (
@@ -1007,8 +1018,8 @@ export const DashboardPromotions: React.FC = () => {
                     {/* Footer & Actions */}
                     <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800/80 space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <div className="text-gray-500 dark:text-gray-400 flex items-center gap-1 font-normal">
-                          <Tag size={11} /> {p.duration_days || 7} {t('days_duration', 'Days')}
+                        <div className="text-gray-500 dark:text-gray-400 font-normal">
+                          {p.duration_days || 7} {t('days_duration', 'Days')}
                         </div>
                         <div className="font-mono font-medium text-gray-900 dark:text-white">
                           TSh {((p.duration_days || 7) * 1000).toLocaleString()}
@@ -1036,16 +1047,16 @@ export const DashboardPromotions: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleStartReboost(p.product)}
-                            className="w-full py-2 px-3 text-xs font-medium rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800/80 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                            className="w-full py-2 px-3 text-xs font-medium rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800/80 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center cursor-pointer active:scale-[0.98]"
                           >
-                            <RefreshCw size={12} /> <span>{t('renew', 'Renew')}</span>
+                            <span>{t('renew', 'Renew')}</span>
                           </button>
                         )}
                         {status === 'pending' && (
                           <button
                             type="button"
                             onClick={() => handleDeleteCampaign(p.id)}
-                            className="w-full py-2 px-3 text-xs font-medium rounded-xl text-red-500 hover:bg-red-500/10 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                            className="w-full py-2 px-3 text-xs font-medium rounded-xl text-red-500 hover:bg-red-500/10 transition flex items-center justify-center cursor-pointer active:scale-[0.98]"
                           >
                             <span>{t('cancel', 'Cancel')}</span>
                           </button>
@@ -1055,9 +1066,9 @@ export const DashboardPromotions: React.FC = () => {
                             href={`/product/${p.product_slug}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="w-full py-2 px-3 text-xs font-medium rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800/80 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center gap-1.5"
+                            className="w-full py-2 px-3 text-xs font-medium rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800/80 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center"
                           >
-                            <span>{t('view_live_item', 'View Listing')}</span> <ExternalLink size={11} />
+                            <span>{t('view_live_item', 'View Listing')}</span>
                           </a>
                         )}
                       </div>
@@ -1096,7 +1107,7 @@ export const DashboardPromotions: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-                    <Ticket size={12} /> {t('coupon_code', 'Coupon Code *')}
+                    <Ticket size={12} /> {t('coupon_code', 'Coupon Code')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1127,7 +1138,7 @@ export const DashboardPromotions: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t('discount_value', 'Discount Value *')}
+                    {t('discount_value', 'Discount Value')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"

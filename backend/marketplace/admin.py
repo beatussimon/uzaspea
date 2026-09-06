@@ -7,9 +7,12 @@ from .models import (
     Like, Follow, ProductImage, SubscriptionTier, MobileNetwork, LipaNumber,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, ProductVariant, SiteSettings, DeliveryZone,
-    SellerApplication, PaymentConfirmation, SupportTicket, TeamMember, StoreImage, FAQ
+    SellerApplication, PaymentConfirmation, SupportTicket, TeamMember, StoreImage, FAQ,
+    PasswordResetRequest
 )
 from django.utils.html import format_html
+import urllib.parse
+from django.utils import timezone
 
 # Unregister the default User admin to avoid AlreadyRegistered exception
 admin.site.unregister(User)
@@ -389,3 +392,128 @@ class ProductVehicleFitmentAdmin(admin.ModelAdmin):
     list_display = ('product', 'vehicle', 'is_verified')
     search_fields = ('product__name', 'vehicle__make__name', 'vehicle__model__name')
     list_filter = ('is_verified',)
+
+
+@admin.register(PasswordResetRequest)
+class PasswordResetRequestAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'user_email', 'request_type_badge', 'status_badge', 'is_used', 'created_at', 'expires_at', 'dispatch_info')
+    list_filter = ('status', 'request_type', 'is_used', 'created_at')
+    search_fields = ('user__username', 'user__email', 'token', 'ip_address')
+    readonly_fields = (
+        'user', 'request_type', 'status_badge', 'reset_link_box', 'email_composer_box',
+        'is_used', 'used_at', 'created_at', 'expires_at', 'dispatched_by', 'dispatched_at',
+        'ip_address', 'user_agent'
+    )
+    fieldsets = (
+        ('Request Summary', {
+            'fields': ('user', 'request_type', 'status_badge', 'is_used', 'used_at', 'created_at', 'expires_at')
+        }),
+        ('Manual Admin Dispatch', {
+            'fields': ('reset_link_box', 'email_composer_box'),
+            'description': 'Copy the one-time link or the pre-formatted email draft below and dispatch it manually to the user’s registered email address.'
+        }),
+        ('Dispatch Audit', {
+            'fields': ('dispatched_by', 'dispatched_at'),
+            'classes': ('collapse',)
+        }),
+        ('Security & Request Metadata', {
+            'fields': ('ip_address', 'user_agent'),
+            'classes': ('collapse',)
+        }),
+    )
+    actions = ['mark_as_dispatched', 'revoke_requests']
+
+    @admin.display(description='Email')
+    def user_email(self, obj):
+        return obj.user.email or "— (No email)"
+
+    @admin.display(description='Type')
+    def request_type_badge(self, obj):
+        if obj.request_type == 'settings_change':
+            return format_html('<span style="background:#e0f2fe; color:#0369a1; padding:3px 8px; border-radius:12px; font-weight:600; font-size:11px;">Settings Change</span>')
+        return format_html('<span style="background:#fef3c7; color:#92400e; padding:3px 8px; border-radius:12px; font-weight:600; font-size:11px;">Forgot Password</span>')
+
+    @admin.display(description='Status')
+    def status_badge(self, obj):
+        styles = {
+            'pending': 'background:#fef3c7; color:#b45309; border:1px solid #fde68a;',
+            'dispatched': 'background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe;',
+            'completed': 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;',
+            'expired': 'background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;',
+            'superseded': 'background:#f3f4f6; color:#4b5563; border:1px solid #e5e7eb;',
+        }
+        st = obj.status
+        if not obj.is_used and timezone.now() > obj.expires_at and st not in ['completed', 'expired', 'superseded']:
+            st = 'expired'
+        style = styles.get(st, styles['pending'])
+        return format_html('<span style="{}; padding:4px 10px; border-radius:12px; font-weight:700; font-size:11px; text-transform:uppercase;">{}</span>', style, st)
+
+    @admin.display(description='Dispatched')
+    def dispatch_info(self, obj):
+        if obj.dispatched_at:
+            by = obj.dispatched_by.username if obj.dispatched_by else 'Admin'
+            return f"{by} ({obj.dispatched_at.strftime('%m/%d %H:%M')})"
+        return "Not yet"
+
+    @admin.display(description='One-Time Reset Link')
+    def reset_link_box(self, obj):
+        url = obj.get_reset_url()
+        is_active = obj.is_active()
+        status_note = '<span style="color:#16a34a; font-weight:bold;">Active & Ready to Dispatch</span>' if is_active else '<span style="color:#dc2626; font-weight:bold;">Inactive / Expired / Used</span>'
+        return format_html(
+            '''
+            <div style="max-width:650px; background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:8px;">
+                <div style="margin-bottom:8px; font-size:12px;">Link Status: {}</div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input id="reset_url_input_{}" type="text" readonly value="{}" style="flex:1; padding:8px 10px; font-family:monospace; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;" />
+                    <button type="button" onclick="navigator.clipboard.writeText('{}'); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy Link', 2000);" style="padding:8px 16px; background:#0f172a; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:12px; cursor:pointer;">Copy Link</button>
+                </div>
+            </div>
+            ''',
+            format_html(status_note),
+            obj.id,
+            url,
+            url
+        )
+
+    @admin.display(description='Email Draft Preview')
+    def email_composer_box(self, obj):
+        draft = obj.get_email_draft()
+        mailto_url = f"mailto:{draft['to']}?subject={urllib.parse.quote(draft['subject'])}&body={urllib.parse.quote(draft['body'])}"
+        return format_html(
+            '''
+            <div style="max-width:650px; background:#f8fafc; border:1px solid #e2e8f0; padding:14px; border-radius:8px; font-size:13px;">
+                <div style="margin-bottom:8px;"><strong>To:</strong> <span style="font-family:monospace; color:#0369a1;">{}</span></div>
+                <div style="margin-bottom:10px;"><strong>Subject:</strong> <span>{}</span></div>
+                <div style="margin-bottom:12px;">
+                    <strong>Body:</strong>
+                    <pre id="email_draft_body_{}" style="margin-top:6px; padding:10px; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; font-family:sans-serif; font-size:12px; line-height:1.5; white-space:pre-wrap; max-height:220px; overflow-y:auto;">{}</pre>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('email_draft_body_{}').innerText); this.innerText='Draft Copied!'; setTimeout(()=>this.innerText='Copy Email Draft', 2000);" style="padding:8px 14px; background:#0284c7; color:#fff; border:none; border-radius:6px; font-weight:600; font-size:12px; cursor:pointer;">Copy Email Draft</button>
+                    <a href="{}" target="_blank" style="display:inline-block; padding:8px 14px; background:#16a34a; color:#fff; text-decoration:none; border-radius:6px; font-weight:600; font-size:12px;">Open in Mail Client</a>
+                </div>
+            </div>
+            ''',
+            draft['to'] or "(User has no email registered!)",
+            draft['subject'],
+            obj.id,
+            draft['body'],
+            obj.id,
+            mailto_url
+        )
+
+    @admin.action(description='Mark selected as Dispatched')
+    def mark_as_dispatched(self, request, queryset):
+        count = queryset.filter(status='pending').update(
+            status='dispatched',
+            dispatched_by=request.user,
+            dispatched_at=timezone.now()
+        )
+        self.message_user(request, f"Marked {count} request(s) as Dispatched.")
+
+    @admin.action(description='Revoke / Expire selected requests')
+    def revoke_requests(self, request, queryset):
+        count = queryset.update(status='expired')
+        self.message_user(request, f"Revoked {count} request(s).")
+
