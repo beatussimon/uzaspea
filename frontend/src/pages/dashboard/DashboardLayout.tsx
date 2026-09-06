@@ -190,19 +190,20 @@ const DashboardLayout: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
 
-      {/* Floating Mobile Hamburger Menu Button */}
-      <div className="fixed bottom-20 left-4 z-40 lg:hidden print:hidden animate-fade-in">
-        <button
-          type="button"
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="flex items-center gap-2 bg-gray-900/95 dark:bg-neutral-900/95 text-white dark:text-gray-100 hover:bg-black dark:hover:bg-neutral-800 px-3.5 py-2.5 rounded-full shadow-xl border border-gray-700/60 dark:border-neutral-700/60 backdrop-blur-md transition-all active:scale-95 text-xs font-semibold select-none"
-          aria-label="Open Dashboard Navigation"
-          title="Dashboard Menu"
-        >
-          <Menu size={15} />
-          <span>Menu</span>
-        </button>
-      </div>
+      {/* Floating Mobile Hamburger Menu Button (Matching circular style of Scroll-To-Top FAB directly below it) */}
+      <button
+        type="button"
+        onClick={() => setIsMobileMenuOpen(true)}
+        className="fixed z-40 p-3 rounded-full shadow-lg bg-white dark:bg-[#111111] text-gray-900 dark:text-white border border-gray-200 dark:border-[#222222] transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center lg:hidden print:hidden cursor-pointer select-none"
+        style={{
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 136px)',
+          right: '20px'
+        }}
+        aria-label="Open Dashboard Navigation"
+        title="Dashboard Menu"
+      >
+        <Menu size={20} />
+      </button>
 
       {/* Mobile Slide-Over Navigation Drawer */}
       {isMobileMenuOpen && (

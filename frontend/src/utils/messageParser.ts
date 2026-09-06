@@ -1,5 +1,6 @@
 export interface ProductAttachment {
   id: number;
+  slug?: string;
   title: string;
   price?: string | number;
   currency?: string;
@@ -41,6 +42,7 @@ export function getMessageDisplayText(content: string): string {
 export function createProductInquiryPayload(
   product: {
     id: number;
+    slug?: string;
     name?: string;
     title?: string;
     price?: string | number;
@@ -55,6 +57,7 @@ export function createProductInquiryPayload(
     type: 'product_inquiry',
     product: {
       id: product.id,
+      slug: product.slug,
       title: product.name || product.title || 'Product',
       price: product.price,
       currency: product.currency || 'TZS',

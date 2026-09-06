@@ -161,14 +161,27 @@ const ProductRequestsBoard: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleVote = async (req: any) => {
+  const handleIncrementDemand = async (req: any) => {
+    if (req.is_fulfilled) {
+      toast.error(t('fulfilled_demand_error', 'Cannot add demand to a fulfilled request'));
+      return;
+    }
+
+    const previousCount = req.request_count || 0;
+    const newCount = previousCount + 1;
+
+    // Optimistic UI update for instant feedback
+    setRequests(prev => prev.map(r => r.id === req.id ? { ...r, request_count: newCount } : r));
+
     try {
       setVotingId(req.id);
-      await api.post(`/api/product-requests/${req.id}/vote/`);
-      toast.success(`Vote added to ${req.name}!`);
-      fetchRequests(false);
+      const res = await api.post(`/api/product-requests/${req.id}/increment_demand/`);
+      setRequests(prev => prev.map(r => r.id === req.id ? { ...r, request_count: res.data.request_count } : r));
+      toast.success(`+1 demand recorded for ${req.name}! (${res.data.request_count} total)`);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to vote");
+      // Revert optimistic update on failure
+      setRequests(prev => prev.map(r => r.id === req.id ? { ...r, request_count: previousCount } : r));
+      toast.error(err.response?.data?.error || t('increment_error', 'Failed to increment demand'));
     } finally {
       setVotingId(null);
     }
@@ -315,7 +328,7 @@ const ProductRequestsBoard: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">
               <KpiCard
                 label="Active Cards"
                 value={totalRequests}
@@ -329,7 +342,8 @@ const ProductRequestsBoard: React.FC = () => {
               />
               <KpiCard
                 label="Top Trending"
-                value={topRequested?.name || 'N/A'}
+                value={topRequested?.name ? (topRequested.name.length > 15 ? topRequested.name.substring(0, 13) + '...' : topRequested.name) : 'N/A'}
+                fullValue={topRequested?.name || 'N/A'}
                 sub={topRequested ? `${topRequested.request_count} votes` : undefined}
                 icon={TrendingUp}
                 color="#f59e0b"
@@ -347,7 +361,7 @@ const ProductRequestsBoard: React.FC = () => {
                 fullValue={`TZS ${potentialProfit.toLocaleString()}`}
                 icon={TrendingUp}
                 color="#a855f7"
-                className="col-span-2 md:col-span-1"
+                className="col-span-2 sm:col-span-1 lg:col-span-1"
               />
             </div>
 
@@ -392,7 +406,7 @@ const ProductRequestsBoard: React.FC = () => {
                 <span className="text-2xs text-gray-400">{sortedRequests.length} total items</span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs min-w-[700px]">
                   <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
                     <tr>
                       <th scope="col" className="p-3 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('name')}>
@@ -401,69 +415,69 @@ const ProductRequestsBoard: React.FC = () => {
                         </div>
                       </th>
                       <th scope="col" className="p-3 text-center w-24 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('request_count')}>
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                           <TrendingUp size={12} />
                           Demand {getSortIcon('request_count')}
                         </div>
                       </th>
-                      <th scope="col" className="p-3">Status</th>
-                      <th scope="col" className="p-3 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('created_at')}>
+                      <th scope="col" className="p-3 whitespace-nowrap w-36">Status</th>
+                      <th scope="col" className="p-3 whitespace-nowrap w-28 cursor-pointer hover:text-gray-900 dark:hover:text-white transition select-none" onClick={() => handleSort('created_at')}>
                         <div className="flex items-center gap-1">
                           <Calendar size={12} />
                           Created {getSortIcon('created_at')}
                         </div>
                       </th>
-                      <th scope="col" className="p-3 text-right">Actions</th>
+                      <th scope="col" className="p-3 text-right whitespace-nowrap w-64 min-w-[250px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                     {sortedRequests.map((req) => (
                       <tr key={req.id} className={`hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition ${req.is_fulfilled ? 'opacity-60' : ''}`}>
-                        <td className="p-3 max-w-[250px] align-middle">
+                        <td className="p-3 align-middle min-w-[200px]">
                           <div className="flex items-center gap-3">
                             {req.image ? (
-                              <img src={req.image} alt={req.name} className="w-10 h-10 rounded-lg object-cover bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border" />
+                              <img src={req.image} alt={req.name} className="w-10 h-10 rounded-lg object-cover bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border shrink-0" />
                             ) : (
                               <div className="w-10 h-10 rounded-lg bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border flex items-center justify-center shrink-0">
                                 <ImageIcon size={18} className="text-gray-400" />
                               </div>
                             )}
-                            <div className="min-w-0">
-                              <p className="font-bold text-gray-900 dark:text-white truncate">{req.name}</p>
-                              <div className="flex items-center gap-2 text-2xs text-gray-400 mt-0.5">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-gray-900 dark:text-white truncate" title={req.name}>{req.name}</p>
+                              <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-2xs text-gray-400 mt-0.5">
                                 {req.buying_price && (
-                                  <span>Buy: <strong className="text-blue-500">{formatCompactCurrency(req.buying_price)}</strong></span>
+                                  <span className="whitespace-nowrap">Buy: <strong className="text-blue-500">{formatCompactCurrency(req.buying_price)}</strong></span>
                                 )}
                                 {req.price && (
-                                  <span>Sell: <strong className="text-emerald-500">{formatCompactCurrency(req.price)}</strong></span>
+                                  <span className="whitespace-nowrap">Sell: <strong className="text-emerald-500">{formatCompactCurrency(req.price)}</strong></span>
                                 )}
-                                {req.condition && <span>• {req.condition}</span>}
+                                {req.condition && <span className="whitespace-nowrap text-gray-400">• {req.condition}</span>}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="p-3 text-center align-middle">
-                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-black bg-transparent text-brand-600 dark:text-brand-400 border border-brand-500/40">
+                        <td className="p-3 text-center align-middle whitespace-nowrap w-24">
+                          <span className="font-extrabold text-sm text-brand-500">
                             {req.request_count}
                           </span>
                         </td>
-                        <td className="p-3 align-middle">
+                        <td className="p-3 align-middle whitespace-nowrap w-36">
                           {req.is_fulfilled ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 capitalize">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-500 capitalize whitespace-nowrap">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                               In Inventory
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-transparent text-amber-600 dark:text-amber-400 border border-amber-500/40 capitalize">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-500 capitalize whitespace-nowrap">
+                              <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />
                               Gathering Demand
                             </span>
                           )}
                         </td>
-                        <td className="p-3 text-2xs text-gray-400 align-middle">
+                        <td className="p-3 text-2xs text-gray-400 align-middle whitespace-nowrap w-28">
                           {req.created_at ? new Date(req.created_at).toLocaleDateString() : '--'}
                         </td>
-                        <td className="p-3 text-right align-middle">
+                        <td className="p-3 text-right align-middle whitespace-nowrap w-64 min-w-[250px]">
                           <div className="flex justify-end gap-1.5 items-center">
                             {!req.is_fulfilled ? (
                               <>
@@ -471,34 +485,35 @@ const ProductRequestsBoard: React.FC = () => {
                                   type="button"
                                   size="sm" 
                                   variant="outline"
-                                  className="text-xs py-1"
+                                  className="text-xs py-1 px-2.5 whitespace-nowrap shrink-0 flex items-center gap-1"
                                   onClick={() => handleEditClick(req)}
                                 >
-                                  <Edit size={12} className="mr-1" /> Edit
+                                  <Edit size={12} className="shrink-0" /> Edit
                                 </Button>
                                 <Button 
                                   type="button"
                                   size="sm" 
                                   variant="outline"
-                                  className="text-xs py-1"
+                                  className="text-xs py-1 px-2.5 font-bold active:scale-95 transition-transform whitespace-nowrap shrink-0 flex items-center gap-1"
                                   loading={votingId === req.id}
-                                  onClick={() => handleVote(req)}
+                                  onClick={() => handleIncrementDemand(req)}
+                                  title="Record +1 customer demand"
                                 >
-                                  +1 Demand
+                                  <Plus size={12} className="shrink-0" /> 1 Demand
                                 </Button>
                                 <Button 
                                   type="button"
                                   size="sm" 
                                   variant="default"
-                                  className="text-xs py-1 font-bold"
+                                  className="text-xs py-1 px-3 font-bold whitespace-nowrap shrink-0 flex items-center gap-1"
                                   onClick={() => handleConvert(req)}
                                 >
-                                  <ArrowRightCircle size={12} className="mr-1" />
+                                  <ArrowRightCircle size={12} className="shrink-0" />
                                   Convert
                                 </Button>
                               </>
                             ) : (
-                              <span className="text-gray-400 text-2xs italic">Fulfilled</span>
+                              <span className="text-gray-400 text-xs italic font-medium">Fulfilled</span>
                             )}
                           </div>
                         </td>

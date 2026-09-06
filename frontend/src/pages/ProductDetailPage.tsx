@@ -403,6 +403,7 @@ const ProductDetailPage: React.FC = () => {
 
         const messagePayload = createProductInquiryPayload({
           id: product.id,
+          slug: product.slug,
           name: product.name,
           price: product.price,
           currency: (product as any).currency || 'TZS',
@@ -462,10 +463,9 @@ const ProductDetailPage: React.FC = () => {
     return combined;
   }, [product, variants]);
 
+  // Responsive desktop detection
   useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 1024);
-    };
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -480,6 +480,9 @@ const ProductDetailPage: React.FC = () => {
     ])
       .then(([res, vRes]) => {
         setProduct(res.data);
+        if (res.data?.slug && res.data.slug !== slug && /^\d+$/.test(slug)) {
+          window.history.replaceState(null, '', `/product/${res.data.slug}`);
+        }
         setLikeCount(res.data.like_count);
         setLiked(res.data.is_liked || false);
         setQuantity(parseFloat(res.data.minimum_order_quantity) || 1);

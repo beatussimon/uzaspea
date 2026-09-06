@@ -107,7 +107,7 @@ const ChatInputConsole: React.FC<ChatInputConsoleProps> = React.memo(({
   };
 
   return (
-    <div className="px-3 md:px-4 py-3 border-t border-gray-200/60 dark:border-neutral-800/50 flex flex-col gap-2 shrink-0 z-10 backdrop-blur-xl bg-white/60 dark:bg-black/30">
+    <div className="px-3 md:px-4 py-3 border-t border-gray-200/60 dark:border-neutral-800/50 flex flex-col gap-2 shrink-0 z-10 backdrop-blur-xl bg-white/60 dark:bg-black/30 w-full max-w-full">
       {showEmojiPicker && (
         <div className="flex items-center gap-2 p-1.5 bg-gray-100/60 dark:bg-neutral-900/40 rounded-full border border-gray-200/50 dark:border-neutral-800/40 overflow-x-auto">
           {quickEmojis.map(emoji => (
@@ -443,7 +443,7 @@ const MessagesPage: React.FC = () => {
 
   if (contextLoading && conversations.length === 0) {
     return (
-      <div className="h-[calc(100vh-4.5rem)] md:h-[calc(100vh-6.5rem)] flex flex-col p-4 animate-fade-in">
+      <div className="h-[calc(100vh-4.5rem)] md:h-[calc(100vh-6.5rem)] flex flex-col p-4 animate-fade-in w-full max-w-full overflow-hidden">
         <ChatSkeleton className="h-full" />
       </div>
     );
@@ -453,11 +453,11 @@ const MessagesPage: React.FC = () => {
   const isMobileThreadActive = !!id;
 
   return (
-    <div className="h-[calc(100vh-4.5rem)] md:h-[calc(100vh-6.5rem)] flex flex-col">
-      <div className="flex-1 flex overflow-hidden min-h-0 relative">
+    <div className="h-[calc(100vh-4.5rem)] md:h-[calc(100vh-6.5rem)] flex flex-col w-full max-w-full overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0 min-w-0 relative w-full">
         
         {/* --- 1. Conversations Sidebar --- */}
-        <div className={`w-full md:w-80 lg:w-96 flex flex-col md:border-r md:border-gray-200/60 dark:md:border-neutral-800/60 ${isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`w-full md:w-80 lg:w-96 flex flex-col shrink-0 min-w-0 max-w-full md:border-r md:border-gray-200/60 dark:md:border-neutral-800/60 ${isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
           <div className="px-4 md:px-5 pt-4 pb-3 flex flex-col gap-3">
             {viewMode === 'main' ? (
               <div className="flex items-center gap-2.5">
@@ -656,7 +656,7 @@ const MessagesPage: React.FC = () => {
         </div>
 
         {/* --- 2. Chat Thread Area --- */}
-        <div className={`flex-1 flex flex-col ${!isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`flex-1 flex flex-col min-w-0 max-w-full overflow-hidden w-full ${!isMobileThreadActive ? 'hidden md:flex' : 'flex'}`}>
           {!id ? (
             /* Empty State */
             <div className="flex-1 flex flex-col items-center justify-center p-8">
@@ -670,7 +670,7 @@ const MessagesPage: React.FC = () => {
             /* Active Thread */
             <>
               {/* Thread Header */}
-              <div className="px-4 md:px-5 py-3 border-b border-gray-200/60 dark:border-neutral-800/50 flex items-center justify-between shrink-0 z-10 backdrop-blur-xl bg-white/60 dark:bg-black/30">
+              <div className="px-4 md:px-5 py-3 border-b border-gray-200/60 dark:border-neutral-800/50 flex items-center justify-between shrink-0 z-10 backdrop-blur-xl bg-white/60 dark:bg-black/30 w-full max-w-full">
                 <div className="flex items-center gap-3.5 min-w-0">
                   {/* Mobile Back Button */}
                   <button 
@@ -731,7 +731,7 @@ const MessagesPage: React.FC = () => {
 
               {/* Chat Messages Log Scroll */}
               <div 
-                className="flex-1 overflow-y-auto px-4 md:px-5 py-4 space-y-6 relative" 
+                className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-5 py-4 space-y-6 relative w-full max-w-full" 
                 ref={scrollRef}
                 onScroll={handleScroll}
               >
@@ -743,7 +743,7 @@ const MessagesPage: React.FC = () => {
                   )}
 
                   {Object.keys(groupedMessages).map(dateStr => (
-                    <div key={dateStr} className="space-y-4">
+                    <div key={dateStr} className="space-y-4 w-full max-w-full">
                       {/* Day divider */}
                       <motion.div className="flex justify-center my-4">
                         <span className="px-3 py-1 bg-gray-200/55 dark:bg-neutral-900 text-gray-500 dark:text-gray-400 text-[10px] font-bold rounded-full tracking-wide">
@@ -765,9 +765,9 @@ const MessagesPage: React.FC = () => {
                         });
 
                         return (
-                          <div key={msg.id} ref={isFirstUnread ? firstUnreadRef : null} className="w-full flex flex-col">
+                          <div key={msg.id} ref={isFirstUnread ? firstUnreadRef : null} className="w-full max-w-full flex flex-col">
                             {isFirstUnread && (
-                              <div className="w-full flex items-center justify-center my-4 relative self-center" style={{ width: '117%' }}>
+                              <div className="w-full flex items-center justify-center my-4 relative">
                                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-brand-500/30 dark:border-brand-500/20"></div></div>
                                 <span className="relative bg-white dark:bg-[#0a0a0a] px-3 text-[10px] font-bold text-brand-500 dark:text-brand-500 uppercase tracking-widest select-none shadow-sm rounded-full border border-brand-500/20 dark:border-brand-500/10">New Messages</span>
                               </div>
@@ -793,7 +793,7 @@ const MessagesPage: React.FC = () => {
                               {/* Attached Product Preview Card */}
                               {parsed.product && (
                                 <div
-                                  onClick={() => navigate(`/product/${parsed.product?.id}`)}
+                                  onClick={() => navigate(`/product/${parsed.product?.slug || parsed.product?.id}`)}
                                   className="cursor-pointer group max-w-full sm:max-w-[300px] bg-white dark:bg-[#1f2022] border border-gray-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-md hover:border-brand-500/50 hover:shadow-lg transition-all text-left mb-0.5"
                                 >
                                   <div className="flex items-center gap-3 p-2.5">
@@ -841,7 +841,7 @@ const MessagesPage: React.FC = () => {
                                   </div>
 
                                   {/* Hover timestamp */}
-                                  <span className={`absolute top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap ${
+                                  <span className={`absolute top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none ${
                                     isMe ? '-left-14' : '-right-14'
                                   }`}>
                                     {messageTime}

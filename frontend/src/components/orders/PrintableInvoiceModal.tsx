@@ -45,14 +45,9 @@ export const PrintableInvoiceModal: React.FC<PrintableInvoiceModalProps> = ({ or
       <div className="bg-white dark:bg-[#111] text-gray-900 dark:text-white w-full max-w-3xl rounded-2xl shadow-2xl border border-surface-border dark:border-surface-dark-border overflow-hidden flex flex-col max-h-[92vh] print:shadow-none print:rounded-none print:max-h-none print:border-0">
         {/* Modal Toolbar (hidden in print) */}
         <div className="flex items-center justify-between px-6 py-3.5 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/50 dark:bg-[#161616] print:hidden">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-1.5 rounded-lg bg-brand-500/10 dark:bg-brand-500/15 text-brand-500 shrink-0">
-              <Printer size={16} />
-            </div>
-            <h3 className="font-extrabold text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate">
-              SokoniMax Invoice #{order.id}
-            </h3>
-          </div>
+          <h3 className="font-extrabold text-sm uppercase tracking-wide text-gray-900 dark:text-white truncate">
+            SokoniMax Invoice #{order.id}
+          </h3>
 
           <div className="flex items-center gap-2 shrink-0">
             <button

@@ -89,10 +89,10 @@ export const KpiCard: React.FC<KpiCardProps> = ({
           </span>
         </div>
 
-        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 min-w-0">
+        <div className="flex items-baseline gap-x-1.5 gap-y-0.5 min-w-0 overflow-hidden">
           <span
             className={cn(
-              "font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight whitespace-nowrap",
+              "font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight truncate",
               getValueFontSize()
             )}
             style={color ? { color } : undefined}

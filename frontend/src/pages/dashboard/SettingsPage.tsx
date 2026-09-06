@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, Sliders, ChevronLeft } from 'lucide-react';
+import { User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, Sliders, ChevronLeft, ShieldCheck, HelpCircle, ExternalLink } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useUserRoles } from '../../context/AuthContext';
 
@@ -14,6 +14,9 @@ const SettingsPage: React.FC = () => {
     const [profile, setProfile] = useState<any>({});
     const [form, setForm] = useState({ bio: '', phone_number: '', location: '', website: '', instagram_username: '', whatsapp_number: '', facebook_url: '', tiktok_username: '', twitter_username: '', youtube_url: '', linkedin_url: '', show_product_requests: true });
     const [passwords, setPasswords] = useState({ old: '', new1: '', new2: '' });
+    const [passwordChanging, setPasswordChanging] = useState(false);
+    const [passwordRequestPending, setPasswordRequestPending] = useState(false);
+    const [passwordMaskedEmail, setPasswordMaskedEmail] = useState('');
     const [saving, setSaving] = useState(false);
 
     // Subscription Upgrade State
@@ -133,13 +136,26 @@ const SettingsPage: React.FC = () => {
     };
 
     const handlePasswordChange = async () => {
+        if (!passwords.old) { toast.error('Please enter your current password'); return; }
+        if (!passwords.new1) { toast.error('Please enter your new password'); return; }
         if (passwords.new1 !== passwords.new2) { toast.error('Passwords do not match'); return; }
         if (passwords.new1.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+
+        setPasswordChanging(true);
         try {
-            await api.post('/api/auth/change-password/', { old_password: passwords.old, new_password: passwords.new1 });
-            toast.success('Password changed');
+            const res = await api.post('/api/auth/request-password-change/', {
+                old_password: passwords.old,
+                new_password: passwords.new1,
+            });
+            toast.success('Password change request submitted');
+            setPasswordRequestPending(true);
+            setPasswordMaskedEmail(res.data?.masked_email || '');
             setPasswords({ old: '', new1: '', new2: '' });
-        } catch { toast.error('Incorrect current password'); }
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to request password change');
+        } finally {
+            setPasswordChanging(false);
+        }
     };
 
     return (
@@ -346,54 +362,95 @@ const SettingsPage: React.FC = () => {
                     </div>
                     <div>
                         <h2 className="font-semibold text-sm text-gray-900 dark:text-white">Password & Security</h2>
-                        <p className="text-xs text-gray-500 dark:text-neutral-400">Ensure your account is protected with a secure password</p>
+                        <p className="text-xs text-gray-500 dark:text-neutral-400">Ensure your account is protected with a verified password</p>
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    <div className="space-y-1.5">
-                        <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">Current Password</label>
-                        <input
-                            type="password"
-                            placeholder="Enter current password"
-                            value={passwords.old}
-                            onChange={e => setPasswords({ ...passwords, old: e.target.value })}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
-                        />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">New Password</label>
-                            <input
-                                type="password"
-                                placeholder="Min. 8 characters"
-                                value={passwords.new1}
-                                onChange={e => setPasswords({ ...passwords, new1: e.target.value })}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
-                            />
+                {passwordRequestPending ? (
+                    <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 space-y-2.5">
+                        <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-semibold text-xs">
+                            <ShieldCheck size={18} />
+                            <span>Password Change Request Pending Verification</span>
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">Confirm New Password</label>
-                            <input
-                                type="password"
-                                placeholder="Re-type new password"
-                                value={passwords.new2}
-                                onChange={e => setPasswords({ ...passwords, new2: e.target.value })}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
-                            />
+                        <p className="text-xs text-gray-600 dark:text-neutral-300 leading-relaxed">
+                            For enhanced security, an administrator will manually verify your request and email a single-use confirmation link to your registered email {passwordMaskedEmail ? (<span className="font-semibold text-gray-900 dark:text-white">({passwordMaskedEmail})</span>) : 'on file'}.
+                        </p>
+                        <p className="text-[11px] text-gray-500 dark:text-neutral-400">
+                            Your current password remains in effect until you click the link. The one-time link is strictly valid for 24 hours.
+                        </p>
+                        <div className="flex items-center justify-between pt-2 border-t border-blue-500/15">
+                            <button
+                                type="button"
+                                onClick={() => setPasswordRequestPending(false)}
+                                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                                Submit another request
+                            </button>
+                            <Link
+                                to="/help"
+                                className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                            >
+                                Need help? Contact Support
+                                <ExternalLink size={12} />
+                            </Link>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    <>
+                        <div className="space-y-3">
+                            <div className="space-y-1.5">
+                                <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">Current Password</label>
+                                <input
+                                    type="password"
+                                    placeholder="Enter current password"
+                                    value={passwords.old}
+                                    onChange={e => setPasswords({ ...passwords, old: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">New Password</label>
+                                    <input
+                                        type="password"
+                                        placeholder="Min. 8 characters"
+                                        value={passwords.new1}
+                                        onChange={e => setPasswords({ ...passwords, new1: e.target.value })}
+                                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">Confirm New Password</label>
+                                    <input
+                                        type="password"
+                                        placeholder="Re-type new password"
+                                        value={passwords.new2}
+                                        onChange={e => setPasswords({ ...passwords, new2: e.target.value })}
+                                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                                    />
+                                </div>
+                            </div>
+                        </div>
 
-                <div className="flex justify-end pt-2">
-                    <Button
-                        onClick={handlePasswordChange}
-                        size="sm"
-                        className="rounded-xl px-5 font-semibold text-xs"
-                    >
-                        Update Password
-                    </Button>
-                </div>
+                        <div className="pt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <Link
+                                to="/help"
+                                className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                            >
+                                <HelpCircle size={13} />
+                                <span>Suspect unauthorized activity? Contact Support</span>
+                            </Link>
+                            <Button
+                                onClick={handlePasswordChange}
+                                loading={passwordChanging}
+                                size="sm"
+                                className="rounded-xl px-5 font-semibold text-xs self-end sm:self-auto"
+                            >
+                                Request Password Change
+                            </Button>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Business Location (Sellers only) */}

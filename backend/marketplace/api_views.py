@@ -11,14 +11,18 @@ from django.db.models import Q, Sum, Count, Avg, F
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
-from django.db import models as django_models
+from django.db import models
+django_models = models
+import secrets
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.hashers import make_password
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
     Payment, TrackingEvent, UserProfile, Like, ProductImage,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, DeliveryZone, SiteSettings, push_notification, ProductVariant,
     MobileNetwork, VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
-    Brand, ReferenceProduct
+    Brand, ReferenceProduct, PasswordResetRequest
 )
 from .serializers import (
     ProductSerializer, CategorySerializer, ProductReviewSerializer, 
@@ -27,10 +31,10 @@ from .serializers import (
     SavedSearchSerializer, PriceAlertSerializer, DisputeSerializer,
     SiteSettingsSerializer, DeliveryZoneSerializer, ProductVariantSerializer,
     MobileNetworkSerializer, VehicleMakeSerializer, VehicleModelSerializer, VehicleSerializer,
-    BrandSerializer, ReferenceProductSerializer
+    BrandSerializer, ReferenceProductSerializer, PasswordResetRequestStaffSerializer
 )
 
-from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove, has_staff_permission
+from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove, has_staff_permission, IsSuperUser
 from django.db.models import Prefetch
 from django.db import transaction
 
@@ -59,6 +63,11 @@ class GeocodeAnonRateThrottle(AnonRateThrottle):
 class GeocodeUserRateThrottle(UserRateThrottle):
     rate = '100/minute'
 
+class ForgotPasswordRateThrottle(AnonRateThrottle):
+    scope = 'forgot_password'
+    rate = '5/hour'
+
+from django.contrib.auth.models import User
 from rest_framework.decorators import api_view, permission_classes, throttle_classes, authentication_classes
 import requests
 
@@ -167,6 +176,25 @@ class ProductViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated(), IsSellerOrAbove(), IsOwnerOrStaff()]
         return super().get_permissions()
     lookup_field = 'slug'
+
+    def get_object(self):
+        from django.http import Http404
+        from django.db.models import Q
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_val = self.kwargs.get(lookup_url_kwarg)
+        
+        if lookup_val is not None:
+            if str(lookup_val).isdigit():
+                obj = queryset.filter(Q(id=int(lookup_val)) | Q(slug=lookup_val)).first()
+            else:
+                obj = queryset.filter(slug=lookup_val).first()
+                
+            if obj is not None:
+                self.check_object_permissions(self.request, obj)
+                return obj
+                
+        raise Http404("No product matches the given query.")
 
     def get_queryset(self):
         from django.db.models import Avg, Count, Exists, OuterRef, Subquery, Value, BooleanField, IntegerField
@@ -2726,22 +2754,277 @@ class AcceptTermsView(APIView):
         profile.save()
         return Response({'status': 'terms accepted'})
 
-class ChangePasswordView(APIView):
+class RequestPasswordChangeView(APIView):
+    """
+    User requests a password change from Settings.
+    Validates current password and new password complexity, securely hashes the new password,
+    and generates a pending request for manual admin review and dispatch.
+    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         old = request.data.get('old_password')
         new = request.data.get('new_password')
+        if not old or not new:
+            return Response({'error': 'Both current and new passwords are required.'}, status=400)
+
         if not request.user.check_password(old):
-            return Response({'error': 'Incorrect current password'}, status=400)
+            return Response({'error': 'Incorrect current password.'}, status=400)
+
+        if not request.user.email:
+            return Response({
+                'error': 'No registered email address found for your account. Please add an email address in profile settings or contact support.'
+            }, status=400)
+
         from django.core.exceptions import ValidationError
         try:
             validate_password(new, request.user)
         except ValidationError as e:
             return Response({'error': " ".join(e.messages)}, status=400)
-        request.user.set_password(new)
-        request.user.save()
-        return Response({'status': 'password changed'})
+
+        # Invalidate any prior pending requests for this user
+        PasswordResetRequest.objects.filter(
+            user=request.user,
+            status__in=['pending', 'dispatched']
+        ).update(status='superseded')
+
+        # Securely hash pending new password so plaintext is NEVER stored
+        pending_hash = make_password(new)
+        token = secrets.token_urlsafe(48)
+
+        ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR')
+        user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
+
+        PasswordResetRequest.objects.create(
+            user=request.user,
+            request_type='settings_change',
+            token=token,
+            pending_password_hash=pending_hash,
+            status='pending',
+            expires_at=timezone.now() + timedelta(hours=24),
+            ip_address=ip,
+            user_agent=user_agent
+        )
+
+        email = request.user.email
+        if '@' in email:
+            u_part, domain = email.split('@', 1)
+            masked = (u_part[:2] + '***' if len(u_part) > 2 else u_part[:1] + '***') + '@' + domain
+        else:
+            masked = email
+
+        return Response({
+            'status': 'pending_dispatch',
+            'masked_email': masked,
+            'message': f'Password change request created. For enhanced account security, an administrator will manually verify your request and email a one-time confirmation link to your registered address ({masked}).'
+        })
+
+
+# Maintain backwards compatibility
+ChangePasswordView = RequestPasswordChangeView
+
+
+class ForgotPasswordRequestView(APIView):
+    """
+    Public endpoint: User submits registered email.
+    If valid user exists, creates an admin-mediated password reset request.
+    Uniform response to prevent email harvesting.
+    """
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ForgotPasswordRateThrottle]
+
+    def post(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        if not email:
+            return Response({'error': 'Please provide your registered email address.'}, status=400)
+
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        if user:
+            # Supersede prior pending requests
+            PasswordResetRequest.objects.filter(
+                user=user,
+                status__in=['pending', 'dispatched']
+            ).update(status='superseded')
+
+            token = secrets.token_urlsafe(48)
+            ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR')
+            user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
+
+            PasswordResetRequest.objects.create(
+                user=user,
+                request_type='forgot_password',
+                token=token,
+                status='pending',
+                expires_at=timezone.now() + timedelta(hours=24),
+                ip_address=ip,
+                user_agent=user_agent
+            )
+
+        # Anti-enumeration response: uniform message
+        return Response({
+            'status': 'submitted',
+            'message': 'If an account exists with this email address, our administrative team will review the request and dispatch a secure one-time reset link to your inbox.'
+        })
+
+
+class VerifyResetTokenView(APIView):
+    """
+    Public endpoint: Validates a one-time reset/confirmation token before displaying the reset UI.
+    """
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        token = (request.query_params.get('token') or '').strip()
+        if not token:
+            return Response({'valid': False, 'error': 'Missing reset token.'}, status=400)
+
+        req_obj = PasswordResetRequest.objects.filter(token=token).select_related('user').first()
+        if not req_obj:
+            return Response({'valid': False, 'error': 'Invalid or unknown reset link.'}, status=404)
+
+        if req_obj.is_used:
+            return Response({'valid': False, 'error': 'This one-time link has already been used.'}, status=410)
+
+        if req_obj.status == 'superseded':
+            return Response({'valid': False, 'error': 'This reset request was superseded by a newer request.'}, status=410)
+
+        if timezone.now() > req_obj.expires_at or req_obj.status == 'expired':
+            return Response({'valid': False, 'error': 'This reset link has expired. Please request a new one.'}, status=410)
+
+        email = req_obj.user.email or ''
+        if '@' in email:
+            u_part, domain = email.split('@', 1)
+            masked = (u_part[:2] + '***' if len(u_part) > 2 else u_part[:1] + '***') + '@' + domain
+        else:
+            masked = email
+
+        return Response({
+            'valid': True,
+            'request_type': req_obj.request_type,
+            'username': req_obj.user.username,
+            'masked_email': masked,
+            'expires_at': req_obj.expires_at.isoformat(),
+        })
+
+
+class ConfirmPasswordResetView(APIView):
+    """
+    Public endpoint: User submits token (and new password if forgot_password) to apply the change.
+    """
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        token = (request.data.get('token') or '').strip()
+        new_password = request.data.get('new_password')
+
+        if not token:
+            return Response({'error': 'Missing reset token.'}, status=400)
+
+        req_obj = PasswordResetRequest.objects.filter(token=token).select_related('user').first()
+        if not req_obj or not req_obj.is_active():
+            if req_obj and req_obj.is_used:
+                return Response({'error': 'This one-time link has already been used.'}, status=400)
+            return Response({'error': 'This link is invalid or has expired.'}, status=400)
+
+        user = req_obj.user
+
+        if req_obj.request_type == 'settings_change':
+            if not req_obj.pending_password_hash:
+                return Response({'error': 'Corrupt or invalid pending password.'}, status=500)
+            user.password = req_obj.pending_password_hash
+            user.save()
+        else:
+            if not new_password:
+                return Response({'error': 'Please provide a new password.'}, status=400)
+            from django.core.exceptions import ValidationError
+            try:
+                validate_password(new_password, user)
+            except ValidationError as e:
+                return Response({'error': " ".join(e.messages)}, status=400)
+            user.set_password(new_password)
+            user.save()
+
+        # Mark request as completed
+        req_obj.is_used = True
+        req_obj.status = 'completed'
+        req_obj.used_at = timezone.now()
+        req_obj.save()
+
+        # Invalidate any other open requests for this user
+        PasswordResetRequest.objects.filter(
+            user=user,
+            status__in=['pending', 'dispatched']
+        ).exclude(id=req_obj.id).update(status='superseded')
+
+        return Response({
+            'status': 'success',
+            'message': 'Password has been successfully updated. You can now log in with your new password.'
+        })
+
+
+class PasswordResetRequestStaffViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Superuser and Staff administration endpoint for managing and manually dispatching
+    Password Change & Reset Requests.
+    """
+    permission_classes = [permissions.IsAuthenticated, (IsStaffMember | IsSuperUser)]
+    serializer_class = PasswordResetRequestStaffSerializer
+    queryset = PasswordResetRequest.objects.all().select_related('user', 'user__profile', 'dispatched_by').order_by('-created_at')
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        status_param = self.request.query_params.get('status')
+        if status_param and status_param != 'all':
+            qs = qs.filter(status=status_param)
+
+        req_type = self.request.query_params.get('request_type')
+        if req_type and req_type != 'all':
+            qs = qs.filter(request_type=req_type)
+
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(user__username__icontains=search) |
+                Q(user__email__icontains=search) |
+                Q(token__icontains=search) |
+                Q(ip_address__icontains=search)
+            )
+        return qs
+
+    @action(detail=True, methods=['post'], url_path='dispatch')
+    def dispatch_request(self, request, pk=None):
+        instance = self.get_object()
+        if instance.is_used:
+            return Response({'error': 'Cannot dispatch a request that has already been completed.'}, status=400)
+        instance.status = 'dispatched'
+        instance.dispatched_by = request.user
+        instance.dispatched_at = timezone.now()
+        instance.save()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='revoke')
+    def revoke_request(self, request, pk=None):
+        instance = self.get_object()
+        instance.status = 'expired'
+        instance.save()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='counts')
+    def status_counts(self, request):
+        base = PasswordResetRequest.objects.all()
+        return Response({
+            'total': base.count(),
+            'pending': base.filter(status='pending').count(),
+            'dispatched': base.filter(status='dispatched').count(),
+            'completed': base.filter(status='completed').count(),
+            'expired': base.filter(status='expired').count(),
+        })
+
 
 class RegisterView(APIView):
     authentication_classes = []
@@ -3457,11 +3740,13 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         if product_slug:
-            qs = ProductVariant.objects.filter(
-                product__slug=product_slug
-            ).select_related('product')
+            from django.db.models import Q
+            filter_q = Q(product__slug=product_slug)
+            if str(product_slug).isdigit():
+                filter_q |= Q(product__id=int(product_slug))
+            qs = ProductVariant.objects.filter(filter_q).select_related('product')
             if not (user.is_authenticated and (user.is_staff or
-                    ProductVariant.objects.filter(product__slug=product_slug, product__seller=user).exists())):
+                    ProductVariant.objects.filter(filter_q, product__seller=user).exists())):
                 qs = qs.filter(is_available=True)
             return qs
 
@@ -4252,7 +4537,7 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
     def check_demand_card_permission(self, request, obj):
         if not request.user or not request.user.is_authenticated:
             return False
-        if request.user.is_superuser or request.user.is_staff:
+        if request.user.is_superuser or request.user.is_staff or obj.seller_id == request.user.id:
             return True
         from uzachuo.permissions import get_effective_sellers
         effective_sellers = get_effective_sellers(request.user, required_permission='manage_products')
@@ -4294,9 +4579,10 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
             
         from marketplace.models import ProductRequestVote
         from uzachuo.permissions import get_effective_sellers
+        from django.utils import timezone
 
         effective_sellers = get_effective_sellers(request.user, required_permission='manage_products') if request.user.is_authenticated else []
-        is_seller_creating = request.user.is_authenticated and (seller.id in effective_sellers or request.user.is_superuser)
+        is_seller_creating = request.user.is_authenticated and (seller.id == request.user.id or seller.id in effective_sellers or request.user.is_superuser)
 
         # Case insensitive check
         pr = ProductRequest.objects.filter(seller=seller, name__iexact=name).first()
@@ -4305,13 +4591,11 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
             if request.user.is_authenticated and not is_seller_creating:
                 if not ProductRequestVote.objects.filter(request=pr, user=request.user).exists() and pr.user_id != request.user.id:
                     ProductRequestVote.objects.create(request=pr, user=request.user)
-                
-                # Exact distinct voter count
-                distinct_votes = ProductRequestVote.objects.filter(request=pr).count()
-                if pr.user_id and not ProductRequestVote.objects.filter(request=pr, user_id=pr.user_id).exists():
-                    distinct_votes += 1
-                pr.request_count = max(distinct_votes, 1)
-                pr.save(update_fields=['request_count', 'last_requested'])
+                    ProductRequest.objects.filter(id=pr.id).update(
+                        request_count=models.F('request_count') + 1,
+                        last_requested=timezone.now()
+                    )
+                    pr.refresh_from_db()
             elif is_seller_creating:
                 price = request.data.get('price') or request.data.get('target_price')
                 buying_price = request.data.get('buying_price')
@@ -4361,28 +4645,37 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def vote(self, request, pk=None):
+        """
+        Customer voting: Each customer can vote or unvote once per demand card.
+        """
         pr = self.get_object()
         user = request.user
+
+        if pr.is_fulfilled:
+            return Response({'error': 'Cannot vote on a fulfilled demand card.'}, status=400)
         
         from marketplace.models import ProductRequestVote
+        from django.utils import timezone
         existing_vote = ProductRequestVote.objects.filter(request=pr, user=user).first()
         
         if existing_vote:
             # Unvote
             existing_vote.delete()
             voted = False
+            ProductRequest.objects.filter(id=pr.id, request_count__gt=0).update(
+                request_count=models.F('request_count') - 1,
+                last_requested=timezone.now()
+            )
         else:
             # Vote
             ProductRequestVote.objects.create(request=pr, user=user)
             voted = True
+            ProductRequest.objects.filter(id=pr.id).update(
+                request_count=models.F('request_count') + 1,
+                last_requested=timezone.now()
+            )
 
-        # Calculate exact distinct voters
-        real_votes_count = ProductRequestVote.objects.filter(request=pr).count()
-        if pr.user_id and not ProductRequestVote.objects.filter(request=pr, user_id=pr.user_id).exists():
-            real_votes_count += 1
-        
-        pr.request_count = max(real_votes_count, 1 if pr.user_id else 0)
-        pr.save(update_fields=['request_count', 'last_requested'])
+        pr.refresh_from_db()
 
         return Response({
             'id': pr.id,
@@ -4390,6 +4683,71 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
             'votes_count': pr.request_count,
             'request_count': pr.request_count,
             'message': "Interest recorded!" if voted else "Vote removed."
+        })
+
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def increment_demand(self, request, pk=None):
+        """
+        Seller manual demand increment: Allows the store owner or team manager
+        to endlessly record customer inquiries (walk-ins, phone calls, offline demand).
+        """
+        pr = self.get_object()
+        
+        if not self.check_demand_card_permission(request, pr):
+            return Response({'error': 'Only the seller or authorized store managers can manually increment demand.'}, status=403)
+            
+        if pr.is_fulfilled:
+            return Response({'error': 'Cannot add demand to a fulfilled demand card.'}, status=400)
+            
+        amount = int(request.data.get('amount', 1)) if str(request.data.get('amount', '1')).isdigit() else 1
+        amount = max(1, min(amount, 1000))
+        
+        from django.utils import timezone
+        ProductRequest.objects.filter(id=pr.id).update(
+            request_count=models.F('request_count') + amount,
+            last_requested=timezone.now()
+        )
+        pr.refresh_from_db()
+        
+        return Response({
+            'id': pr.id,
+            'request_count': pr.request_count,
+            'votes_count': pr.request_count,
+            'message': f"+{amount} demand recorded for {pr.name}!"
+        })
+
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def decrement_demand(self, request, pk=None):
+        """
+        Seller manual demand decrement: Allows seller to adjust or decrement demand if recorded by mistake.
+        """
+        pr = self.get_object()
+        
+        if not self.check_demand_card_permission(request, pr):
+            return Response({'error': 'Only the seller or authorized store managers can modify demand.'}, status=403)
+            
+        if pr.is_fulfilled:
+            return Response({'error': 'Cannot modify demand on a fulfilled demand card.'}, status=400)
+            
+        amount = int(request.data.get('amount', 1)) if str(request.data.get('amount', '1')).isdigit() else 1
+        amount = max(1, min(amount, 1000))
+        
+        from django.utils import timezone
+        ProductRequest.objects.filter(id=pr.id, request_count__gt=0).update(
+            request_count=models.Case(
+                models.When(request_count__gte=amount, then=models.F('request_count') - amount),
+                default=models.Value(0),
+                output_field=models.PositiveIntegerField()
+            ),
+            last_requested=timezone.now()
+        )
+        pr.refresh_from_db()
+        
+        return Response({
+            'id': pr.id,
+            'request_count': pr.request_count,
+            'votes_count': pr.request_count,
+            'message': f"Demand updated for {pr.name}."
         })
 
 class SellerAnalyticsView(APIView):
