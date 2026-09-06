@@ -221,18 +221,21 @@ class IsOwnerOrStaff(permissions.BasePermission):
 
 class IsSellerOrAbove(permissions.BasePermission):
     """Requires an active Seller Pro or Business tier subscription or being an active team member with manage_products permission."""
-    message = 'A Seller Pro or Business subscription is required to perform this action.'
+    message = 'Your seller subscription has expired. Please renew your subscription to perform this action.'
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        if request.user.is_staff or request.user.is_superuser:
+        # Only superusers are exempt from seller subscription requirements
+        if request.user.is_superuser:
             return True
+        from django.utils import timezone
         # Either the user has active subscription themselves:
         has_sub = request.user.subscriptions.filter(
             is_active=True,
-            tier__tier_level__in=['seller_pro', 'business']
-        ).exists() or (getattr(request.user, 'profile', None) and request.user.profile.tier in ['seller_pro', 'business'])
+            tier__tier_level__in=['seller_pro', 'business'],
+            end_date__gte=timezone.now()
+        ).exists()
         if has_sub:
             return True
         # Or the user is an active team member of a Business owner with manage_products permission:
@@ -243,6 +246,7 @@ class IsSellerOrAbove(permissions.BasePermission):
             is_active=True,
             owner__subscriptions__is_active=True,
             owner__subscriptions__tier__tier_level='business',
+            owner__subscriptions__end_date__gte=timezone.now(),
             permissions__manage_products=True
         ).exists()
 

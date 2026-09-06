@@ -55,7 +55,7 @@
 
   /* Focus ring for accessibility */
   :focus-visible {
-    @apply outline-none ring-2 ring-brand-500;
+    @apply outline-none ring-1 ring-neutral-400 dark:ring-neutral-600;
   }
 
   /* Remove default tap highlight on mobile */

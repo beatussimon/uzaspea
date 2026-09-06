@@ -1,6 +1,6 @@
-# Uzaspea Platform Audit & AI Agent Implementation Guide (work.md)
+# SokoniMax Work Items & Implementation Guide (work.md)
 
-This document contains the complete audit and step-by-step instructions to resolve the 11 core issues currently affecting the Uzaspea marketplace. Follow these instructions exactly.
+This document contains step-by-step instructions to resolve the 11 open work items for the SokoniMax marketplace. Follow these instructions exactly.
 
 ---
 

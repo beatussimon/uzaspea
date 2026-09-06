@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, FileText, Package, 
-  Wallet, CreditCard, TrendingUp, Shield, MessageSquare, 
+  Wallet, CreditCard, Shield, MessageSquare, 
   Lightbulb, ChevronLeft, ChevronRight, AlertCircle, Store,
   LogOut
 } from 'lucide-react';
@@ -20,7 +20,6 @@ import ProductRequestsBoard from '../dashboard/ProductRequestsBoard';
 import MessagesPage from '../MessagesPage';
 import BillingPage from '../dashboard/BillingPage';
 import PaymentNumbersManager from '../dashboard/PaymentNumbersManager';
-import DashboardAnalytics from '../dashboard/DashboardAnalytics';
 import MyTeamPage from '../dashboard/MyTeamPage';
 
 export const TeamsDashboardLayout: React.FC = () => {
@@ -88,12 +87,6 @@ export const TeamsDashboardLayout: React.FC = () => {
       label: t('billing_ledger', 'Billing & Ledger'), 
       icon: Wallet, 
       show: !!perms.manage_billing 
-    },
-    { 
-      path: '/teams-dashboard/analytics', 
-      label: t('analytics', 'Analytics'), 
-      icon: TrendingUp, 
-      show: !!perms.view_analytics 
     },
     { 
       path: '/teams-dashboard/my-role', 
@@ -252,7 +245,7 @@ export const TeamsDashboardLayout: React.FC = () => {
             
             <Route 
               path="analytics/*" 
-              element={perms.view_analytics ? <DashboardAnalytics /> : <TeamsAccessDenied requiredPermission="view_analytics" moduleName="Sales Reports" />} 
+              element={<Navigate to="/teams-dashboard" replace />} 
             />
             
             <Route path="my-role" element={<MyTeamPage />} />

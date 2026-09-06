@@ -8,7 +8,7 @@ from .serializers import CommissionLedgerEntrySerializer, MonthlyInvoiceSerializ
 from django.db.models import Sum
 
 class BillingViewSet(viewsets.GenericViewSet):
-    permission_classes = [permissions.IsAuthenticated, IsSellerOrAbove]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return MonthlyInvoice.objects.filter(seller=self.request.user)
@@ -75,5 +75,32 @@ class BillingViewSet(viewsets.GenericViewSet):
             # Mark invoice as pending review
             invoice.status = MonthlyInvoice.Status.PENDING_REVIEW
             invoice.save(update_fields=['status'])
+
+            try:
+                from django.contrib.auth import get_user_model
+                from marketplace.models import push_notification
+                User = get_user_model()
+                
+                inv_label = invoice.invoice_number or f"#{invoice.id}"
+                amount_fmt = f"{int(invoice.total_amount_due or invoice.total_commission or 0):,}"
+
+                push_notification(
+                    user=request.user,
+                    notification_type='general',
+                    title='Invoice Payment Submitted',
+                    message=f'Your payment proof for Invoice {inv_label} (TZS {amount_fmt}) has been received and is being verified.',
+                    link='/dashboard/billing'
+                )
+                for staff in User.objects.filter(is_staff=True, is_active=True):
+                    push_notification(
+                        user=staff,
+                        notification_type='general',
+                        title='New Invoice Payment to Verify',
+                        message=f'@{request.user.username} submitted payment proof for Invoice {inv_label} (TZS {amount_fmt}).',
+                        link='/staff/billing'
+                    )
+            except Exception as e:
+                pass
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

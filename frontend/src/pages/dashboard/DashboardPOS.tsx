@@ -2,12 +2,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronLeft, History, Receipt, CalendarDays } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, Trash2, Printer, X, ChevronUp, ChevronLeft, History, Receipt, CalendarDays, User, Banknote } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
-import { TableSkeleton, ProductGridSkeleton } from '../../components/Skeleton';
+import { TableSkeleton, POSProductGridSkeleton } from '../../components/Skeleton';
 
 interface Product {
   id: number;
@@ -65,7 +65,7 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
     });
   }, [orders, dateFilter]);
 
-  if (loading) return <TableSkeleton rows={5} cols={5} />;
+  if (loading) return <TableSkeleton rows={5} cols={6} />;
 
   return (
     <div className="card overflow-hidden">
@@ -97,37 +97,51 @@ const POSHistory = ({ onPrint }: { onPrint: (order: any) => void }) => {
               <th className="p-3">Date</th>
               <th className="p-3">Invoice #</th>
               <th className="p-3">Customer</th>
-              <th className="p-3 text-right">Amount</th>
-              <th className="p-3 text-center">Action</th>
+              <th className="p-3 text-right">Total Sale</th>
+              <th className="p-3 text-right">Cash Tendered</th>
+              <th className="p-3 text-right">Change Given</th>
+              <th className="p-3 text-center">Receipt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
             {filteredOrders.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-12 text-center text-gray-400 text-xs">
+                <td colSpan={7} className="py-12 text-center text-gray-400 text-xs">
                   No sales found for the selected criteria.
                 </td>
               </tr>
             ) : (
-              filteredOrders.map(order => (
-                <tr key={order.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
-                  <td className="p-3 text-gray-500 dark:text-gray-400">
-                    {new Date(order.order_date).toLocaleDateString()} {new Date(order.order_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                  <td className="p-3 text-brand-600 dark:text-brand-400 font-bold">#{order.id}</td>
-                  <td className="p-3 text-gray-700 dark:text-gray-300 font-medium">
-                    {order.delivery_info?.customer_name || 'Walk-in Customer'}
-                  </td>
-                  <td className="p-3 text-right font-extrabold text-gray-900 dark:text-white">
-                    TSh {parseFloat(order.total_amount).toLocaleString()}
-                  </td>
-                  <td className="p-3 text-center">
-                    <Button variant="outline" size="sm" onClick={() => onPrint(order)} className="text-2xs py-1 px-2.5 h-7 font-bold">
-                      <Printer size={12} className="mr-1" /> View Receipt
-                    </Button>
-                  </td>
-                </tr>
-              ))
+              filteredOrders.map(order => {
+                const totalAmt = parseFloat(order.total_amount || 0);
+                const tendered = parseFloat(order.delivery_info?.amount_tendered || order.delivery_info?.amount_paid || totalAmt);
+                const change = parseFloat(order.delivery_info?.change_due || Math.max(0, tendered - totalAmt));
+
+                return (
+                  <tr key={order.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                    <td className="p-3 text-gray-500 dark:text-gray-400">
+                      {new Date(order.order_date).toLocaleDateString()} {new Date(order.order_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td className="p-3 text-brand-600 dark:text-brand-400 font-bold">#{order.id}</td>
+                    <td className="p-3 text-gray-700 dark:text-gray-300 font-medium">
+                      {order.delivery_info?.customer_name || 'Walk-in Customer'}
+                    </td>
+                    <td className="p-3 text-right font-extrabold text-gray-900 dark:text-white">
+                      TSh {totalAmt.toLocaleString()}
+                    </td>
+                    <td className="p-3 text-right font-semibold text-gray-700 dark:text-gray-300">
+                      TSh {tendered.toLocaleString()}
+                    </td>
+                    <td className="p-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                      {change > 0 ? `TSh ${change.toLocaleString()}` : '—'}
+                    </td>
+                    <td className="p-3 text-center">
+                      <Button variant="outline" size="sm" onClick={() => onPrint(order)} className="text-2xs py-1 px-2.5 h-7 font-bold">
+                        <Printer size={12} className="mr-1" /> View Receipt
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -404,19 +418,19 @@ const DashboardPOS: React.FC = () => {
           {/* Products Section */}
           <div className="flex-1 w-full card overflow-hidden flex flex-col">
             {/* Search Header */}
-            <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+            <div className="p-4 pb-2 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
               <div>
                 <h2 className="text-sm font-bold text-gray-900 dark:text-white">Store Catalog</h2>
                 <p className="text-2xs text-gray-500 dark:text-gray-400">Click any product to add to the active register cart</p>
               </div>
-              <div className="relative w-full sm:w-72">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                 <input
                   type="text"
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input pl-8 py-1.5 text-xs w-full"
+                  className="w-full bg-surface-muted/60 dark:bg-[#161616] border border-surface-border/60 dark:border-surface-dark-border/60 focus:border-brand-500 rounded-xl pl-8 pr-3 py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 outline-none transition"
                 />
               </div>
             </div>
@@ -424,7 +438,7 @@ const DashboardPOS: React.FC = () => {
             {/* Product Grid */}
             <div className="p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
               {loading ? (
-                <ProductGridSkeleton count={6} />
+                <POSProductGridSkeleton count={6} />
               ) : filteredProducts.length === 0 ? (
                 <div className="text-center py-16 text-gray-400">
                   <ShoppingCart size={40} className="mx-auto mb-3 opacity-20" />
@@ -434,16 +448,20 @@ const DashboardPOS: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {filteredProducts.map((product) => (
-                    <div key={product.id} className="rounded-card bg-surface-muted/40 hover:bg-surface-muted/70 dark:bg-[#141414] dark:hover:bg-[#181818] p-3 flex flex-col justify-between transition border border-transparent hover:border-surface-border dark:hover:border-surface-dark-border group">
+                    <div 
+                      key={product.id} 
+                      onClick={() => (!product.variants || product.variants.length === 0) && product.stock > 0 ? addToCart(product) : null}
+                      className="p-2.5 rounded-xl hover:bg-surface-muted/40 dark:hover:bg-[#161616] transition flex flex-col justify-between group cursor-pointer"
+                    >
                       <div>
-                        <div className="aspect-[4/3] rounded-btn bg-surface-muted dark:bg-[#1a1a1a] relative overflow-hidden mb-2">
+                        <div className="aspect-[4/3] rounded-lg bg-surface-muted/60 dark:bg-[#161616] relative overflow-hidden mb-2">
                           <SafeImage src={product.images?.[0]?.image || ''} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                           {product.stock <= 0 && (
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-10">
                               <span className="text-white font-medium uppercase px-2 py-0.5 bg-red-500 rounded-full text-3xs">Out of Stock</span>
                             </div>
                           )}
-                          <div className="absolute top-1.5 right-1.5 bg-black/60 backdrop-blur-xs text-white px-2 py-0.5 rounded-full text-[10px] font-medium">
+                          <div className="absolute top-1.5 right-1.5 bg-black/70 backdrop-blur-xs text-white px-2 py-0.5 rounded-full text-[10px] font-semibold">
                             {product.stock} left
                           </div>
                         </div>
@@ -458,9 +476,12 @@ const DashboardPOS: React.FC = () => {
                             {product.variants.map((v: any) => (
                               <button
                                 key={v.id}
-                                onClick={() => addToCart(product, v)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  addToCart(product, v);
+                                }}
                                 disabled={v.stock <= 0}
-                                className="w-full text-left px-2 py-1 rounded-btn bg-surface-muted/60 dark:bg-[#1a1a1a] text-3xs font-medium hover:bg-surface-muted dark:hover:bg-[#222] disabled:opacity-40 flex justify-between items-center transition text-gray-700 dark:text-gray-300"
+                                className="w-full text-left px-2 py-1 rounded-lg bg-surface-muted/60 dark:bg-[#1a1a1a] text-3xs font-medium hover:bg-surface-muted dark:hover:bg-[#222] disabled:opacity-40 flex justify-between items-center transition text-gray-700 dark:text-gray-300"
                               >
                                 <span className="truncate pr-1">{v.name}</span>
                                 <span className="font-semibold text-brand-600 dark:text-brand-400 shrink-0">+{parseFloat(v.price_adjustment).toLocaleString()}</span>
@@ -468,15 +489,18 @@ const DashboardPOS: React.FC = () => {
                             ))}
                           </div>
                         ) : (
-                          <Button 
-                            onClick={() => addToCart(product)} 
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart(product);
+                            }}
                             disabled={product.stock <= 0}
-                            className="w-full py-1 text-xs font-medium"
-                            size="sm"
-                            variant={product.stock <= 0 ? 'outline' : 'default'}
+                            className="w-full py-1.5 px-2 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-40 text-black font-extrabold text-xs flex items-center justify-center gap-1.5 transition whitespace-nowrap active:scale-[0.98] shadow-xs"
                           >
-                            <Plus size={13} className="mr-1" /> Add to Cart
-                          </Button>
+                            <Plus size={13} className="shrink-0 text-black stroke-[2.5]" />
+                            <span className="whitespace-nowrap text-black font-extrabold">Add to Cart</span>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -604,10 +628,9 @@ const DashboardPOS: React.FC = () => {
                 </style>
 
                 {/* Logo Area */}
-                <div className="text-center mb-4">
-                  <img src="/logo_dark.png" alt="Sokonimax" className="w-24 mx-auto grayscale object-contain mb-2" style={{ maxWidth: '96px', maxHeight: '42px' }} />
-                  <h3 className="font-black text-lg tracking-widest leading-none">SOKONIMAX</h3>
-                  <p className="text-[10px] text-gray-500 mt-1">Premium Quality Products</p>
+                <div className="text-center mb-3">
+                  <img src="/logo_dark.png" alt="Sokonimax" className="w-24 mx-auto grayscale object-contain mb-1.5" style={{ maxWidth: '96px', maxHeight: '42px' }} />
+                  <p className="text-[10px] text-gray-500">Premium Quality Products</p>
                 </div>
                 
                 <div className="border-t border-dashed border-gray-400 py-2 mb-2 text-center text-xs">
@@ -664,19 +687,19 @@ const DashboardPOS: React.FC = () => {
                   })()}</span>
                 </div>
                 
-                {receiptData?.delivery_info?.amount_paid && (
+                {(receiptData?.delivery_info?.amount_tendered || receiptData?.delivery_info?.amount_paid) && (
                   <>
                     <div className="text-xs flex justify-between text-gray-600 mb-1">
                       <span>CASH TENDERED</span>
                       <span>{(() => {
-                        const rawPaid = parseFloat(receiptData.delivery_info.amount_paid);
+                        const rawPaid = parseFloat(receiptData.delivery_info.amount_tendered || receiptData.delivery_info.amount_paid);
                         return Math.round(isNaN(rawPaid) ? 0 : rawPaid).toLocaleString() + '/=';
                       })()}</span>
                     </div>
                     <div className="text-xs flex justify-between text-gray-600">
                       <span>CHANGE</span>
                       <span>{(() => {
-                        const rawPaid = parseFloat(receiptData.delivery_info.amount_paid || 0);
+                        const rawPaid = parseFloat(receiptData.delivery_info.amount_tendered || receiptData.delivery_info.amount_paid || 0);
                         const rawTot = parseFloat(receiptData.total_amount || 0);
                         const paid = isNaN(rawPaid) ? 0 : rawPaid;
                         const tot = isNaN(rawTot) ? 0 : rawTot;
@@ -726,92 +749,191 @@ const CartContent = ({
   removeFromCart, 
   handleCheckout, 
   submitting 
-}: any) => (
-  <>
-    <div className="p-3 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
-      <div className="flex items-center gap-1.5 font-bold text-xs text-gray-900 dark:text-white">
-        <ShoppingCart size={14} className="text-brand-500" />
-        <span>Register Items</span>
-      </div>
-      <span className="text-3xs text-gray-400 font-bold">{cart.reduce((s: number, i: any) => s + i.quantity, 0)} items</span>
-    </div>
+}: any) => {
+  const tenderVal = parseFloat(amountPaid || '0');
+  const changeDue = Math.max(0, tenderVal - cartTotal);
 
-    <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[calc(100vh-420px)]">
-      {cart.length === 0 ? (
-        <div className="py-12 flex flex-col items-center justify-center text-center px-4">
-          <div className="w-12 h-12 bg-surface-muted dark:bg-[#161616] rounded-full flex items-center justify-center mb-2 border border-surface-border dark:border-surface-dark-border">
-            <ShoppingCart size={20} className="text-gray-400" />
-          </div>
-          <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300">Cart is empty</h3>
-          <p className="text-3xs text-gray-400 mt-0.5">Click products on the catalog to add</p>
-        </div>
-      ) : (
-        cart.map((item: any) => (
-          <div key={item.id} className="p-2.5 rounded-btn bg-surface-muted/40 dark:bg-[#161616]/40 border border-surface-border dark:border-surface-dark-border">
-            <div className="flex justify-between items-start mb-2">
-              <div className="flex-1 pr-2 min-w-0">
-                <h4 className="font-bold text-xs text-gray-900 dark:text-white truncate">{item.name}</h4>
-                {item.variant_name && <p className="text-3xs text-gray-400">{item.variant_name}</p>}
-                <p className="text-brand-600 dark:text-brand-400 font-extrabold text-xs mt-0.5">TSh {item.price.toLocaleString()}</p>
-              </div>
-              <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500 p-1 transition">
-                <Trash2 size={12} />
-              </button>
-            </div>
-            <div className="flex items-center justify-between pt-1.5 border-t border-surface-border dark:border-surface-dark-border">
-              <div className="flex items-center gap-1">
-                <button onClick={() => updateQuantity(item.id, -1)} disabled={item.quantity <= 1} className="w-6 h-6 flex items-center justify-center rounded border border-surface-border dark:border-surface-dark-border text-gray-600 dark:text-gray-400 hover:bg-surface-muted dark:hover:bg-[#202020] disabled:opacity-30"><Minus size={10}/></button>
-                <span className="text-xs font-bold w-5 text-center dark:text-white">{item.quantity}</span>
-                <button onClick={() => updateQuantity(item.id, 1)} disabled={item.quantity >= item.max_stock} className="w-6 h-6 flex items-center justify-center rounded border border-surface-border dark:border-surface-dark-border text-gray-600 dark:text-gray-400 hover:bg-surface-muted dark:hover:bg-[#202020] disabled:opacity-30"><Plus size={10}/></button>
-              </div>
-              <span className="font-extrabold text-gray-900 dark:text-white text-xs">TSh {(item.price * item.quantity).toLocaleString()}</span>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-
-    <div className="p-3 border-t border-surface-border dark:border-surface-dark-border bg-surface-muted/30 dark:bg-[#161616]/30 shrink-0 space-y-3">
-      <div className="space-y-2.5">
-        <div>
-          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block mb-1">Customer Name</label>
+  return (
+    <div className="flex flex-col h-full">
+      {/* 1. Slim Integrated Customer & Status Header */}
+      <div className="px-4 py-3.5 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <User size={15} className="text-gray-400 shrink-0" />
           <input
             type="text"
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
             placeholder="Walk-in Customer"
-            className="input py-1.5 text-xs w-full"
+            className="bg-transparent border-none text-xs font-semibold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-0 w-full p-0 leading-tight outline-none"
+            title="Customer Name"
           />
+          {customerName && customerName !== 'Walk-in Customer' && (
+            <button
+              type="button"
+              onClick={() => setCustomerName('Walk-in Customer')}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-3xs font-bold shrink-0 p-0.5 rounded transition"
+              title="Reset to Walk-in"
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
-        <div>
-          <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block mb-1">Amount Tendered</label>
-          <div className="relative">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-xs">TSh</span>
-            <input
-              type="number"
-              placeholder={cartTotal.toLocaleString()}
-              value={amountPaid}
-              onChange={(e) => setAmountPaid(e.target.value)}
-              className="input pl-10 py-1.5 text-xs w-full"
-            />
-          </div>
-        </div>
-      </div>
-      
-      <div className="flex justify-between items-center p-2.5 rounded-btn bg-brand-500/10 border border-brand-500/20">
-        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Due</span>
-        <span className="text-base font-bold text-brand-600 dark:text-brand-400">TSh {cartTotal.toLocaleString()}</span>
+        <span className="text-xs font-medium text-gray-400 dark:text-gray-400 shrink-0 whitespace-nowrap px-2">
+          {cart.reduce((s: number, i: any) => s + i.quantity, 0)} {cart.reduce((s: number, i: any) => s + i.quantity, 0) === 1 ? 'item' : 'items'}
+        </span>
       </div>
 
-      <Button 
-        onClick={handleCheckout} 
-        disabled={cart.length === 0 || submitting}
-        className="w-full py-2.5 text-xs font-bold"
-      >
-        {submitting ? 'Processing...' : 'Complete Sale'}
-      </Button>
+      {/* 2. Seamless Register Items List (Clean vertical rhythm, NO divider lines) */}
+      <div className="flex-1 overflow-y-auto space-y-1 px-3">
+        {cart.length === 0 ? (
+          <div className="py-16 flex flex-col items-center justify-center text-center px-4">
+            <div className="w-10 h-10 bg-surface-muted/60 dark:bg-[#161616] rounded-full flex items-center justify-center mb-2">
+              <ShoppingCart size={18} className="text-gray-400 opacity-60" />
+            </div>
+            <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300">Register is empty</h3>
+            <p className="text-3xs text-gray-400 mt-0.5">Click products in the catalog to add</p>
+          </div>
+        ) : (
+          cart.map((item: any) => (
+            <div key={item.id} className="py-2 px-1.5 rounded-lg hover:bg-surface-muted/40 dark:hover:bg-[#161616] flex items-center justify-between gap-2 group transition">
+              <div className="flex-1 min-w-0 pr-1">
+                <p className="font-bold text-xs text-gray-900 dark:text-white truncate">{item.name}</p>
+                {item.variant_name && <span className="text-[10px] text-gray-400 block">{item.variant_name}</span>}
+                <span className="text-2xs text-gray-500 dark:text-gray-400">
+                  TSh {item.price.toLocaleString()}
+                </span>
+              </div>
+
+              {/* Sleek inline quantity stepper */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center bg-surface-muted/70 dark:bg-[#181818] rounded-lg p-0.5">
+                  <button 
+                    type="button"
+                    onClick={() => updateQuantity(item.id, -1)} 
+                    disabled={item.quantity <= 1} 
+                    className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition"
+                  >
+                    <Minus size={10} />
+                  </button>
+                  <span className="text-xs font-bold w-5 text-center text-gray-900 dark:text-white select-none">
+                    {item.quantity}
+                  </span>
+                  <button 
+                    type="button"
+                    onClick={() => updateQuantity(item.id, 1)} 
+                    disabled={item.quantity >= item.max_stock} 
+                    className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition"
+                  >
+                    <Plus size={10} />
+                  </button>
+                </div>
+
+                <span className="font-extrabold text-xs text-gray-900 dark:text-white w-20 text-right">
+                  TSh {(item.price * item.quantity).toLocaleString()}
+                </span>
+
+                <button 
+                  type="button"
+                  onClick={() => removeFromCart(item.id)} 
+                  className="text-gray-300 hover:text-red-500 dark:text-neutral-600 dark:hover:text-red-400 p-1 transition opacity-0 group-hover:opacity-100"
+                  title="Remove"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* 3. Compact Checkout Footer with Quick Tender & Change */}
+      <div className="p-4 shrink-0 space-y-3">
+        {/* Total Due */}
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Due</span>
+          <span className="text-lg font-black text-gray-900 dark:text-white tracking-tight">
+            TSh {cartTotal.toLocaleString()}
+          </span>
+        </div>
+
+        {/* Quick Cash Tender Input & Shortcuts */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-2xs font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              <Banknote size={12} />
+              <span>Cash Tendered</span>
+            </label>
+            {tenderVal > 0 && (
+              <span className={`text-2xs font-bold ${tenderVal >= cartTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}`}>
+                {tenderVal >= cartTotal 
+                  ? `Change: TSh ${changeDue.toLocaleString()}` 
+                  : `Remaining: TSh ${(cartTotal - tenderVal).toLocaleString()}`
+                }
+              </span>
+            )}
+          </div>
+
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-xs">TSh</span>
+            <input
+              type="number"
+              placeholder={cartTotal > 0 ? String(cartTotal) : '0'}
+              value={amountPaid}
+              onChange={(e) => setAmountPaid(e.target.value)}
+              className="w-full bg-surface-muted/60 dark:bg-[#161616] rounded-xl pl-10 pr-3 py-2 text-xs font-bold text-gray-900 dark:text-white placeholder:text-gray-500 outline-none border-none focus:ring-0 transition"
+            />
+          </div>
+
+          {/* Quick Tender Shortcuts */}
+          {cartTotal > 0 && (
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <button
+                type="button"
+                onClick={() => setAmountPaid(String(cartTotal))}
+                className="flex-1 py-1 text-3xs font-bold rounded-lg bg-surface-muted/60 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 transition"
+              >
+                Exact
+              </button>
+              <button
+                type="button"
+                onClick={() => setAmountPaid(String(Math.ceil(cartTotal / 10000) * 10000))}
+                className="flex-1 py-1 text-3xs font-bold rounded-lg bg-surface-muted/60 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 transition"
+              >
+                +Round 10k
+              </button>
+              <button
+                type="button"
+                onClick={() => setAmountPaid(String(Math.ceil((cartTotal + 1) / 50000) * 50000))}
+                className="flex-1 py-1 text-3xs font-bold rounded-lg bg-surface-muted/60 dark:bg-[#181818] hover:bg-gray-200 dark:hover:bg-neutral-800 text-gray-700 dark:text-gray-300 transition"
+              >
+                +Round 50k
+              </button>
+              {amountPaid && (
+                <button
+                  type="button"
+                  onClick={() => setAmountPaid('')}
+                  className="px-2 py-1 text-3xs font-bold rounded-lg text-gray-400 hover:text-red-500 transition"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Complete Sale Action Button */}
+        <button 
+          type="button"
+          onClick={handleCheckout} 
+          disabled={cart.length === 0 || submitting}
+          className="w-full py-2.5 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-40 text-black font-extrabold text-xs flex items-center justify-center gap-1.5 transition active:scale-[0.98] shadow-sm cursor-pointer disabled:cursor-not-allowed"
+        >
+          <Receipt size={14} className="shrink-0 text-black stroke-[2.5]" />
+          <span className="text-black font-extrabold">{submitting ? 'Processing...' : 'Complete Sale'}</span>
+        </button>
+      </div>
     </div>
-  </>
-);
+  );
+};
 
 export default DashboardPOS;

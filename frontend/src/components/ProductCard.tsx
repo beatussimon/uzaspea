@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { Star, Heart, Share2, Shield, MapPin, Clock, Flame, TrendingUp, ShoppingBag } from 'lucide-react';
+import { Star, Heart, Share2, Shield, Clock, Flame, TrendingUp, ShoppingBag } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import VerifiedBadge from './VerifiedBadge';
 import { timeAgo } from '../utils/timeAgo';
 import { preloadProductDetail } from '../App';
+import { useUserLocation } from '../context/LocationContext';
 
 const TrendingMetricBadge = ({ product, metricType = 'auto' }: { product: any; metricType?: boolean | string }) => {
   const { t } = useTranslation();
@@ -200,8 +201,23 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
       initialProduct: product
     }
   }), [product]);
+  const { calculateDistance } = useUserLocation();
   const [liked, setLiked] = React.useState(product?.is_liked || false);
   const [likeCount, setLikeCount] = React.useState(product?.like_count || 0);
+
+  const distanceKm = useMemo(() => {
+    if (product?.distance !== undefined && product?.distance !== null) {
+      return Math.round(Number(product.distance) * 10) / 10;
+    }
+    if (product?.latitude && product?.longitude) {
+      return calculateDistance(product.latitude, product.longitude);
+    }
+    return null;
+  }, [product?.distance, product?.latitude, product?.longitude, calculateDistance]);
+
+  const distanceLabel = distanceKm !== null 
+    ? (distanceKm < 1 ? '<1 km' : `${Math.round(distanceKm)} km`) 
+    : null;
 
   if (!product) return null;
 
@@ -273,12 +289,14 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
                  <span className="text-[10px] text-gray-500 truncate max-w-[80px]">{product.seller_username}</span>
                  <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3" />
                </div>
-               {product.location_name && (
-                 <>
-                   <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
-                   <span className="flex items-center gap-0.5 truncate max-w-[60px] shrink-0"><MapPin size={8} /> {product.location_name}</span>
-                 </>
-               )}
+                {(product.location_name || distanceLabel) && (
+                  <>
+                    <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
+                    <span className="text-[10px] text-gray-500 truncate max-w-[85px] shrink-0" title={product.location_name ? (distanceLabel ? `${product.location_name} (${distanceLabel})` : product.location_name) : (distanceLabel || '')}>
+                      {distanceLabel ? `${product.location_name || ''} (${distanceLabel})`.trim() : product.location_name}
+                    </span>
+                  </>
+                )}
                {product.created_at && (
                  <>
                    <span className="text-gray-300 dark:text-gray-600 shrink-0">•</span>
@@ -399,12 +417,14 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
               <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3 shrink-0" />
             </div>
 
-            {/* Location Bubble */}
-            {product.location_name && (
-              <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
-                <MapPin size={8} strokeWidth={2.5} className="shrink-0 text-brand-500 dark:text-brand-500" />
-                <span className="truncate max-w-[42px]">{product.location_name}</span>
-              </div>
+            {/* Location & Distance (simple subtle text, no nested card, no colored icons) */}
+            {(product.location_name || distanceLabel) && (
+              <span 
+                className="text-[8.5px] text-gray-500 dark:text-gray-400 font-medium truncate max-w-[70px] shrink-0"
+                title={product.location_name ? (distanceLabel ? `${product.location_name} (${distanceLabel})` : product.location_name) : (distanceLabel || '')}
+              >
+                {distanceLabel || product.location_name}
+              </span>
             )}
 
             {/* Time Bubble */}

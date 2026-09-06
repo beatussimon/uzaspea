@@ -111,6 +111,49 @@ def reverse_geocode(request):
     except requests.RequestException as e:
         return Response({'error': str(e)}, status=503)
 
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([GeocodeAnonRateThrottle, GeocodeUserRateThrottle])
+def geocode_search(request):
+    """
+    Phase 3: Spatial Awareness - Autocomplete Location Proxy
+    Proxies place queries to OpenStreetMap Nominatim for Tanzania locations.
+    """
+    q = request.query_params.get('q', '').strip()
+    if not q or len(q) < 2:
+        return Response([])
+
+    try:
+        url = "https://nominatim.openstreetmap.org/search"
+        headers = {'User-Agent': 'SokoniMax/1.0 (https://sokonimax.co.tz)'}
+        params = {
+            'q': q,
+            'format': 'json',
+            'countrycodes': 'tz',
+            'addressdetails': 1,
+            'limit': 6,
+        }
+        resp = requests.get(url, headers=headers, params=params, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+
+        results = []
+        for item in data:
+            addr = item.get('address', {})
+            city = addr.get('city') or addr.get('town') or addr.get('municipality') or addr.get('suburb') or addr.get('state') or ''
+            results.append({
+                'place_id': item.get('place_id'),
+                'display_name': item.get('display_name'),
+                'lat': float(item.get('lat')),
+                'lng': float(item.get('lon')),
+                'city': city,
+                'region': addr.get('state') or addr.get('region') or '',
+            })
+        return Response(results)
+    except requests.RequestException:
+        return Response([], status=200)
+
 @method_decorator(vary_on_headers('Authorization', 'Cookie'), name='list')
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().prefetch_related('images', 'likes', 'fitments')
@@ -121,7 +164,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return [permissions.IsAuthenticated(), IsSellerOrAbove()]
         if self.action in ['update', 'partial_update', 'destroy']:
-            return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
+            return [permissions.IsAuthenticated(), IsSellerOrAbove(), IsOwnerOrStaff()]
         return super().get_permissions()
     lookup_field = 'slug'
 
@@ -282,7 +325,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             'mine', 'following', 'saved', 'saved_time', 'view', 'page', 'page_size',
             'limit', 'offset', 'cursor', 'ordering', 'format', 'search', 'vehicle_id',
             'make_id', 'model_id', 'year', 'oem_part_number', 'highlight', 't', '_', 'expand',
-            'is_draft', 'include_unlisted', 'status', 'is_available', 'all', 'moderation'
+            'is_draft', 'include_unlisted', 'status', 'is_available', 'all', 'moderation',
+            'region', 'location_mode'
         }
         for key, value in self.request.query_params.items():
             if key not in reserved_params and value and not key.startswith('_'):
@@ -430,42 +474,66 @@ class ProductViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(specifications__oem_part_number__iexact=oem_part_number)
 
 
-        # Phase 3: Spatial Awareness - Haversine Proximity Sorting
-        if lat and lng:
+        # Phase 3: Spatial Awareness - Location Filtering
+        location_mode = self.request.query_params.get('location_mode', None)
+        region_filter = self.request.query_params.get('region', None)
+
+        # Mode: Region/Area-based filtering
+        if location_mode == 'region' and region_filter:
+            queryset = queryset.filter(
+                Q(location_name__icontains=region_filter) |
+                Q(seller__profile__location__icontains=region_filter)
+            )
+
+        # Mode: Proximity-based filtering (GPS coordinates + radius)
+        elif lat and lng and location_mode != 'nationwide':
             try:
                 lat_f = float(lat)
                 lng_f = float(lng)
-                from django.db.models.functions import Cos, Sin, ACos, Radians
-                from django.db.models import F, ExpressionWrapper, FloatField
+                from django.db.models.functions import Cos, Sin, ACos, Radians, Coalesce, Greatest, Least
+                from django.db.models import F, ExpressionWrapper, FloatField, Value
 
+                # Require at least one set of coordinates (product OR seller profile)
                 queryset = queryset.filter(
-                    seller__profile__latitude__isnull=False, 
-                    seller__profile__longitude__isnull=False
+                    Q(latitude__isnull=False, longitude__isnull=False) |
+                    Q(seller__profile__latitude__isnull=False, seller__profile__longitude__isnull=False)
                 )
-                
-                d_lat = Radians(F('seller__profile__latitude'))
-                d_lng = Radians(F('seller__profile__longitude'))
+
+                # Prefer product's own coordinates, fallback to seller profile
+                effective_lat = Coalesce(F('latitude'), F('seller__profile__latitude'))
+                effective_lng = Coalesce(F('longitude'), F('seller__profile__longitude'))
+
+                d_lat = Radians(effective_lat)
+                d_lng = Radians(effective_lng)
                 r_lat = Radians(lat_f)
                 r_lng = Radians(lng_f)
-                
-                distance_expr = ExpressionWrapper(
-                    6371 * ACos(
-                        Cos(r_lat) * Cos(d_lat) * Cos(d_lng - r_lng) +
-                        Sin(r_lat) * Sin(d_lat)
+
+                # Clamp cosine value between -1.0 and 1.0 to prevent ACos domain errors in PostgreSQL
+                cos_val = Greatest(
+                    Least(
+                        Cos(r_lat) * Cos(d_lat) * Cos(d_lng - r_lng) + Sin(r_lat) * Sin(d_lat),
+                        Value(1.0)
                     ),
+                    Value(-1.0)
+                )
+
+                distance_expr = ExpressionWrapper(
+                    6371 * ACos(cos_val),
                     output_field=FloatField()
                 )
                 queryset = queryset.annotate(distance=distance_expr)
-                
+
                 if radius:
-                    queryset = queryset.filter(distance__lte=float(radius))
-                
+                    max_rad = min(float(radius), 499.0)
+                    queryset = queryset.filter(distance__lte=max_rad)
+
                 # Override default sort if proximity is requested
                 if not sort_by:
                     return queryset.order_by('distance')
-                    
+
             except (ValueError, TypeError):
                 pass
+        # Mode: Nationwide — no location filtering (default)
 
         if sort_by == 'price_asc':
             return queryset.order_by('price')
@@ -503,6 +571,17 @@ class ProductViewSet(viewsets.ModelViewSet):
                         break
         
         product = serializer.save(seller=seller)
+        
+        # If product has coordinates and seller profile lacks them, update profile for future products
+        seller_profile = getattr(seller, 'profile', None)
+        if seller_profile and product.latitude and product.longitude:
+            if seller_profile.latitude is None or seller_profile.longitude is None:
+                seller_profile.latitude = product.latitude
+                seller_profile.longitude = product.longitude
+                if not seller_profile.location and product.location_name:
+                    seller_profile.location = product.location_name
+                seller_profile.save(update_fields=['latitude', 'longitude', 'location'])
+
         images = self.request.FILES.getlist('uploaded_images')
         for img in images:
             ProductImage.objects.create(product=product, image=img)
@@ -657,15 +736,26 @@ class ProductViewSet(viewsets.ModelViewSet):
                 pass
 
         # Basic aggregate metrics (always visible to sellers)
-        PAID_STATUSES = ['PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED']
-        paid_orders = orders.filter(status__in=PAID_STATUSES)
+        UNPAID_STATUSES = [
+            'CART', 'CHECKOUT', 'REQUESTED_INVOICE', 'INVOICE_GENERATED', 
+            'BUYER_COUNTERED', 'AWAITING_PAYMENT', 'PENDING_VERIFICATION', 
+            'CANCELLED', 'FAILED_DELIVERY', 'EXPIRED', 'DISPUTED'
+        ]
+        paid_orders = orders.exclude(status__in=UNPAID_STATUSES)
+        
+        # --- Base order items for seller ---
+        base_order_items = OrderItem.objects.filter(
+            product__seller=stats_user, 
+            order__in=paid_orders
+        )
+        
         total_orders_count = paid_orders.count()
-        total_revenue = float(paid_orders.aggregate(total=Sum('total_amount'))['total'] or 0)
+        total_revenue = float(base_order_items.aggregate(total=Sum(django_models.F('price') * django_models.F('quantity')))['total'] or 0)
         avg_order = round(total_revenue / total_orders_count, 2) if total_orders_count else 0
         total_reviews = Review.objects.filter(product__seller=stats_user).count()
         avg_rating = float(products.aggregate(avg=Avg('reviews__rating'))['avg'] or 0)
 
-        # Advanced analytics (Only for Business tier)
+        # Advanced analytics
         revenue_pipeline = []
         trend_pct = 0.0
         top_products = []
@@ -679,99 +769,179 @@ class ProductViewSet(viewsets.ModelViewSet):
             status='PAID'
         ).aggregate(total=Sum('total_commission'))['total'] or 0)
 
-        items_sold_list = []
-
-        if is_business:
-            # Determine pipeline date range
-            pipe_start = filter_start_date if filter_start_date else (today - datetime.timedelta(days=6))
+        # Determine pipeline date range
+        if filter_start_date:
+            pipe_start = filter_start_date
             pipe_end = filter_end_date if filter_end_date else today
-            
-            # --- Revenue pipeline ---
+        else:
+            # "All Time": start from the very first order date of the store (or 6 days ago if no orders)
+            first_item = base_order_items.order_by('order__order_date').first()
+            if first_item and first_item.order and first_item.order.order_date:
+                pipe_start = first_item.order.order_date.date()
+            else:
+                pipe_start = today - datetime.timedelta(days=6)
+            pipe_end = filter_end_date if filter_end_date else today
+
+        delta = (pipe_end - pipe_start).days
+        if delta < 0:
+            delta = 0
+
+        # --- Revenue pipeline aggregation ---
+        if delta <= 90:
             from django.db.models.functions import TruncDate
-            
-            # Filter OrderItem by the already filtered orders to ensure consistency
-            base_order_items = OrderItem.objects.filter(
-                product__seller=stats_user, 
-                order__in=paid_orders
-            )
-            
             pipeline_items = base_order_items.annotate(
                 order_date_day=TruncDate('order__order_date')
             ).values('order_date_day').annotate(
                 rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('order', distinct=True)
             ).order_by('order_date_day')
-            
-            pipeline_map = {item['order_date_day']: item for item in pipeline_items}
-            
-            # Generate days between pipe_start and pipe_end
-            delta = (pipe_end - pipe_start).days
-            # Cap at 90 days for safety if user selects massive range
-            if delta > 90:
-                pipe_start = pipe_end - datetime.timedelta(days=90)
-                delta = 90
-            elif delta < 0:
-                delta = 0
-                
-            total_current_period = 0
+
+            pipeline_map = {}
+            for item in pipeline_items:
+                d_val = item['order_date_day']
+                if hasattr(d_val, 'date'):
+                    d_key = d_val.date()
+                elif isinstance(d_val, datetime.date):
+                    d_key = d_val
+                elif isinstance(d_val, str):
+                    try:
+                        d_key = datetime.datetime.strptime(d_val[:10], '%Y-%m-%d').date()
+                    except Exception:
+                        d_key = d_val
+                else:
+                    d_key = d_val
+                pipeline_map[d_key] = item
+
             for i in range(delta + 1):
-                date = pipe_start + datetime.timedelta(days=i)
-                entry = pipeline_map.get(date, {'rev': 0, 'count': 0})
+                cur_date = pipe_start + datetime.timedelta(days=i)
+                entry = pipeline_map.get(cur_date, {'rev': 0, 'count': 0})
                 day_rev = float(entry['rev'] or 0)
-                total_current_period += day_rev
                 revenue_pipeline.append({
-                    'date': date.strftime('%b %d') if delta > 7 else date.strftime('%a'), 
+                    'date': cur_date.strftime('%b %d'), 
                     'revenue': day_rev, 
                     'orders': entry['count']
                 })
+        elif delta <= 730:
+            from django.db.models.functions import TruncWeek
+            pipeline_items = base_order_items.annotate(
+                order_date_week=TruncWeek('order__order_date')
+            ).values('order_date_week').annotate(
+                rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('order', distinct=True)
+            ).order_by('order_date_week')
 
-            # --- Trend (compare to previous period of same length) ---
-            prev_end = pipe_start - datetime.timedelta(days=1)
-            prev_start = prev_end - datetime.timedelta(days=delta)
-            
-            prev_period_rev = float(OrderItem.objects.filter(
-                product__seller=stats_user,
-                order__status__in=PAID_STATUSES,
-                order__order_date__date__gte=prev_start,
-                order__order_date__date__lte=prev_end,
-            ).aggregate(t=Sum(django_models.F('price') * django_models.F('quantity')))['t'] or 0)
-            
-            trend_pct = round(((total_current_period - prev_period_rev) / prev_period_rev * 100) if prev_period_rev else 0, 1)
+            pipeline_map = {}
+            for item in pipeline_items:
+                d_val = item['order_date_week']
+                if hasattr(d_val, 'date'):
+                    d_key = d_val.date()
+                elif isinstance(d_val, datetime.date):
+                    d_key = d_val
+                elif isinstance(d_val, str):
+                    try:
+                        d_key = datetime.datetime.strptime(d_val[:10], '%Y-%m-%d').date()
+                    except Exception:
+                        d_key = d_val
+                else:
+                    d_key = d_val
+                pipeline_map[d_key] = item
 
-            # --- Top products by order count ---
-            try:
-                top_limit = min(max(int(request.GET.get('top_limit', 50)), 1), 100)
-            except (ValueError, TypeError):
-                top_limit = 50
-            top_prods = (
-                base_order_items
-                .values('product__name', 'product__slug')
-                .annotate(sold=Count('id'), rev=Sum(django_models.F('price') * django_models.F('quantity')))
-                .order_by('-sold')[:top_limit]
-            )
-            top_products = [{'name': t['product__name'], 'slug': t['product__slug'], 'sold': t['sold'], 'revenue': float(t['rev'] or 0)} for t in top_prods]
-
-            # --- Category breakdown ---
-            cat_data = (
-                base_order_items
-                .values('product__category__name')
-                .annotate(rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('id'))
-                .order_by('-rev')[:8]
-            )
-            category_breakdown = [{'category': c['product__category__name'] or 'Other', 'revenue': float(c['rev'] or 0), 'items': c['count']} for c in cat_data]
-
-            # --- Items Sold List ---
-            items_sold_qs = base_order_items.select_related('product', 'order').order_by('-order__order_date')[:100]
-            for item in items_sold_qs:
-                items_sold_list.append({
-                    'id': item.id,
-                    'date': item.order.order_date.isoformat(),
-                    'product_name': item.product.name,
-                    'quantity': item.quantity,
-                    'price': float(item.price),
-                    'buying_price': float(item.product.buying_price) if item.product.buying_price is not None else None,
-                    'total': float(item.price * item.quantity),
-                    'status': item.order.status
+            cur_week_start = pipe_start - datetime.timedelta(days=pipe_start.weekday())
+            multi_year = (pipe_end.year != pipe_start.year)
+            while cur_week_start <= pipe_end:
+                entry = pipeline_map.get(cur_week_start, {'rev': 0, 'count': 0})
+                week_rev = float(entry['rev'] or 0)
+                revenue_pipeline.append({
+                    'date': cur_week_start.strftime('%b %d \'%y') if multi_year else cur_week_start.strftime('%b %d'),
+                    'revenue': week_rev,
+                    'orders': entry['count']
                 })
+                cur_week_start += datetime.timedelta(days=7)
+        else:
+            from django.db.models.functions import TruncMonth
+            pipeline_items = base_order_items.annotate(
+                order_date_month=TruncMonth('order__order_date')
+            ).values('order_date_month').annotate(
+                rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('order', distinct=True)
+            ).order_by('order_date_month')
+
+            pipeline_map = {}
+            for item in pipeline_items:
+                d_val = item['order_date_month']
+                if hasattr(d_val, 'date'):
+                    d_key = d_val.date()
+                elif isinstance(d_val, datetime.date):
+                    d_key = d_val
+                elif isinstance(d_val, str):
+                    try:
+                        d_key = datetime.datetime.strptime(d_val[:10], '%Y-%m-%d').date()
+                    except Exception:
+                        d_key = d_val
+                else:
+                    d_key = d_val
+                pipeline_map[d_key] = item
+
+            cur_month = pipe_start.replace(day=1)
+            while cur_month <= pipe_end:
+                entry = pipeline_map.get(cur_month, {'rev': 0, 'count': 0})
+                m_rev = float(entry['rev'] or 0)
+                revenue_pipeline.append({
+                    'date': cur_month.strftime('%b %Y'),
+                    'revenue': m_rev,
+                    'orders': entry['count']
+                })
+                if cur_month.month == 12:
+                    cur_month = cur_month.replace(year=cur_month.year + 1, month=1)
+                else:
+                    cur_month = cur_month.replace(month=cur_month.month + 1)
+
+        # --- Trend (compare to previous period of same length) ---
+        prev_end = pipe_start - datetime.timedelta(days=1)
+        prev_start = prev_end - datetime.timedelta(days=max(delta, 1))
+        
+        prev_period_rev = float(OrderItem.objects.filter(
+            product__seller=stats_user,
+            order__status__in=[s for s in Order.STATUS_CHOICES if s[0] not in UNPAID_STATUSES],
+            order__order_date__date__gte=prev_start,
+            order__order_date__date__lte=prev_end,
+        ).aggregate(t=Sum(django_models.F('price') * django_models.F('quantity')))['t'] or 0)
+        
+        trend_pct = round(((total_revenue - prev_period_rev) / prev_period_rev * 100) if prev_period_rev else 0, 1)
+
+        # --- Top products by order count ---
+        try:
+            top_limit = min(max(int(request.GET.get('top_limit', 50)), 1), 100)
+        except (ValueError, TypeError):
+            top_limit = 50
+        top_prods = (
+            base_order_items
+            .values('product__name', 'product__slug')
+            .annotate(sold=Count('id'), rev=Sum(django_models.F('price') * django_models.F('quantity')))
+            .order_by('-sold')[:top_limit]
+        )
+        top_products = [{'name': t['product__name'], 'slug': t['product__slug'], 'sold': t['sold'], 'revenue': float(t['rev'] or 0)} for t in top_prods]
+
+        # --- Category breakdown ---
+        cat_data = (
+            base_order_items
+            .values('product__category__name')
+            .annotate(rev=Sum(django_models.F('price') * django_models.F('quantity')), count=Count('id'))
+            .order_by('-rev')[:8]
+        )
+        category_breakdown = [{'category': c['product__category__name'] or 'Other', 'revenue': float(c['rev'] or 0), 'items': c['count']} for c in cat_data]
+
+        # --- Items Sold List ---
+        items_sold_list = []
+        items_sold_qs = base_order_items.select_related('product', 'order').order_by('-order__order_date')[:100]
+        for item in items_sold_qs:
+            items_sold_list.append({
+                'id': item.id,
+                'date': item.order.order_date.isoformat(),
+                'product_name': item.product.name,
+                'quantity': item.quantity,
+                'price': float(item.price),
+                'buying_price': float(item.product.buying_price) if item.product.buying_price is not None else None,
+                'total': float(item.price * item.quantity),
+                'status': item.order.status
+            })
 
         # --- Stock alerts (stock <= 3) --- always visible
         low_stock = list(products.filter(stock__lte=3).values('name', 'slug', 'stock', 'price')[:10])
@@ -809,6 +979,19 @@ class ProductViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
+        # --- Store Products Summary for Analytics & Printable Reports ---
+        products_summary = [
+            {
+                'id': p.id,
+                'name': p.name,
+                'sku': p.sku or '-',
+                'category': p.category.name if p.category else '-',
+                'price': float(p.price or 0),
+                'stock': p.stock or 0,
+            }
+            for p in products.select_related('category')[:100]
+        ]
+
         return Response({
             'total_products': products.count(),
             'total_orders': total_orders_count,
@@ -823,6 +1006,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             'category_breakdown': category_breakdown,
             'items_sold_list': items_sold_list,
             'stock_alerts': low_stock,
+            'products_summary': products_summary,
             'has_advanced_analytics': is_business,
             'commission_paid': commission_paid,
             'commission_rate': commission_rate_val,
@@ -872,7 +1056,7 @@ class LipaNumberViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return [permissions.IsAuthenticated(), IsSellerOrAbove()]
         if self.action in ['update', 'partial_update', 'destroy']:
-            return [permissions.IsAuthenticated(), IsOwnerOrStaff()]
+            return [permissions.IsAuthenticated(), IsSellerOrAbove(), IsOwnerOrStaff()]
         return [permissions.AllowAny()]
 
     def perform_create(self, serializer):
@@ -1289,6 +1473,11 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action == 'pos_checkout':
+            return [permissions.IsAuthenticated(), IsSellerOrAbove()]
+        return super().get_permissions()
+
     def get_throttles(self):
         if self.action == 'create':
             return [OrderCreateThrottle()]
@@ -1569,7 +1758,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'status': order.status})
 
-    @decorators.action(detail=False, methods=['post'], url_path='pos-checkout')
+    @decorators.action(detail=False, methods=['post'], url_path='pos-checkout', permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
     @transaction.atomic
     def pos_checkout(self, request):
         """Create a POS (Point of Sale) order for walk-in customers."""
@@ -1637,8 +1826,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                 
             delivery_info = {
                 'is_pos': True,
-                'customer_name': customer_name,
-                'amount_paid': amount_paid
+                'customer_name': customer_name or 'Walk-in Customer',
+                'amount_paid': amount_paid,
+                'amount_tendered': amount_paid,
+                'change_due': 0,
             }
             
             order = Order.objects.create(
@@ -1669,6 +1860,16 @@ class OrderViewSet(viewsets.ModelViewSet):
                 item['product'].save(update_fields=['stock', 'is_available'])
                 
             order.update_total()
+            
+            # Record exact cash tendered and change calculated
+            tot_amt = float(order.total_amount or 0)
+            tendered = float(amount_paid) if (amount_paid is not None and amount_paid != '' and float(amount_paid) > 0) else tot_amt
+            change = max(0.0, tendered - tot_amt)
+            order.delivery_info['amount_paid'] = tendered
+            order.delivery_info['amount_tendered'] = tendered
+            order.delivery_info['change_due'] = change
+            order.save(update_fields=['delivery_info'])
+            
             TrackingEvent.objects.create(order=order, status='COMPLETED', notes=f'In-store POS sale to {customer_name}')
             
             # Phase 2: Platform Economics - Log 5% commission for POS
@@ -2248,6 +2449,81 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.password_validation import validate_password
 
+def get_user_seller_subscription_claims(user):
+    from marketplace.models import Subscription, SellerApplication, Product, SubscriptionTier
+    from django.utils import timezone
+    now = timezone.now()
+
+    # 1. Prioritize any actively valid seller subscription (seller_pro or business with end_date >= now)
+    active_sub = Subscription.objects.filter(
+        user=user,
+        is_active=True,
+        tier__tier_level__in=['seller_pro', 'business'],
+        end_date__gte=now
+    ).select_related('tier').first()
+
+    # 2. If no active sub, look for the most recent seller subscription (seller_pro or business)
+    sub = active_sub or Subscription.objects.filter(
+        user=user,
+        tier__tier_level__in=['seller_pro', 'business']
+    ).select_related('tier').order_by('-end_date', '-start_date').first()
+
+    has_seller_app = SellerApplication.objects.filter(user=user, status='approved').exists()
+    has_had_sub = sub is not None and sub.tier is not None and sub.tier.tier_level in ['seller_pro', 'business']
+    has_products = Product.objects.filter(seller=user).exists()
+    user_profile_tier = getattr(getattr(user, 'profile', None), 'tier', None)
+
+    # A user is a seller if they have products, approved seller app, past/current seller sub, or seller tier
+    is_seller_account = (
+        has_seller_app or 
+        has_had_sub or 
+        has_products or 
+        user_profile_tier in ['seller_pro', 'business']
+    )
+
+    if not is_seller_account:
+        return {
+            'is_seller': False,
+            'subscription_active': False,
+            'subscription_end_date': None,
+            'subscription_expired': False,
+            'last_tier': None,
+            'last_tier_name': None,
+        }
+
+    if active_sub:
+        return {
+            'is_seller': True,
+            'subscription_active': True,
+            'subscription_end_date': active_sub.end_date.isoformat(),
+            'subscription_expired': False,
+            'last_tier': active_sub.tier.tier_level,
+            'last_tier_name': active_sub.tier.name,
+        }
+
+    last_tier = sub.tier.tier_level if (sub and sub.tier) else (user_profile_tier if user_profile_tier in ['seller_pro', 'business'] else 'seller_pro')
+    last_tier_name = sub.tier.name if (sub and sub.tier) else ('Business' if user_profile_tier == 'business' else 'Seller Pro')
+
+    if sub and sub.end_date:
+        is_sub_active = (now <= sub.end_date) and sub.is_active and (sub.tier and sub.tier.tier_level in ['seller_pro', 'business'])
+        return {
+            'is_seller': True,
+            'subscription_active': is_sub_active,
+            'subscription_end_date': sub.end_date.isoformat(),
+            'subscription_expired': not is_sub_active,
+            'last_tier': last_tier,
+            'last_tier_name': last_tier_name,
+        }
+    else:
+        return {
+            'is_seller': True,
+            'subscription_active': False,
+            'subscription_end_date': None,
+            'subscription_expired': True,
+            'last_tier': last_tier,
+            'last_tier_name': last_tier_name,
+        }
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         from django.contrib.auth.models import User
@@ -2328,6 +2604,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             data['is_owner_subscription_active'] = False
             data['team_permissions'] = {}
 
+        sub_claims = get_user_seller_subscription_claims(self.user)
+        data.update(sub_claims)
+        if sub_claims.get('subscription_active') and sub_claims.get('last_tier'):
+            data['tier'] = sub_claims['last_tier']
+
         return data
 
     @classmethod
@@ -2399,15 +2680,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             token['is_team_suspended'] = False
             token['is_owner_subscription_active'] = False
             token['team_permissions'] = {}
-            
-        from marketplace.models import Subscription
-        sub = Subscription.objects.filter(user=user).order_by('-start_date').first()
-        if sub and sub.end_date:
-            token['subscription_active'] = timezone.now() <= sub.end_date
-            token['subscription_end_date'] = sub.end_date.isoformat()
-        else:
-            token['subscription_active'] = False
-            token['subscription_end_date'] = None
+
+        sub_claims = get_user_seller_subscription_claims(user)
+        for k, v in sub_claims.items():
+            token[k] = v
+        if sub_claims.get('subscription_active') and sub_claims.get('last_tier'):
+            token['tier'] = sub_claims['last_tier']
             
         return token
 
@@ -3336,15 +3614,89 @@ class UserSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         from .models import Subscription
-        return Subscription.objects.filter(user=self.request.user).select_related('tier').order_by('-start_date')
+        return Subscription.objects.filter(user=self.request.user).select_related('tier').order_by('-is_active', '-end_date', '-id')
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        data = list(serializer.data)
+        if not data:
+            claims = get_user_seller_subscription_claims(request.user)
+            if claims['is_seller']:
+                from marketplace.models import SubscriptionTier, SellerApplication
+                from marketplace.serializers import SubscriptionTierSerializer
+                app = SellerApplication.objects.filter(user=request.user, status='approved').select_related('requested_tier').first()
+                tier = app.requested_tier if (app and app.requested_tier) else None
+                if not tier:
+                    tier = SubscriptionTier.objects.filter(tier_level=claims['last_tier'], is_active=True).first()
+                if not tier:
+                    tier = SubscriptionTier.objects.filter(tier_level='seller_pro', is_active=True).first()
+                data.append({
+                    'id': None,
+                    'user': request.user.id,
+                    'tier': SubscriptionTierSerializer(tier).data if tier else None,
+                    'start_date': None,
+                    'end_date': None,
+                    'is_active': False,
+                    'is_expired': True,
+                    'is_seller': True,
+                    'last_tier': claims['last_tier'],
+                    'last_tier_name': claims['last_tier_name'],
+                })
+        return Response(data)
 
     @decorators.action(detail=False, methods=['get'], url_path='me')
     def me(self, request):
-        sub = self.get_queryset().first()
-        if not sub:
-            return Response({'status': 'none'}, status=200)
-        serializer = self.get_serializer(sub)
-        return Response(serializer.data)
+        from marketplace.models import Subscription, SellerApplication, Product, SubscriptionTier
+        from marketplace.serializers import SubscriptionSerializer, SubscriptionTierSerializer
+
+        claims = get_user_seller_subscription_claims(request.user)
+
+        # If user is NOT a seller, return status: 'none' immediately so customers never see seller UI
+        if not claims['is_seller']:
+            return Response({
+                'status': 'none',
+                'is_seller': False,
+                'is_expired': False,
+                'is_active': False,
+                'tier': None,
+                'last_tier': None,
+                'last_tier_name': None,
+            }, status=200)
+
+        # For sellers, only look at seller tier subscriptions (seller_pro, business)
+        sub = self.get_queryset().filter(tier__tier_level__in=['seller_pro', 'business']).first()
+
+        if sub:
+            data = SubscriptionSerializer(sub).data
+            data['is_seller'] = claims['is_seller']
+            data['is_active'] = claims['subscription_active']
+            data['is_expired'] = claims['subscription_expired']
+            data['last_tier'] = claims['last_tier']
+            data['last_tier_name'] = claims['last_tier_name']
+            return Response(data)
+
+        app = SellerApplication.objects.filter(user=request.user, status='approved').select_related('requested_tier').first()
+        tier = app.requested_tier if (app and app.requested_tier) else None
+        if not tier:
+            tier = SubscriptionTier.objects.filter(tier_level=claims['last_tier'], is_active=True).first()
+        if not tier:
+            tier = SubscriptionTier.objects.filter(tier_level='seller_pro', is_active=True).first()
+
+        return Response({
+            'id': None,
+            'user': request.user.id,
+            'tier': SubscriptionTierSerializer(tier).data if tier else None,
+            'start_date': None,
+            'end_date': None,
+            'is_active': False,
+            'is_expired': True,
+            'is_seller': True,
+            'last_tier': claims['last_tier'],
+            'last_tier_name': claims['last_tier_name'],
+        })
+
+        return Response({'status': 'none', 'is_seller': False, 'is_expired': False, 'is_active': False}, status=200)
 
     @decorators.action(detail=False, methods=['post'], url_path='cancel')
     def cancel(self, request):
@@ -3371,7 +3723,7 @@ class PromoCodeViewSet(viewsets.ModelViewSet):
     from .models import PromoCode
     from .serializers import PromoCodeSerializer
     serializer_class = PromoCodeSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsSellerOrAbove]
 
     def get_queryset(self):
         from .models import PromoCode
@@ -3438,7 +3790,36 @@ class UserPaymentConfirmationViewSet(viewsets.ModelViewSet):
         return PaymentConfirmation.objects.filter(user=self.request.user).select_related('tier').order_by('-created_at')
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        confirmation = serializer.save(user=self.request.user)
+        try:
+            from django.contrib.auth import get_user_model
+            from .models import push_notification
+            User = get_user_model()
+            
+            tier_name = confirmation.tier.name if confirmation.tier else 'Seller Plan'
+            amount_fmt = f"{int(confirmation.amount):,}" if confirmation.amount else "0"
+            
+            # 1. Notify the user that their renewal is being reviewed
+            push_notification(
+                user=self.request.user,
+                notification_type='general',
+                title='Subscription Payment Submitted',
+                message=f'Your payment proof for {tier_name} (TZS {amount_fmt}, Ref: {confirmation.reference}) has been received and is being verified by staff.',
+                link='/dashboard'
+            )
+
+            # 2. Notify staff / admins
+            staff_users = User.objects.filter(is_staff=True, is_active=True)
+            for staff in staff_users:
+                push_notification(
+                    user=staff,
+                    notification_type='general',
+                    title='New Subscription Payment to Verify',
+                    message=f'@{self.request.user.username} submitted payment proof for {tier_name} (TZS {amount_fmt}, Ref: {confirmation.reference}). Please verify to restore access.',
+                    link='/staff/subscriptions'
+                )
+        except Exception as e:
+            logger.warning(f"Failed to send subscription payment notification: {e}")
 
 
 class SellerApplicationViewSet(viewsets.ModelViewSet):
@@ -3452,7 +3833,22 @@ class SellerApplicationViewSet(viewsets.ModelViewSet):
         return SellerApplication.objects.filter(user=self.request.user).select_related('requested_tier').order_by('-created_at')
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        application = serializer.save(user=self.request.user)
+        # Capture initial GPS coordinates from request if available and profile lacks them
+        lat = self.request.data.get('latitude')
+        lng = self.request.data.get('longitude')
+        if lat and lng:
+            try:
+                profile = getattr(self.request.user, 'profile', None)
+                if profile:
+                    if profile.latitude is None or profile.longitude is None:
+                        profile.latitude = float(lat)
+                        profile.longitude = float(lng)
+                        if not profile.location and application.business_region:
+                            profile.location = application.business_region
+                        profile.save(update_fields=['latitude', 'longitude', 'location'])
+            except Exception:
+                pass
 
     @decorators.action(detail=False, methods=['get'], url_path='me')
     def me(self, request):
@@ -3805,26 +4201,44 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = ProductRequest.objects.select_related('seller', 'user', 'category', 'fulfilled_product').prefetch_related('votes')
+        base_qs = ProductRequest.objects.select_related('seller', 'user', 'category', 'fulfilled_product').prefetch_related('votes')
+
+        # For single object actions (vote, retrieve), allow resolving the target object
+        if getattr(self, 'action', None) in ['vote', 'retrieve']:
+            return base_qs
 
         seller_username = self.request.query_params.get('seller_username') or self.request.query_params.get('seller')
+        seller_id = self.request.query_params.get('seller_id')
+        my_requests = self.request.query_params.get('my_requests') == 'true'
+        my_votes = self.request.query_params.get('my_votes') == 'true'
+        is_mine = self.request.query_params.get('mine') == 'true' or self.request.query_params.get('for_seller') == 'true'
+        is_staff_all = (self.request.query_params.get('all') == 'true' or self.request.query_params.get('moderation') == 'true') and user.is_authenticated and (user.is_staff or user.is_superuser)
+
         if seller_username:
             if str(seller_username).isdigit():
-                qs = qs.filter(seller_id=int(seller_username))
+                qs = base_qs.filter(seller_id=int(seller_username))
             else:
-                qs = qs.filter(seller__username__iexact=seller_username)
-
-        seller_id = self.request.query_params.get('seller_id')
-        if seller_id and str(seller_id).isdigit():
-            qs = qs.filter(seller_id=int(seller_id))
-
-        my_requests = self.request.query_params.get('my_requests') == 'true'
-        if my_requests and user.is_authenticated:
-            qs = qs.filter(user=user)
-
-        my_votes = self.request.query_params.get('my_votes') == 'true'
-        if my_votes and user.is_authenticated:
-            qs = qs.filter(votes__user=user)
+                qs = base_qs.filter(seller__username__iexact=seller_username)
+        elif seller_id and str(seller_id).isdigit():
+            qs = base_qs.filter(seller_id=int(seller_id))
+        elif my_requests and user.is_authenticated:
+            qs = base_qs.filter(user=user)
+        elif my_votes and user.is_authenticated:
+            qs = base_qs.filter(votes__user=user)
+        elif is_mine and user.is_authenticated:
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(user, required_permission='manage_products')
+            qs = base_qs.filter(seller_id__in=sellers)
+        elif is_staff_all:
+            qs = base_qs
+        elif user.is_authenticated:
+            # Default fallback for authenticated users in seller dashboard
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(user, required_permission='manage_products')
+            qs = base_qs.filter(seller_id__in=sellers)
+        else:
+            # Unauthenticated requests without a specific seller target should NEVER leak marketplace-wide demand data
+            return ProductRequest.objects.none()
 
         is_fulfilled = self.request.query_params.get('is_fulfilled')
         if is_fulfilled is not None:
@@ -3833,12 +4247,34 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
             elif is_fulfilled.lower() == 'false':
                 qs = qs.filter(is_fulfilled=False)
 
-        # Default fallback for seller dashboard
-        if not seller_username and not seller_id and not my_requests and not my_votes and user.is_authenticated:
-            if self.request.query_params.get('for_seller') == 'true':
-                qs = qs.filter(seller=user)
-
         return qs.order_by('-request_count', '-last_requested')
+
+    def check_demand_card_permission(self, request, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser or request.user.is_staff:
+            return True
+        from uzachuo.permissions import get_effective_sellers
+        effective_sellers = get_effective_sellers(request.user, required_permission='manage_products')
+        return obj.seller_id in effective_sellers
+
+    def update(self, request, *args, **kwargs):
+        obj = self.get_object()
+        if not self.check_demand_card_permission(request, obj):
+            return Response({'error': 'You do not have permission to modify this demand card.'}, status=403)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        obj = self.get_object()
+        if not self.check_demand_card_permission(request, obj):
+            return Response({'error': 'You do not have permission to modify this demand card.'}, status=403)
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        obj = self.get_object()
+        if not self.check_demand_card_permission(request, obj):
+            return Response({'error': 'You do not have permission to delete this demand card.'}, status=403)
+        return super().destroy(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
         name = request.data.get('name', '').strip()
@@ -3857,10 +4293,13 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Seller not found'}, status=404)
             
         from marketplace.models import ProductRequestVote
+        from uzachuo.permissions import get_effective_sellers
+
+        effective_sellers = get_effective_sellers(request.user, required_permission='manage_products') if request.user.is_authenticated else []
+        is_seller_creating = request.user.is_authenticated and (seller.id in effective_sellers or request.user.is_superuser)
 
         # Case insensitive check
         pr = ProductRequest.objects.filter(seller=seller, name__iexact=name).first()
-        is_seller_creating = request.user.is_authenticated and request.user.id == seller.id
         
         if pr:
             if request.user.is_authenticated and not is_seller_creating:
@@ -3873,12 +4312,30 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
                     distinct_votes += 1
                 pr.request_count = max(distinct_votes, 1)
                 pr.save(update_fields=['request_count', 'last_requested'])
+            elif is_seller_creating:
+                price = request.data.get('price') or request.data.get('target_price')
+                buying_price = request.data.get('buying_price')
+                category_id = request.data.get('category')
+                if price is not None:
+                    pr.price = price if price else None
+                if buying_price is not None:
+                    pr.buying_price = buying_price if buying_price else None
+                if category_id is not None:
+                    pr.category_id = category_id if category_id else None
+                if 'description' in request.data:
+                    pr.description = request.data.get('description', '')
+                if 'condition' in request.data:
+                    pr.condition = request.data.get('condition', 'New')
+                if 'image' in request.FILES:
+                    pr.image = request.FILES['image']
+                pr.save()
             
             serializer = self.get_serializer(pr)
             return Response(serializer.data, status=200)
         else:
             category_id = request.data.get('category')
             price = request.data.get('price') or request.data.get('target_price')
+            buying_price = request.data.get('buying_price') if is_seller_creating else None
             
             pr = ProductRequest.objects.create(
                 name=name,
@@ -3888,7 +4345,7 @@ class ProductRequestViewSet(viewsets.ModelViewSet):
                 request_count=0 if is_seller_creating else 1,
                 category_id=category_id if category_id else None,
                 price=price if price else None,
-                buying_price=request.data.get('buying_price') if request.data.get('buying_price') else None,
+                buying_price=buying_price,
                 condition=request.data.get('condition', 'New'),
                 requires_quote=str(request.data.get('requires_quote', 'false')).lower() == 'true',
             )
@@ -4317,3 +4774,44 @@ class ReferenceProductViewSet(viewsets.ModelViewSet):
             'message': f"Reference model '{ref.name}' verified successfully.",
             'reference_product': ReferenceProductSerializer(ref).data
         })
+
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([permissions.AllowAny])
+def tanzania_regions(request):
+    """Return Tanzania's 31 regions with center coordinates for area-based search."""
+    regions = [
+        {"name": "Dar es Salaam", "lat": -6.7924, "lng": 39.2083},
+        {"name": "Mwanza", "lat": -2.5167, "lng": 32.9000},
+        {"name": "Arusha", "lat": -3.3869, "lng": 36.6830},
+        {"name": "Dodoma", "lat": -6.1630, "lng": 35.7516},
+        {"name": "Mbeya", "lat": -8.9000, "lng": 33.4500},
+        {"name": "Morogoro", "lat": -6.8210, "lng": 37.6614},
+        {"name": "Tanga", "lat": -5.0689, "lng": 39.0989},
+        {"name": "Kilimanjaro", "lat": -3.1667, "lng": 37.3333},
+        {"name": "Kagera", "lat": -1.5000, "lng": 31.5833},
+        {"name": "Mara", "lat": -1.7500, "lng": 34.0000},
+        {"name": "Shinyanga", "lat": -3.6617, "lng": 33.4233},
+        {"name": "Tabora", "lat": -5.0167, "lng": 32.8000},
+        {"name": "Kigoma", "lat": -4.8769, "lng": 29.6267},
+        {"name": "Iringa", "lat": -7.7700, "lng": 35.6900},
+        {"name": "Rukwa", "lat": -7.9667, "lng": 31.6167},
+        {"name": "Ruvuma", "lat": -10.6833, "lng": 35.6833},
+        {"name": "Lindi", "lat": -10.0000, "lng": 39.7167},
+        {"name": "Mtwara", "lat": -10.2736, "lng": 40.1828},
+        {"name": "Singida", "lat": -4.8167, "lng": 34.7500},
+        {"name": "Pwani", "lat": -7.3250, "lng": 38.8333},
+        {"name": "Geita", "lat": -2.8714, "lng": 32.2311},
+        {"name": "Katavi", "lat": -6.3667, "lng": 31.2500},
+        {"name": "Njombe", "lat": -9.3333, "lng": 34.7667},
+        {"name": "Simiyu", "lat": -3.0333, "lng": 34.1333},
+        {"name": "Songwe", "lat": -8.6833, "lng": 32.7833},
+        {"name": "Zanzibar Urban/West", "lat": -6.1659, "lng": 39.1989},
+        {"name": "Zanzibar North", "lat": -5.9333, "lng": 39.2833},
+        {"name": "Zanzibar South", "lat": -6.3333, "lng": 39.4500},
+        {"name": "Pemba North", "lat": -5.0333, "lng": 39.7667},
+        {"name": "Pemba South", "lat": -5.3167, "lng": 39.7500},
+        {"name": "Kaskazini Unguja", "lat": -5.9333, "lng": 39.3000},
+    ]
+    return Response(regions)

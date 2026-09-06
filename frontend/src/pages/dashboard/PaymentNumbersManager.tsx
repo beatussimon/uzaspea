@@ -179,32 +179,32 @@ const PaymentNumbersManager: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-surface-border dark:border-surface-dark-border">
+                <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-neutral-100 dark:border-neutral-800">
                   <button
                     type="button"
                     onClick={() => handleCopy(lipa.id, lipa.number)}
-                    className="btn-ghost text-3xs py-1 px-2 border border-surface-border dark:border-surface-dark-border rounded flex items-center gap-1"
+                    className="text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition flex items-center gap-1 font-normal"
                   >
                     {copiedId === lipa.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                    {copiedId === lipa.id ? 'Copied' : 'Copy'}
+                    <span>{copiedId === lipa.id ? 'Copied' : 'Copy'}</span>
                   </button>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
                       onClick={() => { setEditingId(lipa.id); setForm({ network: lipa.network, number: lipa.number, name: lipa.name }); }}
-                      className="text-3xs py-1 px-2.5 h-7 font-bold"
+                      className="text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition flex items-center gap-1 font-normal"
                     >
-                      <Edit2 size={11} className="mr-1" /> Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
+                      <Edit2 size={12} />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleDelete(lipa.id)}
-                      className="text-3xs py-1 px-2.5 h-7 text-red-500 border-red-500/30 hover:bg-red-500/10"
+                      className="text-xs text-neutral-500 hover:text-red-500 dark:text-neutral-400 dark:hover:text-red-400 transition flex items-center gap-1 font-normal"
                     >
-                      <Trash2 size={11} className="mr-1" /> Remove
-                    </Button>
+                      <Trash2 size={12} />
+                      <span>Remove</span>
+                    </button>
                   </div>
                 </div>
               </div>

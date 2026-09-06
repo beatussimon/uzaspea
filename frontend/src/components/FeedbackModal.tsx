@@ -461,12 +461,12 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         <ArrowLeft size={13} /> Back
                       </button>
                       
-                      <span className={`text-3xs px-2 py-0.5 rounded-full font-bold flex items-center gap-1 ${
+                      <span className={`text-3xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 bg-transparent border ${
                         activeTicket.status === 'resolved' || activeTicket.status === 'closed'
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/40'
                           : activeTicket.status === 'in_progress'
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                          : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                          ? 'text-amber-600 dark:text-amber-400 border-amber-500/40'
+                          : 'text-blue-600 dark:text-blue-400 border-blue-500/40'
                       }`}>
                         {activeTicket.status === 'resolved' || activeTicket.status === 'closed' ? <CheckCircle size={10} /> : <Clock size={10} />}
                         <span className="capitalize">{activeTicket.status?.replace(/_/g, ' ') || 'Received'}</span>
@@ -565,12 +565,12 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                               <h4 className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                                 {ticket.subject}
                               </h4>
-                              <span className={`text-3xs px-2 py-0.2 rounded-full font-bold shrink-0 ${
+                              <span className={`text-3xs px-2.5 py-0.5 rounded-full font-bold shrink-0 bg-transparent border ${
                                 isResolved
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                  ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/40'
                                   : isInProgress
-                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                  : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                  ? 'text-amber-600 dark:text-amber-400 border-amber-500/40'
+                                  : 'text-blue-600 dark:text-blue-400 border-blue-500/40'
                               }`}>
                                 {isResolved ? 'Resolved' : isInProgress ? 'In Review' : 'Received'}
                               </span>

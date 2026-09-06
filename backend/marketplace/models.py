@@ -375,6 +375,24 @@ class Product(models.Model):
             elif not self.is_available and self.stock > 0:
                 self.is_available = True
 
+        # Ensure product automatically has accurate location info
+        if not self.location_name or self.latitude is None or self.longitude is None:
+            seller_profile = getattr(self.seller, 'profile', None) if getattr(self, 'seller_id', None) else None
+            if not self.location_name and seller_profile and seller_profile.location:
+                self.location_name = seller_profile.location
+            if (self.latitude is None or self.longitude is None) and seller_profile and seller_profile.latitude is not None and seller_profile.longitude is not None:
+                self.latitude = seller_profile.latitude
+                self.longitude = seller_profile.longitude
+            
+            # If coordinates are still missing, resolve from location_name or fallback
+            if self.latitude is None or self.longitude is None:
+                from marketplace.location_utils import resolve_location_coords
+                coords = resolve_location_coords(self.location_name)
+                self.latitude = coords[0]
+                self.longitude = coords[1]
+                if not self.location_name:
+                    self.location_name = "Dar es Salaam, Tanzania"
+
         from django.db import IntegrityError, transaction
         try:
             with transaction.atomic():

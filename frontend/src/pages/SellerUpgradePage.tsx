@@ -32,6 +32,19 @@ const SellerUpgradePage: React.FC = () => {
   // Payment details
   const [refId, setRefId] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+  }, []);
   
   // Status & Data states
   const [submitting, setSubmitting] = useState(false);
@@ -104,7 +117,16 @@ const SellerUpgradePage: React.FC = () => {
   const fetchLipaNumbers = async () => {
     try {
       const res = await api.get('/api/lipa-numbers/?system=true&purpose=subscriptions');
-      setLipaNumbers(res.data.results || res.data || []);
+      let numbers = res.data.results || res.data || [];
+      if (numbers.length === 0) {
+        const fallbackRes = await api.get('/api/lipa-numbers/?system=true&purpose=general');
+        numbers = fallbackRes.data.results || fallbackRes.data || [];
+      }
+      if (numbers.length === 0) {
+        const fallbackAll = await api.get('/api/lipa-numbers/?system=true');
+        numbers = fallbackAll.data.results || fallbackAll.data || [];
+      }
+      setLipaNumbers(numbers);
     } catch (err) {
       console.error('Failed to load Lipa numbers', err);
     }
@@ -182,6 +204,10 @@ const SellerUpgradePage: React.FC = () => {
       formData.append('id_document', idDocument);
       if (businessDocument) {
         formData.append('business_document', businessDocument);
+      }
+      if (gpsCoords) {
+        formData.append('latitude', gpsCoords.lat.toString());
+        formData.append('longitude', gpsCoords.lng.toString());
       }
 
       await api.post('/api/seller-applications/', formData, {

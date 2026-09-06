@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { FileText, Printer, Edit3, CheckCircle, Clock, MessageSquare, Sparkles, Search, ChevronDown, ChevronUp, ChevronLeft, Package, X } from 'lucide-react';
+import { FileText, Printer, Edit3, CheckCircle, Clock, MessageSquare, Sparkles, Search, ChevronDown, ChevronLeft, Package, X } from 'lucide-react';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
@@ -249,9 +249,9 @@ const InvoicesPage: React.FC = () => {
                 {/* Collapsible Header */}
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                  className="p-4 cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition flex flex-col md:flex-row gap-4 justify-between items-start md:items-center select-none"
+                  className="relative p-4 cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition flex flex-col md:flex-row gap-4 justify-between items-start md:items-center select-none"
                 >
-                  <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex-1 min-w-0 space-y-1.5 pr-6 md:pr-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-extrabold text-sm text-gray-900 dark:text-white">Order #{order.id}</span>
                       <span className="text-2xs text-gray-400">@{order.buyer || order.buyer_username || 'Customer'}</span>
@@ -327,8 +327,8 @@ const InvoicesPage: React.FC = () => {
                       <span className="hidden sm:inline">{t('print', 'Print')}</span>
                     </Button>
 
-                    <div className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
-                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    <div className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition absolute top-4 right-4 md:static">
+                      <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                   </div>
                 </div>
@@ -353,14 +353,14 @@ const InvoicesPage: React.FC = () => {
                     )}
 
                     {/* Items List Table */}
-                    <div className="border border-surface-border dark:border-surface-dark-border rounded-btn overflow-hidden mt-2">
+                    <div className="overflow-x-auto mt-2">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                        <thead className="text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
                           <tr>
-                            <th className="p-2.5">Item Description</th>
-                            <th className="p-2.5 text-center">Qty</th>
-                            <th className="p-2.5 text-right">Unit Price</th>
-                            <th className="p-2.5 text-right">Subtotal</th>
+                            <th className="py-2.5 px-1">Item Description</th>
+                            <th className="py-2.5 px-2 text-center">Qty</th>
+                            <th className="py-2.5 px-2 text-right">Unit Price</th>
+                            <th className="py-2.5 px-1 text-right">Subtotal</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
@@ -368,11 +368,11 @@ const InvoicesPage: React.FC = () => {
                             const hasDiscount = item.catalog_price && Number(item.catalog_price) > Number(item.price);
                             return (
                               <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30">
-                                <td className="p-2.5 font-medium text-gray-900 dark:text-white">
+                                <td className="py-2.5 px-1 font-medium text-gray-900 dark:text-white">
                                   {item.product_name} {item.variant_name ? `(${item.variant_name})` : ''}
                                 </td>
-                                <td className="p-2.5 text-center text-gray-500">{item.quantity}</td>
-                                <td className="p-2.5 text-right font-medium text-gray-700 dark:text-gray-300">
+                                <td className="py-2.5 px-2 text-center text-gray-500">{item.quantity}</td>
+                                <td className="py-2.5 px-2 text-right font-medium text-gray-700 dark:text-gray-300">
                                   {hasDiscount && (
                                     <span className="line-through text-gray-400 text-3xs mr-1">
                                       TSh {Number(item.catalog_price).toLocaleString()}
@@ -382,7 +382,7 @@ const InvoicesPage: React.FC = () => {
                                     {Number(item.price) > 0 ? `TSh ${Number(item.price).toLocaleString()}` : 'Quote Req.'}
                                   </span>
                                 </td>
-                                <td className="p-2.5 text-right font-bold text-gray-900 dark:text-white">
+                                <td className="py-2.5 px-1 text-right font-bold text-gray-900 dark:text-white">
                                   TSh {Number(item.subtotal || (Number(item.price) * Number(item.quantity)) || 0).toLocaleString()}
                                 </td>
                               </tr>

@@ -15,6 +15,16 @@ export interface UserLocationData {
   district: string | null;
 }
 
+export type SearchLocationMode = 'proximity' | 'region' | 'nationwide';
+
+export interface SearchLocationPrefs {
+  mode: SearchLocationMode;
+  radius: number | null;       // km, null = no radius limit
+  region: string | null;       // e.g., "Arusha"
+  locationName: string;        // e.g., "Dar es Salaam, Tanzania"
+  coords: UserCoords | null;
+}
+
 interface LocationContextType {
   location: UserLocationData;
   permission: 'prompt' | 'granted' | 'denied' | 'dismissed';
@@ -23,10 +33,27 @@ interface LocationContextType {
   dismissPrompt: () => void;
   setManualLocation: (city: string, region: string, coords?: UserCoords) => void;
   calculateDistance: (targetLat: number | string | null, targetLng: number | string | null) => number | null;
+  // Search location preferences (persistent)
+  searchPrefs: SearchLocationPrefs;
+  setSearchMode: (mode: SearchLocationMode) => void;
+  setSearchRadius: (radius: number | null) => void;
+  setSearchRegion: (region: string | null) => void;
+  updateSearchLocation: (locationName: string, coords: UserCoords | null, radius: number | null, region?: string | null) => void;
+  setNearMe: () => Promise<boolean>;
+  setNationwide: () => void;
 }
 
 const STORAGE_KEY = 'uzaspea_user_location';
 const DISMISSED_KEY = 'uzaspea_geo_dismissed';
+const SEARCH_PREFS_KEY = 'uzaspea_search_location_prefs';
+
+const DEFAULT_SEARCH_PREFS: SearchLocationPrefs = {
+  mode: 'nationwide',
+  radius: null,
+  region: null,
+  locationName: 'Nationwide',
+  coords: null,
+};
 
 const LocationContext = createContext<LocationContextType | null>(null);
 
@@ -67,6 +94,70 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   const [isLocating, setIsLocating] = useState(false);
+
+  // Persistent search location preferences
+  const [searchPrefs, setSearchPrefs] = useState<SearchLocationPrefs>(() => {
+    try {
+      const saved = localStorage.getItem(SEARCH_PREFS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_SEARCH_PREFS;
+  });
+
+
+  const setSearchMode = useCallback((mode: SearchLocationMode) => {
+    setSearchPrefs(prev => {
+      const next = { ...prev, mode };
+      try { localStorage.setItem(SEARCH_PREFS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const setSearchRadius = useCallback((radius: number | null) => {
+    setSearchPrefs(prev => {
+      const next = { ...prev, radius };
+      try { localStorage.setItem(SEARCH_PREFS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const setSearchRegion = useCallback((region: string | null) => {
+    setSearchPrefs(prev => {
+      const next = { ...prev, region };
+      try { localStorage.setItem(SEARCH_PREFS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const updateSearchLocation = useCallback((locationName: string, coords: UserCoords | null, radius: number | null, region?: string | null) => {
+    setSearchPrefs(prev => {
+      const effectiveCoords = coords || prev.coords;
+      const mode: SearchLocationMode = radius !== null && effectiveCoords !== null
+        ? 'proximity'
+        : (region ? 'region' : 'nationwide');
+      const next: SearchLocationPrefs = {
+        mode,
+        radius,
+        region: region || null,
+        locationName: locationName || prev.locationName,
+        coords: effectiveCoords,
+      };
+      try { localStorage.setItem(SEARCH_PREFS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const setNationwide = useCallback(() => {
+    const next: SearchLocationPrefs = {
+      mode: 'nationwide',
+      radius: null,
+      region: null,
+      locationName: 'Nationwide',
+      coords: null,
+    };
+    setSearchPrefs(next);
+    try { localStorage.setItem(SEARCH_PREFS_KEY, JSON.stringify(next)); } catch {}
+  }, []);
 
   const reverseGeocode = async (lat: number, lng: number): Promise<Partial<UserLocationData>> => {
     try {
@@ -141,6 +232,42 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch {}
   }, []);
 
+  const setNearMe = useCallback(async (): Promise<boolean> => {
+    let currentCoords = location.coords;
+    let currentCity = location.city;
+
+    if (!currentCoords && navigator.geolocation) {
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+        });
+        currentCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch {}
+    }
+
+    if (!currentCoords) {
+      const ok = await requestLocation();
+      if (!ok) return false;
+      currentCoords = location.coords;
+      currentCity = location.city;
+    }
+
+    if (currentCoords) {
+      const name = currentCity ? `${currentCity}, Tanzania` : 'Near Me';
+      const next: SearchLocationPrefs = {
+        mode: 'proximity',
+        radius: 10,
+        region: null,
+        locationName: name,
+        coords: currentCoords,
+      };
+      setSearchPrefs(next);
+      try { localStorage.setItem(SEARCH_PREFS_KEY, JSON.stringify(next)); } catch {}
+      return true;
+    }
+    return false;
+  }, [requestLocation, location.coords, location.city]);
+
   const setManualLocation = useCallback((city: string, region: string, coords?: UserCoords) => {
     const newLoc: UserLocationData = {
       coords: coords || null,
@@ -180,6 +307,13 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         dismissPrompt,
         setManualLocation,
         calculateDistance,
+        searchPrefs,
+        setSearchMode,
+        setSearchRadius,
+        setSearchRegion,
+        updateSearchLocation,
+        setNearMe,
+        setNationwide,
       }}
     >
       {children}

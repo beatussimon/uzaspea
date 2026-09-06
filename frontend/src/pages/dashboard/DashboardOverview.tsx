@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { BarChart3, ShieldAlert, Package, ShoppingCart, DollarSign, Star, AlertTriangle, Printer, ChevronDown, Check } from 'lucide-react';
+import { TrendingUp, ShieldAlert, Package, ShoppingCart, Banknote, Star, AlertTriangle, Printer, ChevronDown, Check } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
@@ -101,7 +101,7 @@ const DashboardOverview: React.FC = () => {
       label: t('revenue', `Revenue (${dateRange.label})`),
       value: formatCompactCurrency(stats?.total_revenue || 0),
       fullValue: `TSh ${(stats?.total_revenue || 0).toLocaleString()}`,
-      icon: DollarSign,
+      icon: Banknote,
       trend: {
         value: `${Math.abs(stats?.revenue_trend_pct || 0)}%`,
         direction: trendUp ? 'up' as const : 'down' as const,
@@ -171,9 +171,9 @@ const DashboardOverview: React.FC = () => {
         </p>
       </header>
 
-      {/* Hidden Isolated Printable Report Header & KPI Summary for PDF Export */}
+      {/* Hidden Isolated Printable Report Header & Full Analytics Content for PDF Export */}
       <div className="hidden">
-        <div ref={printReportRef} className="p-4 bg-white text-black font-sans w-full">
+        <div ref={printReportRef} className="p-4 bg-white text-black font-sans w-full space-y-6">
           <ReportPrintHeader 
             title="Store Analytics & Sales Report" 
             user={{ ...user, store_profile: stats?.store_profile }} 
@@ -182,27 +182,231 @@ const DashboardOverview: React.FC = () => {
           />
           
           {/* KPI Metrics Summary Strip */}
-          <div className="grid grid-cols-5 gap-3 p-3.5 mb-6 border border-gray-300 rounded-lg bg-gray-50/80 text-center">
-            <div>
-              <p className="text-[10px] uppercase font-bold text-gray-500">Total Revenue</p>
-              <p className="text-sm font-black text-black mt-0.5">{kpis[0]?.fullValue || kpis[0]?.value || 'TSh 0'}</p>
+          <div className="grid grid-cols-5 gap-2 p-3 border border-gray-300 rounded-lg bg-gray-50/80 text-center" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            <div className="border-r border-gray-200 pr-2">
+              <p className="text-[10px] uppercase font-bold text-gray-500">Total Products</p>
+              <p className="text-sm font-black text-black mt-0.5">{stats?.total_products || 0}</p>
             </div>
-            <div>
+            <div className="border-r border-gray-200 pr-2">
               <p className="text-[10px] uppercase font-bold text-gray-500">Total Orders</p>
-              <p className="text-sm font-black text-black mt-0.5">{kpis[1]?.value || '0'}</p>
+              <p className="text-sm font-black text-black mt-0.5">{stats?.total_orders || 0}</p>
             </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold text-gray-500">Avg Order Value</p>
-              <p className="text-sm font-black text-black mt-0.5">{kpis[2]?.value || 'TSh 0'}</p>
+            <div className="border-r border-gray-200 pr-2">
+              <p className="text-[10px] uppercase font-bold text-gray-500">Total Revenue</p>
+              <p className="text-sm font-black text-black mt-0.5">{kpis[2]?.fullValue || `TSh ${(stats?.total_revenue || 0).toLocaleString()}`}</p>
             </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold text-gray-500">Conversion Rate</p>
-              <p className="text-sm font-black text-black mt-0.5">{kpis[3]?.value || '0%'}</p>
+            <div className="border-r border-gray-200 pr-2">
+              <p className="text-[10px] uppercase font-bold text-gray-500">Avg Rating</p>
+              <p className="text-sm font-black text-black mt-0.5">{stats?.avg_rating || '—'} <span className="text-[10px] font-normal text-gray-500">({stats?.total_reviews || 0})</span></p>
             </div>
             <div>
               <p className="text-[10px] uppercase font-bold text-gray-500">Stock Alerts</p>
-              <p className="text-sm font-black text-black mt-0.5">{kpis[4]?.value || '0'}</p>
+              <p className="text-sm font-black text-black mt-0.5">{stats?.stock_alerts?.length || 0}</p>
             </div>
+          </div>
+
+          {/* Section 1: Top Performing Products */}
+          {stats?.top_products && stats.top_products.length > 0 && (
+            <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <div className="flex items-center justify-between border-b border-black pb-1">
+                <h3 className="text-xs font-black uppercase tracking-wider text-black">
+                  Top Performing Products ({dateRange.label})
+                </h3>
+                <span className="text-[10px] font-bold text-gray-500">
+                  {stats.top_products.length} Products Ranked
+                </span>
+              </div>
+              <table className="w-full text-left text-xs border-collapse table-fixed">
+                <thead>
+                  <tr className="border-b border-gray-300 bg-gray-100/80 text-black">
+                    <th className="py-1.5 px-2 w-12 text-center font-bold">RANK</th>
+                    <th className="py-1.5 px-2 w-auto font-bold">PRODUCT NAME</th>
+                    <th className="py-1.5 px-3 w-28 text-right font-bold">UNITS SOLD</th>
+                    <th className="py-1.5 px-3 w-40 text-right font-bold">REVENUE (TZS)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {stats.top_products.map((p: any, idx: number) => (
+                    <tr key={idx} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                      <td className="py-1.5 px-2 text-center font-bold text-gray-500">#{idx + 1}</td>
+                      <td className="py-1.5 px-2 font-bold text-black truncate">{p.name}</td>
+                      <td className="py-1.5 px-3 text-right font-mono font-bold text-black">{p.sold}</td>
+                      <td className="py-1.5 px-3 text-right font-mono font-bold text-black">
+                        {parseFloat(p.revenue || 0).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <td colSpan={2} className="py-2 px-2 text-right text-2xs uppercase">TOTAL TOP PRODUCTS REVENUE:</td>
+                    <td className="py-2 px-3 text-right font-mono font-black">
+                      {stats.top_products.reduce((acc: number, item: any) => acc + (item.sold || 0), 0)}
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono font-black text-black">
+                      {stats.top_products.reduce((acc: number, item: any) => acc + (parseFloat(item.revenue || 0)), 0).toLocaleString()} TZS
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+
+          {/* Section 2: Store Products Catalog & Inventory Health */}
+          {stats?.products_summary && stats.products_summary.length > 0 && (
+            <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <div className="flex items-center justify-between border-b border-black pb-1">
+                <h3 className="text-xs font-black uppercase tracking-wider text-black">
+                  Store Products Catalog & Stock Status
+                </h3>
+                <span className="text-[10px] font-bold text-gray-500">
+                  {stats.products_summary.length} Items Listed
+                </span>
+              </div>
+              <table className="w-full text-left text-xs border-collapse table-fixed">
+                <thead>
+                  <tr className="border-b border-gray-300 bg-gray-100/80 text-black">
+                    <th className="py-1.5 px-2 w-10 text-center font-bold">S/N</th>
+                    <th className="py-1.5 px-2 w-auto font-bold">PRODUCT</th>
+                    <th className="py-1.5 px-2 w-28 font-bold">SKU</th>
+                    <th className="py-1.5 px-2 w-28 font-bold">CATEGORY</th>
+                    <th className="py-1.5 px-3 w-32 text-right font-bold">PRICE (TZS)</th>
+                    <th className="py-1.5 px-2 w-16 text-right font-bold">STOCK</th>
+                    <th className="py-1.5 px-2 w-24 text-center font-bold">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {stats.products_summary.map((prod: any, idx: number) => {
+                    const isOutOfStock = prod.stock === 0;
+                    const isLowStock = prod.stock > 0 && prod.stock <= 3;
+                    return (
+                      <tr key={prod.id || idx} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                        <td className="py-1.5 px-2 text-center text-gray-500 font-bold">{idx + 1}</td>
+                        <td className="py-1.5 px-2 font-bold text-black truncate">{prod.name}</td>
+                        <td className="py-1.5 px-2 text-gray-600 font-mono text-[11px]">{prod.sku || '-'}</td>
+                        <td className="py-1.5 px-2 text-gray-600 truncate">{prod.category || '-'}</td>
+                        <td className="py-1.5 px-3 text-right font-mono font-bold text-black">
+                          {parseFloat(prod.price || 0).toLocaleString()}
+                        </td>
+                        <td className="py-1.5 px-2 text-right font-mono font-bold text-black">{prod.stock}</td>
+                        <td className="py-1.5 px-2 text-center text-[10px] font-bold">
+                          {isOutOfStock ? (
+                            <span className="text-red-600 uppercase">Out of Stock</span>
+                          ) : isLowStock ? (
+                            <span className="text-amber-600 uppercase">Low Stock</span>
+                          ) : (
+                            <span className="text-emerald-700 uppercase">In Stock</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <td colSpan={4} className="py-2 px-2 text-right text-2xs uppercase">TOTAL INVENTORY VALUE:</td>
+                    <td className="py-2 px-3 text-right font-mono font-black">
+                      {stats.products_summary.reduce((acc: number, p: any) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
+                    </td>
+                    <td className="py-2 px-2 text-right font-mono font-black">
+                      {stats.products_summary.reduce((acc: number, p: any) => acc + (p.stock || 0), 0)}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+
+          {/* Section 3: Items Sold Detailed Activity */}
+          {stats?.items_sold_list && stats.items_sold_list.length > 0 && (
+            <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <div className="flex items-center justify-between border-b border-black pb-1">
+                <h3 className="text-xs font-black uppercase tracking-wider text-black">
+                  Items Sold Activity ({dateRange.label})
+                </h3>
+                <span className="text-[10px] font-bold text-gray-500">
+                  {stats.items_sold_list.length} Records
+                </span>
+              </div>
+              <table className="w-full text-left text-xs border-collapse table-fixed">
+                <thead>
+                  <tr className="border-b border-gray-300 bg-gray-100/80 text-black">
+                    <th className="py-1.5 px-1.5 w-8 text-center font-bold">S/N</th>
+                    <th className="py-1.5 px-2 w-24 font-bold">DATE</th>
+                    <th className="py-1.5 px-2 w-auto font-bold">PRODUCT</th>
+                    <th className="py-1.5 px-2 w-12 text-right font-bold">QTY</th>
+                    <th className="py-1.5 px-2 w-28 text-right font-bold">UNIT PRICE</th>
+                    <th className="py-1.5 px-3 w-32 text-right font-bold">TOTAL REV</th>
+                    <th className="py-1.5 px-2 w-24 text-center font-bold">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {stats.items_sold_list.map((item: any, idx: number) => (
+                    <tr key={item.id || idx} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                      <td className="py-1.5 px-1.5 text-center text-gray-500 font-bold">{idx + 1}</td>
+                      <td className="py-1.5 px-2 text-gray-600 text-[11px] whitespace-nowrap">
+                        {new Date(item.date).toLocaleDateString()}
+                      </td>
+                      <td className="py-1.5 px-2 font-bold text-black truncate">{item.product_name}</td>
+                      <td className="py-1.5 px-2 text-right font-mono font-bold text-black">{item.quantity}</td>
+                      <td className="py-1.5 px-2 text-right font-mono text-gray-700">
+                        {parseFloat(item.price || 0).toLocaleString()}
+                      </td>
+                      <td className="py-1.5 px-3 text-right font-mono font-bold text-black">
+                        {parseFloat(item.total || 0).toLocaleString()}
+                      </td>
+                      <td className="py-1.5 px-2 text-center text-[10px] font-semibold uppercase">
+                        {item.status}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-black font-black bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <td colSpan={3} className="py-2 px-2 text-right text-2xs uppercase">TOTAL SALES:</td>
+                    <td className="py-2 px-2 text-right font-mono font-black">
+                      {stats.items_sold_list.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0)}
+                    </td>
+                    <td></td>
+                    <td className="py-2 px-3 text-right font-mono font-black text-black">
+                      {stats.items_sold_list.reduce((acc: number, item: any) => acc + (parseFloat(item.total || 0)), 0).toLocaleString()} TZS
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+
+          {/* Section 4: Low Stock Warnings */}
+          {stats?.stock_alerts && stats.stock_alerts.length > 0 && (
+            <div className="space-y-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+              <div className="flex items-center justify-between border-b border-black pb-1">
+                <h3 className="text-xs font-black uppercase tracking-wider text-red-600">
+                  Stock Depletion & Reorder Alerts
+                </h3>
+                <span className="text-[10px] font-bold text-red-600">
+                  {stats.stock_alerts.length} Items Critical
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {stats.stock_alerts.map((s: any, idx: number) => (
+                  <div key={idx} className="p-2 border border-red-200 rounded bg-red-50/50 flex items-center justify-between text-xs" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <span className="font-bold text-black truncate pr-2">{s.name}</span>
+                    <span className="font-mono font-extrabold text-red-600 shrink-0">
+                      {s.stock === 0 ? 'OUT OF STOCK' : `${s.stock} left`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Report Footer */}
+          <div className="pt-4 border-t border-gray-300 flex items-center justify-between text-[10px] text-gray-500" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            <span>Generated on {new Date().toLocaleString()} via SokoniMax Store Analytics</span>
+            <span>All amounts in Tanzanian Shillings (TZS) • Confidential</span>
           </div>
         </div>
       </div>
@@ -242,26 +446,73 @@ const DashboardOverview: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print-hide">
         {/* Revenue Area Chart */}
         <div className="lg:col-span-2 card p-5 flex flex-col h-[350px]">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center justify-between">
-            <span>Revenue Pipeline</span>
-            <BarChart3 size={16} className="text-brand-500" />
-          </h3>
-          <div className="h-[280px] w-full min-h-[280px]">
-            <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={280} debounce={50}>
-               <AreaChart data={stats?.revenue_data || []}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <span>Revenue Pipeline</span>
+              <span className="text-2xs font-normal text-gray-400">({dateRange.label})</span>
+            </h3>
+            <div className="flex items-center gap-2">
+              {stats?.revenue_trend_pct !== undefined && (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border bg-transparent ${stats.revenue_trend_pct >= 0 ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'text-red-600 dark:text-red-400 border-red-500/30'}`}>
+                  {stats.revenue_trend_pct >= 0 ? '+' : ''}{stats.revenue_trend_pct}%
+                </span>
+              )}
+              <TrendingUp size={16} className="text-brand-500" />
+            </div>
+          </div>
+          <div className="h-[270px] w-full min-h-[270px] flex-1">
+            {stats?.revenue_data && stats.revenue_data.length > 0 ? (
+              <ResponsiveContainer width="100%" height={270} minWidth={0} minHeight={270} debounce={50}>
+                <AreaChart data={stats.revenue_data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                  <XAxis dataKey="date" fontSize={10} axisLine={false} tickLine={false} />
-                  <YAxis fontSize={10} axisLine={false} tickLine={false} tickFormatter={(v) => `TSh ${v/1000}k`} />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRev)" />
-               </AreaChart>
-            </ResponsiveContainer>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888820" />
+                  <XAxis 
+                    dataKey="date" 
+                    fontSize={10} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#888888' }}
+                  />
+                  <YAxis 
+                    fontSize={10} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#888888' }}
+                    tickFormatter={(v) => formatCompactCurrency(v, '')} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(18, 18, 18, 0.95)', 
+                      borderColor: '#333333', 
+                      borderRadius: '0.75rem',
+                      fontSize: '12px',
+                      color: '#ffffff',
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
+                    }}
+                    formatter={(val: any) => [`TSh ${Number(val || 0).toLocaleString()}`, 'Revenue']}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2.5}
+                    fillOpacity={1} 
+                    fill="url(#colorRev)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
+                <p className="text-xs font-semibold">No revenue transactions in this period</p>
+                <p className="text-3xs text-gray-500 mt-1">Sales will appear here as orders are placed</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -368,7 +619,7 @@ const DashboardOverview: React.FC = () => {
                   )}
                 </div>
 
-                <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400 bg-brand-500/10 border border-brand-500/20 px-2.5 py-0.5 rounded-full capitalize">Best Sellers</span>
+                <span className="text-[11px] font-medium text-brand-600 dark:text-brand-400 bg-transparent border border-brand-500/40 px-2.5 py-0.5 rounded-full capitalize">Best Sellers</span>
               </div>
             </div>
             <div className="divide-y divide-surface-border dark:divide-surface-dark-border max-h-96 overflow-y-auto">
@@ -382,7 +633,7 @@ const DashboardOverview: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right shrink-0 max-w-[120px]">
-                    <p className="text-xs font-extrabold text-brand-600 dark:text-brand-400 truncate" title={`TSh ${(p.revenue ?? 0).toLocaleString()}`}>TSh ${(p.revenue ?? 0).toLocaleString()}</p>
+                    <p className="text-xs font-extrabold text-brand-600 dark:text-brand-400 truncate" title={`TSh ${(p.revenue ?? 0).toLocaleString()}`}>TSh {(p.revenue ?? 0).toLocaleString()}</p>
                   </div>
                 </div>
               ))}
@@ -398,7 +649,7 @@ const DashboardOverview: React.FC = () => {
             label="Commission Paid (This Month)"
             value={formatCompactCurrency(stats?.commission_paid || 0, 'TZS')}
             fullValue={`TZS ${(stats?.commission_paid || 0).toLocaleString()}`}
-            icon={DollarSign}
+            icon={Banknote}
             sub={`Calculated at ${stats?.commission_rate || 10}% on completed orders`}
           />
         </div>
@@ -416,7 +667,7 @@ const DashboardOverview: React.FC = () => {
               {stats.stock_alerts.map((s: any, i: number) => (
                 <div key={i} className="p-3 flex items-center justify-between hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
                   <span className="text-xs font-medium text-gray-900 dark:text-white truncate pr-2">{s.name}</span>
-                  <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border capitalize shrink-0 ${s.stock === 0 ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'}`}>
+                  <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border capitalize shrink-0 bg-transparent ${s.stock === 0 ? 'text-red-600 dark:text-red-400 border-red-500/40' : 'text-amber-600 dark:text-amber-400 border-amber-500/40'}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${s.stock === 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
                     {s.stock === 0 ? 'Out of Stock' : `${s.stock} left`}
                   </span>

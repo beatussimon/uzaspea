@@ -7,9 +7,11 @@ import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/Input';
+import { useAuth } from '../context/AuthContext';
 
 const LoginPage: React.FC = () => {
   const { t } = useTranslation();
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,19 +32,9 @@ const LoginPage: React.FC = () => {
       const theme = localStorage.getItem('theme');
       localStorage.clear();
       if (theme) localStorage.setItem('theme', theme);
-      
-      localStorage.setItem('access_token', res.data.access);
-      localStorage.setItem('refresh_token', res.data.refresh);
-      localStorage.setItem('user_id', String(res.data.user_id));
-      localStorage.setItem('username', res.data.username);
-      localStorage.setItem('is_verified', String(res.data.is_verified || false));
-      localStorage.setItem('tier', res.data.tier || 'free');
-      localStorage.setItem('is_staff', String(res.data.is_staff || false));
-      localStorage.setItem('is_superuser', String(res.data.is_superuser || false));
-      localStorage.setItem('is_inspector', String(res.data.is_inspector || false));
-      localStorage.setItem('has_staff_permissions', String(res.data.has_staff_permissions || false));
-      localStorage.setItem('inspector_level', res.data.inspector_level || '');
-      
+
+      // Call AuthContext login to decode full JWT payload, initialize state, and store all keys
+      login({ access: res.data.access, refresh: res.data.refresh }, res.data);
       setIsBanned(false);
       
       // Process pending cart item if user had tried to add to cart before login
@@ -86,17 +78,37 @@ const LoginPage: React.FC = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const nextParam = urlParams.get('next');
 
+      const isSubActive = res.data.subscription_active === true || res.data.subscription_active === 'true';
+      const isExpired = res.data.subscription_expired === true || res.data.subscription_expired === 'true';
+      const isSeller = res.data.is_seller === true || res.data.is_seller === 'true' || res.data.tier === 'seller_pro' || res.data.tier === 'business';
+
       let defaultRedirect = '/';
       if (res.data.is_inspector && !res.data.is_staff) {
         defaultRedirect = '/inspector/jobs';
       } else if (res.data.is_team_member && !res.data.is_staff && !res.data.is_superuser && res.data.tier !== 'business') {
         defaultRedirect = '/teams-dashboard';
-      } else if (res.data.tier === 'seller_pro' || res.data.tier === 'business') {
+      } else if (res.data.is_staff || res.data.is_superuser) {
+        defaultRedirect = res.data.is_superuser ? '/staff-admin' : '/staff';
+      } else if (isSubActive) {
         defaultRedirect = '/dashboard';
+      } else if (isExpired || isSeller) {
+        defaultRedirect = '/dashboard';
+      } else {
+        defaultRedirect = '/';
       }
 
-      const redirectTo = nextParam || sessionStorage.getItem('loginRedirect') || defaultRedirect;
+      let redirectTo = nextParam || sessionStorage.getItem('loginRedirect') || defaultRedirect;
       sessionStorage.removeItem('loginRedirect');
+
+      // If the user is an active subscriber, prevent accidental redirection to billing
+      if (isSubActive && redirectTo === '/dashboard/billing') {
+        redirectTo = '/dashboard';
+      }
+      // If pure customer was trying to go to a seller path, route to home
+      if (!isSubActive && !isExpired && !isSeller && !res.data.is_staff && !res.data.is_superuser && redirectTo.startsWith('/dashboard')) {
+        redirectTo = '/';
+      }
+
       window.location.href = redirectTo;
     } catch (err: any) {
       if (err.response?.data?.code === 'user_banned') {

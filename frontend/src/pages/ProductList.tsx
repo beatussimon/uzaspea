@@ -11,6 +11,7 @@ import { apiCache } from '../utils/apiCache';
 import { ensureArray } from '../utils/arrayUtils';
 import SEO from '../components/SEO';
 import ExpandableSearch from '../components/ExpandableSearch';
+import { useUserLocation } from '../context/LocationContext';
 
 const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } } as any;
 const cardVariants = {
@@ -29,6 +30,7 @@ type GridEntry =
 // ================================================================
 const ProductList = () => {
   const { t } = useTranslation();
+  const { location, searchPrefs, setNearMe, setNationwide, isLocating } = useUserLocation();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
@@ -150,9 +152,23 @@ const ProductList = () => {
           params[key] = value;
         }
       });
+
+      // Inject persistent location preferences
+      if (searchPrefs.mode === 'proximity' && location.coords && searchPrefs.radius) {
+        params.lat = String(location.coords.lat);
+        params.lng = String(location.coords.lng);
+        params.radius = String(searchPrefs.radius);
+        params.location_mode = 'proximity';
+      } else if (searchPrefs.mode === 'region' && searchPrefs.region) {
+        params.region = searchPrefs.region;
+        params.location_mode = 'region';
+      } else {
+        params.location_mode = 'nationwide';
+      }
+
       return params;
     },
-    [searchParams]
+    [searchParams, searchPrefs, location.coords]
   );
 
   const fetchProducts = useCallback(
@@ -302,7 +318,7 @@ const ProductList = () => {
   useEffect(() => { 
     setPage(1); 
     fetchProducts(1, true); 
-  }, [searchParams]);
+  }, [searchParams, searchPrefs, location.coords]);
 
   useEffect(() => {
     localStorage.setItem('viewMode', viewMode);
@@ -611,110 +627,145 @@ const ProductList = () => {
         noindex={isSearchPage}
         schema={categoryBreadcrumbSchema}
       />
-      <div id="browse" className="container-page pb-24 md:pb-8">
-      <div className="mb-6 space-y-4">
-        
-        {/* Local Search for Saved Items */}
-        {saved && (
-          <div className="px-4 md:px-0 flex justify-center w-full">
-            <ExpandableSearch 
-              value={urlQuery} 
-              onChange={(val) => updateFilters({ q: val })} 
-              placeholder={t('search_saved_items', 'Search your saved items...')}
-              pillLabel={t('search_saved', 'Search Saved')}
-            />
-          </div>
-        )}
-
-        {/* Seller Store Banner */}
-        {sellerFilter && (
-          <div className="flex items-center gap-3 px-4 md:px-0 py-3 mb-2">
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-brand-500/5 dark:bg-brand-500/10 border border-brand-500/15 dark:border-brand-500/20 flex-1">
-              <div className="w-7 h-7 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-500 text-xs font-bold uppercase">
-                {sellerFilter.charAt(0)}
+      <div id="browse" className="container-page pb-24 md:pb-8 pt-1">
+        {(saved || sellerFilter || urlQuery || activePills.length > 0) && (
+          <div className="mb-2 space-y-2">
+            {/* Local Search for Saved Items */}
+            {saved && (
+              <div className="px-4 md:px-0 flex justify-center w-full">
+                <ExpandableSearch 
+                  value={urlQuery} 
+                  onChange={(val) => updateFilters({ q: val })} 
+                  placeholder={t('search_saved_items', 'Search your saved items...')}
+                  pillLabel={t('search_saved', 'Search Saved')}
+                />
               </div>
-              <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                Results in <Link to={`/${sellerFilter}`} className="font-bold text-brand-500 hover:underline">@{sellerFilter}</Link>'s store
-              </span>
-              <button
-                onClick={() => updateFilters({ seller: '' })}
-                className="ml-auto text-xs font-bold text-neutral-400 hover:text-brand-500 transition-colors"
-              >
-                Show all
-              </button>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* Unified Search Query & Active Filters Row */}
-        {(urlQuery || activePills.length > 0) && (
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-0 py-2 pb-3">
-            {/* Left: Search Header & Filter Pills Inline */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              {urlQuery ? (
-                <div className="flex items-center gap-2 mr-1">
-                  <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Search:</span>
-                  <h1 className="text-base sm:text-lg font-black text-gray-900 dark:text-white tracking-tight">
-                    Results for <span className="text-brand-600 dark:text-brand-400">"{urlQuery}"</span>
-                  </h1>
+            {/* Seller Store Banner */}
+            {sellerFilter && (
+              <div className="flex items-center gap-3 px-4 md:px-0 py-2">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-brand-500/5 dark:bg-brand-500/10 border border-brand-500/15 dark:border-brand-500/20 flex-1">
+                  <div className="w-7 h-7 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-500 text-xs font-bold uppercase">
+                    {sellerFilter.charAt(0)}
+                  </div>
+                  <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    Results in <Link to={`/${sellerFilter}`} className="font-bold text-brand-500 hover:underline">@{sellerFilter}</Link>'s store
+                  </span>
+                  <button
+                    onClick={() => updateFilters({ seller: '' })}
+                    className="ml-auto text-xs font-bold text-neutral-400 hover:text-brand-500 transition-colors"
+                  >
+                    Show all
+                  </button>
                 </div>
-              ) : (
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">
-                  Active Filters:
-                </span>
-              )}
+              </div>
+            )}
 
-              {/* Filter Pills */}
-              {activePills.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
+            {/* Unified Search Query & Active Filters Row */}
+            {(urlQuery || activePills.length > 0) && (
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-0 py-1.5 pb-2">
+                {/* Left: Search Header & Filter Pills Inline */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {urlQuery ? (
+                    <div className="flex items-center gap-2 mr-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Search:</span>
+                      <h1 className="text-base sm:text-lg font-black text-gray-900 dark:text-white tracking-tight">
+                        Results for <span className="text-brand-600 dark:text-brand-400">"{urlQuery}"</span>
+                      </h1>
+                    </div>
+                  ) : activePills.length > 0 ? (
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">
+                      Active Filters:
+                    </span>
+                  ) : null}
+
                   {urlQuery && <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline">|</span>}
-                  {activePills.map((pill) => {
-                    let pillClasses = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold animate-in zoom-in-95 duration-200 border ";
-                    if (pill.id === 'category') {
-                      pillClasses += "bg-transparent border-brand-500 text-gray-800 dark:text-gray-200";
-                    } else {
-                      pillClasses += "bg-gray-100 dark:bg-neutral-800 border-transparent text-gray-800 dark:text-gray-200";
-                    }
 
-                    return (
-                      <div key={pill.id} className={pillClasses}>
-                        <span className="opacity-60 font-medium">{pill.label}:</span>
-                        <span>{pill.value}</span>
-                        <button
-                          onClick={pill.onRemove}
-                          className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
-                          aria-label={`Remove ${pill.label} filter`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {/* Filter Pills */}
+                  {activePills.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {activePills.map((pill) => {
+                        let pillClasses = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold animate-in zoom-in-95 duration-200 border ";
+                        if (pill.id === 'category') {
+                          pillClasses += "bg-transparent border-brand-500 text-gray-800 dark:text-gray-200";
+                        } else {
+                          pillClasses += "bg-gray-100 dark:bg-neutral-800 border-transparent text-gray-800 dark:text-gray-200";
+                        }
+
+                        return (
+                          <div key={pill.id} className={pillClasses}>
+                            <span className="opacity-60 font-medium">{pill.label}:</span>
+                            <span>{pill.value}</span>
+                            <button
+                              onClick={pill.onRemove}
+                              className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
+                              aria-label={`Remove ${pill.label} filter`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Right: Clear Button */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setSearchParams(prev => {
-                    const newParams = new URLSearchParams();
-                    const view = prev.get('view');
-                    if (view) newParams.set('view', view);
-                    return newParams;
-                  });
-                }}
-                className="text-xs font-bold text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-950/30 uppercase tracking-tight"
-                title={urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}
-              >
-                <X size={13} />
-                <span>{urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}</span>
-              </button>
-            </div>
+                {/* Right: Clear Button */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setSearchParams(prev => {
+                        const newParams = new URLSearchParams();
+                        const view = prev.get('view');
+                        if (view) newParams.set('view', view);
+                        return newParams;
+                      });
+                    }}
+                    className="text-xs font-bold text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-950/30 uppercase tracking-tight"
+                    title={urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}
+                  >
+                    <X size={13} />
+                    <span>{urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
-      </div>
+
+        {/* ─── Centered Subtle Location Notice (only when browsing, not in search results) ─── */}
+        {!urlQuery && !saved && activePills.length === 0 && !sellerFilter && (
+          <div className="flex items-center justify-center gap-2 py-1 px-4 mb-2 text-xs text-neutral-500 dark:text-neutral-400">
+            <span>
+              {t('latest_picks_in', 'Latest picks in')}{' '}
+              <span className="text-neutral-800 dark:text-neutral-200 font-semibold">
+                {searchPrefs.mode === 'proximity' && searchPrefs.locationName !== 'Nationwide'
+                  ? `${searchPrefs.locationName.split(',')[0]} (${t('within', 'within')} ${searchPrefs.radius || 10}km)`
+                  : (searchPrefs.region || t('all_in_country', 'All in Tanzania'))}
+              </span>
+            </span>
+            <span className="text-neutral-300 dark:text-neutral-700">•</span>
+            {searchPrefs.mode === 'proximity' ? (
+              <button
+                type="button"
+                onClick={setNationwide}
+                className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
+              >
+                {t('view_all_in_country', 'View all in Tanzania')}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={setNearMe}
+                disabled={isLocating}
+                className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
+              >
+                {isLocating ? t('locating', 'Locating...') : t('view_near_me', 'View near me')}
+              </button>
+            )}
+          </div>
+        )}
 
       {/* ===== Product Grid ===== */}
       {loading ? (

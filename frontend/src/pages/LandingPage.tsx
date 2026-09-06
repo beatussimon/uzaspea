@@ -132,11 +132,15 @@ const LandingPage = () => {
 
   const organizationSchema = {
     "@context": "https://schema.org",
-    "@type": "Organization",
+    "@type": "OnlineStore",
     "name": "SokoniMax",
+    "alternateName": ["Sokoni Max", "SokoniMax Tanzania", "OKO"],
     "url": siteUrl,
     "logo": `${siteUrl}/logo.png`,
-    "description": "Buy and sell car parts, vehicles, electronics, and goods in Tanzania. Verified sellers and secure payments."
+    "description": "SokoniMax ni soko kuu la mtandaoni nchini Tanzania la kununua na kuuza vipuri vya magari, vifaa vya kielektroniki, simu, na bidhaa mbalimbali. SokoniMax is Tanzania's premier verified e-commerce marketplace.",
+    "areaServed": "TZ",
+    "currenciesAccepted": "TZS",
+    "priceRange": "TZS"
   };
 
   return (

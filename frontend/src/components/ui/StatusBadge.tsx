@@ -20,7 +20,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   const config = ORDER_STATUS_CONFIG[status] || {
     label: status,
     color: 'text-gray-600 dark:text-gray-400',
-    bg: 'bg-gray-500/10 border-gray-500/20',
+    bg: 'bg-transparent border-gray-500/40',
     dot: 'bg-gray-400',
     icon: null,
   };
@@ -31,8 +31,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full font-medium shrink-0 select-none border capitalize',
-        config.bg || 'bg-gray-500/10 border-gray-500/20',
+        'inline-flex items-center gap-1.5 rounded-full font-medium shrink-0 select-none border capitalize bg-transparent',
+        config.bg || 'bg-transparent border-gray-500/40',
         config.color || 'text-gray-600 dark:text-gray-400',
         size === 'sm' ? 'px-2.5 py-0.5 text-[11px]' : 'px-3 py-1 text-xs',
         className

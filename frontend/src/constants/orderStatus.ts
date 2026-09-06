@@ -4,7 +4,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   CART: { 
     label: 'Cart', 
     color: 'text-gray-600 dark:text-gray-400', 
-    bg: 'bg-gray-500/10 border-gray-500/20', 
+    bg: 'bg-transparent border-gray-500/40', 
     dot: 'bg-gray-400', 
     solidBg: 'bg-gray-600', 
     icon: Package 
@@ -12,7 +12,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   CHECKOUT: { 
     label: 'Checkout', 
     color: 'text-brand-500', 
-    bg: 'bg-brand-500/10 border-brand-500/20', 
+    bg: 'bg-transparent border-brand-500/40', 
     dot: 'bg-brand-500', 
     solidBg: 'bg-brand-500', 
     icon: Package 
@@ -20,7 +20,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   REQUESTED_INVOICE: { 
     label: 'Quote Requested', 
     color: 'text-amber-600 dark:text-amber-400', 
-    bg: 'bg-amber-500/10 border-amber-500/20', 
+    bg: 'bg-transparent border-amber-500/40', 
     dot: 'bg-amber-500', 
     solidBg: 'bg-amber-600', 
     icon: Receipt 
@@ -28,7 +28,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   INVOICE_GENERATED: { 
     label: 'Invoice Ready', 
     color: 'text-blue-600 dark:text-blue-400', 
-    bg: 'bg-blue-500/10 border-blue-500/20', 
+    bg: 'bg-transparent border-blue-500/40', 
     dot: 'bg-blue-500', 
     solidBg: 'bg-blue-500', 
     icon: Receipt 
@@ -36,7 +36,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   BUYER_COUNTERED: { 
     label: 'Counter Offer', 
     color: 'text-purple-600 dark:text-purple-400', 
-    bg: 'bg-purple-500/10 border-purple-500/20', 
+    bg: 'bg-transparent border-purple-500/40', 
     dot: 'bg-purple-500', 
     solidBg: 'bg-purple-500', 
     icon: MessageSquare 
@@ -44,7 +44,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   AWAITING_PAYMENT: { 
     label: 'Awaiting Payment', 
     color: 'text-amber-600 dark:text-amber-400', 
-    bg: 'bg-amber-500/10 border-amber-500/20', 
+    bg: 'bg-transparent border-amber-500/40', 
     dot: 'bg-amber-500', 
     solidBg: 'bg-amber-500', 
     icon: CreditCard 
@@ -52,7 +52,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   PENDING_VERIFICATION: { 
     label: 'Verifying Payment', 
     color: 'text-amber-600 dark:text-amber-400', 
-    bg: 'bg-amber-500/10 border-amber-500/20', 
+    bg: 'bg-transparent border-amber-500/40', 
     dot: 'bg-amber-500', 
     solidBg: 'bg-amber-500', 
     icon: Clock 
@@ -60,7 +60,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   PAID: { 
     label: 'Paid', 
     color: 'text-emerald-600 dark:text-emerald-400', 
-    bg: 'bg-emerald-500/10 border-emerald-500/20', 
+    bg: 'bg-transparent border-emerald-500/40', 
     dot: 'bg-emerald-500', 
     solidBg: 'bg-emerald-500', 
     icon: CheckCircle2 
@@ -68,7 +68,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   PAID_PRODUCT: { 
     label: 'Product Paid', 
     color: 'text-emerald-600 dark:text-emerald-400', 
-    bg: 'bg-emerald-500/10 border-emerald-500/20', 
+    bg: 'bg-transparent border-emerald-500/40', 
     dot: 'bg-emerald-500', 
     solidBg: 'bg-emerald-500', 
     icon: CheckCircle2 
@@ -78,7 +78,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   SELLER_CONFIRMED: { 
     label: 'Confirmed', 
     color: 'text-emerald-600 dark:text-emerald-400', 
-    bg: 'bg-emerald-500/10 border-emerald-500/20', 
+    bg: 'bg-transparent border-emerald-500/40', 
     dot: 'bg-emerald-500', 
     solidBg: 'bg-emerald-500', 
     icon: Clipboard 
@@ -86,7 +86,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   PREPARING: { 
     label: 'Preparing', 
     color: 'text-blue-600 dark:text-blue-400', 
-    bg: 'bg-blue-500/10 border-blue-500/20', 
+    bg: 'bg-transparent border-blue-500/40', 
     dot: 'bg-blue-500', 
     solidBg: 'bg-blue-500', 
     icon: Package 
@@ -94,7 +94,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   PACKAGING: { 
     label: 'Packaging', 
     color: 'text-blue-600 dark:text-blue-400', 
-    bg: 'bg-blue-500/10 border-blue-500/20', 
+    bg: 'bg-transparent border-blue-500/40', 
     dot: 'bg-blue-500', 
     solidBg: 'bg-blue-500', 
     icon: Archive 
@@ -102,7 +102,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   SHIPPED_TO_WAREHOUSE: { 
     label: 'Shipped to Hub', 
     color: 'text-blue-600 dark:text-blue-400', 
-    bg: 'bg-blue-500/10 border-blue-500/20', 
+    bg: 'bg-transparent border-blue-500/40', 
     dot: 'bg-blue-500', 
     solidBg: 'bg-blue-500', 
     icon: Truck 
@@ -110,7 +110,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   RECEIVED_AT_WAREHOUSE: { 
     label: 'At Warehouse Hub', 
     color: 'text-purple-600 dark:text-purple-400', 
-    bg: 'bg-purple-500/10 border-purple-500/20', 
+    bg: 'bg-transparent border-purple-500/40', 
     dot: 'bg-purple-500', 
     solidBg: 'bg-purple-500', 
     icon: MapPin 
@@ -118,7 +118,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   AWAITING_DELIVERY_PAYMENT: { 
     label: 'Delivery Fee Due', 
     color: 'text-amber-600 dark:text-amber-400', 
-    bg: 'bg-amber-500/10 border-amber-500/20', 
+    bg: 'bg-transparent border-amber-500/40', 
     dot: 'bg-amber-500', 
     solidBg: 'bg-amber-500', 
     icon: Banknote 
@@ -126,7 +126,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   PENDING_DELIVERY_VERIFICATION: { 
     label: 'Verifying Delivery Fee', 
     color: 'text-amber-600 dark:text-amber-400', 
-    bg: 'bg-amber-500/10 border-amber-500/20', 
+    bg: 'bg-transparent border-amber-500/40', 
     dot: 'bg-amber-500', 
     solidBg: 'bg-amber-500', 
     icon: Clock 
@@ -134,7 +134,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   ASSIGNED_TRANSPORT: { 
     label: 'Assigned Fleet', 
     color: 'text-blue-600 dark:text-blue-400', 
-    bg: 'bg-blue-500/10 border-blue-500/20', 
+    bg: 'bg-transparent border-blue-500/40', 
     dot: 'bg-blue-500', 
     solidBg: 'bg-blue-500', 
     icon: CheckCircle 
@@ -142,7 +142,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   IN_TRANSIT: { 
     label: 'In Transit', 
     color: 'text-blue-600 dark:text-blue-400', 
-    bg: 'bg-blue-500/10 border-blue-500/20', 
+    bg: 'bg-transparent border-blue-500/40', 
     dot: 'bg-blue-500', 
     solidBg: 'bg-blue-500', 
     icon: Truck 
@@ -150,7 +150,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   ARRIVED_AT_REGIONAL_WAREHOUSE: { 
     label: 'At Regional Hub', 
     color: 'text-purple-600 dark:text-purple-400', 
-    bg: 'bg-purple-500/10 border-purple-500/20', 
+    bg: 'bg-transparent border-purple-500/40', 
     dot: 'bg-purple-500', 
     solidBg: 'bg-purple-500', 
     icon: CheckCircle2 
@@ -158,7 +158,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   READY_FOR_VEHICLE_HANDOVER: { 
     label: 'Ready for Handover', 
     color: 'text-purple-600 dark:text-purple-400', 
-    bg: 'bg-purple-500/10 border-purple-500/20', 
+    bg: 'bg-transparent border-purple-500/40', 
     dot: 'bg-purple-500', 
     solidBg: 'bg-purple-500', 
     icon: Truck 
@@ -166,7 +166,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   READY_FOR_PICKUP: { 
     label: 'Ready for Pickup', 
     color: 'text-purple-600 dark:text-purple-400', 
-    bg: 'bg-purple-500/10 border-purple-500/20', 
+    bg: 'bg-transparent border-purple-500/40', 
     dot: 'bg-purple-500', 
     solidBg: 'bg-purple-500', 
     icon: MapPin 
@@ -175,7 +175,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   PROCESSING: { 
     label: 'Processing', 
     color: 'text-blue-600 dark:text-blue-400', 
-    bg: 'bg-blue-500/10 border-blue-500/20', 
+    bg: 'bg-transparent border-blue-500/40', 
     dot: 'bg-blue-500', 
     solidBg: 'bg-blue-500', 
     icon: Package 
@@ -183,7 +183,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   SHIPPED: { 
     label: 'Shipped', 
     color: 'text-blue-600 dark:text-blue-400', 
-    bg: 'bg-blue-500/10 border-blue-500/20', 
+    bg: 'bg-transparent border-blue-500/40', 
     dot: 'bg-blue-500', 
     solidBg: 'bg-blue-500', 
     icon: Truck 
@@ -191,7 +191,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   OUT_FOR_DELIVERY: { 
     label: 'Out for Delivery', 
     color: 'text-blue-600 dark:text-blue-400', 
-    bg: 'bg-blue-500/10 border-blue-500/20', 
+    bg: 'bg-transparent border-blue-500/40', 
     dot: 'bg-blue-500', 
     solidBg: 'bg-blue-500', 
     icon: Truck 
@@ -199,7 +199,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   DELIVERED: { 
     label: 'Delivered', 
     color: 'text-emerald-600 dark:text-emerald-400', 
-    bg: 'bg-emerald-500/10 border-emerald-500/20', 
+    bg: 'bg-transparent border-emerald-500/40', 
     dot: 'bg-emerald-500', 
     solidBg: 'bg-emerald-500', 
     icon: MapPin 
@@ -207,7 +207,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   COMPLETED: { 
     label: 'Completed', 
     color: 'text-emerald-600 dark:text-emerald-400', 
-    bg: 'bg-emerald-500/10 border-emerald-500/20', 
+    bg: 'bg-transparent border-emerald-500/40', 
     dot: 'bg-emerald-500', 
     solidBg: 'bg-emerald-500', 
     icon: CheckCircle2 
@@ -215,7 +215,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   FAILED_DELIVERY: { 
     label: 'Failed Delivery', 
     color: 'text-red-600 dark:text-red-400', 
-    bg: 'bg-red-500/10 border-red-500/20', 
+    bg: 'bg-transparent border-red-500/40', 
     dot: 'bg-red-500', 
     solidBg: 'bg-red-500', 
     icon: XCircle 
@@ -223,7 +223,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   CANCELLED: { 
     label: 'Cancelled', 
     color: 'text-red-600 dark:text-red-400', 
-    bg: 'bg-red-500/10 border-red-500/20', 
+    bg: 'bg-transparent border-red-500/40', 
     dot: 'bg-red-500', 
     solidBg: 'bg-red-500', 
     icon: XCircle 
@@ -231,7 +231,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   RETURNED_TO_WAREHOUSE: { 
     label: 'Returned to Hub', 
     color: 'text-orange-600 dark:text-orange-400', 
-    bg: 'bg-orange-500/10 border-orange-500/20', 
+    bg: 'bg-transparent border-orange-500/40', 
     dot: 'bg-orange-500', 
     solidBg: 'bg-orange-500', 
     icon: Archive 
@@ -239,7 +239,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   EXPIRED: { 
     label: 'Expired', 
     color: 'text-gray-600 dark:text-gray-400', 
-    bg: 'bg-gray-500/10 border-gray-500/20', 
+    bg: 'bg-transparent border-gray-500/40', 
     dot: 'bg-gray-400', 
     solidBg: 'bg-gray-500', 
     icon: XCircle 
@@ -247,7 +247,7 @@ export const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string;
   DISPUTED: { 
     label: 'Disputed', 
     color: 'text-red-600 dark:text-red-400', 
-    bg: 'bg-red-500/10 border-red-500/20', 
+    bg: 'bg-transparent border-red-500/40', 
     dot: 'bg-red-500', 
     solidBg: 'bg-red-500', 
     icon: ShieldAlert 

@@ -468,8 +468,8 @@ const MessagesPage: React.FC = () => {
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <h1 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
-                  <MessageSquare className="text-brand-500" size={20} /> {t('chats')}
+                <h1 className="text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+                  {t('chats')}
                 </h1>
               </div>
             ) : (
