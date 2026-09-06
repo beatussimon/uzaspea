@@ -45,7 +45,6 @@ const ProfilePage: React.FC = () => {
   const [editForm, setEditForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [selectedLightboxImage, setSelectedLightboxImage] = useState<string | null>(null);
-  const [isSubscriptionExpired, setIsSubscriptionExpired] = useState(false);
 
   // Modal states for followers/following
   const [isFollowModalOpen, setIsFollowModalOpen] = useState(false);
@@ -59,7 +58,13 @@ const ProfilePage: React.FC = () => {
   // Authenticated context
   const currentUser = user?.username || localStorage.getItem('username');
   const isOwner = Boolean(username && currentUser && currentUser.toLowerCase() === username.toLowerCase());
-  const showDemandsTab = isOwner || profile?.show_product_requests !== false;
+  const isSellerProfile = Boolean(
+    (isOwner && (user?.is_seller || user?.tier === 'seller_pro' || user?.tier === 'business')) ||
+    profile?.tier === 'seller_pro' ||
+    profile?.tier === 'business' ||
+    (products && products.length > 0)
+  );
+  const showDemandsTab = isSellerProfile && (isOwner || profile?.show_product_requests !== false);
 
   // Extract unique categories from seller's products for quick-filter pills
   const sellerCategories = useMemo(() => {
@@ -134,9 +139,6 @@ const ProfilePage: React.FC = () => {
 
       if (currentUser) {
         promises.push(api.get(`/api/profiles/${username}/follow_status/`, { signal }));
-        if (currentUser.toLowerCase() === username.toLowerCase()) {
-          promises.push(api.get('/api/subscriptions/me/', { signal }));
-        }
       }
 
       const results = await Promise.allSettled(promises);
@@ -180,12 +182,6 @@ const ProfilePage: React.FC = () => {
       if (currentUser && results[3]?.status === 'fulfilled') {
         setFollowStatus(results[3].value.data);
       }
-
-      // 5. Subscription Expired Status
-      if (currentUser && currentUser.toLowerCase() === username.toLowerCase() && results[4]?.status === 'fulfilled') {
-        const subData = results[4].value.data;
-        setIsSubscriptionExpired(Boolean(subData && subData.status !== 'none' && !subData.is_active));
-      }
     } catch (err: any) {
       if (!signal?.aborted) {
         console.error("Profile load error", err);
@@ -211,6 +207,12 @@ const ProfilePage: React.FC = () => {
       controller.abort();
     };
   }, [fetchProfile]);
+
+  useEffect(() => {
+    if (profile && !isSellerProfile) {
+      setActiveTab('about');
+    }
+  }, [profile, isSellerProfile]);
 
   const handleFollow = async () => {
       const action = followStatus.following ? 'unfollow' : 'follow';
@@ -442,27 +444,6 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 md:py-12 space-y-12">
-      {/* Expired Subscription Banner */}
-      {isOwner && isSubscriptionExpired && (
-        <div className="p-4   border border-red-500 dark:border-red-500/30 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <Info className="text-red-500 shrink-0 mt-0.5" size={18} />
-            <div className="space-y-1">
-              <h4 className="text-xs font-black uppercase tracking-wider text-red-500 dark:text-red-500">Subscription Expired</h4>
-              <p className="text-xs text-red-500 dark:text-red-500 font-medium">
-                Your seller privileges have expired. All of your listed products are hidden from the marketplace.
-              </p>
-            </div>
-          </div>
-          <Link 
-            to="/upgrade" 
-            className="px-4 py-2 bg-red-500 hover:bg-red-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition text-center shrink-0 shadow-lg shadow-red-600/20"
-          >
-            Renew Now
-          </Link>
-        </div>
-      )}
-      
       {/* Header Info Block — Clean Instagram Style */}
       <header className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-16 pb-8 sm:pb-10">
 
@@ -522,10 +503,12 @@ const ProfilePage: React.FC = () => {
 
           {/* Row 2: Statistics */}
           <div className="flex items-center justify-center md:justify-start gap-6 sm:gap-8 text-sm">
-            <div>
-              <span className="font-bold text-gray-900 dark:text-neutral-100">{products.length}</span>
-              <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('listings')}</span>
-            </div>
+            {isSellerProfile && (
+              <div>
+                <span className="font-bold text-gray-900 dark:text-neutral-100">{products.length}</span>
+                <span className="text-gray-500 dark:text-neutral-400 ml-1">{t('listings')}</span>
+              </div>
+            )}
             <div 
               className="cursor-pointer hover:opacity-80 transition"
               onClick={() => openFollowModal('followers')}
@@ -562,13 +545,15 @@ const ProfilePage: React.FC = () => {
                 <MessageSquare className="w-3.5 h-3.5 text-brand-500" />
                 {startingChat ? t('opening...', 'Opening...') : t('message', 'Message')}
               </button>
-              <button
-                onClick={() => setIsRequestModalOpen(true)}
-                className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500 transition active:scale-95 flex items-center gap-1.5"
-              >
-                <Plus size={14} />
-                {t('request_product', 'Request Product')}
-              </button>
+              {isSellerProfile && (
+                <button
+                  onClick={() => setIsRequestModalOpen(true)}
+                  className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-brand-500 dark:border-brand-500 text-brand-500 dark:text-brand-500 transition active:scale-95 flex items-center gap-1.5"
+                >
+                  <Plus size={14} />
+                  {t('request_product', 'Request Product')}
+                </button>
+              )}
             </div>
           )}
 
@@ -602,10 +587,12 @@ const ProfilePage: React.FC = () => {
                 </div>
               )}
 
-              {/* Social Media Icons */}
-              <div className="flex items-center justify-center md:justify-start w-full">
-                <SocialLinks profile={profile} iconSize={16} className="justify-center md:justify-start" />
-              </div>
+              {/* Social Media Icons (Sellers Only) */}
+              {isSellerProfile && (
+                <div className="flex items-center justify-center md:justify-start w-full">
+                  <SocialLinks profile={profile} iconSize={16} className="justify-center md:justify-start" />
+                </div>
+              )}
             </div>
           </div>
 
@@ -617,39 +604,19 @@ const ProfilePage: React.FC = () => {
       <div className="space-y-6">
         
         {/* Navigation menu items centered across all screens */}
-        <div className="flex items-center justify-center gap-6 sm:gap-8 md:gap-12 px-4">
-          <button
-            onClick={() => setActiveTab('listings')}
-            className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
-              activeTab === 'listings' 
-                ? 'text-black dark:text-white font-black' 
-                : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
-            }`}
-          >
-            <ShoppingBag size={15} className="shrink-0" />
-            <span>{t('listings_tab', 'Listings')}</span>
-            {activeTab === 'listings' && (
-              <motion.div
-                layoutId="profile-nav-indicator"
-                className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            )}
-          </button>
-
-          {showDemandsTab && (
+        {isSellerProfile ? (
+          <div className="flex items-center justify-center gap-6 sm:gap-8 md:gap-12 px-4">
             <button
-              onClick={() => setActiveTab('demands')}
+              onClick={() => setActiveTab('listings')}
               className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
-                activeTab === 'demands' 
+                activeTab === 'listings' 
                   ? 'text-black dark:text-white font-black' 
                   : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
               }`}
             >
-              <Clock size={15} className="shrink-0" />
-              <span className="hidden sm:inline">{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
-              <span className="sm:hidden">{t('coming_soon_short', 'Coming Soon')}</span>
-              {activeTab === 'demands' && (
+              <ShoppingBag size={15} className="shrink-0" />
+              <span>{t('listings_tab', 'Listings')}</span>
+              {activeTab === 'listings' && (
                 <motion.div
                   layoutId="profile-nav-indicator"
                   className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
@@ -657,30 +624,60 @@ const ProfilePage: React.FC = () => {
                 />
               )}
             </button>
-          )}
 
-          <button
-            onClick={() => setActiveTab('about')}
-            className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
-              activeTab === 'about' 
-                ? 'text-black dark:text-white font-black' 
-                : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
-            }`}
-          >
-            <Info size={15} className="shrink-0" />
-            <span>{t('about', 'About')}</span>
-            {activeTab === 'about' && (
-              <motion.div
-                layoutId="profile-nav-indicator"
-                className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
+            {showDemandsTab && (
+              <button
+                onClick={() => setActiveTab('demands')}
+                className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
+                  activeTab === 'demands' 
+                    ? 'text-black dark:text-white font-black' 
+                    : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
+                }`}
+              >
+                <Clock size={15} className="shrink-0" />
+                <span className="hidden sm:inline">{t('coming_soon_requested', 'Coming Soon / Requested')}</span>
+                <span className="sm:hidden">{t('coming_soon_short', 'Coming Soon')}</span>
+                {activeTab === 'demands' && (
+                  <motion.div
+                    layoutId="profile-nav-indicator"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </button>
             )}
-          </button>
-        </div>
+
+            <button
+              onClick={() => setActiveTab('about')}
+              className={`relative shrink-0 whitespace-nowrap flex items-center gap-2 pb-3 text-xs sm:text-sm transition-colors ${
+                activeTab === 'about' 
+                  ? 'text-black dark:text-white font-black' 
+                  : 'text-gray-500 hover:text-black dark:text-neutral-400 dark:hover:text-white font-semibold'
+              }`}
+            >
+              <Info size={15} className="shrink-0" />
+              <span>{t('about', 'About')}</span>
+              {activeTab === 'about' && (
+                <motion.div
+                  layoutId="profile-nav-indicator"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-6 px-4">
+            <div className="relative shrink-0 flex items-center gap-2 pb-3 text-xs sm:text-sm text-black dark:text-white font-bold">
+              <Info size={15} className="shrink-0" />
+              <span>{t('about', 'About')}</span>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-black dark:bg-white" />
+            </div>
+          </div>
+        )}
 
         {/* Tab content renders */}
-        {activeTab === 'demands' ? (
+        {isSellerProfile && activeTab === 'demands' ? (
           <div className="pt-2">
             {/* Sub-Filters with rounded-full pill buttons matching Listings tab */}
             {productRequests.length > 0 && (
@@ -885,7 +882,7 @@ const ProfilePage: React.FC = () => {
               );
             })()}
           </div>
-        ) : activeTab === 'listings' ? (
+        ) : (isSellerProfile && activeTab === 'listings') ? (
           <div className="pt-2">
 
             {/* Category Quick Filters with Search Pill before All */}
@@ -932,6 +929,7 @@ const ProfilePage: React.FC = () => {
             
 
 
+
             {products.length === 0 ? (
               <EmptyState
                 icon={ShoppingBag}
@@ -959,7 +957,7 @@ const ProfilePage: React.FC = () => {
             <div className="space-y-3">
               <h3 className="text-xs font-black text-gray-400 dark:text-neutral-500 uppercase tracking-widest">Biography</h3>
               <p className="text-sm text-gray-700 dark:text-neutral-300 leading-relaxed">
-                {profile.bio || "No biography details provided by this seller."}
+                {profile.bio || (isSellerProfile ? "No biography details provided by this seller." : "No biography details provided.")}
               </p>
             </div>
 
@@ -1058,7 +1056,7 @@ const ProfilePage: React.FC = () => {
               className="w-full px-3 py-2 rounded-btn border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#111] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition resize-none shadow-sm" 
               value={editForm.bio} 
               onChange={(e) => setEditForm({...editForm, bio: e.target.value})} 
-              placeholder={t('bio_placeholder', 'Tell buyers about yourself...')} 
+              placeholder={isSellerProfile ? t('bio_placeholder', 'Tell buyers about yourself...') : t('customer_bio_placeholder', 'Tell us about yourself...')} 
             />
           </div>
           
@@ -1078,68 +1076,72 @@ const ProfilePage: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              label={t('website_url', 'Website URL')}
-              type="url"
-              value={editForm.website}
-              onChange={(e) => setEditForm({...editForm, website: e.target.value})}
-              placeholder="https://..."
-            />
-            <FormField
-              label={t('instagram_username', 'Instagram Username')}
-              value={editForm.instagram_username}
-              onChange={(e) => setEditForm({...editForm, instagram_username: e.target.value})}
-              placeholder="@username"
-            />
-          </div>
+          {isSellerProfile && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  label={t('website_url', 'Website URL')}
+                  type="url"
+                  value={editForm.website}
+                  onChange={(e) => setEditForm({...editForm, website: e.target.value})}
+                  placeholder="https://..."
+                />
+                <FormField
+                  label={t('instagram_username', 'Instagram Username')}
+                  value={editForm.instagram_username}
+                  onChange={(e) => setEditForm({...editForm, instagram_username: e.target.value})}
+                  placeholder="@username"
+                />
+              </div>
 
-          {/* Social Media Links */}
-          <div className="pt-4">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('social_media_links', 'Social Media Links')}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                label={t('whatsapp_number', 'WhatsApp Number or Link')}
-                type="text"
-                value={editForm.whatsapp_number}
-                onChange={(e) => setEditForm({...editForm, whatsapp_number: e.target.value})}
-                placeholder="+255712345678 or https://wa.me/..."
-              />
-              <FormField
-                label={t('facebook_url', 'Facebook URL')}
-                type="url"
-                value={editForm.facebook_url}
-                onChange={(e) => setEditForm({...editForm, facebook_url: e.target.value})}
-                placeholder="https://facebook.com/..."
-              />
-              <FormField
-                label={t('tiktok_username', 'TikTok Username')}
-                value={editForm.tiktok_username}
-                onChange={(e) => setEditForm({...editForm, tiktok_username: e.target.value})}
-                placeholder="@username"
-              />
-              <FormField
-                label={t('twitter_username', 'X (Twitter) Username')}
-                value={editForm.twitter_username}
-                onChange={(e) => setEditForm({...editForm, twitter_username: e.target.value})}
-                placeholder="@username"
-              />
-              <FormField
-                label={t('youtube_url', 'YouTube Channel URL')}
-                type="url"
-                value={editForm.youtube_url}
-                onChange={(e) => setEditForm({...editForm, youtube_url: e.target.value})}
-                placeholder="https://youtube.com/..."
-              />
-              <FormField
-                label={t('linkedin_url', 'LinkedIn URL')}
-                type="url"
-                value={editForm.linkedin_url}
-                onChange={(e) => setEditForm({...editForm, linkedin_url: e.target.value})}
-                placeholder="https://linkedin.com/in/..."
-              />
-            </div>
-          </div>
+              {/* Social Media Links */}
+              <div className="pt-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{t('social_media_links', 'Social Media Links')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    label={t('whatsapp_number', 'WhatsApp Number or Link')}
+                    type="text"
+                    value={editForm.whatsapp_number}
+                    onChange={(e) => setEditForm({...editForm, whatsapp_number: e.target.value})}
+                    placeholder="+255712345678 or https://wa.me/..."
+                  />
+                  <FormField
+                    label={t('facebook_url', 'Facebook URL')}
+                    type="url"
+                    value={editForm.facebook_url}
+                    onChange={(e) => setEditForm({...editForm, facebook_url: e.target.value})}
+                    placeholder="https://facebook.com/..."
+                  />
+                  <FormField
+                    label={t('tiktok_username', 'TikTok Username')}
+                    value={editForm.tiktok_username}
+                    onChange={(e) => setEditForm({...editForm, tiktok_username: e.target.value})}
+                    placeholder="@username"
+                  />
+                  <FormField
+                    label={t('twitter_username', 'X (Twitter) Username')}
+                    value={editForm.twitter_username}
+                    onChange={(e) => setEditForm({...editForm, twitter_username: e.target.value})}
+                    placeholder="@username"
+                  />
+                  <FormField
+                    label={t('youtube_url', 'YouTube Channel URL')}
+                    type="url"
+                    value={editForm.youtube_url}
+                    onChange={(e) => setEditForm({...editForm, youtube_url: e.target.value})}
+                    placeholder="https://youtube.com/..."
+                  />
+                  <FormField
+                    label={t('linkedin_url', 'LinkedIn URL')}
+                    type="url"
+                    value={editForm.linkedin_url}
+                    onChange={(e) => setEditForm({...editForm, linkedin_url: e.target.value})}
+                    placeholder="https://linkedin.com/in/..."
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="flex gap-4 pt-6 border-t border-surface-border dark:border-surface-dark-border mt-6">
             <Button

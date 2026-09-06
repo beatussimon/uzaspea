@@ -79,42 +79,45 @@ export const PwaInstallPrompt = () => {
   if (!isVisible || !deferredPrompt) return null;
 
   return (
-    <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm z-[100] animate-slide-up">
-      <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-xl rounded-2xl p-4 flex items-start gap-4">
-        <div className="flex-shrink-0">
-          <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-black flex items-center justify-center p-2 shadow-inner border border-gray-200 dark:border-neutral-800">
-            <img src="/logo.png" alt="SokoniMax Logo" className="w-full h-full object-contain" />
-          </div>
+    <aside
+      aria-label="App installation notice"
+      className="relative w-full max-w-sm sm:w-[360px] md:w-[380px] pointer-events-auto bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md border border-gray-200/80 dark:border-neutral-800 shadow-2xl rounded-2xl p-4 transition-all duration-300 animate-slide-up flex items-start gap-3.5 text-left"
+    >
+      <div className="shrink-0">
+        <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-black flex items-center justify-center p-2 shrink-0 shadow-inner border border-gray-200/60 dark:border-neutral-800">
+          <img src="/logo.png" alt="SokoniMax Logo" className="w-full h-full object-contain" />
         </div>
-        
-        <div className="flex-1 pt-0.5">
-          <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">
-            {t('install_app_title', 'Install SokoniMax App')}
-          </h4>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed pr-4">
-            {t('install_app_desc', 'Install SokoniMax to receive instant message notifications even when your phone is locked.')}
-          </p>
-          
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleInstallClick}
-              className="flex-1 bg-brand-500 hover:bg-brand-600 text-neutral-950 text-xs font-bold py-2 px-4 rounded-full transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow-sm"
-            >
-              <Download size={14} />
-              {t('install_now', 'Install Now')}
-            </button>
-          </div>
-        </div>
-        
-        <button 
-          onClick={handleDismiss}
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-50 hover:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded-full p-1.5 transition-colors"
-          aria-label="Dismiss"
-        >
-          <X size={14} />
-        </button>
       </div>
-    </div>
+
+      <div className="flex-1 min-w-0 pt-0.5">
+        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">
+          {t('install_app_title', 'Install SokoniMax App')}
+        </h4>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed pr-4">
+          {t('install_app_desc', 'Install SokoniMax to receive instant message notifications even when your phone is locked.')}
+        </p>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            className="btn-primary text-xs font-bold py-2 px-4 rounded-btn flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95"
+          >
+            <Download size={14} />
+            <span>{t('install_now', 'Install Now')}</span>
+          </button>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={handleDismiss}
+        className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-50 hover:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded-full p-1.5 transition-colors"
+        aria-label="Dismiss"
+      >
+        <X size={14} />
+      </button>
+    </aside>
   );
 };
 

@@ -767,9 +767,21 @@ const PaymentUpload: React.FC<{ request: InspectionRequest; onPaid: () => void }
   const bill = request.bill;
 
   useEffect(() => {
-    api.get('/api/lipa-numbers/?seller=admin')
-       .then(r => setLipaNumbers(r.data.results || r.data))
-       .catch(() => {});
+    api.get('/api/lipa-numbers/?is_system=true')
+       .then(r => {
+         const nums = r.data.results || r.data || [];
+         if (nums.length > 0) setLipaNumbers(nums);
+         else {
+           api.get('/api/lipa-numbers/?seller=admin')
+              .then(r2 => setLipaNumbers(r2.data.results || r2.data || []))
+              .catch(() => {});
+         }
+       })
+       .catch(() => {
+         api.get('/api/lipa-numbers/?seller=admin')
+            .then(r2 => setLipaNumbers(r2.data.results || r2.data || []))
+            .catch(() => {});
+       });
   }, []);
 
   const depositApproved = request.payments.some(
@@ -1790,11 +1802,17 @@ const RequestDetail: React.FC = () => {
   );
 };
 
+// Helper to determine if a string is a public inspection code format
+const isInspectionCode = (str: string): boolean => {
+  const trimmed = str.trim();
+  return /^OKO-[A-Z0-9]+(-\d{4,8})?-[A-Z0-9]+$/i.test(trimmed) || /^OKO-\d{4,12}$/i.test(trimmed);
+};
+
 // ─── My Inspections List ────────────────────
 const MyInspections: React.FC = () => {
   const [requests, setRequests] = useState<InspectionRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [verifyId, setVerifyId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const navigate = useNavigate();
 
@@ -1805,10 +1823,25 @@ const MyInspections: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleVerify = (e: React.FormEvent) => {
+  const isCode = isInspectionCode(searchQuery);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verifyId.trim()) return;
-    navigate(`/verify/${verifyId.trim()}`);
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    if (isInspectionCode(query)) {
+      const matchingLocal = requests.find(
+        r => r.inspection_id && r.inspection_id.toLowerCase() === query.toLowerCase()
+      );
+      if (matchingLocal) {
+        // If it's already in the user's local inspections, keep user here with the filtered item
+        return;
+      }
+      // If external code not in local list, navigate to verification page
+      navigate(`/verify/${query.toUpperCase()}`);
+    }
+    // If it's a general search query, just keep the user on the page with filtered results
   };
 
   const statusCounts = React.useMemo(() => {
@@ -1827,18 +1860,28 @@ const MyInspections: React.FC = () => {
   }, [requests]);
 
   const filteredRequests = React.useMemo(() => {
-    if (!filterStatus) return requests;
+    let list = requests;
     if (filterStatus === 'report_ready') {
-      return requests.filter(r => r.has_report || r.status === 'published');
+      list = list.filter(r => r.has_report || r.status === 'published');
+    } else if (filterStatus === 'in_progress') {
+      list = list.filter(r => ['assigned', 'in_progress', 'qa_review', 'pre_inspection'].includes(r.status));
+    } else if (filterStatus === 'awaiting_payment') {
+      list = list.filter(r => ['bill_sent', 'awaiting_payment'].includes(r.status));
+    } else if (filterStatus) {
+      list = list.filter(r => r.status === filterStatus);
     }
-    if (filterStatus === 'in_progress') {
-      return requests.filter(r => ['assigned', 'in_progress', 'qa_review', 'pre_inspection'].includes(r.status));
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(r =>
+        (r.inspection_id && r.inspection_id.toLowerCase().includes(q)) ||
+        (r.item_name && r.item_name.toLowerCase().includes(q)) ||
+        (r.category_name && r.category_name.toLowerCase().includes(q)) ||
+        (r.item_description && r.item_description.toLowerCase().includes(q))
+      );
     }
-    if (filterStatus === 'awaiting_payment') {
-      return requests.filter(r => ['bill_sent', 'awaiting_payment'].includes(r.status));
-    }
-    return requests.filter(r => r.status === filterStatus);
-  }, [requests, filterStatus]);
+    return list;
+  }, [requests, filterStatus, searchQuery]);
 
   return (
     <div className="space-y-6">
@@ -1856,112 +1899,120 @@ const MyInspections: React.FC = () => {
         }
       />
 
-      {/* Verify Public Portal Card */}
-      <div className="card p-4 sm:p-5 border border-brand-500/20 bg-brand-500/5 dark:bg-brand-500/5">
-        <div className="flex items-center gap-2 mb-1.5">
-          <Shield size={16} className="text-brand-500" />
-          <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">Verify an Inspection</h3>
-        </div>
-        <p className="text-2xs sm:text-xs text-gray-500 dark:text-gray-400 mb-3">
-          Paste a public inspection ID (e.g. OKO-VEH-20260428-00001) to verify its authenticity and view the report summary.
-        </p>
-        <form onSubmit={handleVerify} className="flex flex-col sm:flex-row gap-2.5">
+      {/* Filter Pills & Search Bar Toolbar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Status Filter Pills */}
+        {loading ? (
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            {[16, 24, 22, 28].map((w, i) => (
+              <div
+                key={i}
+                className="h-7 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse shrink-0"
+                style={{ width: `${w * 4}px` }}
+              />
+            ))}
+          </div>
+        ) : requests.length > 0 ? (
+          <div data-horizontal-scroll="true" className="flex overflow-x-auto no-scrollbar gap-2 select-none pb-1">
+            <button
+              onClick={() => setFilterStatus('')}
+              className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${!filterStatus ? 'pill-active shadow-xs' : 'pill-inactive'}`}
+            >
+              <span>All</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                !filterStatus ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+              }`}>
+                {requests.length}
+              </span>
+            </button>
+
+            {statusCounts.report_ready > 0 && (
+              <button
+                onClick={() => setFilterStatus('report_ready')}
+                className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${
+                  filterStatus === 'report_ready' ? 'pill-active shadow-xs' : 'pill-inactive'
+                }`}
+              >
+                <CheckCircle size={14} className="inline mr-0.5" />
+                <span>Report Ready</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  filterStatus === 'report_ready' ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {statusCounts.report_ready}
+                </span>
+              </button>
+            )}
+
+            {statusCounts.in_progress > 0 && (
+              <button
+                onClick={() => setFilterStatus('in_progress')}
+                className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${
+                  filterStatus === 'in_progress' ? 'pill-active shadow-xs' : 'pill-inactive'
+                }`}
+              >
+                <Clock size={14} className="inline mr-0.5" />
+                <span>In Progress</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  filterStatus === 'in_progress' ? 'bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {statusCounts.in_progress}
+                </span>
+              </button>
+            )}
+
+            {statusCounts.awaiting_payment > 0 && (
+              <button
+                onClick={() => setFilterStatus('awaiting_payment')}
+                className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${
+                  filterStatus === 'awaiting_payment' ? 'pill-active shadow-xs' : 'pill-inactive'
+                }`}
+              >
+                <FileText size={14} className="inline mr-0.5" />
+                <span>Awaiting Payment</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  filterStatus === 'awaiting_payment' ? 'bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {statusCounts.awaiting_payment}
+                </span>
+              </button>
+            )}
+          </div>
+        ) : null}
+
+        {/* Search & Verify Search Box */}
+        <form onSubmit={handleSearchSubmit} className="relative min-w-[220px] sm:w-64 shrink-0">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            className="input flex-1 uppercase font-mono text-xs h-9 bg-white dark:bg-[#111]"
-            placeholder="ENTER INSPECTION ID..."
-            value={verifyId}
-            onChange={(e) => setVerifyId(e.target.value.toUpperCase())}
+            className="input pl-8 pr-16 py-1.5 text-xs w-full"
+            placeholder="Search inspections or ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <button type="submit" className="btn-primary py-2 px-4 text-xs font-bold whitespace-nowrap flex items-center justify-center gap-1.5 shrink-0">
-            <Search size={14} /> Verify
-          </button>
+          {searchQuery.trim() && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {isCode ? (
+                <button
+                  type="submit"
+                  className="text-[11px] font-bold text-brand-500 hover:text-brand-600 transition px-1"
+                  title="Verify public inspection ID"
+                >
+                  Verify →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 transition"
+                  title="Clear search"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          )}
         </form>
       </div>
-
-      {/* Status Filter Pills */}
-      {loading ? (
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {[16, 24, 22, 28].map((w, i) => (
-            <div
-              key={i}
-              className="h-7 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse shrink-0"
-              style={{ width: `${w * 4}px` }}
-            />
-          ))}
-        </div>
-      ) : requests.length > 0 ? (
-        <div data-horizontal-scroll="true" className="flex overflow-x-auto no-scrollbar gap-2 select-none pb-1">
-          <button
-            onClick={() => setFilterStatus('')}
-            className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${!filterStatus ? 'pill-active shadow-xs' : 'pill-inactive'}`}
-          >
-            <span>All</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-              !filterStatus ? 'bg-white/20 text-inherit' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-            }`}>
-              {requests.length}
-            </span>
-          </button>
-
-          {statusCounts.report_ready > 0 && (
-            <button
-              onClick={() => setFilterStatus('report_ready')}
-              className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${
-                filterStatus === 'report_ready'
-                  ? 'pill-active border-green-500 text-green-700 bg-green-50 dark:bg-green-900/30 dark:text-green-300 shadow-xs'
-                  : 'pill-inactive'
-              }`}
-            >
-              <CheckCircle size={14} className="inline mr-0.5" />
-              <span>Report Ready</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                filterStatus === 'report_ready' ? 'bg-green-200 dark:bg-green-800 text-green-900 dark:text-green-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-              }`}>
-                {statusCounts.report_ready}
-              </span>
-            </button>
-          )}
-
-          {statusCounts.in_progress > 0 && (
-            <button
-              onClick={() => setFilterStatus('in_progress')}
-              className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${
-                filterStatus === 'in_progress'
-                  ? 'pill-active border-purple-500 text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 shadow-xs'
-                  : 'pill-inactive'
-              }`}
-            >
-              <Clock size={14} className="inline mr-0.5" />
-              <span>In Progress</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                filterStatus === 'in_progress' ? 'bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-              }`}>
-                {statusCounts.in_progress}
-              </span>
-            </button>
-          )}
-
-          {statusCounts.awaiting_payment > 0 && (
-            <button
-              onClick={() => setFilterStatus('awaiting_payment')}
-              className={`pill text-xs flex items-center gap-1.5 whitespace-nowrap transition-all ${
-                filterStatus === 'awaiting_payment'
-                  ? 'pill-active border-amber-500 text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300 shadow-xs'
-                  : 'pill-inactive'
-              }`}
-            >
-              <FileText size={14} className="inline mr-0.5" />
-              <span>Awaiting Payment</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                filterStatus === 'awaiting_payment' ? 'bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-              }`}>
-                {statusCounts.awaiting_payment}
-              </span>
-            </button>
-          )}
-        </div>
-      ) : null}
 
       {/* List / Loading / Empty */}
       {loading ? (
@@ -1983,11 +2034,23 @@ const MyInspections: React.FC = () => {
       ) : filteredRequests.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title={requests.length === 0 ? "You haven't requested any inspections yet." : "No inspections with this status."}
+          title={
+            searchQuery.trim()
+              ? `No inspections found matching "${searchQuery}"`
+              : requests.length === 0
+              ? "You haven't requested any inspections yet."
+              : "No inspections with this status."
+          }
           action={{
-            label: requests.length === 0 ? "Request Inspection" : "View All Inspections",
+            label: searchQuery.trim()
+              ? "Clear Search"
+              : requests.length === 0
+              ? "Request Inspection"
+              : "View All Inspections",
             onClick: () => {
-              if (requests.length === 0) {
+              if (searchQuery.trim()) {
+                setSearchQuery('');
+              } else if (requests.length === 0) {
                 navigate('/inspections/new');
               } else {
                 setFilterStatus('');

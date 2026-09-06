@@ -187,6 +187,60 @@ export const CardGridSkeleton: React.FC<{
 };
 
 /**
+ * Dashboard Product Card Grid Skeleton (Matching DashboardProducts horizontal card grid)
+ */
+export const DashboardProductListSkeleton: React.FC<{
+  count?: number;
+  className?: string;
+}> = ({ count = 6, className }) => (
+  <div className={cn('grid grid-cols-1 md:grid-cols-2 gap-4', className)}>
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="card p-3 sm:p-4 flex flex-row items-start gap-3 sm:gap-4">
+        <Skeleton className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl shrink-0" />
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton className="h-4 w-36 max-w-[60%] rounded" />
+            <Skeleton className="h-4 w-14 rounded-full shrink-0" />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton className="h-4 w-24 rounded" />
+            <Skeleton className="h-3.5 w-16 rounded shrink-0" />
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <Skeleton className="h-4 w-20 rounded" />
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Skeleton className="h-6 w-12 rounded-lg" />
+              <Skeleton className="h-6 w-12 rounded-lg" />
+            </div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/**
+ * POS Product Catalog Grid Skeleton (Matching DashboardPOS grid layout)
+ */
+export const POSProductGridSkeleton: React.FC<{
+  count?: number;
+  className?: string;
+}> = ({ count = 6, className }) => (
+  <div className={cn('grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3', className)}>
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="p-2.5 rounded-xl flex flex-col justify-between space-y-2.5">
+        <div>
+          <Skeleton className="aspect-[4/3] rounded-lg w-full mb-2" />
+          <Skeleton className="h-3.5 w-3/4 rounded mb-1.5" />
+          <Skeleton className="h-3.5 w-1/2 rounded" />
+        </div>
+        <Skeleton className="h-8 w-full rounded-lg" />
+      </div>
+    ))}
+  </div>
+);
+
+/**
  * Product Card Grid Skeleton (POS & Store Catalog)
  */
 export const ProductGridSkeleton: React.FC<{
@@ -252,26 +306,25 @@ export const ChartSkeleton: React.FC<{
   type?: 'area' | 'bar' | 'pie';
   className?: string;
 }> = ({ type = 'area', className }) => (
-  <div className={cn('card p-5 flex flex-col h-[320px] justify-between', className)}>
+  <div className={cn('card p-5 flex flex-col h-[350px] justify-between', className)}>
     <div className="flex items-center justify-between mb-4">
-      <Skeleton className="h-4 w-32 rounded" />
+      <Skeleton className="h-4 w-36 rounded" />
       <Skeleton className="h-4 w-12 rounded" />
     </div>
-    <div className="flex-1 w-full flex items-end gap-2 pb-4 pt-2">
+    <div className="flex-1 w-full flex items-center justify-center p-2">
       {type === 'pie' ? (
-        <div className="flex items-center justify-center w-full h-full">
-          <Skeleton className="w-40 h-40 rounded-full" />
-        </div>
+        <Skeleton className="w-36 h-36 rounded-full" />
       ) : (
-        Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="flex-1 flex flex-col justify-end h-full gap-1 items-center">
-            <Skeleton
-              className="w-full rounded-t"
-              style={{ height: `${Math.max(20, Math.floor(Math.sin((i + 1) * 0.8) * 80 + 30))}%` }}
-            />
-            <Skeleton className="h-2.5 w-6 rounded" />
+        <div className="w-full h-full flex flex-col justify-between">
+          <div className="flex-1 w-full flex flex-col justify-center py-2">
+            <Skeleton className="h-full w-full rounded-xl" />
           </div>
-        ))
+          <div className="flex justify-between pt-3 border-t border-surface-border/40 dark:border-surface-dark-border/40">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <Skeleton key={idx} className="h-2 w-8 rounded" />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   </div>
@@ -361,6 +414,190 @@ export const ChatSkeleton: React.FC<{ className?: string }> = ({ className }) =>
     <div className="p-3 border-t border-surface-border dark:border-surface-dark-border flex gap-2">
       <Skeleton className="h-9 flex-1 rounded-lg" />
       <Skeleton className="h-9 w-10 rounded-lg" />
+    </div>
+  </div>
+);
+
+/**
+ * Billing Subscription Tab Skeleton (Matching Active Subscription SaaS card layout)
+ */
+export const BillingSubscriptionSkeleton: React.FC<{ className?: string }> = ({ className }) => (
+  <div className={cn('space-y-6', className)}>
+    {/* Active Subscription Card */}
+    <div className="card p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="h-6 w-32 rounded-md" />
+            <Skeleton className="h-5 w-14 rounded-full" />
+          </div>
+          <Skeleton className="h-3.5 w-56 rounded" />
+        </div>
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="h-8 w-32 rounded-lg" />
+          <Skeleton className="h-8 w-32 rounded-lg" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-surface-border dark:border-surface-dark-border">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="space-y-1.5">
+            <Skeleton className="h-2.5 w-16 rounded" />
+            <Skeleton className="h-4 w-28 rounded" />
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Upgrade Banner Skeleton */}
+    <div className="card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="space-y-1.5">
+        <Skeleton className="h-4 w-44 rounded" />
+        <Skeleton className="h-3 w-72 rounded" />
+      </div>
+      <div className="flex items-center gap-4 shrink-0">
+        <Skeleton className="h-5 w-24 rounded" />
+        <Skeleton className="h-8 w-20 rounded-lg" />
+      </div>
+    </div>
+  </div>
+);
+
+/**
+ * Billing & Commission Page Skeleton (Tab-aware skeleton for Subscriptions, Invoices, Ledger, Logistics)
+ */
+export const BillingSkeleton: React.FC<{
+  tab?: 'subscriptions' | 'invoices' | 'ledger' | 'driver_payments';
+  className?: string;
+}> = ({ tab = 'subscriptions', className }) => {
+  if (tab === 'invoices') {
+    return (
+      <div className={cn('space-y-4', className)}>
+        <KpiGridSkeleton count={3} cols={3} />
+        <TableSkeleton rows={5} cols={8} />
+      </div>
+    );
+  }
+
+  if (tab === 'ledger') {
+    return (
+      <div className={cn('space-y-4', className)}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="card p-3 sm:p-3.5 flex flex-col justify-between h-[76px] relative overflow-hidden">
+              <div className="flex items-center gap-2 min-w-0">
+                <Skeleton className="w-3.5 h-3.5 rounded-full shrink-0" />
+                <Skeleton className="h-3 w-28 rounded" />
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <Skeleton className="h-5 w-32 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <TableSkeleton rows={5} cols={6} />
+      </div>
+    );
+  }
+
+  if (tab === 'driver_payments') {
+    return (
+      <div className={cn('space-y-6', className)}>
+        <Skeleton className="h-16 w-full rounded-btn" />
+        <KpiGridSkeleton count={3} cols={3} />
+        <TableSkeleton rows={5} cols={6} />
+      </div>
+    );
+  }
+
+  return <BillingSubscriptionSkeleton className={className} />;
+};
+
+/**
+ * Demand Analytics Page Skeleton (5 KPI Cards + Chart Box + Table)
+ */
+export const DemandAnalyticsSkeleton: React.FC<{ className?: string }> = ({ className }) => (
+  <div className={cn('space-y-6', className)}>
+    {/* 5 KPI Cards matching grid-cols-2 md:grid-cols-5 */}
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className={cn(
+            'card p-3 sm:p-3.5 flex flex-col justify-between h-[76px] relative overflow-hidden',
+            i === 4 ? 'col-span-2 md:col-span-1' : ''
+          )}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Skeleton className="w-3.5 h-3.5 rounded-full shrink-0" />
+            <Skeleton className="h-3 w-20 rounded" />
+          </div>
+          <div className="flex items-baseline justify-between gap-2">
+            <Skeleton className="h-5 w-24 rounded" />
+            <Skeleton className="h-3 w-10 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Chart Skeleton matching card p-5 h-[260px] */}
+    <div className="card p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <Skeleton className="w-4 h-4 rounded" />
+        <Skeleton className="h-4 w-52 rounded" />
+      </div>
+      <div className="h-[220px] w-full flex flex-col justify-between pt-2">
+        <Skeleton className="h-[180px] w-full rounded-xl" />
+        <div className="flex justify-between pt-3 border-t border-surface-border/40 dark:border-surface-dark-border/40">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <Skeleton key={idx} className="h-2 w-12 rounded" />
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* Table Skeleton matching Active Demand Requests table */}
+    <div className="card overflow-hidden">
+      <div className="p-4 border-b border-surface-border dark:border-surface-dark-border bg-surface-muted/40 dark:bg-[#161616]/40 flex items-center justify-between">
+        <Skeleton className="h-4 w-36 rounded" />
+        <Skeleton className="h-3 w-20 rounded" />
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="grid grid-cols-5 gap-4 pb-2 border-b border-surface-border dark:border-surface-dark-border">
+          <Skeleton className="h-3 w-24 rounded" />
+          <Skeleton className="h-3 w-16 mx-auto rounded" />
+          <Skeleton className="h-3 w-16 rounded" />
+          <Skeleton className="h-3 w-20 rounded" />
+          <Skeleton className="h-3 w-16 ml-auto rounded" />
+        </div>
+        {Array.from({ length: 4 }).map((_, r) => (
+          <div
+            key={r}
+            className="grid grid-cols-5 gap-4 py-2.5 items-center border-b border-surface-border/40 dark:border-surface-dark-border/40 last:border-0"
+          >
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <Skeleton className="h-3.5 w-28 rounded" />
+                <Skeleton className="h-2.5 w-20 rounded" />
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <Skeleton className="h-5 w-8 rounded-full" />
+            </div>
+            <div>
+              <Skeleton className="h-5 w-24 rounded-full" />
+            </div>
+            <div>
+              <Skeleton className="h-3 w-20 rounded" />
+            </div>
+            <div className="flex justify-end gap-1.5">
+              <Skeleton className="h-7 w-12 rounded-lg" />
+              <Skeleton className="h-7 w-16 rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   </div>
 );

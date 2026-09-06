@@ -35,6 +35,8 @@ class MonthlyInvoice(models.Model):
     month = models.IntegerField()
     total_order_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.0)
     total_commission = models.DecimalField(max_digits=12, decimal_places=2, default=0.0)
+    subscription_fee = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), help_text="Monthly subscription fee for this billing cycle")
+    total_amount_due = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), help_text="Total due = total_commission + subscription_fee")
     order_count = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.UNPAID)
     due_date = models.DateField()
@@ -44,8 +46,14 @@ class MonthlyInvoice(models.Model):
         unique_together = ('seller', 'year', 'month')
         ordering = ['-year', '-month']
 
+    def save(self, *args, **kwargs):
+        commission = self.total_commission or Decimal('0.00')
+        sub_fee = self.subscription_fee or Decimal('0.00')
+        self.total_amount_due = commission + sub_fee
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.seller.username} Invoice - {self.year}/{self.month:02d} ({self.status})"
+        return f"{self.seller.username} Invoice - {self.year}/{self.month:02d} ({self.status}) - Due: {self.total_amount_due}"
 
 class CommissionPayment(models.Model):
     class Status(models.TextChoices):

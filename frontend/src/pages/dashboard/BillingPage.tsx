@@ -9,13 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { KpiCard } from '../../components/ui/KpiCard';
-import { CardGridSkeleton } from '../../components/Skeleton';
-
-const TIER_RANKS: Record<string, number> = {
-  'customer': 1,
-  'seller_pro': 2,
-  'business': 3
-};
+import { BillingSkeleton } from '../../components/Skeleton';
 
 const BillingPage: React.FC = () => {
   const { t } = useTranslation();
@@ -190,6 +184,10 @@ const BillingPage: React.FC = () => {
         const fallbackRes = await api.get('/api/lipa-numbers/?is_system=true&purpose=general');
         numbers = fallbackRes.data.results || fallbackRes.data || [];
       }
+      if (numbers.length === 0) {
+        const fallbackAll = await api.get('/api/lipa-numbers/?is_system=true');
+        numbers = fallbackAll.data.results || fallbackAll.data || [];
+      }
       setAdminLipa(numbers);
     } catch {
       toast.error('Failed to load payment options');
@@ -208,6 +206,10 @@ const BillingPage: React.FC = () => {
       if (numbers.length === 0) {
         const fallbackRes = await api.get('/api/lipa-numbers/?is_system=true&purpose=general');
         numbers = fallbackRes.data.results || fallbackRes.data || [];
+      }
+      if (numbers.length === 0) {
+        const fallbackAll = await api.get('/api/lipa-numbers/?is_system=true');
+        numbers = fallbackAll.data.results || fallbackAll.data || [];
       }
       setAdminLipa(numbers);
     } catch {
@@ -286,28 +288,28 @@ const BillingPage: React.FC = () => {
     switch (status) {
       case 'PAID':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full capitalize">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 rounded-full capitalize">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             Paid
           </span>
         );
       case 'PENDING_REVIEW':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-full capitalize">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-transparent text-amber-600 dark:text-amber-400 border border-amber-500/40 rounded-full capitalize">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             Pending Review
           </span>
         );
       case 'OVERDUE':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 rounded-full capitalize">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-transparent text-red-600 dark:text-red-400 border border-red-500/40 rounded-full capitalize">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
             Overdue
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20 rounded-full capitalize">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-medium bg-transparent text-gray-600 dark:text-gray-400 border border-gray-500/40 rounded-full capitalize">
             <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
             Unpaid
           </span>
@@ -463,147 +465,242 @@ const BillingPage: React.FC = () => {
       </div>
 
       {initialLoading ? (
-        <CardGridSkeleton count={3} cols={3} />
+        <BillingSkeleton tab={activeTab} />
       ) : (
         <div className={`transition-opacity duration-200 ${loading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
           {activeTab === 'subscriptions' ? (
             <div className="space-y-6">
-          {subscriptions.length === 0 ? (
-            <div className="space-y-6">
-              <EmptyState
-                icon={Shield}
-                title="No Active Seller Subscription"
-                description="Choose one of the premium seller plans below to activate your account and access all seller capabilities."
-              />
-
-              <div className="space-y-3">
-                <h3 className="font-extrabold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Available subscription plans:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {tiers.filter((t: any) => t.tier_level !== 'customer').map((t: any) => (
-                    <div key={t.id} className="card p-5 flex flex-col justify-between hover:border-brand-500 transition-all">
-                      <div>
-                        <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
-                        <p className="text-2xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
-                        <div className="text-lg font-extrabold text-brand-500 dark:text-brand-400 mb-1">TZS {Number(t.price).toLocaleString()}</div>
-                        <p className="text-3xs text-gray-400">Duration: {t.duration} Days</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
-                        className="mt-4 w-full font-bold"
-                      >
-                        Subscribe Now
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {subscriptions.map((sub: any) => (
-                <div key={sub.id} className="card p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-extrabold text-base text-gray-900 dark:text-white capitalize">
-                        {sub.tier?.name || 'Seller'} Plan
-                      </h3>
-                      {sub.is_expired ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 text-[11px] rounded-full font-medium capitalize">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                          Expired
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] rounded-full font-medium capitalize">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Active
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
-                      <p>Started: <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(sub.start_date).toLocaleDateString()}</span></p>
-                      <p>Expires: <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(sub.end_date).toLocaleDateString()}</span></p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col md:items-end gap-3 w-full md:w-auto">
-                    <div>
-                      <div className="text-3xs text-gray-400 uppercase font-bold tracking-wider">Renewal Fee</div>
-                      <div className="text-lg font-extrabold text-gray-900 dark:text-white">TZS {Number(sub.tier?.price || 0).toLocaleString()}</div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                      {sub.is_active && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleCancelSubscription}
-                          className="text-red-500 border-red-500/30 hover:bg-red-500/10"
-                        >
-                          Cancel Subscription
-                        </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenSubscriptionPayModal(sub)}
-                        className="font-bold"
-                      >
-                        {sub.is_expired ? 'Renew Now' : 'Pay Renewal Early'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
               {(() => {
-                const activeSub = subscriptions.find(sub => !sub.is_expired && sub.is_active);
-                const currentTierLevel = activeSub?.tier?.tier_level || 'customer';
-                const currentRank = TIER_RANKS[currentTierLevel] || 1;
+                const currentSub = subscriptions.find((s: any) => s.is_active && !s.is_expired);
+                const expiredSub = subscriptions.find((s: any) => s.is_expired) || (subscriptions.length > 0 ? subscriptions[0] : null);
+                const isSubActive = !!currentSub;
+                const currentTierLevel = currentSub?.tier?.tier_level;
+                const isSellerProActive = isSubActive && currentTierLevel === 'seller_pro';
+                const isOtherActive = isSubActive && currentTierLevel !== 'business';
 
-                const availableUpgrades = tiers.filter((t: any) => {
-                  const rank = TIER_RANKS[t.tier_level] || 1;
-                  return rank > currentRank && t.tier_level !== 'customer';
-                });
+                const businessTier = tiers.find((t: any) => t.tier_level === 'business');
 
-                return availableUpgrades.length > 0 ? (
-                  <div className="space-y-3 pt-4 border-t border-surface-border dark:border-surface-dark-border">
-                    <h3 className="font-extrabold text-gray-900 dark:text-white uppercase tracking-wider text-xs">Upgrade Plan:</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {availableUpgrades.map((t: any) => (
-                        <div key={t.id} className="card p-5 flex flex-col justify-between hover:border-brand-500 transition-all">
+                const formattedExpiry = currentSub?.end_date
+                  ? new Date(currentSub.end_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                  : null;
+
+                const daysRemaining = currentSub?.end_date 
+                  ? Math.max(0, Math.ceil((new Date(currentSub.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                  : null;
+
+                // -------------------------------------------------------------
+                // ACTIVE SUBSCRIPTION (Business or Other)
+                // Clean, straightforward SaaS billing card.
+                // -------------------------------------------------------------
+                if (isSubActive) {
+                  return (
+                    <div className="space-y-6">
+                      <div className="card p-6 space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div>
-                            <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mb-1">{t.name} Plan</h4>
-                            <p className="text-2xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{t.benefits || 'Premium seller features'}</p>
-                            <div className="text-lg font-extrabold text-brand-500 dark:text-brand-400 mb-1">TZS {Number(t.price).toLocaleString()}</div>
-                            <p className="text-3xs text-gray-400">Duration: {t.duration} Days</p>
+                            <div className="flex items-center gap-2.5">
+                              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                                {currentSub?.tier?.name || 'Seller'} Plan
+                              </h2>
+                              <span className="text-2xs font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
+                                Active
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+                              {formattedExpiry ? `Renews on ${formattedExpiry}` : 'Active subscription'}
+                              {daysRemaining !== null && ` (${daysRemaining} days remaining)`}
+                            </p>
                           </div>
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
-                            className="mt-4 w-full font-bold"
-                          >
-                            Choose Upgrade
-                          </Button>
+
+                          <div className="flex items-center gap-2.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCancelSubscription}
+                              className="text-xs text-gray-600 dark:text-neutral-300 hover:text-red-600 dark:hover:text-red-400"
+                            >
+                              Cancel Subscription
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenSubscriptionPayModal(currentSub)}
+                              className="text-xs font-semibold"
+                            >
+                              Pay Renewal Early
+                            </Button>
+                          </div>
                         </div>
-                      ))}
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-surface-border dark:border-surface-dark-border text-xs">
+                          <div>
+                            <span className="text-gray-400 text-3xs uppercase font-medium block">Price</span>
+                            <span className="font-semibold text-gray-900 dark:text-white mt-0.5 block">
+                              TZS {Number(currentSub?.tier?.price || 0).toLocaleString()} / month
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 text-3xs uppercase font-medium block">Next Due Date</span>
+                            <span className="font-semibold text-gray-900 dark:text-white mt-0.5 block">
+                              {formattedExpiry || '—'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 text-3xs uppercase font-medium block">Days Remaining</span>
+                            <span className="font-semibold text-gray-900 dark:text-white mt-0.5 block">
+                              {daysRemaining !== null ? `${daysRemaining} days` : '—'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 text-3xs uppercase font-medium block">Status</span>
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 block">
+                              Paid & Active
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Upgrade prompt only if on a lower tier like Seller Pro */}
+                      {(isSellerProActive || isOtherActive) && businessTier && (
+                        <div className="card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                              Upgrade to Business Plan
+                            </h3>
+                            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">
+                              Includes Point of Sale (POS) receipt printing and multi-user team roles.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-4 shrink-0">
+                            <div className="text-right">
+                              <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                TZS {Number(businessTier.price).toLocaleString()}
+                              </span>
+                              <span className="text-3xs text-gray-400"> / month</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenSubscriptionPayModal({ tier: businessTier })}
+                              className="text-xs font-semibold"
+                            >
+                              Upgrade
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-surface-muted/40 dark:bg-[#161616]/40 border border-surface-border dark:border-surface-dark-border rounded-btn text-center">
-                    <p className="text-xs font-semibold text-brand-600 dark:text-brand-400">
-                      You are subscribed to our highest tier plan (Business). Thank you for being a premium partner!
-                    </p>
+                  );
+                }
+
+                // -------------------------------------------------------------
+                // EXPIRED / INACTIVE SUBSCRIPTION (e.g. Deo / Inactive Sellers)
+                // Clean, straightforward notice and plan picker.
+                // -------------------------------------------------------------
+                return (
+                  <div className="space-y-6">
+                    <div className="card p-5 border border-red-500/30 bg-white dark:bg-[#0A0A0A]">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xs font-semibold px-2.5 py-0.5 rounded-full bg-transparent text-red-600 dark:text-red-400 border border-red-500/40">
+                          Subscription Expired
+                        </span>
+                        {expiredSub?.end_date && (
+                          <span className="text-xs text-gray-400">
+                            Expired on {new Date(expiredSub.end_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-neutral-300 mt-2">
+                        Your seller subscription has expired. Product listings remain visible in the marketplace, but dashboard tools are locked until renewed.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                        Select a Plan to Reactivate
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {tiers.filter((t: any) => t.tier_level === 'seller_pro' || t.tier_level === 'business').map((t: any) => {
+                          const isBusinessPlan = t.tier_level === 'business';
+                          return (
+                            <div key={t.id} className="card p-5 flex flex-col justify-between">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                                    {t.name} Plan
+                                  </h4>
+                                  <div className="text-right">
+                                    <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                      TZS {Number(t.price).toLocaleString()}
+                                    </span>
+                                    <span className="text-3xs text-gray-400"> / 30 days</span>
+                                  </div>
+                                </div>
+
+                                <p className="text-xs text-gray-500 dark:text-neutral-400">
+                                  {isBusinessPlan 
+                                    ? 'Includes marketplace listings, POS receipt printing, team roles, and advanced reports.' 
+                                    : 'Includes marketplace listings, order management, and seller dashboard access.'}
+                                </p>
+                              </div>
+
+                              <Button
+                                size="sm"
+                                onClick={() => handleOpenSubscriptionPayModal({ tier: t })}
+                                className="mt-5 w-full text-xs font-semibold"
+                              >
+                                Select {t.name}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <p className="text-2xs text-gray-400 dark:text-neutral-500 pt-2">
+                        Your product listings remain active in the marketplace. Monthly listing invoices continue to be recorded under the Monthly Invoices tab.
+                      </p>
+                    </div>
                   </div>
                 );
               })()}
             </div>
-          )}
-        </div>
-      ) : activeTab === 'invoices' ? (
+          ) : activeTab === 'invoices' ? (
         <div className="space-y-4">
+          {invoices.length > 0 && (() => {
+            const unpaidInvoices = invoices.filter(inv => inv.status === 'UNPAID' || inv.status === 'OVERDUE');
+            const totalOutstanding = unpaidInvoices.reduce((sum, inv) => {
+              const due = Number(inv.total_amount_due != null ? inv.total_amount_due : (Number(inv.total_commission || 0) + Number(inv.subscription_fee || 0)));
+              return sum + due;
+            }, 0);
+            const overdueInvoices = invoices.filter(inv => inv.status === 'OVERDUE');
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                <KpiCard
+                  label="Total Outstanding Balance"
+                  value={`TSh ${totalOutstanding.toLocaleString()}`}
+                  icon={Wallet}
+                  color={totalOutstanding > 0 ? '#ef4444' : '#10b981'}
+                />
+                <KpiCard
+                  label="Overdue Statements"
+                  value={overdueInvoices.length.toString()}
+                  icon={Shield}
+                  color={overdueInvoices.length > 0 ? '#ef4444' : '#10b981'}
+                />
+                <KpiCard
+                  label="Total Statements"
+                  value={invoices.length.toString()}
+                  icon={Receipt}
+                />
+              </div>
+            );
+          })()}
+
           {invoices.length === 0 ? (
             <EmptyState
               icon={Receipt}
               title="No Invoices Generated Yet"
-              description="Monthly commission invoices will appear here after orders are finalized."
+              description="Monthly subscription & commission statements will accumulate and appear here."
             />
           ) : (
             <div className="card overflow-hidden">
@@ -613,43 +710,57 @@ const BillingPage: React.FC = () => {
                     <tr>
                       <th className="p-3">Billing Period</th>
                       <th className="p-3 text-right">Orders Value</th>
-                      <th className="p-3 text-right">Commission Due</th>
+                      <th className="p-3 text-right">Commission</th>
+                      <th className="p-3 text-right">Subscription Fee</th>
+                      <th className="p-3 text-right">Total Due</th>
                       <th className="p-3">Due Date</th>
                       <th className="p-3">Status</th>
                       <th className="p-3 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
-                    {invoices.map((inv: any) => (
-                      <tr key={inv.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
-                        <td className="p-3 font-bold text-gray-900 dark:text-white">
-                          {formatMonth(inv.year, inv.month)}
-                        </td>
-                        <td className="p-3 text-right text-gray-600 dark:text-gray-300">
-                          TSh {Number(inv.total_order_amount).toLocaleString()}
-                        </td>
-                        <td className="p-3 text-right text-brand-600 dark:text-brand-400 font-bold">
-                          TSh {Number(inv.total_commission).toLocaleString()}
-                        </td>
-                        <td className="p-3 text-gray-500 dark:text-gray-400">
-                          {new Date(inv.due_date).toLocaleDateString()}
-                        </td>
-                        <td className="p-3">{getStatusBadge(inv.status)}</td>
-                        <td className="p-3 text-center">
-                          {(inv.status === 'UNPAID' || inv.status === 'OVERDUE') ? (
-                            <Button
-                              size="sm"
-                              onClick={() => handleOpenPayModal(inv)}
-                              className="text-2xs py-0.5 px-2.5 font-bold"
-                            >
-                              Pay Now
-                            </Button>
-                          ) : (
-                            <span className="text-2xs text-gray-400 font-medium">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {invoices.map((inv: any) => {
+                      const totalDue = inv.total_amount_due != null 
+                        ? Number(inv.total_amount_due) 
+                        : (Number(inv.total_commission || 0) + Number(inv.subscription_fee || 0));
+
+                      return (
+                        <tr key={inv.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30 transition">
+                          <td className="p-3 font-bold text-gray-900 dark:text-white">
+                            {formatMonth(inv.year, inv.month)}
+                          </td>
+                          <td className="p-3 text-right text-gray-600 dark:text-gray-300">
+                            TSh {Number(inv.total_order_amount || 0).toLocaleString()}
+                          </td>
+                          <td className="p-3 text-right text-gray-600 dark:text-gray-300">
+                            TSh {Number(inv.total_commission || 0).toLocaleString()}
+                          </td>
+                          <td className="p-3 text-right text-gray-600 dark:text-gray-300">
+                            TSh {Number(inv.subscription_fee || 0).toLocaleString()}
+                          </td>
+                          <td className="p-3 text-right text-brand-600 dark:text-brand-400 font-extrabold">
+                            TSh {totalDue.toLocaleString()}
+                          </td>
+                          <td className="p-3 text-gray-500 dark:text-gray-400">
+                            {new Date(inv.due_date).toLocaleDateString()}
+                          </td>
+                          <td className="p-3">{getStatusBadge(inv.status)}</td>
+                          <td className="p-3 text-center">
+                            {(inv.status === 'UNPAID' || inv.status === 'OVERDUE') ? (
+                              <Button
+                                size="sm"
+                                onClick={() => handleOpenPayModal(inv)}
+                                className="text-2xs py-1 px-3 font-bold"
+                              >
+                                Pay Statement
+                              </Button>
+                            ) : (
+                              <span className="text-2xs text-gray-400 font-medium">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -831,9 +942,9 @@ const BillingPage: React.FC = () => {
                         </td>
                         <td className="p-3">
                           {dp.is_paid ? (
-                            <span className="px-2 py-0.5 text-3xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full uppercase">Paid</span>
+                            <span className="px-2 py-0.5 text-3xs font-bold bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 rounded-full uppercase">Paid</span>
                           ) : (
-                            <span className="px-2 py-0.5 text-3xs font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-full uppercase">Unpaid</span>
+                            <span className="px-2 py-0.5 text-3xs font-bold bg-transparent text-amber-600 dark:text-amber-400 border border-amber-500/40 rounded-full uppercase">Unpaid</span>
                           )}
                         </td>
                         <td className="p-3 text-gray-500 dark:text-gray-400">
@@ -868,9 +979,9 @@ const BillingPage: React.FC = () => {
             </div>
           )}
         </div>
-        )}
-      </div>
       )}
+    </div>
+  )}
 
       {/* Pay Invoice Modal */}
       {showPayModal && (selectedInvoice || selectedSubscription) && (
@@ -879,7 +990,7 @@ const BillingPage: React.FC = () => {
             <div className="p-5 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center bg-surface-muted dark:bg-[#161616]">
               <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Wallet className="text-brand-500" size={18} />
-                {selectedInvoice ? 'Pay Commission Invoice' : 'Renew Subscription'}
+                {selectedInvoice ? 'Pay Monthly Invoice' : 'Renew Subscription'}
               </h3>
               <button
                 onClick={() => { setShowPayModal(false); setSelectedInvoice(null); setSelectedSubscription(null); }}
@@ -896,20 +1007,28 @@ const BillingPage: React.FC = () => {
                 </div>
               ) : (
                 <form onSubmit={handlePaySubmit} className="space-y-4 text-xs">
-                  <div className="flex items-center justify-between p-3.5 rounded-btn bg-brand-500/10 border border-brand-500/20">
+                  <div className="p-3.5 rounded-btn bg-brand-500/10 border border-brand-500/20 space-y-2">
                     {selectedInvoice ? (
                       <>
-                        <div>
-                          <p className="text-3xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider">Invoice Period</p>
-                          <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mt-0.5">{formatMonth(selectedInvoice.year, selectedInvoice.month)}</h4>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-3xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider">Invoice Period</p>
+                            <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mt-0.5">{formatMonth(selectedInvoice.year, selectedInvoice.month)}</h4>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-3xs text-gray-400 font-semibold uppercase tracking-wider">Total Due</p>
+                            <p className="font-extrabold text-brand-600 dark:text-brand-400 text-base mt-0.5">
+                              TSh {Number(selectedInvoice.total_amount_due ?? (Number(selectedInvoice.total_commission || 0) + Number(selectedInvoice.subscription_fee || 0))).toLocaleString()}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-3xs text-gray-400">Commission Due</p>
-                          <p className="font-extrabold text-brand-600 dark:text-brand-400 text-sm mt-0.5">TSh {Number(selectedInvoice.total_commission).toLocaleString()}</p>
+                        <div className="pt-2 border-t border-brand-500/15 flex items-center justify-between text-2xs text-gray-600 dark:text-gray-300">
+                          <span>Subscription: <strong className="text-gray-900 dark:text-white font-bold">TSh {Number(selectedInvoice.subscription_fee || 0).toLocaleString()}</strong></span>
+                          <span>Commission: <strong className="text-gray-900 dark:text-white font-bold">TSh {Number(selectedInvoice.total_commission || 0).toLocaleString()}</strong></span>
                         </div>
                       </>
                     ) : (
-                      <>
+                      <div className="flex items-center justify-between">
                         <div>
                           <p className="text-3xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider">Subscription</p>
                           <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-sm mt-0.5">{selectedSubscription?.tier?.name} Plan</h4>
@@ -918,7 +1037,7 @@ const BillingPage: React.FC = () => {
                           <p className="text-3xs text-gray-400">Renewal Due</p>
                           <p className="font-extrabold text-brand-600 dark:text-brand-400 text-sm mt-0.5">TSh {Number(selectedSubscription?.tier?.price || 0).toLocaleString()}</p>
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
 

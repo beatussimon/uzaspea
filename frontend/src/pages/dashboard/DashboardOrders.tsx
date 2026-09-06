@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { Package, ShoppingCart, ChevronDown, ChevronUp, ChevronLeft, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
+import { Package, ShoppingCart, ChevronDown, ChevronLeft, Eye, ShieldCheck, ShieldAlert, Truck, Clock, XCircle, MapPin, X, Receipt, Search } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useOrderTracking, TrackingUpdate } from '../../hooks/useOrderTracking';
 import { ORDER_STATUS_CONFIG as ORDER_STATUS_CFG, getSellerNextStatus } from '../../constants/orderStatus';
@@ -265,7 +265,7 @@ const DashboardOrders: React.FC = () => {
           </h1>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full capitalize flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-medium bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 px-2.5 py-1 rounded-full capitalize flex items-center gap-1.5 shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               {t('live_view', 'Live View')}
             </span>
@@ -375,9 +375,9 @@ const DashboardOrders: React.FC = () => {
                 {/* Collapsible Header */}
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                  className="p-4 cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition flex flex-col md:flex-row gap-4 justify-between items-start md:items-center select-none"
+                  className="relative p-4 cursor-pointer hover:bg-surface-muted/40 dark:hover:bg-[#161616]/40 transition flex flex-col md:flex-row gap-4 justify-between items-start md:items-center select-none"
                 >
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="flex items-center gap-4 flex-1 min-w-0 pr-6 md:pr-0">
                     {/* Product Thumbnail */}
                     <div className="relative w-14 h-14 shrink-0">
                       <div className="w-full h-full rounded-xl bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border overflow-hidden flex items-center justify-center">
@@ -412,7 +412,7 @@ const DashboardOrders: React.FC = () => {
                         <StatusBadge status={order.status} size="sm" />
 
                         {order.delivery_info?.is_pos && (
-                          <span className="px-2 py-0.5 rounded-pill text-[10px] font-bold uppercase tracking-tight bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center gap-1">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight bg-transparent text-purple-600 dark:text-purple-400 border border-purple-500/40 flex items-center gap-1">
                             <Receipt size={10} /> POS
                           </span>
                         )}
@@ -446,8 +446,8 @@ const DashboardOrders: React.FC = () => {
                   </div>
 
                   {/* Actions & Chevron */}
-                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto shrink-0 justify-between md:justify-end pt-2 md:pt-0 border-t md:border-t-0 border-surface-border/60 dark:border-surface-dark-border/60 mt-2 md:mt-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 w-full md:w-auto shrink-0 justify-between md:justify-end pt-2 md:pt-0 border-t md:border-t-0 border-surface-border/60 dark:border-surface-dark-border/60 mt-2 md:mt-0">
+                    <div className="flex items-center gap-2 flex-wrap flex-1 md:flex-initial">
                       {nextStatus && (
                         <Button
                           size="sm"
@@ -505,8 +505,8 @@ const DashboardOrders: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
-                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    <div className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition absolute top-4 right-4 md:static">
+                      <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                   </div>
                 </div>
@@ -581,27 +581,27 @@ const DashboardOrders: React.FC = () => {
                     )}
 
                     {/* Items List Table */}
-                    <div className="border border-surface-border dark:border-surface-dark-border rounded-btn overflow-hidden mt-3">
+                    <div className="overflow-x-auto mt-2">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-surface-muted dark:bg-[#161616] text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
+                        <thead className="text-2xs uppercase tracking-wider text-gray-400 font-bold border-b border-surface-border dark:border-surface-dark-border">
                           <tr>
-                            <th className="p-2.5">Item Description</th>
-                            <th className="p-2.5 text-center">Qty</th>
-                            <th className="p-2.5 text-right">Unit Price</th>
-                            <th className="p-2.5 text-right">Subtotal</th>
+                            <th className="py-2.5 px-1">Item Description</th>
+                            <th className="py-2.5 px-2 text-center">Qty</th>
+                            <th className="py-2.5 px-2 text-right">Unit Price</th>
+                            <th className="py-2.5 px-1 text-right">Subtotal</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-surface-border dark:divide-surface-dark-border">
                           {itemsList.map((item: any) => (
                             <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-[#161616]/30">
-                              <td className="p-2.5 font-medium text-gray-900 dark:text-white">
+                              <td className="py-2.5 px-1 font-medium text-gray-900 dark:text-white">
                                 {item.product_name} {item.variant_name ? `(${item.variant_name})` : ''}
                               </td>
-                              <td className="p-2.5 text-center text-gray-500">{item.quantity}</td>
-                              <td className="p-2.5 text-right text-gray-700 dark:text-gray-300">
+                              <td className="py-2.5 px-2 text-center text-gray-500">{item.quantity}</td>
+                              <td className="py-2.5 px-2 text-right text-gray-700 dark:text-gray-300">
                                 TSh {(item.price || 0).toLocaleString()}
                               </td>
-                              <td className="p-2.5 text-right font-bold text-gray-900 dark:text-white">
+                              <td className="py-2.5 px-1 text-right font-bold text-gray-900 dark:text-white">
                                 TSh {(item.subtotal || (item.price * item.quantity) || 0).toLocaleString()}
                               </td>
                             </tr>

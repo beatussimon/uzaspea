@@ -11,7 +11,7 @@ class CommissionLedgerEntrySerializer(serializers.ModelSerializer):
 class MonthlyInvoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = MonthlyInvoice
-        fields = ['id', 'year', 'month', 'total_order_amount', 'total_commission', 'order_count', 'status', 'due_date', 'created_at']
+        fields = ['id', 'year', 'month', 'total_order_amount', 'total_commission', 'subscription_fee', 'total_amount_due', 'order_count', 'status', 'due_date', 'created_at']
 
 class CommissionPaymentSerializer(serializers.ModelSerializer):
     class Meta:

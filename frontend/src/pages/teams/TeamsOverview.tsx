@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   CreditCard, ShoppingCart, FileText, Package, MessageSquare, 
-  Wallet, TrendingUp, Lightbulb, Phone, ArrowRight, CheckCircle2 
+  Wallet, Lightbulb, Phone, ArrowRight, CheckCircle2 
 } from 'lucide-react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -105,13 +105,6 @@ export const TeamsOverview: React.FC = () => {
       path: '/teams-dashboard/billing',
       icon: Wallet,
       show: perms.manage_billing
-    },
-    {
-      title: 'Sales Reports',
-      desc: 'View store sales volume and analytics',
-      path: '/teams-dashboard/analytics',
-      icon: TrendingUp,
-      show: perms.view_analytics
     }
   ].filter(m => m.show);
 

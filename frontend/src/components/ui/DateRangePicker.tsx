@@ -33,26 +33,53 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({ value, onChang
     return () => document.removeEventListener('mousedown', handleClose);
   }, [isOpen]);
 
-  const getToday = () => new Date().toISOString().split('T')[0];
-  
+  const formatLocalDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getToday = () => formatLocalDate(new Date());
+
+  const getYesterday = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return formatLocalDate(d);
+  };
+
   const getDaysAgo = (days: number) => {
     const d = new Date();
     d.setDate(d.getDate() - days);
-    return d.toISOString().split('T')[0];
+    return formatLocalDate(d);
   };
 
   const getThisMonthStart = () => {
     const d = new Date();
-    d.setDate(1);
-    return d.toISOString().split('T')[0];
+    return formatLocalDate(new Date(d.getFullYear(), d.getMonth(), 1));
+  };
+
+  const getLastMonthRange = () => {
+    const d = new Date();
+    const start = formatLocalDate(new Date(d.getFullYear(), d.getMonth() - 1, 1));
+    const end = formatLocalDate(new Date(d.getFullYear(), d.getMonth(), 0));
+    return { start, end };
+  };
+
+  const getThisYearStart = () => {
+    const d = new Date();
+    return formatLocalDate(new Date(d.getFullYear(), 0, 1));
   };
 
   const presets = [
     { label: t('all_time', 'All Time'), start: null, end: null },
     { label: t('today', 'Today'), start: getToday(), end: getToday() },
+    { label: t('yesterday', 'Yesterday'), start: getYesterday(), end: getYesterday() },
     { label: t('last_7_days', 'Last 7 Days'), start: getDaysAgo(6), end: getToday() },
     { label: t('last_30_days', 'Last 30 Days'), start: getDaysAgo(29), end: getToday() },
     { label: t('this_month', 'This Month'), start: getThisMonthStart(), end: getToday() },
+    { label: t('last_month', 'Last Month'), start: getLastMonthRange().start, end: getLastMonthRange().end },
+    { label: t('this_year', 'This Year'), start: getThisYearStart(), end: getToday() },
   ];
 
   const handlePresetClick = (preset: typeof presets[0]) => {

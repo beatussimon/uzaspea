@@ -52,6 +52,27 @@ class ProductRequestSerializer(serializers.ModelSerializer):
             return obj.image.url
         return None
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        request = self.context.get('request')
+        is_authorized = False
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
+            user = request.user
+            if user.is_superuser or user.is_staff or user.id == instance.seller_id:
+                is_authorized = True
+            else:
+                try:
+                    from uzachuo.permissions import get_effective_sellers
+                    effective = get_effective_sellers(user, required_permission='manage_products')
+                    if instance.seller_id in effective:
+                        is_authorized = True
+                except Exception:
+                    pass
+
+        if not is_authorized:
+            ret.pop('buying_price', None)
+        return ret
+
 class LipaNumberSerializer(serializers.ModelSerializer):
     network_name = serializers.CharField(source='network.name', read_only=True)
     network_logo = serializers.ImageField(source='network.image', read_only=True)
@@ -163,6 +184,15 @@ class ProductPriceTierSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductPriceTier
         fields = ['id', 'min_quantity', 'max_quantity', 'unit_price']
+
+
+class ProductVariantSerializer(serializers.ModelSerializer):  # FIX B-16
+    final_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = ProductVariant
+        fields = ['id', 'product', 'name', 'sku', 'price_adjustment', 'stock',
+                  'is_available', 'image', 'final_price']
 
 
 class BrandSerializer(serializers.ModelSerializer):
@@ -359,6 +389,7 @@ class SafeJSONField(serializers.Field):
 class ProductSerializer(serializers.ModelSerializer):
     seller_username = serializers.CharField(source='seller.username', read_only=True)
     price_tiers = ProductPriceTierSerializer(many=True, read_only=True)
+    variants = ProductVariantSerializer(many=True, read_only=True)
     seller_tier = serializers.SerializerMethodField()
     seller_verified = serializers.SerializerMethodField()
     seller_profile_picture = serializers.SerializerMethodField()
@@ -395,6 +426,7 @@ class ProductSerializer(serializers.ModelSerializer):
     is_verified = serializers.BooleanField(read_only=True)
     latitude = serializers.FloatField(required=False, allow_null=True)
     longitude = serializers.FloatField(required=False, allow_null=True)
+    distance = serializers.FloatField(read_only=True, required=False, allow_null=True)
     can_review = serializers.SerializerMethodField()
     is_sponsored = serializers.SerializerMethodField()
 
@@ -404,11 +436,11 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'name', 'slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock', 'is_available', 'is_draft',
-                  'unit_of_measure', 'minimum_order_quantity', 'price_tiers',
+                  'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants',
                   'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',
                   'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified', 'vehicle_ids', 'oem_part_number',
-                  'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude',
+                  'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude', 'distance',
                   'weight_kg', 'size', 'can_review', 'is_sponsored', 'specifications',
                   'brand', 'reference_product', 'structured_specs', 'brand_details', 'reference_product_details']
         read_only_fields = ['seller', 'slug']
@@ -1321,7 +1353,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
                   'website', 'bio', 'tier', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
                   'preferred_currency', 'seller_rating', 'store_images', 'is_location_verified', 'is_following',
                   'show_product_requests']
-        read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified']  # FIX: S-07 — only staff should set these
+        read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified', 'latitude', 'longitude']  # FIX: S-07 — only staff/admin should set these
 
     def _normalize_url(self, value):
         if not value:
@@ -1395,6 +1427,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return data
 
     def update(self, instance, validated_data):
+        request = self.context.get('request')
+        is_staff = request and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)
+
+        # Business location and coordinates cannot be changed in settings by non-staff
+        if not is_staff:
+            validated_data.pop('latitude', None)
+            validated_data.pop('longitude', None)
+            validated_data.pop('is_location_verified', None)
+            # If user is a seller, lock business location address from regular profile settings
+            if instance.tier in ['seller_pro', 'business', 'worker']:
+                validated_data.pop('location', None)
+
         # Check if location coordinates changed
         lat_changed = 'latitude' in validated_data and validated_data['latitude'] != instance.latitude
         lng_changed = 'longitude' in validated_data and validated_data['longitude'] != instance.longitude
@@ -1402,18 +1446,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ret = super().update(instance, validated_data)
 
         if lat_changed or lng_changed:
-            instance.is_location_verified = False
-            instance.save(update_fields=['is_location_verified'])
+            if not is_staff:
+                instance.is_location_verified = False
+                instance.save(update_fields=['is_location_verified'])
             
             # Log audit
-            request = self.context.get('request')
             if request and hasattr(request, 'user'):
                 try:
                     from staff.api_views import log_audit
                     log_audit(
                         user=request.user,
                         action='LOCATION_CHANGED',
-                        description=f'User {instance.user.username} updated location to {instance.latitude}, {instance.longitude}',
+                        description=f'User {instance.user.username} location set to {instance.latitude}, {instance.longitude}',
                         request=request
                     )
                 except Exception:
@@ -1487,8 +1531,8 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     def get_is_expired(self, obj):
         from django.utils import timezone
         if not obj.end_date:
-            return False
-        return timezone.now() > obj.end_date
+            return not obj.is_active
+        return timezone.now() > obj.end_date or not obj.is_active
 
 
 
@@ -1635,15 +1679,6 @@ class DisputeSerializer(serializers.ModelSerializer):  # FIX B-15
                   'resolved_at', 'created_at', 'updated_at']
         read_only_fields = ['opened_by', 'status', 'assigned_staff',
                            'resolution_notes', 'resolved_at', 'created_at', 'updated_at']
-
-
-class ProductVariantSerializer(serializers.ModelSerializer):  # FIX B-16
-    final_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-
-    class Meta:
-        model = ProductVariant
-        fields = ['id', 'product', 'name', 'sku', 'price_adjustment', 'stock',
-                  'is_available', 'image', 'final_price']
 
 
 class SiteSettingsSerializer(serializers.ModelSerializer):  # FIX B-18

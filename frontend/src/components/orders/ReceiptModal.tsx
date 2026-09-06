@@ -71,15 +71,14 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
             ref={printRef}
             style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: '12px', lineHeight: '1.4' }}
           >
-            <div className="text-center mb-4">
+            <div className="text-center mb-3">
               <img 
                 src="/logo_dark.png" 
                 alt="Sokonimax" 
-                className="w-24 mx-auto grayscale object-contain mb-2" 
+                className="w-24 mx-auto grayscale object-contain mb-1.5" 
                 style={{ maxWidth: '96px', maxHeight: '42px' }}
               />
-              <h3 className="font-black text-lg tracking-widest leading-none">SOKONIMAX</h3>
-              <p className="text-[10px] text-gray-500 mt-1">Premium Quality Products</p>
+              <p className="text-[10px] text-gray-500">Premium Quality Products</p>
             </div>
             
             <div className="border-t border-dashed border-gray-400 py-2 mb-2 text-center text-xs">

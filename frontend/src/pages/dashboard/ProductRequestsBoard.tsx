@@ -12,10 +12,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { useNavigate } from 'react-router-dom';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { KpiCard } from '../../components/ui/KpiCard';
-import {
-  KpiGridSkeleton,
-  CardGridSkeleton
-} from '../../components/Skeleton';
+import { DemandAnalyticsSkeleton } from '../../components/Skeleton';
 import { printElement } from '../../utils/printHelper';
 
 const formatCompactCurrency = (rawNum: number | string | undefined | null, currency = 'TSh') => {
@@ -88,7 +85,7 @@ const ProductRequestsBoard: React.FC = () => {
   const fetchRequests = async (showLoader = true) => {
     try {
       if (showLoader && requests.length === 0) setLoading(true);
-      const res = await api.get('/api/product-requests/');
+      const res = await api.get('/api/product-requests/?mine=true');
       setRequests(res.data.results || res.data);
     } catch (err) {
       console.error(err);
@@ -167,10 +164,7 @@ const ProductRequestsBoard: React.FC = () => {
   const handleVote = async (req: any) => {
     try {
       setVotingId(req.id);
-      await api.post('/api/product-requests/', {
-        name: req.name,
-        seller_username: req.seller_username || (user as any)?.username
-      });
+      await api.post(`/api/product-requests/${req.id}/vote/`);
       toast.success(`Vote added to ${req.name}!`);
       fetchRequests(false);
     } catch (err: any) {
@@ -311,10 +305,7 @@ const ProductRequestsBoard: React.FC = () => {
         </header>
 
         {loading && requests.length === 0 ? (
-          <div className="space-y-6">
-            <KpiGridSkeleton count={4} cols={4} />
-            <CardGridSkeleton count={2} cols={2} />
-          </div>
+          <DemandAnalyticsSkeleton />
         ) : requests.length === 0 ? (
           <EmptyState
             icon={Lightbulb}
@@ -452,18 +443,18 @@ const ProductRequestsBoard: React.FC = () => {
                           </div>
                         </td>
                         <td className="p-3 text-center align-middle">
-                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-black bg-brand-500/10 text-brand-600 dark:text-brand-400">
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-black bg-transparent text-brand-600 dark:text-brand-400 border border-brand-500/40">
                             {req.request_count}
                           </span>
                         </td>
                         <td className="p-3 align-middle">
                           {req.is_fulfilled ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 capitalize">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 capitalize">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               In Inventory
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 capitalize">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-transparent text-amber-600 dark:text-amber-400 border border-amber-500/40 capitalize">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                               Gathering Demand
                             </span>

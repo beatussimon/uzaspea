@@ -84,7 +84,7 @@ export const DashboardPromotions: React.FC = () => {
   const formRef = useRef<HTMLFormElement>(null);
 
   const [activeTab, setActiveTab] = useState<'sponsored' | 'coupons'>('sponsored');
-  const [campaignFilter, setCampaignFilter] = useState<'all' | 'approved' | 'pending' | 'expired' | 'rejected'>('all');
+  const [campaignFilter, setCampaignFilter] = useState<'approved' | 'pending' | 'expired' | 'rejected' | 'all'>('approved');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Data States
@@ -827,7 +827,7 @@ export const DashboardPromotions: React.FC = () => {
           {/* Campaign Filter Bar */}
           <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
             <div data-horizontal-scroll="true" className="flex items-center gap-1.5 overflow-x-auto pb-1">
-              {(['all', 'approved', 'pending', 'expired', 'rejected'] as const).map(f => {
+              {(['approved', 'pending', 'expired', 'rejected', 'all'] as const).map(f => {
                 const count = f === 'all' 
                   ? promotions.length 
                   : promotions.filter(p => getCampaignStatus(p) === f).length;
@@ -842,11 +842,11 @@ export const DashboardPromotions: React.FC = () => {
                         : 'bg-surface-muted dark:bg-[#121212] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
                     }`}
                   >
-                    {f === 'all' && t('all_campaigns', 'All Placements')}
                     {f === 'approved' && t('live_active', 'Active')}
                     {f === 'pending' && t('pending_review', 'Under Review')}
                     {f === 'expired' && t('completed', 'Completed')}
                     {f === 'rejected' && t('rejected', 'Rejected')}
+                    {f === 'all' && t('all_campaigns', 'All Placements')}
                     <span className="opacity-60 text-[11px]">({count})</span>
                   </button>
                 );
@@ -895,26 +895,26 @@ export const DashboardPromotions: React.FC = () => {
                       {/* Top Status & Date */}
                       <div className="flex items-center justify-between gap-2 mb-3">
                         {status === 'approved' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             {t('active', 'Active')}
                           </span>
                         )}
                         {status === 'pending' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                            <Clock size={11} />
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                            <Clock size={12} />
                             {t('under_review', 'Under Review')}
                           </span>
                         )}
                         {status === 'expired' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
-                            <CheckCircle2 size={11} />
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                            <CheckCircle2 size={12} />
                             {t('completed', 'Completed')}
                           </span>
                         )}
                         {status === 'rejected' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
-                            <AlertCircle size={11} />
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+                            <AlertCircle size={12} />
                             {t('rejected', 'Rejected')}
                           </span>
                         )}
@@ -926,7 +926,7 @@ export const DashboardPromotions: React.FC = () => {
 
                       {/* Product Snippet Header */}
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800 border border-surface-border/40">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800/80">
                           {productImg ? (
                             <SafeImage src={productImg} alt={p.product_name} className="w-full h-full object-cover" />
                           ) : (
@@ -1005,7 +1005,7 @@ export const DashboardPromotions: React.FC = () => {
                     </div>
 
                     {/* Footer & Actions */}
-                    <div className="pt-3 border-t border-surface-border dark:border-surface-dark-border space-y-2">
+                    <div className="pt-3 border-t border-neutral-100 dark:border-neutral-800/80 space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <div className="text-gray-500 dark:text-gray-400 flex items-center gap-1 font-normal">
                           <Tag size={11} /> {p.duration_days || 7} {t('days_duration', 'Days')}
@@ -1033,33 +1033,31 @@ export const DashboardPromotions: React.FC = () => {
                       {/* Action Bar */}
                       <div className="pt-1 flex items-center gap-2">
                         {(status === 'expired' || status === 'rejected') && (
-                          <Button
-                            size="sm"
-                            variant="outline"
+                          <button
+                            type="button"
                             onClick={() => handleStartReboost(p.product)}
-                            className="flex-1 text-xs py-1 hover:border-brand-500 hover:text-brand-500 transition-colors cursor-pointer"
+                            className="w-full py-2 px-3 text-xs font-medium rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800/80 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
                           >
-                            <RefreshCw size={12} className="mr-1.5" /> {t('renew', 'Renew')}
-                          </Button>
+                            <RefreshCw size={12} /> <span>{t('renew', 'Renew')}</span>
+                          </button>
                         )}
                         {status === 'pending' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
+                          <button
+                            type="button"
                             onClick={() => handleDeleteCampaign(p.id)}
-                            className="flex-1 text-xs py-1 text-red-500 border-red-500/20 hover:bg-red-500/10 cursor-pointer"
+                            className="w-full py-2 px-3 text-xs font-medium rounded-xl text-red-500 hover:bg-red-500/10 transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
                           >
-                            {t('cancel', 'Cancel')}
-                          </Button>
+                            <span>{t('cancel', 'Cancel')}</span>
+                          </button>
                         )}
                         {status === 'approved' && p.product_slug && (
                           <a
                             href={`/product/${p.product_slug}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="btn-outline flex-1 text-center text-xs py-1 font-medium text-gray-700 dark:text-gray-300 border-surface-border dark:border-surface-dark-border hover:border-brand-500 flex items-center justify-center gap-1 rounded-btn"
+                            className="w-full py-2 px-3 text-xs font-medium rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800/80 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-200 transition flex items-center justify-center gap-1.5"
                           >
-                            {t('view_live_item', 'View Listing')} <ExternalLink size={11} />
+                            <span>{t('view_live_item', 'View Listing')}</span> <ExternalLink size={11} />
                           </a>
                         )}
                       </div>

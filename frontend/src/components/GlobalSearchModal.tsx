@@ -11,6 +11,9 @@ import api from '../api';
 import SafeImage from './SafeImage';
 import VehicleSelector from './VehicleSelector';
 import { ensureArray } from '../utils/arrayUtils';
+import LocationFilter from './LocationFilter';
+import { useUserLocation } from '../context/LocationContext';
+import VerifiedBadge from './VerifiedBadge';
 
 // In-memory filter for seller-scoped search (0ms instant response)
 const filterSellerProductsInMemory = (
@@ -100,6 +103,7 @@ const GlobalSearchModal: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { location: userLocation, searchPrefs } = useUserLocation();
 
   // Search State
   const [query, setQuery] = useState('');
@@ -352,6 +356,19 @@ const GlobalSearchModal: React.FC = () => {
       }
       if (sellerScope) productParams.seller = sellerScope.username;
 
+      // Inject persistent location filter
+      if (searchPrefs.mode === 'proximity' && userLocation.coords && searchPrefs.radius) {
+        productParams.lat = userLocation.coords.lat;
+        productParams.lng = userLocation.coords.lng;
+        productParams.radius = searchPrefs.radius;
+        productParams.location_mode = 'proximity';
+      } else if (searchPrefs.mode === 'region' && searchPrefs.region) {
+        productParams.region = searchPrefs.region;
+        productParams.location_mode = 'region';
+      } else {
+        productParams.location_mode = 'nationwide';
+      }
+
       const promises: Promise<any>[] = [];
       // Only search user profiles when a search keyword is typed, NEVER on pure category/filter browse
       if (q.length >= 2 && !sellerScope && !vehicleId && !oemPartNumber) {
@@ -383,7 +400,7 @@ const GlobalSearchModal: React.FC = () => {
       clearTimeout(timer);
       abortController.abort();
     };
-  }, [query, category, subcategory, brand, minPrice, maxPrice, condition, sortBy, sellerScope, vehicleId, oemPartNumber, specFilters]);
+  }, [query, category, subcategory, brand, minPrice, maxPrice, condition, sortBy, sellerScope, vehicleId, oemPartNumber, specFilters, searchPrefs, userLocation.coords]);
 
   const buildQueryString = (overrides?: { category?: string; subcategory?: string; query?: string; clearSeller?: boolean }) => {
     const params = new URLSearchParams();
@@ -462,19 +479,85 @@ const GlobalSearchModal: React.FC = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -10 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="relative w-full max-w-5xl h-[85vh] max-h-[85dvh] bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-[24px] shadow-2xl border border-neutral-200/80 dark:border-neutral-800/80 flex flex-col md:flex-row overflow-hidden pointer-events-auto min-h-0"
+            className="relative w-full max-w-5xl h-[85vh] max-h-[85dvh] bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-[24px] shadow-2xl border border-neutral-200/80 dark:border-neutral-800/80 flex flex-col overflow-hidden pointer-events-auto min-h-0"
           >
-            {/* Desktop Sidebar Filters */}
-            <div className="hidden md:flex flex-col w-[280px] shrink-0 border-r border-neutral-200/50 dark:border-neutral-800/50 bg-neutral-50/50 dark:bg-neutral-900/20 h-full min-h-0">
-              <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300 font-bold uppercase tracking-wider text-xs">
-                  <Filter className="w-4 h-4" />
-                  Filters
+            {/* Top Search Area: Centered with a brand-colored bottom line and no box */}
+            <div className="relative z-10 bg-transparent shrink-0 px-4 sm:px-6 pt-3 pb-2">
+              <form 
+                onSubmit={handleSubmit} 
+                className="w-full max-w-2xl mx-auto relative flex items-center justify-center border-b-2 border-brand-500 pb-1 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none !ring-0 !shadow-none !outline-none"
+                style={{ outline: 'none', boxShadow: 'none' }}
+              >
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={sellerScope ? `Search @${sellerScope.username}'s products...` : t('search_placeholder', 'Search products, categories, or brands...')}
+                  className="w-full h-14 sm:h-16 px-14 sm:px-16 text-center bg-transparent text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-600 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 !ring-0 !outline-none !shadow-none border-0 shadow-none"
+                  style={{ outline: 'none', boxShadow: 'none' }}
+                />
+
+                {/* Right controls: Clear, Mobile Filter Toggle, Search button, ESC */}
+                <div className="absolute right-2 sm:right-3 flex items-center gap-2">
+                  {query && (
+                    <button type="button" onClick={() => { setQuery(''); inputRef.current?.focus(); }} className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors focus:outline-none focus:ring-0 focus-visible:ring-0">
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setShowMobileFilters(!showMobileFilters)} className="md:hidden flex items-center gap-1 p-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 focus:outline-none focus:ring-0 focus-visible:ring-0">
+                    <Filter className="w-4 h-4" />
+                    {activeFilterCount > 0 && <span className="w-2 h-2 bg-brand-500 rounded-full"></span>}
+                  </button>
+                  <button
+                    type="submit"
+                    className="p-1.5 rounded-lg text-brand-500 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-500/10 transition-colors flex items-center justify-center cursor-pointer focus:outline-none focus:ring-0 focus-visible:ring-0"
+                    title="Search"
+                  >
+                    <Search className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </button>
+                  <div className="hidden sm:flex items-center gap-1 text-[10px] font-bold text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded">
+                    <span>ESC</span>
+                  </div>
                 </div>
-                {activeFilterCount > 0 && (
-                  <button onClick={clearFilters} className="text-[10px] text-brand-600 dark:text-brand-500 hover:underline font-bold uppercase tracking-wider">Clear</button>
+              </form>
+            </div>
+
+            {/* Seller Scope Banner */}
+            {sellerScope && (
+              <div className="flex items-center gap-2 px-4 sm:px-6 py-2 bg-brand-500/5 dark:bg-brand-500/10 shrink-0">
+                {sellerScope.avatar ? (
+                  <img src={sellerScope.avatar} alt={sellerScope.username} className="w-6 h-6 rounded-full object-cover ring-2 ring-brand-500/20" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-500 text-xs font-bold uppercase">
+                    {sellerScope.username.charAt(0)}
+                  </div>
                 )}
+                <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                  Searching in <span className="font-bold text-brand-500">@{sellerScope.username}</span>'s store
+                </span>
+                <button
+                  onClick={() => openSearch()}
+                  className="ml-auto text-xs font-bold text-brand-500 hover:underline transition-colors whitespace-nowrap"
+                >
+                  Search entire marketplace →
+                </button>
               </div>
+            )}
+
+            {/* Content Area (Filters on Left, Results on Right) */}
+            <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+              {/* Desktop Sidebar Filters */}
+              <div className="hidden md:flex flex-col w-[280px] shrink-0 border-r border-neutral-200/50 dark:border-neutral-800/50 bg-neutral-50/50 dark:bg-neutral-900/20 h-full min-h-0">
+                <div className="p-4 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300 font-bold uppercase tracking-wider text-xs">
+                    <Filter className="w-4 h-4" />
+                    Filters
+                  </div>
+                  {activeFilterCount > 0 && (
+                    <button onClick={clearFilters} className="text-[10px] text-brand-600 dark:text-brand-500 hover:underline font-bold uppercase tracking-wider">Clear</button>
+                  )}
+                </div>
               
               <div className="flex-1 overflow-y-auto p-4 space-y-6 min-h-0">
                 <div className="space-y-3">
@@ -634,63 +717,14 @@ const GlobalSearchModal: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Location Filter at bottom of sidebar */}
+                <LocationFilter />
               </div>
             </div>
 
             {/* Main Search Area */}
             <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
-              <div className="relative border-b border-neutral-100 dark:border-neutral-800/50 z-10 bg-transparent shrink-0">
-                <form onSubmit={handleSubmit} className="flex items-center w-full relative">
-                  <Search className="absolute left-6 w-6 h-6 text-brand-500" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={sellerScope ? `Search @${sellerScope.username}'s products...` : t('search_placeholder', 'Search products, categories, or brands...')}
-                    className="w-full h-20 pl-16 pr-[120px] sm:pr-24 bg-transparent text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-300 dark:placeholder:text-neutral-700 focus:outline-none"
-                  />
-                  
-                  {/* Mobile Filters Toggle & Clear Button */}
-                  <div className="absolute right-4 flex items-center gap-2">
-                    {query && (
-                      <button type="button" onClick={() => { setQuery(''); inputRef.current?.focus(); }} className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">
-                        <X className="w-5 h-5" />
-                      </button>
-                    )}
-                    <button type="button" onClick={() => setShowMobileFilters(!showMobileFilters)} className="md:hidden flex items-center gap-1 p-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
-                      <Filter className="w-4 h-4" />
-                      {activeFilterCount > 0 && <span className="w-2 h-2 bg-brand-500 rounded-full"></span>}
-                    </button>
-                    <div className="hidden sm:flex items-center gap-1 text-[10px] font-bold text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded">
-                      <span>ESC</span>
-                    </div>
-                  </div>
-                </form>
-              </div>
-
-              {/* Seller Scope Banner */}
-              {sellerScope && (
-                <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-brand-500/5 dark:bg-brand-500/10 border-b border-brand-500/10 dark:border-brand-500/20 shrink-0">
-                  {sellerScope.avatar ? (
-                    <img src={sellerScope.avatar} alt={sellerScope.username} className="w-6 h-6 rounded-full object-cover ring-2 ring-brand-500/20" />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-500 text-xs font-bold uppercase">
-                      {sellerScope.username.charAt(0)}
-                    </div>
-                  )}
-                  <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                    Searching in <span className="font-bold text-brand-500">@{sellerScope.username}</span>'s store
-                  </span>
-                  <button
-                    onClick={() => openSearch()}
-                    className="ml-auto text-xs font-bold text-brand-500 hover:underline transition-colors whitespace-nowrap"
-                  >
-                    Search entire marketplace →
-                  </button>
-                </div>
-              )}
-
               {/* Mobile Filters Dropdown */}
               <AnimatePresence>
                 {showMobileFilters && (
@@ -824,6 +858,9 @@ const GlobalSearchModal: React.FC = () => {
                           <span className="text-xs">List</span>
                         </button>
                       </div>
+
+                      {/* Location Filter at bottom of mobile filters */}
+                      <LocationFilter />
                     </div>
                   </motion.div>
                 )}
@@ -969,13 +1006,13 @@ const GlobalSearchModal: React.FC = () => {
                                 <div className="flex-1 min-w-0">
                                   {isAccount ? (
                                     <>
-                                      <p className="font-bold text-sm text-neutral-900 dark:text-white truncate flex items-center gap-2 group-hover:text-brand-500 dark:group-hover:text-brand-500 transition-colors">
+                                      <p className="font-bold text-sm text-neutral-900 dark:text-white truncate flex items-center gap-1.5 group-hover:text-brand-500 dark:group-hover:text-brand-500 transition-colors">
                                         @{item.username}
-                                        {item.is_verified && (
-                                          <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                                          </svg>
-                                        )}
+                                        <VerifiedBadge 
+                                          tier={item.tier} 
+                                          isVerified={item.is_verified ?? Boolean(item.tier && item.tier !== 'free')} 
+                                          className="w-4 h-4 shrink-0" 
+                                        />
                                       </p>
                                       <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate flex items-center gap-1 capitalize">
                                         {item.tier ? item.tier.replace('_', ' ') : 'Account'}
@@ -1069,28 +1106,11 @@ const GlobalSearchModal: React.FC = () => {
                 )}
               </div>
               
-              {/* Sticky Submit Button Footer - Clean style without glowing colored shadows */}
-              <div className="p-4 border-t border-neutral-100 dark:border-neutral-800/80 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md z-10 shrink-0">
-                <button 
-                  type="button"
-                  onClick={() => handleSubmit()}
-                  className="w-full py-3.5 px-4 bg-brand-500 hover:bg-brand-400 text-neutral-950 rounded-xl font-bold text-base shadow-sm active:scale-[0.99] transition-all flex items-center justify-center gap-2 select-none"
-                >
-                  <Search className="w-5 h-5" />
-                  <span>
-                    {sellerScope 
-                      ? `Search @${sellerScope.username}'s Store` 
-                      : totalCount !== null 
-                        ? (totalCount > 0 ? `Show ${totalCount.toLocaleString()} Results` : 'No Results Found') 
-                        : 'Show Results'} {activeFilterCount > 0 ? `(${activeFilterCount} Filters)` : ''}
-                  </span>
-                </button>
-              </div>
-
             </div>
-          </motion.div>
-        </div>
-      )}
+          </div>
+        </motion.div>
+      </div>
+    )}
     </AnimatePresence>
   );
 };

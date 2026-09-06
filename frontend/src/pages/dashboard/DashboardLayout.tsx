@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, AlertCircle, Lightbulb, FileText, ChevronLeft, ChevronRight, TrendingUp, QrCode, Menu, X, ArrowDownToLine } from 'lucide-react';
+import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, Lightbulb, FileText, ChevronLeft, ChevronRight, QrCode, Menu, X, ArrowDownToLine } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, useUserRoles } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import SettingsPage from './SettingsPage';
 import HelpCenterPage from './HelpCenterPage';
 import DashboardOverview from './DashboardOverview';
-import DashboardAnalytics from './DashboardAnalytics';
 import DashboardProducts from './DashboardProducts';
 import DashboardPromotions from './DashboardPromotions';
 import DashboardOrders from './DashboardOrders';
@@ -19,6 +18,7 @@ import MyTeamPage from './MyTeamPage';
 import DashboardPOS from './DashboardPOS';
 import ProductRequestsBoard from './ProductRequestsBoard';
 import InvoicesPage from './InvoicesPage';
+import SubscriptionExpiredView from './SubscriptionExpiredView';
 
 // ============ Dashboard Layout ============
 const DashboardLayout: React.FC = () => {
@@ -79,10 +79,21 @@ const DashboardLayout: React.FC = () => {
     };
   }, [isSidebarCollapsed]);
 
-  const isBusiness = user?.tier === 'business' || localStorage.getItem('tier') === 'business';
-  const isWorker = user?.tier === 'worker' || localStorage.getItem('tier') === 'worker';
-  const isSuperuser = user?.is_superuser || localStorage.getItem('is_superuser') === 'true';
+  const roles = useUserRoles();
 
+  // Pure customers must NEVER access the seller dashboard - redirect to settings
+  if (roles.isPureCustomer) {
+    return <Navigate to="/settings" replace />;
+  }
+
+  // When seller subscription has expired or user cannot access seller tools, lock out the entire dashboard and show renewal view
+  if (roles.isExpiredSeller || !roles.canAccessSellerDashboard) {
+    return <SubscriptionExpiredView />;
+  }
+
+  const isBusiness = roles.isBusiness;
+  const isWorker = roles.isTeamMember;
+  const isSuperuser = roles.isSuperuser;
   const perms = user?.team_permissions || {};
 
   const downloadStoreQrCode = (e?: React.MouseEvent) => {
@@ -162,7 +173,6 @@ const DashboardLayout: React.FC = () => {
 
   const allNavItems = [
     { path: '/dashboard', label: t('overview', 'Overview'), icon: LayoutDashboard, show: !isWorker || perms.view_analytics },
-    { path: '/dashboard/analytics', label: t('analytics', 'Analytics'), icon: TrendingUp, show: !isWorker || perms.view_analytics },
     { path: '/dashboard/products', label: t('products', 'Products'), icon: Package, show: !isWorker || perms.manage_products },
     { path: '/dashboard/product-requests', label: t('product_requests', 'Product Requests'), icon: Lightbulb, show: !isWorker || perms.manage_products },
     { path: '/dashboard/orders', label: t('incoming_orders', 'Incoming Orders'), icon: ShoppingCart, show: !isWorker || perms.manage_orders },
@@ -179,21 +189,6 @@ const DashboardLayout: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
-      {/* Expired Subscription Banner */}
-      {user?.subscription_active === false && (
-        <div className="  border border-red-500 dark:border-red-500 text-red-500 dark:text-red-500 p-4 rounded-xl flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-            <AlertCircle size={24} className="text-red-500" />
-            <div>
-              <h4 className="font-bold">Subscription Expired</h4>
-              <p className="text-sm">Your seller subscription has expired. Please renew it to keep your account active and avoid listing suspension.</p>
-            </div>
-          </div>
-          <Link to="/dashboard/billing" className="btn-primary py-2 px-4 bg-red-500 hover:bg-red-500 border-none text-white text-sm whitespace-nowrap">
-            Renew Now
-          </Link>
-        </div>
-      )}
 
       {/* Floating Mobile Hamburger Menu Button */}
       <div className="fixed bottom-20 left-4 z-40 lg:hidden print:hidden animate-fade-in">
@@ -255,20 +250,16 @@ const DashboardLayout: React.FC = () => {
                 })}
 
                 {isSuperuser && (
-                  <>
-                    <hr className="my-2 border-surface-border dark:border-surface-dark-border" />
-                    <Link
-                      to="/staff-admin"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm text-brand-500 dark:text-brand-500 font-bold hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
-                    >
-                      <Shield size={18} className="shrink-0" />
-                      <span className="truncate">{t('staff_admin', 'Staff Admin')}</span>
-                    </Link>
-                  </>
+                  <Link
+                    to="/staff-admin"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm text-brand-500 dark:text-brand-500 font-bold hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
+                  >
+                    <Shield size={18} className="shrink-0" />
+                    <span className="truncate">{t('staff_admin', 'Staff Admin')}</span>
+                  </Link>
                 )}
 
-                <hr className="my-2 border-surface-border dark:border-surface-dark-border" />
                 <Link
                   to="/dashboard/settings"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -298,7 +289,7 @@ const DashboardLayout: React.FC = () => {
 
             {/* Store QR Code at bottom of mobile drawer */}
             {user?.username && (
-              <div className="pt-3 border-t border-surface-border dark:border-surface-dark-border mt-4 text-center select-none space-y-2">
+              <div className="pt-3 mt-4 text-center select-none space-y-2">
                 <div className="bg-white p-3 rounded-2xl border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs mx-auto w-fit">
                   <QRCodeSVG
                     value={`${window.location.origin}/${user.username}`}
@@ -358,39 +349,35 @@ const DashboardLayout: React.FC = () => {
           <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1 relative">
             <div>
               {navItems.map((item) => {
-              const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
-                    isActive
-                      ? '  text-brand-500 dark:text-brand-500 font-medium'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
-                  }`}
-                  title={isSidebarCollapsed ? item.label : undefined}
-                >
-                  <item.icon size={18} className="shrink-0" />
-                  {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
-                </Link>
-              );
-            })}
+                const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
+                      isActive
+                        ? '  text-brand-500 dark:text-brand-500 font-medium'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
+                    }`}
+                    title={isSidebarCollapsed ? item.label : undefined}
+                  >
+                    <item.icon size={18} className="shrink-0" />
+                    {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
+                  </Link>
+                );
+              })}
 
             {isSuperuser && (
-              <>
-                <hr className="my-2 border-surface-border dark:border-surface-dark-border" />
-                <Link
-                  to="/staff-admin"
-                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm text-brand-500 dark:text-brand-500 font-bold   transition`}
-                  title={isSidebarCollapsed ? t('staff_admin', 'Staff Admin') : undefined}
-                >
-                  <Shield size={18} className="shrink-0" />
-                  {!isSidebarCollapsed && <span className="truncate">{t('staff_admin', 'Staff Admin')}</span>}
-                </Link>
-              </>
+              <Link
+                to="/staff-admin"
+                className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm text-brand-500 dark:text-brand-500 font-bold   transition`}
+                title={isSidebarCollapsed ? t('staff_admin', 'Staff Admin') : undefined}
+              >
+                <Shield size={18} className="shrink-0" />
+                {!isSidebarCollapsed && <span className="truncate">{t('staff_admin', 'Staff Admin')}</span>}
+              </Link>
             )}
 
-            <hr className="my-2 border-surface-border dark:border-surface-dark-border" />
             <Link
               to="/dashboard/settings"
               className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-btn text-sm transition ${
@@ -420,7 +407,6 @@ const DashboardLayout: React.FC = () => {
           {/* Store QR Code at the end of the sidebar list */}
           {user?.username && (
             <div className="pt-2">
-              <hr className="mb-2 border-surface-border dark:border-surface-dark-border" />
               {!isSidebarCollapsed ? (
                 <div className="py-2 px-1 space-y-2 text-center select-none">
                   <div className="bg-white p-3 rounded-2xl border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs mx-auto w-fit">
@@ -495,15 +481,15 @@ const DashboardLayout: React.FC = () => {
       <main className="flex-1 min-w-0 animate-fade-in w-full">
         <Routes>
           <Route index element={<DashboardOverview />} />
-          <Route path="analytics" element={<DashboardAnalytics />} />
-          <Route path="products" element={<DashboardProducts />} />
-          <Route path="product-requests" element={<ProductRequestsBoard />} />
-          <Route path="pos" element={<DashboardPOS />} />
-          <Route path="orders" element={<DashboardOrders />} />
-          <Route path="invoices" element={<InvoicesPage />} />
-          <Route path="promotions" element={<DashboardPromotions />} />
-          <Route path="billing" element={<BillingPage />} />
-          <Route path="payment-numbers" element={<PaymentNumbersManager />} />
+          <Route path="analytics" element={<Navigate to="/dashboard" replace />} />
+          <Route path="products" element={(!isWorker || perms.manage_products) ? <DashboardProducts /> : <Navigate to="/dashboard" replace />} />
+          <Route path="product-requests" element={(!isWorker || perms.manage_products) ? <ProductRequestsBoard /> : <Navigate to="/dashboard" replace />} />
+          <Route path="pos" element={(!isWorker || perms.manage_orders) ? <DashboardPOS /> : <Navigate to="/dashboard" replace />} />
+          <Route path="orders" element={(!isWorker || perms.manage_orders) ? <DashboardOrders /> : <Navigate to="/dashboard" replace />} />
+          <Route path="invoices" element={(!isWorker || perms.manage_orders) ? <InvoicesPage /> : <Navigate to="/dashboard" replace />} />
+          <Route path="promotions" element={(!isWorker || perms.manage_products) ? <DashboardPromotions /> : <Navigate to="/dashboard" replace />} />
+          <Route path="billing" element={(!isWorker || perms.view_analytics) ? <BillingPage /> : <Navigate to="/dashboard" replace />} />
+          <Route path="payment-numbers" element={(!isWorker || perms.view_analytics) ? <PaymentNumbersManager /> : <Navigate to="/dashboard" replace />} />
           {isBusiness && <Route path="team" element={<TeamManagerPage />} />}
           {isWorker && <Route path="my-team" element={<MyTeamPage />} />}
           <Route path="settings" element={<SettingsPage />} />

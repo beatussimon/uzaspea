@@ -3,19 +3,18 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Toaster } from 'react-hot-toast';
 
 import { CartProvider } from './context/CartContext';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth, useUserRoles } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { DialogProvider } from './components/ui/Dialogs';
 import { MessageProvider } from './context/MessageContext';
 import { ChatToastContainer } from './components/ChatToast';
-import { PwaInstallPrompt } from './components/PwaInstallPrompt';
 import { useStatusBar } from './hooks/useStatusBar';
 import { initGlobalHorizontalScroll } from './hooks/useHorizontalScroll';
 import { ScrollToTopFab } from './components/ui/ScrollToTopFab';
 import { SearchProvider } from './context/SearchContext';
 import GlobalSearchModal from './components/GlobalSearchModal';
 import { LocationProvider } from './context/LocationContext';
-import LocationPromptBanner from './components/layout/LocationPromptBanner';
+import { FloatingPromptDock } from './components/layout/FloatingPromptDock';
 
 
 import LandingPage from './pages/LandingPage';
@@ -64,6 +63,7 @@ import DesktopChatDock from './components/chat/DesktopChatDock';
 // ProtectedRoute extracted outside App component body to prevent unmount/remount cycles
 const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = false, requireInspector = false, requireSeller = false }: any) => {
   const { isAuthenticated, user } = useAuth();
+  const roles = useUserRoles();
   const location = useLocation();
   
   if (!isAuthenticated) {
@@ -77,13 +77,12 @@ const ProtectedRoute = ({ children, requireStaff = false, requireSuperuser = fal
   }
   
   if (user) {
-    if (requireSuperuser && !user.is_superuser) return <Navigate to="/" replace />;
-    if (requireStaff && !user.is_staff && !user.is_superuser) return <Navigate to="/dashboard" replace />;
-    if (requireInspector && !user.is_inspector) return <Navigate to="/dashboard" replace />;
+    if (requireSuperuser && !roles.isSuperuser) return <Navigate to="/" replace />;
+    if (requireStaff && !roles.isStaff && !roles.isSuperuser) return <Navigate to="/" replace />;
+    if (requireInspector && !roles.isInspector) return <Navigate to="/" replace />;
     if (requireSeller) {
-      const tier = user?.tier;
-      const isSeller = tier === 'seller_pro' || tier === 'business' || tier === 'worker' || user.is_staff || user.is_superuser;
-      if (!isSeller) return <Navigate to="/upgrade" replace />;
+      if (roles.isPureCustomer) return <Navigate to="/settings" replace />;
+      if (!roles.canAccessSellerDashboard && !roles.isExpiredSeller) return <Navigate to="/settings" replace />;
     }
   }
   
@@ -156,7 +155,6 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300">
-      <LocationPromptBanner />
       <Navbar />
       {!isLandingPage && <div className="h-14 md:h-20 pt-safe print-hide" />} {/* Spacer matching navbar height, hidden on landing */}
       
@@ -188,7 +186,7 @@ function AppLayout() {
         }}
       />
       <ChatToastContainer />
-      <PwaInstallPrompt />
+      <FloatingPromptDock />
       <DesktopChatDock />
     </div>
   );

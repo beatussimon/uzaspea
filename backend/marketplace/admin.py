@@ -343,11 +343,27 @@ class FAQAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'tier', 'is_verified', 'is_location_verified', 'phone_number', 'location']
+    list_display = ['user', 'tier', 'is_verified', 'is_location_verified', 'location', 'latitude', 'longitude', 'phone_number']
     list_editable = ['is_verified', 'is_location_verified', 'tier']
     list_filter = ['tier', 'is_verified', 'is_location_verified']
-    search_fields = ['user__username', 'phone_number', 'location']
+    search_fields = ['user__username', 'phone_number', 'location', 'user__email']
     readonly_fields = ['user']
+    fieldsets = (
+        ('User & Subscription', {
+            'fields': ('user', 'tier', 'is_verified', 'phone_number', 'whatsapp_number')
+        }),
+        ('Business Location & GPS (Admin Managed)', {
+            'fields': ('location', 'latitude', 'longitude', 'is_location_verified'),
+            'description': 'Business location and dispatch coordinates are managed by admin. Use "📍 Capture Device GPS" to set accurate coordinates directly from device GPS.'
+        }),
+        ('Store Profile Details', {
+            'fields': ('bio', 'website', 'instagram_username', 'facebook_url', 'tiktok_username', 'twitter_username', 'youtube_url', 'linkedin_url', 'preferred_currency', 'profile_picture', 'banner_image', 'show_product_requests'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    class Media:
+        js = ('js/admin_gps_capture.js',)
 # --- Vehicle Taxonomy ---
 from .models import VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment
 

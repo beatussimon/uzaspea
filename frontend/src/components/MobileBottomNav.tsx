@@ -3,13 +3,14 @@ import { motion } from 'framer-motion';
 import { 
   Home, ShoppingBag, 
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
-  Shield, Settings, HelpCircle, LogOut, Menu, ShoppingCart, Moon, Sun, Globe, MessageSquare, Heart
+  Shield, Settings, HelpCircle, LogOut, Menu, ShoppingCart, Moon, Sun, Globe, MessageSquare, Heart,
+  AlertCircle, RefreshCw
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
 import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, useUserRoles } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useMessages } from '../context/MessageContext';
 import api, { API_BASE_URL } from '../api';
@@ -25,19 +26,21 @@ const MobileBottomNav = () => {
 
   
   const { isAuthenticated, user, logout } = useAuth();
+  const roles = useUserRoles();
   const { isDark, toggleTheme } = useTheme();
   
   const isVerified = user?.is_verified || false;
   const userTier = user?.tier || 'free';
-  const isStaff = user?.is_staff || false;
-  const isInspector = user?.is_inspector || false;
-  const isSuperuser = user?.is_superuser || false;
+  const isStaff = roles.isStaff;
+  const isInspector = roles.isInspector;
+  const isSuperuser = roles.isSuperuser;
   const hasStaffPermissions = user?.has_staff_permissions || false;
   const showStaffDashboard = isSuperuser || (isStaff && (!isInspector || hasStaffPermissions));
   const username = user?.username || 'User';
-  const isSeller = userTier === 'seller_pro' || userTier === 'business' || isStaff || isSuperuser;
-  const isTeamMember = !!user?.is_team_member || userTier === 'worker';
-  const isCustomer = !isSeller && !isStaff && !isInspector && !isTeamMember;
+  const isSubscriptionExpired = roles.isExpiredSeller;
+  const isSeller = roles.isActiveSeller || roles.isExpiredSeller;
+  const isTeamMember = roles.isTeamMember;
+  const isCustomer = roles.isPureCustomer;
   const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || username;
 
   // Active state helper
@@ -207,7 +210,14 @@ const MobileBottomNav = () => {
                           <span className="text-base font-bold text-gray-900 dark:text-white group-hover:text-brand-500 transition-colors">{fullName}</span>
                           <VerifiedBadge tier={userTier} isVerified={isVerified} className="w-4 h-4" />
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 capitalize font-medium mt-0.5">{userTier.replace('_', ' ')} {t('member')}</p>
+                        {isSubscriptionExpired ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-500 dark:text-red-400 mt-0.5">
+                            <AlertCircle size={12} className="shrink-0" />
+                            {t('seller_sub_expired', 'Seller (Expired)')}
+                          </span>
+                        ) : (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 capitalize font-medium mt-0.5">{userTier.replace('_', ' ')} {t('member')}</p>
+                        )}
                       </>
                     )}
                   </div>
@@ -252,16 +262,42 @@ const MobileBottomNav = () => {
                   {/* Sell & Grow (Sellers only) */}
                   {isSeller && (
                     <div className="mb-2 border-t border-gray-100 dark:border-neutral-900 pt-2 mt-2">
-                      <p className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('sell_and_grow')}</p>
+                      <p className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        {isSubscriptionExpired ? t('seller_account', 'Seller Account') : t('sell_and_grow')}
+                      </p>
                       <div className="space-y-0.5">
-                        <Link to="/dashboard" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
-                          <LayoutDashboard size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
-                          <span className="text-sm font-medium">{t('seller_dashboard')}</span>
-                        </Link>
-                        <Link to="/dashboard/products#new" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
-                          <Package size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
-                          <span className="text-sm font-medium">{t('add_new_product')}</span>
-                        </Link>
+                        {isSubscriptionExpired ? (
+                          <Link 
+                            to="/dashboard" 
+                            className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-200 transition-colors group" 
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <RefreshCw size={18} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                              <span className="text-sm font-medium">{t('renew_plan', 'Renew Plan')}</span>
+                            </div>
+                            <span className="text-[10px] font-medium uppercase tracking-wider text-neutral-400">
+                              {t('expired', 'Expired')}
+                            </span>
+                          </Link>
+                        ) : (
+                          <>
+                            <Link 
+                              to="/dashboard" 
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" 
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              <LayoutDashboard size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                              <span className="text-sm font-medium">
+                                {t('seller_dashboard')}
+                              </span>
+                            </Link>
+                            <Link to="/dashboard/products#new" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setIsMenuOpen(false)}>
+                              <Package size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                              <span className="text-sm font-medium">{t('add_new_product')}</span>
+                            </Link>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -332,7 +368,7 @@ const MobileBottomNav = () => {
               <div className="px-4 mt-4 mb-4">
                 <button 
                   onClick={() => { logout(); sessionStorage.clear(); setIsMenuOpen(false); navigate('/'); }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-500 font-semibold transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-red-500/30 hover:border-red-500 text-red-600 dark:text-red-400 font-semibold transition-colors bg-transparent"
                   >
                   <LogOut size={20} />
                   {t('sign_out')}

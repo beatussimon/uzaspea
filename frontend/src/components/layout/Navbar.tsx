@@ -4,13 +4,14 @@ import { motion } from 'framer-motion';
 import { 
   Moon, Sun, Shield, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, HelpCircle, 
-  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Globe, Heart, Search
+  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Globe, Heart, Search,
+  RefreshCw
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import VerifiedBadge from '../VerifiedBadge';
 import { useCart } from '../../context/CartContext';
 import NotificationBell from './NotificationBell';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, useUserRoles } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useMessages } from '../../context/MessageContext';
 import { useSearch } from '../../context/SearchContext';
@@ -20,6 +21,7 @@ const Navbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const { t, i18n } = useTranslation();
   const { isAuthenticated, user, logout } = useAuth();
+  const roles = useUserRoles();
   const { isDark, toggleTheme } = useTheme();
   const { cartCount } = useCart();
   const { totalUnread: messageUnreadCount, toggleDesktopChat, isMessengerListOpen } = useMessages();
@@ -34,15 +36,16 @@ const Navbar = () => {
 
   const isVerified = user?.is_verified || false;
   const userTier = user?.tier || 'free';
-  const isStaff = user?.is_staff || false;
-  const isInspector = user?.is_inspector || false;
-  const isSuperuser = user?.is_superuser || false;
+  const isStaff = roles.isStaff;
+  const isInspector = roles.isInspector;
+  const isSuperuser = roles.isSuperuser;
   const hasStaffPermissions = user?.has_staff_permissions || false;
   const showStaffDashboard = isSuperuser || (isStaff && (!isInspector || hasStaffPermissions));
   const username = user?.username || 'User';
-  const isSeller = userTier === 'seller_pro' || userTier === 'business' || isStaff || isSuperuser;
-  const isTeamMember = !!user?.is_team_member || userTier === 'worker';
-  const isCustomer = !isSeller && !isStaff && !isInspector && !isTeamMember;
+  const isSubscriptionExpired = roles.isExpiredSeller;
+  const isSeller = roles.isActiveSeller || roles.isExpiredSeller;
+  const isTeamMember = roles.isTeamMember;
+  const isCustomer = roles.isPureCustomer;
   const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || username;
 
   // Reset scroll and state on route change (skip for modal product overlays)
@@ -185,18 +188,27 @@ const Navbar = () => {
 
         {/* ---- Left Navigation Links ---- */}
         <div className="flex-1 max-w-[calc(50%-80px)] md:max-w-[calc(50%-100px)] lg:max-w-[380px] flex items-center justify-start pl-8 md:pl-12 gap-6">
-          {/* Sell button (Only visible to verified sellers on desktop) */}
-          {isAuthenticated && isSeller && (
+          {/* Sell button: Visible to active sellers as "Sell", and to expired sellers as "Renew Plan" */}
+          {isAuthenticated && (roles.isActiveSeller || roles.isExpiredSeller) && (
             <Link 
-              to="/dashboard/products#new" 
+              to={roles.isExpiredSeller ? "/dashboard" : "/dashboard/products#new"} 
               className={`hidden md:flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full transition-all active:scale-95 shadow-sm ${
                 useLightStyle
                   ? 'bg-white text-gray-900 hover:bg-gray-100'
                   : 'bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900'
               }`}
             >
-              <PlusCircle size={14} />
-              <span>{t('sell')}</span>
+              {roles.isExpiredSeller ? (
+                <>
+                  <RefreshCw size={12} className="shrink-0" />
+                  <span>{t('renew_plan', 'Renew Plan')}</span>
+                </>
+              ) : (
+                <>
+                  <PlusCircle size={14} className="shrink-0" />
+                  <span>{t('sell')}</span>
+                </>
+              )}
             </Link>
           )}
           {[
@@ -340,7 +352,7 @@ const Navbar = () => {
                 {profileOpen && (
                   <div className="absolute top-[calc(100%+8px)] right-0 w-72 bg-white dark:bg-black rounded-xl shadow-card-hover border border-gray-100 dark:border-neutral-900 z-50 animate-scale-in overflow-hidden">
                     {/* Account Header */}
-                    <Link to={`/${username}`} onClick={() => setProfileOpen(false)} className="block p-4 bg-gray-50/50 dark:bg-neutral-950/50 border-b border-gray-100 dark:border-neutral-900 hover:bg-gray-100 dark:hover:bg-neutral-900 transition-colors group">
+                    <Link to={`/${username}`} onClick={() => setProfileOpen(false)} className="block p-4 bg-gray-50/50 dark:bg-neutral-950/50 hover:bg-gray-100 dark:hover:bg-neutral-900 transition-colors group">
                       <div className="flex items-center gap-3">
                         {user?.profile_picture ? (
                           <img src={user.profile_picture.startsWith('http') ? user.profile_picture : `${API_BASE_URL}${user.profile_picture}`} alt={username} className="w-10 h-10 rounded-full object-cover shadow-sm" />
@@ -361,16 +373,22 @@ const Navbar = () => {
                                 <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-none group-hover:text-brand-500 transition-colors">{fullName}</p>
                                 <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
                               </div>
-                              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 truncate font-medium capitalize">{userTier.replace('_', ' ')} {t('member')}</p>
+                              {isSubscriptionExpired ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-500 dark:text-neutral-400 mt-1">
+                                  {t('seller_sub_expired', 'Seller (Expired)')}
+                                </span>
+                              ) : (
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 truncate font-medium capitalize">{userTier.replace('_', ' ')} {t('member')}</p>
+                              )}
                             </>
                           )}
                         </div>
                       </div>
                     </Link>
 
-                    <div className="max-h-[380px] overflow-y-auto no-scrollbar py-2 px-1.5">
+                    <div className="max-h-[380px] overflow-y-auto no-scrollbar py-2 px-1.5 space-y-2">
                       {/* Personal Portal */}
-                      <div className="mb-1">
+                      <div>
                         <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('personal_portal')}</p>
                         <div className="space-y-0.5">
                           <Link to="/orders" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
@@ -392,24 +410,50 @@ const Navbar = () => {
 
                       {/* Sell & Grow (Sellers only) */}
                       {isSeller && (
-                        <div className="mb-1 border-t border-gray-100 dark:border-neutral-900 pt-1 mt-1">
-                          <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('sell_and_grow')}</p>
+                        <div>
+                          <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            {isSubscriptionExpired ? t('seller_account', 'Seller Account') : t('sell_and_grow')}
+                          </p>
                           <div className="space-y-0.5">
-                            <Link to="/dashboard" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
-                              <LayoutDashboard size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
-                              <span className="text-sm font-medium">{t('seller_dashboard')}</span>
-                            </Link>
-                            <Link to="/dashboard/products#new" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
-                              <PlusCircle size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
-                              <span className="text-sm font-medium">{t('add_new_product')}</span>
-                            </Link>
+                            {isSubscriptionExpired ? (
+                              <Link 
+                                to="/dashboard" 
+                                className="flex items-center justify-between px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-200 transition-colors group" 
+                                onClick={() => setProfileOpen(false)}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <RefreshCw size={15} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                                  <span className="text-sm font-medium">{t('renew_plan', 'Renew Plan')}</span>
+                                </div>
+                                <span className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider">
+                                  {t('expired', 'Expired')}
+                                </span>
+                              </Link>
+                            ) : (
+                              <>
+                                <Link 
+                                  to="/dashboard" 
+                                  className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" 
+                                  onClick={() => setProfileOpen(false)}
+                                >
+                                  <LayoutDashboard size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                                  <span className="text-sm font-medium">
+                                    {t('seller_dashboard')}
+                                  </span>
+                                </Link>
+                                <Link to="/dashboard/products#new" className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group" onClick={() => setProfileOpen(false)}>
+                                  <PlusCircle size={16} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+                                  <span className="text-sm font-medium">{t('add_new_product')}</span>
+                                </Link>
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
 
                       {/* Management Group */}
                       {(showStaffDashboard || isInspector) && (
-                        <div className="mb-1 border-t border-gray-100 dark:border-neutral-900 pt-1 mt-1">
+                        <div>
                           <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('management')}</p>
                           <div className="space-y-0.5">
                             {isSuperuser && (
@@ -435,7 +479,7 @@ const Navbar = () => {
                       )}
 
                       {/* Support & Settings Group */}
-                      <div className="border-t border-gray-100 dark:border-neutral-900 pt-1 mt-1">
+                      <div>
                         <p className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('system')}</p>
                         <div className="space-y-0.5">
                           <Link to="/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 px-2.5 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 transition-colors group">
@@ -450,7 +494,7 @@ const Navbar = () => {
                       </div>
                     </div>
 
-                    <div className="p-2 border-t border-gray-100 dark:border-neutral-900 bg-gray-50/50 dark:bg-neutral-950/50">
+                    <div className="p-2 bg-gray-50/50 dark:bg-neutral-950/50">
                       <button 
                         onClick={() => { logout(); sessionStorage.clear(); setProfileOpen(false); navigate('/'); }}
                         className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"

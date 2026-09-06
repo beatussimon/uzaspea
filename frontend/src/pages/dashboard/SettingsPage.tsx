@@ -2,26 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
-import { User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, MapPin, Clock, ArrowRight, Store, Sparkles, ChevronLeft } from 'lucide-react';
+import { User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, Sliders, ChevronLeft } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { useAuth } from '../../context/AuthContext';
-
-const CITIES_COORDS: Record<string, { lat: number; lng: number }> = {
-  'Dar es Salaam': { lat: -6.776012, lng: 39.178326 },
-  'Mwanza': { lat: -2.5167, lng: 32.9000 },
-  'Arusha': { lat: -3.3731, lng: 36.6858 },
-  'Dodoma': { lat: -6.1630, lng: 35.7516 },
-  'Zanzibar': { lat: -6.1659, lng: 39.1990 },
-};
+import { useUserRoles } from '../../context/AuthContext';
 
 const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
-    const isSeller = user?.tier === 'seller_pro' || user?.tier === 'business' || user?.is_staff || user?.is_superuser;
-    const isCustomer = !isSeller && !user?.is_team_member && user?.tier !== 'worker';
+    const roles = useUserRoles();
+    const isCustomer = roles.isPureCustomer;
 
     const [profile, setProfile] = useState<any>({});
-    const [form, setForm] = useState({ bio: '', phone_number: '', location: '', website: '', instagram_username: '', whatsapp_number: '', facebook_url: '', tiktok_username: '', twitter_username: '', youtube_url: '', linkedin_url: '', latitude: '', longitude: '', show_product_requests: true });
+    const [form, setForm] = useState({ bio: '', phone_number: '', location: '', website: '', instagram_username: '', whatsapp_number: '', facebook_url: '', tiktok_username: '', twitter_username: '', youtube_url: '', linkedin_url: '', show_product_requests: true });
     const [passwords, setPasswords] = useState({ old: '', new1: '', new2: '' });
     const [saving, setSaving] = useState(false);
 
@@ -63,10 +54,15 @@ const SettingsPage: React.FC = () => {
         try {
             const [tiersRes, lipaRes] = await Promise.all([
                 api.get('/api/subscription-tiers/'),
-                api.get('/api/lipa-numbers/?seller=admin')
+                api.get('/api/lipa-numbers/?is_system=true')
             ]);
             setTiers(tiersRes.data.results || tiersRes.data || []);
-            setAdminLipa(lipaRes.data.results || lipaRes.data || []);
+            let numbers = lipaRes.data.results || lipaRes.data || [];
+            if (numbers.length === 0) {
+                const fb = await api.get('/api/lipa-numbers/?seller=admin');
+                numbers = fb.data.results || fb.data || [];
+            }
+            setAdminLipa(numbers);
         } catch {
             toast.error('Failed to load payment options.');
         } finally {
@@ -120,8 +116,6 @@ const SettingsPage: React.FC = () => {
                     twitter_username: r.data.twitter_username || '',
                     youtube_url: r.data.youtube_url || '',
                     linkedin_url: r.data.linkedin_url || '',
-                    latitude: r.data.latitude || '',
-                    longitude: r.data.longitude || '',
                     show_product_requests: r.data.show_product_requests !== false,
                 });
             });
@@ -149,248 +143,332 @@ const SettingsPage: React.FC = () => {
     };
 
     return (
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 md:py-8 space-y-6 pb-16">
             {/* Header */}
-            <header>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+            <header className="space-y-1">
+                <div className="flex items-center gap-2">
                     <button
                         type="button"
                         onClick={() => navigate(-1)}
-                        className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-0.5 rounded-lg inline-flex items-center"
+                        className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-1 rounded-lg inline-flex items-center"
                         title="Back"
                     >
-                        <ChevronLeft size={22} />
+                        <ChevronLeft size={20} />
                     </button>
-                    <span>{isCustomer ? 'Account Settings' : 'Account & Store Settings'}</span>
-                </h1>
-                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                        {isCustomer ? 'Account Settings' : 'Store & Account Settings'}
+                    </h1>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-neutral-400 ml-6">
                     {isCustomer
-                        ? 'Manage your personal profile, security credentials, and notifications.'
-                        : 'Manage your seller profile, contact info, business coordinates, and security.'}
+                        ? 'Manage your personal profile, security credentials, and preferences.'
+                        : 'Manage your seller storefront, contact info, coordinates, and security.'}
                 </p>
             </header>
 
-            {/* Become a Seller Banner for Customers */}
-            {isCustomer && (
-                <div className="card p-6 bg-gradient-to-br from-brand-500/10 via-brand-500/5 to-transparent border border-brand-500/30 shadow-sm relative overflow-hidden">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="space-y-1.5 max-w-xl">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-500/20 text-brand-600 dark:text-brand-400 text-[11px] font-bold tracking-wide">
-                                <Sparkles size={12} />
-                                <span>Seller Opportunity</span>
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                                Want to Sell on SokoniMax?
-                            </h3>
-                            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                                Upgrade your account to list products, leverage our managed warehousing and logistics, and reach thousands of buyers across the country.
-                            </p>
-                        </div>
-                        <Link
-                            to="/upgrade"
-                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-btn text-xs font-bold whitespace-nowrap shadow-md shadow-brand-500/20 transition active:scale-95 shrink-0"
-                        >
-                            <Store size={15} />
-                            <span>Become a Seller</span>
-                            <ArrowRight size={14} />
-                        </Link>
-                    </div>
-                </div>
-            )}
-
             {/* Profile Info */}
-            <div className="card p-5 space-y-4">
-                <div className="flex items-center gap-2 border-b border-surface-border dark:border-surface-dark-border pb-3">
-                    <User size={18} className="text-brand-500" />
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 p-6 shadow-xs space-y-5">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-100 dark:border-neutral-800">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-gray-700 dark:text-neutral-300">
+                        <User size={16} />
+                    </div>
                     <div>
-                        <h3 className="font-bold text-sm text-gray-900 dark:text-white">Profile Information</h3>
-                        <p className="text-2xs text-gray-400">
-                            {isCustomer ? 'Personal details displayed on your public profile' : 'Public profile details displayed on your seller storefront'}
+                        <h2 className="font-semibold text-sm text-gray-900 dark:text-white">Profile Information</h2>
+                        <p className="text-xs text-gray-500 dark:text-neutral-400">
+                            {isCustomer ? 'Personal details displayed on your public profile' : 'Store details displayed on your seller storefront'}
                         </p>
                     </div>
                 </div>
-                {[
-                    { key: 'bio', label: isCustomer ? 'Bio / About You' : 'Bio / About Store', type: 'textarea' },
-                    { key: 'phone_number', label: 'Phone Number', type: 'text' },
-                    { key: 'location', label: isCustomer ? 'Location / City' : 'Store Location Address', type: 'text' },
-                    { key: 'website', label: 'Website URL', type: 'url' },
-                    { key: 'instagram_username', label: 'Instagram Handle', type: 'text' },
-                ].map(field => (
-                    <div key={field.key}>
-                        <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">{field.label}</label>
-                        {field.type === 'textarea' ? (
-                            <textarea value={(form as any)[field.key]} onChange={e => setForm({...form, [field.key]: e.target.value})}
-                                className="input resize-none py-2 text-xs w-full" rows={3} />
-                        ) : (
-                            <input type={field.type} value={(form as any)[field.key]} onChange={e => setForm({...form, [field.key]: e.target.value})}
-                                className="input py-2 text-xs w-full" />
-                        )}
-                    </div>
-                ))}
 
-                {/* Social Media Links */}
-                <div className="pt-4 border-t border-surface-border dark:border-surface-dark-border space-y-3">
-                    <div>
-                        <h4 className="text-xs font-bold text-gray-900 dark:text-white">Social Media Links</h4>
-                        <p className="text-2xs text-gray-400">Add links for contacts on social platforms</p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {[
-                            { key: 'whatsapp_number', label: 'WhatsApp Number', type: 'tel', placeholder: '+255712345678' },
-                            { key: 'facebook_url', label: 'Facebook URL', type: 'url', placeholder: 'https://facebook.com/...' },
-                            { key: 'tiktok_username', label: 'TikTok Username', type: 'text', placeholder: '@username' },
-                            { key: 'twitter_username', label: 'X (Twitter) Username', type: 'text', placeholder: '@username' },
-                            { key: 'youtube_url', label: 'YouTube Channel URL', type: 'url', placeholder: 'https://youtube.com/...' },
-                            { key: 'linkedin_url', label: 'LinkedIn URL', type: 'url', placeholder: 'https://linkedin.com/in/...' },
-                        ].map(field => (
-                            <div key={field.key}>
-                                <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">{field.label}</label>
-                                <input type={field.type} value={(form as any)[field.key]} onChange={e => setForm({...form, [field.key]: e.target.value})}
-                                    className="input py-2 text-xs w-full" placeholder={field.placeholder} />
-                            </div>
-                        ))}
-                    </div>
+                {/* Bio */}
+                <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">
+                        {isCustomer ? 'Bio' : 'Store Bio'}
+                    </label>
+                    <textarea
+                        value={form.bio}
+                        onChange={e => setForm({ ...form, bio: e.target.value })}
+                        rows={3}
+                        placeholder={isCustomer ? "Tell us a bit about yourself..." : "Describe your store, products, and services..."}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition resize-none"
+                    />
                 </div>
 
+                {/* Phone & Location */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">
+                            Phone Number
+                        </label>
+                        <input
+                            type="tel"
+                            value={form.phone_number}
+                            onChange={e => setForm({ ...form, phone_number: e.target.value })}
+                            placeholder="+255..."
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                        />
+                    </div>
+                    {/* Only regular buyers/customers can edit their personal city. Sellers have fixed business locations managed below */}
+                    {isCustomer && (
+                        <div className="space-y-1.5">
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">
+                                Location / City
+                            </label>
+                            <input
+                                type="text"
+                                value={form.location}
+                                onChange={e => setForm({ ...form, location: e.target.value })}
+                                placeholder="e.g. Dar es Salaam"
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Seller-only Links */}
+                {!isCustomer && (
+                    <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">
+                                    Website URL
+                                </label>
+                                <input
+                                    type="url"
+                                    value={form.website}
+                                    onChange={e => setForm({ ...form, website: e.target.value })}
+                                    placeholder="https://..."
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">
+                                    Instagram Handle
+                                </label>
+                                <input
+                                    type="text"
+                                    value={form.instagram_username}
+                                    onChange={e => setForm({ ...form, instagram_username: e.target.value })}
+                                    placeholder="@username"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Social Media Links */}
+                        <div className="pt-3 border-t border-gray-100 dark:border-neutral-800 space-y-3">
+                            <div>
+                                <h3 className="text-xs font-semibold text-gray-900 dark:text-white">Social Media Links</h3>
+                                <p className="text-2xs text-gray-400 dark:text-neutral-500">Provide direct communication links for customers</p>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {[
+                                    { key: 'whatsapp_number', label: 'WhatsApp Number', type: 'tel', placeholder: '+255712345678' },
+                                    { key: 'facebook_url', label: 'Facebook URL', type: 'url', placeholder: 'https://facebook.com/...' },
+                                    { key: 'tiktok_username', label: 'TikTok Username', type: 'text', placeholder: '@username' },
+                                    { key: 'twitter_username', label: 'X (Twitter) Username', type: 'text', placeholder: '@username' },
+                                    { key: 'youtube_url', label: 'YouTube Channel URL', type: 'url', placeholder: 'https://youtube.com/...' },
+                                    { key: 'linkedin_url', label: 'LinkedIn URL', type: 'url', placeholder: 'https://linkedin.com/in/...' },
+                                ].map(field => (
+                                    <div key={field.key} className="space-y-1">
+                                        <label className="block text-2xs font-semibold text-gray-600 dark:text-neutral-400">{field.label}</label>
+                                        <input
+                                            type={field.type}
+                                            value={(form as any)[field.key]}
+                                            onChange={e => setForm({ ...form, [field.key]: e.target.value })}
+                                            placeholder={field.placeholder}
+                                            className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
+
                 <div className="flex justify-end pt-2">
-                    <Button onClick={handleProfileSave} disabled={saving} size="sm" className="font-bold">
-                        {saving ? 'Saving...' : 'Save Profile'}
+                    <Button
+                        onClick={handleProfileSave}
+                        disabled={saving}
+                        loading={saving}
+                        size="sm"
+                        className="rounded-xl px-5 font-semibold text-xs"
+                    >
+                        Save Profile
                     </Button>
                 </div>
             </div>
 
-            {/* Business Location Coords (Sellers only) */}
-            {!isCustomer && (
-                <div className="card p-5 space-y-4">
-                    <div className="flex items-center gap-2 border-b border-surface-border dark:border-surface-dark-border pb-3">
-                        <MapPin size={18} className="text-brand-500" />
-                        <div>
-                            <h3 className="font-bold text-sm text-gray-900 dark:text-white">Business Location Coordinates</h3>
-                            <p className="text-2xs text-gray-400">Used for accurate delivery route and dispatch rate calculations</p>
-                        </div>
-                    </div>
-                    {profile.is_location_verified === false && (
-                        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-btn text-xs text-amber-600 dark:text-amber-400">
-                            Your business location is pending verification by staff. Update your coordinates below and save — our team will verify your location.
-                        </div>
-                    )}
-                    <div>
-                        <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">City Preset</label>
-                        <select
-                            onChange={(e) => {
-                                const city = e.target.value;
-                                if (city && CITIES_COORDS[city]) {
-                                    setForm(prev => ({
-                                        ...prev,
-                                        latitude: CITIES_COORDS[city].lat.toString(),
-                                        longitude: CITIES_COORDS[city].lng.toString()
-                                    }));
-                                }
-                            }}
-                            className="input py-2 text-xs w-full font-bold"
-                            defaultValue=""
-                        >
-                            <option value="" disabled>-- Select a City Preset --</option>
-                            {Object.keys(CITIES_COORDS).map(city => (
-                                <option key={city} value={city}>{city}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">Latitude</label>
-                            <input
-                                type="number"
-                                step="any"
-                                value={form.latitude}
-                                onChange={(e) => setForm({ ...form, latitude: e.target.value })}
-                                className="input py-2 text-xs w-full font-mono"
-                                placeholder="-6.8161"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">Longitude</label>
-                            <input
-                                type="number"
-                                step="any"
-                                value={form.longitude}
-                                onChange={(e) => setForm({ ...form, longitude: e.target.value })}
-                                className="input py-2 text-xs w-full font-mono"
-                                placeholder="39.2803"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex justify-end pt-2">
-                        <Button onClick={handleProfileSave} disabled={saving} size="sm" className="font-bold">
-                            {saving ? 'Saving...' : 'Save Location'}
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* Tier Status (Sellers) */}
-            {!isCustomer && (
-                <div className="card p-5">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <Bell size={16} className="text-brand-500" />
-                                <h3 className="font-bold text-xs text-gray-900 dark:text-white uppercase tracking-wider">Subscription Tier</h3>
-                            </div>
-                            <p className="font-black text-xl capitalize text-brand-600 dark:text-brand-400">{profile.tier || 'Free'}</p>
-                            {profile.tier === 'free' && <p className="text-2xs text-gray-400 mt-0.5">Upgrade to list more products and get promoted placement</p>}
-                            {profile.tier === 'standard' && <p className="text-2xs text-gray-400 mt-0.5">You have access to standard seller features</p>}
-                            {profile.tier === 'premium' && <p className="text-2xs text-emerald-500 mt-0.5">✓ Full access to all premium features</p>}
-                        </div>
-                        {profile.tier !== 'premium' && (
-                            <Button onClick={handleOpenUpgrade} size="sm" className="font-bold">Upgrade Plan</Button>
-                        )}
-                    </div>
-                </div>
-            )}
-
             {/* Push Notifications Card */}
-            <div className="card p-5 space-y-3">
-                <div className="flex items-center gap-2 border-b border-surface-border dark:border-surface-dark-border pb-3">
-                    <Bell size={18} className="text-brand-500" />
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 p-6 shadow-xs space-y-4">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-100 dark:border-neutral-800">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-gray-700 dark:text-neutral-300">
+                        <Bell size={16} />
+                    </div>
                     <div>
-                        <h3 className="font-bold text-sm text-gray-900 dark:text-white">Push Notifications</h3>
-                        <p className="text-2xs text-gray-400">Receive real-time alerts about incoming orders and updates</p>
+                        <h2 className="font-semibold text-sm text-gray-900 dark:text-white">Push Notifications</h2>
+                        <p className="text-xs text-gray-500 dark:text-neutral-400">
+                            {isCustomer ? 'Receive alerts about order updates and delivery progress' : 'Receive instant alerts about incoming orders and customer inquiries'}
+                        </p>
                     </div>
                 </div>
-                <div className="flex items-center justify-between bg-surface-muted dark:bg-[#161616] p-3 rounded-btn border border-surface-border dark:border-surface-dark-border">
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-neutral-950/60 rounded-xl border border-gray-100 dark:border-neutral-800/80">
                     <div>
-                        <p className="text-xs font-bold text-gray-900 dark:text-white">Notification Status</p>
-                        <p className="text-2xs text-gray-400 capitalize mt-0.5">
-                            {pushPermission === 'granted' ? 'Enabled (Granted)' : pushPermission === 'denied' ? 'Disabled (Denied)' : 'Not Enabled Yet'}
+                        <p className="text-xs font-semibold text-gray-900 dark:text-white">Browser Notifications</p>
+                        <p className="text-2xs text-gray-500 dark:text-neutral-400 mt-0.5 capitalize">
+                            {pushPermission === 'granted' ? 'Active and enabled' : pushPermission === 'denied' ? 'Blocked in browser settings' : 'Not enabled yet'}
                         </p>
                     </div>
                     {pushPermission !== 'granted' ? (
-                        <Button onClick={enablePushNotifications} size="sm" disabled={pushPermission === 'denied'}>
-                            {pushPermission === 'denied' ? 'Notifications Blocked' : 'Enable Push Notifications'}
+                        <Button
+                            onClick={enablePushNotifications}
+                            size="sm"
+                            variant="outline"
+                            disabled={pushPermission === 'denied'}
+                            className="text-xs rounded-xl"
+                        >
+                            {pushPermission === 'denied' ? 'Notifications Blocked' : 'Enable Notifications'}
                         </Button>
                     ) : (
-                        <span className="text-3xs font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <span className="text-2xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full flex items-center gap-1.5">
                             <CheckCircle2 size={12} /> Active
                         </span>
                     )}
                 </div>
             </div>
 
-            {/* Store Profile Features (Sellers only) */}
-            {!isCustomer && (
-                <div className="card p-5 space-y-3">
-                    <div className="flex items-center gap-2 border-b border-surface-border dark:border-surface-dark-border pb-3">
-                        <Clock size={18} className="text-brand-500" />
-                        <div>
-                            <h3 className="font-bold text-sm text-gray-900 dark:text-white">Store Profile Features</h3>
-                            <p className="text-2xs text-gray-400">Control public interaction tools shown to buyers</p>
+            {/* Change Password */}
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 p-6 shadow-xs space-y-4">
+                <div className="flex items-center gap-3 pb-4 border-b border-gray-100 dark:border-neutral-800">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-gray-700 dark:text-neutral-300">
+                        <Lock size={16} />
+                    </div>
+                    <div>
+                        <h2 className="font-semibold text-sm text-gray-900 dark:text-white">Password & Security</h2>
+                        <p className="text-xs text-gray-500 dark:text-neutral-400">Ensure your account is protected with a secure password</p>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <div className="space-y-1.5">
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">Current Password</label>
+                        <input
+                            type="password"
+                            placeholder="Enter current password"
+                            value={passwords.old}
+                            onChange={e => setPasswords({ ...passwords, old: e.target.value })}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                        />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">New Password</label>
+                            <input
+                                type="password"
+                                placeholder="Min. 8 characters"
+                                value={passwords.new1}
+                                onChange={e => setPasswords({ ...passwords, new1: e.target.value })}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">Confirm New Password</label>
+                            <input
+                                type="password"
+                                placeholder="Re-type new password"
+                                value={passwords.new2}
+                                onChange={e => setPasswords({ ...passwords, new2: e.target.value })}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                            />
                         </div>
                     </div>
-                    <div className="flex items-center justify-between p-3 bg-surface-muted dark:bg-[#161616] rounded-btn border border-surface-border dark:border-surface-dark-border">
+                </div>
+
+                <div className="flex justify-end pt-2">
+                    <Button
+                        onClick={handlePasswordChange}
+                        size="sm"
+                        className="rounded-xl px-5 font-semibold text-xs"
+                    >
+                        Update Password
+                    </Button>
+                </div>
+            </div>
+
+            {/* Business Location (Sellers only) */}
+            {!isCustomer && (
+                <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 p-6 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="font-semibold text-sm text-gray-900 dark:text-white">Business Location</h2>
+                            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Registered via GPS. Updates can only be made by admin.</p>
+                        </div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-neutral-400">
+                            {profile.is_location_verified ? 'Verified' : 'Pending verification'}
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                        <div>
+                            <span className="text-[11px] text-gray-400 dark:text-neutral-500 uppercase tracking-wider font-semibold block">
+                                Location Address
+                            </span>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white mt-1 block">
+                                {profile.location || 'Not set'}
+                            </span>
+                        </div>
+                        <div>
+                            <span className="text-[11px] text-gray-400 dark:text-neutral-500 uppercase tracking-wider font-semibold block">
+                                GPS Coordinates
+                            </span>
+                            <span className="text-sm font-semibold font-mono text-gray-900 dark:text-white mt-1 block">
+                                {profile.latitude && profile.longitude
+                                    ? `${Number(profile.latitude).toFixed(6)}, ${Number(profile.longitude).toFixed(6)}`
+                                    : 'Registered via GPS'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tier Status (Sellers only) */}
+            {!isCustomer && (
+                <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 p-6 shadow-xs flex items-center justify-between">
+                    <div>
+                        <p className="text-2xs font-semibold text-gray-400 dark:text-neutral-500 uppercase tracking-wider">Subscription Tier</p>
+                        <h3 className="font-bold text-lg capitalize text-gray-900 dark:text-white mt-0.5">{profile.tier || 'Free'}</h3>
+                        <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">
+                            {profile.tier === 'free' && 'Upgrade to list more products and access priority placement'}
+                            {profile.tier === 'seller_pro' && 'Active Seller Pro membership'}
+                            {profile.tier === 'business' && 'Active Business enterprise membership'}
+                        </p>
+                    </div>
+                    {profile.tier !== 'business' && (
+                        <Button onClick={handleOpenUpgrade} size="sm" variant="outline" className="rounded-xl text-xs font-semibold">
+                            Upgrade Plan
+                        </Button>
+                    )}
+                </div>
+            )}
+
+            {/* Store Profile Features (Sellers only) */}
+            {!isCustomer && (
+                <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 p-6 shadow-xs space-y-4">
+                    <div className="flex items-center gap-3 pb-4 border-b border-gray-100 dark:border-neutral-800">
+                        <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-gray-700 dark:text-neutral-300">
+                            <Sliders size={16} />
+                        </div>
+                        <div>
+                            <h2 className="font-semibold text-sm text-gray-900 dark:text-white">Store Features</h2>
+                            <p className="text-xs text-gray-500 dark:text-neutral-400">Control public interactive discovery tools shown to buyers</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-neutral-950/60 rounded-xl border border-gray-100 dark:border-neutral-800/80">
                         <div className="pr-4">
-                            <p className="text-xs font-bold text-gray-900 dark:text-white">Coming Soon & Customer Requests</p>
-                            <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            <p className="text-xs font-semibold text-gray-900 dark:text-white">Coming Soon & Customer Requests</p>
+                            <p className="text-2xs text-gray-500 dark:text-neutral-400 mt-0.5">
                                 Show the "Coming Soon / Requested" tab on your profile so buyers can vote on upcoming items and submit new product requests.
                             </p>
                         </div>
@@ -401,36 +479,35 @@ const SettingsPage: React.FC = () => {
                                 onChange={e => setForm(prev => ({ ...prev, show_product_requests: e.target.checked }))}
                                 className="sr-only peer"
                             />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-500"></div>
+                            <div className="w-10 h-5.5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-black dark:peer-checked:bg-white dark:peer-checked:after:border-neutral-800"></div>
                         </label>
                     </div>
+
                     <div className="flex justify-end pt-2">
-                        <Button onClick={handleProfileSave} disabled={saving} size="sm" className="font-bold">
-                            {saving ? 'Saving...' : 'Save Feature Settings'}
+                        <Button
+                            onClick={handleProfileSave}
+                            disabled={saving}
+                            loading={saving}
+                            size="sm"
+                            className="rounded-xl px-5 font-semibold text-xs"
+                        >
+                            Save Feature Settings
                         </Button>
                     </div>
                 </div>
             )}
 
-            {/* Change Password */}
-            <div className="card p-5 space-y-3">
-                <div className="flex items-center gap-2 border-b border-surface-border dark:border-surface-dark-border pb-3">
-                    <Lock size={18} className="text-brand-500" />
-                    <div>
-                        <h3 className="font-bold text-sm text-gray-900 dark:text-white">Change Password</h3>
-                        <p className="text-2xs text-gray-400">Update your account authentication credentials</p>
-                    </div>
+            {/* Subtle, uncolored seller opportunity text link at the very bottom for customers */}
+            {isCustomer && (
+                <div className="pt-8 pb-4 text-center">
+                    <Link
+                        to="/upgrade"
+                        className="text-xs text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 underline underline-offset-4 transition-colors"
+                    >
+                        Want to sell on SokoniMax?
+                    </Link>
                 </div>
-                <input type="password" placeholder="Current Password" value={passwords.old}
-                    onChange={e => setPasswords({...passwords, old: e.target.value})} className="input py-2 text-xs w-full" />
-                <input type="password" placeholder="New Password (min 8 chars)" value={passwords.new1}
-                    onChange={e => setPasswords({...passwords, new1: e.target.value})} className="input py-2 text-xs w-full" />
-                <input type="password" placeholder="Confirm New Password" value={passwords.new2}
-                    onChange={e => setPasswords({...passwords, new2: e.target.value})} className="input py-2 text-xs w-full" />
-                <div className="flex justify-end pt-2">
-                    <Button onClick={handlePasswordChange} size="sm" className="font-bold">Update Password</Button>
-                </div>
-            </div>
+            )}
 
             {/* Upgrade Plan Modal */}
             {showUpgradeModal && (

@@ -303,6 +303,7 @@ class SeoRenderView(APIView):
             "@type": "WebSite",
             "url": SITE_URL,
             "name": SITE_NAME,
+            "alternateName": ["Sokoni Max", "SokoniMax Tanzania", "OKO Marketplace"],
             "potentialAction": {
                 "@type": "SearchAction",
                 "target": {
@@ -315,10 +316,15 @@ class SeoRenderView(APIView):
 
         org_schema = {
             "@context": "https://schema.org",
-            "@type": "Organization",
+            "@type": "OnlineStore",
             "name": SITE_NAME,
+            "alternateName": ["Sokoni Max", "SokoniMax Tanzania", "OKO"],
             "url": SITE_URL,
-            "logo": f"{SITE_URL}/logo.png"
+            "logo": f"{SITE_URL}/logo.png",
+            "description": "SokoniMax ni soko kuu la mtandaoni nchini Tanzania la kununua na kuuza vipuri vya magari, vifaa vya kielektroniki, simu, na bidhaa mbalimbali. SokoniMax is Tanzania's premier verified e-commerce marketplace.",
+            "areaServed": "TZ",
+            "currenciesAccepted": "TZS",
+            "priceRange": "TZS"
         }
 
         categories = Category.objects.filter(parent__isnull=True)[:10]

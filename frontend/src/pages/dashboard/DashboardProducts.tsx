@@ -5,7 +5,8 @@ import toast from 'react-hot-toast';
 import { 
   Package, Plus, Printer, Image as ImageIcon, Camera, DollarSign, 
   CheckCircle2, Sliders, Trash2, ArrowRight, ArrowLeft, Check, Tag,
-  Star, ChevronLeft, ChevronRight, Search, X, Megaphone
+  Star, ChevronLeft, ChevronRight, Search, X, Megaphone,
+  ChevronDown
 } from 'lucide-react';
 import SafeImage from '../../components/SafeImage';
 import { useDialog } from '../../components/ui/Dialogs';
@@ -16,7 +17,7 @@ import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
-import { ProductGridSkeleton } from '../../components/Skeleton';
+import { DashboardProductListSkeleton } from '../../components/Skeleton';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { printElement } from '../../utils/printHelper';
 
@@ -395,7 +396,16 @@ const DashboardProducts: React.FC = () => {
 
   useEffect(() => {
     if (showForm && !editingId) {
-      setLocStatus('Fetching location...');
+      const profLoc = (user as any)?.profile?.location || 'Dar es Salaam, Tanzania';
+      const profLat = (user as any)?.profile?.latitude ? String((user as any).profile.latitude) : '';
+      const profLng = (user as any)?.profile?.longitude ? String((user as any).profile.longitude) : '';
+      setLocData({
+        latitude: profLat,
+        longitude: profLng,
+        location_name: profLoc,
+      });
+      setLocStatus(profLoc ? `Location: ${profLoc}` : 'Fetching location...');
+
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
@@ -403,25 +413,28 @@ const DashboardProducts: React.FC = () => {
             const latStr = latitude.toFixed(6);
             const lngStr = longitude.toFixed(6);
             try {
-              const res = await api.get(`/api/health/reverse_geocode/?lat=${latitude}&lng=${longitude}`);
-              const location_name = res.data.address || 'Coordinates mapped';
+              const res = await api.get(`/api/locations/search/?lat=${latitude}&lng=${longitude}`);
+              const location_name = res.data?.display_name || res.data?.[0]?.display_name || profLoc || 'Coordinates mapped';
               setLocData({ latitude: latStr, longitude: lngStr, location_name });
               setLocStatus(`Location: ${location_name}`);
             } catch {
-              setLocData({ latitude: latStr, longitude: lngStr, location_name: 'Coordinates mapped' });
+              setLocData({ latitude: latStr, longitude: lngStr, location_name: profLoc || 'Coordinates mapped' });
               setLocStatus('Location coordinates captured');
             }
           },
           () => {
-            setLocStatus('Location access denied or unavailable.');
-            setLocData({ latitude: '', longitude: '', location_name: '' });
+            if (profLoc) {
+              setLocStatus(`Location: ${profLoc}`);
+            } else {
+              setLocStatus('Location access denied or unavailable.');
+            }
           }
         );
       } else {
         setLocStatus('Geolocation not supported.');
       }
     }
-  }, [showForm, editingId]);
+  }, [showForm, editingId, user]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -580,6 +593,11 @@ const DashboardProducts: React.FC = () => {
     setVehicleIds(product.vehicle_ids ? product.vehicle_ids.map(String) : []);
     setOemPartNumber(product.oem_part_number || '');
     setHasCustomUnit(Boolean(product.unit_of_measure && product.unit_of_measure !== 'piece'));
+    setLocData({
+      latitude: product.latitude ? String(product.latitude) : '',
+      longitude: product.longitude ? String(product.longitude) : '',
+      location_name: product.location_name || (user as any)?.profile?.location || 'Dar es Salaam, Tanzania',
+    });
 
     setExistingImages(product.images || []);
     setNewVariants([]);
@@ -660,20 +678,34 @@ const DashboardProducts: React.FC = () => {
   };
 
   const printInventoryRef = React.useRef<HTMLDivElement>(null);
-  const [isPrintingInventory, setIsPrintingInventory] = useState(false);
+  const printCustomerCatalogRef = React.useRef<HTMLDivElement>(null);
+  const [isPrintingReport, setIsPrintingReport] = useState(false);
+  const [isPrintDropdownOpen, setIsPrintDropdownOpen] = useState(false);
+  const printDropdownRef = React.useRef<HTMLDivElement>(null);
 
-  const handlePrintInventory = async () => {
-    if (!printInventoryRef.current) return;
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (printDropdownRef.current && !printDropdownRef.current.contains(e.target as Node)) {
+        setIsPrintDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const handlePrintReport = async (type: 'inventory' | 'customer') => {
+    const targetRef = type === 'inventory' ? printInventoryRef.current : printCustomerCatalogRef.current;
+    if (!targetRef) return;
     try {
-      setIsPrintingInventory(true);
-      await printElement(printInventoryRef.current, {
-        pageTitle: `Inventory Report - SokoniMax`,
-        pageStyle: `@page { size: A4 portrait; margin: 12mm 14mm; }`,
+      setIsPrintingReport(true);
+      await printElement(targetRef, {
+        pageTitle: type === 'inventory' ? `Inventory Report - SokoniMax` : `Product Catalog - SokoniMax`,
+        pageStyle: `@page { size: A4 portrait; margin: 10mm 12mm; }`,
       });
     } catch (err) {
-      console.error('Failed to print inventory:', err);
+      console.error('Failed to print report:', err);
     } finally {
-      setIsPrintingInventory(false);
+      setIsPrintingReport(false);
     }
   };
 
@@ -700,8 +732,8 @@ const DashboardProducts: React.FC = () => {
             </p>
           </div>
 
-          {/* Action Buttons: strictly on the SAME horizontal line */}
-          <div className="flex items-center gap-2 flex-nowrap shrink-0 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
             <Button
               onClick={() => setShowBatchModal(true)}
               variant="outline"
@@ -727,16 +759,50 @@ const DashboardProducts: React.FC = () => {
               <Plus size={14} />
               {showForm ? 'Cancel' : t('add_new', 'Add New')}
             </Button>
-            <button 
-              type="button"
-              onClick={handlePrintInventory}
-              disabled={isPrintingInventory}
-              className="inline-flex items-center gap-1.5 border border-surface-border dark:border-surface-dark-border px-3 py-1.5 text-xs font-bold rounded-btn hover:bg-surface-muted dark:hover:bg-[#161616] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition disabled:opacity-50"
-              title="Print Inventory Report"
-            >
-              <Printer size={14} />
-              <span>{isPrintingInventory ? 'Printing...' : 'Print'}</span>
-            </button>
+
+            {/* Simple Print Dropdown */}
+            <div className="relative" ref={printDropdownRef}>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPrintDropdownOpen(prev => !prev);
+                }}
+                disabled={isPrintingReport}
+                className="inline-flex items-center gap-1.5 border border-surface-border dark:border-surface-dark-border px-3 py-1.5 text-xs font-bold rounded-btn hover:bg-surface-muted dark:hover:bg-[#161616] text-gray-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition disabled:opacity-50"
+                title="Print options"
+              >
+                <Printer size={14} />
+                <span>{isPrintingReport ? 'Printing...' : 'Print'}</span>
+                <ChevronDown size={12} className={`text-gray-400 transition-transform ${isPrintDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isPrintDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#181818] border border-surface-border dark:border-surface-dark-border rounded-xl shadow-lg z-50 py-1 overflow-hidden animate-scale-in">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPrintDropdownOpen(false);
+                      handlePrintReport('inventory');
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-surface-muted dark:hover:bg-[#242424] text-xs font-semibold text-gray-800 dark:text-gray-200 transition"
+                  >
+                    Owner / Staff
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPrintDropdownOpen(false);
+                      handlePrintReport('customer');
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-surface-muted dark:hover:bg-[#242424] text-xs font-semibold text-gray-800 dark:text-gray-200 transition border-t border-surface-border/40 dark:border-surface-dark-border/40"
+                  >
+                    Customer Ready
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -879,22 +945,6 @@ const DashboardProducts: React.FC = () => {
         </div>
       )}
 
-      {user?.tier === 'customer' && (
-        <div className="  border-l-4 border-yellow-500 p-4 mb-6 rounded-r-lg">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-yellow-500 dark:text-yellow-500">
-                Your seller plan has expired. Your products are currently hidden from the public. Please <a href="/subscription" className="font-medium underline text-yellow-500 dark:text-yellow-500 hover:text-yellow-500 dark:hover:text-yellow-500">renew your plan</a> to continue selling.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* PRODUCT FORM — MULTI-STEP WIZARD                         */}
@@ -2500,6 +2550,7 @@ const DashboardProducts: React.FC = () => {
                         <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Category:</span> {selectedCat?.name.replace(/^[\s›]+/, '')}</p>
                         {form.brand && <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Brand:</span> {form.brand}</p>}
                         {form.reference_product && <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Model:</span> {form.reference_product}</p>}
+                        <p><span className="font-semibold text-neutral-700 dark:text-neutral-300">Location:</span> {locData.location_name || 'Dar es Salaam, Tanzania'}</p>
                       </div>
                     </div>
 
@@ -2569,7 +2620,7 @@ const DashboardProducts: React.FC = () => {
 
       {/* Products Table */}
       {loading && products.length === 0 ? (
-        <ProductGridSkeleton count={4} />
+        <DashboardProductListSkeleton count={6} />
       ) : products.length === 0 ? (
         <EmptyState
           icon={Package}
@@ -2601,18 +2652,18 @@ const DashboardProducts: React.FC = () => {
                     {product.name}
                   </h4>
                   {product.is_draft ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20 shrink-0">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-transparent text-gray-600 dark:text-gray-400 border border-gray-500/30 shrink-0">
                       <span className="w-1 h-1 rounded-full bg-gray-400" />
                       Draft
                     </span>
                   ) : (
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border shrink-0 ${
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border shrink-0 bg-transparent ${
                         product.stock === 0
-                          ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                          ? 'text-red-600 dark:text-red-400 border-red-500/40'
                           : product.stock <= 3
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                          ? 'text-amber-600 dark:text-amber-400 border-amber-500/40'
+                          : 'text-emerald-600 dark:text-emerald-400 border-emerald-500/40'
                       }`}
                     >
                       <span className={`w-1 h-1 rounded-full ${
@@ -2669,7 +2720,7 @@ const DashboardProducts: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => navigate(`/dashboard/promotions?tab=sponsored&new=true&product=${product.id}`)}
-                    className="px-2 py-1 text-[11px] font-bold text-brand-600 dark:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/30 rounded-lg transition inline-flex items-center gap-1 shrink-0"
+                    className="px-2 py-1 text-[11px] font-bold text-brand-600 dark:text-brand-400 bg-transparent hover:bg-brand-500 hover:text-black dark:hover:text-black border border-brand-500/50 rounded-lg transition inline-flex items-center gap-1 shrink-0"
                     title="Boost / Sponsor this product"
                   >
                     <Megaphone size={11} />
@@ -2692,7 +2743,7 @@ const DashboardProducts: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleDelete(product.slug)}
-                    className="px-2.5 py-1 text-[11px] font-semibold text-red-500 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition shrink-0 ml-auto"
+                    className="px-2.5 py-1 text-[11px] font-semibold text-red-600 dark:text-red-400 bg-transparent hover:bg-red-600 hover:text-white border border-red-500/40 rounded-lg transition shrink-0 ml-auto"
                   >
                     Delete
                   </button>
@@ -2714,11 +2765,12 @@ const DashboardProducts: React.FC = () => {
       )}
       </div>
 
-      {/* Hidden Isolated Print Canvas for Inventory (Processed via printElement) */}
+      {/* Hidden Isolated Print Canvases (Processed via printElement) */}
       <div className="hidden">
+        {/* 1. Internal Inventory Report Canvas */}
         <div ref={printInventoryRef} className="p-4 bg-white text-black font-sans w-full">
           <ReportPrintHeader 
-            title="Inventory Report" 
+            title="Internal Inventory Stock Report" 
             user={user} 
             logoUrl="/logo_dark.png"
           />
@@ -2726,26 +2778,52 @@ const DashboardProducts: React.FC = () => {
           <table className="w-full text-left text-xs border-collapse table-fixed mt-4">
             <thead>
               <tr className="border-b-2 border-black bg-gray-100/70 text-black">
-                <th className="py-2 px-1.5 w-10 font-black">S/N</th>
-                <th className="py-2 px-2 w-auto font-black">PRODUCT</th>
-                <th className="py-2 px-2 w-28 font-black">SKU/CODE</th>
-                <th className="py-2 px-2 w-28 font-black">CATEGORY</th>
-                <th className="py-2 px-2 w-28 font-black text-right">COST (TSH)</th>
-                <th className="py-2 px-2 w-28 font-black text-right">PRICE (TSH)</th>
+                <th className="py-2 px-1.5 w-8 font-black">S/N</th>
+                <th className="py-2 px-2 w-auto font-black">PRODUCT / VARIATION</th>
+                <th className="py-2 px-2 w-24 font-black">SKU/CODE</th>
+                <th className="py-2 px-2 w-24 font-black">CATEGORY</th>
+                <th className="py-2 px-2 w-24 font-black text-right">COST (TSH)</th>
+                <th className="py-2 px-2 w-24 font-black text-right">PRICE (TSH)</th>
+                <th className="py-2 px-2 w-32 font-black">QTY TIERS</th>
                 <th className="py-2 px-2 w-16 font-black text-right">STOCK</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {products.map((product, idx) => (
-                <tr key={product.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                  <td className="py-2 px-1.5 font-bold text-gray-500">{idx + 1}</td>
-                  <td className="py-2 px-2 font-bold text-black">{product.name}</td>
-                  <td className="py-2 px-2 text-gray-600">{product.sku || '-'}</td>
-                  <td className="py-2 px-2 text-gray-600">{product.category_name || product.category || '-'}</td>
-                  <td className="py-2 px-2 text-right font-mono">{product.buying_price ? parseFloat(product.buying_price).toLocaleString() : '-'}</td>
-                  <td className="py-2 px-2 text-right font-mono font-bold text-black">{parseFloat(product.price || 0).toLocaleString()}</td>
-                  <td className="py-2 px-2 text-right font-mono font-bold text-black">{product.stock}</td>
-                </tr>
+                <React.Fragment key={product.id}>
+                  <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }} className={product.variants && product.variants.length > 0 ? 'bg-gray-50/50' : ''}>
+                    <td className="py-2 px-1.5 font-bold text-gray-500">{idx + 1}</td>
+                    <td className="py-2 px-2 font-bold text-black">{product.name}</td>
+                    <td className="py-2 px-2 text-gray-600 font-mono text-[11px]">{product.sku || '-'}</td>
+                    <td className="py-2 px-2 text-gray-600">{product.category_name || product.category || '-'}</td>
+                    <td className="py-2 px-2 text-right font-mono">{product.buying_price ? parseFloat(product.buying_price).toLocaleString() : '-'}</td>
+                    <td className="py-2 px-2 text-right font-mono font-bold text-black">{parseFloat(product.price || 0).toLocaleString()}</td>
+                    <td className="py-2 px-2 text-[10px] text-gray-600">
+                      {product.price_tiers && product.price_tiers.length > 0 
+                        ? product.price_tiers.map((t: any) => `${parseInt(t.min_quantity)}+: ${parseFloat(t.unit_price).toLocaleString()}`).join(', ')
+                        : '-'}
+                    </td>
+                    <td className="py-2 px-2 text-right font-mono font-bold text-black">{product.stock}</td>
+                  </tr>
+
+                  {/* Variation Sub-Rows */}
+                  {product.variants && product.variants.map((v: any, vIdx: number) => (
+                    <tr key={`var-${v.id || vIdx}`} className="bg-gray-50/30 text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                      <td className="py-1 px-1.5"></td>
+                      <td className="py-1 px-2 pl-5 text-gray-700">
+                        ↳ <span className="font-semibold text-gray-900">{v.name}</span>
+                      </td>
+                      <td className="py-1 px-2 font-mono text-gray-500 text-[10px]">{v.sku || '-'}</td>
+                      <td className="py-1 px-2 text-gray-400">—</td>
+                      <td className="py-1 px-2 text-right text-gray-400">—</td>
+                      <td className="py-1 px-2 text-right font-mono font-semibold text-gray-800">
+                        {parseFloat(v.final_price || (parseFloat(product.price) + parseFloat(v.price_adjustment || 0))).toLocaleString()}
+                      </td>
+                      <td className="py-1 px-2 text-gray-400">—</td>
+                      <td className="py-1 px-2 text-right font-mono text-gray-700">{v.stock}</td>
+                    </tr>
+                  ))}
+                </React.Fragment>
               ))}
             </tbody>
             <tfoot>
@@ -2754,14 +2832,95 @@ const DashboardProducts: React.FC = () => {
                 <td colSpan={2} className="py-2.5 px-2 text-right font-mono text-sm font-black">
                   {products.reduce((acc, p) => acc + (parseFloat(p.price || 0) * (p.stock || 0)), 0).toLocaleString()} TZS
                 </td>
-                <td></td>
+                <td colSpan={2}></td>
               </tr>
               <tr className="bg-gray-50" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td colSpan={4} className="py-1.5 px-2 text-right text-xs uppercase">TOTAL ITEMS IN STOCK:</td>
                 <td colSpan={2} className="py-1.5 px-2 text-right font-mono font-bold">
                   {products.reduce((acc, p) => acc + parseInt(p.stock || 0), 0).toLocaleString()}
                 </td>
-                <td></td>
+                <td colSpan={2}></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* 2. Customer Price List / Catalog Canvas (NO Sensitive Cost / Margins) */}
+        <div ref={printCustomerCatalogRef} className="p-4 bg-white text-black font-sans w-full">
+          <ReportPrintHeader 
+            title="Product Catalog & Price List" 
+            user={user} 
+            logoUrl="/logo_dark.png"
+            qrCodeUrl={`${typeof window !== 'undefined' ? window.location.origin : 'https://sokonimax.com'}/${user?.username || ''}`}
+          />
+          
+          <table className="w-full text-left text-xs border-collapse table-fixed mt-3">
+            <thead>
+              <tr className="border-b-2 border-black bg-gray-100/80 text-black">
+                <th className="py-2 px-1.5 w-8 font-black">S/N</th>
+                <th className="py-2 px-2 w-auto font-black">PRODUCT / VARIATION</th>
+                <th className="py-2 px-2 w-24 font-black">CODE / SKU</th>
+                <th className="py-2 px-2 w-28 font-black">CATEGORY</th>
+                <th className="py-2 px-2 w-28 font-black text-right">PRICE (TSH)</th>
+                <th className="py-2 px-2 w-36 font-black">VOLUME / TIER PRICING</th>
+                <th className="py-2 px-2 w-24 font-black text-center">AVAILABILITY</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {products.map((product, idx) => (
+                <React.Fragment key={`cust-${product.id}`}>
+                  <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }} className={product.variants && product.variants.length > 0 ? 'bg-gray-50/50' : ''}>
+                    <td className="py-2 px-1.5 font-bold text-gray-500">{idx + 1}</td>
+                    <td className="py-2 px-2 font-bold text-black">{product.name}</td>
+                    <td className="py-2 px-2 text-gray-600 font-mono text-[11px]">{product.sku || '-'}</td>
+                    <td className="py-2 px-2 text-gray-600">{product.category_name || product.category || '-'}</td>
+                    <td className="py-2 px-2 text-right font-mono font-black text-black">
+                      {parseFloat(product.price || 0).toLocaleString()}
+                    </td>
+                    <td className="py-2 px-2 text-[10px] text-gray-700">
+                      {product.price_tiers && product.price_tiers.length > 0 
+                        ? product.price_tiers.map((t: any) => `${parseInt(t.min_quantity)}${t.max_quantity ? `-${parseInt(t.max_quantity)}` : '+'} pcs: ${parseFloat(t.unit_price).toLocaleString()}`).join(' | ')
+                        : '-'}
+                    </td>
+                    <td className="py-2 px-2 text-center text-[11px]">
+                      {product.stock > 0 ? (
+                        <span className="font-bold text-emerald-700">In Stock</span>
+                      ) : (
+                        <span className="text-gray-500">On Request</span>
+                      )}
+                    </td>
+                  </tr>
+
+                  {/* Customer Variant Sub-Rows */}
+                  {product.variants && product.variants.map((v: any, vIdx: number) => (
+                    <tr key={`cust-var-${v.id || vIdx}`} className="bg-gray-50/30 text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                      <td className="py-1 px-1.5"></td>
+                      <td className="py-1 px-2 pl-5 text-gray-700">
+                        ↳ <span className="font-semibold text-gray-900">{v.name}</span>
+                      </td>
+                      <td className="py-1 px-2 font-mono text-gray-500 text-[10px]">{v.sku || '-'}</td>
+                      <td className="py-1 px-2 text-gray-400">—</td>
+                      <td className="py-1 px-2 text-right font-mono font-bold text-black">
+                        {parseFloat(v.final_price || (parseFloat(product.price) + parseFloat(v.price_adjustment || 0))).toLocaleString()}
+                      </td>
+                      <td className="py-1 px-2 text-gray-400">—</td>
+                      <td className="py-1 px-2 text-center text-[10px]">
+                        {v.stock > 0 ? (
+                          <span className="font-semibold text-emerald-700">In Stock</span>
+                        ) : (
+                          <span className="text-gray-400">Out of Stock</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-black bg-gray-50 text-[11px]" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <td colSpan={7} className="py-2.5 px-3 text-center text-gray-600 italic">
+                  * Prices are in Tanzanian Shillings (TSh). Contact our store for custom orders, bulk orders, and delivery services.
+                </td>
               </tr>
             </tfoot>
           </table>
