@@ -1621,6 +1621,9 @@ class ConversationSerializer(serializers.ModelSerializer):  # FIX B-12
         val = cache.get(f'user:seen:{other.id}')
         if val:
             return val
+        val_last = cache.get(f'user:last_seen:{other.id}')
+        if val_last:
+            return val_last
         if other.last_login:
             return other.last_login.isoformat()
         return None

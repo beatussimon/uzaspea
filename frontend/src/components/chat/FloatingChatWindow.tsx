@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Send, Smile, Minus, X, CheckCheck, Check, ArrowLeft 
 } from 'lucide-react';
@@ -8,7 +9,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useMessages, Message } from '../../context/MessageContext';
 import VerifiedBadge from '../VerifiedBadge';
 import { Button } from '../ui/Button';
-import { ChatSkeleton } from '../Skeleton';
 import api from '../../api';
 import { parseMessageContent } from '../../utils/messageParser';
 
@@ -29,7 +29,6 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
     messages,
     fetchMessages,
     sendMessage,
-    loading: contextLoading,
     typingStatus,
     sendTypingStatus,
     minimizeChatWindow,
@@ -43,6 +42,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<number | null>(null);
   const [isLocallyTyping, setIsLocallyTyping] = useState(false);
@@ -52,10 +52,16 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
   const [firstUnreadMsgId, setFirstUnreadMsgId] = useState<number | null>(null);
   const firstUnreadRef = useRef<HTMLDivElement>(null);
   const hasScrolledToInitialRef = useRef(false);
+  const [isFetchingThread, setIsFetchingThread] = useState(!messages[convId] || messages[convId].length === 0);
 
   useEffect(() => {
     if (convId) {
-      fetchMessages(convId);
+      if (!messages[convId] || messages[convId].length === 0) {
+        setIsFetchingThread(true);
+      }
+      fetchMessages(convId).finally(() => {
+        setIsFetchingThread(false);
+      });
     }
   }, [convId, fetchMessages]);
 
@@ -70,14 +76,26 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
     }
   }, [convId, conversations, setConversations, initialUnreadCount]);
 
+  const activeConv = conversations.find(c => c.id === convId);
+  const currentMessages = messages[convId] || [];
+
+  useEffect(() => {
+    if (initialUnreadCount && initialUnreadCount > 0 && currentMessages.length > 0 && unreadMessageIds.size === 0) {
+      const otherUserMsgs = currentMessages.filter(m => Number(m.sender) !== userId);
+      const unread = otherUserMsgs.slice(-initialUnreadCount);
+      if (unread.length > 0) {
+        setUnreadMessageIds(new Set(unread.map(m => m.id)));
+        setFirstUnreadMsgId(unread[0].id);
+      }
+    }
+  }, [currentMessages, initialUnreadCount, unreadMessageIds.size, userId]);
+
   useEffect(() => {
     if (prefillMessages[convId]) {
       setNewMessage(prefillMessages[convId]);
     }
   }, [convId, prefillMessages]);
 
-  const activeConv = conversations.find(c => c.id === convId);
-  const currentMessages = messages[convId] || [];
   const isOtherUserTyping = typingStatus[convId] || false;
 
   const otherUsername = activeConv 
@@ -88,36 +106,18 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
     messageEndRef.current?.scrollIntoView({ behavior });
   };
 
+  // Instant scroll on initial load before paint to eliminate layout jump
+  useLayoutEffect(() => {
+    if (scrollContainerRef.current && currentMessages.length > 0 && !hasScrolledToInitialRef.current) {
+      hasScrolledToInitialRef.current = true;
+      prevMessagesLengthRef.current = currentMessages.length;
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [currentMessages.length]);
+
   const prevMessagesLengthRef = useRef(currentMessages.length);
   useEffect(() => {
-    if (currentMessages.length > 0 && !hasScrolledToInitialRef.current && initialUnreadCount !== null) {
-      hasScrolledToInitialRef.current = true;
-      let unreadIds = new Set<number>();
-      let firstUnreadId: number | null = null;
-      if (initialUnreadCount > 0) {
-        let count = 0;
-        for (let i = currentMessages.length - 1; i >= 0; i--) {
-          const msg = currentMessages[i];
-          if (Number(msg.sender) !== userId) {
-            unreadIds.add(msg.id);
-            firstUnreadId = msg.id;
-            count++;
-            if (count >= initialUnreadCount) break;
-          }
-        }
-        setUnreadMessageIds(unreadIds);
-        setFirstUnreadMsgId(firstUnreadId);
-      }
-      
-      // Delay scrolling slightly to let DOM render
-      setTimeout(() => {
-        if (initialUnreadCount > 0 && firstUnreadRef.current) {
-          firstUnreadRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
-        } else {
-          scrollToBottom('auto');
-        }
-      }, 100);
-    } else if (hasScrolledToInitialRef.current && currentMessages.length > prevMessagesLengthRef.current) {
+    if (hasScrolledToInitialRef.current && currentMessages.length > prevMessagesLengthRef.current) {
       const addedCount = currentMessages.length - prevMessagesLengthRef.current;
       const lastMsg = currentMessages[currentMessages.length - 1];
       const isMyMsg = lastMsg && Number(lastMsg.sender) === userId;
@@ -131,7 +131,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
       }
     }
     prevMessagesLengthRef.current = currentMessages.length;
-  }, [currentMessages, isScrolledUp, userId, initialUnreadCount]);
+  }, [currentMessages, isScrolledUp, userId]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -213,6 +213,25 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
     return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
+  const formatRelativeTime = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
   const quickEmojis = ['👍', '❤️', '😂', '😮', '🔥', '👏'];
 
   const isBuyer = Number(activeConv?.buyer) === userId;
@@ -221,7 +240,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
 
   return (
     <div 
-      className="fixed bottom-0 z-[200] w-[330px] h-[450px] bg-white dark:bg-black border border-gray-200/90 dark:border-neutral-800 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl transition-all"
+      className="fixed bottom-5 z-[200] w-[360px] h-[520px] max-h-[calc(100vh-100px)] bg-white dark:bg-black border border-gray-200/90 dark:border-neutral-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
       style={{ right: `${rightOffset}px` }}
     >
       {/* --- Window Header --- */}
@@ -237,8 +256,12 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
           >
             <ArrowLeft size={15} />
           </button>
-          <div className="relative shrink-0">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(otherUsername)} shadow-sm`}>
+          <div 
+            className="relative shrink-0 cursor-pointer"
+            onClick={() => navigate(`/${otherUsername}`)}
+            title={`View ${otherUsername}'s profile`}
+          >
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs ${getGradient(otherUsername)} shadow-sm hover:opacity-80 transition-opacity`}>
               {otherUsername.substring(0, 2).toUpperCase()}
             </div>
             {activeConv?.is_online && (
@@ -251,15 +274,18 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
               <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
                 {otherUsername}
               </span>
-              <VerifiedBadge isVerified={isVerified} tier={tier} className="w-3.5 h-3.5" />
+              {isVerified && <VerifiedBadge isVerified={isVerified} tier={tier} className="w-3.5 h-3.5 shrink-0" />}
             </div>
             <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
               {isOtherUserTyping ? (
                 <span className="text-brand-500 font-medium animate-pulse">typing...</span>
               ) : activeConv?.is_online ? (
-                'Active now'
+                <span className="text-emerald-500 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                  Active now
+                </span>
               ) : (
-                'Offline'
+                activeConv?.last_seen ? `Last seen ${formatRelativeTime(activeConv.last_seen)}` : 'Offline'
               )}
             </p>
           </div>
@@ -285,117 +311,129 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
 
       {/* --- Messages History Area --- */}
       <div 
+        ref={scrollContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-3 space-y-3 relative"
       >
-        {contextLoading && currentMessages.length === 0 ? (
-          <div className="h-full">
-            <ChatSkeleton className="h-full border-0 shadow-none bg-transparent" />
-          </div>
-        ) : currentMessages.length === 0 ? (
+        {isFetchingThread && currentMessages.length === 0 ? null : currentMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base  ${getGradient(otherUsername)} mb-2 shadow-md`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base ${getGradient(otherUsername)} mb-2 shadow-md`}>
               {otherUsername.substring(0, 2).toUpperCase()}
             </div>
             <p className="text-xs font-bold text-gray-900 dark:text-white">Say Hello to {otherUsername}!</p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Send a message to start the conversation.</p>
           </div>
         ) : (
-          Object.entries(groupedMessages).map(([date, msgs]) => (
-            <div key={date} className="space-y-2">
-              <div className="flex justify-center my-1">
-                <span className="text-[10px] font-medium text-gray-400 dark:text-neutral-500 bg-gray-100 dark:bg-neutral-900 px-2 py-0.5 rounded-full select-none">
-                  {formatDayHeader(date)}
-                </span>
-              </div>
+          <div className="space-y-2">
+            <AnimatePresence initial={false}>
+              {Object.entries(groupedMessages).map(([date, msgs]) => (
+                <div key={date} className="space-y-2">
+                  <div className="flex justify-center my-1">
+                    <span className="text-[10px] font-medium text-gray-400 dark:text-neutral-500 bg-gray-100 dark:bg-neutral-900 px-2 py-0.5 rounded-full select-none">
+                      {formatDayHeader(date)}
+                    </span>
+                  </div>
 
-              {msgs.map((msg, index) => {
-                const isMe = Number(msg.sender) === userId;
-                const isUnread = unreadMessageIds.has(msg.id);
-                const isFirstUnread = msg.id === firstUnreadMsgId;
-                const parsed = parseMessageContent(msg.content);
+                {msgs.map((msg, index) => {
+                  const isMe = Number(msg.sender) === userId;
+                  const isUnread = unreadMessageIds.has(msg.id);
+                  const isFirstUnread = msg.id === firstUnreadMsgId;
+                  const parsed = parseMessageContent(msg.content);
 
-                return (
-                  <div
-                    key={msg.id || index}
-                    ref={isFirstUnread ? firstUnreadRef : null}
-                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
-                  >
-                    {isFirstUnread && (
-                      <div className="w-full flex items-center justify-center my-3 relative">
-                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-brand-500/30 dark:border-brand-500/20"></div></div>
-                        <span className="relative bg-white dark:bg-black px-2 text-[10px] font-bold text-brand-500 dark:text-brand-500 uppercase tracking-wider select-none">New Messages</span>
-                      </div>
-                    )}
+                  return (
+                    <motion.div
+                      key={msg.id || index}
+                      ref={isFirstUnread ? firstUnreadRef : null}
+                      initial={{ opacity: 0, scale: 0.93, y: 7 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{
+                        type: 'spring',
+                        damping: 26,
+                        stiffness: 420,
+                        mass: 0.5,
+                      }}
+                      style={{
+                        transformOrigin: isMe ? 'bottom right' : 'bottom left',
+                      }}
+                      className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
+                    >
+                      {isFirstUnread && (
+                        <div className="w-full flex items-center justify-center my-3 relative">
+                          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-brand-500/30 dark:border-brand-500/20"></div></div>
+                          <span className="relative bg-white dark:bg-black px-2 text-[10px] font-bold text-brand-500 dark:text-brand-500 uppercase tracking-wider select-none">New Messages</span>
+                        </div>
+                      )}
 
-                    {/* Attached Product Preview Card */}
-                    {parsed.product && (
-                      <div
-                        onClick={() => navigate(`/product/${parsed.product?.slug || parsed.product?.id}`)}
-                        className="cursor-pointer group max-w-[85%] bg-white dark:bg-[#1f2022] border border-gray-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-md hover:border-brand-500/50 hover:shadow-lg transition-all text-left"
-                      >
-                        <div className="flex items-center gap-2.5 p-2">
-                          {parsed.product.image ? (
-                            <img
-                              src={parsed.product.image}
-                              alt={parsed.product.title}
-                              className="w-12 h-12 rounded-xl object-cover shrink-0 bg-neutral-900"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-gray-400 shrink-0">
-                              Item
+                      {/* Attached Product Preview Card */}
+                      {parsed.product && (
+                        <div
+                          onClick={() => navigate(`/product/${parsed.product?.slug || parsed.product?.id}`)}
+                          className="cursor-pointer group max-w-[85%] bg-white dark:bg-[#1f2022] border border-gray-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-md hover:border-brand-500/50 hover:shadow-lg transition-all text-left"
+                        >
+                          <div className="flex items-center gap-2.5 p-2">
+                            {parsed.product.image ? (
+                              <img
+                                src={parsed.product.image}
+                                alt={parsed.product.title}
+                                className="w-12 h-12 rounded-xl object-cover shrink-0 bg-neutral-900"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-gray-400 shrink-0">
+                                Item
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              {parsed.product.category && (
+                                <span className="text-[8px] font-bold uppercase tracking-wider text-amber-500 line-clamp-1">
+                                  {parsed.product.category}
+                                </span>
+                              )}
+                              <h4 className="text-[11px] font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 transition-colors">
+                                {parsed.product.title}
+                              </h4>
+                              {parsed.product.price != null && (
+                                <p className="text-[11px] font-extrabold text-brand-600 dark:text-brand-400 mt-0.5">
+                                  {typeof parsed.product.price === 'number' ? parsed.product.price.toLocaleString() : parsed.product.price} {parsed.product.currency || 'TZS'}
+                                </p>
+                              )}
                             </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            {parsed.product.category && (
-                              <span className="text-[8px] font-bold uppercase tracking-wider text-amber-500 line-clamp-1">
-                                {parsed.product.category}
-                              </span>
-                            )}
-                            <h4 className="text-[11px] font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 transition-colors">
-                              {parsed.product.title}
-                            </h4>
-                            {parsed.product.price != null && (
-                              <p className="text-[11px] font-extrabold text-brand-600 dark:text-brand-400 mt-0.5">
-                                {typeof parsed.product.price === 'number' ? parsed.product.price.toLocaleString() : parsed.product.price} {parsed.product.currency || 'TZS'}
-                              </p>
-                            )}
                           </div>
                         </div>
-                      </div>
-                    )}
-
-                    {/* Message Bubble Text */}
-                    {parsed.text && (
-                      <div
-                        className={`max-w-[82%] px-3 py-2 rounded-2xl text-xs leading-relaxed break-words shadow-sm ${
-                          isMe
-                            ? ' bg-brand-500  text-white rounded-br-xs font-sans'
-                            : isUnread
-                              ? '  text-gray-900 dark:text-gray-100 border border-brand-500/50 dark:border-brand-500/30 rounded-bl-xs font-sans'
-                              : 'bg-surface-muted dark:bg-neutral-900 text-gray-900 dark:text-gray-100 rounded-bl-xs border border-gray-200/50 dark:border-neutral-800/50 font-sans'
-                        }`}
-                      >
-                        {parsed.text}
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-1 mt-0.5 px-1 select-none">
-                      <span className="text-[9px] text-gray-400 dark:text-gray-500">
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {isMe && (
-                        <span className="text-brand-500">
-                          {msg.is_read ? <CheckCheck size={11} /> : <Check size={11} />}
-                        </span>
                       )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))
-        )}
+
+                      {/* Message Bubble Text */}
+                      {parsed.text && (
+                        <div
+                          className={`max-w-[82%] px-3 py-2 rounded-2xl text-xs leading-relaxed break-words shadow-sm ${
+                            isMe
+                              ? ' bg-brand-500  text-white rounded-br-xs font-sans'
+                              : isUnread
+                                ? '  text-gray-900 dark:text-gray-100 border border-brand-500/50 dark:border-brand-500/30 rounded-bl-xs font-sans'
+                                : 'bg-surface-muted dark:bg-neutral-900 text-gray-900 dark:text-gray-100 rounded-bl-xs border border-gray-200/50 dark:border-neutral-800/50 font-sans'
+                          }`}
+                        >
+                          {parsed.text}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-1 mt-0.5 px-1 select-none">
+                        <span className="text-[9px] text-gray-400 dark:text-gray-500">
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {isMe && (
+                          <span className="text-brand-500">
+                            {msg.is_read ? <CheckCheck size={11} /> : <Check size={11} />}
+                          </span>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
 
         {/* --- Realtime Typing Indicator Animation --- */}
         {isOtherUserTyping && (
@@ -422,7 +460,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
       )}
 
       {/* --- Input Console --- */}
-      <div className="p-2 border-t border-gray-200/60 dark:border-neutral-800/60 bg-surface-muted/60 dark:bg-neutral-950/60 flex flex-col gap-1.5 shrink-0">
+      <div className="p-2.5 bg-transparent flex flex-col gap-1.5 shrink-0">
         {showEmojiPicker && (
           <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-neutral-900 rounded-full overflow-x-auto">
             {quickEmojis.map(emoji => (

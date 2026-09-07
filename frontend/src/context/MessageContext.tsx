@@ -315,10 +315,18 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
         prev.map(c => (c.id === activeConversationId ? { ...c, unread_count: 0 } : c))
       );
       api.get(`/api/conversations/${activeConversationId}/messages/`).then(r => {
-        setMessages(prev => ({
-          ...prev,
-          [activeConversationId]: r.data.results || r.data,
-        }));
+        const data = r.data.results || r.data || [];
+        setMessages(prev => {
+          const existing = prev[activeConversationId];
+          if (existing && existing.length === data.length) {
+            const isSame = existing.every((m, idx) => m.id === data[idx]?.id && m.is_read === data[idx]?.is_read && m.content === data[idx]?.content);
+            if (isSame) return prev;
+          }
+          return {
+            ...prev,
+            [activeConversationId]: data,
+          };
+        });
       }).catch(() => {});
     }
   }, [activeConversationId]);
@@ -509,13 +517,17 @@ const subscribeToWebPush = async () => {
         }
 
         if (data.type === 'presence_update') {
-          const userId = Number(data.user_id);
-          const isOnline = data.is_online;
+          const targetUserId = Number(data.user_id);
+          const isOnline = Boolean(data.is_online);
           const lastSeen = data.last_seen;
           
           setConversations(prev => prev.map(c => {
-            if (c.buyer === userId || c.seller === userId) {
-              return { ...c, is_online: isOnline, last_seen: lastSeen };
+            if (Number(c.buyer) === targetUserId || Number(c.seller) === targetUserId) {
+              return { 
+                ...c, 
+                is_online: isOnline, 
+                last_seen: lastSeen || c.last_seen 
+              };
             }
             return c;
           }));
@@ -646,29 +658,43 @@ const subscribeToWebPush = async () => {
 
   useEffect(() => {
     let pingInterval: number;
-    if (isAuthenticated) {
-      connectWS();
-      pingInterval = window.setInterval(() => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          try {
-            wsRef.current.send(JSON.stringify({ type: 'presence_ping' }));
-          } catch (e) {}
-        }
-      }, 30000); // Send ping every 30 seconds
-    }
-    return () => {
-      if (pingInterval) clearInterval(pingInterval);
-      if (wsRef.current) {
-        wsRef.current.onclose = null;
-        wsRef.current.onerror = null;
+    const sendPing = () => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         try {
-          wsRef.current.close(1000);
+          wsRef.current.send(JSON.stringify({ type: 'presence_ping' }));
         } catch (e) {}
       }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
     };
+
+    if (isAuthenticated) {
+      connectWS();
+      pingInterval = window.setInterval(sendPing, 25000); // Send ping every 25 seconds
+
+      const handleVisibilityOrFocus = () => {
+        if (document.visibilityState === 'visible') {
+          sendPing();
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.addEventListener('focus', handleVisibilityOrFocus);
+
+      return () => {
+        if (pingInterval) clearInterval(pingInterval);
+        document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+        window.removeEventListener('focus', handleVisibilityOrFocus);
+        if (wsRef.current) {
+          wsRef.current.onclose = null;
+          wsRef.current.onerror = null;
+          try {
+            wsRef.current.close(1000);
+          } catch (e) {}
+        }
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+      };
+    }
   }, [isAuthenticated, connectWS]);
 
   // Fetch messages thread
@@ -676,10 +702,17 @@ const subscribeToWebPush = async () => {
     try {
       const res = await api.get(`/api/conversations/${convId}/messages/`);
       const data = res.data.results || res.data || [];
-      setMessages(prev => ({
-        ...prev,
-        [convId]: data,
-      }));
+      setMessages(prev => {
+        const existing = prev[convId];
+        if (existing && existing.length === data.length) {
+          const isSame = existing.every((m, idx) => m.id === data[idx]?.id && m.is_read === data[idx]?.is_read && m.content === data[idx]?.content);
+          if (isSame) return prev;
+        }
+        return {
+          ...prev,
+          [convId]: data,
+        };
+      });
       return data;
     } catch (e) {
       console.error(`Failed to fetch messages for conv ${convId}`, e);

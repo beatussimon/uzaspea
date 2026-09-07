@@ -381,40 +381,51 @@ export const DesktopChatWidget: React.FC = () => {
                   </button>
                 )}
                 
-                {desktopActiveConvId && activeConv ? (
-                  <div 
-                    className="flex items-center gap-2.5 min-w-0 cursor-pointer"
-                    onClick={() => navigate(`/${otherUsername}`)}
-                  >
-                    <div className="relative shrink-0">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(otherUsername)}`}>
-                        {otherUsername.substring(0, 2).toUpperCase()}
-                      </div>
-                      {activeConv.is_online && (
-                        <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 rounded-full border border-white dark:border-black" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className="font-bold text-xs text-gray-900 dark:text-white truncate hover:underline">
-                          {otherUsername}
-                        </span>
-                        <VerifiedBadge tier={activeConv.seller_tier} isVerified={activeConv.seller_verified} className="w-3 h-3 shrink-0" />
-                      </div>
-                      <p className="text-[10px] text-gray-400 font-semibold truncate">
-                        {typingStatus[desktopActiveConvId] ? (
-                          <span className="text-brand-500 animate-pulse">typing...</span>
-                        ) : activeConv.is_online ? (
-                          <span className="text-emerald-500">Active now</span>
-                        ) : (
-                          'Offline'
+                {desktopActiveConvId && activeConv ? (() => {
+                  const isBuyer = Number(activeConv.buyer) === Number(userId);
+                  const activeOtherVerified = isBuyer ? activeConv.seller_verified : activeConv.buyer_verified;
+                  const activeOtherTier = isBuyer ? activeConv.seller_tier : activeConv.buyer_tier;
+
+                  return (
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div 
+                        className="relative shrink-0 cursor-pointer"
+                        onClick={() => navigate(`/${otherUsername}`)}
+                        title={`View ${otherUsername}'s profile`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${getGradient(otherUsername)} hover:opacity-80 transition-opacity`}>
+                          {otherUsername.substring(0, 2).toUpperCase()}
+                        </div>
+                        {activeConv.is_online && (
+                          <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 rounded-full border border-white dark:border-black" />
                         )}
-                      </p>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
+                            {otherUsername}
+                          </span>
+                          {activeOtherVerified && (
+                            <VerifiedBadge tier={activeOtherTier} isVerified={activeOtherVerified} className="w-3 h-3 shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-400 font-semibold truncate">
+                          {typingStatus[desktopActiveConvId] ? (
+                            <span className="text-brand-500 animate-pulse">typing...</span>
+                          ) : activeConv.is_online ? (
+                            <span className="text-emerald-500 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                              Active now
+                            </span>
+                          ) : (
+                            activeConv?.last_seen ? `Last seen ${formatRelativeTime(activeConv.last_seen)}` : 'Offline'
+                          )}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
+                  );
+                })() : (
                   <div className="flex items-center gap-2">
-                    <MessageSquare className="text-brand-500" size={18} />
                     <h3 className="font-extrabold text-sm text-gray-900 dark:text-white tracking-tight">
                       {viewMode === 'main' ? t('chats', 'Messages') : 'Sokoni Leo'}
                     </h3>
@@ -445,7 +456,7 @@ export const DesktopChatWidget: React.FC = () => {
             {!desktopActiveConvId ? (
               /* --- Conversations List View --- */
               <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="p-3 border-b border-gray-100 dark:border-neutral-900">
+                <div className="p-3">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-600" size={14} />
                     <input
@@ -494,6 +505,8 @@ export const DesktopChatWidget: React.FC = () => {
                   {displayedConversations.map(conv => {
                     const isBuyer = Number(conv.buyer) === Number(userId);
                     const otherUser = isBuyer ? conv.seller_username : conv.buyer_username;
+                    const isVerified = isBuyer ? conv.seller_verified : conv.buyer_verified;
+                    const tier = isBuyer ? conv.seller_tier : conv.buyer_tier;
                     const initials = otherUser.substring(0, 2).toUpperCase();
 
                     return (
@@ -502,8 +515,15 @@ export const DesktopChatWidget: React.FC = () => {
                         onClick={() => setDesktopActiveConvId(conv.id)}
                         className="flex items-center gap-3 p-2.5 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition-colors"
                       >
-                        <div className="relative shrink-0">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs  ${getGradient(otherUser)}`}>
+                        <div 
+                          className="relative shrink-0 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/${otherUser}`);
+                          }}
+                          title={`View ${otherUser}'s profile`}
+                        >
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs ${getGradient(otherUser)} hover:opacity-80 transition-opacity`}>
                             {initials}
                           </div>
                           {conv.is_online && (
@@ -516,11 +536,16 @@ export const DesktopChatWidget: React.FC = () => {
                             const productInfo = getConvProductInfo(conv);
                             return (
                               <div className="flex justify-between items-baseline">
-                                <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
-                                  {viewMode === 'sokoni' ? `${otherUser} · ${productInfo?.title || conv.product_name || 'Product'}` : otherUser}
-                                </span>
+                                <div className="flex items-center gap-1 min-w-0">
+                                  <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
+                                    {viewMode === 'sokoni' ? `${otherUser} · ${productInfo?.title || conv.product_name || 'Product'}` : otherUser}
+                                  </span>
+                                  {isVerified && (
+                                    <VerifiedBadge isVerified={isVerified} tier={tier} className="w-3.5 h-3.5 shrink-0" />
+                                  )}
+                                </div>
                                 {conv.last_message && (
-                                  <span className="text-[9px] text-gray-400 shrink-0">
+                                  <span className="text-[9px] text-gray-400 shrink-0 ml-1.5">
                                     {formatRelativeTime(conv.last_message.created_at)}
                                   </span>
                                 )}
@@ -668,7 +693,7 @@ export const DesktopChatWidget: React.FC = () => {
                 )}
 
                 {/* Input Console */}
-                <div className="p-2.5 border-t border-gray-200/60 dark:border-neutral-800/60 bg-surface-muted/60 dark:bg-neutral-950/60 flex flex-col gap-2 shrink-0">
+                <div className="p-2.5 bg-transparent flex flex-col gap-2 shrink-0">
                   {showEmojiPicker && (
                     <div className="flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-neutral-900 rounded-full overflow-x-auto">
                       {quickEmojis.map(emoji => (

@@ -194,9 +194,53 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logging.getLogger(__name__).warning(f"ChatConsumer group_add failed: {e}")
         await self.accept()
 
+        # Update user presence in Redis & broadcast online status to active conversation partners
+        from django.utils import timezone
+        from django.core.cache import cache
+        now_iso = timezone.now().isoformat()
+        cache.set(f'user:seen:{self.user.id}', now_iso, timeout=60)
+        cache.set(f'user:last_seen:{self.user.id}', now_iso, timeout=86400 * 30)
+
+        partner_ids = await self._get_all_partner_ids()
+        for pid in partner_ids:
+            try:
+                await self.channel_layer.group_send(
+                    f'chat_{pid}',
+                    {
+                        'type': 'presence_update',
+                        'user_id': self.user.id,
+                        'is_online': True,
+                        'last_seen': now_iso,
+                    }
+                )
+            except Exception:
+                pass
+
     async def disconnect(self, close_code):
         if hasattr(self, 'group_name'):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+        if hasattr(self, 'user') and self.user:
+            from django.utils import timezone
+            from django.core.cache import cache
+            now_iso = timezone.now().isoformat()
+            cache.delete(f'user:seen:{self.user.id}')
+            cache.set(f'user:last_seen:{self.user.id}', now_iso, timeout=86400 * 30)
+
+            partner_ids = await self._get_all_partner_ids()
+            for pid in partner_ids:
+                try:
+                    await self.channel_layer.group_send(
+                        f'chat_{pid}',
+                        {
+                            'type': 'presence_update',
+                            'user_id': self.user.id,
+                            'is_online': False,
+                            'last_seen': now_iso,
+                        }
+                    )
+                except Exception:
+                    pass
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
@@ -276,6 +320,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             cache_key = f'user:seen:{self.user.id}'
             now_iso = timezone.now().isoformat()
             cache.set(cache_key, now_iso, timeout=60)
+            cache.set(f'user:last_seen:{self.user.id}', now_iso, timeout=86400 * 30)
             
             # Broadcast presence update to specific conversation partner if conv_id provided
             if conv_id:
@@ -410,6 +455,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return recipient.id
         except Exception:
             return None
+
+    @database_sync_to_async
+    def _get_all_partner_ids(self):
+        from marketplace.models import Conversation
+        from django.db.models import Q
+        try:
+            convs = Conversation.objects.filter(
+                Q(buyer=self.user) | Q(seller=self.user)
+            ).values_list('buyer_id', 'seller_id')
+            partners = set()
+            for b_id, s_id in convs:
+                if b_id and b_id != self.user.id:
+                    partners.add(b_id)
+                if s_id and s_id != self.user.id:
+                    partners.add(s_id)
+            return list(partners)
+        except Exception:
+            return []
 
     @database_sync_to_async
     def _save_message(self, conv_id, content):
