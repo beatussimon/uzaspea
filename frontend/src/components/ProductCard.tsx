@@ -52,6 +52,15 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
   const images = product.images || [];
   const { t } = useTranslation();
 
+  const getConditionLabel = () => {
+    const c = (product.condition || '').toLowerCase();
+    if (c === 'new') return t('new', 'MPYA');
+    if (c === 'used') return t('used', 'IMETUMIKA');
+    if (c === 'refurbished') return t('refurbished', 'Iliyokarabatiwa');
+    if (c === 'like_new' || c === 'like new') return t('like_new', 'Kama Mpya');
+    return product.condition || '';
+  };
+
   const handleScroll = () => {
     if (!scrollRef.current) return;
     const scrollLeft = scrollRef.current.scrollLeft;
@@ -125,8 +134,8 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
 
       {viewMode === 'list' ? (
         <div className="absolute top-1 left-1 flex flex-col gap-1 z-10 pointer-events-none">
-          <span className={`h-6 px-1.5 flex items-center justify-center font-black text-[10px] uppercase tracking-wider w-fit ${product.condition === 'New' ? 'text-green-500' : 'text-gray-400'}`}>
-            {product.condition === 'New' ? t('new', 'New') : t('used', 'Used')}
+          <span className={`h-6 px-1.5 flex items-center justify-center font-black text-[10px] uppercase tracking-wider w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
+            {getConditionLabel()}
           </span>
         </div>
       ) : (
@@ -137,8 +146,8 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
               {t('sponsored', 'Sponsored')}
             </span>
           )}
-          <span className={`font-black text-sm uppercase tracking-wider leading-none w-fit ${product.condition === 'New' ? 'text-green-500' : 'text-gray-400'}`}>
-            {product.condition === 'New' ? t('new', 'New') : t('used', 'Used')}
+          <span className={`font-black text-sm uppercase tracking-wider leading-none w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
+            {getConditionLabel()}
           </span>
           {!product.requires_quote && product.old_price > product.price && (
             <span className="h-7 px-2 rounded-full font-black text-[10px] uppercase flex items-center justify-center w-fit shadow-md bg-white/95 dark:bg-gray-800/95 border border-red-500 dark:border-red-500/50 text-red-500 dark:text-red-400">
@@ -291,11 +300,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
                    <span className="flex items-center gap-0.5 whitespace-nowrap shrink-0"><Clock size={8} /> {timeAgo(product.created_at)}</span>
                  </>
                )}
-                {product.is_verified && (
-                  <div className="flex items-center text-[9px] text-brand-500 dark:text-brand-500 font-black px-1.5 py-0.5 rounded-full border border-brand-500 dark:border-brand-500 ml-auto shrink-0" title={t('verified_seller', 'Verified Seller')}>
-                    <span className="uppercase tracking-widest text-[8px]">{t('verified', 'Verified')}</span>
-                  </div>
-                )}
+
             </div>
             <h3 className="font-bold text-sm md:text-base text-gray-900 dark:text-white line-clamp-1 mb-1">{product.name}</h3>
             
@@ -358,11 +363,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
           {/* Badges row */}
           <div className="flex flex-wrap items-center gap-1">
             <div className="flex flex-wrap items-center gap-1">
-              {product.is_verified && (
-                 <div className="flex items-center text-[7.5px] text-brand-500 dark:text-brand-500 font-black px-1.5 py-0.5 rounded-card border border-brand-500/50 dark:border-brand-500/30 whitespace-nowrap shrink-0 shadow-sm" title={t('verified_seller', 'Verified Seller')}>
-                   <span className="uppercase tracking-widest text-[7.5px]">{t('verified', 'Verified')}</span>
-                 </div>
-              )}
+
               {product.has_inspection && (
                  <div className="flex items-center text-[7.5px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50/95 dark:bg-emerald-900/90 px-1.5 py-0.5 rounded-card border border-emerald-100/50 dark:border-emerald-800/30 whitespace-nowrap shrink-0 shadow-sm" title={t('professionally_inspected', 'Professionally Inspected')}>
                    <span className="uppercase tracking-widest text-[7.5px]">{t('inspected_label', 'Inspected ✓')}</span>

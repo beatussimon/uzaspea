@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Send, Smile, Minus, X, CheckCheck, Check, ArrowLeft 
+  Send, Smile, Minus, X, CheckCheck, Check, ArrowLeft, Loader2
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
@@ -27,7 +27,10 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
     conversations,
     setConversations,
     messages,
+    hasMore,
+    loadingOlder,
     fetchMessages,
+    fetchOlderMessages,
     sendMessage,
     typingStatus,
     sendTypingStatus,
@@ -106,38 +109,80 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
     messageEndRef.current?.scrollIntoView({ behavior });
   };
 
-  // Instant scroll on initial load before paint to eliminate layout jump
+  const isPrependingRef = useRef(false);
+  const prevScrollHeightRef = useRef(0);
+  const prevScrollTopRef = useRef(0);
+  const prevFirstMsgIdRef = useRef<number | null>(currentMessages[0]?.id ?? null);
+  const prependedIdsRef = useRef<Set<number>>(new Set());
+
+  // Instant scroll on initial load before paint, and position restoration on prepend
   useLayoutEffect(() => {
     if (scrollContainerRef.current && currentMessages.length > 0 && !hasScrolledToInitialRef.current) {
       hasScrolledToInitialRef.current = true;
       prevMessagesLengthRef.current = currentMessages.length;
+      prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    } else if (isPrependingRef.current && scrollContainerRef.current) {
+      // Seamless scroll position restoration when older messages are prepended
+      const newScrollHeight = scrollContainerRef.current.scrollHeight;
+      const heightDiff = newScrollHeight - prevScrollHeightRef.current;
+      scrollContainerRef.current.scrollTop = prevScrollTopRef.current + heightDiff;
+      isPrependingRef.current = false;
+      prevMessagesLengthRef.current = currentMessages.length;
+      prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
     }
-  }, [currentMessages.length]);
+  }, [currentMessages]);
 
   const prevMessagesLengthRef = useRef(currentMessages.length);
   useEffect(() => {
     if (hasScrolledToInitialRef.current && currentMessages.length > prevMessagesLengthRef.current) {
-      const addedCount = currentMessages.length - prevMessagesLengthRef.current;
-      const lastMsg = currentMessages[currentMessages.length - 1];
-      const isMyMsg = lastMsg && Number(lastMsg.sender) === userId;
+      // Only treat as newly arrived messages if added at the bottom (first message unchanged)
+      const isAppended = currentMessages[0]?.id === prevFirstMsgIdRef.current;
+      if (isAppended) {
+        const addedCount = currentMessages.length - prevMessagesLengthRef.current;
+        const lastMsg = currentMessages[currentMessages.length - 1];
+        const isMyMsg = lastMsg && Number(lastMsg.sender) === userId;
 
-      if (isMyMsg) {
-        scrollToBottom('smooth');
-      } else if (isScrolledUp) {
-        setNewMessagesCount(prev => prev + addedCount);
-      } else {
-        scrollToBottom('smooth');
+        if (isMyMsg) {
+          scrollToBottom('smooth');
+        } else if (isScrolledUp) {
+          setNewMessagesCount(prev => prev + addedCount);
+        } else {
+          scrollToBottom('smooth');
+        }
       }
     }
     prevMessagesLengthRef.current = currentMessages.length;
+    prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
   }, [currentMessages, isScrolledUp, userId]);
+
+  const triggerLoadOlder = async () => {
+    if (scrollContainerRef.current && !loadingOlder[convId] && hasMore[convId] !== false) {
+      prevScrollHeightRef.current = scrollContainerRef.current.scrollHeight;
+      prevScrollTopRef.current = scrollContainerRef.current.scrollTop;
+      isPrependingRef.current = true;
+      const currentIds = new Set(currentMessages.map(m => m.id));
+      await fetchOlderMessages(convId);
+      // Mark prepended IDs so their bubble animation is suppressed
+      const updated = messages[convId] || [];
+      updated.forEach(m => {
+        if (!currentIds.has(m.id)) {
+          prependedIdsRef.current.add(m.id);
+        }
+      });
+    }
+  };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     const isUp = scrollHeight - scrollTop > clientHeight + 35;
     setIsScrolledUp(isUp);
     if (!isUp) setNewMessagesCount(0);
+
+    // Trigger reverse infinite scroll when approaching the top
+    if (scrollTop < 70 && hasMore[convId] !== false && !loadingOlder[convId] && !isPrependingRef.current) {
+      triggerLoadOlder();
+    }
   };
 
   const handleInputChange = (val: string) => {
@@ -313,8 +358,16 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
       <div 
         ref={scrollContainerRef}
         onScroll={handleScroll}
+        style={{ overflowAnchor: 'none' }}
         className="flex-1 overflow-y-auto p-3 space-y-3 relative"
       >
+        {/* Top Loading Indicator for Reverse Infinite Scroll */}
+        {loadingOlder[convId] && (
+          <div className="flex items-center justify-center py-2 text-brand-500">
+            <Loader2 className="w-4 h-4 animate-spin" />
+          </div>
+        )}
+
         {isFetchingThread && currentMessages.length === 0 ? null : currentMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base ${getGradient(otherUsername)} mb-2 shadow-md`}>
@@ -339,12 +392,13 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
                   const isUnread = unreadMessageIds.has(msg.id);
                   const isFirstUnread = msg.id === firstUnreadMsgId;
                   const parsed = parseMessageContent(msg.content);
+                  const isPrepended = prependedIdsRef.current.has(msg.id);
 
                   return (
                     <motion.div
                       key={msg.id || index}
                       ref={isFirstUnread ? firstUnreadRef : null}
-                      initial={{ opacity: 0, scale: 0.93, y: 7 }}
+                      initial={isPrepended ? false : { opacity: 0, scale: 0.93, y: 7 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       transition={{
                         type: 'spring',

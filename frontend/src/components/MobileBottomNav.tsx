@@ -3,12 +3,13 @@ import { motion } from 'framer-motion';
 import { 
   Home, ShoppingBag, 
   LayoutDashboard, Package, ClipboardList, ShieldCheck, 
-  Shield, Settings, HelpCircle, LogOut, Menu, ShoppingCart, Moon, Sun, Globe, MessageSquare, Heart,
+  Shield, Settings, HelpCircle, LogOut, Menu, ShoppingCart, Moon, Sun, MessageSquare, Heart,
   AlertCircle, RefreshCw
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
+import LanguageSelector from './layout/LanguageSelector';
 import { useCart } from '../context/CartContext';
 import { useAuth, useUserRoles } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -22,7 +23,7 @@ const MobileBottomNav = () => {
   const navigate = useNavigate();
   const { cartCount } = useCart();
   const { totalUnread: messageUnreadCount } = useMessages();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   
   const { isAuthenticated, user, logout } = useAuth();
@@ -341,16 +342,10 @@ const MobileBottomNav = () => {
                       <span className="text-sm font-medium">{isDark ? t('light_mode') : t('dark_mode')}</span>
                     </div>
                   </button>
-                  <button onClick={() => {
-                    const currentLang = i18n.language?.split('-')[0] || 'en';
-                    i18n.changeLanguage(currentLang === 'sw' ? 'en' : 'sw');
-                  }} className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-lg transition-colors group text-gray-700 dark:text-gray-300 text-left">
-                    <div className="flex items-center gap-3">
-                      <Globe size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
-                      <span className="text-sm font-medium">{i18n.language?.split('-')[0] === 'sw' ? 'Kiswahili' : 'English'}</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">Switch</span>
-                  </button>
+                  <div className="pt-2 pb-1 px-1">
+                    <p className="px-2 pb-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('language', 'Language')}</p>
+                    <LanguageSelector variant="drawer-list" onSelect={() => setIsMenuOpen(false)} />
+                  </div>
                   <Link to="/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-lg transition-colors group text-gray-700 dark:text-gray-300">
                     <Settings size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
                     <span className="text-sm font-medium">{t('settings')}</span>
@@ -456,7 +451,7 @@ const MobileBottomNav = () => {
                     </span>
                   )}
                 </div>
-                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/messages') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>Chats</span>
+                <span className={`text-[10px] font-bold tracking-wide mt-1 transition-colors ${isActive('/messages') ? 'text-brand-500 dark:text-brand-500' : 'text-gray-400'}`}>{t('chats', 'Chats')}</span>
               </motion.div>
               {isActive('/messages') && (
                 <motion.div layoutId="nav-indicator" className="absolute -top-2 w-8 h-1 rounded-full bg-brand-500 dark:bg-brand-500" />

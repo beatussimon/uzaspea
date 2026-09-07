@@ -1132,6 +1132,28 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         except StateMachineException as e:
             return Response({'detail': str(e)}, status=400)
         report.request.status = 'published'
+
+        # Lock certified baseline snapshot for post-inspection change detection
+        mp = report.request.marketplace_product
+        if mp:
+            first_image = mp.images.first() if hasattr(mp, 'images') else None
+            img_url = None
+            if first_image and getattr(first_image, 'image', None):
+                try:
+                    img_url = first_image.image.url
+                except Exception:
+                    img_url = None
+            report.request.product_snapshot = {
+                'id': mp.id,
+                'name': str(mp.name or ''),
+                'description': str(mp.description or ''),
+                'price': str(mp.price) if mp.price is not None else '0',
+                'condition': str(mp.condition or ''),
+                'stock': float(mp.stock) if mp.stock is not None else 0,
+                'image_url': img_url,
+                'approved_at': report.approved_at.isoformat() if report.approved_at else timezone.now().isoformat()
+            }
+
         report.request.save()
 
         # Update inspector stats
@@ -1422,6 +1444,14 @@ class PublicVerifyView(APIView):
                 'is_verified': False,
                 'summary': 'Inspection report completed. Pending final balance settlement before public verification is available.',
             })
+
+        # Post-inspection change audit trail
+        from .serializers import ProductInspectionEventSerializer
+        post_events = obj.post_inspection_events.all()[:20]
+        data['has_post_inspection_changes'] = post_events.exists()
+        data['post_inspection_events'] = ProductInspectionEventSerializer(post_events, many=True).data
+        data['inspected_stock'] = obj.product_snapshot.get('stock') if obj.product_snapshot and isinstance(obj.product_snapshot, dict) else None
+
         return Response(data)
 
 

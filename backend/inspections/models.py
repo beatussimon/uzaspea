@@ -702,3 +702,43 @@ class SLABreach(models.Model):
 
     def __str__(self):
         return f'SLA Breach: {self.phase} for {self.request.inspection_id}'
+
+
+# ─────────────────────────────────────────────
+# POST-INSPECTION PRODUCT HISTORY EVENTS
+# ─────────────────────────────────────────────
+
+class ProductInspectionEvent(models.Model):
+    EVENT_TYPES = [
+        ('restock', 'Stock Restocked'),
+        ('price_change', 'Price Changed'),
+        ('condition_change', 'Condition Changed'),
+        ('detail_change', 'Listing Details Changed'),
+        ('image_change', 'Photos Changed'),
+        ('variant_change', 'Variant Changed'),
+    ]
+
+    product = models.ForeignKey(
+        'marketplace.Product',
+        on_delete=models.CASCADE,
+        related_name='inspection_events'
+    )
+    inspection = models.ForeignKey(
+        InspectionRequest,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='post_inspection_events',
+        help_text='The inspection request whose baseline was active when this event occurred'
+    )
+    event_type = models.CharField(max_length=30, choices=EVENT_TYPES)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.product.name} — {self.title} ({self.created_at.strftime("%Y-%m-%d %H:%M")})'
+

@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import Category, Product, Order, LipaNumber, MobileNetwork, UserProfile
+from .models import Category, Product, Order, LipaNumber, MobileNetwork, UserProfile, Conversation, Message
 from decimal import Decimal
 
 class AuthTests(TestCase):
@@ -602,3 +602,49 @@ class PromoCodeAndSubscriptionTests(TestCase):
         }, format='json')
         self.assertEqual(res.status_code, 400)
         self.assertIn('end_date', res.json())
+
+class ConversationPaginationTests(TestCase):
+    def setUp(self):
+        self.buyer = User.objects.create_user('chatbuyer', 'chatbuyer@test.com', 'ChatPass123!')
+        self.seller = User.objects.create_user('chatseller', 'chatseller@test.com', 'ChatPass123!')
+        self.conv = Conversation.objects.create(buyer=self.buyer, seller=self.seller)
+        from django.utils import timezone
+        now = timezone.now()
+        msgs = []
+        for i in range(45):
+            msgs.append(Message(
+                conversation=self.conv,
+                sender=self.buyer if i % 2 == 0 else self.seller,
+                content=f'Message {i}',
+                created_at=now + timezone.timedelta(seconds=i)
+            ))
+        Message.objects.bulk_create(msgs)
+        self.client = APIClient()
+        token = RefreshToken.for_user(self.buyer)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token.access_token)}')
+
+    def test_cursor_pagination(self):
+        # Initial request: limit=20 -> returns latest 20 messages with has_more=True
+        res = self.client.get(f'/api/conversations/{self.conv.id}/messages/?limit=20')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn('results', data)
+        self.assertEqual(len(data['results']), 20)
+        self.assertTrue(data['has_more'])
+        oldest_returned_id = data['results'][0]['id']
+        self.assertEqual(data['oldest_id'], oldest_returned_id)
+
+        # Second request using cursor: before_id=oldest_returned_id, limit=20
+        res2 = self.client.get(f'/api/conversations/{self.conv.id}/messages/?before_id={oldest_returned_id}&limit=20')
+        self.assertEqual(res2.status_code, 200)
+        data2 = res2.json()
+        self.assertEqual(len(data2['results']), 20)
+        self.assertTrue(data2['has_more'])
+        oldest_second_batch_id = data2['results'][0]['id']
+
+        # Third request: remaining 5 messages -> has_more should be False
+        res3 = self.client.get(f'/api/conversations/{self.conv.id}/messages/?before_id={oldest_second_batch_id}&limit=20')
+        self.assertEqual(res3.status_code, 200)
+        data3 = res3.json()
+        self.assertEqual(len(data3['results']), 5)
+        self.assertFalse(data3['has_more'])

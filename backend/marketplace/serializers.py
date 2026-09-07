@@ -423,6 +423,8 @@ class ProductSerializer(serializers.ModelSerializer):
     inspection_verdict = serializers.SerializerMethodField()  # FIX B-19
 
     inspections = serializers.SerializerMethodField()
+    has_post_inspection_changes = serializers.SerializerMethodField()
+    inspection_events = serializers.SerializerMethodField()
     is_verified = serializers.BooleanField(read_only=True)
     latitude = serializers.FloatField(required=False, allow_null=True)
     longitude = serializers.FloatField(required=False, allow_null=True)
@@ -439,7 +441,7 @@ class ProductSerializer(serializers.ModelSerializer):
                   'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants',
                   'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug', 'seller', 'seller_username', 'seller_full_name', 'seller_verified',
                   'seller_tier', 'seller_profile_picture', 'condition', 'requires_quote',
-                  'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'is_verified', 'vehicle_ids', 'oem_part_number',
+                  'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'has_post_inspection_changes', 'inspection_events', 'is_verified', 'vehicle_ids', 'oem_part_number',
                   'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude', 'distance',
                   'weight_kg', 'size', 'can_review', 'is_sponsored', 'specifications',
                   'brand', 'reference_product', 'structured_specs', 'brand_details', 'reference_product_details']
@@ -487,6 +489,13 @@ class ProductSerializer(serializers.ModelSerializer):
         # View uses prefetch_related for obj.inspections, avoiding N+1
         from inspections.serializers import InspectionSummarySerializer
         return InspectionSummarySerializer(obj.inspections.all(), many=True).data
+
+    def get_has_post_inspection_changes(self, obj):
+        return obj.inspection_events.exists()
+
+    def get_inspection_events(self, obj):
+        from inspections.serializers import ProductInspectionEventSerializer
+        return ProductInspectionEventSerializer(obj.inspection_events.all()[:20], many=True).data
 
     def get_can_review(self, obj):
         request = self.context.get('request')
@@ -1350,7 +1359,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = ['id', 'user', 'user_id', 'username', 'first_name', 'last_name', 'is_verified', 'phone_number', 'instagram_username',
                   'whatsapp_number', 'facebook_url', 'tiktok_username', 'twitter_username', 'youtube_url', 'linkedin_url',
-                  'website', 'bio', 'tier', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
+                  'website', 'bio', 'tier', 'gender', 'location', 'latitude', 'longitude', 'profile_picture', 'banner_image',
                   'preferred_currency', 'seller_rating', 'store_images', 'is_location_verified', 'is_following',
                   'show_product_requests']
         read_only_fields = ['user', 'is_verified', 'tier', 'is_location_verified', 'latitude', 'longitude']  # FIX: S-07 — only staff/admin should set these
@@ -1689,7 +1698,7 @@ class SiteSettingsSerializer(serializers.ModelSerializer):  # FIX B-18
         model = SiteSettings
         fields = ['company_name', 'tagline', 'support_email', 'support_phone',
                   'whatsapp_number', 'address', 'facebook_url', 'instagram_url',
-                  'twitter_url', 'working_hours']
+                  'twitter_url', 'working_hours', 'for_you_image']
 
 
 class DeliveryZoneSerializer(serializers.ModelSerializer):  # FIX B-21

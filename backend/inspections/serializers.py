@@ -7,6 +7,7 @@ from .models import (
     InspectionPayment, InspectionAssignment, InspectionCheckIn,
     InspectionEvidence, InspectionReport, ChecklistResponse,
     ReInspection, InspectionNotification, FraudFlag, SLABreach,
+    ProductInspectionEvent,
 )
 
 
@@ -451,14 +452,45 @@ class InspectionRequestListSerializer(serializers.ModelSerializer):
             return None
 
 
+class ProductInspectionEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductInspectionEvent
+        fields = ['id', 'event_type', 'title', 'description', 'metadata', 'created_at']
+
+
 class InspectionSummarySerializer(serializers.ModelSerializer):
-    """Minimal serializer for product inspection history."""
+    """Minimal serializer for product inspection history with post-inspection audit tracking."""
     verdict = serializers.CharField(source='report.verdict', read_only=True)
     report_id = serializers.IntegerField(source='report.id', read_only=True)
+    quality_score = serializers.FloatField(source='report.quality_score', read_only=True)
+    grade = serializers.CharField(source='report.grade', read_only=True)
+    inspected_stock = serializers.SerializerMethodField()
+    has_post_inspection_changes = serializers.SerializerMethodField()
+    post_inspection_events = serializers.SerializerMethodField()
 
     class Meta:
         model = InspectionRequest
-        fields = ['id', 'inspection_id', 'status', 'verdict', 'report_id', 'created_at']
+        fields = [
+            'id', 'inspection_id', 'status', 'verdict', 'report_id',
+            'quality_score', 'grade', 'inspected_stock',
+            'has_post_inspection_changes', 'post_inspection_events', 'created_at'
+        ]
+
+    def get_inspected_stock(self, obj):
+        if obj.product_snapshot and isinstance(obj.product_snapshot, dict):
+            return obj.product_snapshot.get('stock')
+        return None
+
+    def get_has_post_inspection_changes(self, obj):
+        if obj.marketplace_product_id:
+            return obj.post_inspection_events.exists()
+        return False
+
+    def get_post_inspection_events(self, obj):
+        if obj.marketplace_product_id:
+            events = obj.post_inspection_events.all()[:20]
+            return ProductInspectionEventSerializer(events, many=True).data
+        return []
 
 
 class ReInspectionSerializer(serializers.ModelSerializer):

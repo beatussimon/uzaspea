@@ -85,6 +85,9 @@ interface MessageContextType {
   setActiveConversationId: (id: number | null) => void;
   messages: { [convId: number]: Message[] };
   fetchMessages: (convId: number) => Promise<Message[]>;
+  fetchOlderMessages: (convId: number) => Promise<boolean>;
+  hasMore: { [convId: number]: boolean };
+  loadingOlder: { [convId: number]: boolean };
   sendMessage: (convId: number, content: string) => Promise<void>;
   toasts: ChatToastData[];
   dismissToast: (id: string) => void;
@@ -132,6 +135,8 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { isAuthenticated, user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<{ [convId: number]: Message[] }>({});
+  const [hasMore, setHasMore] = useState<{ [convId: number]: boolean }>({});
+  const [loadingOlder, setLoadingOlder] = useState<{ [convId: number]: boolean }>({});
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [toasts, setToasts] = useState<ChatToastData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -316,6 +321,9 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
       );
       api.get(`/api/conversations/${activeConversationId}/messages/`).then(r => {
         const data = r.data.results || r.data || [];
+        const hasMoreData = r.data.has_more ?? false;
+        hasMoreRef.current[activeConversationId] = hasMoreData;
+        setHasMore(prev => ({ ...prev, [activeConversationId]: hasMoreData }));
         setMessages(prev => {
           const existing = prev[activeConversationId];
           if (existing && existing.length === data.length) {
@@ -416,6 +424,8 @@ const subscribeToWebPush = async () => {
     } else {
       setConversations([]);
       setMessages({});
+      setHasMore({});
+      setLoadingOlder({});
       setActiveConversationId(null);
       setToasts([]);
       setLoading(false);
@@ -430,6 +440,9 @@ const subscribeToWebPush = async () => {
   // Refs for instantaneous access in WebSocket callbacks
   const openChatWindowsRef = useRef<number[]>([]);
   const minimizedChatWindowsRef = useRef<number[]>([]);
+  const messagesRef = useRef<{ [convId: number]: Message[] }>({});
+  const hasMoreRef = useRef<{ [convId: number]: boolean }>({});
+  const loadingOlderRef = useRef<{ [convId: number]: boolean }>({});
 
   useEffect(() => {
     openChatWindowsRef.current = openChatWindows;
@@ -438,6 +451,18 @@ const subscribeToWebPush = async () => {
   useEffect(() => {
     minimizedChatWindowsRef.current = minimizedChatWindows;
   }, [minimizedChatWindows]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  useEffect(() => {
+    loadingOlderRef.current = loadingOlder;
+  }, [loadingOlder]);
 
   // Connect WebSocket
   const connectWS = useCallback(async () => {
@@ -702,12 +727,17 @@ const subscribeToWebPush = async () => {
     try {
       const res = await api.get(`/api/conversations/${convId}/messages/`);
       const data = res.data.results || res.data || [];
+      const hasMoreData = res.data.has_more ?? false;
+      hasMoreRef.current[convId] = hasMoreData;
+      setHasMore(prev => ({ ...prev, [convId]: hasMoreData }));
+
       setMessages(prev => {
         const existing = prev[convId];
         if (existing && existing.length === data.length) {
           const isSame = existing.every((m, idx) => m.id === data[idx]?.id && m.is_read === data[idx]?.is_read && m.content === data[idx]?.content);
           if (isSame) return prev;
         }
+        messagesRef.current[convId] = data;
         return {
           ...prev,
           [convId]: data,
@@ -717,6 +747,60 @@ const subscribeToWebPush = async () => {
     } catch (e) {
       console.error(`Failed to fetch messages for conv ${convId}`, e);
       return [];
+    }
+  }, []);
+
+  // Fetch older messages (reverse infinite scroll pagination)
+  const fetchOlderMessages = useCallback(async (convId: number): Promise<boolean> => {
+    if (loadingOlderRef.current[convId] || hasMoreRef.current[convId] === false) {
+      return false;
+    }
+
+    const currentList = messagesRef.current[convId] || [];
+    if (currentList.length === 0) return false;
+
+    // Retrieve the oldest real message (exclude negative-id optimistic messages)
+    const oldestRealMsg = currentList.find(m => m.id > 0);
+    if (!oldestRealMsg) return false;
+
+    loadingOlderRef.current[convId] = true;
+    setLoadingOlder(prev => ({ ...prev, [convId]: true }));
+
+    try {
+      const res = await api.get(`/api/conversations/${convId}/messages/`, {
+        params: {
+          before_id: oldestRealMsg.id,
+          limit: 30,
+        },
+      });
+
+      const olderMsgs = res.data.results || res.data || [];
+      const hasMoreData = res.data.has_more ?? false;
+
+      hasMoreRef.current[convId] = hasMoreData;
+      setHasMore(prev => ({ ...prev, [convId]: hasMoreData }));
+
+      if (olderMsgs.length > 0) {
+        setMessages(prev => {
+          const existing = prev[convId] || [];
+          const existingIds = new Set(existing.map(m => m.id));
+          const deduplicatedOlder = olderMsgs.filter((m: Message) => !existingIds.has(m.id));
+          if (deduplicatedOlder.length === 0) return prev;
+          const merged = [...deduplicatedOlder, ...existing];
+          messagesRef.current[convId] = merged;
+          return {
+            ...prev,
+            [convId]: merged,
+          };
+        });
+      }
+      return true;
+    } catch (e) {
+      console.error(`Failed to fetch older messages for conv ${convId}`, e);
+      return false;
+    } finally {
+      loadingOlderRef.current[convId] = false;
+      setLoadingOlder(prev => ({ ...prev, [convId]: false }));
     }
   }, []);
 
@@ -849,6 +933,9 @@ const subscribeToWebPush = async () => {
     setActiveConversationId,
     messages,
     fetchMessages,
+    fetchOlderMessages,
+    hasMore,
+    loadingOlder,
     sendMessage,
     toasts,
     dismissToast,
@@ -891,7 +978,7 @@ const subscribeToWebPush = async () => {
     loadConversations,
   }), [
     conversations, totalUnread, activeConversationId, setActiveConversationId,
-    messages, fetchMessages, sendMessage, toasts, dismissToast, loading,
+    messages, fetchMessages, fetchOlderMessages, hasMore, loadingOlder, sendMessage, toasts, dismissToast, loading,
     setConversations, setMessages, typingStatus, sendTypingStatus,
     isMessengerListOpen, setIsMessengerListOpen, openChatWindows, minimizedChatWindows, prefillMessages,
     openChatWindow, minimizeChatWindow, closeChatWindow, toggleMessengerList,

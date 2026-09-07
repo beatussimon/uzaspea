@@ -4,11 +4,12 @@ import { motion } from 'framer-motion';
 import { 
   Moon, Sun, Shield, Settings, ShoppingBag, 
   LayoutDashboard, ShieldCheck, LogOut, HelpCircle, 
-  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Globe, Heart, Search,
+  ChevronDown, PlusCircle, MessageSquare, ClipboardList, ShoppingCart, Heart, Search,
   RefreshCw
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import VerifiedBadge from '../VerifiedBadge';
+import LanguageSelector from './LanguageSelector';
 import { useCart } from '../../context/CartContext';
 import NotificationBell from './NotificationBell';
 import { useAuth, useUserRoles } from '../../context/AuthContext';
@@ -19,7 +20,7 @@ import { API_BASE_URL } from '../../api';
 
 const Navbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { isAuthenticated, user, logout } = useAuth();
   const roles = useUserRoles();
   const { isDark, toggleTheme } = useTheme();
@@ -305,20 +306,7 @@ const Navbar = () => {
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
               <span className={tooltipClass}>{isDark ? t('light_mode', 'Light Mode') : t('dark_mode', 'Dark Mode')}</span>
             </button>
-            <button 
-              onClick={() => {
-                const currentLang = i18n.language?.split('-')[0] || 'en';
-                i18n.changeLanguage(currentLang === 'sw' ? 'en' : 'sw');
-              }} 
-              className={`${themeButtonClass} inline-flex items-center justify-center gap-1 min-w-[50px]`}
-              aria-label="Toggle Language"
-            >
-              <Globe size={18} />
-              <span className="text-[10px] font-bold uppercase">
-                {i18n.language?.split('-')[0] || 'EN'}
-              </span>
-              <span className={tooltipClass}>{i18n.language?.split('-')[0] === 'sw' ? 'English' : 'Swahili'}</span>
-            </button>
+            <LanguageSelector variant="navbar-dropdown" />
           </div>
 
           {/* User Profile / Login (Desktop & Mobile handles profile differently) */}

@@ -177,17 +177,17 @@ const ProductRequestModal: React.FC<ProductRequestModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                  Preferred Condition
+                  {t('condition', 'Condition')}
                 </label>
                 <select
                   value={condition}
                   onChange={(e) => setCondition(e.target.value)}
                   className="w-full px-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
                 >
-                  <option value="New">Brand New</option>
-                  <option value="Refurbished">Refurbished</option>
-                  <option value="Used">Used - Good Condition</option>
-                  <option value="Any">Any Condition</option>
+                  <option value="New">{t('new', 'New')}</option>
+                  <option value="Refurbished">{t('refurbished', 'Refurbished')}</option>
+                  <option value="Used">{t('used', 'Used')}</option>
+                  <option value="Any">{t('any_condition', 'Any Condition')}</option>
                 </select>
               </div>
             </div>
