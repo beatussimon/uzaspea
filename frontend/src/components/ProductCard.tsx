@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { Star, Heart, Share2, Shield, Clock, Flame, TrendingUp, ShoppingBag } from 'lucide-react';
+import { Star, Heart, Share2, Clock, Flame, TrendingUp, ShoppingBag } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -38,7 +38,7 @@ const TrendingMetricBadge = ({ product, metricType = 'auto' }: { product: any; m
   }
 
   return (
-    <div className="flex items-center gap-1 text-[8.5px] font-black bg-neutral-900 text-white px-2 py-0.5 rounded-card border border-orange-500/40 shadow-md uppercase tracking-wider w-fit">
+    <div className="flex items-center gap-1 text-[9px] font-black bg-white/95 dark:bg-gray-800/95 text-gray-800 dark:text-gray-200 h-8 px-2.5 rounded-full border border-orange-500/50 shadow-md uppercase tracking-wider w-fit">
       {icon}
       <span>{label}</span>
     </div>
@@ -125,36 +125,24 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
 
       {viewMode === 'list' ? (
         <div className="absolute top-1 left-1 flex flex-col gap-1 z-10 pointer-events-none">
-          <span className={`text-[8px] px-1.5 py-0.5 rounded-card font-bold text-white shadow-sm uppercase w-fit ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
+          <span className={`h-6 px-1.5 flex items-center justify-center font-black text-[10px] uppercase tracking-wider w-fit ${product.condition === 'New' ? 'text-green-500' : 'text-gray-400'}`}>
             {product.condition === 'New' ? t('new', 'New') : t('used', 'Used')}
           </span>
-          {product.is_liked && (
-            <span className="bg-brand-500 text-white text-[8px] px-1.5 py-0.5 rounded-card font-black shadow-sm flex items-center gap-1 uppercase w-fit tracking-wider">
-              <Heart size={8} className="fill-current text-white" />
-              {t('saved', 'Saved')}
-            </span>
-          )}
         </div>
       ) : (
-        <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
+        <div className="absolute top-4 left-4 flex flex-col gap-4 z-10 pointer-events-none">
           {showTrendingMetrics && <TrendingMetricBadge product={product} metricType={showTrendingMetrics} />}
           {isSponsored && (
-            <span className="bg-brand-500 text-white text-[9px] px-2 py-0.5 rounded-card font-black shadow-md uppercase tracking-wider">
+            <span className="font-black text-sm uppercase tracking-wider leading-none w-fit text-brand-500 dark:text-brand-400">
               {t('sponsored', 'Sponsored')}
             </span>
           )}
-          <span className={`text-[9px] px-2 py-0.5 rounded-card font-bold text-white shadow-md uppercase tracking-wider w-fit ${product.condition === 'New' ? 'bg-green-500' : 'bg-gray-500'}`}>
+          <span className={`font-black text-sm uppercase tracking-wider leading-none w-fit ${product.condition === 'New' ? 'text-green-500' : 'text-gray-400'}`}>
             {product.condition === 'New' ? t('new', 'New') : t('used', 'Used')}
           </span>
           {!product.requires_quote && product.old_price > product.price && (
-            <span className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-card font-black shadow-md uppercase w-fit">
+            <span className="h-7 px-2 rounded-full font-black text-[10px] uppercase flex items-center justify-center w-fit shadow-md bg-white/95 dark:bg-gray-800/95 border border-red-500 dark:border-red-500/50 text-red-500 dark:text-red-400">
               -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
-            </span>
-          )}
-          {product.is_liked && (
-            <span className="bg-brand-500 text-white text-[9px] px-2 py-0.5 rounded-card font-black shadow-md flex items-center gap-1 uppercase w-fit tracking-wider">
-              <Heart size={10} className="fill-current text-white" />
-              {t('saved', 'Saved')}
             </span>
           )}
         </div>
@@ -303,12 +291,11 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
                    <span className="flex items-center gap-0.5 whitespace-nowrap shrink-0"><Clock size={8} /> {timeAgo(product.created_at)}</span>
                  </>
                )}
-               {product.is_verified && (
-                 <div className="flex items-center gap-1 text-[9px] text-brand-500 dark:text-brand-500 font-black   px-1.5 py-0.5 rounded-full border border-brand-500 dark:border-brand-500 ml-auto shrink-0" title={t('verified_seller', 'Verified Seller')}>
-                   <Shield size={10} className="fill-current" />
-                   <span className="uppercase tracking-widest text-[8px]">{t('verified', 'Verified')}</span>
-                 </div>
-               )}
+                {product.is_verified && (
+                  <div className="flex items-center text-[9px] text-brand-500 dark:text-brand-500 font-black px-1.5 py-0.5 rounded-full border border-brand-500 dark:border-brand-500 ml-auto shrink-0" title={t('verified_seller', 'Verified Seller')}>
+                    <span className="uppercase tracking-widest text-[8px]">{t('verified', 'Verified')}</span>
+                  </div>
+                )}
             </div>
             <h3 className="font-bold text-sm md:text-base text-gray-900 dark:text-white line-clamp-1 mb-1">{product.name}</h3>
             
@@ -372,14 +359,12 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
           <div className="flex flex-wrap items-center gap-1">
             <div className="flex flex-wrap items-center gap-1">
               {product.is_verified && (
-                 <div className="flex items-center gap-0.5 text-[7.5px] text-brand-500 dark:text-brand-500 font-black   px-1.5 py-0.5 rounded-card border border-brand-500/50 dark:border-brand-500/30 whitespace-nowrap shrink-0 shadow-sm" title={t('verified_seller', 'Verified Seller')}>
-                   <Shield size={8} className="fill-current" />
+                 <div className="flex items-center text-[7.5px] text-brand-500 dark:text-brand-500 font-black px-1.5 py-0.5 rounded-card border border-brand-500/50 dark:border-brand-500/30 whitespace-nowrap shrink-0 shadow-sm" title={t('verified_seller', 'Verified Seller')}>
                    <span className="uppercase tracking-widest text-[7.5px]">{t('verified', 'Verified')}</span>
                  </div>
               )}
               {product.has_inspection && (
-                 <div className="flex items-center gap-0.5 text-[7.5px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50/95 dark:bg-emerald-900/90 px-1.5 py-0.5 rounded-card border border-emerald-100/50 dark:border-emerald-800/30 whitespace-nowrap shrink-0 shadow-sm" title={t('professionally_inspected', 'Professionally Inspected')}>
-                   <Shield size={8} />
+                 <div className="flex items-center text-[7.5px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50/95 dark:bg-emerald-900/90 px-1.5 py-0.5 rounded-card border border-emerald-100/50 dark:border-emerald-800/30 whitespace-nowrap shrink-0 shadow-sm" title={t('professionally_inspected', 'Professionally Inspected')}>
                    <span className="uppercase tracking-widest text-[7.5px]">{t('inspected_label', 'Inspected ✓')}</span>
                  </div>
               )}

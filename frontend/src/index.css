@@ -297,6 +297,14 @@
   .animate-slide-up {
     animation: slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
   }
+
+  @keyframes slide-in-left {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+  }
+  .animate-slide-in-left {
+    animation: slide-in-left 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
 }
 
 @media print {
