@@ -104,6 +104,8 @@ function AppRoutes() {
       <Routes location={backgroundLocation || location}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/products" element={<ProductList />} />
+        <Route path="/browse_products" element={<ProductList />} />
+        <Route path="/browse" element={<ProductList />} />
         {/* Also keep product route here for direct URL access (no modal state) */}
         <Route path="/product/:slug" element={<ProductDetailPage />} />
         <Route path="/cart" element={<CartPage />} />

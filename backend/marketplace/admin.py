@@ -247,7 +247,7 @@ class LipaNumberAdmin(admin.ModelAdmin):
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
     fieldsets = [
-        ('Platform Identity', {'fields': ['company_name', 'tagline']}),
+        ('Platform Identity', {'fields': ['company_name', 'tagline', 'for_you_image']}),
         ('Contact', {'fields': ['support_email', 'support_phone', 'whatsapp_number', 'address', 'working_hours']}),
         ('Social', {'fields': ['facebook_url', 'instagram_url', 'twitter_url']}),
         ('Business Rules', {'fields': ['commission_rate']}),

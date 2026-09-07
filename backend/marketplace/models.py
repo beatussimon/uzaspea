@@ -753,6 +753,12 @@ class UserProfile(models.Model):
         default='TZS'
     )
     terms_accepted = models.BooleanField(default=False)
+    gender = models.CharField(
+        max_length=15,
+        choices=[('female', 'Female'), ('male', 'Male'), ('other', 'Other'), ('unspecified', 'Unspecified')],
+        default='unspecified',
+        blank=True
+    )
     show_product_requests = models.BooleanField(default=True, help_text="Show Coming Soon / Requested items tab on profile")
     # FIX: S-12 — removed conflicting M2M field; Use Follow model for following relationships
 
@@ -1239,6 +1245,12 @@ class SiteSettings(models.Model):
     driver_payout_percentage = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('70.00'),
         help_text="Percentage of an order's shipping fee paid out to the delivering driver for standard (non-vehicle) deliveries."
+    )
+    for_you_image = models.ImageField(
+        upload_to='site_settings/',
+        blank=True,
+        null=True,
+        help_text="Custom image shown inside the rotating 'For You' circle in the category bar."
     )
 
     class Meta:

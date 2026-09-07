@@ -14,6 +14,9 @@ interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
  * Replaces errored images with an elegant SVG icon placeholder supporting dark mode.
  * Supports different containment modes including blurred-edge fill for arbitrary aspect ratios.
  */
+// Global set of already-loaded images to bypass re-animation and load instantly
+const loadedImageUrls = new Set<string>();
+
 const SafeImage: React.FC<SafeImageProps> = ({
   fallback, // no longer needed, we use the icon
   onError,
@@ -27,8 +30,14 @@ const SafeImage: React.FC<SafeImageProps> = ({
   onLoad,
   ...props
 }) => {
+  let safeSrc = src;
+  if (typeof safeSrc === 'string' && safeSrc.startsWith('http://') && window.location.protocol === 'https:') {
+    safeSrc = safeSrc.replace('http://', 'https://');
+  }
+
+  const isAlreadyLoaded = Boolean(safeSrc && loadedImageUrls.has(safeSrc));
   const [errored, setErrored] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(isAlreadyLoaded);
   const [containerRatio, setContainerRatio] = useState<number | null>(null);
   const [imageRatio, setImageRatio] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,9 +45,10 @@ const SafeImage: React.FC<SafeImageProps> = ({
 
   useEffect(() => {
     if (imageRef.current && imageRef.current.complete) {
+      if (safeSrc) loadedImageUrls.add(safeSrc);
       setIsLoaded(true);
     }
-  }, []);
+  }, [safeSrc]);
 
   const measureContainer = useCallback(() => {
     if (containerRef.current) {
@@ -69,11 +79,6 @@ const SafeImage: React.FC<SafeImageProps> = ({
     };
   }, [containMode, measureContainer]);
 
-  let safeSrc = src;
-  if (typeof safeSrc === 'string' && safeSrc.startsWith('http://') && window.location.protocol === 'https:') {
-    safeSrc = safeSrc.replace('http://', 'https://');
-  }
-
   const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     if (!errored) {
       setErrored(true);
@@ -82,6 +87,7 @@ const SafeImage: React.FC<SafeImageProps> = ({
   };
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (safeSrc) loadedImageUrls.add(safeSrc);
     setIsLoaded(true);
     const img = e.currentTarget;
     if (img.naturalWidth && img.naturalHeight) {
@@ -326,9 +332,11 @@ const SafeImage: React.FC<SafeImageProps> = ({
           loading={loading}
           onError={handleError}
           onLoad={handleLoad}
-          className={`relative z-10 w-full h-full transition-all duration-500 ease-out ${
-            shouldBlur ? 'object-contain max-w-full max-h-full' : 'object-cover'
-          } ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+          className={`relative z-10 w-full h-full ${
+            isAlreadyLoaded || isLoaded
+              ? 'opacity-100 scale-100'
+              : 'opacity-0 scale-95 transition-opacity duration-150 ease-out'
+          } ${shouldBlur ? 'object-contain max-w-full max-h-full' : 'object-cover'}`}
         />
       </div>
     );
@@ -338,7 +346,11 @@ const SafeImage: React.FC<SafeImageProps> = ({
     <img
       {...props}
       ref={imageRef}
-      className={`${className} transition-all duration-500 ease-out ${isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm'} ${containMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+      className={`${className} ${
+        isAlreadyLoaded || isLoaded
+          ? 'opacity-100'
+          : 'opacity-0 transition-opacity duration-150 ease-out'
+      } ${containMode === 'contain' ? 'object-contain' : 'object-cover'}`}
       alt={alt}
       src={safeSrc}
       loading={loading}

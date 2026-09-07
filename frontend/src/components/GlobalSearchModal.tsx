@@ -482,7 +482,7 @@ const GlobalSearchModal: React.FC = () => {
             className="relative w-full max-w-5xl h-[85vh] max-h-[85dvh] bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-[24px] shadow-2xl border border-neutral-200/80 dark:border-neutral-800/80 flex flex-col overflow-hidden pointer-events-auto min-h-0"
           >
             {/* Top Search Area: Centered with a brand-colored bottom line and no box */}
-            <div className="relative z-10 bg-transparent shrink-0 px-4 sm:px-6 pt-3 pb-2">
+            <div className="relative z-10 bg-transparent shrink-0 px-4 sm:px-6 pt-3 pb-2 flex items-center justify-center">
               <form 
                 onSubmit={handleSubmit} 
                 className="w-full max-w-2xl mx-auto relative flex items-center justify-center border-b-2 border-brand-500 pb-1 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:outline-none !ring-0 !shadow-none !outline-none"
@@ -491,36 +491,47 @@ const GlobalSearchModal: React.FC = () => {
                 <input
                   ref={inputRef}
                   type="text"
+                  enterKeyHint="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={sellerScope ? `Search @${sellerScope.username}'s products...` : t('search_placeholder', 'Search products, categories, or brands...')}
-                  className="w-full h-14 sm:h-16 px-14 sm:px-16 text-center bg-transparent text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-600 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 !ring-0 !outline-none !shadow-none border-0 shadow-none"
+                  className="w-full h-14 sm:h-16 px-10 text-center bg-transparent text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-600 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 !ring-0 !outline-none !shadow-none border-0 shadow-none"
                   style={{ outline: 'none', boxShadow: 'none' }}
                 />
 
-                {/* Right controls: Clear, Mobile Filter Toggle, Search button, ESC */}
-                <div className="absolute right-2 sm:right-3 flex items-center gap-2">
+                {/* Inside form controls: Clear query and Mobile Filter toggle */}
+                <div className="absolute right-1 sm:right-2 flex items-center gap-1.5">
                   {query && (
-                    <button type="button" onClick={() => { setQuery(''); inputRef.current?.focus(); }} className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors focus:outline-none focus:ring-0 focus-visible:ring-0">
+                    <button 
+                      type="button" 
+                      onClick={() => { setQuery(''); inputRef.current?.focus(); }} 
+                      className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors focus:outline-none focus:ring-0 focus-visible:ring-0"
+                      title="Clear search"
+                    >
                       <X className="w-5 h-5" />
                     </button>
                   )}
-                  <button type="button" onClick={() => setShowMobileFilters(!showMobileFilters)} className="md:hidden flex items-center gap-1 p-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 focus:outline-none focus:ring-0 focus-visible:ring-0">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowMobileFilters(!showMobileFilters)} 
+                    className="md:hidden flex items-center gap-1 p-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 focus:outline-none focus:ring-0 focus-visible:ring-0"
+                    title="Filters"
+                  >
                     <Filter className="w-4 h-4" />
                     {activeFilterCount > 0 && <span className="w-2 h-2 bg-brand-500 rounded-full"></span>}
                   </button>
-                  <button
-                    type="submit"
-                    className="p-1.5 rounded-lg text-brand-500 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-500/10 transition-colors flex items-center justify-center cursor-pointer focus:outline-none focus:ring-0 focus-visible:ring-0"
-                    title="Search"
-                  >
-                    <Search className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </button>
-                  <div className="hidden sm:flex items-center gap-1 text-[10px] font-bold text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded">
-                    <span>ESC</span>
-                  </div>
                 </div>
               </form>
+
+              {/* ESC badge positioned on the far right (Desktop only) */}
+              <button
+                type="button"
+                onClick={closeSearch}
+                className="hidden md:flex absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 items-center gap-1 text-[11px] font-bold text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 bg-neutral-100/90 hover:bg-neutral-200/90 dark:bg-neutral-800/80 dark:hover:bg-neutral-700/80 px-2.5 py-1.5 rounded-lg border border-neutral-200/60 dark:border-neutral-700/60 transition-colors cursor-pointer select-none focus:outline-none"
+                title="Press ESC or click to close"
+              >
+                <span>ESC</span>
+              </button>
             </div>
 
             {/* Seller Scope Banner */}
@@ -676,13 +687,13 @@ const GlobalSearchModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">Condition</label>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">{t('condition', 'Condition')}</label>
                   <select value={condition} onChange={(e) => setCondition(e.target.value)} className="w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow">
-                    <option value="">Any Condition</option>
-                    <option value="new">New</option>
-                    <option value="used">Used</option>
-                    <option value="used_good">Used - Good</option>
-                    <option value="used_fair">Used - Fair</option>
+                    <option value="">{t('any_condition', 'Any Condition')}</option>
+                    <option value="New">{t('new', 'New')}</option>
+                    <option value="Used">{t('used', 'Used')}</option>
+                    <option value="Refurbished">{t('refurbished', 'Refurbished')}</option>
+                    <option value="Like_New">{t('like_new', 'Like New')}</option>
                   </select>
                 </div>
 
@@ -797,11 +808,11 @@ const GlobalSearchModal: React.FC = () => {
 
                       <div className="flex gap-2">
                         <select value={condition} onChange={(e) => setCondition(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none">
-                          <option value="">Any Condition</option>
-                          <option value="new">New</option>
-                          <option value="used">Used</option>
-                          <option value="used_good">Used - Good</option>
-                          <option value="used_fair">Used - Fair</option>
+                          <option value="">{t('any_condition', 'Any Condition')}</option>
+                          <option value="New">{t('new', 'New')}</option>
+                          <option value="Used">{t('used', 'Used')}</option>
+                          <option value="Refurbished">{t('refurbished', 'Refurbished')}</option>
+                          <option value="Like_New">{t('like_new', 'Like New')}</option>
                         </select>
                         <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none">
                           <option value="">Newest</option>
@@ -1029,8 +1040,12 @@ const GlobalSearchModal: React.FC = () => {
                                         )}
                                       </p>
                                       <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate flex items-center gap-1">
-                                        {item.category_name} 
-                                        {item.condition && <span className="opacity-50">• {item.condition}</span>}
+                                        {item.category_name}
+                                        {item.condition && (
+                                          <span className="opacity-50">
+                                            • {item.condition.toLowerCase() === 'new' ? t('new', 'MPYA') : item.condition.toLowerCase() === 'used' ? t('used', 'IMETUMIKA') : item.condition.toLowerCase() === 'refurbished' ? t('refurbished', 'Iliyokarabatiwa') : item.condition}
+                                          </span>
+                                        )}
                                       </p>
                                     </>
                                   )}

@@ -5,3 +5,7 @@ class InspectionsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'inspections'
     verbose_name = 'Inspection System'
+
+    def ready(self):
+        import inspections.signals
+

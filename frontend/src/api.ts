@@ -28,6 +28,10 @@ api.interceptors.request.use((config) => {
     config.headers['X-CSRFToken'] = csrfToken;
   }
 
+  // Language preference
+  const currentLang = localStorage.getItem('uzaspea_language') || 'en';
+  config.headers['Accept-Language'] = currentLang;
+
   return config;
 });
 

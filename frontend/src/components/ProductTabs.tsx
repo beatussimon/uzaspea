@@ -100,16 +100,16 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
       setLoadingReviews(true);
       api.get(`/api/reviews/?product=${productId}`)
         .then((res) => setReviews(res.data.results || res.data || []))
-        .catch(() => toast.error('Failed to load reviews'))
+        .catch(() => toast.error(t('failed_to_load_reviews', 'Failed to load reviews')))
         .finally(() => setLoadingReviews(false));
     } else {
       setLoadingComments(true);
       api.get(`/api/comments/?product=${productId}`)
         .then((res) => setComments(res.data.results || res.data || []))
-        .catch(() => toast.error('Failed to load comments'))
+        .catch(() => toast.error(t('failed_to_load_comments', 'Failed to load comments')))
         .finally(() => setLoadingComments(false));
     }
-  }, [activeTab, productId]);
+  }, [activeTab, productId, t]);
 
   const handlePostComment = async () => {
     if (!commentText.trim()) return;
@@ -121,9 +121,9 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
       });
       setComments((prev) => [res.data, ...prev]);
       setCommentText('');
-      toast.success('Comment posted!');
+      toast.success(t('comment_posted', 'Comment posted!'));
     } catch {
-      toast.error('Login to post comments');
+      toast.error(t('login_to_post_comment', 'Login to post comments'));
     } finally {
       setSubmitting(false);
     }
@@ -198,7 +198,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
                     ))}
                   </div>
                   <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">
-                    {reviews.length} {reviews.length === 1 ? 'verified review' : 'verified reviews'}
+                    {reviews.length} {reviews.length === 1 ? t('verified_review', 'verified review') : t('verified_reviews', 'verified reviews')}
                   </span>
                 </div>
 
@@ -234,9 +234,9 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
                 <div className="w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mx-auto mb-3 text-neutral-400">
                   <Star size={22} className="stroke-[1.5]" />
                 </div>
-                <p className="font-bold text-sm text-neutral-900 dark:text-white mb-1">No reviews yet</p>
+                <p className="font-bold text-sm text-neutral-900 dark:text-white mb-1">{t('no_reviews_yet', 'No reviews yet')}</p>
                 <p className="text-xs text-neutral-400 max-w-sm mx-auto">
-                  Only verified buyers who completed their order can leave product reviews.
+                  {t('reviews_buyers_only', 'Only verified buyers who completed their order can leave product reviews.')}
                 </p>
               </div>
             ) : (
@@ -255,7 +255,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
                           {review.user_full_name || `@${review.username}`}
                           {review.username === sellerUsername && (
                             <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase tracking-wider bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                              Seller
+                              {t('seller', 'Seller')}
                             </span>
                           )}
                         </span>
@@ -263,7 +263,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
                         {/* Verified Purchase Badge */}
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
                           <CheckCircle2 size={11} className="stroke-[2.5]" />
-                          Verified Purchase
+                          {t('verified_purchase', 'Verified Purchase')}
                         </span>
 
                         <span className="text-xs text-neutral-400 dark:text-neutral-500 ml-auto">
@@ -307,7 +307,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
             {/* Comment Composer */}
             <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800">
               <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
-                Ask a question or share feedback
+                {t('ask_question_share_feedback', 'Ask a question or share feedback')}
               </h4>
               <textarea
                 className="w-full bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none dark:text-white resize-none transition-all placeholder:text-neutral-400"
@@ -331,7 +331,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
                   className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold px-4 py-1.5 rounded-full text-xs transition flex items-center gap-1.5 shadow-sm"
                 >
                   {submitting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                  <span>{submitting ? t('posting', 'Posting...') : t('comment_btn', 'Post Comment')}</span>
+                  <span>{submitting ? t('posting', 'Posting...') : t('post_comment', 'Post Comment')}</span>
                 </button>
               </div>
             </div>
@@ -346,9 +346,9 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
                 <div className="w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mx-auto mb-3 text-neutral-400">
                   <MessageSquare size={22} className="stroke-[1.5]" />
                 </div>
-                <p className="font-bold text-sm text-neutral-900 dark:text-white mb-1">No questions or comments yet</p>
+                <p className="font-bold text-sm text-neutral-900 dark:text-white mb-1">{t('no_comments_yet', 'No questions or comments yet')}</p>
                 <p className="text-xs text-neutral-400 max-w-sm mx-auto">
-                  Have a question about this item? Ask the seller above and receive verified answers.
+                  {t('ask_seller_notice', 'Have a question about this item? Ask the seller above and receive verified answers.')}
                 </p>
               </div>
             ) : (
@@ -417,7 +417,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
                                   {reply.user_full_name || `@${reply.username}`}
                                   {reply.username === sellerUsername && (
                                     <span className="px-1 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                                      Seller
+                                      {t('seller', 'Seller')}
                                     </span>
                                   )}
                                 </span>
@@ -465,9 +465,9 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
                                 setComments((prev) => [...prev, res.data]);
                                 setReplyText('');
                                 setReplyingTo(null);
-                                toast.success('Reply posted!');
+                                toast.success(t('reply_posted', 'Reply posted!'));
                               } catch {
-                                toast.error('Failed to post reply');
+                                toast.error(t('failed_to_post_reply', 'Failed to post reply'));
                               } finally {
                                 setSubmitting(false);
                               }

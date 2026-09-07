@@ -3,11 +3,22 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpBackend from 'i18next-http-backend';
 
+export const SUPPORTED_LANGUAGES = [
+  { code: 'sw', label: 'Kiswahili', nativeLabel: 'Kiswahili', flag: '🇹🇿', region: 'Tanzania' },
+  { code: 'en', label: 'English', nativeLabel: 'English', flag: '🇬🇧', region: 'International' },
+  { code: 'fr', label: 'Français', nativeLabel: 'Français', flag: '🇨🇩', region: 'RDC / Congo' },
+] as const;
+
+export type SupportedLanguageCode = typeof SUPPORTED_LANGUAGES[number]['code'];
+
 i18n
   .use(HttpBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
+    supportedLngs: ['sw', 'en', 'fr'],
+    nonExplicitSupportedLngs: true,
+    load: 'languageOnly',
     fallbackLng: 'en',
     backend: {
       loadPath: '/locales/{{lng}}/translation.json',
@@ -25,3 +36,4 @@ i18n
   });
 
 export default i18n;
+

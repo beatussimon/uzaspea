@@ -107,6 +107,12 @@ const PublicVerifyPage: React.FC = () => {
                   <span className="font-mono text-xs text-gray-400">{result.report_hash.slice(0, 20)}…</span>
                 </div>
               )}
+              {result.inspected_stock !== null && result.inspected_stock !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Inspected Stock</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{result.inspected_stock} units</span>
+                </div>
+              )}
               {result.inspected_at && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Inspected</span>
@@ -114,6 +120,33 @@ const PublicVerifyPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Post-Inspection Activity Notice */}
+            {result.has_post_inspection_changes && result.post_inspection_events && result.post_inspection_events.length > 0 ? (
+              <div className="mt-5 pt-5 border-t border-gray-100 dark:border-neutral-800 space-y-2">
+                <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Activity Recorded After Inspection ({result.post_inspection_events.length})
+                </div>
+                <p className="text-2xs text-gray-500 dark:text-gray-400">
+                  Stock or details were updated after this inspection certificate was issued:
+                </p>
+                <div className="space-y-1.5">
+                  {result.post_inspection_events.map((ev: any, idx: number) => (
+                    <div key={idx} className="p-2 rounded-lg bg-gray-50 dark:bg-neutral-800/50 border border-gray-100 dark:border-neutral-800 text-xs">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{ev.title}</span>
+                        <span className="text-2xs text-gray-400">
+                          {fmtDate(ev.created_at)}
+                        </span>
+                      </div>
+                      {ev.description && (
+                        <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5">{ev.description}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {/* Render full report if verified */}
             {result.is_verified && result.summary && (

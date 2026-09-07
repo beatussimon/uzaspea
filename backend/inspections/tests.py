@@ -324,3 +324,95 @@ class AdvancedInspectionWorkflowTestCase(TestCase):
         # Verify gps_mismatch flag is created
         flags = FraudFlag.objects.filter(request=self.request_obj, flag_type="gps_mismatch")
         self.assertTrue(flags.exists())
+
+
+class ProductInspectionEventTests(TestCase):
+    def setUp(self):
+        from marketplace.models import Category, Product, ProductVariant
+        self.user = User.objects.create_user(username='seller_test', password='password123')
+        self.category = Category.objects.create(name='Electronics Tests', slug='electronics-tests')
+        self.insp_category = InspectionCategory.objects.create(name='Electronics Tests', slug='insp-electronics-tests')
+        self.product = Product.objects.create(
+            name='Test Phone',
+            price=Decimal('100000.00'),
+            stock=Decimal('2.00'),
+            condition='New',
+            seller=self.user,
+            category=self.category
+        )
+        self.inspection = InspectionRequest.objects.create(
+            client=self.user,
+            category=self.insp_category,
+            item_name=self.product.name,
+            item_description='Test Phone Desc',
+            item_address='Test Address',
+            marketplace_product=self.product,
+            status='published'
+        )
+
+    def test_stock_increase_creates_restock_event(self):
+        self.product.stock = Decimal('10.00')
+        self.product.save()
+
+        events = self.product.inspection_events.filter(event_type='restock')
+        self.assertEqual(events.count(), 1)
+        event = events.first()
+        self.assertIn('+8', event.title)
+        self.assertEqual(event.metadata['diff'], 8)
+
+    def test_stock_decrease_does_not_create_restock_event(self):
+        self.product.stock = Decimal('1.00')
+        self.product.save()
+
+        events = self.product.inspection_events.filter(event_type='restock')
+        self.assertEqual(events.count(), 0)
+
+    def test_price_change_creates_event(self):
+        self.product.price = Decimal('120000.00')
+        self.product.save()
+
+        events = self.product.inspection_events.filter(event_type='price_change')
+        self.assertEqual(events.count(), 1)
+        self.assertIn('120,000', events.first().description)
+
+    def test_condition_change_creates_event(self):
+        self.product.condition = 'Used'
+        self.product.save()
+
+        events = self.product.inspection_events.filter(event_type='condition_change')
+        self.assertEqual(events.count(), 1)
+        self.assertIn('Used', events.first().description)
+
+    def test_uninspected_product_does_not_create_event(self):
+        from marketplace.models import Category, Product
+        other_prod = Product.objects.create(
+            name='Uninspected Item',
+            price=Decimal('50000.00'),
+            stock=Decimal('1.00'),
+            seller=self.user,
+            category=self.category
+        )
+        other_prod.stock = Decimal('20.00')
+        other_prod.price = Decimal('60000.00')
+        other_prod.save()
+
+        self.assertEqual(other_prod.inspection_events.count(), 0)
+
+    def test_variant_restock_creates_event(self):
+        from marketplace.models import ProductVariant
+        variant = ProductVariant.objects.create(
+            product=self.product,
+            name='Blue 128GB',
+            stock=2
+        )
+        # Variant creation creates variant_change event
+        self.assertTrue(self.product.inspection_events.filter(event_type='variant_change').exists())
+
+        # Increasing variant stock creates restock event
+        variant.stock = 7
+        variant.save()
+
+        restock_events = self.product.inspection_events.filter(event_type='restock')
+        self.assertTrue(restock_events.exists())
+        self.assertIn('+5', restock_events.first().title)
+

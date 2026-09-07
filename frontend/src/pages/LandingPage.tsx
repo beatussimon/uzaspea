@@ -70,6 +70,16 @@ const LandingPage = () => {
         })
         .catch(() => {});
     }
+
+    const discGender = localStorage.getItem('preferred_gender') || 'female';
+    const discCacheKey = `discovery:feed:${discGender}`;
+    if (!apiCache.get(discCacheKey)) {
+      api.get('/api/products/discovery/', { params: { gender: discGender } })
+        .then(res => {
+          apiCache.set(discCacheKey, res.data);
+        })
+        .catch(() => {});
+    }
   }, []);
 
   const [showCategories] = useState(() => {

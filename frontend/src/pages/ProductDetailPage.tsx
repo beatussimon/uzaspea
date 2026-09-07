@@ -3,10 +3,13 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Heart, Star, X, Share2, Shield, MessageSquare, MapPin, 
   Clock, ChevronLeft, ChevronRight, ChevronDown, ShieldCheck, MoreVertical, Navigation, 
-  Search 
+  Search, AlertTriangle, RefreshCw, Tag, AlertCircle
 } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import api from '../api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -48,6 +51,8 @@ interface ProductData {
   images: { id: number; image: string }[];
   inspections: InspectionSummary[];
   is_verified: boolean;
+  has_post_inspection_changes?: boolean;
+  inspection_events?: ProductInspectionEvent[];
   can_review?: boolean;
   requires_quote?: boolean;
   location_name?: string;
@@ -67,12 +72,26 @@ interface ProductData {
   specifications?: Record<string, any>;
 }
 
+export interface ProductInspectionEvent {
+  id: number;
+  event_type: 'restock' | 'price_change' | 'condition_change' | 'detail_change' | 'image_change' | 'variant_change';
+  title: string;
+  description: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
 interface InspectionSummary {
   id: number;
   inspection_id: string;
   status: string;
   verdict: 'pass' | 'conditional' | 'fail' | null;
   report_id: number | null;
+  quality_score?: number | null;
+  grade?: string | null;
+  inspected_stock?: number | null;
+  has_post_inspection_changes?: boolean;
+  post_inspection_events?: ProductInspectionEvent[];
   created_at: string;
 }
 
@@ -92,14 +111,25 @@ const formatUnit = (count: number, unit?: string) => {
   const raw = (unit || 'piece').trim();
   const u = raw.toLowerCase();
   const num = Math.abs(count);
-  
-  if (num === 1) {
-    if (u === 'pieces') return 'piece';
-    if (u === 'items') return 'item';
-    if (u === 'units') return 'unit';
-    return raw;
+  const isSingular = num === 1;
+
+  if (['piece', 'pieces'].includes(u)) {
+    return isSingular ? i18n.t('unit_piece', 'piece') : i18n.t('unit_pieces', 'pieces');
   }
-  
+  if (['item', 'items', 'unit', 'units'].includes(u)) {
+    return isSingular ? i18n.t('unit_item', 'item') : i18n.t('unit_items', 'items');
+  }
+  if (['set', 'sets'].includes(u)) {
+    return isSingular ? i18n.t('unit_set', 'set') : i18n.t('unit_sets', 'sets');
+  }
+  if (['pair', 'pairs'].includes(u)) {
+    return isSingular ? i18n.t('unit_pair', 'pair') : i18n.t('unit_pairs', 'pairs');
+  }
+  if (['box', 'boxes'].includes(u)) {
+    return isSingular ? i18n.t('unit_box', 'box') : i18n.t('unit_boxes', 'boxes');
+  }
+
+  if (isSingular) return raw;
   if (u.endsWith('s') || u.endsWith('kg') || u.endsWith('g') || u.endsWith('l') || u.endsWith('ml') || u.endsWith('m') || u.endsWith('cm')) {
     return raw;
   }
@@ -248,10 +278,69 @@ const ImageLightbox = ({
   );
 };
 
-const ProductMap = ({ lat, lng, isDesktop, locationName }: { lat: string | number, lng: string | number, isDesktop: boolean, locationName?: string }) => {
+const ProductMap = ({ lat, lng, isDesktop }: { lat: string | number, lng: string | number, isDesktop: boolean, locationName?: string }) => {
   const [showMap, setShowMap] = React.useState(isDesktop);
+  const mapContainerRef = React.useRef<HTMLDivElement>(null);
+  const mapInstanceRef = React.useRef<L.Map | null>(null);
 
-  if (!lat || !lng) return null;
+  const numericLat = Number(lat);
+  const numericLng = Number(lng);
+
+  React.useEffect(() => {
+    if (!showMap || !mapContainerRef.current || isNaN(numericLat) || isNaN(numericLng)) return;
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([numericLat, numericLng], 11);
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 100);
+      return;
+    }
+
+    const map = L.map(mapContainerRef.current, {
+      center: [numericLat, numericLng],
+      zoom: 11,
+      scrollWheelZoom: false,
+      zoomControl: false,
+    });
+
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const pinIcon = L.divIcon({
+      className: 'bg-transparent border-0',
+      html: `
+        <div style="transform: translate(-50%, -100%); display: flex; align-items: center; justify-content: center;">
+          <svg width="28" height="36" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">
+            <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 32 12 32C12 32 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="#2563eb"/>
+            <circle cx="12" cy="12" r="4.5" fill="#ffffff"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0]
+    });
+
+    L.marker([numericLat, numericLng], { icon: pinIcon }).addTo(map);
+
+    mapInstanceRef.current = map;
+
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+      map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, [showMap, numericLat, numericLng]);
+
+  if (!lat || !lng || isNaN(numericLat) || isNaN(numericLng)) return null;
 
   return (
     <div className="flex flex-col">
@@ -266,23 +355,13 @@ const ProductMap = ({ lat, lng, isDesktop, locationName }: { lat: string | numbe
            </button>
          )}
       </div>
-      {locationName && <p className={`text-sm text-gray-500 flex items-center gap-1.5 ${showMap ? 'mb-4' : ''}`}><MapPin size={14}/>{locationName}</p>}
       
       {showMap && (
         <div className="w-full h-64 md:h-80 rounded-2xl overflow-hidden border border-gray-200 dark:border-neutral-800 relative z-0 bg-gray-100 dark:bg-gray-800">
-          <iframe
-            title="Location Map"
-            width="100%"
-            height="100%"
-            frameBorder="0"
-            scrolling="no"
-            marginHeight={0}
-            marginWidth={0}
-            loading="lazy"
-            src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(lng)-0.02}%2C${Number(lat)-0.02}%2C${Number(lng)+0.02}%2C${Number(lat)+0.02}&layer=mapnik&marker=${lat}%2C${lng}`}
-            className="w-full h-full"
-          />
-          <div className="absolute bottom-2 right-2 bg-white/90 dark:bg-black/90 px-3 py-1.5 text-[11px] rounded-lg shadow-lg z-10 backdrop-blur-md border border-gray-200 dark:border-gray-800 flex items-center gap-2.5">
+          <div ref={mapContainerRef} className="w-full h-full z-0" />
+
+          {/* Top Actions: Navigate & Open Map */}
+          <div className="absolute top-2.5 left-2.5 bg-white/95 dark:bg-black/95 px-3 py-1.5 text-[11px] rounded-lg shadow-md z-[1000] backdrop-blur-md border border-gray-200 dark:border-neutral-800 flex items-center gap-2.5">
             <a
               href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
               target="_blank"
@@ -293,7 +372,7 @@ const ProductMap = ({ lat, lng, isDesktop, locationName }: { lat: string | numbe
             </a>
             <span className="text-gray-300 dark:text-neutral-700">•</span>
             <a
-              href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`}
+              href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=11/${lat}/${lng}`}
               target="_blank"
               rel="noreferrer"
               className="text-brand-500 font-bold hover:underline"
@@ -943,7 +1022,7 @@ const ProductDetailPage: React.FC = () => {
                     className="flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-amber-500/10 hover:text-amber-500 transition-colors"
                   >
                     <Shield size={15} className="text-amber-500 shrink-0" />
-                    <span>Request Inspection</span>
+                    <span>{t('request_inspection', 'Request Inspection')}</span>
                   </Link>
 
                   {product.latitude && product.longitude && (
@@ -955,7 +1034,7 @@ const ProductDetailPage: React.FC = () => {
                       className="flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-blue-500/10 hover:text-blue-500 transition-colors"
                     >
                       <Navigation size={15} className="text-blue-500 shrink-0" />
-                      <span>Navigate to Item</span>
+                      <span>{t('navigate_to_item', 'Navigate to Item')}</span>
                     </a>
                   )}
                 </div>
@@ -1045,7 +1124,7 @@ const ProductDetailPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <div className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1.5 uppercase tracking-wider border border-emerald-200 dark:border-emerald-800/50">
                   <ShieldCheck size={13} />
-                  Verified {product.reference_product_details.brand_details?.name || product.brand_details?.name} {product.reference_product_details.model_name || ''} {product.reference_product_details.variant_name || ''}
+                  {t('verified', 'Verified')} {product.reference_product_details.brand_details?.name || product.brand_details?.name} {product.reference_product_details.model_name || ''} {product.reference_product_details.variant_name || ''}
                 </div>
               </div>
             )}
@@ -1107,11 +1186,17 @@ const ProductDetailPage: React.FC = () => {
 
               <span>•</span>
               <span className={`px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider ${
-                product.condition === 'New' 
+                (product.condition || '').toLowerCase() === 'new' 
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
                   : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
               }`}>
-                {product.condition}
+                {(product.condition || '').toLowerCase() === 'new'
+                  ? t('new', 'MPYA')
+                  : (product.condition || '').toLowerCase() === 'used'
+                    ? t('used', 'IMETUMIKA')
+                    : (product.condition || '').toLowerCase() === 'refurbished'
+                      ? t('refurbished', 'Iliyokarabatiwa')
+                      : product.condition}
               </span>
               {product.location_name && (
                 <>
@@ -1138,7 +1223,7 @@ const ProductDetailPage: React.FC = () => {
           {variants.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Select Variation</span>
+                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">{t('select_variation', 'Select Variation')}</span>
               </div>
                 
               <div className="flex flex-wrap gap-2">
@@ -1153,7 +1238,7 @@ const ProductDetailPage: React.FC = () => {
                       : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                   }`}
                 >
-                  Standard
+                  {t('standard_variant', 'Standard')}
                 </button>
                 {variants.map(v => (
                   <button
@@ -1178,7 +1263,7 @@ const ProductDetailPage: React.FC = () => {
                     )}
                     <span className={v.stock <= 0 ? 'line-through opacity-70' : ''}>{v.name}</span>
                     {v.stock <= 0 ? (
-                      <span className="text-[10px] uppercase text-red-500/80 dark:text-red-500/80 font-black ml-1">(Out of stock)</span>
+                      <span className="text-[10px] uppercase text-red-500/80 dark:text-red-500/80 font-black ml-1">({t('out_of_stock', 'Out of stock')})</span>
                     ) : !product.requires_quote && v.price_adjustment !== '0.00' && (
                       <span className="opacity-75 text-xs ml-1">
                         (+TSh {parseInt(v.price_adjustment).toLocaleString()})
@@ -1195,11 +1280,11 @@ const ProductDetailPage: React.FC = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                  {product.requires_quote ? 'Order Requirements' : 'Volume Pricing'}
+                  {product.requires_quote ? t('order_requirements', 'Order Requirements') : t('volume_pricing', 'Volume Pricing')}
                 </span>
                 {product.minimum_order_quantity && parseFloat(product.minimum_order_quantity) > 1 && (
                   <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                    Min: {formatQtyNum(product.minimum_order_quantity)} {formatUnit(parseFloat(product.minimum_order_quantity), product.unit_of_measure)}
+                    {t('min_order_prefix', 'Min:')} {formatQtyNum(product.minimum_order_quantity)} {formatUnit(parseFloat(product.minimum_order_quantity), product.unit_of_measure)}
                   </span>
                 )}
               </div>
@@ -1292,7 +1377,7 @@ const ProductDetailPage: React.FC = () => {
                     const isGeneric = ['piece', 'pieces', 'item', 'items', 'unit', 'units'].includes(u);
                     return (
                       <span className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-full text-[11px] font-bold shrink-0">
-                        {isGeneric ? `${formattedStock} in stock` : `${formattedStock} ${formatUnit(parseFloat(formattedStock), product.unit_of_measure)} in stock`}
+                        {isGeneric ? `${formattedStock} ${t('in_stock', 'in stock')}` : `${formattedStock} ${formatUnit(parseFloat(formattedStock), product.unit_of_measure)} ${t('in_stock', 'in stock')}`}
                       </span>
                     );
                   })()}
@@ -1323,7 +1408,7 @@ const ProductDetailPage: React.FC = () => {
             return (
               <div>
                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
-                  Specifications
+                  {t('specifications', 'Specifications')}
                 </h3>
                 <div className="bg-gray-50 dark:bg-[#242526] rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden transition-all">
                   {visibleSpecs.map(([key, value], idx) => (
@@ -1371,7 +1456,7 @@ const ProductDetailPage: React.FC = () => {
 
           {/* Merchant Trust & Info */}
           <div>
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Seller Info</h3>
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">{t('seller_info', 'Seller Info')}</h3>
             <div className="flex flex-col gap-3 bg-gray-50 dark:bg-[#242526] p-4 rounded-2xl border border-transparent">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -1437,7 +1522,7 @@ const ProductDetailPage: React.FC = () => {
                         type="text"
                         value={customMessage}
                         onChange={(e) => setCustomMessage(e.target.value)}
-                        placeholder="Hi, is this still available?"
+                        placeholder={t('quick_message_placeholder', 'Hi, is this still available?')}
                         className="flex-1 bg-white dark:bg-[#18191a] border border-gray-200 dark:border-neutral-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 dark:focus:border-amber-400 transition-colors shadow-2xs"
                       />
                       <button
@@ -1448,10 +1533,10 @@ const ProductDetailPage: React.FC = () => {
                         {isSendingMessage ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            <span>Sending...</span>
+                            <span>{t('sending', 'Sending...')}</span>
                           </>
                         ) : (
-                          <span>Send</span>
+                          <span>{t('send', 'Send')}</span>
                         )}
                       </button>
                     </form>
@@ -1462,21 +1547,27 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Verification & Inspection Services */}
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-gray-50 dark:bg-[#242526] border border-gray-100 dark:border-neutral-800 text-xs space-y-2.5">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-gray-50 dark:bg-[#242526] border border-gray-100 dark:border-neutral-800 text-xs space-y-2">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
-                {product.is_verified ? (
+                {product.has_post_inspection_changes ? (
+                  <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+                ) : product.is_verified ? (
                   <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
                 ) : (
-                  <Shield size={16} className="text-amber-500 shrink-0" />
+                  <Shield size={16} className="text-gray-400 dark:text-gray-500 shrink-0" />
                 )}
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="font-bold text-gray-900 dark:text-white truncate">
-                    {product.is_verified ? t('verified_listing', 'Verified Item') : t('professional_inspection', 'Professional Inspection')}
+                    {product.has_post_inspection_changes 
+                      ? t('inspected_altered_listing', 'Inspected (Altered/Restocked)')
+                      : product.is_verified 
+                        ? t('verified_listing', 'Verified Item') 
+                        : t('professional_inspection', 'Professional Inspection')}
                   </span>
                   {product.inspections && product.inspections.length > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-                      {product.inspections.length} {product.inspections.length === 1 ? 'Report' : 'Reports'}
+                      {product.inspections.length} {product.inspections.length === 1 ? t('report', 'Report') : t('reports', 'Reports')}
                     </span>
                   )}
                 </div>
@@ -1504,26 +1595,102 @@ const ProductDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Collapsible Inspection History */}
+            {/* Subtle text notice if altered after inspection (no loud card or shades) */}
+            {product.has_post_inspection_changes && (
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
+                {t('inspection_altered_subtle', 'Stock or details updated after inspection. View history for details.')}
+              </p>
+            )}
+
+            {/* Collapsible Inspection & Modification History */}
             {showInspectionHistory && product.inspections && product.inspections.length > 0 && (
               <div className="space-y-1.5 pt-2 border-t border-gray-200 dark:border-neutral-700/60 animate-fade-in">
-                {product.inspections.map((insp) => (
-                  <Link
-                    key={insp.id}
-                    to={`/verify/${insp.inspection_id}`}
-                    className="w-full flex items-center justify-between p-2 rounded-lg bg-white dark:bg-[#18191a] border border-gray-100 dark:border-neutral-800 hover:border-brand-500 transition-all text-xs"
-                  >
-                    <div>
-                      <span className="text-gray-400 text-2xs block">
-                        {new Date(insp.created_at).toLocaleDateString()} • #{insp.inspection_id}
-                      </span>
-                      <span className={`font-bold ${insp.verdict === 'pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                        {insp.verdict ? `Verdict: ${insp.verdict.toUpperCase()}` : `Status: ${insp.status.replace('_', ' ')}`}
-                      </span>
-                    </div>
-                    <span className="text-2xs font-bold text-brand-500 hover:underline">View Report →</span>
-                  </Link>
-                ))}
+                {(() => {
+                  type TimelineItem = 
+                    | { kind: 'inspection'; date: number; insp: InspectionSummary }
+                    | { kind: 'event'; date: number; event: ProductInspectionEvent };
+
+                  const items: TimelineItem[] = [
+                    ...product.inspections.map(insp => ({
+                      kind: 'inspection' as const,
+                      date: new Date(insp.created_at).getTime(),
+                      insp
+                    })),
+                    ...(product.inspection_events || []).map(event => ({
+                      kind: 'event' as const,
+                      date: new Date(event.created_at).getTime(),
+                      event
+                    }))
+                  ].sort((a, b) => b.date - a.date);
+
+                  return items.map((item, idx) => {
+                    if (item.kind === 'inspection') {
+                      const { insp } = item;
+                      return (
+                        <Link
+                          key={`insp-${insp.id}-${idx}`}
+                          to={`/verify/${insp.inspection_id}`}
+                          className="w-full flex items-center justify-between p-2 rounded-lg bg-white dark:bg-[#18191a] border border-gray-100 dark:border-neutral-800 hover:border-brand-500 transition-all text-xs"
+                        >
+                          <div className="flex items-start gap-2 min-w-0">
+                            <div className="mt-0.5 p-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                              <ShieldCheck size={13} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className={`font-bold ${insp.verdict === 'pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                                  {insp.verdict ? `${t('inspection_report', 'Inspection Report')}: ${insp.verdict.toUpperCase()}` : `${t('status_label', 'Status')}: ${insp.status.replace('_', ' ')}`}
+                                </span>
+                                {insp.grade && (
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-200 dark:border-emerald-800">
+                                    Grade {insp.grade}
+                                  </span>
+                                )}
+                                {insp.inspected_stock !== null && insp.inspected_stock !== undefined && (
+                                  <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                                    ({t('inspected_stock', 'Inspected stock')}: {insp.inspected_stock})
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-gray-400 text-2xs block mt-0.5">
+                                {new Date(insp.created_at).toLocaleDateString()} • #{insp.inspection_id}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-2xs font-bold text-brand-500 hover:underline shrink-0 ml-2">{t('view_report', 'View Report')} →</span>
+                        </Link>
+                      );
+                    } else {
+                      const { event } = item;
+                      return (
+                        <div
+                          key={`event-${event.id}-${idx}`}
+                          className="w-full flex items-start gap-2 p-2 rounded-lg bg-white dark:bg-[#18191a] border border-gray-100 dark:border-neutral-800 text-xs"
+                        >
+                          <div className="mt-0.5 p-1 text-gray-400 dark:text-gray-500 shrink-0">
+                            {event.event_type === 'restock' ? <RefreshCw size={12} /> :
+                             event.event_type === 'price_change' ? <Tag size={12} /> :
+                             <AlertCircle size={12} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-gray-900 dark:text-gray-100">{event.title}</span>
+                              <span className="text-[9px] text-gray-400 uppercase tracking-wider">
+                                • {event.event_type.replace('_', ' ')}
+                              </span>
+                            </div>
+                            {event.description && (
+                              <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5">{event.description}</p>
+                            )}
+                            <span className="text-gray-400 text-2xs block mt-0.5">
+                              {new Date(event.created_at).toLocaleDateString()} • {new Date(event.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+                  });
+                })()}
               </div>
             )}
           </div>

@@ -1,5 +1,4 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -12,12 +11,10 @@ import { ensureArray } from '../utils/arrayUtils';
 import SEO from '../components/SEO';
 import ExpandableSearch from '../components/ExpandableSearch';
 import { useUserLocation } from '../context/LocationContext';
+import DiscoveryFeed from '../components/discovery/DiscoveryFeed';
+import CategoryRecommendationShelf from '../components/discovery/CategoryRecommendationShelf';
 
-const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } } as any;
-const cardVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: 'easeOut' as any } },
-};
+
 
 type GridEntry =
   | { type: 'header' }
@@ -148,7 +145,7 @@ const ProductList = () => {
       if (cat) params.category = cat;
       
       searchParams.forEach((value, key) => {
-        if (!['page', 'page_size', 'category', 'subcategory'].includes(key) && value) {
+        if (!['page', 'page_size', 'category', 'subcategory', 'view'].includes(key) && value) {
           params[key] = value;
         }
       });
@@ -265,6 +262,17 @@ const ProductList = () => {
              if (!apiCache.get<any>(nextKey)) {
                api.get('/api/products/', { params: nextParams }).then(res => apiCache.set(nextKey, res.data)).catch(()=>{});
              }
+          }
+
+          // Eager pre-fetch category recommendations in background
+          const activeCat = searchParams.get('subcategory') || searchParams.get('category');
+          if (activeCat) {
+            const recKey = `recommendations:${activeCat}`;
+            if (!apiCache.get(recKey)) {
+              api.get('/api/products/recommendations/', { params: { category: activeCat, limit: 24 } })
+                .then(r => apiCache.set(recKey, r.data))
+                .catch(() => {});
+            }
           }
         }).finally(() => {
           if (!controller.signal.aborted) {
@@ -593,6 +601,24 @@ const ProductList = () => {
 
   const gridEntries = buildGridEntries(products, sponsoredAds);
 
+  const isDiscoveryMode = !selectedCategory && !selectedSubcategory && !urlQuery && !saved && !sellerFilter && activePills.length === 0;
+
+  const COLS = viewMode === 'list' ? 1 : gridCols;
+
+  const recInsertionIndex = useMemo(() => {
+    // Let the user scroll 8 full rows of category items before showing "You might also like"
+    const targetRows = 8;
+    const targetItems = targetRows * COLS;
+    if (gridEntries.length >= targetItems) {
+      return targetItems - 1;
+    }
+    // If the category listing has ended and has at least 4 rows, show at the end
+    if (!hasMore && gridEntries.length >= 4 * COLS) {
+      return gridEntries.length - 1;
+    }
+    return -1;
+  }, [gridEntries.length, COLS, hasMore]);
+
   const siteUrl = (import.meta.env.VITE_SITE_URL || 'https://pasifiq.store').replace(/\/$/, '');
   const activeCategoryObj = categories.find((c: any) => c.slug === selectedCategory);
   const activeCategoryName = activeCategoryObj?.name || selectedCategory;
@@ -620,222 +646,243 @@ const ProductList = () => {
   const isSearchPage = Boolean(urlQuery || saved);
 
   return (
-    <div className="bg-surface-muted dark:bg-surface-dark min-h-screen -mt-4 pt-4 md:-mt-6 md:pt-6">
+    <div className="bg-surface-muted dark:bg-surface-dark min-h-screen -mt-4 pt-1.5 md:-mt-6 md:pt-5 lg:pt-6">
       <SEO 
         title={seoTitle} 
         description={seoDesc}
         noindex={isSearchPage}
         schema={categoryBreadcrumbSchema}
       />
-      <div id="browse" className="container-page pb-24 md:pb-8 pt-1">
-        {(saved || sellerFilter || urlQuery || activePills.length > 0) && (
-          <div className="mb-2 space-y-2">
-            {/* Local Search for Saved Items */}
-            {saved && (
-              <div className="px-4 md:px-0 flex justify-center w-full">
-                <ExpandableSearch 
-                  value={urlQuery} 
-                  onChange={(val) => updateFilters({ q: val })} 
-                  placeholder={t('search_saved_items', 'Search your saved items...')}
-                  pillLabel={t('search_saved', 'Search Saved')}
-                />
-              </div>
-            )}
-
-            {/* Seller Store Banner */}
-            {sellerFilter && (
-              <div className="flex items-center gap-3 px-4 md:px-0 py-2">
-                <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-brand-500/5 dark:bg-brand-500/10 border border-brand-500/15 dark:border-brand-500/20 flex-1">
-                  <div className="w-7 h-7 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-500 text-xs font-bold uppercase">
-                    {sellerFilter.charAt(0)}
+      <div id="browse" className="container-page pb-24 md:pb-8 pt-0">
+        {isDiscoveryMode ? (
+          <DiscoveryFeed />
+        ) : (
+          <>
+            {(saved || sellerFilter || urlQuery || activePills.length > 0) && (
+              <div className="mb-2 space-y-2">
+                {/* Local Search for Saved Items */}
+                {saved && (
+                  <div className="px-4 md:px-0 flex justify-center w-full">
+                    <ExpandableSearch 
+                      value={urlQuery} 
+                      onChange={(val) => updateFilters({ q: val })} 
+                      placeholder={t('search_saved_items', 'Search your saved items...')}
+                      pillLabel={t('search_saved', 'Search Saved')}
+                    />
                   </div>
-                  <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                    Results in <Link to={`/${sellerFilter}`} className="font-bold text-brand-500 hover:underline">@{sellerFilter}</Link>'s store
-                  </span>
-                  <button
-                    onClick={() => updateFilters({ seller: '' })}
-                    className="ml-auto text-xs font-bold text-neutral-400 hover:text-brand-500 transition-colors"
-                  >
-                    Show all
-                  </button>
-                </div>
+                )}
+
+                {/* Seller Store Banner */}
+                {sellerFilter && (
+                  <div className="flex items-center gap-3 px-4 md:px-0 py-2">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-brand-500/5 dark:bg-brand-500/10 border border-brand-500/15 dark:border-brand-500/20 flex-1">
+                      <div className="w-7 h-7 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-500 text-xs font-bold uppercase">
+                        {sellerFilter.charAt(0)}
+                      </div>
+                      <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                        Results in <Link to={`/${sellerFilter}`} className="font-bold text-brand-500 hover:underline">@{sellerFilter}</Link>'s store
+                      </span>
+                      <button
+                        onClick={() => updateFilters({ seller: '' })}
+                        className="ml-auto text-xs font-bold text-neutral-400 hover:text-brand-500 transition-colors"
+                      >
+                        Show all
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Unified Search Query & Active Filters Row */}
+                {(urlQuery || activePills.length > 0) && (
+                  <div className="flex items-center justify-between gap-2 px-4 md:px-0 py-1.5">
+                    {/* Left: Search Header & Filter Pills Inline with Horizontal Scroll on Mobile */}
+                    <div 
+                      data-horizontal-scroll="true"
+                      className="flex items-center gap-2 overflow-x-auto no-scrollbar min-w-0 flex-1 py-0.5"
+                    >
+                      {urlQuery ? (
+                        <div className="flex items-center gap-1.5 mr-1 shrink-0">
+                          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-400 shrink-0">Search:</span>
+                          <h1 className="text-xs sm:text-base md:text-lg font-black text-gray-900 dark:text-white tracking-tight truncate max-w-[140px] sm:max-w-xs md:max-w-none">
+                            Results for <span className="text-brand-600 dark:text-brand-400">"{urlQuery}"</span>
+                          </h1>
+                        </div>
+                      ) : activePills.length > 0 ? (
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-0.5 shrink-0 whitespace-nowrap">
+                          Active Filters:
+                        </span>
+                      ) : null}
+
+                      {urlQuery && <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline shrink-0">|</span>}
+
+                      {/* Filter Pills */}
+                      {activePills.length > 0 && (
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                          {activePills.map((pill) => {
+                            let pillClasses = "flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs font-bold shrink-0 whitespace-nowrap animate-in zoom-in-95 duration-200 border ";
+                            if (pill.id === 'category') {
+                              pillClasses += "bg-transparent border-brand-500 text-gray-800 dark:text-gray-200";
+                            } else {
+                              pillClasses += "bg-gray-100 dark:bg-neutral-800 border-transparent text-gray-800 dark:text-gray-200";
+                            }
+
+                            return (
+                              <div key={pill.id} className={pillClasses}>
+                                <span className="opacity-60 font-medium">{pill.label}:</span>
+                                <span>{pill.value}</span>
+                                <button
+                                  onClick={pill.onRemove}
+                                  className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors ml-0.5"
+                                  aria-label={`Remove ${pill.label} filter`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: Clear Button (pinned inline on same horizontal row) */}
+                    <div className="flex items-center shrink-0 pl-1">
+                      <button
+                        onClick={() => {
+                          setSearchParams(prev => {
+                            const newParams = new URLSearchParams();
+                            const view = prev.get('view');
+                            if (view) newParams.set('view', view);
+                            return newParams;
+                          });
+                        }}
+                        className="text-[11px] sm:text-xs font-bold text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-1 sm:gap-1.5 transition-colors px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-950/30 uppercase tracking-tight shrink-0 whitespace-nowrap"
+                        title={urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}
+                      >
+                        <X size={12} className="sm:w-[13px] sm:h-[13px]" />
+                        <span>{urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Unified Search Query & Active Filters Row */}
-            {(urlQuery || activePills.length > 0) && (
-              <div className="flex items-center justify-between gap-2 px-4 md:px-0 py-1.5">
-                {/* Left: Search Header & Filter Pills Inline with Horizontal Scroll on Mobile */}
+            {/* ─── Centered Subtle Location Notice (only when browsing in a category/filter) ─── */}
+            {!urlQuery && !saved && activePills.length === 0 && !sellerFilter && (
+              <div className="flex items-center justify-center gap-1.5 py-0 px-2 mb-1.5 md:mb-3 text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400">
+                <span className="text-neutral-800 dark:text-neutral-200 font-semibold">
+                  {searchPrefs.mode === 'proximity' && searchPrefs.locationName !== 'Nationwide'
+                    ? `${searchPrefs.locationName.split(',')[0]} (${t('within', 'within')} ${searchPrefs.radius || 10}km)`
+                    : (searchPrefs.region ? `${t('all_in', 'All in')} ${searchPrefs.region}` : t('all_in_country', 'All in Tanzania'))}
+                </span>
+                <span className="text-neutral-300 dark:text-neutral-700">•</span>
+                {searchPrefs.mode === 'proximity' ? (
+                  <button
+                    type="button"
+                    onClick={setNationwide}
+                    className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
+                  >
+                    {t('view_all_in_country', 'View all in Tanzania')}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={setNearMe}
+                    disabled={isLocating}
+                    className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
+                  >
+                    {isLocating ? t('locating', 'Locating...') : t('view_near_me', 'View near me')}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ===== Product Grid ===== */}
+            {loading ? (
+              <div 
+                className={viewMode === 'grid' 
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none"
+                  : "flex flex-col gap-3"
+                }
+              >
+                {[...Array(10)].map((_, i) => (
+                  <ProductCardSkeleton key={i} viewMode={viewMode} />
+                ))}
+              </div>
+            ) : (
+              <>
                 <div 
-                  data-horizontal-scroll="true"
-                  className="flex items-center gap-2 overflow-x-auto no-scrollbar min-w-0 flex-1 py-0.5"
+                  className={viewMode === 'grid' 
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none animate-in fade-in duration-150"
+                    : "flex flex-col gap-3 animate-in fade-in duration-150"
+                  }
                 >
-                  {urlQuery ? (
-                    <div className="flex items-center gap-1.5 mr-1 shrink-0">
-                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-400 shrink-0">Search:</span>
-                      <h1 className="text-xs sm:text-base md:text-lg font-black text-gray-900 dark:text-white tracking-tight truncate max-w-[140px] sm:max-w-xs md:max-w-none">
-                        Results for <span className="text-brand-600 dark:text-brand-400">"{urlQuery}"</span>
-                      </h1>
+                  {gridEntries.length === 0 ? (
+                    <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
+                      <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
+                      <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
+                      <button onClick={() => { setSearchParams(prev => { const newParams = new URLSearchParams(); const view = prev.get('view'); if (view) newParams.set('view', view); return newParams; }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
                     </div>
-                  ) : activePills.length > 0 ? (
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-0.5 shrink-0 whitespace-nowrap">
-                      Active Filters:
-                    </span>
-                  ) : null}
-
-                  {urlQuery && <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline shrink-0">|</span>}
-
-                  {/* Filter Pills */}
-                  {activePills.length > 0 && (
-                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                      {activePills.map((pill) => {
-                        let pillClasses = "flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs font-bold shrink-0 whitespace-nowrap animate-in zoom-in-95 duration-200 border ";
-                        if (pill.id === 'category') {
-                          pillClasses += "bg-transparent border-brand-500 text-gray-800 dark:text-gray-200";
-                        } else {
-                          pillClasses += "bg-gray-100 dark:bg-neutral-800 border-transparent text-gray-800 dark:text-gray-200";
-                        }
+                  ) : (
+                    gridEntries.map((entry, idx) => {
+                      if (entry.type === 'placeholder') {
+                        if (viewMode !== 'grid') return null;
+                        return (
+                          <React.Fragment key={`placeholder-${idx}`}>
+                            <div className="relative h-full">
+                              <SponsorCard />
+                            </div>
+                            {selectedCategory && idx === recInsertionIndex && (
+                              <CategoryRecommendationShelf
+                                category={selectedSubcategory || selectedCategory}
+                                excludeIds={products.slice(0, 40).map(p => p.id)}
+                                viewMode={viewMode}
+                                cols={COLS}
+                              />
+                            )}
+                          </React.Fragment>
+                        );
+                      }
+                      if ('product' in entry) {
+                        const product = entry.product;
+                        if (!product) return null;
+                        const isPromo = entry.type === 'promo';
 
                         return (
-                          <div key={pill.id} className={pillClasses}>
-                            <span className="opacity-60 font-medium">{pill.label}:</span>
-                            <span>{pill.value}</span>
-                            <button
-                              onClick={pill.onRemove}
-                              className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors ml-0.5"
-                              aria-label={`Remove ${pill.label} filter`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
+                          <React.Fragment key={`${product.id}-${idx}`}>
+                            <div className="h-full">
+                              <ProductCard product={product} viewMode={viewMode} isSponsored={isPromo} isTopFold={idx < 6} />
+                            </div>
+                            {selectedCategory && idx === recInsertionIndex && (
+                              <CategoryRecommendationShelf
+                                category={selectedSubcategory || selectedCategory}
+                                excludeIds={products.slice(0, 40).map(p => p.id)}
+                                viewMode={viewMode}
+                                cols={COLS}
+                              />
+                            )}
+                          </React.Fragment>
                         );
-                      })}
-                    </div>
+                      }
+                      return null;
+                    })
                   )}
                 </div>
 
-                {/* Right: Clear Button (pinned inline on same horizontal row) */}
-                <div className="flex items-center shrink-0 pl-1">
-                  <button
-                    onClick={() => {
-                      setSearchParams(prev => {
-                        const newParams = new URLSearchParams();
-                        const view = prev.get('view');
-                        if (view) newParams.set('view', view);
-                        return newParams;
-                      });
-                    }}
-                    className="text-[11px] sm:text-xs font-bold text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-1 sm:gap-1.5 transition-colors px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-950/30 uppercase tracking-tight shrink-0 whitespace-nowrap"
-                    title={urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}
-                  >
-                    <X size={12} className="sm:w-[13px] sm:h-[13px]" />
-                    <span>{urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}</span>
-                  </button>
-                </div>
-              </div>
+                {loadingMore && (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-500 border-t-transparent"></div>
+                  </div>
+                )}
+
+                {!hasMore && products.length > 0 && (
+                  <p className="text-center py-6 text-sm text-gray-400 dark:text-gray-500">{t('reached_end', "You've reached the end")}</p>
+                )}
+                <div ref={sentinelRef} className="h-1" />
+              </>
             )}
-          </div>
+          </>
         )}
-
-        {/* ─── Centered Subtle Location Notice (only when browsing, not in search results) ─── */}
-        {!urlQuery && !saved && activePills.length === 0 && !sellerFilter && (
-          <div className="flex items-center justify-center gap-2 py-1 px-4 mb-2 text-xs text-neutral-500 dark:text-neutral-400">
-            <span>
-              {t('latest_picks_in', 'Latest picks in')}{' '}
-              <span className="text-neutral-800 dark:text-neutral-200 font-semibold">
-                {searchPrefs.mode === 'proximity' && searchPrefs.locationName !== 'Nationwide'
-                  ? `${searchPrefs.locationName.split(',')[0]} (${t('within', 'within')} ${searchPrefs.radius || 10}km)`
-                  : (searchPrefs.region || t('all_in_country', 'All in Tanzania'))}
-              </span>
-            </span>
-            <span className="text-neutral-300 dark:text-neutral-700">•</span>
-            {searchPrefs.mode === 'proximity' ? (
-              <button
-                type="button"
-                onClick={setNationwide}
-                className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
-              >
-                {t('view_all_in_country', 'View all in Tanzania')}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={setNearMe}
-                disabled={isLocating}
-                className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
-              >
-                {isLocating ? t('locating', 'Locating...') : t('view_near_me', 'View near me')}
-              </button>
-            )}
-          </div>
-        )}
-
-      {/* ===== Product Grid ===== */}
-      {loading ? (
-        <div 
-          className={viewMode === 'grid' 
-            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none"
-            : "flex flex-col gap-3"
-          }
-        >
-          {[...Array(10)].map((_, i) => (
-            <ProductCardSkeleton key={i} viewMode={viewMode} />
-          ))}
-        </div>
-      ) : (
-        <>
-          <motion.div 
-            className={viewMode === 'grid' 
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none"
-              : "flex flex-col gap-3"
-            }
-            variants={containerVariants} initial="hidden" animate="visible"
-          >
-            {gridEntries.length === 0 ? (
-              <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
-                <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0V9a2 2 0 00-2-2H6a2 2 0 00-2 2v4m16 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m16 0h-2M4 17h2m3 3h6M9 20h6"/></svg>
-                <p className="text-gray-500 dark:text-gray-400 font-medium">{t('no_products_match', 'No products match your filters.')}</p>
-                <button onClick={() => { setSearchParams(prev => { const newParams = new URLSearchParams(); const view = prev.get('view'); if (view) newParams.set('view', view); return newParams; }); }} className="text-brand-500 dark:text-brand-500 text-sm mt-2 hover:underline">{t('clear_all_filters', 'Clear all filters')}</button>
-              </div>
-            ) : (
-              gridEntries.map((entry, idx) => {
-                if (entry.type === 'placeholder') {
-                  if (viewMode !== 'grid') return null;
-                  return (
-                    <div key={`placeholder-${idx}`} className="relative h-full">
-                      <SponsorCard />
-                    </div>
-                  );
-                }
-                if ('product' in entry) {
-                  const product = entry.product;
-                  if (!product) return null;
-                  const isPromo = entry.type === 'promo';
-
-                  return (
-                    <motion.div key={`${product.id}-${idx}`} variants={cardVariants} className="h-full">
-                      <ProductCard product={product} viewMode={viewMode} isSponsored={isPromo} isTopFold={idx < 4} />
-                    </motion.div>
-                  );
-                }
-                return null;
-              })
-            )}
-          </motion.div>
-
-          {loadingMore && (
-            <div className="flex justify-center py-6">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-500 border-t-transparent"></div>
-            </div>
-          )}
-
-          {!hasMore && products.length > 0 && (
-            <p className="text-center py-6 text-sm text-gray-400 dark:text-gray-500">{t('reached_end', "You've reached the end")}</p>
-          )}
-          <div ref={sentinelRef} className="h-1" />
-        </>
-      )}
-
       </div>
     </div>
   );

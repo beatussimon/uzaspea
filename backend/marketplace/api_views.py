@@ -3548,31 +3548,56 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
             return Response(MessageSerializer(msg, context={'request': request}).data, status=201)
 
-        # Mark unread messages as read asynchronously without blocking response
-        unread_msgs = Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user)
-        unread_ids = list(unread_msgs.values_list('id', flat=True))
-        if unread_ids:
-            unread_msgs.update(is_read=True, is_delivered=True)
+        # Check for cursor pagination parameters
+        before_id = request.query_params.get('before_id')
+        try:
+            limit = int(request.query_params.get('limit', 30))
+            limit = max(1, min(limit, 100))
+        except (ValueError, TypeError):
+            limit = 30
+
+        # Mark unread messages as read asynchronously only on initial thread load
+        if before_id is None:
+            unread_msgs = Message.objects.filter(conversation=conv, is_read=False).exclude(sender=request.user)
+            unread_ids = list(unread_msgs.values_list('id', flat=True))
+            if unread_ids:
+                unread_msgs.update(is_read=True, is_delivered=True)
+                try:
+                    from channels.layers import get_channel_layer
+                    from asgiref.sync import async_to_sync
+                    other = conv.seller if request.user == conv.buyer else conv.buyer
+                    channel_layer = get_channel_layer()
+                    async_to_sync(channel_layer.group_send)(
+                        f'chat_{other.id}',
+                        {
+                            'type': 'chat_read_update',
+                            'conversation_id': conv.id,
+                            'message_ids': unread_ids,
+                        }
+                    )
+                except Exception:
+                    pass
+
+        # Query messages with cursor filtering
+        qs = conv.messages.select_related('sender')
+        if before_id:
             try:
-                from channels.layers import get_channel_layer
-                from asgiref.sync import async_to_sync
-                other = conv.seller if request.user == conv.buyer else conv.buyer
-                channel_layer = get_channel_layer()
-                async_to_sync(channel_layer.group_send)(
-                    f'chat_{other.id}',
-                    {
-                        'type': 'chat_read_update',
-                        'conversation_id': conv.id,
-                        'message_ids': unread_ids,
-                    }
-                )
-            except Exception:
+                qs = qs.filter(id__lt=int(before_id))
+            except (ValueError, TypeError):
                 pass
 
-        # Fetch last 50 messages with sender joined, and order chronologically
-        msgs = conv.messages.select_related('sender').order_by('-created_at')[:50]
-        msgs = sorted(list(msgs), key=lambda x: x.created_at)
-        return Response(MessageSerializer(msgs, many=True, context={'request': request}).data)
+        # Fetch limit + 1 to determine if older history exists
+        batch = list(qs.order_by('-created_at')[:limit + 1])
+        has_more = len(batch) > limit
+        msgs = batch[:limit]
+        msgs = sorted(msgs, key=lambda x: x.created_at)
+
+        serialized_data = MessageSerializer(msgs, many=True, context={'request': request}).data
+        return Response({
+            'results': serialized_data,
+            'has_more': has_more,
+            'oldest_id': msgs[0].id if msgs else None,
+        })
 
 
 # ─── FIX B-13: Saved Searches & Price Alerts ─────────────────────
@@ -3724,7 +3749,7 @@ class SiteSettingsView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
     def get(self, request):
-        return Response(SiteSettingsSerializer(SiteSettings.get()).data)
+        return Response(SiteSettingsSerializer(SiteSettings.get(), context={'request': request}).data)
 
 
 # ─── FIX HIGH-04: ProductVariantViewSet ──────────────────────────────

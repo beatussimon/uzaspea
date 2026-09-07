@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
 const Footer = () => {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [settings, setSettings] = useState<any>({});
 
@@ -32,8 +34,8 @@ const Footer = () => {
         className="container-page flex items-center justify-between h-12 cursor-pointer select-none"
         onClick={handleToggle}
       >
-        <p className="text-xs text-gray-400">© {new Date().getFullYear()} SokoniMax. All rights reserved.</p>
-        <button className={`text-gray-400 hover:text-gray-600 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>
+        <p className="text-xs text-gray-400">© {new Date().getFullYear()} SokoniMax. {t('all_rights_reserved', 'All rights reserved.')}</p>
+        <button className={`text-gray-400 hover:text-gray-600 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} aria-label="Toggle footer">
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
         </button>
       </div>
@@ -45,33 +47,33 @@ const Footer = () => {
           <div className="col-span-2 md:col-span-1 flex flex-col gap-3">
             <h5 className="font-bold text-gray-900 dark:text-white text-base tracking-tight">SokoniMax</h5>
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-xs">
-              Your premier verified online marketplace for buying and selling in Tanzania. Quality products, secure logistics, and trusted local inspection.
+              {t('marketplace_desc', 'Your premier verified online marketplace for buying and selling in Tanzania. Quality products, secure logistics, and trusted local inspection.')}
             </p>
           </div>
           
           {/* Column 2: Shop & Explore */}
           <div className="col-span-1">
-            <h5 className="font-bold text-gray-900 dark:text-white text-sm mb-3">Shop & Explore</h5>
+            <h5 className="font-bold text-gray-900 dark:text-white text-sm mb-3">{t('shop_and_explore', 'Shop & Explore')}</h5>
             <ul className="space-y-2">
-              <li><Link to="/" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">Home Marketplace</Link></li>
-              <li><Link to="/products" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">All Products</Link></li>
-              <li><Link to="/help" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">How It Works</Link></li>
+              <li><Link to="/" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">{t('home_marketplace', 'Home Marketplace')}</Link></li>
+              <li><Link to="/products" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">{t('all_products', 'All Products')}</Link></li>
+              <li><Link to="/help" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">{t('how_it_works', 'How It Works')}</Link></li>
             </ul>
           </div>
           
           {/* Column 3: Customer Support */}
           <div className="col-span-1">
-            <h5 className="font-bold text-gray-900 dark:text-white text-sm mb-3">Customer Support</h5>
+            <h5 className="font-bold text-gray-900 dark:text-white text-sm mb-3">{t('customer_support', 'Customer Support')}</h5>
             <ul className="space-y-2">
-              <li><Link to="/help" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">Help Center & FAQ</Link></li>
-              <li><Link to="/orders" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">Track My Order</Link></li>
-              <li><Link to="/upgrade" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">Become a Pro Seller</Link></li>
+              <li><Link to="/help" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">{t('help_center_faq', 'Help Center & FAQ')}</Link></li>
+              <li><Link to="/orders" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">{t('track_my_order', 'Track My Order')}</Link></li>
+              <li><Link to="/upgrade" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">{t('become_a_pro_seller', 'Become a Pro Seller')}</Link></li>
             </ul>
           </div>
           
           {/* Column 4: Stay Connected */}
           <div className="col-span-2 md:col-span-1 flex flex-col gap-3">
-            <h5 className="font-bold text-gray-900 dark:text-white text-sm">Stay Connected</h5>
+            <h5 className="font-bold text-gray-900 dark:text-white text-sm">{t('stay_connected', 'Stay Connected')}</h5>
             <div className="flex gap-2">
               {settings.facebook_url && (
                 <a href={settings.facebook_url} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1.5 bg-neutral-100  dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded text-gray-500 hover:text-brand-500 transition text-xs font-semibold">Facebook</a>
@@ -83,13 +85,13 @@ const Footer = () => {
                 <a href={settings.instagram_url} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1.5 bg-neutral-100  dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded text-gray-500 hover:text-brand-500 transition text-xs font-semibold">Instagram</a>
               )}
               {!settings.facebook_url && !settings.twitter_url && !settings.instagram_url && (
-                <p className="text-xs text-gray-400">Social channels coming soon</p>
+                <p className="text-xs text-gray-400">{t('social_coming_soon', 'Social channels coming soon')}</p>
               )}
             </div>
             
             {/* Payment badge mockup */}
             <div className="mt-3 flex flex-wrap gap-2 items-center">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block w-full mb-1">Supported Payments</span>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block w-full mb-1">{t('supported_payments', 'Supported Payments')}</span>
               <span className="text-[10px] px-2 py-1 bg-gray-100 dark:bg-neutral-800 rounded font-black text-gray-500 dark:text-gray-400">M-PESA</span>
               <span className="text-[10px] px-2 py-1 bg-gray-100 dark:bg-neutral-800 rounded font-black text-gray-500 dark:text-gray-400">TIGO PESA</span>
               <span className="text-[10px] px-2 py-1 bg-gray-100 dark:bg-neutral-800 rounded font-black text-gray-500 dark:text-gray-400">AIRTEL MONEY</span>

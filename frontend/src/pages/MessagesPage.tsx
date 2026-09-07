@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { 
   MessageSquare, Send, ArrowLeft, Search, Smile, 
-  CheckCheck, Check
+  CheckCheck, Check, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api';
@@ -165,7 +165,10 @@ const MessagesPage: React.FC = () => {
   const {
     conversations,
     messages,
+    hasMore,
+    loadingOlder,
     fetchMessages,
+    fetchOlderMessages,
     sendMessage,
     setActiveConversationId,
     loading: contextLoading,
@@ -308,37 +311,73 @@ const MessagesPage: React.FC = () => {
     }
   }, [currentMessages, initialUnreadCount, unreadMessageIds.size, userId]);
 
-  // Instant scroll on initial load before paint to eliminate layout jump
+  const isPrependingRef = useRef(false);
+  const prevScrollHeightRef = useRef(0);
+  const prevScrollTopRef = useRef(0);
+  const prevFirstMsgIdRef = useRef<number | null>(currentMessages[0]?.id ?? null);
+  const prependedIdsRef = useRef<Set<number>>(new Set());
+
+  // Instant scroll on initial load before paint, and position restoration on prepend
   useLayoutEffect(() => {
     if (scrollRef.current && currentMessages.length > 0 && !hasScrolledToInitialRef.current) {
       hasScrolledToInitialRef.current = true;
       prevMessagesLengthRef.current = currentMessages.length;
+      prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
       if (initialUnreadCount && initialUnreadCount > 0 && firstUnreadRef.current) {
         firstUnreadRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
       } else {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       }
       lastConvIdRef.current = id;
+    } else if (isPrependingRef.current && scrollRef.current) {
+      const newScrollHeight = scrollRef.current.scrollHeight;
+      const heightDiff = newScrollHeight - prevScrollHeightRef.current;
+      scrollRef.current.scrollTop = prevScrollTopRef.current + heightDiff;
+      isPrependingRef.current = false;
+      prevMessagesLengthRef.current = currentMessages.length;
+      prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
     }
-  }, [currentMessages.length, id, initialUnreadCount]);
+  }, [currentMessages, id, initialUnreadCount]);
 
   const prevMessagesLengthRef = useRef(currentMessages.length);
   useEffect(() => {
     if (hasScrolledToInitialRef.current && currentMessages.length > prevMessagesLengthRef.current) {
-      const addedCount = currentMessages.length - prevMessagesLengthRef.current;
-      const lastMsg = currentMessages[currentMessages.length - 1];
-      const isMyMsg = lastMsg && Number(lastMsg.sender) === Number(userId);
+      const isAppended = currentMessages[0]?.id === prevFirstMsgIdRef.current;
+      if (isAppended) {
+        const addedCount = currentMessages.length - prevMessagesLengthRef.current;
+        const lastMsg = currentMessages[currentMessages.length - 1];
+        const isMyMsg = lastMsg && Number(lastMsg.sender) === Number(userId);
 
-      if (isMyMsg) {
-        scrollToBottom('smooth');
-      } else if (isScrolledUp) {
-        setNewMessagesCount(prev => prev + addedCount);
-      } else {
-        scrollToBottom('smooth');
+        if (isMyMsg) {
+          scrollToBottom('smooth');
+        } else if (isScrolledUp) {
+          setNewMessagesCount(prev => prev + addedCount);
+        } else {
+          scrollToBottom('smooth');
+        }
       }
     }
     prevMessagesLengthRef.current = currentMessages.length;
+    prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
   }, [currentMessages, isScrolledUp, userId]);
+
+  const triggerLoadOlder = async () => {
+    if (!id) return;
+    const convIdNum = parseInt(id);
+    if (scrollRef.current && !loadingOlder[convIdNum] && hasMore[convIdNum] !== false) {
+      prevScrollHeightRef.current = scrollRef.current.scrollHeight;
+      prevScrollTopRef.current = scrollRef.current.scrollTop;
+      isPrependingRef.current = true;
+      const currentIds = new Set(currentMessages.map(m => m.id));
+      await fetchOlderMessages(convIdNum);
+      const updated = messages[convIdNum] || [];
+      updated.forEach(m => {
+        if (!currentIds.has(m.id)) {
+          prependedIdsRef.current.add(m.id);
+        }
+      });
+    }
+  };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -346,6 +385,13 @@ const MessagesPage: React.FC = () => {
     setIsScrolledUp(isUp);
     if (!isUp) {
       setNewMessagesCount(0);
+    }
+
+    if (scrollTop < 70 && id) {
+      const convIdNum = parseInt(id);
+      if (hasMore[convIdNum] !== false && !loadingOlder[convIdNum] && !isPrependingRef.current) {
+        triggerLoadOlder();
+      }
     }
   };
 
@@ -761,7 +807,15 @@ const MessagesPage: React.FC = () => {
                 className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-5 py-4 space-y-6 relative w-full max-w-full" 
                 ref={scrollRef}
                 onScroll={handleScroll}
+                style={{ overflowAnchor: 'none' }}
               >
+                {/* Top Loading Indicator for Reverse Infinite Scroll */}
+                {id && loadingOlder[parseInt(id)] && (
+                  <div className="flex items-center justify-center py-2 text-brand-500">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  </div>
+                )}
+
                 {isFetchingThread && currentMessages.length === 0 ? null : currentMessages.length === 0 ? (
                   <div className="py-12 text-center text-xs text-gray-400">
                     No messages in this conversation yet. Send a message to start!
@@ -783,6 +837,7 @@ const MessagesPage: React.FC = () => {
                           const showAvatar = !isMe;
                           const isFirstUnread = msg.id === firstUnreadMsgId;
                           const parsed = parseMessageContent(msg.content);
+                          const isPrepended = prependedIdsRef.current.has(msg.id);
                           
                           // Display precise date on hover
                           const messageTime = new Date(msg.created_at).toLocaleTimeString(undefined, {
@@ -794,7 +849,7 @@ const MessagesPage: React.FC = () => {
                             <motion.div 
                               key={msg.id || index} 
                               ref={isFirstUnread ? firstUnreadRef : null} 
-                              initial={{ opacity: 0, scale: 0.93, y: 7 }}
+                              initial={isPrepended ? false : { opacity: 0, scale: 0.93, y: 7 }}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
                               transition={{
                                 type: 'spring',

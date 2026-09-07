@@ -20,6 +20,8 @@ from .api_views import (
     BrandViewSet, ReferenceProductViewSet
 )
 
+from .discovery_views import DiscoveryFeedView, CategoryRecommendationsView
+
 router = DefaultRouter()
 router.register(r'products', ProductViewSet, basename='product')
 router.register(r'product-requests', ProductRequestViewSet, basename='product-request')
@@ -55,6 +57,8 @@ router.register(r'delivery-zones', DeliveryZoneViewSet, basename='delivery-zone'
 router.register(r'variants', ProductVariantViewSet, basename='variant')
 router.register(r'staff-admin/password-requests', PasswordResetRequestStaffViewSet, basename='staff-password-request')
 urlpatterns = [
+    path('api/products/discovery/', DiscoveryFeedView.as_view(), name='products-discovery'),
+    path('api/products/recommendations/', CategoryRecommendationsView.as_view(), name='products-recommendations'),
     path('api/', include(router.urls)),
     path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
