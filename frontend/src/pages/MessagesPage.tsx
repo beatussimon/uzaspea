@@ -609,11 +609,16 @@ const MessagesPage: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-baseline gap-1.5">
                             <span className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 min-w-0">
-                              <span className="truncate">
-                                {viewMode === 'sokoni' ? `${otherUsername} · ${productInfo?.title || conv.product_name || 'Product'}` : otherUsername}
+                              <span className={`truncate ${viewMode === 'sokoni' ? 'shrink-0 max-w-[50%]' : ''}`}>
+                                {otherUsername}
                               </span>
                               {isVerified && (
                                 <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
+                              )}
+                              {viewMode === 'sokoni' && (
+                                <span className="truncate min-w-0">
+                                  · {productInfo?.title || conv.product_name || 'Product'}
+                                </span>
                               )}
                             </span>
                             {conv.last_message && (

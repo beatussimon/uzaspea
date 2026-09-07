@@ -34,6 +34,26 @@ const DashboardLayout: React.FC = () => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
+  // Lock body scroll and handle Escape key when mobile menu is open
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMobileMenuOpen]);
+
   useEffect(() => {
     const updateStickyPosition = () => {
       const el = sidebarRef.current;
@@ -190,17 +210,17 @@ const DashboardLayout: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
 
-      {/* Floating Mobile Hamburger Menu Button (Matching circular style of Scroll-To-Top FAB directly below it) */}
+      {/* Floating Mobile Hamburger Menu Button (Positioned on the left side) */}
       <button
         type="button"
         onClick={() => setIsMobileMenuOpen(true)}
         className="fixed z-40 p-3 rounded-full shadow-lg bg-white dark:bg-[#111111] text-gray-900 dark:text-white border border-gray-200 dark:border-[#222222] transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center lg:hidden print:hidden cursor-pointer select-none"
         style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 136px)',
-          right: '20px'
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          left: '20px'
         }}
-        aria-label="Open Dashboard Navigation"
-        title="Dashboard Menu"
+        aria-label={t('seller_dashboard_menu', 'Seller Dashboard Menu')}
+        title={t('seller_dashboard_menu', 'Seller Dashboard Menu')}
       >
         <Menu size={20} />
       </button>
@@ -215,17 +235,27 @@ const DashboardLayout: React.FC = () => {
           />
 
           {/* Drawer */}
-          <aside className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white dark:bg-[#0A0A0A] border-r border-surface-border dark:border-surface-dark-border z-50 flex flex-col justify-between p-4 shadow-2xl overflow-y-auto animate-fade-in">
+          <aside className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white dark:bg-[#0A0A0A] border-r border-surface-border dark:border-surface-dark-border z-50 flex flex-col justify-between p-4 pt-[calc(env(safe-area-inset-top,0px)+3.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] shadow-2xl overflow-y-auto animate-slide-in-left">
             <div className="space-y-4">
-              {/* Drawer Close Button */}
-              <div className="flex justify-end pb-1">
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-gray-150 dark:border-white/10">
+                <div className="min-w-0">
+                  <h2 className="font-extrabold text-xl text-gray-900 dark:text-white truncate leading-tight tracking-tight">
+                    {t('seller_dashboard', 'Seller Dashboard')}
+                  </h2>
+                  {user?.username && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate leading-tight mt-1 font-medium">
+                      @{user.username}
+                    </p>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg transition"
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition shrink-0"
                   aria-label="Close menu"
                 >
-                  <X size={16} />
+                  <X size={20} />
                 </button>
               </div>
 
@@ -240,8 +270,8 @@ const DashboardLayout: React.FC = () => {
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                         isActive
-                          ? 'text-brand-500 dark:text-brand-500 font-medium bg-gray-50 dark:bg-neutral-900/40'
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
+                          ? 'text-brand-500 dark:text-brand-500 font-bold'
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 font-medium'
                       }`}
                     >
                       <item.icon size={18} className="shrink-0" />
@@ -249,6 +279,8 @@ const DashboardLayout: React.FC = () => {
                     </Link>
                   );
                 })}
+
+                <div className="my-2 border-t border-gray-150 dark:border-white/10" />
 
                 {isSuperuser && (
                   <Link
@@ -266,8 +298,8 @@ const DashboardLayout: React.FC = () => {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                     location.pathname.startsWith('/dashboard/settings')
-                      ? 'text-brand-500 dark:text-brand-500 font-medium bg-gray-50 dark:bg-neutral-900/40'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
+                      ? 'text-brand-500 dark:text-brand-500 font-bold'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 font-medium'
                   }`}
                 >
                   <Settings size={18} className="shrink-0" />
@@ -278,8 +310,8 @@ const DashboardLayout: React.FC = () => {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                     location.pathname.startsWith('/dashboard/help-center')
-                      ? 'text-brand-500 dark:text-brand-500 font-medium bg-gray-50 dark:bg-neutral-900/40'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50'
+                      ? 'text-brand-500 dark:text-brand-500 font-bold'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 font-medium'
                   }`}
                 >
                   <HelpCircle size={18} className="shrink-0" />
@@ -290,7 +322,7 @@ const DashboardLayout: React.FC = () => {
 
             {/* Store QR Code at bottom of mobile drawer */}
             {user?.username && (
-              <div className="pt-3 mt-4 text-center select-none space-y-2">
+              <div className="pt-3 mt-4 text-center select-none space-y-2 border-t border-gray-150 dark:border-white/10">
                 <div className="bg-white p-3 rounded-2xl border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs mx-auto w-fit">
                   <QRCodeSVG
                     value={`${window.location.origin}/${user.username}`}
@@ -309,20 +341,22 @@ const DashboardLayout: React.FC = () => {
                 <div className="space-y-1 pt-1 text-center">
                   <button
                     type="button"
-                    onClick={downloadStoreQrCode}
+                    onClick={() => {
+                      downloadStoreQrCode();
+                      setIsMobileMenuOpen(false);
+                    }}
                     className="inline-flex items-center justify-center gap-1 text-xs font-semibold text-gray-600 dark:text-neutral-300 hover:text-gray-900 dark:hover:text-white hover:underline transition cursor-pointer"
                   >
                     <ArrowDownToLine size={12} className="shrink-0" />
                     <span>Download QR</span>
                   </button>
-                  <a
-                    href={`/${user.username}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to={`/${user.username}`}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className="block text-2xs text-gray-500 hover:text-brand-600 dark:text-neutral-400 dark:hover:text-brand-400 hover:underline transition truncate"
                   >
                     View Storefront &rarr;
-                  </a>
+                  </Link>
                 </div>
               </div>
             )}

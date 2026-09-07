@@ -664,29 +664,32 @@ const ProductList = () => {
 
             {/* Unified Search Query & Active Filters Row */}
             {(urlQuery || activePills.length > 0) && (
-              <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-0 py-1.5 pb-2">
-                {/* Left: Search Header & Filter Pills Inline */}
-                <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center justify-between gap-2 px-4 md:px-0 py-1.5">
+                {/* Left: Search Header & Filter Pills Inline with Horizontal Scroll on Mobile */}
+                <div 
+                  data-horizontal-scroll="true"
+                  className="flex items-center gap-2 overflow-x-auto no-scrollbar min-w-0 flex-1 py-0.5"
+                >
                   {urlQuery ? (
-                    <div className="flex items-center gap-2 mr-1">
-                      <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Search:</span>
-                      <h1 className="text-base sm:text-lg font-black text-gray-900 dark:text-white tracking-tight">
+                    <div className="flex items-center gap-1.5 mr-1 shrink-0">
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-400 shrink-0">Search:</span>
+                      <h1 className="text-xs sm:text-base md:text-lg font-black text-gray-900 dark:text-white tracking-tight truncate max-w-[140px] sm:max-w-xs md:max-w-none">
                         Results for <span className="text-brand-600 dark:text-brand-400">"{urlQuery}"</span>
                       </h1>
                     </div>
                   ) : activePills.length > 0 ? (
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-0.5 shrink-0 whitespace-nowrap">
                       Active Filters:
                     </span>
                   ) : null}
 
-                  {urlQuery && <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline">|</span>}
+                  {urlQuery && <span className="text-neutral-300 dark:text-neutral-700 hidden sm:inline shrink-0">|</span>}
 
                   {/* Filter Pills */}
                   {activePills.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                       {activePills.map((pill) => {
-                        let pillClasses = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold animate-in zoom-in-95 duration-200 border ";
+                        let pillClasses = "flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs font-bold shrink-0 whitespace-nowrap animate-in zoom-in-95 duration-200 border ";
                         if (pill.id === 'category') {
                           pillClasses += "bg-transparent border-brand-500 text-gray-800 dark:text-gray-200";
                         } else {
@@ -699,7 +702,7 @@ const ProductList = () => {
                             <span>{pill.value}</span>
                             <button
                               onClick={pill.onRemove}
-                              className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
+                              className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors ml-0.5"
                               aria-label={`Remove ${pill.label} filter`}
                             >
                               <X className="h-3 w-3" />
@@ -711,8 +714,8 @@ const ProductList = () => {
                   )}
                 </div>
 
-                {/* Right: Clear Button */}
-                <div className="flex items-center gap-2">
+                {/* Right: Clear Button (pinned inline on same horizontal row) */}
+                <div className="flex items-center shrink-0 pl-1">
                   <button
                     onClick={() => {
                       setSearchParams(prev => {
@@ -722,10 +725,10 @@ const ProductList = () => {
                         return newParams;
                       });
                     }}
-                    className="text-xs font-bold text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-950/30 uppercase tracking-tight"
+                    className="text-[11px] sm:text-xs font-bold text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-1 sm:gap-1.5 transition-colors px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-950/30 uppercase tracking-tight shrink-0 whitespace-nowrap"
                     title={urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}
                   >
-                    <X size={13} />
+                    <X size={12} className="sm:w-[13px] sm:h-[13px]" />
                     <span>{urlQuery && activePills.length === 0 ? t('clear_search', 'Clear Search') : t('clear_all', 'Clear All')}</span>
                   </button>
                 </div>

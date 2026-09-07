@@ -537,11 +537,16 @@ export const DesktopChatWidget: React.FC = () => {
                             return (
                               <div className="flex justify-between items-baseline">
                                 <div className="flex items-center gap-1 min-w-0">
-                                  <span className="font-bold text-xs text-gray-900 dark:text-white truncate">
-                                    {viewMode === 'sokoni' ? `${otherUser} · ${productInfo?.title || conv.product_name || 'Product'}` : otherUser}
+                                  <span className={`font-bold text-xs text-gray-900 dark:text-white truncate ${viewMode === 'sokoni' ? 'shrink-0 max-w-[50%]' : ''}`}>
+                                    {otherUser}
                                   </span>
                                   {isVerified && (
                                     <VerifiedBadge isVerified={isVerified} tier={tier} className="w-3.5 h-3.5 shrink-0" />
+                                  )}
+                                  {viewMode === 'sokoni' && (
+                                    <span className="font-bold text-xs text-gray-900 dark:text-white truncate min-w-0">
+                                      · {productInfo?.title || conv.product_name || 'Product'}
+                                    </span>
                                   )}
                                 </div>
                                 {conv.last_message && (
