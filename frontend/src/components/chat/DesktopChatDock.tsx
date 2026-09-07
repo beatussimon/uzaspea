@@ -18,7 +18,7 @@ export const DesktopChatDock: React.FC = () => {
   const minimizedConversations = conversations.filter(c => minimizedChatWindows.includes(c.id));
 
   return (
-    <div className="fixed bottom-0 right-6 z-[200] hidden md:flex items-end gap-3 pointer-events-none">
+    <div className="fixed bottom-5 right-6 z-[200] hidden md:flex items-end gap-3 pointer-events-none">
       {/* --- Minimized Person-Specific Bubbles Stack --- */}
       <div className="flex items-center gap-2 pointer-events-auto">
         {minimizedConversations.map(conv => (
@@ -30,10 +30,10 @@ export const DesktopChatDock: React.FC = () => {
       <div className="pointer-events-auto">
         {activeWindows.map((convId, index) => {
           // Compute horizontal rightOffset so multiple chat windows stack neatly side-by-side!
-          // Window 0: right 24px (6rem)
-          // Window 1: right 370px (24 + 330 + 16)
-          // Window 2: right 716px (370 + 330 + 16)
-          const rightOffset = 24 + index * 346;
+          // Window 0: right 24px
+          // Window 1: right 400px (24 + 360 + 16)
+          // Window 2: right 776px (400 + 360 + 16)
+          const rightOffset = 24 + index * 376;
           return (
             <FloatingChatWindow
               key={convId}

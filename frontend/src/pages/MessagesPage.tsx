@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { 
   MessageSquare, Send, ArrowLeft, Search, Smile, 
@@ -165,6 +165,7 @@ const MessagesPage: React.FC = () => {
   const {
     conversations,
     messages,
+    fetchMessages,
     sendMessage,
     setActiveConversationId,
     loading: contextLoading,
@@ -189,6 +190,8 @@ const MessagesPage: React.FC = () => {
   const firstUnreadRef = useRef<HTMLDivElement>(null);
   const hasScrolledToInitialRef = useRef(false);
 
+  const [isFetchingThread, setIsFetchingThread] = useState(id ? (!messages[parseInt(id)] || messages[parseInt(id)].length === 0) : false);
+
   useEffect(() => {
     // Reset unread tracking state
     setInitialUnreadCount(null);
@@ -198,6 +201,18 @@ const MessagesPage: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
+    if (id) {
+      const convIdNum = parseInt(id);
+      if (!messages[convIdNum] || messages[convIdNum].length === 0) {
+        setIsFetchingThread(true);
+      }
+      fetchMessages(convIdNum).finally(() => {
+        setIsFetchingThread(false);
+      });
+    }
+  }, [id, fetchMessages]);
+
+  useEffect(() => {
     if (id && initialUnreadCount === null) {
       const conv = conversations.find(c => c.id === parseInt(id));
       if (conv) {
@@ -205,8 +220,6 @@ const MessagesPage: React.FC = () => {
       }
     }
   }, [id, conversations, initialUnreadCount]);
-
-
 
   // Sync route param with context's active conversation
   useEffect(() => {
@@ -275,58 +288,57 @@ const MessagesPage: React.FC = () => {
   };
 
   const currentMessages = id ? (messages[parseInt(id)] || []) : [];
-  const currentTypingStatus = id ? typingStatus[parseInt(id)] : false;
+
+  useEffect(() => {
+    if (initialUnreadCount && initialUnreadCount > 0 && currentMessages.length > 0 && unreadMessageIds.size === 0) {
+      let unreadIds = new Set<number>();
+      let firstUnreadId: number | null = null;
+      let count = 0;
+      for (let i = currentMessages.length - 1; i >= 0; i--) {
+        const msg = currentMessages[i];
+        if (msg.sender !== parseInt(userId.toString())) {
+          unreadIds.add(msg.id);
+          firstUnreadId = msg.id;
+          count++;
+          if (count >= initialUnreadCount) break;
+        }
+      }
+      setUnreadMessageIds(unreadIds);
+      setFirstUnreadMsgId(firstUnreadId);
+    }
+  }, [currentMessages, initialUnreadCount, unreadMessageIds.size, userId]);
+
+  // Instant scroll on initial load before paint to eliminate layout jump
+  useLayoutEffect(() => {
+    if (scrollRef.current && currentMessages.length > 0 && !hasScrolledToInitialRef.current) {
+      hasScrolledToInitialRef.current = true;
+      prevMessagesLengthRef.current = currentMessages.length;
+      if (initialUnreadCount && initialUnreadCount > 0 && firstUnreadRef.current) {
+        firstUnreadRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
+      } else {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+      lastConvIdRef.current = id;
+    }
+  }, [currentMessages.length, id, initialUnreadCount]);
 
   const prevMessagesLengthRef = useRef(currentMessages.length);
   useEffect(() => {
-    if (currentMessages.length > 0 && !hasScrolledToInitialRef.current && initialUnreadCount !== null) {
-      hasScrolledToInitialRef.current = true;
-      let unreadIds = new Set<number>();
-      let firstUnreadId: number | null = null;
-      if (initialUnreadCount > 0) {
-        let count = 0;
-        for (let i = currentMessages.length - 1; i >= 0; i--) {
-          const msg = currentMessages[i];
-          if (msg.sender !== parseInt(userId.toString())) {
-            unreadIds.add(msg.id);
-            firstUnreadId = msg.id;
-            count++;
-            if (count >= initialUnreadCount) break;
-          }
-        }
-        setUnreadMessageIds(unreadIds);
-        setFirstUnreadMsgId(firstUnreadId);
-      }
-      
-      setTimeout(() => {
-        if (initialUnreadCount > 0 && firstUnreadRef.current) {
-          firstUnreadRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
-        } else {
-          scrollToBottom('auto');
-        }
-      }, 100);
-      lastConvIdRef.current = id;
-    } else if (hasScrolledToInitialRef.current && currentMessages.length > prevMessagesLengthRef.current) {
+    if (hasScrolledToInitialRef.current && currentMessages.length > prevMessagesLengthRef.current) {
       const addedCount = currentMessages.length - prevMessagesLengthRef.current;
-      if (isScrolledUp && addedCount > 0) {
-        // Assume last message sender
-        const lastMsg = currentMessages[currentMessages.length - 1];
-        if (lastMsg.sender !== parseInt(userId.toString())) {
-          setNewMessagesCount(prev => prev + addedCount);
-        }
-      } else if (!isScrolledUp) {
-        if (id !== lastConvIdRef.current) {
-          scrollToBottom('auto');
-          lastConvIdRef.current = id;
-        } else {
-          scrollToBottom('smooth');
-        }
+      const lastMsg = currentMessages[currentMessages.length - 1];
+      const isMyMsg = lastMsg && Number(lastMsg.sender) === Number(userId);
+
+      if (isMyMsg) {
+        scrollToBottom('smooth');
+      } else if (isScrolledUp) {
+        setNewMessagesCount(prev => prev + addedCount);
+      } else {
+        scrollToBottom('smooth');
       }
-    } else if (currentTypingStatus && !isScrolledUp) {
-       scrollToBottom('smooth');
     }
     prevMessagesLengthRef.current = currentMessages.length;
-  }, [currentMessages, id, currentTypingStatus, isScrolledUp, userId, initialUnreadCount]);
+  }, [currentMessages, isScrolledUp, userId]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -565,18 +577,22 @@ const MessagesPage: React.FC = () => {
                     }`}
                   >
                     {/* Avatar */}
-                    <div className="relative shrink-0" onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/${otherUsername}`);
-                    }}>
+                    <div 
+                      className="relative shrink-0 cursor-pointer" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/${otherUsername}`);
+                      }}
+                      title={`View ${otherUsername}'s profile`}
+                    >
                       {viewMode === 'sokoni' && conv.product_image ? (
                         <img 
                           src={conv.product_image} 
                           alt="Product"
-                          className="w-12 h-12 rounded-full object-cover shadow-sm border border-gray-200 dark:border-neutral-700"
+                          className="w-12 h-12 rounded-full object-cover shadow-sm border border-gray-200 dark:border-neutral-700 hover:opacity-80 transition-opacity"
                         />
                       ) : (
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm  ${getGradient(otherUsername)} shadow-sm hover:opacity-80 transition-opacity`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm ${getGradient(otherUsername)} shadow-sm hover:opacity-80 transition-opacity`}>
                           {initials}
                         </div>
                       )}
@@ -592,20 +608,16 @@ const MessagesPage: React.FC = () => {
                       return (
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-baseline gap-1.5">
-                            <span 
-                              className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 truncate hover:underline hover:text-brand-500 transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/${otherUsername}`);
-                              }}
-                            >
-                              {viewMode === 'sokoni' ? `${otherUsername} · ${productInfo?.title || conv.product_name || 'Product'}` : otherUsername}
-                              {isVerified && viewMode !== 'sokoni' && (
+                            <span className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 min-w-0">
+                              <span className="truncate">
+                                {viewMode === 'sokoni' ? `${otherUsername} · ${productInfo?.title || conv.product_name || 'Product'}` : otherUsername}
+                              </span>
+                              {isVerified && (
                                 <VerifiedBadge tier={userTier} isVerified={isVerified} className="shrink-0 w-3.5 h-3.5" />
                               )}
                             </span>
                             {conv.last_message && (
-                              <span className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                              <span className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap shrink-0">
                                 {formatRelativeTime(conv.last_message.created_at)}
                               </span>
                             )}
@@ -680,46 +692,56 @@ const MessagesPage: React.FC = () => {
                     <ArrowLeft size={18} />
                   </button>
 
-                  {/* Contact Avatar */}
-                  {activeConv && (
-                    <div 
-                      className="relative shrink-0 cursor-pointer"
-                      onClick={() => navigate(`/${Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username}`)}
-                    >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm  ${getGradient(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username)} hover:opacity-80 transition-opacity`}>
-                        {(Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username).substring(0, 2).toUpperCase()}
-                      </div>
-                      {activeConv.is_online && (
-                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white/80 dark:border-neutral-900/80" />
-                      )}
-                    </div>
-                  )}
+                  {/* Contact Avatar & Header Titles */}
+                  {activeConv && (() => {
+                    const isBuyer = Number(activeConv.buyer) === Number(userId);
+                    const activeOtherUsername = isBuyer ? activeConv.seller_username : activeConv.buyer_username;
+                    const activeOtherVerified = isBuyer ? activeConv.seller_verified : activeConv.buyer_verified;
+                    const activeOtherTier = isBuyer ? activeConv.seller_tier : activeConv.buyer_tier;
+                    const initials = activeOtherUsername.substring(0, 2).toUpperCase();
 
-                  {/* Header Titles */}
-                  <div className="min-w-0">
-                    <span 
-                      className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1 cursor-pointer hover:underline hover:text-brand-500 transition-colors"
-                      onClick={() => activeConv && navigate(`/${Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username}`)}
-                    >
-                      {activeConv ? (Number(activeConv.buyer) === Number(userId) ? activeConv.seller_username : activeConv.buyer_username) : 'Chat'}
-                      {activeConv && Number(activeConv.buyer) === Number(userId) && (
-                        <VerifiedBadge tier={activeConv.seller_tier} isVerified={activeConv.seller_verified} className="w-3.5 h-3.5" />
-                      )}
-                    </span>
-                    {activeConv && typingStatus[parseInt(id || '')] ? (
-                      <p className="text-[10px] text-brand-500 font-semibold flex items-center gap-1 leading-none mt-0.5 animate-pulse">
-                        typing...
-                      </p>
-                    ) : activeConv && activeConv.is_online ? (
-                      <p className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1 leading-none mt-0.5">
-                        Active now
-                      </p>
-                    ) : (
-                      <p className="text-[10px] text-gray-400 font-semibold flex items-center gap-1 leading-none mt-0.5">
-                        {activeConv?.last_seen ? `Last seen ${formatRelativeTime(activeConv.last_seen)}` : 'Offline'}
-                      </p>
-                    )}
-                  </div>
+                    return (
+                      <>
+                        <div 
+                          className="relative shrink-0 cursor-pointer"
+                          onClick={() => navigate(`/${activeOtherUsername}`)}
+                          title={`View ${activeOtherUsername}'s profile`}
+                        >
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${getGradient(activeOtherUsername)} hover:opacity-80 transition-opacity`}>
+                            {initials}
+                          </div>
+                          {activeConv.is_online && (
+                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white/80 dark:border-neutral-900/80" />
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className="font-bold text-sm text-gray-900 dark:text-white truncate">
+                              {activeOtherUsername}
+                            </span>
+                            {activeOtherVerified && (
+                              <VerifiedBadge tier={activeOtherTier} isVerified={activeOtherVerified} className="w-3.5 h-3.5 shrink-0" />
+                            )}
+                          </div>
+                          {typingStatus[parseInt(id || '')] ? (
+                            <p className="text-[10px] text-brand-500 font-semibold flex items-center gap-1 leading-none mt-0.5 animate-pulse">
+                              typing...
+                            </p>
+                          ) : activeConv.is_online ? (
+                            <p className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1 leading-none mt-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                              Active now
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-gray-400 font-semibold flex items-center gap-1 leading-none mt-0.5">
+                              {activeConv?.last_seen ? `Last seen ${formatRelativeTime(activeConv.last_seen)}` : 'Offline'}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Header Actions */}
@@ -735,146 +757,162 @@ const MessagesPage: React.FC = () => {
                 ref={scrollRef}
                 onScroll={handleScroll}
               >
-                <AnimatePresence initial={false}>
-                  {Object.keys(groupedMessages).length === 0 && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 text-center text-xs text-gray-400">
-                      No messages in this conversation yet. Send a message to start!
-                    </motion.div>
-                  )}
+                {isFetchingThread && currentMessages.length === 0 ? null : currentMessages.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-gray-400">
+                    No messages in this conversation yet. Send a message to start!
+                  </div>
+                ) : (
+                  <AnimatePresence initial={false}>
+                    {Object.keys(groupedMessages).map(dateStr => (
+                      <div key={dateStr} className="space-y-4 w-full max-w-full">
+                        {/* Day divider */}
+                        <div className="flex justify-center my-4">
+                          <span className="px-3 py-1 bg-gray-200/55 dark:bg-neutral-900 text-gray-500 dark:text-gray-400 text-[10px] font-bold rounded-full tracking-wide">
+                            {formatDayHeader(dateStr)}
+                          </span>
+                        </div>
 
-                  {Object.keys(groupedMessages).map(dateStr => (
-                    <div key={dateStr} className="space-y-4 w-full max-w-full">
-                      {/* Day divider */}
-                      <motion.div className="flex justify-center my-4">
-                        <span className="px-3 py-1 bg-gray-200/55 dark:bg-neutral-900 text-gray-500 dark:text-gray-400 text-[10px] font-bold rounded-full tracking-wide">
-                          {formatDayHeader(dateStr)}
-                        </span>
-                      </motion.div>
+                        {/* Messages in day */}
+                        {groupedMessages[dateStr].map((msg, index) => {
+                          const isMe = Number(msg.sender) === Number(userId);
+                          const showAvatar = !isMe;
+                          const isFirstUnread = msg.id === firstUnreadMsgId;
+                          const parsed = parseMessageContent(msg.content);
+                          
+                          // Display precise date on hover
+                          const messageTime = new Date(msg.created_at).toLocaleTimeString(undefined, {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          });
 
-                      {/* Messages in day */}
-                      {groupedMessages[dateStr].map((msg, index) => {
-                        const isMe = Number(msg.sender) === Number(userId);
-                        const showAvatar = !isMe;
-                        const isFirstUnread = msg.id === firstUnreadMsgId;
-                        const parsed = parseMessageContent(msg.content);
-                        
-                        // Display precise date on hover
-                        const messageTime = new Date(msg.created_at).toLocaleTimeString(undefined, {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        });
-
-                        return (
-                          <div key={msg.id} ref={isFirstUnread ? firstUnreadRef : null} className="w-full max-w-full flex flex-col">
-                            {isFirstUnread && (
-                              <div className="w-full flex items-center justify-center my-4 relative">
-                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-brand-500/30 dark:border-brand-500/20"></div></div>
-                                <span className="relative bg-white dark:bg-[#0a0a0a] px-3 text-[10px] font-bold text-brand-500 dark:text-brand-500 uppercase tracking-widest select-none shadow-sm rounded-full border border-brand-500/20 dark:border-brand-500/10">New Messages</span>
-                              </div>
-                            )}
-                            <div className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                            {/* Sender Avatar */}
-                            {showAvatar && (
-                              <div 
-                                className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px]  ${getGradient(msg.sender_username)} cursor-pointer hover:opacity-80 transition-opacity`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/${msg.sender_username}`);
-                                }}
-                              >
-                                {msg.sender_username.substring(0, 2).toUpperCase()}
-                              </div>
-                            )}
-
-                            {/* Bubble Container */}
-                            <div 
-                              className={`max-w-[75%] sm:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
+                          return (
+                            <motion.div 
+                              key={msg.id || index} 
+                              ref={isFirstUnread ? firstUnreadRef : null} 
+                              initial={{ opacity: 0, scale: 0.93, y: 7 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              transition={{
+                                type: 'spring',
+                                damping: 26,
+                                stiffness: 420,
+                                mass: 0.5,
+                              }}
+                              style={{
+                                transformOrigin: isMe ? 'bottom right' : 'bottom left',
+                              }}
+                              className="w-full max-w-full flex flex-col"
                             >
-                              {/* Attached Product Preview Card */}
-                              {parsed.product && (
-                                <div
-                                  onClick={() => navigate(`/product/${parsed.product?.slug || parsed.product?.id}`)}
-                                  className="cursor-pointer group max-w-full sm:max-w-[300px] bg-white dark:bg-[#1f2022] border border-gray-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-md hover:border-brand-500/50 hover:shadow-lg transition-all text-left mb-0.5"
+                              {isFirstUnread && (
+                                <div className="w-full flex items-center justify-center my-4 relative">
+                                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-brand-500/30 dark:border-brand-500/20"></div></div>
+                                  <span className="relative bg-white dark:bg-[#0a0a0a] px-3 text-[10px] font-bold text-brand-500 dark:text-brand-500 uppercase tracking-widest select-none shadow-sm rounded-full border border-brand-500/20 dark:border-brand-500/10">New Messages</span>
+                                </div>
+                              )}
+                              <div className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                              {/* Sender Avatar */}
+                              {showAvatar && (
+                                <div 
+                                  className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white font-bold text-[11px]  ${getGradient(msg.sender_username)} cursor-pointer hover:opacity-80 transition-opacity`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/${msg.sender_username}`);
+                                  }}
                                 >
-                                  <div className="flex items-center gap-3 p-2.5">
-                                    {parsed.product.image ? (
-                                      <img
-                                        src={parsed.product.image}
-                                        alt={parsed.product.title}
-                                        className="w-14 h-14 rounded-xl object-cover shrink-0 bg-neutral-900"
-                                      />
-                                    ) : (
-                                      <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-xs font-bold text-gray-400 shrink-0">
-                                        Item
+                                  {msg.sender_username.substring(0, 2).toUpperCase()}
+                                </div>
+                              )}
+
+                              {/* Bubble Container */}
+                              <div 
+                                className={`max-w-[75%] sm:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
+                              >
+                                {/* Attached Product Preview Card */}
+                                {parsed.product && (
+                                  <div
+                                    onClick={() => navigate(`/product/${parsed.product?.slug || parsed.product?.id}`)}
+                                    className="cursor-pointer group max-w-full sm:max-w-[300px] bg-white dark:bg-[#1f2022] border border-gray-200/80 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-md hover:border-brand-500/50 hover:shadow-lg transition-all text-left mb-0.5"
+                                  >
+                                    <div className="flex items-center gap-3 p-2.5">
+                                      {parsed.product.image ? (
+                                        <img
+                                          src={parsed.product.image}
+                                          alt={parsed.product.title}
+                                          className="w-14 h-14 rounded-xl object-cover shrink-0 bg-neutral-900"
+                                        />
+                                      ) : (
+                                        <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-neutral-800 flex items-center justify-center text-xs font-bold text-gray-400 shrink-0">
+                                          Item
+                                        </div>
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        {parsed.product.category && (
+                                          <span className="text-[9px] font-bold uppercase tracking-wider text-amber-500 line-clamp-1">
+                                            {parsed.product.category}
+                                          </span>
+                                        )}
+                                        <h4 className="text-xs font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 transition-colors">
+                                          {parsed.product.title}
+                                        </h4>
+                                        {parsed.product.price != null && (
+                                          <p className="text-xs font-extrabold text-brand-600 dark:text-brand-400 mt-0.5">
+                                            {typeof parsed.product.price === 'number' ? parsed.product.price.toLocaleString() : parsed.product.price} {parsed.product.currency || 'TZS'}
+                                          </p>
+                                        )}
                                       </div>
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                      {parsed.product.category && (
-                                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-500 line-clamp-1">
-                                          {parsed.product.category}
-                                        </span>
-                                      )}
-                                      <h4 className="text-xs font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-brand-500 transition-colors">
-                                        {parsed.product.title}
-                                      </h4>
-                                      {parsed.product.price != null && (
-                                        <p className="text-xs font-extrabold text-brand-600 dark:text-brand-400 mt-0.5">
-                                          {typeof parsed.product.price === 'number' ? parsed.product.price.toLocaleString() : parsed.product.price} {parsed.product.currency || 'TZS'}
-                                        </p>
-                                      )}
                                     </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
 
-                              {/* Message Bubble wrapper with tooltip-like time reveal */}
-                              {parsed.text && (
-                                <div className="group relative">
-                                  <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all whitespace-pre-wrap break-words ${
-                                    isMe
-                                      ? 'bg-brand-500 text-white rounded-br-sm shadow-sm'
-                                      : unreadMessageIds.has(msg.id)
-                                      ? '  text-gray-900 dark:text-gray-100 border border-brand-500/50 dark:border-brand-500/30 rounded-bl-sm'
-                                      : 'bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] text-gray-900 dark:text-white rounded-bl-sm'
-                                  }`}>
-                                    {parsed.text}
+                                {/* Message Bubble wrapper with tooltip-like time reveal */}
+                                {parsed.text && (
+                                  <div className="group relative">
+                                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all whitespace-pre-wrap break-words ${
+                                      isMe
+                                        ? 'bg-brand-500 text-white rounded-br-sm shadow-sm'
+                                        : unreadMessageIds.has(msg.id)
+                                        ? '  text-gray-900 dark:text-gray-100 border border-brand-500/50 dark:border-brand-500/30 rounded-bl-sm'
+                                        : 'bg-white/80 dark:bg-white/[0.06] border border-gray-200/50 dark:border-white/[0.06] text-gray-900 dark:text-white rounded-bl-sm'
+                                    }`}>
+                                      {parsed.text}
+                                    </div>
+
+                                    {/* Hover timestamp */}
+                                    <span className={`absolute top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none ${
+                                      isMe ? '-left-14' : '-right-14'
+                                    }`}>
+                                      {messageTime}
+                                    </span>
                                   </div>
+                                )}
 
-                                  {/* Hover timestamp */}
-                                  <span className={`absolute top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none ${
-                                    isMe ? '-left-14' : '-right-14'
-                                  }`}>
-                                    {messageTime}
-                                  </span>
-                                </div>
-                              )}
-
-                              {/* Unread / status indicators below own messages */}
-                              {isMe && index === groupedMessages[dateStr].length - 1 && (
-                                <div className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
-                                  {msg.id < 0 ? (
-                                    <span className="animate-pulse">Sending...</span>
-                                  ) : (
-                                    <>
-                                      <span>Sent</span>
-                                      {msg.is_read ? (
-                                        <CheckCheck size={12} className="text-brand-500" />
-                                      ) : msg.is_delivered ? (
-                                        <CheckCheck size={12} className="text-gray-400" />
-                                      ) : (
-                                        <Check size={12} className="text-gray-400" />
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              )}
+                                {/* Unread / status indicators below own messages */}
+                                {isMe && index === groupedMessages[dateStr].length - 1 && (
+                                  <div className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
+                                    {msg.id < 0 ? (
+                                      <span className="animate-pulse">Sending...</span>
+                                    ) : (
+                                      <>
+                                        <span>Sent</span>
+                                        {msg.is_read ? (
+                                          <CheckCheck size={12} className="text-brand-500" />
+                                        ) : msg.is_delivered ? (
+                                          <CheckCheck size={12} className="text-gray-400" />
+                                        ) : (
+                                          <Check size={12} className="text-gray-400" />
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </AnimatePresence>
+                )}
 
                 {/* Animated Typing Indicator */}
                   {(typingStatus[parseInt(id || '')]) && (
@@ -899,7 +937,6 @@ const MessagesPage: React.FC = () => {
                     </div>
                     </div>
                   )}
-                </AnimatePresence>
                 <div ref={messageEndRef} />
               </div>
               

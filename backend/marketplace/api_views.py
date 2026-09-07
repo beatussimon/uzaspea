@@ -3437,12 +3437,15 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
         presence_keys = [f'user:seen:{uid}' for uid in user_ids]
         seen_data = cache.get_many(presence_keys) if presence_keys else {}
+        last_seen_keys = [f'user:last_seen:{uid}' for uid in user_ids]
+        last_seen_data = cache.get_many(last_seen_keys) if last_seen_keys else {}
 
         presence_map = {}
         for uid in user_ids:
             key = f'user:seen:{uid}'
+            last_key = f'user:last_seen:{uid}'
             is_online = key in seen_data
-            last_seen = seen_data.get(key)
+            last_seen = seen_data.get(key) or last_seen_data.get(last_key)
             presence_map[uid] = {'is_online': is_online, 'last_seen': last_seen}
 
         serializer = self.get_serializer(convs, many=True, context={'request': request, 'presence_map': presence_map})
