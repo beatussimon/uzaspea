@@ -534,5 +534,18 @@
   "any_condition": "Tous états",
   "refurbished": "Reconditionné",
   "like_new": "Comme Neuf",
-  "boost_now": "Sponsoriser"
+  "boost_now": "Sponsoriser",
+  "navigate": "Naviguer",
+  "open_map": "Ouvrir la carte",
+  "hide_map": "Masquer la carte",
+  "show_map": "Afficher la carte",
+  "choose_map_app": "Choisir l'application de carte",
+  "choose_map_app_desc": "Sélectionnez l'application de carte sur cet appareil Apple",
+  "navigate_with": "Naviguer avec les cartes",
+  "open_with": "Ouvrir avec les cartes",
+  "apple_maps": "Apple Maps",
+  "apple_maps_desc": "Application de carte par défaut pour Apple",
+  "google_maps": "Google Maps",
+  "google_maps_desc": "Navigation guidée et trafic en direct",
+  "remember_map_choice": "Mémoriser mon choix"
 }

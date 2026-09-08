@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Globe } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, SupportedLanguageCode } from '../../i18n';
 
 interface LanguageSelectorProps {
@@ -8,6 +8,76 @@ interface LanguageSelectorProps {
   className?: string;
   onSelect?: () => void;
 }
+
+// Crisp, cross-platform SVG Flag component for guaranteed rendering across all OSes
+export const LanguageFlag: React.FC<{ code: string; className?: string }> = ({
+  code,
+  className = 'w-5 h-3.5',
+}) => {
+  switch (code) {
+    case 'sw': // Tanzania (TZ)
+      return (
+        <svg
+          viewBox="0 0 640 480"
+          className={`${className} rounded-[2px] object-cover shrink-0 shadow-xs border border-black/10 dark:border-white/10`}
+          aria-hidden="true"
+        >
+          <defs>
+            <clipPath id="tz-flag-clip">
+              <path d="M0 0h640v480H0z" />
+            </clipPath>
+          </defs>
+          <g clipPath="url(#tz-flag-clip)">
+            <path fill="#1eb53a" d="M0 0h640L0 480V0z" />
+            <path fill="#00a3dd" d="M640 0v480H0l640-480z" />
+            <path fill="#fcd116" d="M-50 480L640-37.5v117.5L50 560H-50V480z" />
+            <path fill="#000" d="M-60 480L640-45v80L-20 540H-60V480z" />
+          </g>
+        </svg>
+      );
+    case 'en': // United States (US)
+      return (
+        <svg
+          viewBox="0 0 640 480"
+          className={`${className} rounded-[2px] object-cover shrink-0 shadow-xs border border-black/10 dark:border-white/10`}
+          aria-hidden="true"
+        >
+          <g fillRule="evenodd">
+            <path fill="#bd3d44" d="M0 0h640v480H0z" />
+            <path stroke="#fff" strokeWidth="37" d="M0 55.4h640M0 129.2h640M0 203h640M0 277h640M0 350.8h640M0 424.6h640" />
+            <path fill="#192f5d" d="M0 0h256v258.5H0z" />
+            <g fill="#fff">
+              <circle cx="32" cy="24" r="7" /><circle cx="96" cy="24" r="7" /><circle cx="160" cy="24" r="7" /><circle cx="224" cy="24" r="7" />
+              <circle cx="64" cy="48" r="7" /><circle cx="128" cy="48" r="7" /><circle cx="192" cy="48" r="7" />
+              <circle cx="32" cy="72" r="7" /><circle cx="96" cy="72" r="7" /><circle cx="160" cy="72" r="7" /><circle cx="224" cy="72" r="7" />
+              <circle cx="64" cy="96" r="7" /><circle cx="128" cy="96" r="7" /><circle cx="192" cy="96" r="7" />
+              <circle cx="32" cy="120" r="7" /><circle cx="96" cy="120" r="7" /><circle cx="160" cy="120" r="7" /><circle cx="224" cy="120" r="7" />
+              <circle cx="64" cy="144" r="7" /><circle cx="128" cy="144" r="7" /><circle cx="192" cy="144" r="7" />
+              <circle cx="32" cy="168" r="7" /><circle cx="96" cy="168" r="7" /><circle cx="160" cy="168" r="7" /><circle cx="224" cy="168" r="7" />
+              <circle cx="64" cy="192" r="7" /><circle cx="128" cy="192" r="7" /><circle cx="192" cy="192" r="7" />
+              <circle cx="32" cy="216" r="7" /><circle cx="96" cy="216" r="7" /><circle cx="160" cy="216" r="7" /><circle cx="224" cy="216" r="7" />
+            </g>
+          </g>
+        </svg>
+      );
+    case 'fr': // French (France)
+      return (
+        <svg
+          viewBox="0 0 640 480"
+          className={`${className} rounded-[2px] object-cover shrink-0 shadow-xs border border-black/10 dark:border-white/10`}
+          aria-hidden="true"
+        >
+          <g fillRule="evenodd" strokeWidth="1pt">
+            <path fill="#fff" d="M0 0h640v480H0z" />
+            <path fill="#00267f" d="M0 0h213.3v480H0z" />
+            <path fill="#f31830" d="M426.7 0H640v480H426.7z" />
+          </g>
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
 
 export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   variant = 'navbar-dropdown',
@@ -55,7 +125,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              <span className="text-sm">{lang.flag}</span>
+              <LanguageFlag code={lang.code} className="w-4 h-3" />
               <span>{lang.code.toUpperCase()}</span>
             </button>
           );
@@ -64,34 +134,60 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     );
   }
 
-  // 2. Drawer List (Full touch rows for mobile drawer)
+  // 2. Drawer Dropdown (Integrated, human menu item for mobile drawer)
   if (variant === 'drawer-list') {
     return (
-      <div className={`space-y-1 ${className}`}>
-        {SUPPORTED_LANGUAGES.map((lang) => {
-          const isActive = currentLang === lang.code;
-          return (
-            <button
-              key={lang.code}
-              type="button"
-              onClick={() => handleLanguageChange(lang.code)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors text-left ${
-                isActive
-                  ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold'
-                  : 'hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-300 font-medium'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">{lang.flag}</span>
-                <div>
-                  <p className="text-sm leading-tight font-semibold">{lang.nativeLabel}</p>
-                  <p className="text-[10px] text-gray-400 font-normal">{lang.region}</p>
-                </div>
-              </div>
-              {isActive && <Check size={18} className="text-brand-500" />}
-            </button>
-          );
-        })}
+      <div className={`relative ${className}`} ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-lg transition-colors group text-gray-700 dark:text-gray-300 text-left"
+          aria-expanded={open}
+        >
+          <div className="flex items-center gap-3">
+            <Globe size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
+            <span className="text-sm font-medium">{t('language', 'Language')}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-neutral-500 font-medium">
+            <span>{currentLangObj.nativeLabel}</span>
+            <ChevronDown
+              size={15}
+              className={`transition-transform duration-200 ${open ? 'rotate-180 text-gray-600 dark:text-neutral-300' : ''}`}
+            />
+          </div>
+        </button>
+
+        {open && (
+          <div className="py-1 space-y-0.5 animate-in fade-in duration-150">
+            {SUPPORTED_LANGUAGES.map((lang) => {
+              const isActive = currentLang === lang.code;
+              return (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => handleLanguageChange(lang.code)}
+                  className="w-full flex items-center justify-between pl-11 pr-3 py-2 rounded-lg text-sm text-left transition-colors hover:bg-gray-100/70 dark:hover:bg-neutral-900/70"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <LanguageFlag code={lang.code} />
+                    <span
+                      className={
+                        isActive
+                          ? 'font-semibold text-gray-900 dark:text-white'
+                          : 'font-normal text-gray-500 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white'
+                      }
+                    >
+                      {lang.nativeLabel}
+                    </span>
+                  </div>
+                  {isActive && (
+                    <Check size={16} className="text-gray-900 dark:text-white shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
@@ -106,13 +202,13 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         aria-label="Select Language"
         aria-expanded={open}
       >
-        <span className="text-sm">{currentLangObj.flag}</span>
+        <LanguageFlag code={currentLangObj.code} />
         <span className="text-[11px] uppercase tracking-wider font-extrabold">{currentLangObj.code}</span>
         <ChevronDown size={13} className={`transition-transform duration-200 text-gray-400 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute top-[calc(100%+8px)] right-0 w-48 bg-white dark:bg-[#141414] rounded-2xl shadow-xl border border-gray-100 dark:border-neutral-800 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute top-[calc(100%+8px)] right-0 w-44 bg-white dark:bg-[#141414] rounded-2xl shadow-xl border border-gray-100 dark:border-neutral-800 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
           <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-gray-400">
             {t('language', 'Language')}
           </div>
@@ -126,18 +222,15 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                   onClick={() => handleLanguageChange(lang.code)}
                   className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors ${
                     isActive
-                      ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold'
+                      ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white font-semibold'
                       : 'hover:bg-gray-50 dark:hover:bg-neutral-800/60 text-gray-700 dark:text-gray-300 font-medium'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="text-base">{lang.flag}</span>
-                    <div className="text-left">
-                      <div className="leading-none font-semibold">{lang.nativeLabel}</div>
-                      <span className="text-[9px] text-gray-400 font-normal">{lang.region}</span>
-                    </div>
+                    <LanguageFlag code={lang.code} />
+                    <span className="leading-none font-semibold">{lang.nativeLabel}</span>
                   </div>
-                  {isActive && <Check size={14} className="text-brand-500" />}
+                  {isActive && <Check size={14} className="text-gray-900 dark:text-white shrink-0" />}
                 </button>
               );
             })}

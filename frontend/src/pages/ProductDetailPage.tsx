@@ -24,6 +24,8 @@ import { fetchProductCached } from '../components/layout/CategoryBar';
 import { useMessages } from '../context/MessageContext';
 import SEO from '../components/SEO';
 import { createProductInquiryPayload, parseMessageContent } from '../utils/messageParser';
+import { launchNavigation, launchOpenMap } from '../utils/mapNavigation';
+import { MapAppModal } from '../components/MapAppModal';
 
 interface ProductData {
   id: number;
@@ -278,7 +280,17 @@ const ImageLightbox = ({
   );
 };
 
-const ProductMap = ({ lat, lng, isDesktop }: { lat: string | number, lng: string | number, isDesktop: boolean, locationName?: string }) => {
+interface ProductMapProps {
+  lat: string | number;
+  lng: string | number;
+  isDesktop: boolean;
+  locationName?: string;
+  onNavigate?: () => void;
+  onOpenMap?: () => void;
+}
+
+const ProductMap: React.FC<ProductMapProps> = ({ lat, lng, isDesktop, onNavigate, onOpenMap }) => {
+  const { t } = useTranslation();
   const [showMap, setShowMap] = React.useState(isDesktop);
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
   const mapInstanceRef = React.useRef<L.Map | null>(null);
@@ -347,11 +359,11 @@ const ProductMap = ({ lat, lng, isDesktop }: { lat: string | number, lng: string
       <div className="flex items-center justify-between mb-3">
          <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
            <MapPin size={14} className="text-brand-500" />
-           Location
+           {t('location', 'Location')}
          </h3>
          {!isDesktop && (
            <button onClick={() => setShowMap(!showMap)} className="text-xs px-3 py-1 rounded-full text-brand-500 font-bold transition border border-brand-500/40">
-             {showMap ? 'Hide Map' : 'Show Map'}
+             {showMap ? t('hide_map', 'Hide Map') : t('show_map', 'Show Map')}
            </button>
          )}
       </div>
@@ -362,23 +374,21 @@ const ProductMap = ({ lat, lng, isDesktop }: { lat: string | number, lng: string
 
           {/* Top Actions: Navigate & Open Map */}
           <div className="absolute top-2.5 left-2.5 bg-white/95 dark:bg-black/95 px-3 py-1.5 text-[11px] rounded-lg shadow-md z-[1000] backdrop-blur-md border border-gray-200 dark:border-neutral-800 flex items-center gap-2.5">
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-500 font-bold hover:underline flex items-center gap-1"
+            <button
+              type="button"
+              onClick={onNavigate}
+              className="text-blue-500 font-bold hover:underline flex items-center gap-1 cursor-pointer"
             >
-              <Navigation size={12} /> Navigate
-            </a>
+              <Navigation size={12} /> {t('navigate', 'Navigate')}
+            </button>
             <span className="text-gray-300 dark:text-neutral-700">•</span>
-            <a
-              href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=11/${lat}/${lng}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-brand-500 font-bold hover:underline"
+            <button
+              type="button"
+              onClick={onOpenMap}
+              className="text-brand-500 font-bold hover:underline cursor-pointer"
             >
-              Open Map
-            </a>
+              {t('open_map', 'Open Map')}
+            </button>
           </div>
         </div>
       )}
@@ -414,7 +424,25 @@ const ProductDetailPage: React.FC = () => {
   const [customMessage, setCustomMessage] = useState('Hi, is this still available?');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [messageSent, setMessageSent] = useState(false);
+  const [mapModalState, setMapModalState] = useState<{ isOpen: boolean; mode: 'navigate' | 'open' }>({
+    isOpen: false,
+    mode: 'navigate',
+  });
   const actionMenuRef = useRef<HTMLDivElement>(null);
+
+  const handleNavigate = () => {
+    if (!product?.latitude || !product?.longitude) return;
+    launchNavigation(product.latitude, product.longitude, () => {
+      setMapModalState({ isOpen: true, mode: 'navigate' });
+    });
+  };
+
+  const handleOpenMap = () => {
+    if (!product?.latitude || !product?.longitude) return;
+    launchOpenMap(product.latitude, product.longitude, () => {
+      setMapModalState({ isOpen: true, mode: 'open' });
+    });
+  };
 
   const existingConversation = useMemo(() => {
     if (!product || !conversations) return null;
@@ -795,7 +823,7 @@ const ProductDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+    <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col lg:flex-row overflow-y-auto overflow-x-hidden lg:overflow-hidden w-full max-w-full">
       <SEO 
         title={`${product.name} - TSh ${priceFormatted} | SokoniMax Tanzania`} 
         description={product.description ? product.description.substring(0, 160).replace(/\n/g, ' ') : `Buy ${product.name} on SokoniMax Tanzania.`}
@@ -818,7 +846,7 @@ const ProductDetailPage: React.FC = () => {
       )}
 
       {/* ═══ MOBILE IMAGE GRID (< lg only) ═══ */}
-      <div className="block lg:hidden relative w-full bg-neutral-950 shrink-0">
+      <div className="block lg:hidden relative w-full max-w-full bg-neutral-950 shrink-0 overflow-hidden isolate">
         <div className="absolute top-3 left-3 right-3 z-40 flex items-center justify-between pointer-events-none">
           {/* Left: Close, Logo */}
           <div className="flex items-center gap-2 pointer-events-auto">
@@ -877,10 +905,19 @@ const ProductDetailPage: React.FC = () => {
         </div>
 
         {images.length <= 1 ? (
-          <div className="w-full aspect-square relative cursor-pointer" onClick={() => setLightboxOpen(true)}>
+          <div 
+            className="w-full aspect-square relative cursor-pointer overflow-hidden isolate select-none" 
+            style={{ clipPath: 'inset(0)' }}
+            onClick={() => setLightboxOpen(true)}
+          >
             {currentImageSrc && (
               <>
-                <img src={currentImageSrc} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover filter blur-[50px] opacity-100 scale-110 select-none pointer-events-none" />
+                <img 
+                  src={currentImageSrc} 
+                  alt="" 
+                  aria-hidden="true" 
+                  className="absolute inset-0 w-full h-full object-cover filter blur-2xl opacity-75 scale-105 select-none pointer-events-none" 
+                />
                 <div className="absolute inset-0 bg-black/30 pointer-events-none" />
               </>
             )}
@@ -893,7 +930,7 @@ const ProductDetailPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="w-full grid grid-cols-[2.2fr_1fr] gap-[2px]" style={{ aspectRatio: '1.08/1' }}>
+          <div className="w-full grid grid-cols-[2.2fr_1fr] gap-[2px] overflow-hidden isolate" style={{ aspectRatio: '1.08/1', clipPath: 'inset(0)' }}>
             <div className="relative cursor-pointer overflow-hidden" onClick={() => { setSelectedImage(0); setLightboxOpen(true); }}>
               <img src={images[0]?.image || ''} alt={product.name} className="w-full h-full object-cover" loading="eager" />
             </div>
@@ -1026,16 +1063,17 @@ const ProductDetailPage: React.FC = () => {
                   </Link>
 
                   {product.latitude && product.longitude && (
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${product.latitude},${product.longitude}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => setActionMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-blue-500/10 hover:text-blue-500 transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        handleNavigate();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-gray-800 dark:text-gray-200 hover:bg-blue-500/10 hover:text-blue-500 transition-colors text-left cursor-pointer"
                     >
                       <Navigation size={15} className="text-blue-500 shrink-0" />
                       <span>{t('navigate_to_item', 'Navigate to Item')}</span>
-                    </a>
+                    </button>
                   )}
                 </div>
               )}
@@ -1111,7 +1149,7 @@ const ProductDetailPage: React.FC = () => {
       </div>
 
       {/* ═══ RIGHT SIDE: Product Info & Buy Sidebar ═══ */}
-      <div className="w-full lg:w-[42%] xl:w-[38%] h-auto lg:h-full bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 overflow-y-visible lg:overflow-y-auto p-5 sm:p-6 flex flex-col gap-6 shrink-0">
+      <div className="w-full max-w-full lg:w-[42%] xl:w-[38%] h-auto lg:h-full bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 overflow-y-visible overflow-x-hidden lg:overflow-y-auto p-5 sm:p-6 flex flex-col gap-6 shrink-0">
           
           {/* Header Area */}
           <div className="flex flex-col gap-2">
@@ -1698,7 +1736,14 @@ const ProductDetailPage: React.FC = () => {
           {/* Map Location */}
           {product.latitude && product.longitude && (
             <div>
-              <ProductMap lat={product.latitude} lng={product.longitude} locationName={product.location_name} isDesktop={isDesktop} />
+              <ProductMap 
+                lat={product.latitude} 
+                lng={product.longitude} 
+                locationName={product.location_name} 
+                isDesktop={isDesktop}
+                onNavigate={handleNavigate}
+                onOpenMap={handleOpenMap}
+              />
             </div>
           )}
 
@@ -1710,6 +1755,16 @@ const ProductDetailPage: React.FC = () => {
             />
           </div>
         </div>
+
+      {product.latitude && product.longitude && (
+        <MapAppModal
+          isOpen={mapModalState.isOpen}
+          onClose={() => setMapModalState((prev) => ({ ...prev, isOpen: false }))}
+          lat={product.latitude}
+          lng={product.longitude}
+          mode={mapModalState.mode}
+        />
+      )}
     </div>
   );
 };

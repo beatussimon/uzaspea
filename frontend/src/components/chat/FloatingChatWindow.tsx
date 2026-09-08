@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -50,9 +50,10 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
   const typingTimeoutRef = useRef<number | null>(null);
   const [isLocallyTyping, setIsLocallyTyping] = useState(false);
 
-  const [initialUnreadCount, setInitialUnreadCount] = useState<number | null>(null);
-  const [unreadMessageIds, setUnreadMessageIds] = useState<Set<number>>(new Set());
-  const [firstUnreadMsgId, setFirstUnreadMsgId] = useState<number | null>(null);
+  const [initialUnreadCount, setInitialUnreadCount] = useState<number | null>(() => {
+    const conv = conversations.find(c => c.id === convId);
+    return conv ? conv.unread_count : null;
+  });
   const firstUnreadRef = useRef<HTMLDivElement>(null);
   const hasScrolledToInitialRef = useRef(false);
   const [isFetchingThread, setIsFetchingThread] = useState(!messages[convId] || messages[convId].length === 0);
@@ -82,16 +83,19 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
   const activeConv = conversations.find(c => c.id === convId);
   const currentMessages = messages[convId] || [];
 
-  useEffect(() => {
-    if (initialUnreadCount && initialUnreadCount > 0 && currentMessages.length > 0 && unreadMessageIds.size === 0) {
+  const { unreadMessageIds, firstUnreadMsgId } = useMemo(() => {
+    if (initialUnreadCount && initialUnreadCount > 0 && currentMessages.length > 0) {
       const otherUserMsgs = currentMessages.filter(m => Number(m.sender) !== userId);
       const unread = otherUserMsgs.slice(-initialUnreadCount);
       if (unread.length > 0) {
-        setUnreadMessageIds(new Set(unread.map(m => m.id)));
-        setFirstUnreadMsgId(unread[0].id);
+        return {
+          unreadMessageIds: new Set(unread.map(m => m.id)),
+          firstUnreadMsgId: unread[0].id,
+        };
       }
     }
-  }, [currentMessages, initialUnreadCount, unreadMessageIds.size, userId]);
+    return { unreadMessageIds: new Set<number>(), firstUnreadMsgId: null };
+  }, [initialUnreadCount, currentMessages, userId]);
 
   useEffect(() => {
     if (prefillMessages[convId]) {
@@ -113,28 +117,42 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
   const prevScrollHeightRef = useRef(0);
   const prevScrollTopRef = useRef(0);
   const prevFirstMsgIdRef = useRef<number | null>(currentMessages[0]?.id ?? null);
-  const prependedIdsRef = useRef<Set<number>>(new Set());
+  const existingMsgIdsRef = useRef<Set<number>>(new Set());
+  const justPrependedRef = useRef(false);
+  const sentMessagesRef = useRef<Set<string>>(new Set());
 
   // Instant scroll on initial load before paint, and position restoration on prepend
   useLayoutEffect(() => {
     if (scrollContainerRef.current && currentMessages.length > 0 && !hasScrolledToInitialRef.current) {
       hasScrolledToInitialRef.current = true;
+      currentMessages.forEach(m => existingMsgIdsRef.current.add(m.id));
       prevMessagesLengthRef.current = currentMessages.length;
       prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      if (initialUnreadCount && initialUnreadCount > 0 && firstUnreadRef.current) {
+        firstUnreadRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
+      } else {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
     } else if (isPrependingRef.current && scrollContainerRef.current) {
       // Seamless scroll position restoration when older messages are prepended
       const newScrollHeight = scrollContainerRef.current.scrollHeight;
       const heightDiff = newScrollHeight - prevScrollHeightRef.current;
-      scrollContainerRef.current.scrollTop = prevScrollTopRef.current + heightDiff;
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollTop + heightDiff;
       isPrependingRef.current = false;
+      justPrependedRef.current = true;
+      currentMessages.forEach(m => existingMsgIdsRef.current.add(m.id));
       prevMessagesLengthRef.current = currentMessages.length;
       prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
     }
-  }, [currentMessages]);
+  }, [currentMessages, initialUnreadCount]);
 
   const prevMessagesLengthRef = useRef(currentMessages.length);
   useEffect(() => {
+    if (justPrependedRef.current) {
+      justPrependedRef.current = false;
+      currentMessages.forEach(m => existingMsgIdsRef.current.add(m.id));
+      return;
+    }
     if (hasScrolledToInitialRef.current && currentMessages.length > prevMessagesLengthRef.current) {
       // Only treat as newly arrived messages if added at the bottom (first message unchanged)
       const isAppended = currentMessages[0]?.id === prevFirstMsgIdRef.current;
@@ -154,22 +172,18 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
     }
     prevMessagesLengthRef.current = currentMessages.length;
     prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
+    currentMessages.forEach(m => existingMsgIdsRef.current.add(m.id));
   }, [currentMessages, isScrolledUp, userId]);
 
   const triggerLoadOlder = async () => {
-    if (scrollContainerRef.current && !loadingOlder[convId] && hasMore[convId] !== false) {
+    if (scrollContainerRef.current && !loadingOlder[convId] && hasMore[convId] !== false && !isPrependingRef.current) {
       prevScrollHeightRef.current = scrollContainerRef.current.scrollHeight;
       prevScrollTopRef.current = scrollContainerRef.current.scrollTop;
       isPrependingRef.current = true;
-      const currentIds = new Set(currentMessages.map(m => m.id));
-      await fetchOlderMessages(convId);
-      // Mark prepended IDs so their bubble animation is suppressed
-      const updated = messages[convId] || [];
-      updated.forEach(m => {
-        if (!currentIds.has(m.id)) {
-          prependedIdsRef.current.add(m.id);
-        }
-      });
+      const olderMsgs = await fetchOlderMessages(convId);
+      if (olderMsgs && olderMsgs.length > 0) {
+        olderMsgs.forEach(m => existingMsgIdsRef.current.add(m.id));
+      }
     }
   };
 
@@ -212,6 +226,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
   const handleSend = async () => {
     if (!newMessage.trim()) return;
     const content = newMessage;
+    sentMessagesRef.current.add(content.trim());
     setNewMessage('');
     setShowEmojiPicker(false);
 
@@ -285,7 +300,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
 
   return (
     <div 
-      className="fixed bottom-5 z-[200] w-[360px] h-[520px] max-h-[calc(100vh-100px)] bg-white dark:bg-black border border-gray-200/90 dark:border-neutral-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+      className="fixed bottom-5 z-[200] w-[360px] h-[520px] max-h-[calc(100vh-100px)] bg-white dark:bg-black border border-gray-200/90 dark:border-neutral-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150 relative"
       style={{ right: `${rightOffset}px` }}
     >
       {/* --- Window Header --- */}
@@ -354,6 +369,13 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
         </div>
       </div>
 
+      {/* Top Floating Loading Indicator for Reverse Infinite Scroll */}
+      {loadingOlder[convId] && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center p-1.5 rounded-full bg-white/95 dark:bg-neutral-800/95 shadow-md border border-gray-200/60 dark:border-neutral-700/60 text-brand-500 pointer-events-none animate-in fade-in duration-150">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        </div>
+      )}
+
       {/* --- Messages History Area --- */}
       <div 
         ref={scrollContainerRef}
@@ -361,13 +383,6 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
         style={{ overflowAnchor: 'none' }}
         className="flex-1 overflow-y-auto p-3 space-y-3 relative"
       >
-        {/* Top Loading Indicator for Reverse Infinite Scroll */}
-        {loadingOlder[convId] && (
-          <div className="flex items-center justify-center py-2 text-brand-500">
-            <Loader2 className="w-4 h-4 animate-spin" />
-          </div>
-        )}
-
         {isFetchingThread && currentMessages.length === 0 ? null : currentMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base ${getGradient(otherUsername)} mb-2 shadow-md`}>
@@ -392,20 +407,27 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
                   const isUnread = unreadMessageIds.has(msg.id);
                   const isFirstUnread = msg.id === firstUnreadMsgId;
                   const parsed = parseMessageContent(msg.content);
-                  const isPrepended = prependedIdsRef.current.has(msg.id);
+
+                  const isAlreadySentByMe = isMe && msg.id > 0 && sentMessagesRef.current.has(msg.content.trim());
+                  if (isAlreadySentByMe) {
+                    sentMessagesRef.current.delete(msg.content.trim());
+                    existingMsgIdsRef.current.add(msg.id);
+                  }
+
+                  const shouldAnimate = hasScrolledToInitialRef.current && !isPrependingRef.current && !existingMsgIdsRef.current.has(msg.id);
 
                   return (
                     <motion.div
                       key={msg.id || index}
                       ref={isFirstUnread ? firstUnreadRef : null}
-                      initial={isPrepended ? false : { opacity: 0, scale: 0.93, y: 7 }}
+                      initial={shouldAnimate ? { opacity: 0, scale: 0.93, y: 7 } : false}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
-                      transition={{
+                      transition={shouldAnimate ? {
                         type: 'spring',
                         damping: 26,
                         stiffness: 420,
                         mass: 0.5,
-                      }}
+                      } : { duration: 0 }}
                       style={{
                         transformOrigin: isMe ? 'bottom right' : 'bottom left',
                       }}
