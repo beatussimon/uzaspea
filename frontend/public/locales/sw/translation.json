@@ -538,5 +538,18 @@
   "any_condition": "Hali Yoyote",
   "refurbished": "Iliyokarabatiwa",
   "like_new": "Kama Mpya",
-  "boost_now": "Tangaza Sasa"
+  "boost_now": "Tangaza Sasa",
+  "navigate": "Elekeza",
+  "open_map": "Fungua Ramani",
+  "hide_map": "Ficha Ramani",
+  "show_map": "Onyesha Ramani",
+  "choose_map_app": "Chagua Programu ya Ramani",
+  "choose_map_app_desc": "Chagua programu ya ramani ya kufungua kwenye kifaa chako cha Apple",
+  "navigate_with": "Uelekezaji wa Ramani",
+  "open_with": "Fungua kwa Ramani",
+  "apple_maps": "Apple Maps",
+  "apple_maps_desc": "Ramani chaguomsingi ya vifaa vya Apple",
+  "google_maps": "Google Maps",
+  "google_maps_desc": "Uelekezaji wa hatua kwa hatua na foleni",
+  "remember_map_choice": "Kumbuka chaguo langu"
 }

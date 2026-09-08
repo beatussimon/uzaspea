@@ -538,5 +538,18 @@
   "any_condition": "Any Condition",
   "refurbished": "Refurbished",
   "like_new": "Like New",
-  "boost_now": "Boost Now"
+  "boost_now": "Boost Now",
+  "navigate": "Navigate",
+  "open_map": "Open Map",
+  "hide_map": "Hide Map",
+  "show_map": "Show Map",
+  "choose_map_app": "Choose Map App",
+  "choose_map_app_desc": "Select your preferred map app on this Apple device",
+  "navigate_with": "Navigate with Maps",
+  "open_with": "Open with Maps",
+  "apple_maps": "Apple Maps",
+  "apple_maps_desc": "Default maps app for Apple devices",
+  "google_maps": "Google Maps",
+  "google_maps_desc": "Turn-by-turn navigation & live traffic",
+  "remember_map_choice": "Remember my choice"
 }

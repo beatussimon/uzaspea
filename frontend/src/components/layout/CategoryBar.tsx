@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutGrid } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -8,11 +8,36 @@ import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
 import { preloadProductList } from '../../App';
 import { ensureArray } from '../../utils/arrayUtils';
 import { apiCache } from '../../utils/apiCache';
+import { categoryStore } from '../../utils/categoryStore';
+
+export const getActiveLocationParams = (): Record<string, string> => {
+  try {
+    const saved = localStorage.getItem('uzaspea_search_location_prefs');
+    if (saved) {
+      const prefs = JSON.parse(saved);
+      if (prefs.mode === 'proximity' && prefs.coords && prefs.radius) {
+        return {
+          lat: String(prefs.coords.lat),
+          lng: String(prefs.coords.lng),
+          radius: String(prefs.radius),
+          location_mode: 'proximity',
+        };
+      } else if (prefs.mode === 'region' && prefs.region) {
+        return {
+          region: prefs.region,
+          location_mode: 'region',
+        };
+      }
+    }
+  } catch {}
+  return { location_mode: 'nationwide' };
+};
 
 export const prefetchCategoryProducts = (slug: string) => {
   if (!slug) return;
   preloadProductList();
-  const params: Record<string, string> = { page: '1', page_size: '12', category: slug, location_mode: 'nationwide' };
+  const locParams = getActiveLocationParams();
+  const params: Record<string, string> = { page: '1', page_size: '12', category: slug, ...locParams };
   const key = `products:${JSON.stringify(params)}`;
   if (!apiCache.get(key)) {
     api.get('/api/products/', { params }).then(res => apiCache.set(key, res.data)).catch(() => {});
@@ -163,28 +188,21 @@ const CategoryBar: React.FC = () => {
 
   useEffect(() => {
     if (topCategories.length > 0) {
-      const timer = setTimeout(() => {
-        topCategories.slice(0, 4).forEach((cat: any) => {
-          if (cat?.slug) prefetchCategoryProducts(cat.slug);
-        });
-      }, 400);
-      return () => clearTimeout(timer);
+      topCategories.slice(0, 8).forEach((cat: any) => {
+        if (cat?.slug) prefetchCategoryProducts(cat.slug);
+      });
     }
   }, [topCategories]);
 
   const selectedCategoryParam = searchParams.get('category') || '';
   const selectedSubcategoryParam = searchParams.get('subcategory') || '';
 
-  const [optimisticCategory, setOptimisticCategory] = useState<string | null>(null);
-  const [optimisticSubcategory, setOptimisticSubcategory] = useState<string | null>(null);
+  const optimisticCategory = useSyncExternalStore(categoryStore.subscribe, categoryStore.getCategory);
+  const optimisticSubcategory = useSyncExternalStore(categoryStore.subscribe, categoryStore.getSubcategory);
 
   useEffect(() => {
-    setOptimisticCategory(null);
-  }, [selectedCategoryParam]);
-
-  useEffect(() => {
-    setOptimisticSubcategory(null);
-  }, [selectedSubcategoryParam]);
+    categoryStore.resetIfMatches(selectedCategoryParam, selectedSubcategoryParam);
+  }, [selectedCategoryParam, selectedSubcategoryParam]);
 
   const activeCategorySlug = optimisticCategory !== null ? optimisticCategory : selectedCategoryParam;
   const activeSubcategorySlug = optimisticSubcategory !== null ? optimisticSubcategory : selectedSubcategoryParam;
@@ -206,7 +224,6 @@ const CategoryBar: React.FC = () => {
     }
     let parentCat: any = null;
     let subCat: any = null;
-
     for (const root of categories) {
       if (root.id === product.category) {
         parentCat = root;
@@ -232,9 +249,8 @@ const CategoryBar: React.FC = () => {
   const handleCategoryClick = (slug: string) => {
     const nextSlug = effectiveCategorySlug === slug ? '' : slug;
     
-    // Instant synchronous UI feedback (0ms latency)
-    setOptimisticCategory(nextSlug);
-    setOptimisticSubcategory('');
+    // Instant synchronous UI feedback across CategoryBar and ProductList (0ms latency)
+    categoryStore.setCategory(nextSlug, '');
 
     if (nextSlug) {
       prefetchCategoryProducts(nextSlug);
@@ -242,23 +258,23 @@ const CategoryBar: React.FC = () => {
       preloadProductList();
     }
 
-    React.startTransition(() => {
-      if (isProductsPage) {
-        setSearchParams(prev => {
-          const newParams = new URLSearchParams(prev);
-          if (nextSlug) {
-            newParams.set('category', nextSlug);
-          } else {
-            newParams.delete('category');
-          }
-          newParams.delete('subcategory');
-          newParams.delete('saved');
-          return newParams;
-        });
-      } else {
-        navigate(nextSlug ? `/products?category=${nextSlug}` : '/products');
-      }
-    });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
+    if (isProductsPage) {
+      setSearchParams(prev => {
+        const newParams = new URLSearchParams(prev);
+        if (nextSlug) {
+          newParams.set('category', nextSlug);
+        } else {
+          newParams.delete('category');
+        }
+        newParams.delete('subcategory');
+        newParams.delete('saved');
+        return newParams;
+      }, { replace: true });
+    } else {
+      navigate(nextSlug ? `/products?category=${nextSlug}` : '/products');
+    }
   };
 
   // Render a loading skeleton for product details page
@@ -280,7 +296,7 @@ const CategoryBar: React.FC = () => {
     return (
       <div className="w-full pt-0.5 pb-0 md:pb-1 bg-white dark:bg-[#000000] transition-colors duration-300">
         <div className="container-page">
-          <div className="flex items-start justify-start gap-4 sm:gap-5 overflow-x-auto no-scrollbar pt-2 pb-1.5 md:pt-3 md:pb-4 px-2 sm:px-3 w-full scroll-smooth">
+          <div className="flex items-start justify-start gap-4 sm:gap-5 overflow-x-auto no-scrollbar pt-2 pb-1.5 md:pt-3 md:pb-4 px-2 sm:px-3 w-full">
             {/* For You / Discover Circle */}
             <div 
               className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group select-none"
@@ -371,7 +387,7 @@ const CategoryBar: React.FC = () => {
                   <div className="flex items-center justify-start gap-2 overflow-x-auto no-scrollbar py-2.5 w-full scroll-smooth">
                     <button
                       onClick={() => {
-                        setOptimisticSubcategory('');
+                        categoryStore.setCategory(effectiveCategorySlug, '');
                         React.startTransition(() => {
                           setSearchParams(prev => {
                             const p = new URLSearchParams(prev);
@@ -388,7 +404,7 @@ const CategoryBar: React.FC = () => {
                       <button
                         key={sub.id}
                         onClick={() => {
-                          setOptimisticSubcategory(sub.slug);
+                          categoryStore.setCategory(effectiveCategorySlug, sub.slug);
                           React.startTransition(() => {
                             setSearchParams(prev => {
                               const p = new URLSearchParams(prev);

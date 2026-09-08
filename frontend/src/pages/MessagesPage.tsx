@@ -21,6 +21,7 @@ interface ChatInputConsoleProps {
   sendMessage: (convId: number, content: string) => Promise<void>;
   sendTypingStatus: (convId: number, isTyping: boolean) => void;
   prefillMessage?: string;
+  onMessageSent?: (content: string) => void;
 }
 
 const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🙏'];
@@ -29,7 +30,8 @@ const ChatInputConsole: React.FC<ChatInputConsoleProps> = React.memo(({
   conversationId,
   sendMessage,
   sendTypingStatus,
-  prefillMessage
+  prefillMessage,
+  onMessageSent
 }) => {
   const { t } = useTranslation();
   const [newMessage, setNewMessage] = useState(prefillMessage || '');
@@ -95,6 +97,7 @@ const ChatInputConsole: React.FC<ChatInputConsoleProps> = React.memo(({
     sendTypingStatus(conversationId, false);
 
     try {
+      onMessageSent?.(msgContent);
       await sendMessage(conversationId, msgContent);
     } catch (e) {
       toast.error('Failed to send message');
@@ -187,21 +190,30 @@ const MessagesPage: React.FC = () => {
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
 
-  const [initialUnreadCount, setInitialUnreadCount] = useState<number | null>(null);
-  const [unreadMessageIds, setUnreadMessageIds] = useState<Set<number>>(new Set());
-  const [firstUnreadMsgId, setFirstUnreadMsgId] = useState<number | null>(null);
+  const [initialUnreadCount, setInitialUnreadCount] = useState<number | null>(() => {
+    if (!id) return null;
+    const conv = conversations.find(c => c.id === parseInt(id));
+    return conv ? conv.unread_count : null;
+  });
   const firstUnreadRef = useRef<HTMLDivElement>(null);
   const hasScrolledToInitialRef = useRef(false);
+  const existingMsgIdsRef = useRef<Set<number>>(new Set());
+  const justPrependedRef = useRef(false);
+  const sentMessagesRef = useRef<Set<string>>(new Set());
 
   const [isFetchingThread, setIsFetchingThread] = useState(id ? (!messages[parseInt(id)] || messages[parseInt(id)].length === 0) : false);
 
   useEffect(() => {
-    // Reset unread tracking state
-    setInitialUnreadCount(null);
-    setUnreadMessageIds(new Set());
-    setFirstUnreadMsgId(null);
+    // Reset unread and animation tracking state when thread changes
+    if (id) {
+      const conv = conversations.find(c => c.id === parseInt(id));
+      setInitialUnreadCount(conv ? conv.unread_count : null);
+    } else {
+      setInitialUnreadCount(null);
+    }
     hasScrolledToInitialRef.current = false;
-  }, [id]);
+    existingMsgIdsRef.current = new Set();
+  }, [id, conversations]);
 
   useEffect(() => {
     if (id) {
@@ -292,35 +304,30 @@ const MessagesPage: React.FC = () => {
 
   const currentMessages = id ? (messages[parseInt(id)] || []) : [];
 
-  useEffect(() => {
-    if (initialUnreadCount && initialUnreadCount > 0 && currentMessages.length > 0 && unreadMessageIds.size === 0) {
-      let unreadIds = new Set<number>();
-      let firstUnreadId: number | null = null;
-      let count = 0;
-      for (let i = currentMessages.length - 1; i >= 0; i--) {
-        const msg = currentMessages[i];
-        if (msg.sender !== parseInt(userId.toString())) {
-          unreadIds.add(msg.id);
-          firstUnreadId = msg.id;
-          count++;
-          if (count >= initialUnreadCount) break;
-        }
+  const { unreadMessageIds, firstUnreadMsgId } = useMemo(() => {
+    if (initialUnreadCount && initialUnreadCount > 0 && currentMessages.length > 0) {
+      const otherUserMsgs = currentMessages.filter(m => Number(m.sender) !== Number(userId));
+      const unread = otherUserMsgs.slice(-initialUnreadCount);
+      if (unread.length > 0) {
+        return {
+          unreadMessageIds: new Set(unread.map(m => m.id)),
+          firstUnreadMsgId: unread[0].id,
+        };
       }
-      setUnreadMessageIds(unreadIds);
-      setFirstUnreadMsgId(firstUnreadId);
     }
-  }, [currentMessages, initialUnreadCount, unreadMessageIds.size, userId]);
+    return { unreadMessageIds: new Set<number>(), firstUnreadMsgId: null };
+  }, [initialUnreadCount, currentMessages, userId]);
 
   const isPrependingRef = useRef(false);
   const prevScrollHeightRef = useRef(0);
   const prevScrollTopRef = useRef(0);
   const prevFirstMsgIdRef = useRef<number | null>(currentMessages[0]?.id ?? null);
-  const prependedIdsRef = useRef<Set<number>>(new Set());
 
   // Instant scroll on initial load before paint, and position restoration on prepend
   useLayoutEffect(() => {
     if (scrollRef.current && currentMessages.length > 0 && !hasScrolledToInitialRef.current) {
       hasScrolledToInitialRef.current = true;
+      currentMessages.forEach(m => existingMsgIdsRef.current.add(m.id));
       prevMessagesLengthRef.current = currentMessages.length;
       prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
       if (initialUnreadCount && initialUnreadCount > 0 && firstUnreadRef.current) {
@@ -332,8 +339,10 @@ const MessagesPage: React.FC = () => {
     } else if (isPrependingRef.current && scrollRef.current) {
       const newScrollHeight = scrollRef.current.scrollHeight;
       const heightDiff = newScrollHeight - prevScrollHeightRef.current;
-      scrollRef.current.scrollTop = prevScrollTopRef.current + heightDiff;
+      scrollRef.current.scrollTop = scrollRef.current.scrollTop + heightDiff;
       isPrependingRef.current = false;
+      justPrependedRef.current = true;
+      currentMessages.forEach(m => existingMsgIdsRef.current.add(m.id));
       prevMessagesLengthRef.current = currentMessages.length;
       prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
     }
@@ -341,6 +350,11 @@ const MessagesPage: React.FC = () => {
 
   const prevMessagesLengthRef = useRef(currentMessages.length);
   useEffect(() => {
+    if (justPrependedRef.current) {
+      justPrependedRef.current = false;
+      currentMessages.forEach(m => existingMsgIdsRef.current.add(m.id));
+      return;
+    }
     if (hasScrolledToInitialRef.current && currentMessages.length > prevMessagesLengthRef.current) {
       const isAppended = currentMessages[0]?.id === prevFirstMsgIdRef.current;
       if (isAppended) {
@@ -359,23 +373,20 @@ const MessagesPage: React.FC = () => {
     }
     prevMessagesLengthRef.current = currentMessages.length;
     prevFirstMsgIdRef.current = currentMessages[0]?.id ?? null;
+    currentMessages.forEach(m => existingMsgIdsRef.current.add(m.id));
   }, [currentMessages, isScrolledUp, userId]);
 
   const triggerLoadOlder = async () => {
     if (!id) return;
     const convIdNum = parseInt(id);
-    if (scrollRef.current && !loadingOlder[convIdNum] && hasMore[convIdNum] !== false) {
+    if (scrollRef.current && !loadingOlder[convIdNum] && hasMore[convIdNum] !== false && !isPrependingRef.current) {
       prevScrollHeightRef.current = scrollRef.current.scrollHeight;
       prevScrollTopRef.current = scrollRef.current.scrollTop;
       isPrependingRef.current = true;
-      const currentIds = new Set(currentMessages.map(m => m.id));
-      await fetchOlderMessages(convIdNum);
-      const updated = messages[convIdNum] || [];
-      updated.forEach(m => {
-        if (!currentIds.has(m.id)) {
-          prependedIdsRef.current.add(m.id);
-        }
-      });
+      const olderMsgs = await fetchOlderMessages(convIdNum);
+      if (olderMsgs && olderMsgs.length > 0) {
+        olderMsgs.forEach(m => existingMsgIdsRef.current.add(m.id));
+      }
     }
   };
 
@@ -802,6 +813,13 @@ const MessagesPage: React.FC = () => {
               </div>
 
 
+              {/* Top Floating Loading Indicator for Reverse Infinite Scroll */}
+              {id && loadingOlder[parseInt(id)] && (
+                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center p-2 rounded-full bg-white/95 dark:bg-neutral-800/95 shadow-md border border-gray-200/60 dark:border-neutral-700/60 text-brand-500 pointer-events-none animate-in fade-in duration-150">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                </div>
+              )}
+
               {/* Chat Messages Log Scroll */}
               <div 
                 className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-5 py-4 space-y-6 relative w-full max-w-full" 
@@ -809,13 +827,6 @@ const MessagesPage: React.FC = () => {
                 onScroll={handleScroll}
                 style={{ overflowAnchor: 'none' }}
               >
-                {/* Top Loading Indicator for Reverse Infinite Scroll */}
-                {id && loadingOlder[parseInt(id)] && (
-                  <div className="flex items-center justify-center py-2 text-brand-500">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  </div>
-                )}
-
                 {isFetchingThread && currentMessages.length === 0 ? null : currentMessages.length === 0 ? (
                   <div className="py-12 text-center text-xs text-gray-400">
                     No messages in this conversation yet. Send a message to start!
@@ -837,7 +848,14 @@ const MessagesPage: React.FC = () => {
                           const showAvatar = !isMe;
                           const isFirstUnread = msg.id === firstUnreadMsgId;
                           const parsed = parseMessageContent(msg.content);
-                          const isPrepended = prependedIdsRef.current.has(msg.id);
+
+                          const isAlreadySentByMe = isMe && msg.id > 0 && sentMessagesRef.current.has(msg.content.trim());
+                          if (isAlreadySentByMe) {
+                            sentMessagesRef.current.delete(msg.content.trim());
+                            existingMsgIdsRef.current.add(msg.id);
+                          }
+
+                          const shouldAnimate = hasScrolledToInitialRef.current && !isPrependingRef.current && !existingMsgIdsRef.current.has(msg.id);
                           
                           // Display precise date on hover
                           const messageTime = new Date(msg.created_at).toLocaleTimeString(undefined, {
@@ -849,14 +867,14 @@ const MessagesPage: React.FC = () => {
                             <motion.div 
                               key={msg.id || index} 
                               ref={isFirstUnread ? firstUnreadRef : null} 
-                              initial={isPrepended ? false : { opacity: 0, scale: 0.93, y: 7 }}
+                              initial={shouldAnimate ? { opacity: 0, scale: 0.93, y: 7 } : false}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
-                              transition={{
+                              transition={shouldAnimate ? {
                                 type: 'spring',
                                 damping: 26,
                                 stiffness: 420,
                                 mass: 0.5,
-                              }}
+                              } : { duration: 0 }}
                               style={{
                                 transformOrigin: isMe ? 'bottom right' : 'bottom left',
                               }}
@@ -1022,6 +1040,7 @@ const MessagesPage: React.FC = () => {
                 sendMessage={sendMessage} 
                 sendTypingStatus={sendTypingStatus} 
                 prefillMessage={(location.state as any)?.prefillMessage} 
+                onMessageSent={(content) => sentMessagesRef.current.add(content.trim())}
               />
             </>
           )}

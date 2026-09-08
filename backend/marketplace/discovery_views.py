@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions
-from django.db.models import Avg, Count, Exists, OuterRef, Subquery, Value, BooleanField, Q
-from django.db.models.functions import Coalesce
+from django.db.models import Avg, Count, Exists, OuterRef, Subquery, Value, BooleanField, Q, F, ExpressionWrapper, FloatField
+from django.db.models.functions import Coalesce, Cos, Sin, ACos, Radians, Greatest, Least
 from django.utils import timezone
 
 from .models import Product, Category, Like, Review, SponsoredListing
@@ -83,14 +83,138 @@ def get_category_by_slug_or_keywords(slug, keywords=None):
     return cat
 
 
+def apply_location_filters(queryset, request):
+    location_mode = request.query_params.get('location_mode')
+    region_filter = request.query_params.get('region')
+    lat = request.query_params.get('lat')
+    lng = request.query_params.get('lng')
+    radius = request.query_params.get('radius')
+
+    if location_mode == 'region' and region_filter:
+        return queryset.filter(
+            Q(location_name__icontains=region_filter) |
+            Q(seller__profile__location__icontains=region_filter)
+        )
+    elif lat and lng and location_mode != 'nationwide':
+        try:
+            lat_f = float(lat)
+            lng_f = float(lng)
+
+            qs = queryset.filter(
+                Q(latitude__isnull=False, longitude__isnull=False) |
+                Q(seller__profile__latitude__isnull=False, seller__profile__longitude__isnull=False)
+            )
+            effective_lat = Coalesce(F('latitude'), F('seller__profile__latitude'))
+            effective_lng = Coalesce(F('longitude'), F('seller__profile__longitude'))
+
+            d_lat = Radians(effective_lat)
+            d_lng = Radians(effective_lng)
+            r_lat = Radians(lat_f)
+            r_lng = Radians(lng_f)
+
+            cos_val = Greatest(
+                Least(
+                    Cos(r_lat) * Cos(d_lat) * Cos(d_lng - r_lng) + Sin(r_lat) * Sin(d_lat),
+                    Value(1.0)
+                ),
+                Value(-1.0)
+            )
+            dist_expr = ExpressionWrapper(
+                Value(6371.0) * ACos(cos_val),
+                output_field=FloatField()
+            )
+            rad_km = float(radius) if radius else 10.0
+            return qs.annotate(distance_km=dist_expr).filter(distance_km__lte=rad_km).order_by('distance_km', '-created_at')
+        except Exception:
+            return queryset
+    return queryset
+
+
+def get_section_products(section_id, active_gender, base_qs, offset=0, limit=16):
+    """
+    Returns products for a specific discovery section with pagination support.
+    Guarantees an even number of products for 2-row shelves so columns are always paired.
+    """
+    products = []
+    if section_id == 'look_different':
+        if active_gender == 'male':
+            cat = get_category_by_slug_or_keywords('mens-fashion', ["Men's Fashion", "Men"])
+        else:
+            cat = get_category_by_slug_or_keywords('womens-fashion', ["Women's Fashion", "Women"])
+        if cat:
+            desc = cat.get_descendants(include_self=True)
+            qs = base_qs.filter(category__in=desc).order_by('-created_at')
+        else:
+            qs = base_qs.none()
+        products = list(qs[offset:offset + limit])
+        if len(products) < limit and offset == 0:
+            existing_ids = {p.id for p in products}
+            fb = list(base_qs.filter(
+                Q(category__name__icontains="Fashion") | Q(category__name__icontains="Clothing")
+            ).exclude(id__in=existing_ids).order_by('-created_at')[:limit - len(products)])
+            products.extend(fb)
+
+    elif section_id == 'for_your_car':
+        cat = get_category_by_slug_or_keywords('vehicles', ["Vehicles", "Cars", "Motorcycles", "Vehicle Parts"])
+        if cat:
+            desc = cat.get_descendants(include_self=True)
+            qs = base_qs.filter(category__in=desc).order_by('-created_at')
+        else:
+            qs = base_qs.none()
+        products = list(qs[offset:offset + limit])
+        if len(products) < limit and offset == 0:
+            existing_ids = {p.id for p in products}
+            fb = list(base_qs.filter(
+                Q(category__name__icontains="Vehicle") | Q(name__icontains="Car") | Q(name__icontains="Part")
+            ).exclude(id__in=existing_ids).order_by('-created_at')[:limit - len(products)])
+            products.extend(fb)
+
+    elif section_id == 'phone_deals':
+        cat = get_category_by_slug_or_keywords('electronics-mobile-phones', ["Mobile Phones", "Phones", "Smartphones", "Electronics"])
+        if cat:
+            desc = cat.get_descendants(include_self=True)
+            qs = base_qs.filter(category__in=desc).order_by('-created_at')
+        else:
+            qs = base_qs.none()
+        products = list(qs[offset:offset + limit])
+        if len(products) < limit and offset == 0:
+            existing_ids = {p.id for p in products}
+            fb = list(base_qs.filter(
+                Q(category__name__icontains="Phone") | Q(category__name__icontains="Electronic") | Q(name__icontains="Phone")
+            ).exclude(id__in=existing_ids).order_by('-created_at')[:limit - len(products)])
+            products.extend(fb)
+
+    elif section_id == 'view_more_home':
+        cat = get_category_by_slug_or_keywords('home-garden-furniture', ["Home", "Furniture", "Appliances", "Living"])
+        if cat:
+            desc = cat.get_descendants(include_self=True)
+            qs = base_qs.filter(category__in=desc).order_by('-created_at')
+        else:
+            qs = base_qs.none()
+        products = list(qs[offset:offset + limit])
+        if len(products) < limit and offset == 0:
+            existing_ids = {p.id for p in products}
+            fb = list(base_qs.filter(
+                Q(category__name__icontains="Home") | Q(category__name__icontains="Furniture")
+            ).exclude(id__in=existing_ids).order_by('-created_at')[:limit - len(products)])
+            products.extend(fb)
+
+    elif section_id == 'fresh_picks':
+        products = list(base_qs.order_by('-created_at')[offset:offset + limit])
+
+    # Guarantee an even number of products so 2-row shelves never have an orphaned card with empty bottom
+    if len(products) > 1 and len(products) % 2 != 0:
+        products = products[:-1]
+
+    return products
+
+
 class DiscoveryFeedView(APIView):
     """
     Recommendation-ready discovery feed endpoint.
     Serves structured section carousels ('Look Different', 'For Your Car', 
     'Brand New Deals in Phones', 'View More in [Category]', 'Fresh Picks').
-    
-    Future recommendation models (collaborative filtering, embedding similarity,
-    personalization graph) can directly override this endpoint without any frontend redesign.
+    Supports single-section pagination via section_id, page, page_size.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -108,6 +232,32 @@ class DiscoveryFeedView(APIView):
 
         base_qs = get_base_product_queryset(user)
 
+        # Single Section Pagination Support for Infinite Horizontal Scroll
+        section_id = request.query_params.get('section_id')
+        if section_id:
+            try:
+                page = max(1, int(request.query_params.get('page', 1)))
+            except (ValueError, TypeError):
+                page = 1
+            try:
+                page_size = max(1, min(50, int(request.query_params.get('page_size', 12))))
+            except (ValueError, TypeError):
+                page_size = 12
+
+            offset = (page - 1) * page_size
+            filtered_qs = apply_location_filters(base_qs, request)
+            section_items = get_section_products(section_id, active_gender, filtered_qs, offset=offset, limit=page_size)
+
+            return Response({
+                "status": "success",
+                "section_id": section_id,
+                "page": page,
+                "has_more": len(section_items) >= page_size,
+                "products": ProductSerializer(section_items, many=True, context={'request': request}).data
+            })
+
+        # Full Discovery Feed Initial Load
+        filtered_qs = apply_location_filters(base_qs, request)
         sections = []
 
         # 1. Section: "Look Different" (Fashion personalized by gender)
@@ -115,28 +265,14 @@ class DiscoveryFeedView(APIView):
             fashion_cat = get_category_by_slug_or_keywords('mens-fashion', ["Men's Fashion", "Men"])
             fashion_title = "Look Different"
             fashion_subtitle = "Sharp looks, shoes & style essentials for men"
-            fashion_badge = "Men's Style"
             fashion_see_more = f"/products?category={fashion_cat.slug if fashion_cat else 'mens-fashion'}"
         else:
             fashion_cat = get_category_by_slug_or_keywords('womens-fashion', ["Women's Fashion", "Women"])
             fashion_title = "Look Different"
             fashion_subtitle = "Trendy styles, dresses, shoes & beauty picks for women"
-            fashion_badge = "Women's Fashion"
             fashion_see_more = f"/products?category={fashion_cat.slug if fashion_cat else 'womens-fashion'}"
 
-        if fashion_cat:
-            fashion_descendants = fashion_cat.get_descendants(include_self=True)
-            fashion_products = list(base_qs.filter(category__in=fashion_descendants).order_by('-created_at')[:16])
-        else:
-            fashion_products = []
-
-        # If sparse, pad with other fashion or top-rated items
-        if len(fashion_products) < 8:
-            fallback_fashion = base_qs.filter(
-                Q(category__name__icontains="Fashion") | Q(category__name__icontains="Clothing")
-            ).exclude(id__in=[p.id for p in fashion_products]).order_by('-created_at')[:12]
-            fashion_products.extend(list(fallback_fashion))
-
+        fashion_products = get_section_products('look_different', active_gender, filtered_qs, offset=0, limit=16)
         sections.append({
             "id": "look_different",
             "type": "horizontal_shelf",
@@ -146,23 +282,12 @@ class DiscoveryFeedView(APIView):
             "gender_active": active_gender,
             "has_gender_toggle": False,
             "see_more_url": fashion_see_more,
-            "products": ProductSerializer(fashion_products[:16], many=True, context={'request': request}).data
+            "products": ProductSerializer(fashion_products, many=True, context={'request': request}).data
         })
 
         # 2. Section: "For Your Car" (Automotive & Spare Parts)
         auto_cat = get_category_by_slug_or_keywords('vehicles', ["Vehicles", "Cars", "Motorcycles", "Vehicle Parts"])
-        if auto_cat:
-            auto_descendants = auto_cat.get_descendants(include_self=True)
-            auto_products = list(base_qs.filter(category__in=auto_descendants).order_by('-created_at')[:16])
-        else:
-            auto_products = []
-
-        if len(auto_products) < 8:
-            fallback_auto = base_qs.filter(
-                Q(category__name__icontains="Vehicle") | Q(name__icontains="Car") | Q(name__icontains="Part")
-            ).exclude(id__in=[p.id for p in auto_products]).order_by('-created_at')[:12]
-            auto_products.extend(list(fallback_auto))
-
+        auto_products = get_section_products('for_your_car', active_gender, filtered_qs, offset=0, limit=16)
         sections.append({
             "id": "for_your_car",
             "type": "horizontal_shelf",
@@ -170,26 +295,12 @@ class DiscoveryFeedView(APIView):
             "subtitle": "Essential spare parts, vehicle accessories & automobiles",
             "category_slug": auto_cat.slug if auto_cat else "vehicles",
             "see_more_url": f"/products?category={auto_cat.slug if auto_cat else 'vehicles'}",
-            "products": ProductSerializer(auto_products[:16], many=True, context={'request': request}).data
+            "products": ProductSerializer(auto_products, many=True, context={'request': request}).data
         })
 
         # 3. Section: "Brand New Deals in Phones" (Phones & Gadgets)
-        phone_cat = get_category_by_slug_or_keywords(
-            'electronics-mobile-phones', 
-            ["Mobile Phones", "Phones", "Smartphones", "Electronics"]
-        )
-        if phone_cat:
-            phone_descendants = phone_cat.get_descendants(include_self=True)
-            phone_products = list(base_qs.filter(category__in=phone_descendants).order_by('-created_at')[:16])
-        else:
-            phone_products = []
-
-        if len(phone_products) < 8:
-            fallback_phone = base_qs.filter(
-                Q(category__name__icontains="Phone") | Q(category__name__icontains="Electronic") | Q(name__icontains="Phone")
-            ).exclude(id__in=[p.id for p in phone_products]).order_by('-created_at')[:12]
-            phone_products.extend(list(fallback_phone))
-
+        phone_cat = get_category_by_slug_or_keywords('electronics-mobile-phones', ["Mobile Phones", "Phones", "Smartphones", "Electronics"])
+        phone_products = get_section_products('phone_deals', active_gender, filtered_qs, offset=0, limit=16)
         sections.append({
             "id": "phone_deals",
             "type": "horizontal_shelf",
@@ -197,26 +308,12 @@ class DiscoveryFeedView(APIView):
             "subtitle": "Smartphones, mobile accessories & hot electronic gadgets",
             "category_slug": phone_cat.slug if phone_cat else "electronics",
             "see_more_url": f"/products?category={phone_cat.slug if phone_cat else 'electronics'}",
-            "products": ProductSerializer(phone_products[:16], many=True, context={'request': request}).data
+            "products": ProductSerializer(phone_products, many=True, context={'request': request}).data
         })
 
         # 4. Section: "View More in Home & Living"
-        home_cat = get_category_by_slug_or_keywords(
-            'home-garden-furniture',
-            ["Home", "Furniture", "Appliances", "Living"]
-        )
-        if home_cat:
-            home_descendants = home_cat.get_descendants(include_self=True)
-            home_products = list(base_qs.filter(category__in=home_descendants).order_by('-created_at')[:16])
-        else:
-            home_products = []
-
-        if len(home_products) < 8:
-            fallback_home = base_qs.filter(
-                Q(category__name__icontains="Home") | Q(category__name__icontains="Furniture")
-            ).exclude(id__in=[p.id for p in home_products]).order_by('-created_at')[:12]
-            home_products.extend(list(fallback_home))
-
+        home_cat = get_category_by_slug_or_keywords('home-garden-furniture', ["Home", "Furniture", "Appliances", "Living"])
+        home_products = get_section_products('view_more_home', active_gender, filtered_qs, offset=0, limit=16)
         if home_products:
             sections.append({
                 "id": "view_more_home",
@@ -225,11 +322,11 @@ class DiscoveryFeedView(APIView):
                 "subtitle": "Popular furnishings, kitchen electronics & home appliances",
                 "category_slug": home_cat.slug if home_cat else "home-garden-furniture",
                 "see_more_url": f"/products?category={home_cat.slug if home_cat else 'home-garden-furniture'}",
-                "products": ProductSerializer(home_products[:16], many=True, context={'request': request}).data
+                "products": ProductSerializer(home_products, many=True, context={'request': request}).data
             })
 
         # 5. Section: "Fresh Picks" (Latest across all categories)
-        fresh_products = list(base_qs.order_by('-created_at')[:16])
+        fresh_products = get_section_products('fresh_picks', active_gender, filtered_qs, offset=0, limit=16)
         sections.append({
             "id": "fresh_picks",
             "type": "horizontal_shelf",

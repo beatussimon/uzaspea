@@ -342,10 +342,7 @@ const MobileBottomNav = () => {
                       <span className="text-sm font-medium">{isDark ? t('light_mode') : t('dark_mode')}</span>
                     </div>
                   </button>
-                  <div className="pt-2 pb-1 px-1">
-                    <p className="px-2 pb-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('language', 'Language')}</p>
-                    <LanguageSelector variant="drawer-list" onSelect={() => setIsMenuOpen(false)} />
-                  </div>
+                  <LanguageSelector variant="drawer-list" />
                   <Link to="/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-neutral-900 rounded-lg transition-colors group text-gray-700 dark:text-gray-300">
                     <Settings size={20} className="text-gray-400 group-hover:text-brand-500 transition-colors" />
                     <span className="text-sm font-medium">{t('settings')}</span>

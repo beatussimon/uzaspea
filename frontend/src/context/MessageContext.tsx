@@ -85,7 +85,7 @@ interface MessageContextType {
   setActiveConversationId: (id: number | null) => void;
   messages: { [convId: number]: Message[] };
   fetchMessages: (convId: number) => Promise<Message[]>;
-  fetchOlderMessages: (convId: number) => Promise<boolean>;
+  fetchOlderMessages: (convId: number) => Promise<Message[]>;
   hasMore: { [convId: number]: boolean };
   loadingOlder: { [convId: number]: boolean };
   sendMessage: (convId: number, content: string) => Promise<void>;
@@ -319,23 +319,25 @@ export const MessageProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setConversations(prev =>
         prev.map(c => (c.id === activeConversationId ? { ...c, unread_count: 0 } : c))
       );
-      api.get(`/api/conversations/${activeConversationId}/messages/`).then(r => {
-        const data = r.data.results || r.data || [];
-        const hasMoreData = r.data.has_more ?? false;
-        hasMoreRef.current[activeConversationId] = hasMoreData;
-        setHasMore(prev => ({ ...prev, [activeConversationId]: hasMoreData }));
-        setMessages(prev => {
-          const existing = prev[activeConversationId];
-          if (existing && existing.length === data.length) {
-            const isSame = existing.every((m, idx) => m.id === data[idx]?.id && m.is_read === data[idx]?.is_read && m.content === data[idx]?.content);
-            if (isSame) return prev;
-          }
-          return {
-            ...prev,
-            [activeConversationId]: data,
-          };
-        });
-      }).catch(() => {});
+      if (!messagesRef.current[activeConversationId] || messagesRef.current[activeConversationId].length === 0) {
+        api.get(`/api/conversations/${activeConversationId}/messages/`).then(r => {
+          const data = r.data.results || r.data || [];
+          const hasMoreData = r.data.has_more ?? false;
+          hasMoreRef.current[activeConversationId] = hasMoreData;
+          setHasMore(prev => ({ ...prev, [activeConversationId]: hasMoreData }));
+          setMessages(prev => {
+            const existing = prev[activeConversationId];
+            if (existing && existing.length === data.length) {
+              const isSame = existing.every((m, idx) => m.id === data[idx]?.id && m.is_read === data[idx]?.is_read && m.content === data[idx]?.content);
+              if (isSame) return prev;
+            }
+            return {
+              ...prev,
+              [activeConversationId]: data,
+            };
+          });
+        }).catch(() => {});
+      }
     }
   }, [activeConversationId]);
 
@@ -751,17 +753,17 @@ const subscribeToWebPush = async () => {
   }, []);
 
   // Fetch older messages (reverse infinite scroll pagination)
-  const fetchOlderMessages = useCallback(async (convId: number): Promise<boolean> => {
+  const fetchOlderMessages = useCallback(async (convId: number): Promise<Message[]> => {
     if (loadingOlderRef.current[convId] || hasMoreRef.current[convId] === false) {
-      return false;
+      return [];
     }
 
     const currentList = messagesRef.current[convId] || [];
-    if (currentList.length === 0) return false;
+    if (currentList.length === 0) return [];
 
     // Retrieve the oldest real message (exclude negative-id optimistic messages)
     const oldestRealMsg = currentList.find(m => m.id > 0);
-    if (!oldestRealMsg) return false;
+    if (!oldestRealMsg) return [];
 
     loadingOlderRef.current[convId] = true;
     setLoadingOlder(prev => ({ ...prev, [convId]: true }));
@@ -774,8 +776,8 @@ const subscribeToWebPush = async () => {
         },
       });
 
-      const olderMsgs = res.data.results || res.data || [];
-      const hasMoreData = res.data.has_more ?? false;
+      const olderMsgs: Message[] = res.data.results || res.data || [];
+      const hasMoreData: boolean = res.data.has_more ?? false;
 
       hasMoreRef.current[convId] = hasMoreData;
       setHasMore(prev => ({ ...prev, [convId]: hasMoreData }));
@@ -794,10 +796,10 @@ const subscribeToWebPush = async () => {
           };
         });
       }
-      return true;
+      return olderMsgs;
     } catch (e) {
       console.error(`Failed to fetch older messages for conv ${convId}`, e);
-      return false;
+      return [];
     } finally {
       loadingOlderRef.current[convId] = false;
       setLoadingOlder(prev => ({ ...prev, [convId]: false }));

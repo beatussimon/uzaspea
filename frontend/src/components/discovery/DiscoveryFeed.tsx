@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../../api';
 import { apiCache } from '../../utils/apiCache';
 import { useUserLocation } from '../../context/LocationContext';
 import DiscoveryShelf from './DiscoveryShelf';
-import { ProductCardSkeleton } from '../Skeleton';
 
 interface SectionData {
   id: string;
@@ -21,9 +19,35 @@ interface SectionData {
 
 const FEED_STORAGE_KEY = 'uzaspea_discovery_feed';
 
+const DEFAULT_PREVIEW_SECTIONS: SectionData[] = [
+  {
+    id: 'look_different',
+    type: 'horizontal_shelf',
+    title: 'Look Different',
+    subtitle: 'Trendy styles, dresses, shoes & beauty picks for you',
+    see_more_url: '/products?category=womens-fashion',
+    products: [],
+  },
+  {
+    id: 'for_your_car',
+    type: 'horizontal_shelf',
+    title: 'For Your Car',
+    subtitle: 'Essential spare parts, vehicle accessories & automobiles',
+    see_more_url: '/products?category=vehicles',
+    products: [],
+  },
+  {
+    id: 'phone_deals',
+    type: 'horizontal_shelf',
+    title: 'Brand New Deals in Phones',
+    subtitle: 'Smartphones, mobile accessories & hot electronic gadgets',
+    see_more_url: '/products?category=electronics',
+    products: [],
+  },
+];
+
 export const DiscoveryFeed: React.FC = () => {
-  const { t } = useTranslation();
-  const { location, searchPrefs, setNearMe, setNationwide, isLocating } = useUserLocation();
+  const { location, searchPrefs } = useUserLocation();
 
   const [gender] = useState<'female' | 'male'>(() => {
     const saved = localStorage.getItem('preferred_gender');
@@ -31,15 +55,26 @@ export const DiscoveryFeed: React.FC = () => {
     return 'female';
   });
 
-  const cacheKey = `discovery:feed:${gender}`;
+  const locScope = useMemo(() => {
+    if (searchPrefs.mode === 'proximity' && location.coords && searchPrefs.radius) {
+      return `prox:${Number(location.coords.lat).toFixed(3)},${Number(location.coords.lng).toFixed(3)}:${searchPrefs.radius}`;
+    }
+    if (searchPrefs.mode === 'region' && searchPrefs.region) {
+      return `reg:${searchPrefs.region}`;
+    }
+    return 'nationwide';
+  }, [searchPrefs, location.coords]);
+
+  const cacheKey = `discovery:feed:${gender}:${locScope}`;
   const [sections, setSections] = useState<SectionData[]>(() => {
     const memCached = apiCache.get<any>(cacheKey);
     if (memCached && Array.isArray(memCached.data?.sections)) return memCached.data.sections;
     try {
-      const saved = sessionStorage.getItem(`${FEED_STORAGE_KEY}_${gender}`);
+      const saved = localStorage.getItem(`${FEED_STORAGE_KEY}_${gender}_${locScope}`) ||
+                    sessionStorage.getItem(`${FEED_STORAGE_KEY}_${gender}_${locScope}`);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed.sections)) {
+        if (Array.isArray(parsed.sections) && parsed.sections.length > 0) {
           apiCache.set(cacheKey, parsed);
           return parsed.sections;
         }
@@ -50,7 +85,7 @@ export const DiscoveryFeed: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(() => sections.length === 0);
 
   const fetchDiscoveryFeed = useCallback((activeGender: 'female' | 'male') => {
-    const key = `discovery:feed:${activeGender}`;
+    const key = `discovery:feed:${activeGender}:${locScope}`;
     const cached = apiCache.get<any>(key);
     if (cached && Array.isArray(cached.data?.sections)) {
       setSections(cached.data.sections);
@@ -58,9 +93,7 @@ export const DiscoveryFeed: React.FC = () => {
       return;
     }
 
-    if (sections.length === 0) {
-      setLoading(true);
-    }
+    setLoading(true);
     const params: Record<string, string> = { gender: activeGender };
 
     if (searchPrefs.mode === 'proximity' && location.coords && searchPrefs.radius) {
@@ -75,7 +108,8 @@ export const DiscoveryFeed: React.FC = () => {
       .then((res) => {
         apiCache.set(key, res.data);
         try {
-          sessionStorage.setItem(`${FEED_STORAGE_KEY}_${activeGender}`, JSON.stringify(res.data));
+          localStorage.setItem(`${FEED_STORAGE_KEY}_${activeGender}_${locScope}`, JSON.stringify(res.data));
+          sessionStorage.setItem(`${FEED_STORAGE_KEY}_${activeGender}_${locScope}`, JSON.stringify(res.data));
         } catch {}
         if (Array.isArray(res.data?.sections)) {
           setSections(res.data.sections);
@@ -87,58 +121,27 @@ export const DiscoveryFeed: React.FC = () => {
       .finally(() => {
         setLoading(false);
       });
-  }, [searchPrefs, location.coords, sections.length]);
+  }, [searchPrefs, location.coords, locScope]);
 
   useEffect(() => {
     fetchDiscoveryFeed(gender);
   }, [fetchDiscoveryFeed, gender]);
 
   return (
-    <div className="w-full space-y-2 sm:space-y-3 md:space-y-4 animate-in fade-in duration-300">
-      {/* Location Bar / Context Banner */}
-      <div className="flex items-center justify-center gap-1.5 py-0 px-2 text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 -mb-1 md:mb-0">
-        <span className="text-neutral-800 dark:text-neutral-200 font-semibold">
-          {searchPrefs.mode === 'proximity' && searchPrefs.locationName !== 'Nationwide'
-            ? `${searchPrefs.locationName.split(',')[0]} (${t('within', 'within')} ${searchPrefs.radius || 10}km)`
-            : (searchPrefs.region ? `${t('all_in', 'All in')} ${searchPrefs.region}` : t('all_in_country', 'All in Tanzania'))}
-        </span>
-        <span className="text-neutral-300 dark:text-neutral-700">•</span>
-        {searchPrefs.mode === 'proximity' ? (
-          <button
-            type="button"
-            onClick={setNationwide}
-            className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
-          >
-            {t('view_all_in_country', 'View all in Tanzania')}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={setNearMe}
-            disabled={isLocating}
-            className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
-          >
-            {isLocating ? t('locating', 'Locating...') : t('view_near_me', 'View near me')}
-          </button>
-        )}
-      </div>
-
+    <div className="w-full space-y-2 sm:space-y-3 md:space-y-4">
       {/* Discovery Sections */}
       {loading && sections.length === 0 ? (
-        <div className="space-y-4 md:space-y-5">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="py-1.5 md:py-2.5 space-y-2">
-              <div className="h-5 w-48 bg-neutral-200 dark:bg-neutral-800 rounded-md animate-pulse" />
-              <div className="grid grid-rows-[repeat(2,auto)] grid-flow-col gap-3 sm:gap-4 md:gap-5 overflow-hidden auto-cols-[100%] sm:auto-cols-[calc((100%-16px)/2)] lg:auto-cols-[calc((100%-40px)/3)] xl:auto-cols-[calc((100%-60px)/4)] 2xl:auto-cols-[calc((100%-80px)/5)]">
-                {[...Array(8)].map((_, j) => (
-                  <div key={j} className="w-full">
-                    <ProductCardSkeleton viewMode="grid" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        DEFAULT_PREVIEW_SECTIONS.map((section) => (
+          <DiscoveryShelf
+            key={section.id}
+            id={section.id}
+            title={section.title}
+            subtitle={section.subtitle}
+            products={[]}
+            loading={true}
+            type={section.type}
+          />
+        ))
       ) : (
         sections.map((section) => (
           <DiscoveryShelf
@@ -150,6 +153,7 @@ export const DiscoveryFeed: React.FC = () => {
             seeMoreUrl={section.see_more_url}
             products={section.products || []}
             type={section.type}
+            gender={gender}
           />
         ))
       )}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import ExpandableSearch from '../components/ExpandableSearch';
 import { useUserLocation } from '../context/LocationContext';
 import DiscoveryFeed from '../components/discovery/DiscoveryFeed';
 import CategoryRecommendationShelf from '../components/discovery/CategoryRecommendationShelf';
+import { categoryStore } from '../utils/categoryStore';
 
 
 
@@ -31,8 +32,10 @@ const ProductList = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
-  const selectedCategory = searchParams.get('category') || '';
-  const selectedSubcategory = searchParams.get('subcategory') || '';
+  const optimisticCategory = useSyncExternalStore(categoryStore.subscribe, categoryStore.getCategory);
+  const optimisticSubcategory = useSyncExternalStore(categoryStore.subscribe, categoryStore.getSubcategory);
+  const selectedCategory = optimisticCategory !== null ? optimisticCategory : (searchParams.get('category') || '');
+  const selectedSubcategory = optimisticSubcategory !== null ? optimisticSubcategory : (searchParams.get('subcategory') || '');
   const minPrice = searchParams.get('min_price') || '';
   const maxPrice = searchParams.get('max_price') || '';
   const condition = searchParams.get('condition') || '';
@@ -68,12 +71,24 @@ const ProductList = () => {
     if (saved) params.saved = 'true';
     if (savedTime) params.saved_time = savedTime;
     if (sellerFilter) params.seller = sellerFilter;
+    if (searchPrefs.mode === 'proximity' && location.coords && searchPrefs.radius) {
+      params.lat = String(location.coords.lat);
+      params.lng = String(location.coords.lng);
+      params.radius = String(searchPrefs.radius);
+      params.location_mode = 'proximity';
+    } else if (searchPrefs.mode === 'region' && searchPrefs.region) {
+      params.region = searchPrefs.region;
+      params.location_mode = 'region';
+    } else {
+      params.location_mode = 'nationwide';
+    }
     return params;
   })();
 
   const initialProductsCacheKey = `products:${JSON.stringify(initialParams)}`;
   const initialSponsoredCacheKey = `sponsored:${JSON.stringify({ ...initialParams, public: 'true' })}`;
 
+  const [loadedKey, setLoadedKey] = useState(initialProductsCacheKey);
   const [products, setProducts] = useState<any[]>(() => {
     const cached = apiCache.get<any>(initialProductsCacheKey);
     return cached && Array.isArray(cached.data.results) ? cached.data.results : [];
@@ -141,7 +156,7 @@ const ProductList = () => {
   const buildParams = useCallback(
     (p: number) => {
       const params: Record<string, string> = { page: String(p), page_size: '12' };
-      const cat = searchParams.get('subcategory') || searchParams.get('category');
+      const cat = selectedSubcategory || selectedCategory;
       if (cat) params.category = cat;
       
       searchParams.forEach((value, key) => {
@@ -165,7 +180,7 @@ const ProductList = () => {
 
       return params;
     },
-    [searchParams, searchPrefs, location.coords]
+    [searchParams, searchPrefs, location.coords, selectedCategory, selectedSubcategory]
   );
 
   const fetchProducts = useCallback(
@@ -187,6 +202,7 @@ const ProductList = () => {
       const cachedSpons = apiCache.get<any>(sponsCacheKey);
 
       if (reset) {
+        setLoadedKey(cacheKey);
         if (cached) {
           // Instant cache hit for initial load
           setProducts(Array.isArray(cached.data.results) ? cached.data.results : []);
@@ -251,6 +267,7 @@ const ProductList = () => {
           const prodData = prodRes.data.results || prodRes.data || [];
           const sponsData = sponsRes.data.results || sponsRes.data || [];
           
+          setLoadedKey(cacheKey);
           setSponsoredAds(Array.isArray(sponsData) ? sponsData : []);
           setProducts(Array.isArray(prodData) ? prodData : []);
           setHasMore(!!(prodRes.data && prodRes.data.next));
@@ -326,7 +343,7 @@ const ProductList = () => {
   useEffect(() => { 
     setPage(1); 
     fetchProducts(1, true); 
-  }, [searchParams, searchPrefs, location.coords]);
+  }, [selectedCategory, selectedSubcategory, searchParams, searchPrefs, location.coords]);
 
   useEffect(() => {
     localStorage.setItem('viewMode', viewMode);
@@ -369,32 +386,7 @@ const ProductList = () => {
     return () => obs.disconnect();
   }, [hasMore, loadingMore, loading, fetchProducts]);
 
-  const topCategories = useMemo(() => {
-    const catsList = ensureArray(categories);
-    if (catsList.length === 0) return [];
 
-    const getDeepCount = (cat: any): number => {
-      let count = cat.product_count || 0;
-      if (cat.children && Array.isArray(cat.children)) {
-        cat.children.forEach((child: any) => {
-          count += getDeepCount(child);
-        });
-      }
-      return count;
-    };
-
-    return catsList
-      .filter((c: any) => !c.parent)
-      .map((c: any) => ({ ...c, total_products: getDeepCount(c) }))
-      .filter((c: any) => c.total_products > 0)
-      .sort((a, b) => b.total_products - a.total_products);
-  }, [categories]);
-  const activeParent = useMemo(() => {
-    if (!selectedCategory && !selectedSubcategory) return null;
-    return topCategories.find((c: any) => c.slug === selectedCategory) || 
-      topCategories.find((c: any) => c.children?.some((child: any) => child.slug === (selectedSubcategory || selectedCategory)));
-  }, [topCategories, selectedCategory, selectedSubcategory]);
-  const subcategories = useMemo(() => activeParent?.children || [], [activeParent]);
 
 
 
@@ -450,28 +442,7 @@ const ProductList = () => {
       onRemove: () => { updateFilters({ sort_by: '' }); },
     });
   }
-  if (selectedCategory) {
-    const catName = categories.find((c: any) => c.slug === selectedCategory)?.name || selectedCategory;
-    activePills.push({
-      id: 'category',
-      label: 'Category',
-      value: catName,
-      onRemove: () => {
-        updateFilters({ category: '', subcategory: '', saved: '' });
-      },
-    });
-  }
-  if (selectedSubcategory) {
-    const subName = (categories.find((c: any) => c.slug === selectedSubcategory)?.name) || 
-      (subcategories.find((c: any) => c.slug === selectedSubcategory)?.name) || 
-      selectedSubcategory;
-    activePills.push({
-      id: 'subcategory',
-      label: 'Subcategory',
-      value: subName,
-      onRemove: () => updateFilters({ subcategory: '' }),
-    });
-  }
+
   if (vehicleId) {
     activePills.push({
       id: 'vehicleId',
@@ -599,7 +570,18 @@ const ProductList = () => {
     return entries;
   };
 
-  const gridEntries = buildGridEntries(products, sponsoredAds);
+  const currentParamsKey = `products:${JSON.stringify(buildParams(1))}`;
+  const cachedForCurrent = apiCache.get<any>(currentParamsKey);
+  const isKeyChanged = loadedKey !== currentParamsKey;
+
+  const activeProducts = isKeyChanged
+    ? (cachedForCurrent && Array.isArray(cachedForCurrent.data?.results) ? cachedForCurrent.data.results : products)
+    : products;
+
+  const isInitialLoading = loading && products.length === 0 && !cachedForCurrent;
+  const isSwitchingCategory = isKeyChanged && !cachedForCurrent;
+
+  const gridEntries = buildGridEntries(activeProducts, sponsoredAds);
 
   const isDiscoveryMode = !selectedCategory && !selectedSubcategory && !urlQuery && !saved && !sellerFilter && activePills.length === 0;
 
@@ -654,10 +636,41 @@ const ProductList = () => {
         schema={categoryBreadcrumbSchema}
       />
       <div id="browse" className="container-page pb-24 md:pb-8 pt-0">
-        {isDiscoveryMode ? (
+        {/* Persistent, Non-Jumping Location Context Notice */}
+        {!urlQuery && !saved && activePills.length === 0 && !sellerFilter && (
+          <div className="flex items-center justify-center gap-1.5 py-0 px-2 mb-2 md:mb-3 text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400">
+            <span className="text-neutral-800 dark:text-neutral-200 font-semibold">
+              {searchPrefs.mode === 'proximity' && searchPrefs.locationName !== 'Nationwide'
+                ? `${searchPrefs.locationName.split(',')[0]} (${t('within', 'within')} ${searchPrefs.radius || 10}km)`
+                : (searchPrefs.region ? `${t('all_in', 'All in')} ${searchPrefs.region}` : t('all_in_country', 'All in Tanzania'))}
+            </span>
+            <span className="text-neutral-300 dark:text-neutral-700">•</span>
+            {searchPrefs.mode === 'proximity' ? (
+              <button
+                type="button"
+                onClick={setNationwide}
+                className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
+              >
+                {t('view_all_in_country', 'View all in Tanzania')}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={setNearMe}
+                disabled={isLocating}
+                className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
+              >
+                {isLocating ? t('locating', 'Locating...') : t('view_near_me', 'View near me')}
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className={isDiscoveryMode ? "block" : "hidden"}>
           <DiscoveryFeed />
-        ) : (
-          <>
+        </div>
+
+        <div className={!isDiscoveryMode ? "block" : "hidden"}>
             {(saved || sellerFilter || urlQuery || activePills.length > 0) && (
               <div className="mb-2 space-y-2">
                 {/* Local Search for Saved Items */}
@@ -718,28 +731,22 @@ const ProductList = () => {
                       {/* Filter Pills */}
                       {activePills.length > 0 && (
                         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                          {activePills.map((pill) => {
-                            let pillClasses = "flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs font-bold shrink-0 whitespace-nowrap animate-in zoom-in-95 duration-200 border ";
-                            if (pill.id === 'category') {
-                              pillClasses += "bg-transparent border-brand-500 text-gray-800 dark:text-gray-200";
-                            } else {
-                              pillClasses += "bg-gray-100 dark:bg-neutral-800 border-transparent text-gray-800 dark:text-gray-200";
-                            }
-
-                            return (
-                              <div key={pill.id} className={pillClasses}>
-                                <span className="opacity-60 font-medium">{pill.label}:</span>
-                                <span>{pill.value}</span>
-                                <button
-                                  onClick={pill.onRemove}
-                                  className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors ml-0.5"
-                                  aria-label={`Remove ${pill.label} filter`}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </div>
-                            );
-                          })}
+                          {activePills.map((pill) => (
+                            <div
+                              key={pill.id}
+                              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs font-bold shrink-0 whitespace-nowrap animate-in zoom-in-95 duration-200 border bg-gray-100 dark:bg-neutral-800 border-transparent text-gray-800 dark:text-gray-200"
+                            >
+                              <span className="opacity-60 font-medium">{pill.label}:</span>
+                              <span>{pill.value}</span>
+                              <button
+                                onClick={pill.onRemove}
+                                className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors ml-0.5"
+                                aria-label={`Remove ${pill.label} filter`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -752,6 +759,10 @@ const ProductList = () => {
                             const newParams = new URLSearchParams();
                             const view = prev.get('view');
                             if (view) newParams.set('view', view);
+                            const cat = prev.get('category');
+                            if (cat) newParams.set('category', cat);
+                            const sub = prev.get('subcategory');
+                            if (sub) newParams.set('subcategory', sub);
                             return newParams;
                           });
                         }}
@@ -767,38 +778,8 @@ const ProductList = () => {
               </div>
             )}
 
-            {/* ─── Centered Subtle Location Notice (only when browsing in a category/filter) ─── */}
-            {!urlQuery && !saved && activePills.length === 0 && !sellerFilter && (
-              <div className="flex items-center justify-center gap-1.5 py-0 px-2 mb-1.5 md:mb-3 text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400">
-                <span className="text-neutral-800 dark:text-neutral-200 font-semibold">
-                  {searchPrefs.mode === 'proximity' && searchPrefs.locationName !== 'Nationwide'
-                    ? `${searchPrefs.locationName.split(',')[0]} (${t('within', 'within')} ${searchPrefs.radius || 10}km)`
-                    : (searchPrefs.region ? `${t('all_in', 'All in')} ${searchPrefs.region}` : t('all_in_country', 'All in Tanzania'))}
-                </span>
-                <span className="text-neutral-300 dark:text-neutral-700">•</span>
-                {searchPrefs.mode === 'proximity' ? (
-                  <button
-                    type="button"
-                    onClick={setNationwide}
-                    className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
-                  >
-                    {t('view_all_in_country', 'View all in Tanzania')}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={setNearMe}
-                    disabled={isLocating}
-                    className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-brand-500 dark:hover:text-brand-400 transition-colors cursor-pointer no-underline"
-                  >
-                    {isLocating ? t('locating', 'Locating...') : t('view_near_me', 'View near me')}
-                  </button>
-                )}
-              </div>
-            )}
-
             {/* ===== Product Grid ===== */}
-            {loading ? (
+            {isInitialLoading ? (
               <div 
                 className={viewMode === 'grid' 
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none"
@@ -812,10 +793,11 @@ const ProductList = () => {
             ) : (
               <>
                 <div 
-                  className={viewMode === 'grid' 
-                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none animate-in fade-in duration-150"
-                    : "flex flex-col gap-3 animate-in fade-in duration-150"
-                  }
+                  className={`${
+                    viewMode === 'grid' 
+                      ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none"
+                      : "flex flex-col gap-3"
+                  } ${isSwitchingCategory ? "opacity-60 transition-opacity duration-150" : "opacity-100 transition-opacity duration-150"}`}
                 >
                   {gridEntries.length === 0 ? (
                     <div className="col-span-full card p-16 text-center bg-white/50 dark:bg-gray-800/50 backdrop-blur">
@@ -881,8 +863,7 @@ const ProductList = () => {
                 <div ref={sentinelRef} className="h-1" />
               </>
             )}
-          </>
-        )}
+        </div>
       </div>
     </div>
   );
