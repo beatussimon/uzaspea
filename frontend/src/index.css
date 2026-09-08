@@ -303,7 +303,79 @@
     to   { transform: translateX(0); }
   }
   .animate-slide-in-left {
-    animation: slide-in-left 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: slide-in-left 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slide-out-left {
+    to   { transform: translateX(-100%); }
+  }
+  .animate-slide-out-left {
+    animation: slide-out-left 0.22s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  }
+
+  @keyframes fade-out {
+    to   { opacity: 0; }
+  }
+  .animate-fade-out {
+    animation: fade-out 0.22s ease-out forwards;
+  }
+
+  /* Natural spring inertia bend when mobile drawer slides in */
+  @keyframes logo-shake {
+    0% {
+      transform: perspective(400px) rotateX(0deg) rotateZ(0deg) translateY(0);
+    }
+    22% {
+      transform: perspective(400px) rotateX(15deg) rotateZ(2deg) translateY(1px);
+    }
+    42% {
+      transform: perspective(400px) rotateX(-8deg) rotateZ(-1.2deg) translateY(-0.5px);
+    }
+    64% {
+      transform: perspective(400px) rotateX(4deg) rotateZ(0.5deg) translateY(0.2px);
+    }
+    82% {
+      transform: perspective(400px) rotateX(-1.5deg) rotateZ(-0.2deg) translateY(0);
+    }
+    100% {
+      transform: perspective(400px) rotateX(0deg) rotateZ(0deg) translateY(0);
+    }
+  }
+  .animate-logo-shake {
+    transform-origin: bottom center;
+    animation: logo-shake 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform;
+  }
+
+  /* Physics recoil bend when mobile drawer is swiped away or dismissed */
+  @keyframes logo-recoil {
+    0% {
+      transform: perspective(400px) rotateX(0deg) rotateZ(0deg) translateY(0);
+    }
+    28% {
+      transform: perspective(400px) rotateX(-14deg) rotateZ(-2.5deg) translateY(-1px);
+    }
+    55% {
+      transform: perspective(400px) rotateX(5deg) rotateZ(1deg) translateY(0.5px);
+    }
+    80% {
+      transform: perspective(400px) rotateX(-1.5deg) rotateZ(-0.3deg) translateY(0);
+    }
+    100% {
+      transform: perspective(400px) rotateX(0deg) rotateZ(0deg) translateY(0);
+    }
+  }
+  .animate-logo-recoil {
+    transform-origin: bottom center;
+    animation: logo-recoil 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-logo-shake,
+    .animate-logo-recoil {
+      animation: none !important;
+    }
   }
 }
 

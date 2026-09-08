@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, Lightbulb, FileText, ChevronLeft, ChevronRight, QrCode, Menu, X, ArrowDownToLine } from 'lucide-react';
+import { LayoutDashboard, Package, Megaphone, ShoppingCart, Shield, CreditCard, Settings, HelpCircle, Wallet, Lightbulb, FileText, ChevronLeft, ChevronRight, QrCode, Menu, ArrowDownToLine } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import { useAuth, useUserRoles } from '../../context/AuthContext';
@@ -27,12 +27,82 @@ const DashboardLayout: React.FC = () => {
   const { user } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [hasEntered, setHasEntered] = useState(false);
+
   const sidebarRef = useRef<HTMLElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
+
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const isSwipeGestureRef = useRef<boolean | null>(null);
+  const currentDragXRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+  const closeTimerRef = useRef<any>(null);
 
   // Auto-close mobile menu on route change
   useEffect(() => {
     setIsMobileMenuOpen(false);
+    setIsClosing(false);
+    setHasEntered(false);
   }, [location.pathname]);
+
+  // Clean up close timer on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  const closeMobileMenuAnimated = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+
+    if (drawerRef.current) {
+      drawerRef.current.classList.remove('animate-slide-in-left');
+      drawerRef.current.classList.add('animate-slide-out-left');
+      drawerRef.current.style.animation = '';
+      drawerRef.current.style.transition = 'transform 0.22s cubic-bezier(0.32, 0, 0.67, 0)';
+      drawerRef.current.style.transform = 'translateX(-100%)';
+    }
+    if (backdropRef.current) {
+      backdropRef.current.classList.remove('animate-fade-in');
+      backdropRef.current.classList.add('animate-fade-out');
+      backdropRef.current.style.animation = '';
+      backdropRef.current.style.transition = 'opacity 0.22s ease-out';
+      backdropRef.current.style.opacity = '0';
+    }
+    if (logoRef.current) {
+      logoRef.current.style.animation = '';
+      logoRef.current.style.transition = 'none';
+      logoRef.current.style.transform = '';
+    }
+
+    closeTimerRef.current = setTimeout(() => {
+      setIsMobileMenuOpen(false);
+      setIsClosing(false);
+      setHasEntered(false);
+      if (drawerRef.current) {
+        drawerRef.current.style.transform = '';
+        drawerRef.current.style.transition = '';
+        drawerRef.current.style.animation = '';
+        drawerRef.current.classList.remove('animate-slide-out-left');
+      }
+      if (backdropRef.current) {
+        backdropRef.current.style.opacity = '';
+        backdropRef.current.style.transition = '';
+        backdropRef.current.style.animation = '';
+        backdropRef.current.classList.remove('animate-fade-out');
+      }
+      if (logoRef.current) {
+        logoRef.current.style.transform = '';
+        logoRef.current.style.transition = '';
+        logoRef.current.style.animation = '';
+      }
+    }, 220);
+  };
 
   // Lock body scroll and handle Escape key when mobile menu is open
   useEffect(() => {
@@ -43,7 +113,7 @@ const DashboardLayout: React.FC = () => {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setIsMobileMenuOpen(false);
+        closeMobileMenuAnimated();
       }
     };
 
@@ -52,7 +122,120 @@ const DashboardLayout: React.FC = () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isMobileMenuOpen]);
+  }, [isMobileMenuOpen, isClosing]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isClosing || e.touches.length !== 1) return;
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+    isSwipeGestureRef.current = null;
+    currentDragXRef.current = 0;
+    hasDraggedRef.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isClosing || e.touches.length !== 1) return;
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+    const diffX = touchX - touchStartXRef.current;
+    const diffY = touchY - touchStartYRef.current;
+
+    // Detect gesture direction after small movement threshold (6px)
+    if (isSwipeGestureRef.current === null) {
+      const absX = Math.abs(diffX);
+      const absY = Math.abs(diffY);
+      if (absX > 6 || absY > 6) {
+        // Horizontal left swipe
+        if (absX > absY && diffX < -3) {
+          isSwipeGestureRef.current = true;
+          hasDraggedRef.current = true;
+          setHasEntered(true);
+          if (drawerRef.current) {
+            drawerRef.current.classList.remove('animate-slide-in-left', 'animate-slide-out-left');
+            drawerRef.current.style.animation = 'none';
+            drawerRef.current.style.transition = 'none';
+          }
+          if (backdropRef.current) {
+            backdropRef.current.classList.remove('animate-fade-in', 'animate-fade-out');
+            backdropRef.current.style.animation = 'none';
+            backdropRef.current.style.transition = 'none';
+          }
+          if (logoRef.current) {
+            logoRef.current.style.animation = 'none';
+            logoRef.current.style.transition = 'none';
+            logoRef.current.classList.remove('animate-logo-shake', 'animate-logo-recoil');
+          }
+        } else {
+          isSwipeGestureRef.current = false;
+        }
+      }
+    }
+
+    if (isSwipeGestureRef.current) {
+      // Only drag to the left (<= 0)
+      const dragX = Math.min(0, diffX);
+      currentDragXRef.current = dragX;
+
+      if (drawerRef.current) {
+        drawerRef.current.style.transform = `translateX(${dragX}px)`;
+      }
+
+      const drawerWidth = drawerRef.current?.offsetWidth || 288;
+      const progress = Math.min(1, Math.abs(dragX) / drawerWidth);
+
+      if (backdropRef.current) {
+        backdropRef.current.style.opacity = `${Math.max(0, 1 - progress * 0.8)}`;
+      }
+
+      // Reactive logo feedback: as the drawer is pulled left, the logo tilts back in perspective and leans away
+      if (logoRef.current) {
+        const tiltX = -progress * 16;
+        const tiltZ = -progress * 3.5;
+        const nudgeX = -progress * 6;
+        logoRef.current.style.transform = `perspective(400px) rotateX(${tiltX}deg) rotateZ(${tiltZ}deg) translateX(${nudgeX}px)`;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (isClosing) return;
+
+    if (isSwipeGestureRef.current) {
+      const dragX = currentDragXRef.current;
+      const drawerWidth = drawerRef.current?.offsetWidth || 288;
+      if (dragX < -50 || Math.abs(dragX) / drawerWidth > 0.2) {
+        // Swiped past threshold -> close with smooth animation
+        closeMobileMenuAnimated();
+      } else {
+        // Released before threshold -> spring back to open position
+        if (drawerRef.current) {
+          drawerRef.current.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+          drawerRef.current.style.transform = 'translateX(0)';
+        }
+        if (backdropRef.current) {
+          backdropRef.current.style.transition = 'opacity 0.25s ease-out';
+          backdropRef.current.style.opacity = '1';
+        }
+        if (logoRef.current) {
+          logoRef.current.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+          logoRef.current.style.transform = 'perspective(400px) rotateX(0deg) rotateZ(0deg) translateX(0)';
+        }
+      }
+    }
+
+    isSwipeGestureRef.current = null;
+    currentDragXRef.current = 0;
+    setTimeout(() => {
+      hasDraggedRef.current = false;
+    }, 100);
+  };
+
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (hasDraggedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
 
   useEffect(() => {
     const updateStickyPosition = () => {
@@ -213,7 +396,11 @@ const DashboardLayout: React.FC = () => {
       {/* Floating Mobile Hamburger Menu Button (Positioned on the left side) */}
       <button
         type="button"
-        onClick={() => setIsMobileMenuOpen(true)}
+        onClick={() => {
+          setIsClosing(false);
+          setHasEntered(false);
+          setIsMobileMenuOpen(true);
+        }}
         className="fixed z-40 p-3 rounded-full shadow-lg bg-white dark:bg-[#111111] text-gray-900 dark:text-white border border-gray-200 dark:border-[#222222] transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center lg:hidden print:hidden cursor-pointer select-none"
         style={{
           bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
@@ -227,36 +414,48 @@ const DashboardLayout: React.FC = () => {
 
       {/* Mobile Slide-Over Navigation Drawer */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div 
+          className="fixed inset-0 z-50 lg:hidden"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+          onClickCapture={handleClickCapture}
+        >
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-fade-in"
-            onClick={() => setIsMobileMenuOpen(false)}
+            ref={backdropRef}
+            className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity ${
+              isClosing ? 'animate-fade-out' : hasEntered ? '' : 'animate-fade-in'
+            }`}
+            onClick={closeMobileMenuAnimated}
           />
 
           {/* Drawer */}
-          <aside className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white dark:bg-[#0A0A0A] border-r border-surface-border dark:border-surface-dark-border z-50 flex flex-col justify-between p-4 pt-[calc(env(safe-area-inset-top,0px)+3.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] shadow-2xl overflow-y-auto animate-slide-in-left">
+          <aside 
+            ref={drawerRef}
+            className={`fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white dark:bg-[#0A0A0A] z-50 flex flex-col justify-between p-4 pt-[calc(env(safe-area-inset-top,0px)+5.5rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] shadow-2xl overflow-y-auto ${
+              isClosing ? 'animate-slide-out-left' : hasEntered ? '' : 'animate-slide-in-left'
+            }`}
+            style={{ touchAction: 'pan-y', willChange: 'transform' }}
+            onAnimationEnd={(e) => {
+              if (e.animationName === 'slide-in-left' && drawerRef.current) {
+                setHasEntered(true);
+                drawerRef.current.classList.remove('animate-slide-in-left');
+              }
+            }}
+          >
             <div className="space-y-4">
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-gray-150 dark:border-white/10">
-                <div className="min-w-0">
-                  <h2 className="font-extrabold text-xl text-gray-900 dark:text-white truncate leading-tight tracking-tight">
-                    {t('seller_dashboard', 'Seller Dashboard')}
-                  </h2>
-                  {user?.username && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate leading-tight mt-1 font-medium">
-                      @{user.username}
-                    </p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition shrink-0"
-                  aria-label="Close menu"
-                >
-                  <X size={20} />
-                </button>
+              {/* Drawer Header (Aligned horizontally with dashboard page headings) */}
+              <div className="pb-2">
+                <h2 className="font-bold text-2xl text-gray-900 dark:text-white truncate tracking-tight">
+                  {t('seller_dashboard', 'Seller Dashboard')}
+                </h2>
+                {user?.username && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate leading-tight mt-1 font-medium">
+                    @{user.username}
+                  </p>
+                )}
               </div>
 
               {/* Navigation Items */}
@@ -267,7 +466,7 @@ const DashboardLayout: React.FC = () => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      onClick={() => setIsMobileMenuOpen(false)}
+                      onClick={closeMobileMenuAnimated}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                         isActive
                           ? 'text-brand-500 dark:text-brand-500 font-bold'
@@ -280,12 +479,10 @@ const DashboardLayout: React.FC = () => {
                   );
                 })}
 
-                <div className="my-2 border-t border-gray-150 dark:border-white/10" />
-
                 {isSuperuser && (
                   <Link
                     to="/staff-admin"
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    onClick={closeMobileMenuAnimated}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm text-brand-500 dark:text-brand-500 font-bold hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
                   >
                     <Shield size={18} className="shrink-0" />
@@ -295,7 +492,7 @@ const DashboardLayout: React.FC = () => {
 
                 <Link
                   to="/dashboard/settings"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={closeMobileMenuAnimated}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                     location.pathname.startsWith('/dashboard/settings')
                       ? 'text-brand-500 dark:text-brand-500 font-bold'
@@ -307,7 +504,7 @@ const DashboardLayout: React.FC = () => {
                 </Link>
                 <Link
                   to="/dashboard/help-center"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={closeMobileMenuAnimated}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm transition ${
                     location.pathname.startsWith('/dashboard/help-center')
                       ? 'text-brand-500 dark:text-brand-500 font-bold'
@@ -322,7 +519,7 @@ const DashboardLayout: React.FC = () => {
 
             {/* Store QR Code at bottom of mobile drawer */}
             {user?.username && (
-              <div className="pt-3 mt-4 text-center select-none space-y-2 border-t border-gray-150 dark:border-white/10">
+              <div className="pt-3 mt-4 text-center select-none space-y-2">
                 <div className="bg-white p-3 rounded-2xl border border-gray-200/90 dark:border-neutral-700/80 flex justify-center items-center shadow-xs mx-auto w-fit">
                   <QRCodeSVG
                     value={`${window.location.origin}/${user.username}`}
@@ -343,7 +540,7 @@ const DashboardLayout: React.FC = () => {
                     type="button"
                     onClick={() => {
                       downloadStoreQrCode();
-                      setIsMobileMenuOpen(false);
+                      closeMobileMenuAnimated();
                     }}
                     className="inline-flex items-center justify-center gap-1 text-xs font-semibold text-gray-600 dark:text-neutral-300 hover:text-gray-900 dark:hover:text-white hover:underline transition cursor-pointer"
                   >
@@ -352,7 +549,7 @@ const DashboardLayout: React.FC = () => {
                   </button>
                   <Link
                     to={`/${user.username}`}
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    onClick={closeMobileMenuAnimated}
                     className="block text-2xs text-gray-500 hover:text-brand-600 dark:text-neutral-400 dark:hover:text-brand-400 hover:underline transition truncate"
                   >
                     View Storefront &rarr;
@@ -361,6 +558,24 @@ const DashboardLayout: React.FC = () => {
               </div>
             )}
           </aside>
+
+          {/* Centered Brand Logo - Seamlessly visible above the drawer & backdrop at navbar height with physical inertia shake */}
+          <div 
+            className="fixed left-1/2 -translate-x-1/2 flex items-center justify-center shrink-0 z-50 pointer-events-auto select-none"
+            style={{ top: 'env(safe-area-inset-top, 0px)', height: '3.5rem' }}
+          >
+            <div ref={logoRef} className={`origin-bottom flex items-center justify-center ${
+              isClosing ? 'animate-logo-recoil' : !hasEntered ? 'animate-logo-shake' : ''
+            }`} style={{ willChange: 'transform' }}>
+              <Link to="/" onClick={closeMobileMenuAnimated} className="flex items-center group">
+                <img 
+                  src="/logo_dark.png"
+                  alt="OKO Logo" 
+                  className="h-14 md:h-16 w-auto object-contain transition-transform duration-200 hover:scale-105 select-none"
+                />
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 
