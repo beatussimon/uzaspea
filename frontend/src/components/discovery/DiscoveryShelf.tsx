@@ -23,7 +23,6 @@ export interface DiscoveryShelfProps {
 export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   id,
   title,
-  subtitle,
   seeMoreUrl,
   products = [],
   loading = false,
@@ -294,16 +293,11 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
       id={`shelf-${id}`}
     >
       {/* Shelf Header */}
-      <div className="flex items-center justify-between gap-1.5 sm:gap-3 mb-1.5 sm:mb-2 min-h-[38px] sm:min-h-[44px]">
-        <div className="space-y-0.5 min-w-0 flex-1">
-          <h2 className="text-[15px] sm:text-lg md:text-xl font-black text-gray-900 dark:text-white tracking-tight truncate">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-3 mb-1.5 sm:mb-2">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tight truncate">
             {title}
           </h2>
-          {subtitle && (
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium line-clamp-1">
-              {subtitle}
-            </p>
-          )}
         </div>
 
         {/* Right Controls: Pill Counter + Desktop Chevrons + View All */}
@@ -393,10 +387,10 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
           {seeMoreUrl && (
             <Link
               to={seeMoreUrl}
-              className="group inline-flex items-center gap-0.5 text-xs font-bold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors py-0.5 px-1.5 rounded-full hover:bg-brand-500/10"
+              className="group inline-flex items-center gap-0.5 text-xs font-bold text-black dark:text-white hover:opacity-75 transition-all py-0.5 px-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800"
             >
               <span>{t('view_all', 'View all')}</span>
-              <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+              <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5 text-black dark:text-white" />
             </Link>
           )}
         </div>
