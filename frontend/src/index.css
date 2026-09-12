@@ -382,10 +382,21 @@
 
   @media (prefers-reduced-motion: reduce) {
     .animate-logo-shake,
-    .animate-logo-recoil {
+    .animate-logo-recoil,
+    .animate-progress-slide {
       animation: none !important;
     }
   }
+}
+
+@keyframes progressSlide {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(20%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress-slide {
+  animation: progressSlide 1.2s ease-in-out infinite;
 }
 
 @media print {

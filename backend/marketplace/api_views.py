@@ -744,13 +744,20 @@ class ProductViewSet(viewsets.ModelViewSet):
                 pass
 
     def perform_update(self, serializer):
+        from django.core.cache import cache
         product = serializer.save()
+        cache.delete(f"product:detail:{product.id}")
         images = self.request.FILES.getlist('uploaded_images')
         if images:
             # Optionally clear existing images if it's a full replacement, 
             # but for now we'll just add new ones as per common MVP patterns
             for img in images:
                 ProductImage.objects.create(product=product, image=img)
+
+    def perform_destroy(self, instance):
+        from django.core.cache import cache
+        cache.delete(f"product:detail:{instance.id}")
+        super().perform_destroy(instance)
 
     def _get_similar_products(self, product, request, limit=12):
         from .discovery_views import get_base_product_queryset
@@ -784,24 +791,41 @@ class ProductViewSet(viewsets.ModelViewSet):
         return similar_products
 
     def retrieve(self, request, *args, **kwargs):
+        from django.core.cache import cache
         instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        data = serializer.data
+        cache_key = f"product:detail:{instance.id}"
+        cached_data = cache.get(cache_key)
 
-        # Preload similar products for instant display without extra client roundtrips
-        try:
-            similar_items = self._get_similar_products(instance, request, limit=12)
-            data['similar_products'] = ProductSerializer(
-                similar_items, many=True, context=self.get_serializer_context()
-            ).data
-            data['has_more_similar'] = len(similar_items) >= 12
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning("Failed to preload similar products: %s", e)
-            data['similar_products'] = []
-            data['has_more_similar'] = False
+        if cached_data is not None:
+            data = dict(cached_data)
+        else:
+            serializer = self.get_serializer(instance)
+            data = serializer.data
 
-        return Response(data)
+            # Preload similar products for instant display without extra client roundtrips
+            try:
+                similar_items = self._get_similar_products(instance, request, limit=12)
+                data['similar_products'] = ProductSerializer(
+                    similar_items, many=True, context=self.get_serializer_context()
+                ).data
+                data['has_more_similar'] = len(similar_items) >= 12
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Failed to preload similar products: %s", e)
+                data['similar_products'] = []
+                data['has_more_similar'] = False
+
+            cache.set(cache_key, data, timeout=180)
+
+        # Dynamic user-specific overlay: is_liked
+        if request.user.is_authenticated:
+            data['is_liked'] = instance.likes.filter(user=request.user).exists()
+        else:
+            data['is_liked'] = False
+
+        response = Response(data)
+        response['Cache-Control'] = 'public, max-age=60, stale-while-revalidate=300'
+        return response
 
     @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
     def upload_content_image(self, request):
@@ -874,6 +898,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def like(self, request, slug=None):
+        from django.core.cache import cache
         product = self.get_object()
         like, created = Like.objects.get_or_create(user=request.user, product=product)
         if not created:
@@ -881,6 +906,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             liked = False
         else:
             liked = True
+        cache.delete(f"product:detail:{product.id}")
         return Response({'liked': liked, 'like_count': product.likes.count()})
 
     @decorators.action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
@@ -3038,19 +3064,23 @@ class ForgotPasswordRequestView(APIView):
         import time
         from django.core.cache import cache
 
-        raw_email = (request.data.get('email') or '').strip()
-        if not raw_email or '@' not in raw_email:
-            return Response({'error': 'Please provide a valid email address.'}, status=status.HTTP_400_BAD_REQUEST)
+        raw_identifier = (request.data.get('email') or request.data.get('identifier') or request.data.get('username') or '').strip()
+        if not raw_identifier:
+            return Response({'error': 'Please provide your registered email address or username.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        norm_email = normalize_email_for_rate_limit(raw_email)
-        email_hash = hashlib.sha256(norm_email.encode('utf-8')).hexdigest()[:32]
+        if '@' in raw_identifier:
+            norm_identifier = normalize_email_for_rate_limit(raw_identifier)
+        else:
+            norm_identifier = raw_identifier.lstrip('@').lower()
+
+        ident_hash = hashlib.sha256(norm_identifier.encode('utf-8')).hexdigest()[:32]
 
         # IP address extraction (leftmost IP from X-Forwarded-For if behind reverse proxy)
         xff = request.META.get('HTTP_X_FORWARDED_FOR')
         client_ip = xff.split(',')[0].strip() if xff else (request.META.get('REMOTE_ADDR') or '127.0.0.1')
         ip_hash = hashlib.sha256(client_ip.encode('utf-8')).hexdigest()[:16]
 
-        email_cache_key = f"pwd_reset_rate:email:{email_hash}"
+        email_cache_key = f"pwd_reset_rate:ident:{ident_hash}"
         ip_cache_key = f"pwd_reset_rate:ip:{ip_hash}"
 
         now = time.time()
@@ -3070,11 +3100,16 @@ class ForgotPasswordRequestView(APIView):
             resp['Retry-After'] = str(retry_after)
             return resp
 
-        # 2. Email-level rate limiting (max 3 requests per 24h per email)
+        # 2. Identifier-level rate limiting (max 3 requests per 24h per user)
         email_data = cache.get(email_cache_key)
 
-        # Check DB persistent requests for registered users in last 24h
-        user = User.objects.filter(email__iexact=raw_email, is_active=True).first()
+        # Check DB persistent requests for registered users in last 24h (by email OR username)
+        clean_user = raw_identifier.lstrip('@')
+        user = User.objects.filter(
+            Q(email__iexact=raw_identifier) | Q(username__iexact=clean_user),
+            is_active=True
+        ).first()
+
         db_count = 0
         if user:
             one_day_ago = timezone.now() - timedelta(seconds=self.RATE_LIMIT_WINDOW)
@@ -3146,7 +3181,7 @@ class ForgotPasswordRequestView(APIView):
             'attempts_made': new_count,
             'attempts_left': attempts_left,
             'max_attempts': self.MAX_DAILY_REQUESTS,
-            'message': 'If an active account is associated with this email, a reset link will be sent to your inbox.'
+            'message': 'If an active account is associated with this information, your password reset request has been received and queued for dispatch.'
         }
         if attempts_left == 1:
             res_data['warning'] = 'You have 1 attempt remaining today.'
@@ -3278,7 +3313,9 @@ class PasswordResetRequestStaffViewSet(viewsets.ReadOnlyModelViewSet):
                 Q(user__username__icontains=search) |
                 Q(user__email__icontains=search) |
                 Q(token__icontains=search) |
-                Q(ip_address__icontains=search)
+                Q(ip_address__icontains=search) |
+                Q(user__profile__phone_number__icontains=search) |
+                Q(user__profile__whatsapp_number__icontains=search)
             )
         return qs
 
@@ -3291,6 +3328,52 @@ class PasswordResetRequestStaffViewSet(viewsets.ReadOnlyModelViewSet):
         instance.dispatched_by = request.user
         instance.dispatched_at = timezone.now()
         instance.save()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='send-email')
+    def send_email_action(self, request, pk=None):
+        instance = self.get_object()
+        if instance.is_used:
+            return Response({'error': 'Cannot send reset email for a request that has already been completed.'}, status=400)
+
+        email = instance.user.email
+        if not email:
+            return Response({'error': f'User @{instance.user.username} has no registered email address. Use "Copy Link" to dispatch manually.'}, status=400)
+
+        draft = instance.get_email_draft(request=request)
+        from django.core.mail import send_mail
+        from django.conf import settings
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@kiboss.co.tz')
+
+        try:
+            send_mail(
+                subject=draft['subject'],
+                message=draft['body'],
+                from_email=from_email,
+                recipient_list=[email],
+                fail_silently=False
+            )
+        except Exception as e:
+            return Response({'error': f'Failed to deliver email: {str(e)}'}, status=500)
+
+        instance.status = 'dispatched'
+        instance.dispatched_by = request.user
+        instance.dispatched_at = timezone.now()
+        instance.save()
+
+        try:
+            from staff.models import AuditLog
+            AuditLog.objects.create(
+                user=request.user,
+                action='action_performed',
+                description=f'Dispatched password reset email to {email} for @{instance.user.username}',
+                target_user=instance.user,
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+        except Exception:
+            pass
+
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
@@ -3311,6 +3394,7 @@ class PasswordResetRequestStaffViewSet(viewsets.ReadOnlyModelViewSet):
             'dispatched': base.filter(status='dispatched').count(),
             'completed': base.filter(status='completed').count(),
             'expired': base.filter(status='expired').count(),
+            'superseded': base.filter(status='superseded').count(),
         })
 
 
@@ -4225,11 +4309,26 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
         return ProductVariant.objects.none()
 
     def perform_create(self, serializer):
+        from django.core.cache import cache
         product = serializer.validated_data['product']
         if product.seller != self.request.user and not self.request.user.is_staff:
             from rest_framework import serializers as drf_serializers
             raise drf_serializers.ValidationError('You do not own this product.')
         serializer.save()
+        cache.delete(f"product:detail:{product.id}")
+
+    def perform_update(self, serializer):
+        from django.core.cache import cache
+        variant = serializer.save()
+        if variant.product_id:
+            cache.delete(f"product:detail:{variant.product_id}")
+
+    def perform_destroy(self, instance):
+        from django.core.cache import cache
+        pid = instance.product_id
+        super().perform_destroy(instance)
+        if pid:
+            cache.delete(f"product:detail:{pid}")
 
 from datetime import timedelta
 from django.utils import timezone

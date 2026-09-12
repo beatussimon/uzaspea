@@ -21,7 +21,7 @@ import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { Skeleton } from '../components/Skeleton';
 import { timeAgo } from '../utils/timeAgo';
-import { fetchProductCached, productCache } from '../components/layout/CategoryBar';
+import { fetchProductCached, getCachedProduct, seedProductsCache } from '../utils/productCache';
 import { useMessages } from '../context/MessageContext';
 import SEO from '../components/SEO';
 import { createProductInquiryPayload, parseMessageContent } from '../utils/messageParser';
@@ -78,6 +78,9 @@ interface ProductData {
   has_a_plus_content?: boolean;
   a_plus_content?: any;
   variants?: ProductVariant[];
+  image?: string;
+  similar_products?: any[];
+  has_more_similar?: boolean;
 }
 
 export interface ProductInspectionEvent {
@@ -467,18 +470,17 @@ const ProductDetailPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { openSearch } = useSearch();
   const { openDesktopChat, toggleDesktopChat, totalUnread: messageUnreadCount, sendMessage, conversations, messages, fetchMessages } = useMessages();
-  const cachedProd = slug && productCache[slug] && (Date.now() - productCache[slug].timestamp < 30000) 
-    ? productCache[slug].data 
-    : null;
+  const cachedProd = slug ? getCachedProduct(slug) : null;
   const initialProduct = (location.state as any)?.initialProduct || cachedProd || null;
 
   const [product, setProduct] = useState<ProductData | null>(initialProduct);
+  const [isHydrating, setIsHydrating] = useState(false);
   const [loading, setLoading] = useState(!initialProduct);
   const [pageError, setPageError] = useState<ClassifiedError | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [liked, setLiked] = useState(initialProduct?.is_liked || false);
   const [likeCount, setLikeCount] = useState(initialProduct?.like_count || 0);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(parseFloat(initialProduct?.minimum_order_quantity) || 1);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [variants, setVariants] = useState<ProductVariant[]>(
     initialProduct?.variants && Array.isArray(initialProduct.variants) ? initialProduct.variants : []
@@ -689,8 +691,13 @@ const ProductDetailPage: React.FC = () => {
     const baseImages: Array<{ id: string | number; image: string; variantId?: number }> = 
       (product.images && product.images.length > 0)
         ? product.images.map(img => ({ ...img }))
-        : [{ id: 0, image: '' }];
+        : [];
     
+    // Support preview single image fallback
+    if (baseImages.length === 0 && (product as any).image) {
+      baseImages.push({ id: 'primary', image: (product as any).image });
+    }
+
     // Tag matching base images or append variant images
     variants.forEach(v => {
       if (!v.image) return;
@@ -721,12 +728,13 @@ const ProductDetailPage: React.FC = () => {
   const loadProductData = useCallback((forceFresh = false) => {
     if (!slug) return;
     setPageError(null);
-    if (!product || forceFresh) setLoading(true);
+    if (forceFresh && !product) setLoading(true);
 
     fetchProductCached(slug, forceFresh)
       .then(async (res) => {
         const prodData = res.data;
         setProduct(prodData);
+        setIsHydrating(false);
         setPageError(null);
         if (prodData?.slug && prodData.slug !== slug && /^\d+$/.test(slug)) {
           window.history.replaceState(null, '', `/product/${prodData.slug}`);
@@ -735,6 +743,11 @@ const ProductDetailPage: React.FC = () => {
         setLiked(prodData.is_liked || false);
         setQuantity(parseFloat(prodData.minimum_order_quantity) || 1);
         
+        // Seed bundled similar products into memory/session cache
+        if (Array.isArray(prodData?.similar_products) && prodData.similar_products.length > 0) {
+          seedProductsCache(prodData.similar_products);
+        }
+
         // Immediate variants extraction from product payload
         let list: ProductVariant[] = Array.isArray(prodData?.variants) && prodData.variants.length > 0
           ? prodData.variants
@@ -759,6 +772,7 @@ const ProductDetailPage: React.FC = () => {
         setLoading(false);
       })
       .catch((err) => {
+        setIsHydrating(false);
         const classified = classifyApiError(err);
         setPageError(classified);
         if (classified.type === 'notFound') {
@@ -782,14 +796,31 @@ const ProductDetailPage: React.FC = () => {
     setSelectedImage(0);
     setSelectedVariant(null);
 
-    // If we have cached variants for this slug, update variants instantly
-    const cached = productCache[slug]?.data;
-    if (cached?.variants && Array.isArray(cached.variants)) {
-      setVariants(cached.variants);
+    // Instant optimistic preview from navigation state or local/session cache
+    const preview = (location.state as any)?.initialProduct || getCachedProduct(slug) || null;
+    if (preview) {
+      setProduct(preview);
+      setLoading(false);
+      setIsHydrating(true);
+      setLikeCount(preview.like_count || 0);
+      setLiked(preview.is_liked || false);
+      if (preview.variants && Array.isArray(preview.variants) && preview.variants.length > 0) {
+        setVariants(preview.variants);
+      } else {
+        setVariants([]);
+      }
+      if (preview.minimum_order_quantity) {
+        setQuantity(parseFloat(preview.minimum_order_quantity) || 1);
+      }
+    } else {
+      setProduct(null);
+      setLoading(true);
+      setIsHydrating(false);
+      setVariants([]);
     }
     
     loadProductData(false);
-  }, [slug, loadProductData]);
+  }, [slug, loadProductData, location.state]);
 
   const handleSelectVariant = useCallback((v: ProductVariant | null) => {
     setSelectedVariant(v);
@@ -1057,6 +1088,13 @@ const ProductDetailPage: React.FC = () => {
         condition={product.condition}
         schema={[productSchema, breadcrumbSchema]}
       />
+
+      {/* Top Hydration Progress Indicator */}
+      {isHydrating && (
+        <div className="fixed top-0 left-0 right-0 z-[120] h-[3px] bg-neutral-900/80 overflow-hidden pointer-events-none">
+          <div className="h-full bg-gradient-to-r from-blue-500 via-amber-400 to-blue-600 w-full animate-progress-slide" />
+        </div>
+      )}
 
       {/* Lightbox */}
       {lightboxOpen && (
@@ -1739,13 +1777,23 @@ const ProductDetailPage: React.FC = () => {
           {/* Description */}
           <div>
              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">{t('description')}</h3>
-             <p className={`text-gray-700 dark:text-gray-300 leading-relaxed text-base whitespace-pre-line ${!isDescExpanded ? 'line-clamp-4' : ''}`}>
-               {product.description}
-             </p>
-             {product.description && product.description.length > 200 && (
-               <button onClick={() => setIsDescExpanded(!isDescExpanded)} className="mt-2 text-xs font-bold text-gray-900 dark:text-white hover:underline uppercase tracking-wider">
-                 {isDescExpanded ? t('see_less') : t('see_more')}
-               </button>
+             {isHydrating && !product.description ? (
+               <div className="space-y-2 py-1 animate-pulse">
+                 <div className="h-4 bg-gray-200 dark:bg-neutral-800 rounded w-full" />
+                 <div className="h-4 bg-gray-200 dark:bg-neutral-800 rounded w-5/6" />
+                 <div className="h-4 bg-gray-200 dark:bg-neutral-800 rounded w-2/3" />
+               </div>
+             ) : (
+               <>
+                 <p className={`text-gray-700 dark:text-gray-300 leading-relaxed text-base whitespace-pre-line ${!isDescExpanded ? 'line-clamp-4' : ''}`}>
+                   {product.description}
+                 </p>
+                 {product.description && product.description.length > 200 && (
+                   <button onClick={() => setIsDescExpanded(!isDescExpanded)} className="mt-2 text-xs font-bold text-gray-900 dark:text-white hover:underline uppercase tracking-wider">
+                     {isDescExpanded ? t('see_less') : t('see_more')}
+                   </button>
+                 )}
+               </>
              )}
           </div>
 

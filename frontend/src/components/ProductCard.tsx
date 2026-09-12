@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import { Star, Heart, Share2, Clock, Flame, TrendingUp, ShoppingBag } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
@@ -191,13 +191,20 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
 const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isTopFold = false, showTrendingMetrics = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean; isTopFold?: boolean; showTrendingMetrics?: boolean | string }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuth();
-  const bgState = useMemo(() => ({
-    state: {
-      backgroundLocation: typeof window !== 'undefined' ? { pathname: window.location.pathname, search: window.location.search } : undefined,
-      initialProduct: product
-    }
-  }), [product]);
+  const bgState = useMemo(() => {
+    const existingBg = (location.state as any)?.backgroundLocation;
+    const isCurrentlyProductPage = location.pathname.startsWith('/product');
+    const bgLocation = existingBg || (!isCurrentlyProductPage && typeof window !== 'undefined' ? { pathname: window.location.pathname, search: window.location.search } : undefined);
+
+    return {
+      state: {
+        backgroundLocation: bgLocation,
+        initialProduct: product
+      }
+    };
+  }, [location.pathname, location.search, location.state, product]);
   const { calculateDistance } = useUserLocation();
   const [liked, setLiked] = React.useState(product?.is_liked || false);
   const [likeCount, setLikeCount] = React.useState(product?.like_count || 0);
