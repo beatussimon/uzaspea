@@ -809,10 +809,11 @@ const ProfilePage: React.FC = () => {
 
                         {/* Top Badges */}
                         <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 pointer-events-none">
-                          <div className="flex items-center gap-1 text-[8.5px] font-black bg-neutral-900 text-white px-2 py-0.5 rounded-card border border-orange-500/40 shadow-md uppercase tracking-wider w-fit">
-                            <Clock size={10} className="shrink-0 text-orange-500" />
-                            <span>{isFulfilled ? 'In Stock' : 'Coming Soon'}</span>
-                          </div>
+                          <span className={`text-[10px] font-black uppercase tracking-wider drop-shadow-sm w-fit ${
+                            isFulfilled ? 'text-emerald-500 dark:text-emerald-400' : 'text-orange-500 dark:text-orange-400'
+                          }`}>
+                            {isFulfilled ? 'In Stock' : 'Coming Soon'}
+                          </span>
                           {req.condition && req.condition !== 'New' && (
                             <span className="text-[9px] px-2 py-0.5 rounded-card font-bold text-white bg-gray-500 shadow-md uppercase tracking-wider w-fit">
                               {req.condition}

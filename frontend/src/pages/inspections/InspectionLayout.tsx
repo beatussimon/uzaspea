@@ -435,7 +435,7 @@ const RequestForm: React.FC = () => {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
                       Marketplace Item
                     </span>
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white line-clamp-2 break-words leading-snug">
                       {prefilledProduct.name}
                     </h3>
                     {prefilledProduct.price !== undefined && prefilledProduct.price !== null && (
@@ -1591,7 +1591,7 @@ const RequestDetail: React.FC = () => {
             </div>
 
             {/* Title */}
-            <h1 className="text-lg sm:text-xl font-black uppercase text-gray-900 dark:text-white truncate">
+            <h1 className="text-lg sm:text-xl font-black uppercase text-gray-900 dark:text-white break-words leading-tight">
               {request.item_name}
             </h1>
 
@@ -1984,8 +1984,10 @@ const MyInspections: React.FC = () => {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            className="input pl-8 pr-16 py-1.5 text-xs w-full"
-            placeholder="Search inspections or ID..."
+            className={`input pl-8 py-1.5 text-xs w-full ${
+              searchQuery.trim() ? (isCode ? 'pr-16' : 'pr-8') : 'pr-3'
+            }`}
+            placeholder="Search inspections or ID"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -2078,60 +2080,76 @@ const MyInspections: React.FC = () => {
                     navigate(`/inspections/${req.id}`);
                   }
                 }}
-                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-all cursor-pointer p-4 sm:p-5 group focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10"
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in hover:shadow-md transition-all cursor-pointer p-3.5 sm:p-5 group focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10"
               >
-                <div className="flex items-start justify-between gap-3 w-full">
-                  {/* Left: Thumbnail & Details */}
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className="relative w-12 h-12 sm:w-14 sm:h-14 shrink-0 mt-0.5">
-                      <div className="w-full h-full rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex items-center justify-center">
-                        {imageUrl ? (
-                          <img src={imageUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <ClipboardList size={22} className="text-gray-400" />
-                        )}
-                      </div>
+                <div className="flex items-start gap-3 sm:gap-4 w-full">
+                  {/* Left: Thumbnail */}
+                  <div className="relative w-12 h-12 sm:w-14 sm:h-14 shrink-0 mt-0.5">
+                    <div className="w-full h-full rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex items-center justify-center">
+                      {imageUrl ? (
+                        <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <ClipboardList size={22} className="text-gray-400" />
+                      )}
                     </div>
+                  </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
-                        <span className="text-[10px] font-black text-brand-600 uppercase tracking-widest bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
+                  {/* Main Content */}
+                  <div className="flex-1 min-w-0">
+                    {/* Top Row: Tracking ID & Scope + Status Badge & Chevron */}
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                        <span className="text-[10px] font-black text-brand-600 uppercase tracking-widest bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded shrink-0">
                           {req.inspection_id || `REQ #${req.id}`}
                         </span>
-                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-100 dark:bg-gray-700/60 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-100 dark:bg-gray-700/60 px-1.5 py-0.5 rounded shrink-0">
                           {req.scope} scope
                         </span>
-                        <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap">
+                        <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap shrink-0 hidden sm:inline">
                           {fmtDate(req.created_at)}
                         </span>
                       </div>
 
-                      <h4 className="text-sm font-black text-gray-900 dark:text-white truncate uppercase group-hover:text-brand-500 transition-colors">
-                        {req.item_name}
-                      </h4>
-
-                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500 truncate">
-                        <span>Category:</span>
-                        <span className="font-bold text-gray-700 dark:text-gray-300 truncate">
-                          {req.category_path || req.category_name || 'General'}
-                        </span>
+                      {/* Status Badge & Chevron */}
+                      <div className="flex items-center gap-1.5 shrink-0 pl-1">
+                        <Badge
+                          text={STATUS_LABELS[req.status] || req.status}
+                          className={STATUS_COLORS[req.status] || 'badge-gray'}
+                        />
+                        {req.has_report && req.status !== 'report_ready' && (
+                          <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-green-50 dark:bg-green-950/20 px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800 hidden sm:inline-block">
+                            Report ready
+                          </span>
+                        )}
+                        <ChevronRight size={16} className="text-gray-400 group-hover:text-brand-500 group-hover:translate-x-0.5 transition-all shrink-0" />
                       </div>
                     </div>
-                  </div>
 
-                  {/* Right: Status & Chevron */}
-                  <div className="flex flex-col items-end shrink-0 gap-1.5 pl-2">
-                    <div className="flex items-center gap-1.5">
-                      <Badge
-                        text={STATUS_LABELS[req.status] || req.status}
-                        className={STATUS_COLORS[req.status] || 'badge-gray'}
-                      />
-                      <ChevronRight size={16} className="text-gray-400 group-hover:text-brand-500 group-hover:translate-x-0.5 transition-all" />
-                    </div>
-                    {req.has_report && (
-                      <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-green-50 dark:bg-green-950/20 px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800">
-                        Report ready
+                    {/* Date on mobile */}
+                    <p className="text-[10px] font-medium text-gray-400 mb-1 sm:hidden">
+                      {fmtDate(req.created_at)}
+                    </p>
+
+                    {/* Item Name - Uses Full Available Width, wraps gracefully up to 2 lines without clipping */}
+                    <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase line-clamp-2 break-words group-hover:text-brand-500 transition-colors leading-snug">
+                      {req.item_name}
+                    </h4>
+
+                    {/* Category - Uses Full Available Width */}
+                    <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-500">
+                      <span className="shrink-0">Category:</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300 line-clamp-1 break-words">
+                        {req.category_path || req.category_name || 'General'}
                       </span>
+                    </div>
+
+                    {/* Secondary Report indicator if not report_ready and mobile */}
+                    {req.has_report && req.status !== 'report_ready' && (
+                      <div className="mt-1.5 sm:hidden">
+                        <span className="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-wider bg-green-50 dark:bg-green-950/20 px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800 inline-block">
+                          Report ready
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>

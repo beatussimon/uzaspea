@@ -24,6 +24,7 @@ import StaffInspectionLayout from './inspections/StaffInspectionLayout';
 import WarehouseStaffLayout from './warehouse/WarehouseStaffLayout';
 import LogisticsManager from './logistics/LogisticsManager';
 import StaffTasks from './StaffTasks';
+import { DashboardMobileDrawer } from '../../components/layout/DashboardMobileDrawer';
 
 // ============ Types ============
 interface StaffTask {
@@ -2942,7 +2943,7 @@ const StaffDashboardLayout: React.FC = () => {
   }
 
   const navItems = [
-    { path: '/staff', label: 'Overview', icon: LayoutDashboard },
+    { path: '/staff', label: 'Overview', icon: LayoutDashboard, exact: true },
     { path: '/staff/tasks', label: 'My Tasks', icon: ClipboardList },
     { path: '/staff/subscriptions', label: 'Subscriptions', icon: CreditCard, show: canVerify },
     { path: '/staff/seller-applications', label: 'Seller Upgrades', icon: Shield, show: canVerify },
@@ -2959,10 +2960,39 @@ const StaffDashboardLayout: React.FC = () => {
   ].filter((item) => item.show === undefined || item.show);
 
   return (
-    <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+    <div className="max-w-6xl mx-auto p-4 pb-24 lg:pb-6 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+      {/* Mobile Slide-Over Navigation Drawer & Floating FAB Button */}
+      <DashboardMobileDrawer
+        title="Staff Operations"
+        subtitle={data?.user?.username ? `@${data.user.username}` : undefined}
+        badgeText={isSuper ? "Superuser" : "Staff Panel"}
+        navItems={navItems}
+        menuButtonAriaLabel="Staff Dashboard Menu"
+        footerContent={
+          <div className="space-y-1">
+            {isSuper && (
+              <Link
+                to="/staff-admin"
+                className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-semibold text-brand-500 hover:bg-brand-500/5 transition"
+              >
+                <Shield size={16} className="shrink-0" />
+                <span>Admin Command Center</span>
+              </Link>
+            )}
+            <Link
+              to="/"
+              className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
+            >
+              <ArrowUpRight size={16} className="shrink-0" />
+              <span>Return to Marketplace</span>
+            </Link>
+          </div>
+        }
+      />
+
       <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
-        {/* Sidebar */}
-        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 ${location.pathname !== '/staff' ? 'hidden lg:block' : ''}`}>
+        {/* Desktop Sticky Sidebar - Hidden on mobile in favor of floating hamburger menu */}
+        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 hidden lg:block`}>
           <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1 relative h-full">
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

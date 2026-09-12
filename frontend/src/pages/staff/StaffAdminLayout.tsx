@@ -28,6 +28,8 @@ import CatalogModerationManager from './CatalogModerationManager';
 import PasswordChangeRequestsManager from './PasswordChangeRequestsManager';
 import ReservedUsernamesManager from './ReservedUsernamesManager';
 import PlatformContactSettingsManager from './PlatformContactSettingsManager';
+import { useAuth } from '../../context/AuthContext';
+import { DashboardMobileDrawer } from '../../components/layout/DashboardMobileDrawer';
 
 // ============ Types ============
 interface Staffer {
@@ -1089,6 +1091,7 @@ const AuditLogViewer: React.FC = () => {
 // ============ Main Staff Admin Layout ============
 const StaffAdminLayout: React.FC = () => {
   const location = useLocation();
+  const { user } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     return localStorage.getItem('adminSidebarCollapsed') === 'true';
   });
@@ -1098,7 +1101,7 @@ const StaffAdminLayout: React.FC = () => {
   }, [isSidebarCollapsed]);
 
   const navItems = [
-    { path: '/staff-admin', label: 'Admin Overview', icon: LayoutDashboard },
+    { path: '/staff-admin', label: 'Admin Overview', icon: LayoutDashboard, exact: true },
     { path: '/staff-admin/users', label: 'User Explorer', icon: Users },
     { path: '/staff-admin/employees', label: 'Employees', icon: Briefcase },
     { path: '/staff-admin/permissions', label: 'Permissions', icon: Shield },
@@ -1112,10 +1115,37 @@ const StaffAdminLayout: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+    <div className="max-w-6xl mx-auto p-4 pb-24 lg:pb-6 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+      {/* Mobile Slide-Over Navigation Drawer & Floating FAB Button */}
+      <DashboardMobileDrawer
+        title="Admin Control"
+        subtitle={user?.username ? `@${user.username}` : undefined}
+        badgeText="Superuser"
+        navItems={navItems}
+        menuButtonAriaLabel="Staff Admin Menu"
+        footerContent={
+          <div className="space-y-1">
+            <Link
+              to="/staff"
+              className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-semibold text-brand-500 hover:bg-brand-500/5 transition"
+            >
+              <ArrowUpRight size={16} className="shrink-0" />
+              <span>Staff Operations Hub</span>
+            </Link>
+            <Link
+              to="/dashboard/settings"
+              className="flex items-center gap-3 px-3 py-2 rounded-btn text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900/50 transition"
+            >
+              <Shield size={16} className="shrink-0" />
+              <span>Account & Security</span>
+            </Link>
+          </div>
+        }
+      />
+
       <div className="flex flex-col lg:flex-row gap-6 print:gap-0 print:m-0">
-        {/* Sidebar */}
-        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 ${location.pathname !== '/staff-admin' ? 'hidden lg:block' : ''}`}>
+        {/* Desktop Sticky Sidebar - Hidden on mobile in favor of floating hamburger menu */}
+        <aside className={`w-full ${isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-56'} transition-all duration-300 shrink-0 hidden lg:block`}>
           <nav className="bg-white dark:bg-[#0A0A0A] rounded-card shadow-sm border border-surface-border dark:border-surface-dark-border p-2 space-y-1 relative h-full">
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

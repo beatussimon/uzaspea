@@ -9,6 +9,7 @@ interface PasswordRequest {
   id: number;
   username: string;
   user_email: string;
+  user_phone?: string;
   user_full_name: string;
   user_tier: string;
   user_profile_pic: string | null;
@@ -39,15 +40,16 @@ interface StatusCounts {
   dispatched: number;
   completed: number;
   expired: number;
+  superseded: number;
 }
 
 const PasswordChangeRequestsManager: React.FC = () => {
   const [requests, setRequests] = useState<PasswordRequest[]>([]);
-  const [counts, setCounts] = useState<StatusCounts>({ total: 0, pending: 0, dispatched: 0, completed: 0, expired: 0 });
+  const [counts, setCounts] = useState<StatusCounts>({ total: 0, pending: 0, dispatched: 0, completed: 0, expired: 0, superseded: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'dispatched' | 'completed' | 'expired' | 'all'>('pending');
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'dispatched' | 'completed' | 'expired' | 'superseded' | 'all'>('pending');
   const [typeFilter, setTypeFilter] = useState<'all' | 'settings_change' | 'forgot_password'>('all');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [copiedDraftId, setCopiedDraftId] = useState<number | null>(null);
@@ -70,7 +72,7 @@ const PasswordChangeRequestsManager: React.FC = () => {
       ]);
 
       setRequests(listRes.data.results || listRes.data || []);
-      setCounts(countRes.data || { total: 0, pending: 0, dispatched: 0, completed: 0, expired: 0 });
+      setCounts(countRes.data || { total: 0, pending: 0, dispatched: 0, completed: 0, expired: 0, superseded: 0 });
     } catch {
       toast.error('Failed to load password change requests');
     } finally {
@@ -96,6 +98,24 @@ const PasswordChangeRequestsManager: React.FC = () => {
     setCopiedDraftId(req.id);
     toast.success('Email draft copied');
     setTimeout(() => setCopiedDraftId(null), 2000);
+  };
+
+  const handleSendEmail = async (reqId: number) => {
+    setActionLoadingId(reqId);
+    try {
+      const res = await api.post(`/api/staff-admin/password-requests/${reqId}/send-email/`);
+      toast.success('Reset email sent and marked as dispatched');
+      setRequests(prev => prev.map(r => r.id === reqId ? res.data : r));
+      setCounts(prev => ({
+        ...prev,
+        pending: Math.max(0, prev.pending - 1),
+        dispatched: prev.dispatched + 1,
+      }));
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to send reset email');
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
   const handleDispatch = async (reqId: number) => {
@@ -179,6 +199,7 @@ const PasswordChangeRequestsManager: React.FC = () => {
     { key: 'dispatched', label: 'Dispatched', count: counts.dispatched },
     { key: 'completed', label: 'Completed', count: counts.completed },
     { key: 'expired', label: 'Expired', count: counts.expired },
+    { key: 'superseded', label: 'Superseded', count: counts.superseded || 0 },
     { key: 'all', label: 'All', count: counts.total },
   ];
 
@@ -305,6 +326,11 @@ const PasswordChangeRequestsManager: React.FC = () => {
                           <span className="text-xs text-gray-400 font-mono">
                             @{req.username}
                           </span>
+                          {req.user_phone && (
+                            <span className="text-xs text-gray-500 dark:text-neutral-400 font-mono">
+                              📞 {req.user_phone}
+                            </span>
+                          )}
                           <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-neutral-400 bg-surface-muted dark:bg-[#161616] px-2 py-0.5 rounded-full border border-surface-border dark:border-surface-dark-border">
                             {req.request_type === 'settings_change' ? 'Settings Change' : 'Forgot Password'}
                           </span>
@@ -362,6 +388,17 @@ const PasswordChangeRequestsManager: React.FC = () => {
 
                       {/* Action Buttons: Unified height and padding */}
                       <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                        {req.status === 'pending' && req.user_email && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendEmail(req.id)}
+                            disabled={actionLoadingId === req.id}
+                            className="h-8 px-3.5 rounded-full text-xs font-bold bg-brand-500 text-white hover:bg-brand-600 transition disabled:opacity-50 cursor-pointer shadow-xs"
+                          >
+                            {actionLoadingId === req.id ? 'Sending...' : 'Send Reset Email'}
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => handleCopyDraft(req)}
@@ -384,7 +421,7 @@ const PasswordChangeRequestsManager: React.FC = () => {
                             type="button"
                             onClick={() => handleDispatch(req.id)}
                             disabled={actionLoadingId === req.id}
-                            className="h-8 px-4 rounded-full text-xs font-bold bg-gray-900 text-white dark:bg-white dark:text-black hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
+                            className="h-8 px-3 rounded-full text-xs font-bold bg-gray-900 text-white dark:bg-white dark:text-black hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
                           >
                             {actionLoadingId === req.id ? 'Marking...' : 'Mark as Dispatched'}
                           </button>

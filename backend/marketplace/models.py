@@ -1965,13 +1965,26 @@ class PasswordResetRequest(models.Model):
     def is_active(self):
         return not self.is_used and self.status in ['pending', 'dispatched'] and timezone.now() < self.expires_at
 
-    def get_reset_url(self, base_url=None):
+    def get_reset_url(self, base_url=None, request=None):
         if not base_url:
-            base_url = getattr(settings, 'SITE_URL', 'https://pasifiq.store').rstrip('/')
+            if request:
+                origin = request.headers.get('Origin') or request.META.get('HTTP_ORIGIN')
+                if origin:
+                    base_url = origin.rstrip('/')
+                else:
+                    base_url = request.build_absolute_uri('/').rstrip('/')
+            else:
+                site_url = getattr(settings, 'SITE_URL', None)
+                if site_url:
+                    base_url = site_url.rstrip('/')
+                elif getattr(settings, 'DEBUG', False):
+                    base_url = 'http://localhost:5173'
+                else:
+                    base_url = 'https://pasifiq.store'
         return f"{base_url}/reset-password?token={self.token}"
 
-    def get_email_draft(self, base_url=None):
-        url = self.get_reset_url(base_url)
+    def get_email_draft(self, base_url=None, request=None):
+        url = self.get_reset_url(base_url=base_url, request=request)
         expires_str = self.expires_at.strftime('%Y-%m-%d %H:%M UTC')
         site_base = getattr(settings, 'SITE_URL', 'https://pasifiq.store').rstrip('/')
         if self.request_type == 'settings_change':
@@ -2000,7 +2013,7 @@ class PasswordResetRequest(models.Model):
                 f"The SokoniMax Security Team"
             )
         return {
-            'to': self.user.email,
+            'to': self.user.email or '',
             'subject': subject,
             'body': body,
             'reset_url': url,

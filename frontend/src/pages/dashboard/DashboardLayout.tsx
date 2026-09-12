@@ -391,7 +391,7 @@ const DashboardLayout: React.FC = () => {
   const navItems = allNavItems.filter(item => item.show);
 
   return (
-    <div className="max-w-6xl mx-auto p-4 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+    <div className="max-w-6xl mx-auto p-4 pb-24 lg:pb-6 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
 
       {/* Floating Mobile Hamburger Menu Button (Positioned on the left side) */}
       <button

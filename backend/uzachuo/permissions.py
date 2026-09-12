@@ -28,7 +28,7 @@ class IsStaffMember(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        if request.user.is_superuser:
+        if request.user.is_superuser or request.user.is_staff:
             return True
         try:
             if request.user.staff_profile.is_active:

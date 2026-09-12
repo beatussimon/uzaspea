@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
-import { X, Search, DollarSign, Tag, Image as ImageIcon, Sparkles, CheckCircle2 } from 'lucide-react';
+import { X, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface ProductRequestModalProps {
@@ -105,30 +106,27 @@ const ProductRequestModal: React.FC<ProductRequestModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+  const modalContent = (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white dark:bg-[#111111] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] border border-neutral-200 dark:border-neutral-800">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center font-bold">
-              <Sparkles size={16} />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-neutral-900 dark:text-white">
-                {t('request_product', 'Request a Product')}
-              </h2>
-              <p className="text-[11px] text-neutral-500">
-                {sellerUsername ? `Ask @${sellerUsername} to source or stock this item` : 'Submit a product demand request'}
-              </p>
-            </div>
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-neutral-100 dark:border-neutral-800">
+          <div>
+            <h2 className="text-base font-bold text-neutral-900 dark:text-white">
+              {t('request_product', 'Request an Item')}
+            </h2>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              {sellerUsername ? `Ask @${sellerUsername} to source or stock this item` : 'Submit a product request'}
+            </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition"
+            className="p-1.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            aria-label="Close"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
@@ -138,97 +136,88 @@ const ProductRequestModal: React.FC<ProductRequestModalProps> = ({
             
             {/* Product Name */}
             <div>
-              <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                Product Name / Model <span className="text-brand-500">*</span>
+              <label className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-1.5">
+                Product name or model <span className="text-brand-500">*</span>
               </label>
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
-                  placeholder="e.g. iPhone 15 Pro 256GB Natural Titanium, Bosch Fuel Pump 0580..."
-                />
-              </div>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500 transition placeholder-neutral-400 dark:placeholder-neutral-500"
+                placeholder="e.g. iPhone 15 Pro 256GB Natural Titanium, Bosch Fuel Pump 0580..."
+              />
             </div>
 
             {/* Category & Condition Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                  Category (Optional)
+                <label className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-1.5">
+                  Category (optional)
                 </label>
-                <div className="relative">
-                  <Tag size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-                  <select
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
-                  >
-                    <option value="">Select Category...</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500 transition cursor-pointer"
+                >
+                  <option value="">Select category...</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                  {t('condition', 'Condition')}
+                <label className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-1.5">
+                  Condition
                 </label>
                 <select
                   value={condition}
                   onChange={(e) => setCondition(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
+                  className="w-full px-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500 transition cursor-pointer"
                 >
-                  <option value="New">{t('new', 'New')}</option>
-                  <option value="Refurbished">{t('refurbished', 'Refurbished')}</option>
-                  <option value="Used">{t('used', 'Used')}</option>
-                  <option value="Any">{t('any_condition', 'Any Condition')}</option>
+                  <option value="New">New</option>
+                  <option value="Refurbished">Refurbished</option>
+                  <option value="Used">Used</option>
+                  <option value="Any">Any condition</option>
                 </select>
               </div>
             </div>
 
             {/* Target Budget / Price */}
             <div>
-              <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                Target Budget / Expected Price (Optional)
+              <label className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-1.5">
+                Target budget or expected price (optional)
               </label>
-              <div className="relative">
-                <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-                <input
-                  type="number"
-                  min="0"
-                  step="100"
-                  value={targetPrice}
-                  onChange={(e) => setTargetPrice(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500"
-                  placeholder="e.g. 350000"
-                />
-              </div>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={targetPrice}
+                onChange={(e) => setTargetPrice(e.target.value)}
+                className="w-full px-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500 transition placeholder-neutral-400 dark:placeholder-neutral-500"
+                placeholder="e.g. 350000"
+              />
             </div>
 
             {/* Additional Details */}
             <div>
-              <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                Specifications & Requirements (Optional)
+              <label className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-1.5">
+                Specifications or requirements (optional)
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full px-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500 resize-none"
+                className="w-full px-3 py-2 text-xs border border-neutral-300 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white outline-none focus:border-brand-500 resize-none transition placeholder-neutral-400 dark:placeholder-neutral-500"
                 placeholder="Specify color, RAM, storage, OEM part number, exact year, etc."
               />
             </div>
 
             {/* Image Upload */}
             <div>
-              <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1.5">
-                Reference Photo (Optional)
+              <label className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-1.5">
+                Reference photo (optional)
               </label>
               {imagePreview ? (
                 <div className="relative w-24 h-24 rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden group">
@@ -236,15 +225,16 @@ const ProductRequestModal: React.FC<ProductRequestModalProps> = ({
                   <button
                     type="button"
                     onClick={() => handleImageChange(null)}
-                    className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-1 hover:bg-red-500 transition"
+                    className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-1 hover:bg-red-500 transition cursor-pointer"
+                    aria-label="Remove image"
                   >
                     <X size={12} />
                   </button>
                 </div>
               ) : (
-                <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl bg-neutral-50 dark:bg-neutral-900/50 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer transition text-xs text-neutral-500">
-                  <ImageIcon size={16} className="text-neutral-400" />
-                  <span>Click to attach a reference photo or screenshot</span>
+                <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl bg-neutral-50 dark:bg-neutral-900/40 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 cursor-pointer transition text-xs text-neutral-500">
+                  <ImageIcon size={15} className="text-neutral-400" />
+                  <span>Attach a reference photo or screenshot</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -260,10 +250,9 @@ const ProductRequestModal: React.FC<ProductRequestModalProps> = ({
               <button
                 type="submit"
                 disabled={submitting || !name.trim()}
-                className="w-full py-2.5 px-4 bg-brand-500 hover:bg-brand-600 text-black text-xs font-bold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm"
+                className="w-full py-2.5 px-4 bg-brand-500 hover:bg-brand-600 text-black text-xs font-bold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer text-center"
               >
-                <CheckCircle2 size={14} />
-                {submitting ? 'Submitting Request...' : 'Submit Request'}
+                {submitting ? 'Submitting...' : 'Submit Request'}
               </button>
             </div>
           </form>
@@ -271,6 +260,8 @@ const ProductRequestModal: React.FC<ProductRequestModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };
 
 export default ProductRequestModal;

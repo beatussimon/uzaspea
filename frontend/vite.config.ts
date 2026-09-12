@@ -11,6 +11,10 @@ export default defineConfig({
     setupFiles: './src/setupTests.ts',
   },
   server: {
+    watch: {
+      usePolling: true,
+      interval: 300,
+    },
     proxy: {
       '/api': 'http://localhost:8000',
       '/media': 'http://localhost:8000',
