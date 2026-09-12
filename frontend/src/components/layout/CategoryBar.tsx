@@ -83,38 +83,24 @@ const fetchSiteSettingsCached = () => {
   return siteSettingsPromise;
 };
 
-export const productCache: Record<string, { data: any; timestamp: number }> = {};
-export const productPromises: Record<string, Promise<any>> = {};
+import {
+  productCache,
+  productPromises,
+  invalidateProductCache,
+  fetchProductCached,
+  getCachedProduct,
+  setCachedProduct,
+  seedProductsCache,
+} from '../../utils/productCache';
 
-export const invalidateProductCache = (slugOrId?: string | number) => {
-  if (slugOrId) {
-    const key = String(slugOrId);
-    delete productCache[key];
-    delete productPromises[key];
-  } else {
-    Object.keys(productCache).forEach(k => delete productCache[k]);
-    Object.keys(productPromises).forEach(k => delete productPromises[k]);
-  }
-};
-
-export const fetchProductCached = (slug: string, forceFresh = false) => {
-  const now = Date.now();
-  if (!forceFresh && productCache[slug] && (now - productCache[slug].timestamp < 30000)) {
-    return Promise.resolve({ data: productCache[slug].data });
-  }
-  if (!forceFresh && productPromises[slug] !== undefined) return productPromises[slug];
-  productPromises[slug] = api.get(`/api/products/${slug}/`).then(res => {
-    productCache[slug] = { data: res.data, timestamp: Date.now() };
-    if (res.data?.id) {
-      productCache[String(res.data.id)] = { data: res.data, timestamp: Date.now() };
-    }
-    delete productPromises[slug];
-    return res;
-  }).catch(err => {
-    delete productPromises[slug];
-    throw err;
-  });
-  return productPromises[slug];
+export {
+  productCache,
+  productPromises,
+  invalidateProductCache,
+  fetchProductCached,
+  getCachedProduct,
+  setCachedProduct,
+  seedProductsCache,
 };
 
 const CategoryBar: React.FC = () => {
@@ -135,6 +121,27 @@ const CategoryBar: React.FC = () => {
       }
     });
   }, []);
+
+  const isProductsPage = location.pathname === '/products' || location.pathname === '/browse_products' || location.pathname === '/browse';
+  const isProductDetailPage = location.pathname.startsWith('/product/');
+
+  // Extract product slug from path if in detail view
+  const productSlug = useMemo(() => {
+    if (!isProductDetailPage) return null;
+    const match = location.pathname.match(/\/product\/([^/]+)/);
+    return match ? match[1] : null;
+  }, [location.pathname, isProductDetailPage]);
+
+  // Load product if in details page
+  useEffect(() => {
+    if (productSlug) {
+      fetchProductCached(productSlug)
+        .then((res: any) => setProduct(res.data))
+        .catch(() => {});
+    } else {
+      setProduct(null);
+    }
+  }, [productSlug]);
 
   useEffect(() => {
     if (categoriesCache && categoriesCache.length > 0) {
@@ -164,27 +171,6 @@ const CategoryBar: React.FC = () => {
       }).catch(() => setLoading(false));
     }
   }, []);
-
-  const isProductsPage = location.pathname === '/products' || location.pathname === '/browse_products' || location.pathname === '/browse';
-  const isProductDetailPage = location.pathname.startsWith('/product/');
-
-  // Extract product slug from path if in detail view
-  const productSlug = useMemo(() => {
-    if (!isProductDetailPage) return null;
-    const match = location.pathname.match(/\/product\/([^/]+)/);
-    return match ? match[1] : null;
-  }, [location.pathname, isProductDetailPage]);
-
-  // Load product if in details page
-  useEffect(() => {
-    if (productSlug) {
-      fetchProductCached(productSlug)
-        .then(res => setProduct(res.data))
-        .catch(() => {});
-    } else {
-      setProduct(null);
-    }
-  }, [productSlug]);
 
   const topCategories = useMemo(() => {
     const catsList = ensureArray(categories);
