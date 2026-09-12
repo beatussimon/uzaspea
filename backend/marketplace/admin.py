@@ -7,8 +7,8 @@ from .models import (
     Like, Follow, ProductImage, SubscriptionTier, MobileNetwork, LipaNumber,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, ProductVariant, SiteSettings, DeliveryZone,
-    SellerApplication, PaymentConfirmation, SupportTicket, TeamMember, StoreImage, FAQ,
-    PasswordResetRequest
+    SellerApplication, SellerSiteVisit, PaymentConfirmation, SupportTicket, TeamMember, StoreImage, FAQ,
+    PasswordResetRequest, ReservedUsername
 )
 from django.utils.html import format_html
 import urllib.parse
@@ -249,7 +249,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
     fieldsets = [
         ('Platform Identity', {'fields': ['company_name', 'tagline', 'for_you_image']}),
         ('Contact', {'fields': ['support_email', 'support_phone', 'whatsapp_number', 'address', 'working_hours']}),
-        ('Social', {'fields': ['facebook_url', 'instagram_url', 'twitter_url']}),
+        ('Social', {'fields': ['facebook_url', 'instagram_url', 'twitter_url', 'tiktok_url', 'linkedin_url', 'youtube_url']}),
         ('Business Rules', {'fields': ['commission_rate']}),
     ]
     def has_add_permission(self, request):
@@ -342,7 +342,11 @@ class StoreImageAdmin(admin.ModelAdmin):
 
 @admin.register(FAQ)
 class FAQAdmin(admin.ModelAdmin):
-    list_display = ('question', 'order')
+    list_display = ('question', 'category', 'is_pinned', 'order', 'is_published')
+    list_editable = ('is_pinned', 'order', 'is_published')
+    list_filter = ('is_pinned', 'is_published', 'category')
+    search_fields = ('question', 'answer')
+    ordering = ('-is_pinned', 'order', 'id')
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
@@ -516,4 +520,31 @@ class PasswordResetRequestAdmin(admin.ModelAdmin):
     def revoke_requests(self, request, queryset):
         count = queryset.update(status='expired')
         self.message_user(request, f"Revoked {count} request(s).")
+
+
+@admin.register(ReservedUsername)
+class ReservedUsernameAdmin(admin.ModelAdmin):
+    list_display = ('username', 'category', 'is_active', 'reserved_for', 'created_at', 'updated_at')
+    list_filter = ('category', 'is_active', 'created_at')
+    search_fields = ('username', 'reason', 'reserved_for__username')
+    raw_id_fields = ('reserved_for',)
+    actions = ['mark_active', 'mark_inactive']
+
+    @admin.action(description='Activate selected reserved usernames')
+    def mark_active(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"Activated {updated} reserved username(s).")
+
+    @admin.action(description='Deactivate selected reserved usernames')
+    def mark_inactive(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"Deactivated {updated} reserved username(s).")
+
+
+@admin.register(SellerSiteVisit)
+class SellerSiteVisitAdmin(admin.ModelAdmin):
+    list_display = ['id', 'business_name', 'user', 'contact_phone', 'region', 'status', 'visited_by', 'created_at']
+    list_filter = ['status', 'region', 'created_at']
+    search_fields = ['business_name', 'user__username', 'contact_phone', 'address']
+    readonly_fields = ['created_at', 'updated_at', 'reviewed_at']
 

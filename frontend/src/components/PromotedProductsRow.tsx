@@ -64,7 +64,7 @@ const PromotedProductsRow: React.FC<PromotedProductsRowProps> = ({ promotions, l
                                 <h3 className="font-bold text-lg text-gray-800 dark:text-gray-200 uppercase tracking-wide">
                                     {t('featured', 'Featured')} {catName}
                                 </h3>
-                                <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide md:grid md:grid-cols-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
+                                <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide md:grid md:grid-cols-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none touch-pan-y overscroll-x-contain">
                                     {promos.slice(0, 4).map((promo) => (
                                         <div key={promo.id} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto relative h-full">
                                             <ProductCard product={promo.product_details} viewMode="grid" isSponsored={true} />
@@ -80,7 +80,7 @@ const PromotedProductsRow: React.FC<PromotedProductsRowProps> = ({ promotions, l
                             </div>
                         ))
                     ) : (
-                        <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide md:grid md:grid-cols-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none">
+                        <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:pb-0 scrollbar-hide md:grid md:grid-cols-4 md:gap-5 p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none touch-pan-y overscroll-x-contain">
                             {Array.from({ length: 4 }).map((_, i) => (
                                 <div key={`sponsor-placeholder-empty-${i}`} className="snap-start shrink-0 w-[260px] sm:w-[280px] md:w-auto relative h-full">
                                     <SponsorCard />

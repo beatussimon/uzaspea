@@ -6,7 +6,15 @@ import SafeImage from '../../components/SafeImage';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 
-export default function ProductVariantsModal({ productId, onClose }: { productId: string, onClose: () => void }) {
+export default function ProductVariantsModal({ 
+  productId, 
+  onClose,
+  onUpdated 
+}: { 
+  productId: string | number; 
+  onClose: () => void;
+  onUpdated?: () => void;
+}) {
   const [variants, setVariants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -37,7 +45,7 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
     const finalName = attributes.length > 0 ? attributes.join(' / ') : 'Default Variation';
 
     const formData = new FormData();
-    formData.append('product', productId);
+    formData.append('product', String(productId));
     formData.append('name', finalName);
     formData.append('price_adjustment', form.price_adjustment);
     formData.append('stock', form.stock);
@@ -51,6 +59,7 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
       setForm({ color: '', size: '', material: '', custom: '', price_adjustment: '0', stock: '0', is_available: true });
       setImageFile(null);
       fetchVariants();
+      onUpdated?.();
     } catch {
       toast.error('Failed to add variant');
     }
@@ -61,6 +70,7 @@ export default function ProductVariantsModal({ productId, onClose }: { productId
       await api.delete(`/api/variants/${id}/`);
       toast.success('Variant deleted');
       fetchVariants();
+      onUpdated?.();
     } catch {
       toast.error('Failed to delete variant');
     }

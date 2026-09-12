@@ -4,7 +4,7 @@ import api from '../api';
 import toast from 'react-hot-toast';
 import {
   Lock, ShieldCheck, CheckCircle2, AlertTriangle, ArrowLeft,
-  Eye, EyeOff, HelpCircle, ExternalLink, RefreshCw
+  Eye, EyeOff, RefreshCw
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 
@@ -133,12 +133,6 @@ const ResetPasswordPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-neutral-50 dark:bg-neutral-900/70 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 text-left">
-              <p className="text-[11px] text-gray-600 dark:text-neutral-400 leading-normal">
-                To safeguard your account from unauthorized modifications, reset links are single-use and expire within 24 hours.
-              </p>
-            </div>
-
             <div className="pt-2 flex flex-col gap-2">
               <Link
                 to="/forgot-password"
@@ -255,25 +249,12 @@ const ResetPasswordPage: React.FC = () => {
           </div>
         )}
 
-        {/* Account Help & Recovery Section */}
-        <div className="pt-4 border-t border-gray-100 dark:border-neutral-800">
-          <div className="bg-gray-50 dark:bg-neutral-900/60 rounded-xl p-3.5 space-y-1.5">
-            <div className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-white">
-              <HelpCircle size={15} className="text-brand-500" />
-              <span>Need help with account recovery?</span>
-            </div>
-            <p className="text-[11px] text-gray-500 dark:text-neutral-400 leading-relaxed">
-              Our support team can assist with manual identity verification if you cannot access your account.
-            </p>
-            <Link
-              to="/help"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-brand-500 hover:underline pt-0.5"
-            >
-              Contact Support Center
-              <ExternalLink size={12} />
-            </Link>
-          </div>
-        </div>
+        <p className="text-center text-xs text-gray-400 dark:text-neutral-500 pt-2">
+          Need help?{' '}
+          <Link to="/help" className="text-brand-500 hover:underline font-medium">
+            Contact Support
+          </Link>
+        </p>
       </div>
     </div>
   );

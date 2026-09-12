@@ -13,41 +13,11 @@ export function initGlobalHorizontalScroll(): () => void {
       return;
     }
 
-    // Find closest horizontally scrollable element
-    let target = e.target as HTMLElement | null;
-    let horizontalContainer: HTMLElement | null = null;
+    // Only intercept containers explicitly designated for horizontal wheel translation
+    const target = e.target as HTMLElement | null;
+    const el = target ? (target.closest('[data-horizontal-scroll="true"]') as HTMLElement | null) : null;
 
-    while (target && target !== document.body && target !== document.documentElement) {
-      const isMarked = target.hasAttribute('data-horizontal-scroll') ||
-        target.classList.contains('overflow-x-auto') ||
-        target.classList.contains('no-scrollbar') ||
-        target.classList.contains('hide-scrollbar') ||
-        target.classList.contains('scrollbar-hide');
-
-      if (isMarked || target.scrollWidth > target.clientWidth + 2) {
-        const computed = window.getComputedStyle(target);
-        const overflowX = computed.overflowX;
-        const overflowY = computed.overflowY;
-
-        const isScrollableX = (overflowX === 'auto' || overflowX === 'scroll' || isMarked) &&
-                              target.scrollWidth > target.clientWidth + 2;
-        
-        // Ensure it is not a large primarily vertically scrollable area
-        const isPrimarilyVertical = (overflowY === 'auto' || overflowY === 'scroll') &&
-                                     target.scrollHeight > target.clientHeight + 20 &&
-                                     target.clientHeight > 200;
-
-        if (isScrollableX && !isPrimarilyVertical) {
-          horizontalContainer = target;
-          break;
-        }
-      }
-      target = target.parentElement;
-    }
-
-    if (!horizontalContainer) return;
-
-    const el = horizontalContainer;
+    if (!el || el.scrollWidth <= el.clientWidth + 2) return;
     const isAtLeftEdge = el.scrollLeft <= 0 && e.deltaY < 0;
     const isAtRightEdge = Math.ceil(el.scrollLeft + el.clientWidth) >= el.scrollWidth - 1 && e.deltaY > 0;
 

@@ -12,7 +12,7 @@ import { useMessages, Message, Conversation } from '../context/MessageContext';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
-import { ChatSkeleton } from '../components/Skeleton';
+import { ConversationsListSkeleton, ChatMessageBubblesSkeleton, ChatThreadSkeleton } from '../components/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseMessageContent, getMessageDisplayText } from '../utils/messageParser';
 
@@ -38,6 +38,26 @@ const ChatInputConsole: React.FC<ChatInputConsoleProps> = React.memo(({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const typingTimeoutRef = useRef<number | null>(null);
   const isLocallyTypingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const userInteractedRef = useRef(false);
+  const isInitialMountRef = useRef(true);
+
+  useEffect(() => {
+    isInitialMountRef.current = true;
+    userInteractedRef.current = false;
+    const timer = setTimeout(() => {
+      isInitialMountRef.current = false;
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [conversationId]);
+
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Prevent iOS ghost-click auto-focus on transition:
+    // If focused immediately after entering conversation without a direct user touch/pointer interaction, blur it.
+    if (isInitialMountRef.current && !userInteractedRef.current) {
+      e.target.blur();
+    }
+  };
 
   useEffect(() => {
     if (prefillMessage) {
@@ -128,12 +148,16 @@ const ChatInputConsole: React.FC<ChatInputConsoleProps> = React.memo(({
       <div className="flex items-center gap-2 relative w-full">
         <div className="flex-1 relative flex items-center">
           <input
+            ref={inputRef}
             type="text"
             value={newMessage}
             onChange={e => handleInputChange(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSend()}
+            onPointerDown={() => { userInteractedRef.current = true; }}
+            onTouchStart={() => { userInteractedRef.current = true; }}
+            onFocus={handleFocus}
             placeholder={t('type_a_message')}
-            className="w-full pr-10 pl-4 py-2.5 text-sm border border-gray-200/60 dark:border-neutral-800/50 rounded-full bg-gray-100/50 dark:bg-neutral-900/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/30 transition-all outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
+            className="w-full pr-10 pl-4 py-2.5 text-base md:text-sm border border-gray-200/60 dark:border-neutral-800/50 rounded-full bg-gray-100/50 dark:bg-neutral-900/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/30 transition-all outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 touch-manipulation"
           />
           <button 
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -512,8 +536,26 @@ const MessagesPage: React.FC = () => {
 
   if (contextLoading && conversations.length === 0) {
     return (
-      <div className="h-[calc(100vh-4.5rem)] md:h-[calc(100vh-6.5rem)] flex flex-col p-4 animate-fade-in w-full max-w-full overflow-hidden">
-        <ChatSkeleton className="h-full" />
+      <div className="h-[calc(100dvh-4rem)] md:h-[calc(100vh-6.5rem)] flex flex-col w-full max-w-full overflow-hidden animate-fade-in">
+        <div className="flex-1 flex overflow-hidden min-h-0 min-w-0 relative w-full">
+          {/* Left/Mobile: Conversations List Skeleton */}
+          <div className={`w-full md:w-80 lg:w-96 flex flex-col shrink-0 min-w-0 max-w-full md:border-r md:border-gray-200/60 dark:md:border-neutral-800/60 ${id ? 'hidden md:flex' : 'flex'}`}>
+            <ConversationsListSkeleton />
+          </div>
+
+          {/* Right/Desktop: Thread Skeleton if thread is active in URL, or subtle empty state */}
+          <div className={`flex-1 flex flex-col min-w-0 max-w-full overflow-hidden w-full ${!id ? 'hidden md:flex' : 'flex'}`}>
+            {id ? (
+              <ChatThreadSkeleton className="h-full" />
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-8">
+                <div className="w-12 h-12 rounded-full bg-gray-200/60 dark:bg-white/[0.04] mb-3 animate-pulse" />
+                <div className="h-4 w-36 bg-gray-200/60 dark:bg-white/[0.04] rounded mb-2 animate-pulse" />
+                <div className="h-3 w-56 bg-gray-200/60 dark:bg-white/[0.04] rounded animate-pulse" />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -522,7 +564,7 @@ const MessagesPage: React.FC = () => {
   const isMobileThreadActive = !!id;
 
   return (
-    <div className="h-[calc(100vh-4.5rem)] md:h-[calc(100vh-6.5rem)] flex flex-col w-full max-w-full overflow-hidden">
+    <div className="h-[calc(100dvh-4rem)] md:h-[calc(100vh-6.5rem)] flex flex-col w-full max-w-full overflow-hidden">
       <div className="flex-1 flex overflow-hidden min-h-0 min-w-0 relative w-full">
         
         {/* --- 1. Conversations Sidebar --- */}
@@ -563,7 +605,7 @@ const MessagesPage: React.FC = () => {
                 placeholder={t('search_messenger', 'Search Messenger...')}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs border border-gray-200/60 dark:border-neutral-800/50 rounded-full bg-gray-100/70 dark:bg-neutral-900/50 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/30 transition-all outline-none"
+                className="w-full pl-9 pr-4 py-2 text-base md:text-xs border border-gray-200/60 dark:border-neutral-800/50 rounded-full bg-gray-100/70 dark:bg-neutral-900/50 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/30 transition-all outline-none touch-manipulation"
               />
             </div>
           </div>
@@ -627,7 +669,7 @@ const MessagesPage: React.FC = () => {
                   <div
                     key={conv.id}
                     onClick={() => navigate(`/messages/${conv.id}`)}
-                    className={`flex items-center gap-3.5 p-3 rounded-2xl cursor-pointer transition-all duration-200 ${
+                    className={`flex items-center gap-3.5 p-3 rounded-2xl cursor-pointer transition-all duration-200 touch-manipulation ${
                       isActive 
                         ? '  text-brand-500' 
                         : 'hover:bg-gray-50 dark:hover:bg-neutral-900/50'
@@ -827,7 +869,9 @@ const MessagesPage: React.FC = () => {
                 onScroll={handleScroll}
                 style={{ overflowAnchor: 'none' }}
               >
-                {isFetchingThread && currentMessages.length === 0 ? null : currentMessages.length === 0 ? (
+                {isFetchingThread && currentMessages.length === 0 ? (
+                  <ChatMessageBubblesSkeleton />
+                ) : currentMessages.length === 0 ? (
                   <div className="py-12 text-center text-xs text-gray-400">
                     No messages in this conversation yet. Send a message to start!
                   </div>

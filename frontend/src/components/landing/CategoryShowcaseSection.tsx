@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { LayoutGrid, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import SafeImage from '../SafeImage';
 import { getCategoryFallbackImage } from '../../utils/categoryFallbacks';
@@ -77,12 +77,6 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
 
   return (
     <div className="relative w-full h-[100dvh] bg-transparent overflow-hidden flex flex-col justify-start">
-      {/* Subtle Dynamic Background Accent */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[20%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[120px]" />
-        <div className="absolute bottom-[10%] right-[10%] w-[40%] h-[40%] rounded-full blur-[100px]" />
-      </div>
-
       <AnimatePresence>
         {isActive && (
           <motion.div 
@@ -93,63 +87,68 @@ const CategoryShowcaseSection: React.FC<CategoryShowcaseSectionProps> = ({
             exit="hidden"
           >
             {/* Header */}
-            <motion.div variants={itemVariants} className="mb-4 sm:mb-6 shrink-0 flex justify-center w-full">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-purple-500 dark:text-purple-500 shrink-0 shadow-sm">
-                  <LayoutGrid className="w-5 h-5 md:w-6 md:h-6" />
-                </div>
-                <div className="flex flex-col items-start text-left">
-                  <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900 dark:text-white leading-none">
-                    {t('shop_by_category', 'SHOP BY CATEGORY')}
-                  </h2>
-                  <p className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">
-                    {t('find_exactly_what_youre_looking_for', 'Find exactly what you\'re looking for')}
-                  </p>
-                </div>
-              </div>
+            <motion.div variants={itemVariants} className="mb-4 sm:mb-6 shrink-0 flex flex-col items-center justify-center text-center w-full">
+              <h2 className="text-2xl md:text-3xl font-black text-white leading-none drop-shadow-md">
+                {t('shop_by_category', 'Shop by category')}
+              </h2>
+              <p className="text-xs md:text-sm font-medium text-gray-300 mt-1">
+                {t('find_exactly_what_youre_looking_for', "Find exactly what you're looking for")}
+              </p>
             </motion.div>
 
-            {/* Circular Category Grid - Scrollable with mouse wheel & touch */}
-            <div className="w-full flex-1 overflow-y-auto overscroll-contain no-scrollbar py-2 px-2">
-              <div className="w-full grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 sm:gap-6 md:gap-8 auto-rows-max justify-items-center pb-12">
+            {/* Circular Category Showcase - Centered responsive flex wrap */}
+            <div className="w-full flex-1 flex flex-col justify-center items-center overflow-y-auto overscroll-contain no-scrollbar py-2 px-2">
+              <div className="w-full flex flex-wrap justify-center items-start gap-5 sm:gap-7 md:gap-9 max-w-4xl mx-auto pb-4">
                 {loading ? (
-                  [...Array(12)].map((_, i) => (
-                    <div key={i} className="flex flex-col items-center gap-3 w-full">
-                      <div className="w-18 h-18 sm:w-22 sm:h-22 md:w-24 md:h-24 rounded-full bg-gray-200 dark:bg-white/5 animate-pulse" />
-                      <div className="w-16 h-3 bg-gray-200 dark:bg-white/5 animate-pulse rounded-full" />
+                  [...Array(7)].map((_, i) => (
+                    <div key={i} className="w-[96px] sm:w-[112px] md:w-[128px] flex flex-col items-center gap-2.5">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-full bg-white/10 animate-pulse" />
+                      <div className="w-16 h-3 bg-white/10 animate-pulse rounded-full" />
                     </div>
                   ))
                 ) : (
                   categories.map((cat) => (
-                    <motion.div key={cat.id} variants={itemVariants} className="w-full flex flex-col items-center gap-2 group">
+                    <motion.div 
+                      key={cat.id} 
+                      variants={itemVariants} 
+                      className="w-[96px] sm:w-[112px] md:w-[128px] flex flex-col items-center gap-2 group text-center"
+                    >
                       <Link 
                         to={`/products?category=${cat.slug}`} 
-                        className="w-18 h-18 sm:w-22 sm:h-22 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-full relative overflow-hidden bg-gray-100 dark:bg-gray-800/50 border-2 sm:border-4 border-transparent hover:border-brand-500 hover:shadow-[0_0_20px_rgba(var(--color-brand-500),0.3)] transition-all duration-300 active:scale-95 shrink-0"
+                        className="w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-full relative overflow-hidden bg-black/40 border-2 border-white/20 hover:border-amber-400 hover:shadow-[0_0_24px_rgba(245,158,11,0.45)] transition-all duration-300 group-hover:scale-105 active:scale-95 shrink-0 shadow-lg shadow-black/50"
                       >
                         <SafeImage 
                           src={cat.image || getCategoryFallbackImage(cat.name)} 
                           alt={cat.name}
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
-                        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors duration-300" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent group-hover:from-black/10 transition-colors duration-300" />
                       </Link>
                       
                       <Link 
                         to={`/products?category=${cat.slug}`}
-                        className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200 text-center line-clamp-2 leading-tight group-hover:text-brand-500 dark:group-hover:text-brand-500 transition-colors mt-1"
+                        className="text-xs sm:text-sm font-bold text-white text-center line-clamp-2 leading-tight group-hover:text-amber-400 transition-colors mt-0.5 drop-shadow"
                       >
                         {cat.name}
                       </Link>
+
+                      {cat.total_products !== undefined && cat.total_products > 0 && (
+                        <span className="text-[10px] font-semibold text-gray-400 group-hover:text-amber-300/90 transition-colors">
+                          {cat.total_products.toLocaleString()} {cat.total_products === 1 ? t('item', 'item') : t('items_count', 'items')}
+                        </span>
+                      )}
                     </motion.div>
                   ))
                 )}
               </div>
             </div>
             
-            {/* Scroll indicator for the redirect section with subtle gradient backdrop */}
-            <div className="absolute bottom-3 md:bottom-4 left-1/2 -translate-x-1/2 flex justify-center w-full z-20 pointer-events-none bg-gradient-to-t from-black/40 via-black/20 to-transparent pt-4 pb-2">
+            {/* Scroll indicator for the redirect section */}
+            <div className="absolute bottom-3 md:bottom-4 left-1/2 -translate-x-1/2 flex justify-center w-full z-20 pointer-events-none pt-4 pb-2">
               <motion.div variants={itemVariants} className="flex flex-col items-center justify-center opacity-80 pointer-events-auto">
-                <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-0.5 drop-shadow">Scroll for Products</span>
+                <span className="text-[11px] tracking-wider text-gray-400 font-medium mb-0.5 drop-shadow">
+                  {t('scroll_for_products', 'Scroll for products')}
+                </span>
                 <div 
                   className="animate-float cursor-pointer"
                   onClick={() => {

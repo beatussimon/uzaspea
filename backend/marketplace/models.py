@@ -348,6 +348,8 @@ class Product(models.Model):
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
     reference_product = models.ForeignKey('ReferenceProduct', on_delete=models.SET_NULL, null=True, blank=True, related_name='instances')
     structured_specs = models.JSONField(default=dict, blank=True, help_text="Specs matching the category's spec_schema")
+    has_a_plus_content = models.BooleanField(default=False, db_index=True, help_text="Enable Amazon-style A+ Content")
+    a_plus_content = models.JSONField(default=dict, blank=True, help_text="A+ Content modules (banners, spotlights, infographics)")
 
     class Meta:
         ordering = ['-created_at']
@@ -963,12 +965,13 @@ class FAQ(models.Model):
         ('inspections', 'Inspections'), ('account', 'Account'),
         ('general', 'General')
     ], default='general')
+    is_pinned = models.BooleanField(default=False, help_text="Pin this FAQ to appear at the top")
     order = models.PositiveIntegerField(default=0)
     is_published = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['category', 'order']
+        ordering = ['-is_pinned', 'order', 'id']
 
 class SupportTicket(models.Model):
     STATUS_CHOICES = [('open','Open'),('in_progress','In Progress'),('resolved','Resolved'),('closed','Closed')]
@@ -1237,6 +1240,9 @@ class SiteSettings(models.Model):
     facebook_url = models.URLField(blank=True)
     instagram_url = models.URLField(blank=True)
     twitter_url = models.URLField(blank=True)
+    tiktok_url = models.URLField(blank=True)
+    linkedin_url = models.URLField(blank=True)
+    youtube_url = models.URLField(blank=True)
     working_hours = models.CharField(max_length=100, blank=True, default='Mon–Fri 8am–6pm EAT')
     commission_rate = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('10.00'),
@@ -1259,15 +1265,92 @@ class SiteSettings(models.Model):
 
     def save(self, *args, **kwargs):
         self.pk = 1  # Force singleton
+        social_map = {
+            'instagram_url': 'https://instagram.com/',
+            'facebook_url': 'https://facebook.com/',
+            'twitter_url': 'https://x.com/',
+            'tiktok_url': 'https://tiktok.com/@',
+            'linkedin_url': 'https://linkedin.com/company/',
+            'youtube_url': 'https://youtube.com/@',
+        }
+        for field, prefix in social_map.items():
+            val = getattr(self, field, '')
+            if val:
+                val = str(val).strip()
+                if val and not val.startswith(('http://', 'https://')):
+                    clean_val = val.lstrip('@')
+                    setattr(self, field, f"{prefix}{clean_val}")
         super().save(*args, **kwargs)
+        cache.delete('site_settings_singleton')
 
     @classmethod
     def get(cls):
+        cached = cache.get('site_settings_singleton')
+        if cached is not None:
+            return cached
         obj, _ = cls.objects.get_or_create(pk=1)
+        cache.set('site_settings_singleton', obj, timeout=86400)
         return obj
 
     def __str__(self):
         return 'Site Settings'
+
+
+# ─── Reserved Usernames (System, Brands, Staff, High-Value) ─────
+class ReservedUsername(models.Model):
+    CATEGORY_CHOICES = [
+        ('system', 'System & Routing'),
+        ('staff_official', 'Staff & Platform Security'),
+        ('brand_trademark', 'Brand & Trademark'),
+        ('vip_premium', 'VIP & Premium Word'),
+        ('banned', 'Inappropriate or Banned'),
+    ]
+
+    username = models.CharField(
+        max_length=50,
+        unique=True,
+        db_index=True,
+        help_text="Canonical lowercase username to reserve"
+    )
+    category = models.CharField(
+        max_length=30,
+        choices=CATEGORY_CHOICES,
+        default='brand_trademark',
+        db_index=True
+    )
+    reason = models.TextField(
+        blank=True,
+        help_text="Explanation e.g. 'Registered trademark of Toyota Motor Corporation' or 'Core system path'"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="When active, this username cannot be registered by regular users"
+    )
+    reserved_for = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_reserved_usernames',
+        help_text="Optional: Assign this handle to a verified official seller or platform account"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['username']
+        verbose_name = 'Reserved Username'
+        verbose_name_plural = 'Reserved Usernames'
+
+    def save(self, *args, **kwargs):
+        if self.username:
+            self.username = self.username.strip().lower()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        status = "Active" if self.is_active else "Inactive"
+        return f"{self.username} ({self.get_category_display()}) [{status}]"
 
 
 # ─── Delivery Zones (B-21) ───────────────────────────────────────
@@ -1362,6 +1445,77 @@ def handle_seller_application_status_change(sender, instance, **kwargs):
             f'Your application for {instance.requested_tier.name} was rejected. Reason: {instance.rejection_reason or "No reason provided."}',
             link='/upgrade'
         )
+
+
+# ─── Seller Physical Site Visits ─────────────────────────────────
+class SellerSiteVisit(models.Model):
+    STATUS_CHOICES = [
+        ('pending_review', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='site_visits')
+    business_name = models.CharField(max_length=200)
+    contact_person = models.CharField(max_length=150, blank=True)
+    contact_phone = models.CharField(max_length=30, blank=True)
+    address = models.TextField(help_text="Physical store street address, building, or landmark")
+    region = models.CharField(max_length=100, blank=True, default='Dar es Salaam')
+    district = models.CharField(max_length=100, blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    storefront_image = models.ImageField(upload_to='site_visits/storefront/', blank=True, null=True, validators=[validate_image])
+    interior_image = models.ImageField(upload_to='site_visits/interior/', blank=True, null=True, validators=[validate_image])
+    document_image = models.FileField(upload_to='site_visits/documents/', blank=True, null=True, validators=[validate_document])
+    staff_notes = models.TextField(blank=True, help_text="Notes and observations from inspecting staff")
+    visited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='conducted_site_visits')
+    visited_at = models.DateTimeField(default=timezone.now)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending_review')
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_site_visits')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Site Visit: {self.business_name} ({self.user.username}) - {self.status}"
+
+
+@receiver(post_save, sender=SellerSiteVisit)
+def handle_seller_site_visit_status_change(sender, instance, **kwargs):
+    if kwargs.get('raw'):
+        return
+    if instance.status == 'approved':
+        try:
+            profile = instance.user.profile
+            profile.is_location_verified = True
+            if instance.address:
+                profile.location = instance.address
+            if instance.latitude and instance.longitude:
+                profile.latitude = instance.latitude
+                profile.longitude = instance.longitude
+            profile.save(update_fields=['is_location_verified', 'location', 'latitude', 'longitude'])
+        except UserProfile.DoesNotExist:
+            pass
+
+        push_notification(
+            instance.user,
+            'site_visit_approved',
+            'Store Site Verification Approved!',
+            'Your physical store premises have been verified and approved by SokoniMax Admin. You can now upgrade your account to sell on SokoniMax.',
+            link='/upgrade'
+        )
+    elif instance.status == 'rejected':
+        push_notification(
+            instance.user,
+            'site_visit_rejected',
+            'Store Site Verification Update',
+            f'Your site verification was not approved. Reason: {instance.rejection_reason or "Please contact support for more details."}',
+            link='/help?tab=site-verification'
+        )
+
 
 
 # --- Cache Invalidation Signals ---

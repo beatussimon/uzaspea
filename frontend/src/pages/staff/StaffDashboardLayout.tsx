@@ -5,7 +5,7 @@ import {
   CheckCircle2, AlertTriangle, Shield, Star,
   CreditCard, FileText, Layers, MessageSquare, Send, Package, Truck,
   BarChart2, ChevronLeft, ChevronRight, Search, Eye, X, ArrowUpRight,
-  UserCircle, Clock
+  UserCircle, Clock, MapPin, Plus, ExternalLink, Phone, CheckCircle
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../../api';
@@ -928,6 +928,636 @@ export const SellerApplicationsManager: React.FC = () => {
 };
 
 // ============ Commission Payments ============
+
+// ============ Physical Store Site Visits Manager ============
+export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolean }> = ({ isSuper, canVerify }) => {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('pending_review');
+  const [search, setSearch] = useState('');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // New Visit Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [userQuery, setUserQuery] = useState('');
+  const [userCandidates, setUserCandidates] = useState<any[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+
+  const [form, setForm] = useState({
+    business_name: '',
+    contact_person: '',
+    contact_phone: '',
+    address: '',
+    region: 'Dar es Salaam',
+    district: '',
+    latitude: '',
+    longitude: '',
+    staff_notes: '',
+  });
+
+  const [storefrontFile, setStorefrontFile] = useState<File | null>(null);
+  const [interiorFile, setInteriorFile] = useState<File | null>(null);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [locating, setLocating] = useState(false);
+
+  const fetchItems = useCallback(() => {
+    setLoading(true);
+    const query = filter === 'all' ? '' : `status=${filter}`;
+    api.get(`/api/staff/site-visits/?${query}`)
+      .then((res) => {
+        const data = res.data.results || res.data || [];
+        setItems(Array.isArray(data) ? data : []);
+      })
+      .catch(() => toast.error('Failed to load site visits'))
+      .finally(() => setLoading(false));
+  }, [filter]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  // Search candidate users when typing in modal
+  useEffect(() => {
+    if (!showModal || selectedUser) return;
+    const timer = setTimeout(() => {
+      setSearchingUsers(true);
+      api.get(`/api/staff/site-visits/candidate-users/?q=${encodeURIComponent(userQuery)}`)
+        .then((res) => setUserCandidates(res.data || []))
+        .catch(() => {})
+        .finally(() => setSearchingUsers(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userQuery, showModal, selectedUser]);
+
+  const handleCaptureLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm(prev => ({
+          ...prev,
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6),
+        }));
+        toast.success('Current GPS coordinates captured!');
+        setLocating(false);
+      },
+      (err) => {
+        toast.error('Failed to capture location: ' + err.message);
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleApprove = async (id: number) => {
+    try {
+      await api.post(`/api/staff/site-visits/${id}/approve/`);
+      toast.success('Site verification visit approved! User can now upgrade.');
+      fetchItems();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to approve site visit');
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    const reason = prompt('Reason for rejection (will be sent to applicant):');
+    if (reason === null) return;
+    try {
+      await api.post(`/api/staff/site-visits/${id}/reject/`, { reason });
+      toast.success('Site visit marked as rejected');
+      fetchItems();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to reject site visit');
+    }
+  };
+
+  const handleSubmitNewVisit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return toast.error('Please select the customer/applicant user');
+    if (!form.business_name.trim()) return toast.error('Please enter the store / business name');
+    if (!form.address.trim()) return toast.error('Please enter the physical address');
+
+    setSubmitting(true);
+    const fd = new FormData();
+    fd.append('user_id', selectedUser.id);
+    fd.append('business_name', form.business_name);
+    if (form.contact_person) fd.append('contact_person', form.contact_person);
+    if (form.contact_phone) fd.append('contact_phone', form.contact_phone);
+    fd.append('address', form.address);
+    if (form.region) fd.append('region', form.region);
+    if (form.district) fd.append('district', form.district);
+    if (form.latitude) fd.append('latitude', form.latitude);
+    if (form.longitude) fd.append('longitude', form.longitude);
+    if (form.staff_notes) fd.append('staff_notes', form.staff_notes);
+    if (storefrontFile) fd.append('storefront_image', storefrontFile);
+    if (interiorFile) fd.append('interior_image', interiorFile);
+    if (documentFile) fd.append('document_image', documentFile);
+
+    try {
+      await api.post('/api/staff/site-visits/', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success('Physical site visit recorded successfully! Awaiting admin review.');
+      setShowModal(false);
+      setSelectedUser(null);
+      setUserQuery('');
+      setForm({
+        business_name: '',
+        contact_person: '',
+        contact_phone: '',
+        address: '',
+        region: 'Dar es Salaam',
+        district: '',
+        latitude: '',
+        longitude: '',
+        staff_notes: '',
+      });
+      setStorefrontFile(null);
+      setInteriorFile(null);
+      setDocumentFile(null);
+      fetchItems();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || err.response?.data?.user || 'Failed to record site visit');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const filteredItems = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.toLowerCase();
+    return items.filter(
+      (item) =>
+        (item.business_name || '').toLowerCase().includes(q) ||
+        (item.username || '').toLowerCase().includes(q) ||
+        (item.contact_phone || '').toLowerCase().includes(q) ||
+        (item.address || '').toLowerCase().includes(q) ||
+        (item.region || '').toLowerCase().includes(q)
+    );
+  }, [items, search]);
+
+  const filterTabs = [
+    { key: 'pending_review', label: 'Pending Admin Review' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+    { key: 'all', label: 'All Visits' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <span>Physical Store Site Visits</span>
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Conduct in-person shop verifications, record physical evidence, and validate merchant credentials.
+          </p>
+        </div>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 rounded-xl"
+        >
+          <Plus size={16} />
+          <span>Record New Site Visit</span>
+        </Button>
+      </header>
+
+      {/* Filter Tabs & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {filterTabs.map((tab) => {
+            const isActive = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search store, applicant, phone..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
+        </div>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <CardGridSkeleton count={6} cols={2} />
+      ) : filteredItems.length === 0 ? (
+        <EmptyState
+          icon={MapPin}
+          title={`No ${filter === 'all' ? '' : filter} site visits`}
+          description={search ? 'No visits match your search query.' : 'There are currently no site visits recorded in this category.'}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredItems.map((item) => (
+            <div key={item.id} className="card p-5 flex flex-col justify-between space-y-4 border border-surface-border dark:border-surface-dark-border shadow-xs">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">{item.business_name}</h3>
+                    <p className="text-xs text-gray-500">Applicant: @{item.username} {item.user_phone ? `(${item.user_phone})` : ''}</p>
+                  </div>
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      item.status === 'approved'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                        : item.status === 'rejected'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                    }`}
+                  >
+                    {item.status.replace('_', ' ')}
+                  </span>
+                </div>
+
+                <div className="text-xs space-y-1.5 bg-surface-muted/40 dark:bg-neutral-900/60 p-3 rounded-xl">
+                  <div className="flex items-start gap-2">
+                    <MapPin size={14} className="text-brand-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-gray-800 dark:text-gray-200">{item.address}</p>
+                      <p className="text-gray-500">{item.district ? `${item.district}, ` : ''}{item.region || 'Dar es Salaam'}</p>
+                    </div>
+                  </div>
+
+                  {item.latitude && item.longitude && (
+                    <div className="pt-1 flex items-center justify-between">
+                      <span className="font-mono text-[11px] text-gray-500">
+                        GPS: {Number(item.latitude).toFixed(5)}, {Number(item.longitude).toFixed(5)}
+                      </span>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-600 dark:text-brand-400 hover:underline inline-flex items-center gap-1 font-bold text-[11px]"
+                      >
+                        <span>View Map</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    </div>
+                  )}
+
+                  {item.contact_phone && (
+                    <div className="pt-1 flex items-center gap-1.5 text-gray-600 dark:text-gray-300 text-xs">
+                      <Phone size={12} className="text-gray-400" />
+                      <span>{item.contact_person ? `${item.contact_person}: ` : ''}{item.contact_phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Evidence Photos */}
+                {(item.storefront_image || item.interior_image || item.document_image) && (
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Site Photographs:</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {item.storefront_image && (
+                        <div
+                          onClick={() => setPreviewImage(item.storefront_image)}
+                          className="relative aspect-video rounded-lg overflow-hidden border border-surface-border cursor-pointer group bg-neutral-100 dark:bg-neutral-800"
+                        >
+                          <img src={item.storefront_image} alt="Storefront" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                          <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 py-0.5 rounded">Storefront</span>
+                        </div>
+                      )}
+                      {item.interior_image && (
+                        <div
+                          onClick={() => setPreviewImage(item.interior_image)}
+                          className="relative aspect-video rounded-lg overflow-hidden border border-surface-border cursor-pointer group bg-neutral-100 dark:bg-neutral-800"
+                        >
+                          <img src={item.interior_image} alt="Interior" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                          <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 py-0.5 rounded">Interior</span>
+                        </div>
+                      )}
+                      {item.document_image && (
+                        <div
+                          onClick={() => setPreviewImage(item.document_image)}
+                          className="relative aspect-video rounded-lg overflow-hidden border border-surface-border cursor-pointer group bg-neutral-100 dark:bg-neutral-800"
+                        >
+                          <img src={item.document_image} alt="Document" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                          <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 py-0.5 rounded">License</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {item.staff_notes && (
+                  <div className="p-2.5 bg-neutral-50 dark:bg-neutral-800/40 rounded-lg text-xs text-gray-600 dark:text-gray-300">
+                    <span className="font-bold block text-gray-500 dark:text-gray-400 text-[10px] uppercase">Staff Observation Notes:</span>
+                    <p className="mt-0.5 whitespace-pre-wrap">{item.staff_notes}</p>
+                  </div>
+                )}
+
+                {item.rejection_reason && (
+                  <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-lg text-xs text-rose-700 dark:text-rose-300">
+                    <span className="font-bold block text-[10px] uppercase">Rejection Reason:</span>
+                    <p className="mt-0.5">{item.rejection_reason}</p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+                  <span>Inspector: @{item.visited_by_username || 'Staff'}</span>
+                  <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons for Admin */}
+              {item.status === 'pending_review' && (canVerify || isSuper) && (
+                <div className="flex gap-2 pt-3 border-t border-surface-border">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => handleApprove(item.id)}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <CheckCircle size={14} className="mr-1" />
+                    <span>Approve Site Visit</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReject(item.id)}
+                    className="flex-1 text-red-500 hover:text-red-600 border-red-200 dark:border-red-900"
+                  >
+                    Reject
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* New Site Visit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs overflow-y-auto" onClick={() => setShowModal(false)}>
+          <div className="relative max-w-xl w-full bg-white dark:bg-[#0A0A0A] p-6 rounded-2xl border border-surface-border my-8 shadow-2xl space-y-5" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-4 right-4 p-1 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-white"
+            >
+              <X size={18} />
+            </button>
+
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <MapPin size={20} className="text-brand-500" />
+                <span>Record New Physical Site Visit</span>
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Enter inspected shop details, GPS coordinates, and capture photographic evidence for administrative review.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmitNewVisit} className="space-y-4 text-xs">
+              {/* Target User Selection */}
+              <div>
+                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">
+                  Applicant Account (Customer User) *
+                </label>
+                {selectedUser ? (
+                  <div className="flex items-center justify-between p-2.5 bg-brand-500/10 border border-brand-500/30 rounded-xl">
+                    <div>
+                      <span className="font-bold text-gray-900 dark:text-white">@{selectedUser.username}</span>
+                      <span className="text-gray-500 text-[11px] block">{selectedUser.phone || selectedUser.email}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedUser(null)}
+                      className="text-xs text-brand-600 font-bold hover:underline"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={userQuery}
+                        onChange={(e) => setUserQuery(e.target.value)}
+                        placeholder="Search by username, phone, or email..."
+                        className="input pl-8 py-2 text-xs w-full"
+                      />
+                    </div>
+                    {searchingUsers && <p className="text-gray-400 text-[11px]">Searching users...</p>}
+                    <div className="max-h-36 overflow-y-auto border border-surface-border rounded-xl divide-y divide-surface-border">
+                      {userCandidates.map((u) => (
+                        <div
+                          key={u.id}
+                          onClick={() => { setSelectedUser(u); setUserCandidates([]); }}
+                          className="p-2 hover:bg-surface-muted/50 cursor-pointer flex items-center justify-between"
+                        >
+                          <div>
+                            <span className="font-bold text-gray-900 dark:text-white">@{u.username}</span>
+                            <span className="text-gray-500 text-[10px] block">{u.phone || u.email}</span>
+                          </div>
+                          <span className="text-[10px] font-semibold text-brand-500">Select</span>
+                        </div>
+                      ))}
+                      {userCandidates.length === 0 && !searchingUsers && (
+                        <p className="p-2 text-gray-400 text-center text-[11px]">Type to search active customer accounts</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Store & Contact Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Store / Business Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.business_name}
+                    onChange={(e) => setForm({ ...form, business_name: e.target.value })}
+                    placeholder="e.g., Mwananyamala Spares"
+                    className="input w-full py-1.5 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Contact Phone</label>
+                  <input
+                    type="text"
+                    value={form.contact_phone}
+                    onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
+                    placeholder="e.g., +255 712 345 678"
+                    className="input w-full py-1.5 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Physical Store Address *</label>
+                <textarea
+                  required
+                  rows={2}
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  placeholder="Street, building name, shop number, or local landmark"
+                  className="input w-full py-1.5 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Region</label>
+                  <input
+                    type="text"
+                    value={form.region}
+                    onChange={(e) => setForm({ ...form, region: e.target.value })}
+                    className="input w-full py-1.5 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">District</label>
+                  <input
+                    type="text"
+                    value={form.district}
+                    onChange={(e) => setForm({ ...form, district: e.target.value })}
+                    placeholder="e.g., Kinondoni"
+                    className="input w-full py-1.5 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* GPS Capture */}
+              <div className="p-3 bg-surface-muted/40 dark:bg-neutral-900 rounded-xl space-y-2 border border-surface-border">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-gray-800 dark:text-gray-200">On-Site GPS Capture</span>
+                  <button
+                    type="button"
+                    onClick={handleCaptureLocation}
+                    disabled={locating}
+                    className="btn-primary py-1 px-2.5 rounded-lg text-[11px] font-bold inline-flex items-center gap-1.5"
+                  >
+                    <MapPin size={12} />
+                    <span>{locating ? 'Capturing...' : 'Capture Current Location'}</span>
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Latitude (e.g., -6.7924)"
+                    value={form.latitude}
+                    onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                    className="input w-full py-1 text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Longitude (e.g., 39.2083)"
+                    value={form.longitude}
+                    onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                    className="input w-full py-1 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Evidence Photos */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Storefront Photo</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setStorefrontFile(e.target.files?.[0] || null)}
+                    className="text-[11px] file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-surface-muted file:font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Interior / Stock</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setInteriorFile(e.target.files?.[0] || null)}
+                    className="text-[11px] file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-surface-muted file:font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Trade License / ID</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
+                    className="text-[11px] file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-surface-muted file:font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Staff Field Observations</label>
+                <textarea
+                  rows={2}
+                  value={form.staff_notes}
+                  onChange={(e) => setForm({ ...form, staff_notes: e.target.value })}
+                  placeholder="Observations on signage presence, physical stock quantity, business authenticity..."
+                  className="input w-full py-1.5 text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-surface-border">
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="default" size="sm" loading={submitting}>
+                  Submit for Admin Review
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-4xl max-h-[90vh] p-2 bg-black rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 text-white hover:bg-white/40 transition z-10"
+            >
+              <X size={16} />
+            </button>
+            <img src={previewImage} alt="Site Visit Evidence" className="max-w-full max-h-[85vh] object-contain rounded-xl" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 export const CommissionPaymentsManager: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2316,6 +2946,7 @@ const StaffDashboardLayout: React.FC = () => {
     { path: '/staff/tasks', label: 'My Tasks', icon: ClipboardList },
     { path: '/staff/subscriptions', label: 'Subscriptions', icon: CreditCard, show: canVerify },
     { path: '/staff/seller-applications', label: 'Seller Upgrades', icon: Shield, show: canVerify },
+    { path: '/staff/site-visits', label: 'Site Visits', icon: MapPin, show: canVerify || isSuper },
     { path: '/staff/warehouse', label: 'Warehouse Intake', icon: Package, show: canManageWarehouse },
     { path: '/staff/logistics', label: 'Logistics Manager', icon: Truck, show: canManageLogistics },
     { path: '/staff/invoices', label: 'Commission Payments', icon: FileText, show: canVerify },
@@ -2376,6 +3007,7 @@ const StaffDashboardLayout: React.FC = () => {
             <Route path="tasks" element={<StaffTasks />} />
             <Route path="subscriptions" element={canVerify ? <SubscriptionConfirmation /> : <Navigate to="/staff" />} />
             <Route path="seller-applications" element={canVerify ? <SellerApplicationsManager /> : <Navigate to="/staff" />} />
+            <Route path="site-visits" element={<SiteVisitsManager isSuper={isSuper} canVerify={canVerify} />} />
             <Route path="warehouse" element={canManageWarehouse ? <WarehouseStaffLayout /> : <Navigate to="/staff" />} />
             <Route path="logistics" element={canManageLogistics ? <LogisticsManager /> : <Navigate to="/staff" />} />
             <Route path="invoices" element={canVerify ? <CommissionPaymentsManager /> : <Navigate to="/staff" />} />

@@ -6,7 +6,7 @@ from .api_views import (
     StaffPermissionViewSet, StaffDashboardView, SponsoredListingReviewViewSet,
     StaffAdminDashboardView, StaffFAQViewSet, StaffSupportTicketViewSet,  # FIX CRIT-04
     PaymentConfirmationViewSet, StaffCommissionPaymentViewSet,
-    UserManagementViewSet, ProductModerationViewSet, StaffSellerApplicationViewSet,
+    UserManagementViewSet, ProductModerationViewSet, StaffSellerApplicationViewSet, StaffSellerSiteVisitViewSet,
     DepartmentViewSet
 )
 
@@ -32,6 +32,7 @@ router.register(r'commission-payments', StaffCommissionPaymentViewSet, basename=
 router.register(r'users', UserManagementViewSet, basename='user-management')
 router.register(r'products', ProductModerationViewSet, basename='product-moderation')
 router.register(r'seller-applications', StaffSellerApplicationViewSet, basename='seller-application-moderation')
+router.register(r'site-visits', StaffSellerSiteVisitViewSet, basename='staff-site-visits')
 
 api_urlpatterns = [
     path('dashboard-summary/', StaffDashboardView.as_view(), name='staff-dashboard-summary'),

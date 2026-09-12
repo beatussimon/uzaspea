@@ -419,6 +419,98 @@ export const ChatSkeleton: React.FC<{ className?: string }> = ({ className }) =>
 );
 
 /**
+ * Conversations List Skeleton (Inbox list of contacts, search bar, and conversation rows)
+ */
+export const ConversationsListSkeleton: React.FC<{ className?: string; count?: number }> = ({ className, count = 7 }) => (
+  <div className={cn('flex flex-col h-full w-full', className)}>
+    {/* Top Header & Search Bar */}
+    <div className="px-4 md:px-5 pt-4 pb-3 flex flex-col gap-3">
+      <div className="flex items-center gap-2.5">
+        <Skeleton className="h-6 w-20 rounded-md" />
+      </div>
+      {/* Search Input Skeleton */}
+      <Skeleton className="h-8.5 w-full rounded-full" />
+    </div>
+
+    {/* Conversation Rows */}
+    <div className="flex-1 overflow-hidden px-2 md:px-3 space-y-1">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3.5 p-3 rounded-2xl">
+          <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex justify-between items-center gap-2">
+              <Skeleton className="h-4 w-28 rounded" />
+              <Skeleton className="h-3 w-10 rounded" />
+            </div>
+            <div className="flex justify-between items-center gap-2">
+              <Skeleton className="h-3 w-40 rounded" />
+              {i % 2 === 0 && <Skeleton className="h-4 w-4 rounded-full shrink-0" />}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+/**
+ * Chat Message Bubbles Skeleton (for inside active chat thread)
+ */
+export const ChatMessageBubblesSkeleton: React.FC<{ className?: string }> = ({ className }) => (
+  <div className={cn('p-4 space-y-4 overflow-hidden flex flex-col justify-end w-full h-full', className)}>
+    {/* Day Header */}
+    <div className="flex justify-center my-2">
+      <Skeleton className="h-5 w-20 rounded-full" />
+    </div>
+    {/* Other message (left) */}
+    <div className="flex items-end gap-2.5 max-w-[75%]">
+      <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+      <Skeleton className="h-12 w-48 rounded-2xl" />
+    </div>
+    {/* My message (right) */}
+    <div className="flex items-end gap-2.5 max-w-[70%] self-end">
+      <Skeleton className="h-10 w-40 rounded-2xl" />
+    </div>
+    {/* Other message (left) */}
+    <div className="flex items-end gap-2.5 max-w-[80%]">
+      <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+      <Skeleton className="h-16 w-56 rounded-2xl" />
+    </div>
+    {/* My message (right) */}
+    <div className="flex items-end gap-2.5 max-w-[65%] self-end">
+      <Skeleton className="h-10 w-36 rounded-2xl" />
+    </div>
+  </div>
+);
+
+/**
+ * Chat Thread Full Skeleton (Header + Bubbles + Input)
+ */
+export const ChatThreadSkeleton: React.FC<{ className?: string }> = ({ className }) => (
+  <div className={cn('flex flex-col h-full w-full overflow-hidden', className)}>
+    {/* Thread Header */}
+    <div className="px-4 md:px-5 py-3 border-b border-gray-200/60 dark:border-neutral-800/50 flex items-center justify-between shrink-0">
+      <div className="flex items-center gap-3">
+        <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-28 rounded" />
+          <Skeleton className="h-2.5 w-16 rounded" />
+        </div>
+      </div>
+    </div>
+    {/* Messages Area */}
+    <div className="flex-1 overflow-hidden">
+      <ChatMessageBubblesSkeleton />
+    </div>
+    {/* Bottom Input Console */}
+    <div className="px-3 md:px-4 py-3 border-t border-gray-200/60 dark:border-neutral-800/50 flex items-center gap-2 shrink-0">
+      <Skeleton className="h-10 flex-1 rounded-full" />
+      <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+    </div>
+  </div>
+);
+
+/**
  * Billing Subscription Tab Skeleton (Matching Active Subscription SaaS card layout)
  */
 export const BillingSubscriptionSkeleton: React.FC<{ className?: string }> = ({ className }) => (

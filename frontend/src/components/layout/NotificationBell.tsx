@@ -22,12 +22,6 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className, activeCl
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-    }
-
     const checkNotifications = async (silent = false) => {
       try {
         const res = await api.get('/api/notifications/');

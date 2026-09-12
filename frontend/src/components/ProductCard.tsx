@@ -101,7 +101,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full w-full"
+        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full w-full touch-pan-y overscroll-x-contain"
       >
         {visibleImages.length > 0 ? (
           visibleImages.map((img: any, i: number) => (
@@ -363,7 +363,11 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
           {/* Badges row */}
           <div className="flex flex-wrap items-center gap-1">
             <div className="flex flex-wrap items-center gap-1">
-
+              {product.oem_part_number && (
+                 <div className="flex items-center text-[7.5px] text-neutral-700 dark:text-neutral-300 font-mono font-bold bg-white/95 dark:bg-black/95 px-1.5 py-0.5 rounded-card border border-gray-200/80 dark:border-white/10 whitespace-nowrap shrink-0 shadow-sm" title={`OEM Part: ${product.oem_part_number}`}>
+                   <span className="text-[7.5px]">OEM: {product.oem_part_number}</span>
+                 </div>
+              )}
               {product.has_inspection && (
                  <div className="flex items-center text-[7.5px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50/95 dark:bg-emerald-900/90 px-1.5 py-0.5 rounded-card border border-emerald-100/50 dark:border-emerald-800/30 whitespace-nowrap shrink-0 shadow-sm" title={t('professionally_inspected', 'Professionally Inspected')}>
                    <span className="uppercase tracking-widest text-[7.5px]">{t('inspected_label', 'Inspected ✓')}</span>
@@ -396,7 +400,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
           </div>
 
           {/* Seller Info Bubbles */}
-          <div className="flex items-center gap-1 w-full overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1 w-full overflow-x-auto no-scrollbar touch-pan-y overscroll-x-contain">
             {/* Seller Username Bubble */}
             <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
               <span className="truncate">{product.seller_username || 'Seller'}</span>

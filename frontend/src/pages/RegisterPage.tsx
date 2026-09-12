@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/Input';
@@ -25,7 +25,53 @@ const RegisterPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<{
+    checking: boolean;
+    available: boolean | null;
+    message: string | null;
+  }>({ checking: false, available: null, message: null });
+
   const isAuthenticated = !!localStorage.getItem('access_token');
+
+  // Debounced real-time username availability & reservation check
+  useEffect(() => {
+    const raw = formData.username.trim();
+    if (!raw) {
+      setUsernameStatus({ checking: false, available: null, message: null });
+      return;
+    }
+
+    if (raw.length < 3) {
+      setUsernameStatus({
+        checking: false,
+        available: false,
+        message: t('username_too_short', 'Username must be at least 3 characters.')
+      });
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setUsernameStatus(prev => ({ ...prev, checking: true }));
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/auth/check-username/`, {
+          params: { username: raw.toLowerCase() }
+        });
+        setUsernameStatus({
+          checking: false,
+          available: res.data.available,
+          message: res.data.detail
+        });
+      } catch (err: any) {
+        setUsernameStatus({
+          checking: false,
+          available: false,
+          message: err.response?.data?.detail || 'Username validation error'
+        });
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [formData.username, t]);
 
   if (isAuthenticated) return <Navigate to="/" />;
 
@@ -49,6 +95,9 @@ const RegisterPage: React.FC = () => {
     e.preventDefault();
     if (formData.password !== formData.confirm_password) {
       return toast.error(t('passwords_dont_match', 'Passwords do not match'));
+    }
+    if (usernameStatus.available === false) {
+      return toast.error(usernameStatus.message || 'Please choose an available username');
     }
     if (!formData.terms_accepted) {
       return toast.error('You must agree to the Terms and Conditions and Privacy Policy');
@@ -190,17 +239,37 @@ const RegisterPage: React.FC = () => {
                   </div>
 
                   <form onSubmit={handleRegister} className="space-y-5">
-                    <FormField
-                      id="username"
-                      name="username"
-                      label={t('username')}
-                      type="text"
-                      required
-                      minLength={3}
-                      value={formData.username}
-                      onChange={handleChange}
-                      placeholder={t('username')}
-                    />
+                    <div>
+                      <FormField
+                        id="username"
+                        name="username"
+                        label={t('username')}
+                        type="text"
+                        required
+                        minLength={3}
+                        value={formData.username}
+                        onChange={handleChange}
+                        placeholder={t('username')}
+                      />
+                      {usernameStatus.checking && (
+                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
+                          <Loader2 size={13} className="animate-spin text-brand-500" />
+                          <span>Checking availability...</span>
+                        </div>
+                      )}
+                      {!usernameStatus.checking && usernameStatus.available === true && (
+                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                          <CheckCircle2 size={13} className="shrink-0" />
+                          <span>{usernameStatus.message || 'Username is available!'}</span>
+                        </div>
+                      )}
+                      {!usernameStatus.checking && usernameStatus.available === false && (
+                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-red-600 dark:text-red-400 font-medium">
+                          <AlertCircle size={13} className="shrink-0" />
+                          <span>{usernameStatus.message}</span>
+                        </div>
+                      )}
+                    </div>
 
                     <FormField
                       id="email"

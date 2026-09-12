@@ -22,7 +22,7 @@ from .models import (
     Notification, Conversation, Message, SavedSearch, PriceAlert,
     Dispute, DeliveryZone, SiteSettings, push_notification, ProductVariant,
     MobileNetwork, VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
-    Brand, ReferenceProduct, PasswordResetRequest
+    Brand, ReferenceProduct, PasswordResetRequest, ReservedUsername
 )
 from .serializers import (
     ProductSerializer, CategorySerializer, ProductReviewSerializer, 
@@ -31,7 +31,8 @@ from .serializers import (
     SavedSearchSerializer, PriceAlertSerializer, DisputeSerializer,
     SiteSettingsSerializer, DeliveryZoneSerializer, ProductVariantSerializer,
     MobileNetworkSerializer, VehicleMakeSerializer, VehicleModelSerializer, VehicleSerializer,
-    BrandSerializer, ReferenceProductSerializer, PasswordResetRequestStaffSerializer
+    BrandSerializer, ReferenceProductSerializer, PasswordResetRequestStaffSerializer,
+    ReservedUsernameSerializer
 )
 
 from uzachuo.permissions import IsOwnerOrStaff, IsStaffMember, IsSellerOrAbove, has_staff_permission, IsSuperUser
@@ -165,7 +166,7 @@ def geocode_search(request):
 
 @method_decorator(vary_on_headers('Authorization', 'Cookie'), name='list')
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all().prefetch_related('images', 'likes', 'fitments')
+    queryset = Product.objects.all().prefetch_related('images', 'likes', 'fitments', 'variants')
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
@@ -346,6 +347,15 @@ class ProductViewSet(viewsets.ModelViewSet):
         if ref_slug:
             queryset = queryset.filter(reference_product__slug=ref_slug)
 
+        exclude_param = self.request.query_params.get('exclude', None)
+        if exclude_param:
+            try:
+                exclude_ids = [int(x.strip()) for x in str(exclude_param).split(',') if x.strip().isdigit()]
+                if exclude_ids:
+                    queryset = queryset.exclude(id__in=exclude_ids)
+            except Exception:
+                pass
+
         # Dynamic Spec Filtering
         reserved_params = {
             'category', 'subcategory', 'q', 'min_price', 'max_price', 'condition', 'sort_by', 
@@ -354,7 +364,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             'limit', 'offset', 'cursor', 'ordering', 'format', 'search', 'vehicle_id',
             'make_id', 'model_id', 'year', 'oem_part_number', 'highlight', 't', '_', 'expand',
             'is_draft', 'include_unlisted', 'status', 'is_available', 'all', 'moderation',
-            'region', 'location_mode'
+            'region', 'location_mode', 'exclude'
         }
         for key, value in self.request.query_params.items():
             if key not in reserved_params and value and not key.startswith('_'):
@@ -373,11 +383,15 @@ class ProductViewSet(viewsets.ModelViewSet):
                 from functools import reduce
                 from django.db.models import Case, When, Value, IntegerField, FloatField
 
-                tokens = [t for t in re.split(r'[\s,\-_/]+', clean_query) if len(t) >= 1]
+                tokens = [t for t in re.split(r'[\s,\-_/.]+', clean_query) if len(t) >= 1]
                 
                 phrase_q = (
                     Q(name__icontains=clean_query) |
                     Q(sku__icontains=clean_query) |
+                    Q(specifications__oem_part_number__icontains=clean_query) |
+                    Q(specifications__part_number__icontains=clean_query) |
+                    Q(structured_specs__oem_part_number__icontains=clean_query) |
+                    Q(structured_specs__part_number__icontains=clean_query) |
                     Q(description__icontains=clean_query) |
                     Q(brand__name__icontains=clean_query) |
                     Q(category__name__icontains=clean_query)
@@ -388,18 +402,46 @@ class ProductViewSet(viewsets.ModelViewSet):
                     token_q_list.append(
                         Q(name__icontains=t) |
                         Q(sku__icontains=t) |
+                        Q(specifications__oem_part_number__icontains=t) |
+                        Q(specifications__part_number__icontains=t) |
+                        Q(structured_specs__oem_part_number__icontains=t) |
+                        Q(structured_specs__part_number__icontains=t) |
                         Q(brand__name__icontains=t) |
                         Q(category__name__icontains=t) |
                         Q(description__icontains=t)
                     )
                 all_tokens_q = reduce(operator.and_, token_q_list) if token_q_list else Q()
 
-                condensed = re.sub(r'[\s\-_]+', '', clean_query)
+                condensed = re.sub(r'[\s\-_/.]+', '', clean_query)
                 condensed_q = Q()
                 if len(condensed) >= 3 and condensed.lower() != clean_query.lower():
-                    condensed_q = Q(name__icontains=condensed) | Q(sku__icontains=condensed)
+                    condensed_q = (
+                        Q(name__icontains=condensed) |
+                        Q(sku__icontains=condensed) |
+                        Q(specifications__oem_part_number__icontains=condensed) |
+                        Q(specifications__part_number__icontains=condensed) |
+                        Q(structured_specs__oem_part_number__icontains=condensed) |
+                        Q(structured_specs__part_number__icontains=condensed)
+                    )
 
-                combined_filter = phrase_q | all_tokens_q | condensed_q
+                chunks = re.findall(r'[a-zA-Z]+|\d+', clean_query)
+                chunk_q = Q()
+                if len(chunks) > 1:
+                    chunk_conditions = []
+                    for ch in chunks:
+                        if len(ch) >= 2:
+                            chunk_conditions.append(
+                                Q(name__icontains=ch) |
+                                Q(sku__icontains=ch) |
+                                Q(specifications__oem_part_number__icontains=ch) |
+                                Q(specifications__part_number__icontains=ch) |
+                                Q(structured_specs__oem_part_number__icontains=ch) |
+                                Q(structured_specs__part_number__icontains=ch)
+                            )
+                    if chunk_conditions:
+                        chunk_q = reduce(operator.and_, chunk_conditions)
+
+                combined_filter = phrase_q | all_tokens_q | condensed_q | chunk_q
 
                 from django.db import connection
                 if connection.vendor == 'postgresql':
@@ -431,6 +473,16 @@ class ProductViewSet(viewsets.ModelViewSet):
                                 output_field=FloatField()
                             ) +
                             Case(
+                                When(specifications__oem_part_number__iexact=clean_query, then=Value(120.0)),
+                                When(sku__iexact=clean_query, then=Value(120.0)),
+                                When(specifications__part_number__iexact=clean_query, then=Value(120.0)),
+                                When(specifications__oem_part_number__icontains=clean_query, then=Value(80.0)),
+                                When(sku__icontains=clean_query, then=Value(80.0)),
+                                When(specifications__part_number__icontains=clean_query, then=Value(80.0)),
+                                default=Value(0.0),
+                                output_field=FloatField()
+                            ) +
+                            Case(
                                 When(search_rank__isnull=False, then=SearchRank(search_vector, combined_sq) * 20.0),
                                 default=Value(0.0),
                                 output_field=FloatField()
@@ -451,6 +503,16 @@ class ProductViewSet(viewsets.ModelViewSet):
                                 When(name__iexact=clean_query, then=Value(100)),
                                 When(name__istartswith=clean_query, then=Value(50)),
                                 When(name__icontains=clean_query, then=Value(30)),
+                                default=Value(0),
+                                output_field=IntegerField()
+                            ) +
+                            Case(
+                                When(specifications__oem_part_number__iexact=clean_query, then=Value(120)),
+                                When(sku__iexact=clean_query, then=Value(120)),
+                                When(specifications__part_number__iexact=clean_query, then=Value(120)),
+                                When(specifications__oem_part_number__icontains=clean_query, then=Value(80)),
+                                When(sku__icontains=clean_query, then=Value(80)),
+                                When(specifications__part_number__icontains=clean_query, then=Value(80)),
                                 default=Value(0),
                                 output_field=IntegerField()
                             ) +
@@ -498,8 +560,46 @@ class ProductViewSet(viewsets.ModelViewSet):
             
         oem_part_number = self.request.query_params.get('oem_part_number')
         if oem_part_number:
-            # PostgreSQL specific JSONB query for partial or exact match
-            queryset = queryset.filter(specifications__oem_part_number__iexact=oem_part_number)
+            clean_oem = oem_part_number.strip()
+            if clean_oem:
+                import re
+                condensed_oem = re.sub(r'[\s\-_/.]+', '', clean_oem)
+                chunks_oem = re.findall(r'[a-zA-Z]+|\d+', clean_oem)
+
+                oem_q = (
+                    Q(specifications__oem_part_number__icontains=clean_oem) |
+                    Q(specifications__part_number__icontains=clean_oem) |
+                    Q(structured_specs__oem_part_number__icontains=clean_oem) |
+                    Q(structured_specs__part_number__icontains=clean_oem) |
+                    Q(sku__icontains=clean_oem)
+                )
+
+                if len(condensed_oem) >= 2 and condensed_oem.lower() != clean_oem.lower():
+                    oem_q |= (
+                        Q(specifications__oem_part_number__icontains=condensed_oem) |
+                        Q(specifications__part_number__icontains=condensed_oem) |
+                        Q(structured_specs__oem_part_number__icontains=condensed_oem) |
+                        Q(structured_specs__part_number__icontains=condensed_oem) |
+                        Q(sku__icontains=condensed_oem)
+                    )
+
+                if len(chunks_oem) > 1:
+                    chunk_conditions = []
+                    for ch in chunks_oem:
+                        if len(ch) >= 2:
+                            chunk_conditions.append(
+                                Q(specifications__oem_part_number__icontains=ch) |
+                                Q(specifications__part_number__icontains=ch) |
+                                Q(structured_specs__oem_part_number__icontains=ch) |
+                                Q(structured_specs__part_number__icontains=ch) |
+                                Q(sku__icontains=ch)
+                            )
+                    if chunk_conditions:
+                        import operator
+                        from functools import reduce
+                        oem_q |= reduce(operator.and_, chunk_conditions)
+
+                queryset = queryset.filter(oem_q)
 
 
         # Phase 3: Spatial Awareness - Location Filtering
@@ -651,6 +751,70 @@ class ProductViewSet(viewsets.ModelViewSet):
             # but for now we'll just add new ones as per common MVP patterns
             for img in images:
                 ProductImage.objects.create(product=product, image=img)
+
+    def _get_similar_products(self, product, request, limit=12):
+        from .discovery_views import get_base_product_queryset
+        base_qs = get_base_product_queryset(request.user).exclude(id=product.id)
+
+        similar_products = []
+        if product.category:
+            cat_ids = list(product.category.get_descendants(include_self=True).values_list('id', flat=True))
+            same_cat = list(
+                base_qs.filter(category_id__in=cat_ids).order_by('-annotated_is_sponsored', '-created_at')[:limit]
+            )
+            similar_products.extend(same_cat)
+
+        if len(similar_products) < limit and product.category and product.category.parent:
+            parent_ids = list(product.category.parent.get_descendants(include_self=True).values_list('id', flat=True))
+            existing_ids = [product.id] + [x.id for x in similar_products]
+            needed = limit - len(similar_products)
+            parent_products = list(
+                base_qs.filter(category_id__in=parent_ids).exclude(id__in=existing_ids).order_by('-annotated_is_sponsored', '-created_at')[:needed]
+            )
+            similar_products.extend(parent_products)
+
+        if len(similar_products) < 6:
+            existing_ids = [product.id] + [x.id for x in similar_products]
+            needed = limit - len(similar_products)
+            fallback = list(
+                base_qs.exclude(id__in=existing_ids).order_by('-annotated_is_sponsored', '-created_at')[:needed]
+            )
+            similar_products.extend(fallback)
+
+        return similar_products
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+
+        # Preload similar products for instant display without extra client roundtrips
+        try:
+            similar_items = self._get_similar_products(instance, request, limit=12)
+            data['similar_products'] = ProductSerializer(
+                similar_items, many=True, context=self.get_serializer_context()
+            ).data
+            data['has_more_similar'] = len(similar_items) >= 12
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to preload similar products: %s", e)
+            data['similar_products'] = []
+            data['has_more_similar'] = False
+
+        return Response(data)
+
+    @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
+    def upload_content_image(self, request):
+        image_file = request.FILES.get('image')
+        if not image_file:
+            return Response({'error': 'No image file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        from django.core.files.storage import default_storage
+        import uuid
+        ext = image_file.name.split('.')[-1] if '.' in image_file.name else 'jpg'
+        filename = f"a_plus_content/{uuid.uuid4().hex[:12]}.{ext}"
+        saved_path = default_storage.save(filename, image_file)
+        url = default_storage.url(saved_path)
+        return Response({'url': url}, status=status.HTTP_201_CREATED)
 
     @decorators.action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsSellerOrAbove])
     def batch_upload(self, request):
@@ -1107,7 +1271,7 @@ class FAQViewSet(viewsets.ReadOnlyModelViewSet):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
     def get_queryset(self):
-        qs = FAQ.objects.filter(is_published=True)
+        qs = FAQ.objects.filter(is_published=True).order_by('-is_pinned', 'order', 'id')
         cat = self.request.query_params.get('category')
         if cat: qs = qs.filter(category=cat)
         q = self.request.query_params.get('q')
@@ -2386,8 +2550,8 @@ class CommentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         product_id = self.request.query_params.get('product', None)
         if product_id:
-            return ProductComment.objects.filter(product_id=product_id)
-        return ProductComment.objects.all()
+            return ProductComment.objects.filter(product_id=product_id).order_by('-created_at')
+        return ProductComment.objects.all().order_by('-created_at')
 
     def get_permissions(self):  # FIX: L-07
         if self.action in ['update', 'partial_update', 'destroy']:
@@ -2824,31 +2988,146 @@ class RequestPasswordChangeView(APIView):
 ChangePasswordView = RequestPasswordChangeView
 
 
+def normalize_email_for_rate_limit(email: str) -> str:
+    """
+    Normalizes email address for consistent rate limit tracking.
+    Prevents evasion via dot-trick or plus-addressing for providers like Gmail.
+    """
+    email = email.strip().lower()
+    if '@' not in email:
+        return email
+    local, domain = email.split('@', 1)
+    if domain in ['gmail.com', 'googlemail.com']:
+        local = local.split('+')[0]
+        local = local.replace('.', '')
+    elif '+' in local:
+        local = local.split('+')[0]
+    return f"{local}@{domain}"
+
+
+def format_retry_after(seconds: int) -> str:
+    """Human-friendly duration for retry-after message."""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    if hours > 0 and minutes > 0:
+        return f"{hours} hour{'s' if hours > 1 else ''} and {minutes} minute{'s' if minutes > 1 else ''}"
+    elif hours > 0:
+        return f"{hours} hour{'s' if hours > 1 else ''}"
+    elif minutes > 0:
+        return f"{minutes} minute{'s' if minutes > 1 else ''}"
+    else:
+        return "1 minute"
+
+
 class ForgotPasswordRequestView(APIView):
     """
     Public endpoint: User submits registered email.
-    If valid user exists, creates an admin-mediated password reset request.
-    Uniform response to prevent email harvesting.
+    Strictly rate limited to 3 requests per 24 hours per email address.
+    Secondary guard: max 10 requests per 24 hours per client IP to prevent mass spraying.
+    Provides remaining attempts feedback and retry-after cooldown on exhaustion.
+    Anti-enumeration: uniform response whether the email exists in the database or not.
     """
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [ForgotPasswordRateThrottle]
+
+    MAX_DAILY_REQUESTS = 3
+    RATE_LIMIT_WINDOW = 86400  # 24 hours in seconds
 
     def post(self, request):
-        email = (request.data.get('email') or '').strip().lower()
-        if not email:
-            return Response({'error': 'Please provide your registered email address.'}, status=400)
+        import hashlib
+        import time
+        from django.core.cache import cache
 
-        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        raw_email = (request.data.get('email') or '').strip()
+        if not raw_email or '@' not in raw_email:
+            return Response({'error': 'Please provide a valid email address.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        norm_email = normalize_email_for_rate_limit(raw_email)
+        email_hash = hashlib.sha256(norm_email.encode('utf-8')).hexdigest()[:32]
+
+        # IP address extraction (leftmost IP from X-Forwarded-For if behind reverse proxy)
+        xff = request.META.get('HTTP_X_FORWARDED_FOR')
+        client_ip = xff.split(',')[0].strip() if xff else (request.META.get('REMOTE_ADDR') or '127.0.0.1')
+        ip_hash = hashlib.sha256(client_ip.encode('utf-8')).hexdigest()[:16]
+
+        email_cache_key = f"pwd_reset_rate:email:{email_hash}"
+        ip_cache_key = f"pwd_reset_rate:ip:{ip_hash}"
+
+        now = time.time()
+
+        # 1. IP-level rate limiting (max 10 requests per 24h per IP to prevent spraying)
+        ip_data = cache.get(ip_cache_key)
+        if ip_data and ip_data.get('count', 0) >= 10:
+            retry_after = max(1, int(ip_data.get('reset_at', now + self.RATE_LIMIT_WINDOW) - now))
+            formatted = format_retry_after(retry_after)
+            resp = Response({
+                'error': f'Too many reset requests from this network. Please try again in {formatted}.',
+                'retry_after_seconds': retry_after,
+                'retry_after_formatted': formatted,
+                'attempts_left': 0,
+                'max_attempts': self.MAX_DAILY_REQUESTS,
+            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            resp['Retry-After'] = str(retry_after)
+            return resp
+
+        # 2. Email-level rate limiting (max 3 requests per 24h per email)
+        email_data = cache.get(email_cache_key)
+
+        # Check DB persistent requests for registered users in last 24h
+        user = User.objects.filter(email__iexact=raw_email, is_active=True).first()
+        db_count = 0
         if user:
-            # Supersede prior pending requests
+            one_day_ago = timezone.now() - timedelta(seconds=self.RATE_LIMIT_WINDOW)
+            db_count = PasswordResetRequest.objects.filter(
+                user=user,
+                request_type='forgot_password',
+                created_at__gte=one_day_ago
+            ).count()
+
+        cached_count = email_data.get('count', 0) if email_data else 0
+        current_count = max(cached_count, db_count)
+
+        if current_count >= self.MAX_DAILY_REQUESTS:
+            reset_at = email_data.get('reset_at', now + self.RATE_LIMIT_WINDOW) if email_data else (now + self.RATE_LIMIT_WINDOW)
+            retry_after = max(1, int(reset_at - now))
+            formatted = format_retry_after(retry_after)
+            resp = Response({
+                'error': f'Daily limit reached. You have requested a password reset 3 times today. Please try again in {formatted}.',
+                'retry_after_seconds': retry_after,
+                'retry_after_formatted': formatted,
+                'attempts_left': 0,
+                'max_attempts': self.MAX_DAILY_REQUESTS,
+            }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            resp['Retry-After'] = str(retry_after)
+            return resp
+
+        # Increment count
+        new_count = current_count + 1
+        attempts_left = self.MAX_DAILY_REQUESTS - new_count
+
+        if email_data:
+            reset_at = email_data.get('reset_at', now + self.RATE_LIMIT_WINDOW)
+            ttl = max(1, int(reset_at - now))
+            cache.set(email_cache_key, {'count': new_count, 'reset_at': reset_at}, timeout=ttl)
+        else:
+            reset_at = now + self.RATE_LIMIT_WINDOW
+            cache.set(email_cache_key, {'count': new_count, 'reset_at': reset_at}, timeout=self.RATE_LIMIT_WINDOW)
+
+        # Increment IP cache
+        if ip_data:
+            ip_ttl = max(1, int(ip_data.get('reset_at', now + self.RATE_LIMIT_WINDOW) - now))
+            cache.set(ip_cache_key, {'count': ip_data.get('count', 0) + 1, 'reset_at': ip_data.get('reset_at')}, timeout=ip_ttl)
+        else:
+            cache.set(ip_cache_key, {'count': 1, 'reset_at': now + self.RATE_LIMIT_WINDOW}, timeout=self.RATE_LIMIT_WINDOW)
+
+        # If user exists, create PasswordResetRequest
+        if user:
             PasswordResetRequest.objects.filter(
                 user=user,
                 status__in=['pending', 'dispatched']
             ).update(status='superseded')
 
             token = secrets.token_urlsafe(48)
-            ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR')
             user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
 
             PasswordResetRequest.objects.create(
@@ -2857,15 +3136,24 @@ class ForgotPasswordRequestView(APIView):
                 token=token,
                 status='pending',
                 expires_at=timezone.now() + timedelta(hours=24),
-                ip_address=ip,
+                ip_address=client_ip,
                 user_agent=user_agent
             )
 
-        # Anti-enumeration response: uniform message
-        return Response({
+        # Anti-enumeration response: uniform message for registered and unregistered accounts
+        res_data = {
             'status': 'submitted',
-            'message': 'If an account exists with this email address, our administrative team will review the request and dispatch a secure one-time reset link to your inbox.'
-        })
+            'attempts_made': new_count,
+            'attempts_left': attempts_left,
+            'max_attempts': self.MAX_DAILY_REQUESTS,
+            'message': 'If an active account is associated with this email, a reset link will be sent to your inbox.'
+        }
+        if attempts_left == 1:
+            res_data['warning'] = 'You have 1 attempt remaining today.'
+        elif attempts_left == 0:
+            res_data['warning'] = 'This was your final attempt for today.'
+
+        return Response(res_data, status=status.HTTP_200_OK)
 
 
 class VerifyResetTokenView(APIView):
@@ -3026,10 +3314,118 @@ class PasswordResetRequestStaffViewSet(viewsets.ReadOnlyModelViewSet):
         })
 
 
+class CheckUsernameView(APIView):
+    """
+    Public rate-limited endpoint for real-time username availability and validation.
+    Used by registration forms and profile username editors.
+    GET /api/auth/check-username/?username=candidate
+    """
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        raw_username = request.query_params.get('username', '')
+        if not raw_username:
+            return Response({
+                'available': False,
+                'detail': 'Username parameter is required.',
+                'code': 'missing_param'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        from .username_rules import validate_username_availability, canonicalize_username
+        c_user = canonicalize_username(raw_username)
+        is_avail, err_msg, code, meta = validate_username_availability(
+            c_user, 
+            requesting_user=request.user if request.user.is_authenticated else None,
+            check_db=True
+        )
+
+        return Response({
+            'available': is_avail,
+            'username': c_user,
+            'detail': err_msg if not is_avail else 'Username is available.',
+            'code': code or 'available',
+            'tier': meta.get('tier')
+        }, status=status.HTTP_200_OK)
+
+
+class ReservedUsernameStaffViewSet(viewsets.ModelViewSet):
+    """
+    Superuser and Staff administration endpoint for managing reserved usernames.
+    Provides full CRUD, category filtering, user assignment, summary stats,
+    and a live testing sandbox for admins.
+    """
+    permission_classes = [permissions.IsAuthenticated, (IsStaffMember | IsSuperUser)]
+    serializer_class = ReservedUsernameSerializer
+    queryset = ReservedUsername.objects.all().select_related('reserved_for').order_by('username')
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        category = self.request.query_params.get('category')
+        if category and category != 'all':
+            qs = qs.filter(category=category)
+
+        is_active = self.request.query_params.get('is_active')
+        if is_active in ['true', '1']:
+            qs = qs.filter(is_active=True)
+        elif is_active in ['false', '0']:
+            qs = qs.filter(is_active=False)
+
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(username__icontains=search) |
+                Q(reason__icontains=search) |
+                Q(reserved_for__username__icontains=search)
+            )
+        return qs
+
+    @action(detail=False, methods=['get'], url_path='stats')
+    def stats(self, request):
+        total = ReservedUsername.objects.count()
+        active = ReservedUsername.objects.filter(is_active=True).count()
+        cats = dict(
+            ReservedUsername.objects.values('category').annotate(c=Count('id')).values_list('category', 'c')
+        )
+        return Response({
+            'total': total,
+            'active': active,
+            'inactive': total - active,
+            'by_category': cats
+        })
+
+    @action(detail=False, methods=['post'], url_path='test')
+    def test_username(self, request):
+        candidate = request.data.get('username', '')
+        if not candidate:
+            return Response({'error': 'Please provide a username to test.'}, status=400)
+        
+        from .username_rules import validate_username_availability, canonicalize_username
+        c_user = canonicalize_username(candidate)
+        is_avail, err_msg, code, meta = validate_username_availability(
+            c_user,
+            requesting_user=None,
+            check_db=True
+        )
+        if not is_avail and meta.get('tier') != 'format':
+            rule_info = meta.get('matched') or meta.get('reason') or meta.get('tier')
+            admin_detail = f"Blocked by reserved rule ({meta.get('tier')}: {rule_info}). Public users see: '{err_msg}'"
+        else:
+            admin_detail = err_msg or 'Username passes all format and reservation checks!'
+
+        return Response({
+            'candidate': candidate,
+            'canonical': c_user,
+            'available': is_avail,
+            'detail': admin_detail,
+            'code': code or 'available',
+            'metadata': meta
+        })
+
+
 class RegisterView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []
     throttle_classes = [RegisterRateThrottle]  # FIX D-07
 
     def post(self, request):
@@ -3045,8 +3441,14 @@ class RegisterView(APIView):
             return Response({'detail': 'Username, email and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
         if password != confirm_password:
             return Response({'detail': 'Passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
-        if User.objects.filter(username=username).exists():
-            return Response({'detail': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate username rules & availability (case-insensitive + reserved words + format)
+        from .username_rules import validate_username_availability, canonicalize_username
+        clean_username = canonicalize_username(username)
+        is_avail, err_msg, code, meta = validate_username_availability(clean_username, check_db=True)
+        if not is_avail:
+            return Response({'detail': err_msg or 'Username is not available.'}, status=status.HTTP_400_BAD_REQUEST)
+
         if User.objects.filter(email=email).exists():
             return Response({'detail': 'An account with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -3057,7 +3459,7 @@ class RegisterView(APIView):
             return Response({'detail': err_msg}, status=status.HTTP_400_BAD_REQUEST)
 
         user = User.objects.create_user(
-            username=username, 
+            username=clean_username, 
             email=email, 
             password=password,
             first_name=first_name or '',
@@ -3304,14 +3706,26 @@ class SponsoredListingViewSet(viewsets.ModelViewSet):
                     qs = qs.filter(product__category__slug=category_slug)
             
             if query:
+                clean_q = query.strip()
                 from django.db import connection
                 if connection.vendor == 'postgresql':
                     from django.contrib.postgres.search import SearchVector, SearchQuery
                     search_vector = SearchVector('product__name', weight='A') + SearchVector('product__description', weight='B')
-                    search_query = SearchQuery(query, search_type='websearch')
-                    qs = qs.annotate(search=search_vector).filter(search=search_query)
+                    search_query = SearchQuery(clean_q, search_type='websearch')
+                    qs = qs.annotate(search=search_vector).filter(
+                        django_models.Q(search=search_query) |
+                        django_models.Q(product__specifications__oem_part_number__icontains=clean_q) |
+                        django_models.Q(product__specifications__part_number__icontains=clean_q) |
+                        django_models.Q(product__sku__icontains=clean_q)
+                    )
                 else:
-                    qs = qs.filter(django_models.Q(product__name__icontains=query) | django_models.Q(product__description__icontains=query))
+                    qs = qs.filter(
+                        django_models.Q(product__name__icontains=clean_q) |
+                        django_models.Q(product__description__icontains=clean_q) |
+                        django_models.Q(product__specifications__oem_part_number__icontains=clean_q) |
+                        django_models.Q(product__specifications__part_number__icontains=clean_q) |
+                        django_models.Q(product__sku__icontains=clean_q)
+                    )
 
             return qs.order_by('-created_at')
 
@@ -3746,10 +4160,24 @@ class DeliveryZoneViewSet(viewsets.ModelViewSet):
 
 # ─── FIX B-18: Site Settings View ───────────────────────────────
 class SiteSettingsView(APIView):
-    authentication_classes = []
-    permission_classes = [permissions.AllowAny]
+    def get_permissions(self):
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated(), (IsStaffMember | IsSuperUser)()]
+
     def get(self, request):
         return Response(SiteSettingsSerializer(SiteSettings.get(), context={'request': request}).data)
+
+    def patch(self, request):
+        settings_obj = SiteSettings.get()
+        serializer = SiteSettingsSerializer(settings_obj, data=request.data, partial=True, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        return self.patch(request)
 
 
 # ─── FIX HIGH-04: ProductVariantViewSet ──────────────────────────────
@@ -4170,6 +4598,43 @@ class SellerApplicationViewSet(viewsets.ModelViewSet):
             return Response({'status': 'none'}, status=200)
         serializer = self.get_serializer(application)
         return Response(serializer.data)
+
+
+class SellerSiteVisitViewSet(viewsets.ReadOnlyModelViewSet):
+    from .models import SellerSiteVisit
+    from .serializers import SellerSiteVisitSerializer
+    serializer_class = SellerSiteVisitSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        from .models import SellerSiteVisit
+        return SellerSiteVisit.objects.filter(user=self.request.user).order_by('-created_at')
+
+    @decorators.action(detail=False, methods=['get'], url_path='my-status')
+    def my_status(self, request):
+        site_visit = self.get_queryset().first()
+        profile = getattr(request.user, 'profile', None)
+        is_location_verified = bool(profile and profile.is_location_verified)
+        is_seller = bool(getattr(request.user, 'is_seller', False) or (profile and profile.tier in ['seller_pro', 'business']))
+
+        if not site_visit:
+            return Response({
+                'has_site_visit': False,
+                'status': 'approved' if (is_location_verified or is_seller) else 'none',
+                'is_location_verified': is_location_verified,
+                'can_upgrade': is_location_verified or is_seller,
+                'site_visit': None,
+            })
+
+        can_upgrade = (site_visit.status == 'approved') or is_location_verified or is_seller
+        serializer = self.get_serializer(site_visit)
+        return Response({
+            'has_site_visit': True,
+            'status': site_visit.status,
+            'is_location_verified': is_location_verified,
+            'can_upgrade': can_upgrade,
+            'site_visit': serializer.data,
+        })
 
 
 class TeamRolePresetsView(APIView):

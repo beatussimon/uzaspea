@@ -3,6 +3,8 @@ import api from '../../api';
 import { apiCache } from '../../utils/apiCache';
 import { useUserLocation } from '../../context/LocationContext';
 import DiscoveryShelf from './DiscoveryShelf';
+import NetworkErrorState from '../common/NetworkErrorState';
+import { classifyApiError, ClassifiedError } from '../../utils/errorUtils';
 
 interface SectionData {
   id: string;
@@ -83,8 +85,10 @@ export const DiscoveryFeed: React.FC = () => {
     return [];
   });
   const [loading, setLoading] = useState<boolean>(() => sections.length === 0);
+  const [feedError, setFeedError] = useState<ClassifiedError | null>(null);
 
   const fetchDiscoveryFeed = useCallback((activeGender: 'female' | 'male') => {
+    setFeedError(null);
     const key = `discovery:feed:${activeGender}:${locScope}`;
     const cached = apiCache.get<any>(key);
     if (cached && Array.isArray(cached.data?.sections)) {
@@ -114,9 +118,11 @@ export const DiscoveryFeed: React.FC = () => {
         if (Array.isArray(res.data?.sections)) {
           setSections(res.data.sections);
         }
+        setFeedError(null);
       })
-      .catch(() => {
-        // Keep existing sections or empty
+      .catch((err) => {
+        const classified = classifyApiError(err);
+        setFeedError(classified);
       })
       .finally(() => {
         setLoading(false);
@@ -127,8 +133,28 @@ export const DiscoveryFeed: React.FC = () => {
     fetchDiscoveryFeed(gender);
   }, [fetchDiscoveryFeed, gender]);
 
+  if (feedError && sections.length === 0) {
+    return (
+      <div className="w-full py-6 sm:py-8">
+        <NetworkErrorState
+          error={feedError}
+          onRetry={() => fetchDiscoveryFeed(gender)}
+          isRetrying={loading}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full space-y-2 sm:space-y-3 md:space-y-4">
+      {feedError && sections.length > 0 && (
+        <NetworkErrorState
+          compact
+          error={feedError}
+          onRetry={() => fetchDiscoveryFeed(gender)}
+          isRetrying={loading}
+        />
+      )}
       {/* Discovery Sections */}
       {loading && sections.length === 0 ? (
         DEFAULT_PREVIEW_SECTIONS.map((section) => (

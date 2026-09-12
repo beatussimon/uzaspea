@@ -406,7 +406,7 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
           </div>
         ) : (
           <div className="p-4 sm:p-0 bg-gray-50 dark:bg-neutral-900/35 rounded-3xl border border-gray-100 dark:border-neutral-900/50 sm:bg-transparent sm:border-0 sm:rounded-none overflow-hidden">
-            <div className="grid grid-rows-[repeat(2,auto)] grid-flow-col gap-3 sm:gap-4 md:gap-5 overflow-x-auto no-scrollbar pb-1.5 pt-0.5 auto-cols-[100%] sm:auto-cols-[calc((100%-16px)/2)] lg:auto-cols-[calc((100%-40px)/3)] xl:auto-cols-[calc((100%-60px)/4)] 2xl:auto-cols-[calc((100%-80px)/5)]">
+            <div className="grid grid-rows-[repeat(2,auto)] grid-flow-col gap-3 sm:gap-4 md:gap-5 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1.5 pt-0.5 auto-cols-[100%] sm:auto-cols-[calc((100%-16px)/2)] lg:auto-cols-[calc((100%-40px)/3)] xl:auto-cols-[calc((100%-60px)/4)] 2xl:auto-cols-[calc((100%-80px)/5)] touch-pan-y overscroll-x-contain">
               {[...Array(10)].map((_, i) => (
                 <div key={i} className="w-full snap-start h-full">
                   <ProductCardSkeleton viewMode="grid" />
@@ -430,7 +430,7 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
             onTouchStart={pauseAutoScrollTemporarily}
             onTouchMove={pauseAutoScrollTemporarily}
             onWheel={handleWheel}
-            className="grid grid-rows-[repeat(2,auto)] grid-flow-col gap-3 sm:gap-4 md:gap-5 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1.5 pt-0.5 auto-cols-[100%] sm:auto-cols-[calc((100%-16px)/2)] lg:auto-cols-[calc((100%-40px)/3)] xl:auto-cols-[calc((100%-60px)/4)] 2xl:auto-cols-[calc((100%-80px)/5)]"
+            className="grid grid-rows-[repeat(2,auto)] grid-flow-col gap-3 sm:gap-4 md:gap-5 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1.5 pt-0.5 auto-cols-[100%] sm:auto-cols-[calc((100%-16px)/2)] lg:auto-cols-[calc((100%-40px)/3)] xl:auto-cols-[calc((100%-60px)/4)] 2xl:auto-cols-[calc((100%-80px)/5)] touch-pan-y overscroll-x-contain"
           >
             {displayProducts.map((product, idx) => (
               <div

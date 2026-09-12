@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
 
@@ -41,6 +41,7 @@ interface LocationContextType {
   updateSearchLocation: (locationName: string, coords: UserCoords | null, radius: number | null, region?: string | null) => void;
   setNearMe: () => Promise<boolean>;
   setNationwide: () => void;
+  ensureLocation: () => Promise<UserCoords | null>;
 }
 
 const STORAGE_KEY = 'uzaspea_user_location';
@@ -83,11 +84,8 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (saved) return 'granted';
       const dismissed = localStorage.getItem(DISMISSED_KEY);
       if (dismissed) {
-        const timestamp = parseInt(dismissed, 10);
-        // Cooldown for 3 days
-        if (Date.now() - timestamp < 3 * 24 * 60 * 60 * 1000) {
-          return 'dismissed';
-        }
+        // Once dismissed, do not reprompt automatically
+        return 'dismissed';
       }
     } catch {}
     return 'prompt';
@@ -225,12 +223,78 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   }, []);
 
+  // Synchronize with browser permissions API on mount (silently cache if already granted, never prompt if denied)
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'permissions' in navigator && navigator.permissions?.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then((status) => {
+        if (status.state === 'granted') {
+          setPermission('granted');
+          if (!location.coords) {
+            navigator.geolocation.getCurrentPosition(
+              async (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const geoDetails = await reverseGeocode(lat, lng);
+                const newLocation: UserLocationData = {
+                  coords: { lat, lng },
+                  address: geoDetails.address || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+                  city: geoDetails.city || 'Dar es Salaam',
+                  region: geoDetails.region || 'Dar es Salaam',
+                  district: geoDetails.district || null,
+                };
+                setLocation(newLocation);
+                try {
+                  localStorage.setItem(STORAGE_KEY, JSON.stringify(newLocation));
+                  localStorage.removeItem(DISMISSED_KEY);
+                } catch {}
+              },
+              () => {},
+              { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
+            );
+          }
+        } else if (status.state === 'denied') {
+          setPermission('denied');
+        }
+
+        status.onchange = () => {
+          if (status.state === 'granted') setPermission('granted');
+          else if (status.state === 'denied') setPermission('denied');
+        };
+      }).catch(() => {});
+    }
+  }, []);
+
   const dismissPrompt = useCallback(() => {
     setPermission('dismissed');
     try {
-      localStorage.setItem(DISMISSED_KEY, Date.now().toString());
+      localStorage.setItem(DISMISSED_KEY, 'permanently_dismissed');
     } catch {}
   }, []);
+
+  const ensureLocation = useCallback(async (): Promise<UserCoords | null> => {
+    if (location.coords) return location.coords;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.coords) {
+          setLocation(parsed);
+          setPermission('granted');
+          return parsed.coords;
+        }
+      }
+    } catch {}
+
+    const ok = await requestLocation();
+    if (ok) {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.coords || null;
+      }
+    }
+    return null;
+  }, [location.coords, requestLocation]);
 
   const setNearMe = useCallback(async (): Promise<boolean> => {
     let currentCoords = location.coords;
@@ -305,6 +369,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         isLocating,
         requestLocation,
         dismissPrompt,
+        ensureLocation,
         setManualLocation,
         calculateDistance,
         searchPrefs,

@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { useUserRoles } from '../../context/AuthContext';
 
 const Footer = () => {
   const { t } = useTranslation();
+  const roles = useUserRoles();
   const [expanded, setExpanded] = useState(false);
   const [settings, setSettings] = useState<any>({});
 
@@ -67,7 +69,7 @@ const Footer = () => {
             <ul className="space-y-2">
               <li><Link to="/help" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">{t('help_center_faq', 'Help Center & FAQ')}</Link></li>
               <li><Link to="/orders" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">{t('track_my_order', 'Track My Order')}</Link></li>
-              <li><Link to="/upgrade" className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">{t('become_a_pro_seller', 'Become a Pro Seller')}</Link></li>
+              <li><Link to={roles.isPureCustomer ? "/help?tab=site-verification" : "/upgrade"} className="text-xs text-gray-500 dark:text-gray-400 hover:text-brand-500 dark:hover:text-brand-500 transition">{t('become_a_pro_seller', 'Become a Pro Seller')}</Link></li>
             </ul>
           </div>
           
