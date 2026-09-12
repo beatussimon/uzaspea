@@ -563,6 +563,15 @@ const MessagesPage: React.FC = () => {
   // Mobile layout condition
   const isMobileThreadActive = !!id;
 
+  const handleExitMessages = () => {
+    const lastPath = sessionStorage.getItem('lastNonMessagesPath');
+    if (lastPath && !lastPath.startsWith('/messages')) {
+      navigate(lastPath, { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  };
+
   return (
     <div className="h-[calc(100dvh-4rem)] md:h-[calc(100vh-6.5rem)] flex flex-col w-full max-w-full overflow-hidden">
       <div className="flex-1 flex overflow-hidden min-h-0 min-w-0 relative w-full">
@@ -573,13 +582,16 @@ const MessagesPage: React.FC = () => {
             {viewMode === 'main' ? (
               <div className="flex items-center gap-2.5">
                 <button 
-                  onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
-                  className="md:hidden p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-300 transition-colors"
+                  onClick={handleExitMessages}
+                  className="md:hidden flex items-center gap-2 p-1.5 -ml-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-900 dark:text-white transition-colors cursor-pointer group"
                   title="Back"
                 >
-                  <ArrowLeft size={18} />
+                  <ArrowLeft size={18} className="text-gray-600 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                  <h1 className="text-xl font-extrabold tracking-tight">
+                    {t('chats')}
+                  </h1>
                 </button>
-                <h1 className="text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+                <h1 className="hidden md:block text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">
                   {t('chats')}
                 </h1>
               </div>
@@ -587,13 +599,13 @@ const MessagesPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setViewMode('main')}
-                  className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-300 transition-colors"
+                  className="flex items-center gap-2 p-1.5 -ml-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-900 dark:text-white transition-colors cursor-pointer group"
                 >
-                  <ArrowLeft size={18} />
+                  <ArrowLeft size={18} className="text-gray-600 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                  <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
+                    Sokoni Leo
+                  </h1>
                 </button>
-                <h1 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
-                  Sokoni Leo
-                </h1>
               </div>
             )}
 
@@ -790,8 +802,12 @@ const MessagesPage: React.FC = () => {
                 <div className="flex items-center gap-3.5 min-w-0">
                   {/* Mobile Back Button */}
                   <button 
-                    onClick={() => navigate('/messages')} 
-                    className="md:hidden p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-600 dark:text-gray-300 transition-colors"
+                    onClick={() => {
+                      setActiveConversationId(null);
+                      navigate('/messages', { replace: true });
+                    }} 
+                    className="md:hidden p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-900 text-gray-600 dark:text-gray-300 transition-colors cursor-pointer"
+                    title="Back to Chats"
                   >
                     <ArrowLeft size={18} />
                   </button>

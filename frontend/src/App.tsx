@@ -160,6 +160,12 @@ function AppLayout() {
     return cleanup;
   }, []);
 
+  useEffect(() => {
+    if (!location.pathname.startsWith('/messages') && location.pathname !== '/login' && location.pathname !== '/register') {
+      sessionStorage.setItem('lastNonMessagesPath', location.pathname + location.search);
+    }
+  }, [location.pathname, location.search]);
+
   return (
     <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300 w-full max-w-full overflow-x-hidden">
       <NetworkStatusBanner />

@@ -6,7 +6,7 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 
 const ForgotPasswordPage: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
@@ -14,16 +14,16 @@ const ForgotPasswordPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = email.trim();
-    if (!cleanEmail) {
-      toast.error('Please enter your email address');
+    const cleanIdent = identifier.trim();
+    if (!cleanIdent) {
+      toast.error('Please enter your email address or username');
       return;
     }
 
     setLoading(true);
     setRateLimitError(null);
     try {
-      const res = await api.post('/api/auth/forgot-password/', { email: cleanEmail });
+      const res = await api.post('/api/auth/forgot-password/', { email: cleanIdent, identifier: cleanIdent });
       setSubmitted(true);
       if (typeof res.data?.attempts_left === 'number') {
         setAttemptsLeft(res.data.attempts_left);
@@ -63,7 +63,7 @@ const ForgotPasswordPage: React.FC = () => {
                 Reset Password
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Enter your email address to receive a password reset link.
+                Enter your registered email address or username to receive a password reset link.
               </p>
             </div>
 
@@ -76,16 +76,16 @@ const ForgotPasswordPage: React.FC = () => {
               )}
 
               <div className="space-y-1.5">
-                <label htmlFor="email" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Email Address
+                <label htmlFor="identifier" className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Email Address or Username
                 </label>
                 <input
-                  id="email"
-                  type="email"
+                  id="identifier"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setRateLimitError(null); }}
-                  placeholder="name@example.com"
+                  value={identifier}
+                  onChange={(e) => { setIdentifier(e.target.value); setRateLimitError(null); }}
+                  placeholder="name@example.com or @username"
                   className="flex h-10 w-full rounded-btn border border-surface-border bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all duration-200 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 dark:border-surface-dark-border dark:bg-[#111] dark:text-white"
                 />
               </div>
@@ -110,7 +110,7 @@ const ForgotPasswordPage: React.FC = () => {
                 Request Received
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                If an active account is associated with <span className="font-semibold text-gray-900 dark:text-white">{email}</span>, a reset link will be sent to your inbox. Please check your spam folder if it doesn't appear shortly.
+                If an active account is associated with <span className="font-semibold text-gray-900 dark:text-white">{identifier}</span>, a reset link will be dispatched by an administrator to your registered contact channel.
               </p>
             </div>
 
@@ -134,13 +134,13 @@ const ForgotPasswordPage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setSubmitted(false);
-                  setEmail('');
+                  setIdentifier('');
                   setAttemptsLeft(null);
                   setRateLimitError(null);
                 }}
                 className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 py-1 transition"
               >
-                Try another email address
+                Try another email or username
               </button>
             </div>
           </div>
