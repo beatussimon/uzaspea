@@ -6,7 +6,8 @@ import {
   UserPlus, Building2, Briefcase,
   CreditCard, Layers,
   ChevronLeft, ChevronRight, Search, Check, X,
-  ArrowUpRight, BarChart2, DollarSign, KeyRound
+  ArrowUpRight, BarChart2, DollarSign, KeyRound, ShieldAlert,
+  Headphones
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import api from '../../api';
@@ -25,6 +26,8 @@ import {
 import SystemPaymentMethodsManager from './SystemPaymentMethodsManager';
 import CatalogModerationManager from './CatalogModerationManager';
 import PasswordChangeRequestsManager from './PasswordChangeRequestsManager';
+import ReservedUsernamesManager from './ReservedUsernamesManager';
+import PlatformContactSettingsManager from './PlatformContactSettingsManager';
 
 // ============ Types ============
 interface Staffer {
@@ -1103,6 +1106,8 @@ const StaffAdminLayout: React.FC = () => {
     { path: '/staff-admin/audit', label: 'Audit Logs', icon: ScrollText },
     { path: '/staff-admin/payment-methods', label: 'Payment Channels', icon: CreditCard },
     { path: '/staff-admin/catalog-moderation', label: 'Brand & Catalog', icon: Layers },
+    { path: '/staff-admin/reserved-usernames', label: 'Reserved Usernames', icon: ShieldAlert },
+    { path: '/staff-admin/contact-settings', label: 'Contact & Socials', icon: Headphones },
     { path: '/staff', label: 'Staff Operations', icon: ArrowUpRight },
   ];
 
@@ -1159,6 +1164,8 @@ const StaffAdminLayout: React.FC = () => {
             <Route path="audit" element={<AuditLogViewer />} />
             <Route path="payment-methods" element={<SystemPaymentMethodsManager />} />
             <Route path="catalog-moderation" element={<CatalogModerationManager />} />
+            <Route path="reserved-usernames" element={<ReservedUsernamesManager />} />
+            <Route path="contact-settings" element={<PlatformContactSettingsManager />} />
           </Routes>
         </main>
       </div>

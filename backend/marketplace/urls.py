@@ -13,11 +13,12 @@ from .api_views import (
     SavedSearchViewSet, PriceAlertViewSet, DisputeViewSet,
     DeliveryZoneViewSet, SiteSettingsView, ProductVariantViewSet,
     MobileNetworkViewSet, TrendingAnalyticsView, reverse_geocode, tanzania_regions, geocode_search,
-    SubscriptionTierViewSet, UserPaymentConfirmationViewSet, SellerApplicationViewSet,
+    SubscriptionTierViewSet, UserPaymentConfirmationViewSet, SellerApplicationViewSet, SellerSiteVisitViewSet,
     TeamMemberViewSet, UserSubscriptionViewSet, TeamRolePresetsView, PromoCodeViewSet,
     ProductRequestViewSet, SellerAnalyticsView,
     VehicleMakeViewSet, VehicleModelViewSet, VehicleViewSet,
-    BrandViewSet, ReferenceProductViewSet
+    BrandViewSet, ReferenceProductViewSet,
+    ReservedUsernameStaffViewSet, CheckUsernameView
 )
 
 from .discovery_views import DiscoveryFeedView, CategoryRecommendationsView
@@ -44,6 +45,7 @@ router.register(r'support-tickets', SupportTicketViewSet, basename='support-tick
 router.register(r'subscription-tiers', SubscriptionTierViewSet, basename='subscription-tier')
 router.register(r'subscription-payments', UserPaymentConfirmationViewSet, basename='subscription-payment')
 router.register(r'seller-applications', SellerApplicationViewSet, basename='seller-application')
+router.register(r'seller-site-visits', SellerSiteVisitViewSet, basename='seller-site-visit')
 router.register(r'team-members', TeamMemberViewSet, basename='team-member')
 router.register(r'subscriptions', UserSubscriptionViewSet, basename='subscription')
 router.register(r'promo-codes', PromoCodeViewSet, basename='promo-code')
@@ -56,12 +58,14 @@ router.register(r'disputes', DisputeViewSet, basename='dispute')
 router.register(r'delivery-zones', DeliveryZoneViewSet, basename='delivery-zone')
 router.register(r'variants', ProductVariantViewSet, basename='variant')
 router.register(r'staff-admin/password-requests', PasswordResetRequestStaffViewSet, basename='staff-password-request')
+router.register(r'staff-admin/reserved-usernames', ReservedUsernameStaffViewSet, basename='staff-reserved-usernames')
 urlpatterns = [
     path('api/products/discovery/', DiscoveryFeedView.as_view(), name='products-discovery'),
     path('api/products/recommendations/', CategoryRecommendationsView.as_view(), name='products-recommendations'),
     path('api/', include(router.urls)),
     path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/check-username/', CheckUsernameView.as_view(), name='check_username'),
     path('api/auth/register/', RegisterView.as_view(), name='auth_register'),
     path('api/auth/accept-terms/', AcceptTermsView.as_view(), name='accept_terms'),
     path('api/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),

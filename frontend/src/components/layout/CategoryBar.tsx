@@ -83,15 +83,36 @@ const fetchSiteSettingsCached = () => {
   return siteSettingsPromise;
 };
 
-export const productCache: Record<string, any> = {};
+export const productCache: Record<string, { data: any; timestamp: number }> = {};
 export const productPromises: Record<string, Promise<any>> = {};
 
-export const fetchProductCached = (slug: string) => {
-  if (productCache[slug]) return Promise.resolve({ data: productCache[slug] });
-  if (productPromises[slug] !== undefined) return productPromises[slug];
+export const invalidateProductCache = (slugOrId?: string | number) => {
+  if (slugOrId) {
+    const key = String(slugOrId);
+    delete productCache[key];
+    delete productPromises[key];
+  } else {
+    Object.keys(productCache).forEach(k => delete productCache[k]);
+    Object.keys(productPromises).forEach(k => delete productPromises[k]);
+  }
+};
+
+export const fetchProductCached = (slug: string, forceFresh = false) => {
+  const now = Date.now();
+  if (!forceFresh && productCache[slug] && (now - productCache[slug].timestamp < 30000)) {
+    return Promise.resolve({ data: productCache[slug].data });
+  }
+  if (!forceFresh && productPromises[slug] !== undefined) return productPromises[slug];
   productPromises[slug] = api.get(`/api/products/${slug}/`).then(res => {
-    productCache[slug] = res.data;
+    productCache[slug] = { data: res.data, timestamp: Date.now() };
+    if (res.data?.id) {
+      productCache[String(res.data.id)] = { data: res.data, timestamp: Date.now() };
+    }
+    delete productPromises[slug];
     return res;
+  }).catch(err => {
+    delete productPromises[slug];
+    throw err;
   });
   return productPromises[slug];
 };
@@ -296,7 +317,7 @@ const CategoryBar: React.FC = () => {
     return (
       <div className="w-full pt-0.5 pb-0 md:pb-1 bg-white dark:bg-[#000000] transition-colors duration-300">
         <div className="container-page">
-          <div className="flex items-start justify-start gap-4 sm:gap-5 overflow-x-auto no-scrollbar pt-2 pb-1.5 md:pt-3 md:pb-4 px-2 sm:px-3 w-full">
+          <div data-horizontal-scroll="true" className="flex items-start justify-start gap-4 sm:gap-5 overflow-x-auto no-scrollbar pt-2 pb-1.5 md:pt-3 md:pb-4 px-2 sm:px-3 w-full">
             {/* For You / Discover Circle */}
             <div 
               className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group select-none"
@@ -384,7 +405,7 @@ const CategoryBar: React.FC = () => {
             return (
               <div className="w-full bg-gray-50/50 dark:bg-black/50 border-t border-surface-border/30 dark:border-surface-dark-border/30">
                 <div className="container-page">
-                  <div className="flex items-center justify-start gap-2 overflow-x-auto no-scrollbar py-2.5 w-full scroll-smooth">
+                  <div data-horizontal-scroll="true" className="flex items-center justify-start gap-2 overflow-x-auto no-scrollbar py-2.5 w-full scroll-smooth">
                     <button
                       onClick={() => {
                         categoryStore.setCategory(effectiveCategorySlug, '');
@@ -437,7 +458,7 @@ const CategoryBar: React.FC = () => {
   return (
     <div className="w-full bg-white dark:bg-[#000000] transition-colors duration-300">
       <div className="container-page">
-        <div className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar py-2.5 scroll-smooth w-full">
+        <div data-horizontal-scroll="true" className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar py-2.5 scroll-smooth w-full">
           {/* All Products Pill - only shown when showing all categories */}
           {!isProductDetailPage && (
             <button 

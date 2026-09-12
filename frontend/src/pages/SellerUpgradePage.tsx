@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, useUserRoles } from '../context/AuthContext';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { 
@@ -11,9 +11,11 @@ import {
 import { Button } from '../components/ui/Button';
 import { FormField } from '../components/ui/Input';
 import { FormSkeleton } from '../components/Skeleton';
+import { useUserLocation } from '../context/LocationContext';
 
 const SellerUpgradePage: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
+  const roles = useUserRoles();
   
   // Wizard Step: 1 = Plan, 2 = Business Details, 3 = Payment Info, 4 = Review/Wait Screen
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -33,18 +35,15 @@ const SellerUpgradePage: React.FC = () => {
   const [refId, setRefId] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const { location: userLoc } = useUserLocation();
+  const [siteVisitStatus, setSiteVisitStatus] = useState<any>(null);
+  const [checkingSiteStatus, setCheckingSiteStatus] = useState(true);
 
   useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        },
-        () => {},
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
+    if (userLoc.coords) {
+      setGpsCoords(userLoc.coords);
     }
-  }, []);
+  }, [userLoc.coords]);
   
   // Status & Data states
   const [submitting, setSubmitting] = useState(false);
@@ -132,11 +131,37 @@ const SellerUpgradePage: React.FC = () => {
     }
   };
 
+  const fetchSiteVisitStatus = async () => {
+    if (!isAuthenticated) {
+      setCheckingSiteStatus(false);
+      return;
+    }
+    setCheckingSiteStatus(true);
+    try {
+      const res = await api.get('/api/seller-site-visits/my-status/');
+      setSiteVisitStatus(res.data);
+      if (res.data?.site_visit) {
+        const v = res.data.site_visit;
+        if (v.business_name) setBusinessName(prev => prev || v.business_name);
+        if (v.address) setBusinessAddress(prev => prev || v.address);
+        if (v.region) setBusinessRegion(prev => prev || v.region);
+        if (v.latitude && v.longitude) {
+          setGpsCoords(prev => prev || { lat: parseFloat(v.latitude), lng: parseFloat(v.longitude) });
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCheckingSiteStatus(false);
+    }
+  };
+
   useEffect(() => {
     fetchApplicationStatus();
     fetchTiers();
     fetchSiteSettings();
     fetchLipaNumbers();
+    fetchSiteVisitStatus();
   }, [isAuthenticated]);
 
   const handleCopyNumber = (num: string) => {
@@ -252,6 +277,78 @@ const SellerUpgradePage: React.FC = () => {
     { number: 3, label: 'Payment Info', icon: CreditCard },
     { number: 4, label: 'Status & Review', icon: Clock },
   ];
+
+  if (roles.isPureCustomer && !checkingSiteStatus && !siteVisitStatus?.can_upgrade) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12 text-center animate-fade-in">
+        <div className="card p-8 sm:p-10 space-y-6 shadow-xl border border-surface-border dark:border-surface-dark-border">
+          <div className="w-16 h-16 rounded-2xl bg-brand-500/10 dark:bg-brand-500/20 text-brand-500 flex items-center justify-center mx-auto">
+            <ShieldCheck size={36} />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+              Physical Store Verification Required
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-lg mx-auto leading-relaxed">
+              To prevent fraudulent listings and spam accounts, all merchants on SokoniMax must complete an on-site physical premises verification by our staff before submitting seller applications.
+            </p>
+          </div>
+
+          {siteVisitStatus?.status === 'pending_review' ? (
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl text-xs text-amber-900 dark:text-amber-200 text-left space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Clock size={16} className="text-amber-500 animate-pulse" />
+                <span>Site Visit Awaiting Admin Sign-Off</span>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300 text-xs">
+                Our field inspector has recorded your physical shop visit and evidence. As soon as the administration reviews and approves it, this page will unlock automatically.
+              </p>
+            </div>
+          ) : siteVisitStatus?.status === 'rejected' ? (
+            <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-2xl text-xs text-rose-900 dark:text-rose-200 text-left space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <AlertCircle size={16} className="text-rose-500" />
+                <span>Site Visit Not Approved</span>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300 text-xs">
+                {siteVisitStatus?.site_visit?.rejection_reason || 'Please contact our verification team to address inspection discrepancies.'}
+              </p>
+            </div>
+          ) : (
+            <div className="p-4 bg-surface-muted dark:bg-[#161616] border border-surface-border dark:border-surface-dark-border rounded-2xl text-xs text-gray-600 dark:text-gray-400 text-left space-y-1.5">
+              <span className="font-bold text-gray-900 dark:text-white block">Next Steps:</span>
+              <p>
+                1. Call or WhatsApp our official verification hotline to schedule an in-person shop visit.
+              </p>
+              <p>
+                2. Our staff will visit your premises, note GPS coordinates, and log storefront photographs.
+              </p>
+              <p>
+                3. Once approved by administration, your seller subscription portal will unlock immediately.
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Link
+              to="/help?tab=site-verification"
+              className="btn-primary w-full sm:w-auto py-3 px-6 rounded-btn text-xs font-bold inline-flex items-center justify-center gap-2 shadow-xs"
+            >
+              <span>View Verification Guide & Hotline</span>
+              <ArrowRight size={14} />
+            </Link>
+            <Link
+              to="/"
+              className="btn-secondary w-full sm:w-auto py-3 px-6 rounded-btn text-xs font-semibold"
+            >
+              Back to Marketplace
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto py-10 px-4 sm:px-6 space-y-8 animate-fade-in">

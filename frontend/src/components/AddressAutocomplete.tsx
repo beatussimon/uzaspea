@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Search, Crosshair, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { useUserLocation } from '../context/LocationContext';
 
 interface LocationResult {
   place_id: number;
@@ -26,6 +27,7 @@ interface AddressAutocompleteProps {
 
 export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({ value, onChange, placeholder, className = '' }) => {
   const { t } = useTranslation();
+  const { location: userLoc, ensureLocation } = useUserLocation();
   const [query, setQuery] = useState(value || '');
   const [results, setResults] = useState<LocationResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,42 +92,47 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({ value,
     onChange(result.display_name, { lat: parseFloat(result.lat), lng: parseFloat(result.lon) }, region, district);
   };
 
-  const handleGetCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert(t('geolocation_not_supported', 'Geolocation is not supported by your browser'));
-      return;
-    }
-    
+  const handleGetCurrentLocation = async () => {
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude } = position.coords;
-          const res = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
-            params: {
-              lat: latitude,
-              lon: longitude,
-              format: 'json',
-              addressdetails: 1
-            }
-          });
-          const data = res.data as LocationResult;
-          if (data && data.display_name) {
-            handleSelect(data);
-          }
-        } catch (err) {
-          console.error('Failed to reverse geocode', err);
-          alert(t('failed_to_get_address', 'Failed to get address from location'));
-        } finally {
-          setLocating(false);
-        }
-      },
-      (error) => {
-        console.error('Geolocation error', error);
+    try {
+      let coords = userLoc.coords;
+      if (!coords) {
+        coords = await ensureLocation();
+      }
+
+      if (!coords) {
         alert(t('geolocation_error', 'Failed to get current location'));
         setLocating(false);
+        return;
       }
-    );
+
+      // If we already have userLoc address/city with matching coordinates, use directly
+      if (userLoc.address && userLoc.coords?.lat === coords.lat && userLoc.coords?.lng === coords.lng) {
+        setQuery(userLoc.address);
+        setShowDropdown(false);
+        onChange(userLoc.address, coords, userLoc.region || userLoc.city || '', userLoc.district || '');
+        setLocating(false);
+        return;
+      }
+
+      const res = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
+        params: {
+          lat: coords.lat,
+          lon: coords.lng,
+          format: 'json',
+          addressdetails: 1
+        }
+      });
+      const data = res.data as LocationResult;
+      if (data && data.display_name) {
+        handleSelect(data);
+      }
+    } catch (err) {
+      console.error('Failed to get location', err);
+      alert(t('failed_to_get_address', 'Failed to get address from location'));
+    } finally {
+      setLocating(false);
+    }
   };
 
   return (

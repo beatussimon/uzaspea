@@ -96,7 +96,13 @@ export const DashboardPromotions: React.FC = () => {
 
   // Sponsored Listing Form State
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ product: '', title: '', description: '', duration_days: 7 });
+  const [selectedProduct, setSelectedProduct] = useState<any>(() => (location.state as any)?.boostedProduct || null);
+  const [form, setForm] = useState({ 
+    product: (location.state as any)?.boostedProduct ? String((location.state as any).boostedProduct.id) : '', 
+    title: (location.state as any)?.boostedProduct ? `Featured: ${(location.state as any).boostedProduct.name}` : '', 
+    description: '', 
+    duration_days: 7 
+  });
   const [submitting, setSubmitting] = useState(false);
   const [refId, setRefId] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -139,7 +145,12 @@ export const DashboardPromotions: React.FC = () => {
         setPromoCodes(promoRes.value.data.results || promoRes.value.data || []);
       }
       if (productsRes.status === 'fulfilled') {
-        setProducts(productsRes.value.data.results || productsRes.value.data || []);
+        const prods = productsRes.value.data.results || productsRes.value.data || [];
+        setProducts(prods);
+        if (form.product && !selectedProduct) {
+          const match = prods.find((p: any) => String(p.id) === String(form.product));
+          if (match) setSelectedProduct(match);
+        }
       }
       if (lipaRes.status === 'fulfilled') {
         const numbers = lipaRes.value.data.results || lipaRes.value.data || [];
@@ -177,11 +188,33 @@ export const DashboardPromotions: React.FC = () => {
 
     if (newParam === 'true') {
       setShowForm(true);
-      if (prodParam) {
+      const stateProduct = (location.state as any)?.boostedProduct;
+      if (stateProduct) {
+        setSelectedProduct(stateProduct);
+        setForm(prev => ({ 
+          ...prev, 
+          product: String(stateProduct.id),
+          title: prev.title || `Boost: ${stateProduct.name}`
+        }));
+      } else if (prodParam) {
         setForm(prev => ({ ...prev, product: prodParam }));
+        const match = products.find(p => String(p.id) === String(prodParam));
+        if (match) {
+          setSelectedProduct(match);
+          setForm(prev => ({ ...prev, title: prev.title || `Boost: ${match.name}` }));
+        } else {
+          api.get(`/api/products/${prodParam}/`).then(res => {
+            setSelectedProduct(res.data);
+            setForm(prev => ({ 
+              ...prev, 
+              product: String(res.data.id),
+              title: prev.title || `Boost: ${res.data.name}`
+            }));
+          }).catch(() => {});
+        }
       }
     }
-  }, [location.search]);
+  }, [location.search, location.state, products]);
 
   // Silent refresh helpers
   const refreshPromotions = async () => {
@@ -596,10 +629,43 @@ export const DashboardPromotions: React.FC = () => {
 
               {/* Product Selection */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   {t('select_product_to_promote', 'Select Product')} <span className="text-red-500">*</span>
                 </label>
-                {products.length === 0 ? (
+                {selectedProduct ? (
+                  <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-brand-500/40 bg-brand-500/5 dark:bg-brand-500/10 transition">
+                    <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900">
+                      <SafeImage
+                        src={selectedProduct.images?.[0]?.image || selectedProduct.image}
+                        alt={selectedProduct.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 bg-brand-500/15 px-1.5 py-0.5 rounded">
+                          Item Selected for Boost
+                        </span>
+                      </div>
+                      <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
+                        {selectedProduct.name}
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        TSh {parseInt(selectedProduct.price || 0).toLocaleString()} • {selectedProduct.category_name || selectedProduct.category || 'Product'} • Stock: {selectedProduct.stock}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedProduct(null);
+                        setForm(prev => ({ ...prev, product: '' }));
+                      }}
+                      className="px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white bg-white dark:bg-neutral-800 hover:bg-gray-100 border border-neutral-200 dark:border-neutral-700 rounded-lg transition shrink-0"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : products.length === 0 ? (
                   <div className="p-3 rounded bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs text-amber-700 dark:text-amber-300">
                     <div className="flex items-center gap-2">
                       <Info size={15} className="shrink-0" />
@@ -613,7 +679,14 @@ export const DashboardPromotions: React.FC = () => {
                   <select 
                     name="product" 
                     value={form.product} 
-                    onChange={handleChange} 
+                    onChange={(e) => {
+                      handleChange(e);
+                      const found = products.find(p => String(p.id) === e.target.value);
+                      if (found) {
+                        setSelectedProduct(found);
+                        setForm(prev => ({ ...prev, title: prev.title || `Boost: ${found.name}` }));
+                      }
+                    }} 
                     required 
                     className="input py-2 text-xs w-full bg-white dark:bg-[#121212] border-surface-border dark:border-surface-dark-border"
                   >

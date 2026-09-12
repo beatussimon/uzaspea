@@ -14,6 +14,8 @@ import { useUserLocation } from '../context/LocationContext';
 import DiscoveryFeed from '../components/discovery/DiscoveryFeed';
 import CategoryRecommendationShelf from '../components/discovery/CategoryRecommendationShelf';
 import { categoryStore } from '../utils/categoryStore';
+import NetworkErrorState from '../components/common/NetworkErrorState';
+import { classifyApiError, ClassifiedError } from '../utils/errorUtils';
 
 
 
@@ -109,6 +111,8 @@ const ProductList = () => {
     return cached ? !!cached.data.next : true;
   });
   const [_page, setPage] = useState(1);
+  const [fetchError, setFetchError] = useState<ClassifiedError | null>(null);
+  const [paginationError, setPaginationError] = useState<ClassifiedError | null>(null);
 
   const [gridCols, setGridCols] = useState(() => {
     if (typeof window === 'undefined') return 5;
@@ -203,6 +207,8 @@ const ProductList = () => {
 
       if (reset) {
         setLoadedKey(cacheKey);
+        setFetchError(null);
+        setPaginationError(null);
         if (cached) {
           // Instant cache hit for initial load
           setProducts(Array.isArray(cached.data.results) ? cached.data.results : []);
@@ -226,6 +232,7 @@ const ProductList = () => {
           setPage(1);
         }
       } else {
+        setPaginationError(null);
         if (cached) {
           // Instant cache hit for infinite scroll next page
           const incoming = Array.isArray(cached.data.results) ? cached.data.results : [];
@@ -254,42 +261,57 @@ const ProductList = () => {
       isFetchingRef.current = true;
       
       if (reset) {
-        Promise.all([
-          api.get('/api/products/', { params: prms, signal: controller.signal }).catch(() => ({ data: { results: [] } })),
-          saved ? Promise.resolve({ data: { results: [] } }) : api.get('/api/sponsored/', { params: sponsParams, signal: controller.signal }).catch(() => ({ data: { results: [] } }))
-        ]).then(([prodRes, sponsRes]) => {
+        Promise.allSettled([
+          api.get('/api/products/', { params: prms, signal: controller.signal }),
+          saved ? Promise.resolve({ data: { results: [] } }) : api.get('/api/sponsored/', { params: sponsParams, signal: controller.signal })
+        ]).then(([prodOutcome, sponsOutcome]) => {
           if (controller.signal.aborted) return;
-          apiCache.set(cacheKey, prodRes.data); // Store to cache
-          if (!saved && sponsRes.data) {
-             apiCache.set(sponsCacheKey, sponsRes.data); // Store sponsored to cache
-          }
-          
-          const prodData = prodRes.data.results || prodRes.data || [];
-          const sponsData = sponsRes.data.results || sponsRes.data || [];
-          
-          setLoadedKey(cacheKey);
-          setSponsoredAds(Array.isArray(sponsData) ? sponsData : []);
-          setProducts(Array.isArray(prodData) ? prodData : []);
-          setHasMore(!!(prodRes.data && prodRes.data.next));
 
-          // Eager pre-fetch next page
-          if (prodRes.data && prodRes.data.next) {
-             const nextParams = buildParams(2);
-             const nextKey = `products:${JSON.stringify(nextParams)}`;
-             if (!apiCache.get<any>(nextKey)) {
-               api.get('/api/products/', { params: nextParams }).then(res => apiCache.set(nextKey, res.data)).catch(()=>{});
-             }
-          }
+          if (prodOutcome.status === 'fulfilled') {
+            const prodRes = prodOutcome.value;
+            apiCache.set(cacheKey, prodRes.data); // Store to cache
+            const prodData = prodRes.data.results || prodRes.data || [];
+            
+            setLoadedKey(cacheKey);
+            setProducts(Array.isArray(prodData) ? prodData : []);
+            setHasMore(!!(prodRes.data && prodRes.data.next));
+            setFetchError(null);
 
-          // Eager pre-fetch category recommendations in background
-          const activeCat = searchParams.get('subcategory') || searchParams.get('category');
-          if (activeCat) {
-            const recKey = `recommendations:${activeCat}`;
-            if (!apiCache.get(recKey)) {
-              api.get('/api/products/recommendations/', { params: { category: activeCat, limit: 24 } })
-                .then(r => apiCache.set(recKey, r.data))
-                .catch(() => {});
+            // Eager pre-fetch next page
+            if (prodRes.data && prodRes.data.next) {
+               const nextParams = buildParams(2);
+               const nextKey = `products:${JSON.stringify(nextParams)}`;
+               if (!apiCache.get<any>(nextKey)) {
+                 api.get('/api/products/', { params: nextParams }).then(res => apiCache.set(nextKey, res.data)).catch(()=>{});
+               }
             }
+
+            // Eager pre-fetch category recommendations in background
+            const activeCat = searchParams.get('subcategory') || searchParams.get('category');
+            if (activeCat) {
+              const recKey = `recommendations:${activeCat}`;
+              if (!apiCache.get(recKey)) {
+                api.get('/api/products/recommendations/', { params: { category: activeCat, limit: 24 } })
+                  .then(r => apiCache.set(recKey, r.data))
+                  .catch(() => {});
+              }
+            }
+          } else {
+            // Product fetch failed due to network, timeout, or server error
+            const classified = classifyApiError(prodOutcome.reason);
+            setFetchError(classified);
+            if (!cached) {
+              setProducts([]);
+            }
+          }
+
+          if (sponsOutcome.status === 'fulfilled') {
+            const sponsRes = sponsOutcome.value;
+            if (!saved && sponsRes.data) {
+               apiCache.set(sponsCacheKey, sponsRes.data); // Store sponsored to cache
+            }
+            const sponsData = sponsRes.data.results || sponsRes.data || [];
+            setSponsoredAds(Array.isArray(sponsData) ? sponsData : []);
           }
         }).finally(() => {
           if (!controller.signal.aborted) {
@@ -313,6 +335,7 @@ const ProductList = () => {
               return [...prev, ...uniqueIncoming];
             });
             setHasMore(!!res.data.next);
+            setPaginationError(null);
 
             // Eager pre-fetch next page
             if (res.data.next) {
@@ -323,9 +346,10 @@ const ProductList = () => {
                }
             }
           })
-          .catch(() => {
+          .catch((err) => {
             if (!controller.signal.aborted) {
-              setHasMore(false);
+              const classified = classifyApiError(err);
+              setPaginationError(classified);
             }
           })
           .finally(() => { 
@@ -366,11 +390,11 @@ const ProductList = () => {
   // Infinite scroll
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore || loadingMore || loading) return;
+    if (!sentinel || !hasMore || loadingMore || loading || paginationError) return;
 
     const obs = new IntersectionObserver(
       (entries) => { 
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading && !paginationError) {
           // Use functional update to avoid race conditions
           setPage((prev) => {
             const nextPage = prev + 1;
@@ -384,7 +408,7 @@ const ProductList = () => {
     
     obs.observe(sentinel);
     return () => obs.disconnect();
-  }, [hasMore, loadingMore, loading, fetchProducts]);
+  }, [hasMore, loadingMore, loading, paginationError, fetchProducts]);
 
 
 
@@ -578,8 +602,8 @@ const ProductList = () => {
     ? (cachedForCurrent && Array.isArray(cachedForCurrent.data?.results) ? cachedForCurrent.data.results : products)
     : products;
 
-  const isInitialLoading = loading && products.length === 0 && !cachedForCurrent;
-  const isSwitchingCategory = isKeyChanged && !cachedForCurrent;
+  const isInitialLoading = loading && products.length === 0 && !cachedForCurrent && !fetchError;
+  const isSwitchingCategory = isKeyChanged && !cachedForCurrent && !fetchError;
 
   const gridEntries = buildGridEntries(activeProducts, sponsoredAds);
 
@@ -790,8 +814,25 @@ const ProductList = () => {
                   <ProductCardSkeleton key={i} viewMode={viewMode} />
                 ))}
               </div>
+            ) : fetchError && activeProducts.length === 0 ? (
+              <NetworkErrorState
+                error={fetchError}
+                onRetry={() => fetchProducts(1, true)}
+                isRetrying={loading}
+              />
             ) : (
               <>
+                {fetchError && activeProducts.length > 0 && (
+                  <div className="mb-4">
+                    <NetworkErrorState
+                      compact
+                      error={fetchError}
+                      onRetry={() => fetchProducts(1, true)}
+                      isRetrying={loading}
+                    />
+                  </div>
+                )}
+
                 <div 
                   className={`${
                     viewMode === 'grid' 
@@ -857,7 +898,21 @@ const ProductList = () => {
                   </div>
                 )}
 
-                {!hasMore && products.length > 0 && (
+                {paginationError && !loadingMore && (
+                  <div className="py-6 px-4 flex justify-center">
+                    <NetworkErrorState
+                      compact
+                      error={paginationError}
+                      onRetry={() => {
+                        setPaginationError(null);
+                        fetchProducts(_page + 1, false);
+                      }}
+                      className="max-w-md w-full"
+                    />
+                  </div>
+                )}
+
+                {!hasMore && !paginationError && products.length > 0 && (
                   <p className="text-center py-6 text-sm text-gray-400 dark:text-gray-500">{t('reached_end', "You've reached the end")}</p>
                 )}
                 <div ref={sentinelRef} className="h-1" />

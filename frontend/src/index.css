@@ -62,6 +62,15 @@
   * {
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Prevent iOS Safari auto-zoom on input/select/textarea focus */
+  @media screen and (max-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
 }
 
 /* ========================================

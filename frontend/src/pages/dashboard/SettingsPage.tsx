@@ -12,6 +12,7 @@ const SettingsPage: React.FC = () => {
     const isCustomer = roles.isPureCustomer;
 
     const [profile, setProfile] = useState<any>({});
+    const [siteVisitStatus, setSiteVisitStatus] = useState<any>(null);
     const [form, setForm] = useState({ bio: '', phone_number: '', location: '', website: '', instagram_username: '', whatsapp_number: '', facebook_url: '', tiktok_username: '', twitter_username: '', youtube_url: '', linkedin_url: '', show_product_requests: true });
     const [passwords, setPasswords] = useState({ old: '', new1: '', new2: '' });
     const [passwordChanging, setPasswordChanging] = useState(false);
@@ -122,6 +123,10 @@ const SettingsPage: React.FC = () => {
                     show_product_requests: r.data.show_product_requests !== false,
                 });
             });
+
+            api.get('/api/seller-site-visits/my-status/')
+                .then(r => setSiteVisitStatus(r.data))
+                .catch(() => {});
         }
     }, []);
 
@@ -554,15 +559,52 @@ const SettingsPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Subtle, uncolored seller opportunity text link at the very bottom for customers */}
+            {/* Seller opportunity link for customers with physical verification gating */}
             {isCustomer && (
                 <div className="pt-8 pb-4 text-center">
-                    <Link
-                        to="/upgrade"
-                        className="text-xs text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 underline underline-offset-4 transition-colors"
-                    >
-                        Want to sell on SokoniMax?
-                    </Link>
+                    {siteVisitStatus?.can_upgrade || profile?.is_location_verified ? (
+                        <div className="inline-flex flex-col items-center gap-1.5">
+                            <Link
+                                to="/upgrade"
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+                            >
+                                <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    Site Verified ✓
+                                </span>
+                                <span>Want to sell on SokoniMax? Proceed to Upgrade &rarr;</span>
+                            </Link>
+                            <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                                Your physical premises have been approved. Select your tier to complete store setup.
+                            </p>
+                        </div>
+                    ) : siteVisitStatus?.status === 'pending_review' ? (
+                        <div className="inline-flex flex-col items-center gap-1.5">
+                            <Link
+                                to="/help?tab=site-verification"
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                            >
+                                <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    Visit Under Admin Review ⏳
+                                </span>
+                                <span>Want to sell on SokoniMax? View Verification Status &rarr;</span>
+                            </Link>
+                            <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                                Staff has submitted your physical store visit. Awaiting admin review.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="inline-flex flex-col items-center gap-1.5">
+                            <Link
+                                to="/help?tab=site-verification"
+                                className="text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white underline underline-offset-4 transition-colors font-semibold"
+                            >
+                                Want to sell on SokoniMax? (Site Verification Required)
+                            </Link>
+                            <p className="text-[11px] text-neutral-400 dark:text-neutral-500 max-w-sm mx-auto">
+                                To prevent spam, all stores must complete an in-person physical verification visit by our staff before upgrading.
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
 

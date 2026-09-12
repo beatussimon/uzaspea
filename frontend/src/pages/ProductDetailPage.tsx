@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Heart, Star, X, Share2, Shield, MessageSquare, MapPin, 
   Clock, ChevronLeft, ChevronRight, ChevronDown, ShieldCheck, MoreVertical, Navigation, 
-  Search, AlertTriangle, RefreshCw, Tag, AlertCircle
+  Search, AlertTriangle, ArrowUp
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -15,17 +15,20 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useSearch } from '../context/SearchContext';
 import { ProductTabs } from '../components/ProductTabs';
+import SimilarProductsSection from '../components/SimilarProductsSection';
 import SafeImage from '../components/SafeImage';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { Skeleton } from '../components/Skeleton';
 import { timeAgo } from '../utils/timeAgo';
-import { fetchProductCached } from '../components/layout/CategoryBar';
+import { fetchProductCached, productCache } from '../components/layout/CategoryBar';
 import { useMessages } from '../context/MessageContext';
 import SEO from '../components/SEO';
 import { createProductInquiryPayload, parseMessageContent } from '../utils/messageParser';
 import { launchNavigation, launchOpenMap } from '../utils/mapNavigation';
 import { MapAppModal } from '../components/MapAppModal';
+import NetworkErrorState from '../components/common/NetworkErrorState';
+import { classifyApiError, ClassifiedError } from '../utils/errorUtils';
 
 interface ProductData {
   id: number;
@@ -72,6 +75,9 @@ interface ProductData {
   reference_product_details?: { id: number; name: string; slug: string; model_name?: string; variant_name?: string; brand_details?: { name: string; slug: string } };
   structured_specs?: Record<string, any>;
   specifications?: Record<string, any>;
+  has_a_plus_content?: boolean;
+  a_plus_content?: any;
+  variants?: ProductVariant[];
 }
 
 export interface ProductInspectionEvent {
@@ -108,6 +114,62 @@ interface ProductVariant {
   is_available: boolean;
   image: string | null;
 }
+
+const COLOR_SWATCH_MAP: Record<string, string> = {
+  blue: '#2563eb',
+  navy: '#1e3a8a',
+  red: '#dc2626',
+  gray: '#6b7280',
+  grey: '#6b7280',
+  black: '#18181b',
+  white: '#f4f4f5',
+  green: '#16a34a',
+  yellow: '#eab308',
+  purple: '#9333ea',
+  pink: '#ec4899',
+  orange: '#ea580c',
+  brown: '#78350f',
+  beige: '#d4b996',
+  maroon: '#800000',
+  teal: '#0d9488',
+  cyan: '#06b6d4',
+  olive: '#65a30d',
+  gold: '#d97706',
+  silver: '#9ca3af',
+  khaki: '#c3b091',
+  cream: '#fffdd0',
+  charcoal: '#36454f',
+  burgundy: '#800020',
+};
+
+const getVariantColor = (name: string): string | null => {
+  if (!name) return null;
+  const parts = name.toLowerCase().split(/[\s\/\,\-]+/);
+  for (const p of parts) {
+    if (COLOR_SWATCH_MAP[p]) return COLOR_SWATCH_MAP[p];
+  }
+  return null;
+};
+
+const getVariantGridCols = (count: number): string => {
+  if (count <= 2) {
+    return 'grid-cols-2 sm:max-w-xs';
+  }
+  if (count === 3) {
+    return 'grid-cols-3 sm:max-w-sm';
+  }
+  if (count === 4) {
+    return 'grid-cols-4';
+  }
+  if (count === 5) {
+    return 'grid-cols-4 sm:grid-cols-5 xl:grid-cols-5';
+  }
+  if (count === 6) {
+    return 'grid-cols-3 sm:grid-cols-6 xl:grid-cols-6';
+  }
+  // 7 or more variations
+  return 'grid-cols-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 xl:grid-cols-5';
+};
 
 const formatUnit = (count: number, unit?: string) => {
   const raw = (unit || 'piece').trim();
@@ -362,7 +424,7 @@ const ProductMap: React.FC<ProductMapProps> = ({ lat, lng, isDesktop, onNavigate
            {t('location', 'Location')}
          </h3>
          {!isDesktop && (
-           <button onClick={() => setShowMap(!showMap)} className="text-xs px-3 py-1 rounded-full text-brand-500 font-bold transition border border-brand-500/40">
+           <button onClick={() => setShowMap(!showMap)} className="text-xs px-3 py-1 rounded-full text-gray-900 dark:text-white font-bold transition border border-gray-300 dark:border-neutral-700 hover:bg-gray-100 dark:hover:bg-neutral-800">
              {showMap ? t('hide_map', 'Hide Map') : t('show_map', 'Show Map')}
            </button>
          )}
@@ -405,16 +467,22 @@ const ProductDetailPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { openSearch } = useSearch();
   const { openDesktopChat, toggleDesktopChat, totalUnread: messageUnreadCount, sendMessage, conversations, messages, fetchMessages } = useMessages();
-  const initialProduct = (location.state as any)?.initialProduct || null;
+  const cachedProd = slug && productCache[slug] && (Date.now() - productCache[slug].timestamp < 30000) 
+    ? productCache[slug].data 
+    : null;
+  const initialProduct = (location.state as any)?.initialProduct || cachedProd || null;
 
   const [product, setProduct] = useState<ProductData | null>(initialProduct);
   const [loading, setLoading] = useState(!initialProduct);
+  const [pageError, setPageError] = useState<ClassifiedError | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [liked, setLiked] = useState(initialProduct?.is_liked || false);
   const [likeCount, setLikeCount] = useState(initialProduct?.like_count || 0);
   const [quantity, setQuantity] = useState(1);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [variants, setVariants] = useState<ProductVariant[]>(
+    initialProduct?.variants && Array.isArray(initialProduct.variants) ? initialProduct.variants : []
+  );
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [isSpecsExpanded, setIsSpecsExpanded] = useState(false);
@@ -429,6 +497,71 @@ const ProductDetailPage: React.FC = () => {
     mode: 'navigate',
   });
   const actionMenuRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const similarProductsColRef = useRef<HTMLDivElement>(null);
+  const reviewsColRef = useRef<HTMLDivElement>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  // Monitor scroll for mobile back-to-top button
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      setShowBackToTop(el.scrollTop > 300);
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [loading]);
+
+  const scrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (similarProductsColRef.current) {
+      similarProductsColRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (reviewsColRef.current) {
+      reviewsColRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleRow2Wheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!isDesktop || !scrollContainerRef.current) return;
+    const container = scrollContainerRef.current;
+    const maxScroll = container.scrollHeight - container.clientHeight;
+
+    // 1. If scrolling DOWN, but the outer container hasn't reached Row 2 yet:
+    // Scroll outer container so Row 2 locks cleanly to the top of the viewport.
+    if (e.deltaY > 0 && container.scrollTop < maxScroll - 2) {
+      container.scrollTop = Math.min(maxScroll, container.scrollTop + e.deltaY);
+      e.preventDefault();
+      return;
+    }
+
+    // 2. If scrolling UP and the current column is at its top:
+    // Scroll the outer container back up into Row 1.
+    const col = e.currentTarget;
+    if (e.deltaY < 0 && col.scrollTop <= 0 && container.scrollTop > 0) {
+      container.scrollTop = Math.max(0, container.scrollTop + e.deltaY);
+      e.preventDefault();
+      return;
+    }
+  };
+
+  // Close product detail view on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !lightboxOpen) {
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate('/products');
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxOpen, navigate]);
 
   const handleNavigate = () => {
     if (!product?.latitude || !product?.longitude) return;
@@ -553,21 +686,29 @@ const ProductDetailPage: React.FC = () => {
 
   const images = React.useMemo(() => {
     if (!product) return [{ id: 0, image: '' }];
-    const baseImages = (product.images && product.images.length > 0)
-      ? product.images
-      : [{ id: 0, image: '' }];
+    const baseImages: Array<{ id: string | number; image: string; variantId?: number }> = 
+      (product.images && product.images.length > 0)
+        ? product.images.map(img => ({ ...img }))
+        : [{ id: 0, image: '' }];
     
-    const vImages = variants
-      .filter(v => v.image)
-      .map(v => ({ id: `v-${v.id}`, image: v.image as string, variantId: v.id }));
-      
-    const combined: Array<{ id: string | number; image: string; variantId?: number }> = [...baseImages];
-    for (const vImg of vImages) {
-      if (!combined.find(img => img.image === vImg.image)) {
-        combined.push(vImg);
+    // Tag matching base images or append variant images
+    variants.forEach(v => {
+      if (!v.image) return;
+      const vUrl = typeof v.image === 'string' ? v.image : (v.image as any)?.image || '';
+      if (!vUrl) return;
+
+      const existing = baseImages.find(img => 
+        img.image === vUrl || 
+        (img.image && vUrl && (img.image.endsWith(vUrl) || vUrl.endsWith(img.image)))
+      );
+      if (existing) {
+        existing.variantId = v.id;
+      } else {
+        baseImages.push({ id: `v-${v.id}`, image: vUrl, variantId: v.id });
       }
-    }
-    return combined;
+    });
+
+    return baseImages.length > 0 ? baseImages : [{ id: 0, image: '' }];
   }, [product, variants]);
 
   // Responsive desktop detection
@@ -577,26 +718,39 @@ const ProductDetailPage: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
+  const loadProductData = useCallback((forceFresh = false) => {
     if (!slug) return;
-    if (!product) setLoading(true);
-    
-    Promise.all([
-      fetchProductCached(slug),
-      api.get(`/api/variants/?product_slug=${slug}`).catch(() => ({ data: [] }))
-    ])
-      .then(([res, vRes]) => {
-        setProduct(res.data);
-        if (res.data?.slug && res.data.slug !== slug && /^\d+$/.test(slug)) {
-          window.history.replaceState(null, '', `/product/${res.data.slug}`);
+    setPageError(null);
+    if (!product || forceFresh) setLoading(true);
+
+    fetchProductCached(slug, forceFresh)
+      .then(async (res) => {
+        const prodData = res.data;
+        setProduct(prodData);
+        setPageError(null);
+        if (prodData?.slug && prodData.slug !== slug && /^\d+$/.test(slug)) {
+          window.history.replaceState(null, '', `/product/${prodData.slug}`);
         }
-        setLikeCount(res.data.like_count);
-        setLiked(res.data.is_liked || false);
-        setQuantity(parseFloat(res.data.minimum_order_quantity) || 1);
+        setLikeCount(prodData.like_count);
+        setLiked(prodData.is_liked || false);
+        setQuantity(parseFloat(prodData.minimum_order_quantity) || 1);
         
-        const list = vRes.data.results || vRes.data;
+        // Immediate variants extraction from product payload
+        let list: ProductVariant[] = Array.isArray(prodData?.variants) && prodData.variants.length > 0
+          ? prodData.variants
+          : [];
+
+        if (list.length === 0) {
+          try {
+            const vRes = await api.get(`/api/variants/?product_slug=${slug}`);
+            list = vRes.data.results || vRes.data || [];
+          } catch {
+            list = [];
+          }
+        }
+
         setVariants(list);
-        if (res.data.stock <= 0 && list.length > 0) {
+        if (prodData.stock <= 0 && list.length > 0) {
           const firstAvailable = list.find((v: any) => v.stock > 0);
           if (firstAvailable) {
             setSelectedVariant(firstAvailable);
@@ -604,11 +758,56 @@ const ProductDetailPage: React.FC = () => {
         }
         setLoading(false);
       })
-      .catch(() => {
-        toast.error('Product not found');
+      .catch((err) => {
+        const classified = classifyApiError(err);
+        setPageError(classified);
+        if (classified.type === 'notFound') {
+          toast.error('Product not found');
+        }
         setLoading(false);
       });
   }, [slug]);
+
+  useEffect(() => {
+    if (!slug) return;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    if (similarProductsColRef.current) {
+      similarProductsColRef.current.scrollTop = 0;
+    }
+    if (reviewsColRef.current) {
+      reviewsColRef.current.scrollTop = 0;
+    }
+    setSelectedImage(0);
+    setSelectedVariant(null);
+
+    // If we have cached variants for this slug, update variants instantly
+    const cached = productCache[slug]?.data;
+    if (cached?.variants && Array.isArray(cached.variants)) {
+      setVariants(cached.variants);
+    }
+    
+    loadProductData(false);
+  }, [slug, loadProductData]);
+
+  const handleSelectVariant = useCallback((v: ProductVariant | null) => {
+    setSelectedVariant(v);
+    if (!v) {
+      setSelectedImage(0);
+      return;
+    }
+    if (v.image) {
+      const vUrl = typeof v.image === 'string' ? v.image : (v.image as any)?.image || '';
+      const idx = images.findIndex((img: any) => 
+        img.variantId === v.id || 
+        (img.image && vUrl && (img.image === vUrl || img.image.endsWith(vUrl) || vUrl.endsWith(img.image)))
+      );
+      if (idx !== -1) {
+        setSelectedImage(idx);
+      }
+    }
+  }, [images]);
 
   const handleLike = async () => {
     if (!product) return;
@@ -735,15 +934,35 @@ const ProductDetailPage: React.FC = () => {
   }
 
   if (!product) {
+    if (pageError && pageError.isNetworkOrServer) {
+      return (
+        <div className="fixed inset-0 z-[100] bg-neutral-950 flex items-center justify-center p-6 text-white overflow-y-auto">
+          <div className="max-w-md w-full">
+            <NetworkErrorState
+              error={pageError}
+              onRetry={() => loadProductData(true)}
+              isRetrying={loading}
+              secondaryAction={{
+                label: `← ${t('back_to_products', 'Back to Products')}`,
+                onClick: () => (window.history.length > 1 ? navigate(-1) : navigate('/products')),
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="text-center py-20">
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300">{t('product_not_found')}</h2>
-        <Link to="/" className="text-brand-500 mt-4 inline-block hover:underline">← {t('back_to_products')}</Link>
+      <div className="text-center py-20 bg-neutral-950 min-h-screen text-white flex flex-col items-center justify-center">
+        <h2 className="text-2xl font-bold text-gray-200">{t('product_not_found', 'Product not found')}</h2>
+        <Link to="/products" className="text-brand-500 mt-4 inline-block hover:underline">← {t('back_to_products', 'Back to Products')}</Link>
       </div>
     );
   }
 
-  const currentImageSrc = images[selectedImage]?.image || '';
+  const currentImageSrc = (selectedVariant?.image)
+    ? (typeof selectedVariant.image === 'string' ? selectedVariant.image : (selectedVariant.image as any)?.image || '')
+    : (images[selectedImage]?.image || '');
   const currentUsername = localStorage.getItem('username');
   const isOwnProduct = Boolean(currentUsername && product.seller_username?.toLowerCase() === currentUsername.toLowerCase());
   const baseUnitPrice = selectedVariant ? (parseInt(selectedVariant.price_adjustment) + parseInt(product.price)) : parseInt(product.sale_price || product.price);
@@ -823,7 +1042,10 @@ const ProductDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col lg:flex-row overflow-y-auto overflow-x-hidden lg:overflow-hidden w-full max-w-full">
+    <div 
+      ref={scrollContainerRef}
+      className="fixed inset-0 z-[100] bg-neutral-950 dark:bg-black text-white overflow-y-auto overflow-x-hidden w-full max-w-full select-auto"
+    >
       <SEO 
         title={`${product.name} - TSh ${priceFormatted} | SokoniMax Tanzania`} 
         description={product.description ? product.description.substring(0, 160).replace(/\n/g, ' ') : `Buy ${product.name} on SokoniMax Tanzania.`}
@@ -845,8 +1067,9 @@ const ProductDetailPage: React.FC = () => {
         />
       )}
 
-      {/* ═══ MOBILE IMAGE GRID (< lg only) ═══ */}
-      <div className="block lg:hidden relative w-full max-w-full bg-neutral-950 shrink-0 overflow-hidden isolate">
+      <div className="grid grid-cols-1 lg:grid-cols-[58%_42%] xl:grid-cols-[62%_38%] lg:grid-rows-[auto_100vh] w-full min-h-screen">
+        {/* ═══ MOBILE IMAGE GRID (< lg only) ═══ */}
+        <div className="block lg:hidden col-span-1 relative w-full max-w-full bg-neutral-950 shrink-0 overflow-hidden isolate">
         <div className="absolute top-3 left-3 right-3 z-40 flex items-center justify-between pointer-events-none">
           {/* Left: Close, Logo */}
           <div className="flex items-center gap-2 pointer-events-auto">
@@ -931,8 +1154,8 @@ const ProductDetailPage: React.FC = () => {
           </div>
         ) : (
           <div className="w-full grid grid-cols-[2.2fr_1fr] gap-[2px] overflow-hidden isolate" style={{ aspectRatio: '1.08/1', clipPath: 'inset(0)' }}>
-            <div className="relative cursor-pointer overflow-hidden" onClick={() => { setSelectedImage(0); setLightboxOpen(true); }}>
-              <img src={images[0]?.image || ''} alt={product.name} className="w-full h-full object-cover" loading="eager" />
+            <div className="relative cursor-pointer overflow-hidden" onClick={() => { setSelectedImage(selectedImage); setLightboxOpen(true); }}>
+              <img src={currentImageSrc || images[0]?.image || ''} alt={product.name} className="w-full h-full object-cover transition-opacity duration-200" loading="eager" />
             </div>
             <div className="flex flex-col gap-[2px]">
               {images.slice(1, 3).map((img, idx) => (
@@ -950,8 +1173,9 @@ const ProductDetailPage: React.FC = () => {
         )}
       </div>
 
-      {/* ═══ DESKTOP IMAGE STAGE (lg+ only) ═══ */}
-      <div className="hidden lg:flex relative lg:w-[58%] xl:w-[62%] lg:h-full bg-neutral-950 overflow-hidden flex-col items-center justify-center select-none group/stage shrink-0">
+      {/* ═══ DESKTOP IMAGE STAGE (lg+ only, sticky until end of location) ═══ */}
+      <div className="hidden lg:block lg:col-start-1 lg:row-start-1 relative w-full bg-neutral-950">
+        <div className="sticky top-0 h-screen w-full bg-neutral-950 overflow-hidden flex flex-col items-center justify-center select-none group/stage">
         
         {/* Top Floating Overlay: Left (X, Logo, Search) & Right (Messages, Save, Share, 3-dots) */}
         <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none">
@@ -1146,10 +1370,11 @@ const ProductDetailPage: React.FC = () => {
             ))}
           </div>
         )}
+        </div>
       </div>
 
-      {/* ═══ RIGHT SIDE: Product Info & Buy Sidebar ═══ */}
-      <div className="w-full max-w-full lg:w-[42%] xl:w-[38%] h-auto lg:h-full bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 overflow-y-visible overflow-x-hidden lg:overflow-y-auto p-5 sm:p-6 flex flex-col gap-6 shrink-0">
+      {/* ═══ RIGHT SIDE: Product Info & Buy Sidebar (up to Map Location) ═══ */}
+      <div className="w-full max-w-full lg:col-start-2 lg:row-start-1 bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-neutral-800 p-5 sm:p-6 lg:pb-0 flex flex-col gap-6 shrink-0">
           
           {/* Header Area */}
           <div className="flex flex-col gap-2">
@@ -1259,56 +1484,88 @@ const ProductDetailPage: React.FC = () => {
 
           {/* Variants */}
           {variants.length > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-3 pt-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">{t('select_variation', 'Select Variation')}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
+                    {t('select_variation', 'Select Variation')}:
+                  </span>
+                  <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                    {selectedVariant ? selectedVariant.name : t('standard_variant', 'Standard')}
+                  </span>
+                </div>
+                {selectedVariant ? (
+                  <span className="text-[11px] text-gray-400 font-medium shrink-0 ml-2">
+                    {selectedVariant.stock > 0 ? (
+                      `${selectedVariant.stock} ${t('in_stock', 'in stock')}`
+                    ) : (
+                      <span className="text-red-500 font-bold uppercase text-[10px]">{t('out_of_stock', 'Out of stock')}</span>
+                    )}
+                  </span>
+                ) : (
+                  product.stock > 0 && (
+                    <span className="text-[11px] text-gray-400 font-medium shrink-0 ml-2">
+                      {product.stock} {t('in_stock', 'in stock')}
+                    </span>
+                  )
+                )}
               </div>
                 
-              <div className="flex flex-wrap gap-2">
+              <div className={`grid ${getVariantGridCols(variants.length + 1)} gap-1.5 sm:gap-2 w-full py-0.5`}>
                 <button
-                  onClick={() => {
-                    setSelectedVariant(null);
-                    setSelectedImage(0);
-                  }}
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all border-2 ${
+                  type="button"
+                  onClick={() => handleSelectVariant(null)}
+                  title={t('standard_variant', 'Standard')}
+                  className={`relative px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all border flex items-center justify-center gap-1 sm:gap-1.5 w-full min-w-0 bg-transparent ${
                     !selectedVariant 
-                      ? 'border-amber-400 bg-amber-400/10 text-amber-500 dark:text-amber-400 dark:border-amber-400' 
-                      : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                      ? 'border-2 border-gray-900 text-gray-900 dark:border-white dark:text-white font-bold' 
+                      : 'border-gray-200 dark:border-neutral-800 text-gray-600 dark:text-neutral-400 hover:border-gray-400 dark:hover:border-neutral-600'
                   }`}
                 >
-                  {t('standard_variant', 'Standard')}
+                  <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border border-dashed border-gray-400 dark:border-neutral-500 shrink-0" />
+                  <span className="truncate">{t('standard_variant', 'Standard')}</span>
                 </button>
-                {variants.map(v => (
-                  <button
-                    key={v.id}
-                    onClick={() => {
-                      setSelectedVariant(v);
-                      if (v.image) {
-                        const idx = images.findIndex((img: any) => img.variantId === v.id || img.image === v.image);
-                        if (idx !== -1) setSelectedImage(idx);
-                      }
-                    }}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all border-2 flex items-center gap-2 ${
-                      selectedVariant?.id === v.id
-                        ? 'border-amber-400 bg-amber-400/10 text-amber-500 dark:text-amber-400 dark:border-amber-400'
-                        : v.stock <= 0
-                          ? 'border-transparent bg-gray-50 text-gray-400 cursor-not-allowed dark:bg-gray-800/50 dark:text-gray-600'
-                          : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    {v.image && (
-                      <SafeImage src={v.image} alt={v.name} category="product" className={`w-5 h-5 rounded-full object-cover shrink-0 ${v.stock <= 0 ? 'opacity-50 grayscale' : ''}`} />
-                    )}
-                    <span className={v.stock <= 0 ? 'line-through opacity-70' : ''}>{v.name}</span>
-                    {v.stock <= 0 ? (
-                      <span className="text-[10px] uppercase text-red-500/80 dark:text-red-500/80 font-black ml-1">({t('out_of_stock', 'Out of stock')})</span>
-                    ) : !product.requires_quote && v.price_adjustment !== '0.00' && (
-                      <span className="opacity-75 text-xs ml-1">
-                        (+TSh {parseInt(v.price_adjustment).toLocaleString()})
-                      </span>
-                    )}
-                  </button>
-                ))}
+
+                {variants.map(v => {
+                  const isSelected = selectedVariant?.id === v.id;
+                  const isOutOfStock = v.stock <= 0;
+                  const color = getVariantColor(v.name);
+
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      disabled={isOutOfStock}
+                      onClick={() => handleSelectVariant(v)}
+                      title={`${v.name}${isOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                      className={`relative px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all border flex items-center justify-center gap-1 sm:gap-1.5 w-full min-w-0 bg-transparent ${
+                        isSelected
+                          ? 'border-2 border-gray-900 text-gray-900 dark:border-white dark:text-white font-bold'
+                          : isOutOfStock
+                            ? 'border-dashed border-gray-200 dark:border-neutral-800 text-gray-400 dark:text-neutral-600 opacity-60 cursor-not-allowed'
+                            : 'border-gray-200 dark:border-neutral-800 text-gray-600 dark:text-neutral-400 hover:border-gray-400 dark:hover:border-neutral-600'
+                      }`}
+                    >
+                      {v.image ? (
+                        <SafeImage
+                          src={v.image}
+                          alt={v.name}
+                          category="product"
+                          className={`w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full object-cover shrink-0 border border-black/10 ${isOutOfStock ? 'grayscale opacity-50' : ''}`}
+                        />
+                      ) : color ? (
+                        <span
+                          className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0 border border-black/20 shadow-xs"
+                          style={{ backgroundColor: color }}
+                        />
+                      ) : null}
+                      <span className={`truncate ${isOutOfStock ? 'line-through' : ''}`}>{v.name}</span>
+                      {isOutOfStock && (
+                        <span className="text-[9px] sm:text-[10px] text-red-500 font-bold uppercase shrink-0 ml-0.5">({t('out_of_stock', 'Out')})</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1550,7 +1807,7 @@ const ProductDetailPage: React.FC = () => {
                           navigate(existingConversation ? `/messages/${existingConversation.id}` : '/messages');
                         }
                       }}
-                      className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm transition-all shadow-sm active:scale-98 cursor-pointer"
+                      className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-500 text-black font-extrabold text-sm transition-all shadow-sm active:scale-98 cursor-pointer"
                     >
                       {t('view_message', 'View Message')}
                     </button>
@@ -1566,11 +1823,11 @@ const ProductDetailPage: React.FC = () => {
                       <button
                         type="submit"
                         disabled={isSendingMessage || !customMessage.trim()}
-                        className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white text-sm font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap cursor-pointer"
+                        className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-black text-sm font-extrabold transition-all shadow-sm active:scale-95 whitespace-nowrap cursor-pointer"
                       >
                         {isSendingMessage ? (
                           <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                             <span>{t('sending', 'Sending...')}</span>
                           </>
                         ) : (
@@ -1616,7 +1873,7 @@ const ProductDetailPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowInspectionHistory(prev => !prev)}
-                    className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-semibold text-gray-900 dark:text-white hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <span>{showInspectionHistory ? t('hide_history', 'Hide') : t('view_history', 'View History')}</span>
                     <ChevronDown size={13} className={`transition-transform duration-200 ${showInspectionHistory ? 'rotate-180' : ''}`} />
@@ -1642,7 +1899,7 @@ const ProductDetailPage: React.FC = () => {
 
             {/* Collapsible Inspection & Modification History */}
             {showInspectionHistory && product.inspections && product.inspections.length > 0 && (
-              <div className="space-y-1.5 pt-2 border-t border-gray-200 dark:border-neutral-700/60 animate-fade-in">
+              <div className="space-y-1.5 pt-1 animate-fade-in">
                 {(() => {
                   type TimelineItem = 
                     | { kind: 'inspection'; date: number; insp: InspectionSummary }
@@ -1668,34 +1925,29 @@ const ProductDetailPage: React.FC = () => {
                         <Link
                           key={`insp-${insp.id}-${idx}`}
                           to={`/verify/${insp.inspection_id}`}
-                          className="w-full flex items-center justify-between p-2 rounded-lg bg-white dark:bg-[#18191a] border border-gray-100 dark:border-neutral-800 hover:border-brand-500 transition-all text-xs"
+                          className="w-full flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-[#18191a] border border-gray-100 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-700 transition-all text-xs"
                         >
-                          <div className="flex items-start gap-2 min-w-0">
-                            <div className="mt-0.5 p-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-                              <ShieldCheck size={13} />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className={`font-bold ${insp.verdict === 'pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                                  {insp.verdict ? `${t('inspection_report', 'Inspection Report')}: ${insp.verdict.toUpperCase()}` : `${t('status_label', 'Status')}: ${insp.status.replace('_', ' ')}`}
-                                </span>
-                                {insp.grade && (
-                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-200 dark:border-emerald-800">
-                                    Grade {insp.grade}
-                                  </span>
-                                )}
-                                {insp.inspected_stock !== null && insp.inspected_stock !== undefined && (
-                                  <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
-                                    ({t('inspected_stock', 'Inspected stock')}: {insp.inspected_stock})
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-gray-400 text-2xs block mt-0.5">
-                                {new Date(insp.created_at).toLocaleDateString()} • #{insp.inspection_id}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`font-bold ${insp.verdict === 'pass' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                                {insp.verdict ? `${t('inspection_report', 'Inspection Report')}: ${insp.verdict.toUpperCase()}` : `${t('status_label', 'Status')}: ${insp.status.replace('_', ' ')}`}
                               </span>
+                              {insp.grade && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-200 dark:border-emerald-800">
+                                  Grade {insp.grade}
+                                </span>
+                              )}
+                              {insp.inspected_stock !== null && insp.inspected_stock !== undefined && (
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                                  ({t('inspected_stock', 'Inspected stock')}: {insp.inspected_stock})
+                                </span>
+                              )}
                             </div>
+                            <span className="text-gray-400 text-2xs block mt-0.5">
+                              {new Date(insp.created_at).toLocaleDateString()} • #{insp.inspection_id}
+                            </span>
                           </div>
-                          <span className="text-2xs font-bold text-brand-500 hover:underline shrink-0 ml-2">{t('view_report', 'View Report')} →</span>
+                          <span className="text-2xs font-bold text-gray-900 dark:text-white hover:underline shrink-0 ml-2">{t('view_report', 'View Report')} →</span>
                         </Link>
                       );
                     } else {
@@ -1703,14 +1955,9 @@ const ProductDetailPage: React.FC = () => {
                       return (
                         <div
                           key={`event-${event.id}-${idx}`}
-                          className="w-full flex items-start gap-2 p-2 rounded-lg bg-white dark:bg-[#18191a] border border-gray-100 dark:border-neutral-800 text-xs"
+                          className="w-full p-2.5 rounded-lg bg-white dark:bg-[#18191a] border border-gray-100 dark:border-neutral-800 text-xs"
                         >
-                          <div className="mt-0.5 p-1 text-gray-400 dark:text-gray-500 shrink-0">
-                            {event.event_type === 'restock' ? <RefreshCw size={12} /> :
-                             event.event_type === 'price_change' ? <Tag size={12} /> :
-                             <AlertCircle size={12} />}
-                          </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-semibold text-gray-900 dark:text-gray-100">{event.title}</span>
                               <span className="text-[9px] text-gray-400 uppercase tracking-wider">
@@ -1746,15 +1993,50 @@ const ProductDetailPage: React.FC = () => {
               />
             </div>
           )}
-
-          {/* Product Reviews & Comments */}
-          <div>
-            <ProductTabs 
-              productId={product.id} 
-              sellerUsername={product.seller_username} 
-            />
-          </div>
         </div>
+
+        {/* ═══ ROW 2 COL 1 (Desktop) / AFTER LOCATION (Mobile): Similar Products ═══ */}
+        <div 
+          ref={similarProductsColRef}
+          onWheel={handleRow2Wheel}
+          className="w-full max-w-full lg:col-start-1 lg:row-start-2 bg-white dark:bg-[#18191a] text-gray-900 dark:text-white p-5 sm:p-6 lg:p-0 border-t border-gray-200 dark:border-neutral-800 lg:h-full lg:overflow-y-auto"
+        >
+          <SimilarProductsSection 
+            key={product.id}
+            product={product}
+            currentProductId={product.id}
+            categorySlug={product.category_slug}
+            categoryName={product.category_name}
+            isDesktop={isDesktop}
+          />
+        </div>
+
+        {/* ═══ ROW 2 COL 2 (Desktop) / AT THE VERY END (Mobile): Product Reviews & Comments ═══ */}
+        <div 
+          ref={reviewsColRef}
+          onWheel={handleRow2Wheel}
+          className="w-full max-w-full lg:col-start-2 lg:row-start-2 bg-white dark:bg-[#18191a] text-gray-900 dark:text-white border-t border-gray-200 dark:border-neutral-800 p-5 sm:p-6 lg:p-0 flex flex-col lg:h-full lg:overflow-y-auto"
+        >
+          <ProductTabs 
+            productId={product.id} 
+            sellerUsername={product.seller_username} 
+            isDesktop={isDesktop}
+          />
+        </div>
+      </div>
+
+      {/* Floating Back to Top Button */}
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-5 z-[110] p-3 rounded-full shadow-2xl bg-white dark:bg-[#1f2022] text-gray-900 dark:text-white border border-gray-200 dark:border-white/15 hover:scale-110 active:scale-95 transition-all duration-300 transform flex items-center justify-center cursor-pointer group"
+          aria-label="Back to top"
+          title="Back to top"
+        >
+          <ArrowUp size={20} className="group-hover:-translate-y-0.5 transition-transform" />
+        </button>
+      )}
 
       {product.latitude && product.longitude && (
         <MapAppModal

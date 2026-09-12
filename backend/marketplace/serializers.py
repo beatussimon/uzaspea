@@ -7,10 +7,10 @@ from .models import (
     Payment, PaymentConfirmation, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
     ProductImage, Like, LipaNumber, FAQ, SupportTicket,
     Notification, Conversation, Message, SavedSearch, PriceAlert,
-    Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork, SellerApplication,
+    Dispute, ProductVariant, SiteSettings, DeliveryZone, MobileNetwork, SellerApplication, SellerSiteVisit,
     TeamMember, TeamMemberAuditLog, StoreImage, ProductPriceTier, ProductRequest,
     VehicleMake, VehicleModel, Vehicle, ProductVehicleFitment,
-    Brand, ReferenceProduct, PasswordResetRequest
+    Brand, ReferenceProduct, PasswordResetRequest, ReservedUsername
 )
 
 
@@ -413,6 +413,8 @@ class ProductSerializer(serializers.ModelSerializer):
     reference_product = FlexibleReferenceProductRelatedField(queryset=ReferenceProduct.objects.all(), required=False, allow_null=True)
     structured_specs = SafeJSONField()
     specifications = SafeJSONField()
+    has_a_plus_content = serializers.BooleanField(required=False, default=False)
+    a_plus_content = SafeJSONField(required=False)
     unit_of_measure = serializers.CharField(max_length=50, required=False, allow_blank=True, default='piece')
     is_draft = serializers.BooleanField(required=False, default=False)
 
@@ -444,7 +446,8 @@ class ProductSerializer(serializers.ModelSerializer):
                   'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images', 'inspections', 'has_post_inspection_changes', 'inspection_events', 'is_verified', 'vehicle_ids', 'oem_part_number',
                   'has_inspection', 'inspection_verdict', 'created_at', 'location_name', 'latitude', 'longitude', 'distance',
                   'weight_kg', 'size', 'can_review', 'is_sponsored', 'specifications',
-                  'brand', 'reference_product', 'structured_specs', 'brand_details', 'reference_product_details']
+                  'brand', 'reference_product', 'structured_specs', 'brand_details', 'reference_product_details',
+                  'has_a_plus_content', 'a_plus_content']
         read_only_fields = ['seller', 'slug']
 
     def to_internal_value(self, data):
@@ -453,9 +456,7 @@ class ProductSerializer(serializers.ModelSerializer):
         
         # Handle draft defaults for incomplete listings
         is_draft_val = mutable_data.get('is_draft')
-        is_draft = is_draft_val in [True, 'true', 'True', '1', 1]
-        
-        if is_draft:
+        if is_draft_val in (True, 'true', '1', 1):
             if not mutable_data.get('name') or not str(mutable_data.get('name')).strip():
                 mutable_data['name'] = 'Untitled Draft'
             if not mutable_data.get('description') or not str(mutable_data.get('description')).strip():
@@ -470,6 +471,12 @@ class ProductSerializer(serializers.ModelSerializer):
                 if cat:
                     mutable_data['category'] = cat.id
 
+        # Handle boolean conversion for has_a_plus_content
+        if 'has_a_plus_content' in mutable_data:
+            val = mutable_data['has_a_plus_content']
+            if isinstance(val, str):
+                mutable_data['has_a_plus_content'] = val.lower() in ('true', '1', 'yes')
+
         # Handle JSON strings from multipart/form-data
         if 'structured_specs' in mutable_data and isinstance(mutable_data['structured_specs'], str):
             try:
@@ -480,6 +487,12 @@ class ProductSerializer(serializers.ModelSerializer):
         if 'specifications' in mutable_data and isinstance(mutable_data['specifications'], str):
             try:
                 mutable_data['specifications'] = json.loads(mutable_data['specifications'])
+            except Exception:
+                pass
+
+        if 'a_plus_content' in mutable_data and isinstance(mutable_data['a_plus_content'], str):
+            try:
+                mutable_data['a_plus_content'] = json.loads(mutable_data['a_plus_content'])
             except Exception:
                 pass
 
@@ -644,7 +657,13 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_oem_part_number(self, obj):
         if obj.specifications and isinstance(obj.specifications, dict):
-            return obj.specifications.get('oem_part_number', '')
+            val = obj.specifications.get('oem_part_number') or obj.specifications.get('part_number')
+            if val:
+                return str(val)
+        if obj.structured_specs and isinstance(obj.structured_specs, dict):
+            val = obj.structured_specs.get('oem_part_number') or obj.structured_specs.get('part_number')
+            if val:
+                return str(val)
         return ''
 
     def get_seller_tier(self, obj):
@@ -1698,7 +1717,32 @@ class SiteSettingsSerializer(serializers.ModelSerializer):  # FIX B-18
         model = SiteSettings
         fields = ['company_name', 'tagline', 'support_email', 'support_phone',
                   'whatsapp_number', 'address', 'facebook_url', 'instagram_url',
-                  'twitter_url', 'working_hours', 'for_you_image']
+                  'twitter_url', 'tiktok_url', 'linkedin_url', 'youtube_url',
+                  'working_hours', 'for_you_image']
+
+    def to_internal_value(self, data):
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        social_map = {
+            'instagram_url': 'https://instagram.com/',
+            'facebook_url': 'https://facebook.com/',
+            'twitter_url': 'https://x.com/',
+            'tiktok_url': 'https://tiktok.com/@',
+            'linkedin_url': 'https://linkedin.com/company/',
+            'youtube_url': 'https://youtube.com/@',
+        }
+        for field, prefix in social_map.items():
+            val = data.get(field)
+            if val and isinstance(val, str):
+                val = val.strip()
+                if val:
+                    if not val.startswith(('http://', 'https://')):
+                        clean_val = val.lstrip('@')
+                        data[field] = f"{prefix}{clean_val}"
+                    else:
+                        data[field] = val
+                else:
+                    data[field] = ''
+        return super().to_internal_value(data)
 
 
 class DeliveryZoneSerializer(serializers.ModelSerializer):  # FIX B-21
@@ -1725,6 +1769,27 @@ class SellerApplicationSerializer(serializers.ModelSerializer):
             'rejection_reason', 'created_at', 'updated_at'
         ]
         read_only_fields = ['user', 'status', 'rejection_reason', 'created_at', 'updated_at']
+
+
+class SellerSiteVisitSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_phone = serializers.CharField(source='user.profile.phone_number', read_only=True)
+    visited_by_username = serializers.CharField(source='visited_by.username', read_only=True)
+    reviewed_by_username = serializers.CharField(source='reviewed_by.username', read_only=True)
+
+    class Meta:
+        model = SellerSiteVisit
+        fields = [
+            'id', 'user', 'username', 'user_email', 'user_phone',
+            'business_name', 'contact_person', 'contact_phone',
+            'address', 'region', 'district', 'latitude', 'longitude',
+            'storefront_image', 'interior_image', 'document_image',
+            'staff_notes', 'visited_by', 'visited_by_username', 'visited_at',
+            'status', 'reviewed_by', 'reviewed_by_username', 'reviewed_at',
+            'rejection_reason', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['visited_by', 'visited_by_username', 'reviewed_by', 'reviewed_by_username', 'reviewed_at', 'created_at', 'updated_at']
 
 
 class TeamMemberSerializer(serializers.ModelSerializer):
@@ -1787,8 +1852,10 @@ class TeamMemberSerializer(serializers.ModelSerializer):
 
         if create_user:
             # Direct user provisioning mode
-            if User.objects.filter(username=username).exists():
-                raise serializers.ValidationError({"username": f"Username '{username}' is already taken. Choose a different username or invite this user instead."})
+            from .username_rules import validate_username_availability
+            is_avail, err_msg, code, meta = validate_username_availability(username)
+            if not is_avail:
+                raise serializers.ValidationError({"username": err_msg or f"Username '{username}' is unavailable."})
             
             email = attrs.get('email')
             if email and User.objects.filter(email=email).exists():
@@ -2014,4 +2081,26 @@ class PasswordResetRequestStaffSerializer(serializers.ModelSerializer):
 
     def get_is_active(self, obj):
         return obj.is_active()
+
+
+class ReservedUsernameSerializer(serializers.ModelSerializer):
+    reserved_for_username = serializers.CharField(source='reserved_for.username', read_only=True, allow_null=True)
+    category_display = serializers.CharField(source='get_category_display', read_only=True)
+
+    class Meta:
+        model = ReservedUsername
+        fields = [
+            'id', 'username', 'category', 'category_display',
+            'reason', 'is_active', 'reserved_for', 'reserved_for_username',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'category_display', 'reserved_for_username']
+
+    def validate_username(self, value):
+        from .username_rules import canonicalize_username, validate_username_format
+        val = canonicalize_username(value)
+        ok, err, code = validate_username_format(val)
+        if not ok:
+            raise serializers.ValidationError(err)
+        return val
 

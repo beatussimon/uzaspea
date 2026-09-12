@@ -15,6 +15,7 @@ import { SearchProvider } from './context/SearchContext';
 import GlobalSearchModal from './components/GlobalSearchModal';
 import { LocationProvider } from './context/LocationContext';
 import { FloatingPromptDock } from './components/layout/FloatingPromptDock';
+import NetworkStatusBanner from './components/common/NetworkStatusBanner';
 
 
 import LandingPage from './pages/LandingPage';
@@ -161,6 +162,7 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen bg-surface-muted dark:bg-surface-dark flex flex-col transition-colors duration-300 w-full max-w-full overflow-x-hidden">
+      <NetworkStatusBanner />
       <Navbar />
       {!isLandingPage && <div className="h-14 md:h-20 pt-safe print-hide" />} {/* Spacer matching navbar height, hidden on landing */}
       

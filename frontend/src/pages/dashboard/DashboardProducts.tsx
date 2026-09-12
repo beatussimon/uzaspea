@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 import toast from 'react-hot-toast';
@@ -20,6 +20,8 @@ import { ReportPrintHeader } from '../../components/print/ReportPrintHeader';
 import { DashboardProductListSkeleton } from '../../components/Skeleton';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { printElement } from '../../utils/printHelper';
+import { invalidateProductCache } from '../../components/layout/CategoryBar';
+import { useUserLocation } from '../../context/LocationContext';
 
 // ─── Mobile detection (camera option only shown on touch devices) ─────────────
 const isMobile = () =>
@@ -142,6 +144,7 @@ const DashboardProducts: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { showConfirm } = useDialog();
+  const { location: globalLocation } = useUserLocation();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -150,7 +153,64 @@ const DashboardProducts: React.FC = () => {
   const [quickStockValue, setQuickStockValue] = useState<string>('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [variantProductId, setVariantProductId] = useState<string | null>(null);
-  const INITIAL_FORM = { name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', is_available: true, is_draft: false, requires_quote: false, unit_of_measure: '', minimum_order_quantity: '1', brand: '', reference_product: '', structured_specs: {} as Record<string, any> };
+
+  const formRef = useRef<HTMLFormElement>(null);
+  const formTopRef = useRef<HTMLDivElement>(null);
+  const shouldJumpToEditRef = useRef(false);
+
+  const jumpToEdit = useCallback(() => {
+    // Force instantaneous jumping by disabling any smooth scrolling temporarily
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlBehavior = html.style.scrollBehavior;
+    const prevBodyBehavior = body.style.scrollBehavior;
+
+    html.style.scrollBehavior = 'auto';
+    body.style.scrollBehavior = 'auto';
+
+    const executeScroll = () => {
+      const target = formRef.current || formTopRef.current;
+      if (target) {
+        const navHeight = window.innerWidth >= 768 ? 84 : 64;
+        const rect = target.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const targetY = Math.max(0, rect.top + scrollTop - navHeight);
+        window.scrollTo(0, targetY);
+      } else {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    // Immediate jump in the current event tick
+    executeScroll();
+
+    // Secondary jump right after React mounts and renders the form elements
+    requestAnimationFrame(() => {
+      executeScroll();
+      setTimeout(() => {
+        html.style.scrollBehavior = prevHtmlBehavior;
+        body.style.scrollBehavior = prevBodyBehavior;
+      }, 60);
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (shouldJumpToEditRef.current && showForm) {
+      shouldJumpToEditRef.current = false;
+      jumpToEdit();
+    }
+  }, [showForm, editingId, jumpToEdit]);
+  const INITIAL_FORM = { 
+    name: '', sku: '', description: '', price: '', buying_price: '', sale_price: '', stock: '', category: '', condition: 'New', 
+    is_available: true, is_draft: false, requires_quote: false, unit_of_measure: '', minimum_order_quantity: '1', brand: '', 
+    reference_product: '', structured_specs: {} as Record<string, any>,
+    has_a_plus_content: false,
+    a_plus_content: {
+      headline: 'From the manufacturer',
+      company_logo: '',
+      modules: [] as Array<any>
+    }
+  };
   const [form, setForm] = useState(INITIAL_FORM);
   const [vehicleIds, setVehicleIds] = useState<string[]>([]);
   const [oemPartNumber, setOemPartNumber] = useState<string>('');
@@ -200,6 +260,100 @@ const DashboardProducts: React.FC = () => {
   const [uploadStatus, setUploadStatus] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const dropRef = React.useRef<HTMLDivElement>(null);
+
+  // A+ Content (From the Manufacturer) State & Helpers
+  const [uploadingAPlusIndex, setUploadingAPlusIndex] = useState<number | 'logo' | null>(null);
+
+  const handleAPlusImageUpload = async (file: File, target: number | 'logo') => {
+    try {
+      setUploadingAPlusIndex(target);
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await api.post('/api/products/upload_content_image/', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.url) {
+        if (target === 'logo') {
+          setForm(prev => ({
+            ...prev,
+            a_plus_content: { ...prev.a_plus_content, company_logo: res.data.url }
+          }));
+        } else {
+          setForm(prev => {
+            const newModules = [...(prev.a_plus_content?.modules || [])];
+            if (newModules[target]) {
+              newModules[target] = { ...newModules[target], image: res.data.url };
+            }
+            return {
+              ...prev,
+              a_plus_content: { ...prev.a_plus_content, modules: newModules }
+            };
+          });
+        }
+        toast.success('Content image uploaded!');
+      }
+    } catch {
+      toast.error('Failed to upload content image');
+    } finally {
+      setUploadingAPlusIndex(null);
+    }
+  };
+
+  const addAPlusModule = (type: 'hero_banner' | 'feature_right' | 'feature_left' | 'infographic' | 'claim_banner') => {
+    const newMod: any = {
+      id: 'mod_' + Date.now(),
+      type,
+      headline: type === 'hero_banner' ? 'Engineered for Performance' : type === 'claim_banner' ? 'Quality Guaranteed' : 'Key Feature Spotlight',
+      body: type === 'claim_banner' ? 'Designed to meet or exceed original equipment standards.' : 'Describe the key technological advantages, craftsmanship, or manufacturing standards.',
+      image: '',
+      badge: type === 'claim_banner' ? '100% QUALITY ASSURED' : 'HIGHLIGHT',
+    };
+    setForm(prev => ({
+      ...prev,
+      a_plus_content: {
+        ...prev.a_plus_content,
+        modules: [...(prev.a_plus_content?.modules || []), newMod]
+      }
+    }));
+  };
+
+  const removeAPlusModule = (idx: number) => {
+    setForm(prev => ({
+      ...prev,
+      a_plus_content: {
+        ...prev.a_plus_content,
+        modules: (prev.a_plus_content?.modules || []).filter((_, i) => i !== idx)
+      }
+    }));
+  };
+
+  const moveAPlusModule = (idx: number, direction: 'up' | 'down') => {
+    setForm(prev => {
+      const modules = [...(prev.a_plus_content?.modules || [])];
+      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= modules.length) return prev;
+      const temp = modules[idx];
+      modules[idx] = modules[targetIdx];
+      modules[targetIdx] = temp;
+      return {
+        ...prev,
+        a_plus_content: { ...prev.a_plus_content, modules }
+      };
+    });
+  };
+
+  const updateAPlusModule = (idx: number, field: string, val: any) => {
+    setForm(prev => {
+      const modules = [...(prev.a_plus_content?.modules || [])];
+      if (modules[idx]) {
+        modules[idx] = { ...modules[idx], [field]: val };
+      }
+      return {
+        ...prev,
+        a_plus_content: { ...prev.a_plus_content, modules }
+      };
+    });
+  };
 
 
   // Prefill from demand card conversion
@@ -396,45 +550,23 @@ const DashboardProducts: React.FC = () => {
 
   useEffect(() => {
     if (showForm && !editingId) {
-      const profLoc = (user as any)?.profile?.location || 'Dar es Salaam, Tanzania';
+      const profLoc = (user as any)?.profile?.location || '';
       const profLat = (user as any)?.profile?.latitude ? String((user as any).profile.latitude) : '';
       const profLng = (user as any)?.profile?.longitude ? String((user as any).profile.longitude) : '';
-      setLocData({
-        latitude: profLat,
-        longitude: profLng,
-        location_name: profLoc,
-      });
-      setLocStatus(profLoc ? `Location: ${profLoc}` : 'Fetching location...');
 
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
-            const latStr = latitude.toFixed(6);
-            const lngStr = longitude.toFixed(6);
-            try {
-              const res = await api.get(`/api/locations/search/?lat=${latitude}&lng=${longitude}`);
-              const location_name = res.data?.display_name || res.data?.[0]?.display_name || profLoc || 'Coordinates mapped';
-              setLocData({ latitude: latStr, longitude: lngStr, location_name });
-              setLocStatus(`Location: ${location_name}`);
-            } catch {
-              setLocData({ latitude: latStr, longitude: lngStr, location_name: profLoc || 'Coordinates mapped' });
-              setLocStatus('Location coordinates captured');
-            }
-          },
-          () => {
-            if (profLoc) {
-              setLocStatus(`Location: ${profLoc}`);
-            } else {
-              setLocStatus('Location access denied or unavailable.');
-            }
-          }
-        );
-      } else {
-        setLocStatus('Geolocation not supported.');
-      }
+      // Prioritize profile coordinates if available, else global app location coords
+      const lat = profLat || (globalLocation.coords ? globalLocation.coords.lat.toFixed(6) : '');
+      const lng = profLng || (globalLocation.coords ? globalLocation.coords.lng.toFixed(6) : '');
+      const locName = profLoc || globalLocation.address || (globalLocation.city ? `${globalLocation.city}, Tanzania` : 'Dar es Salaam, Tanzania');
+
+      setLocData({
+        latitude: lat,
+        longitude: lng,
+        location_name: locName,
+      });
+      setLocStatus(`Location: ${locName}`);
     }
-  }, [showForm, editingId, user]);
+  }, [showForm, editingId, user, globalLocation]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -568,6 +700,7 @@ const DashboardProducts: React.FC = () => {
 
 
   const handleEdit = async (product: any) => {
+    setWizardStep(1);
     setForm({
       name: product.name,
       sku: product.sku || '',
@@ -586,6 +719,10 @@ const DashboardProducts: React.FC = () => {
       brand: product.brand_details?.slug || '',
       reference_product: product.reference_product_details?.slug || '',
       structured_specs: product.structured_specs || {},
+      has_a_plus_content: Boolean(product.has_a_plus_content),
+      a_plus_content: product.a_plus_content && typeof product.a_plus_content === 'object' && Object.keys(product.a_plus_content).length > 0
+        ? product.a_plus_content
+        : { headline: 'From the manufacturer', company_logo: '', modules: [] },
     });
     setPriceTiers(product.price_tiers || []);
     setEditingId(product.slug);
@@ -602,6 +739,8 @@ const DashboardProducts: React.FC = () => {
     setExistingImages(product.images || []);
     setNewVariants([]);
     setShowForm(true);
+    shouldJumpToEditRef.current = true;
+    jumpToEdit();
 
     try {
       const vRes = await api.get(`/api/variants/?product=${product.id}`);
@@ -646,6 +785,7 @@ const DashboardProducts: React.FC = () => {
     if (!confirmed) return;
     try {
       await api.delete(`/api/products/${slug}/`);
+      invalidateProductCache(slug);
       toast.success('Product deleted');
       fetchProducts(1, true);
     } catch {
@@ -745,11 +885,16 @@ const DashboardProducts: React.FC = () => {
             </Button>
             <Button
               onClick={() => {
-                setShowForm(!showForm);
+                const nextShow = !showForm;
+                setShowForm(nextShow);
                 setEditingId(null);
                 setExistingImages([]);
                 setNewVariants([]);
                 setForm(INITIAL_FORM);
+                if (nextShow) {
+                  shouldJumpToEditRef.current = true;
+                  jumpToEdit();
+                }
               }}
               disabled={user?.tier === 'customer'}
               variant={showForm ? 'outline' : 'default'}
@@ -948,7 +1093,7 @@ const DashboardProducts: React.FC = () => {
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* PRODUCT FORM — MULTI-STEP WIZARD                         */}
-      {/* ═══════════════════════════════════════════════════════════ */}
+      <div ref={formTopRef} className="scroll-mt-20 md:scroll-mt-24" />
       {showForm && (() => {
 
         const selectedCat = flatCategories.find(c => String(c.id) === String(form.category));
@@ -1015,7 +1160,7 @@ const DashboardProducts: React.FC = () => {
 
         const WIZARD_STEPS = [
           { id: 1, title: 'Category & Identity', shortTitle: 'Identity', icon: Tag, desc: 'Category, Title & Condition' },
-          { id: 2, title: 'Photos & Media', shortTitle: 'Media', icon: ImageIcon, desc: 'Upload product imagery' },
+          { id: 2, title: 'Photos & A+ Content', shortTitle: 'Media & A+', icon: ImageIcon, desc: 'Upload gallery photos & A+ brand storytelling' },
           { id: 3, title: isAuto ? 'Vehicle, Brand & Fitment' : (categoryBrands.length > 0 || specSchema.length > 0 ? 'Brand & Specifications' : 'Specs & Details'), shortTitle: 'Specs', icon: Sliders, desc: 'Brand, Model & Specs' },
           { id: 4, title: 'Pricing & Inventory', shortTitle: 'Pricing', icon: DollarSign, desc: 'Price, Stock & Variants' },
           { id: 5, title: 'Review & Publish', shortTitle: 'Publish', icon: CheckCircle2, desc: 'Final review & launch' },
@@ -1060,6 +1205,10 @@ const DashboardProducts: React.FC = () => {
             if (form.reference_product) fd.append('reference_product', form.reference_product);
             if (form.structured_specs && typeof form.structured_specs === 'object' && Object.keys(form.structured_specs).length > 0) {
               fd.append('structured_specs', JSON.stringify(form.structured_specs));
+            }
+            fd.append('has_a_plus_content', String(form.has_a_plus_content));
+            if (form.a_plus_content) {
+              fd.append('a_plus_content', JSON.stringify(form.a_plus_content));
             }
             
             if (locData.latitude) fd.append('latitude', locData.latitude);
@@ -1154,6 +1303,10 @@ const DashboardProducts: React.FC = () => {
               }
             }
 
+            if (editingId) invalidateProductCache(editingId);
+            if (result?.slug) invalidateProductCache(result.slug);
+            if (baseProductId) invalidateProductCache(baseProductId);
+
             setShowForm(false); setEditingId(null); setEditingProductId(null); setFulfillRequestId(null); setWizardStep(1);
             setHasCustomUnit(false);
             setForm(INITIAL_FORM);
@@ -1209,7 +1362,7 @@ const DashboardProducts: React.FC = () => {
         };
 
         return (
-          <form onSubmit={handleSubmitWithProgress} className="card mb-6 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] rounded-xl shadow-sm overflow-hidden">
+          <form ref={formRef} onSubmit={handleSubmitWithProgress} className="card mb-6 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] rounded-xl shadow-sm overflow-hidden scroll-mt-20 md:scroll-mt-24">
 
             {/* ─── UPLOAD PROGRESS OVERLAY ─── */}
             {submitting && uploadProgress !== null && (
@@ -1594,6 +1747,291 @@ const DashboardProducts: React.FC = () => {
                     )}
                   </div>
 
+                  {/* ─── A+ CONTENT ("FROM THE MANUFACTURER") BUILDER ─── */}
+                  <div className="pt-5 border-t border-neutral-200 dark:border-neutral-800 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-[#121212]">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black uppercase tracking-wider text-neutral-900 dark:text-white">
+                            A+ Content (From the Manufacturer)
+                          </span>
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                            Enhanced Story
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-500">
+                          Show rich visual storytelling, infographic banners, and feature highlights on your product page.
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={form.has_a_plus_content}
+                          onChange={(e) => setForm({ ...form, has_a_plus_content: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-500"></div>
+                      </label>
+                    </div>
+
+                    {form.has_a_plus_content && (
+                      <div className="p-4 sm:p-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0e0e0e] space-y-5">
+                        {/* Brand & Section Headline */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1">
+                              Section Title / Headline
+                            </label>
+                            <input
+                              type="text"
+                              value={form.a_plus_content?.headline ?? 'From the manufacturer'}
+                              onChange={(e) => setForm({
+                                ...form,
+                                a_plus_content: { ...form.a_plus_content, headline: e.target.value }
+                              })}
+                              placeholder="e.g. From the manufacturer"
+                              className="w-full text-xs px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#161616] text-neutral-900 dark:text-white focus:outline-none focus:border-brand-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-1">
+                              Brand Logo (Optional URL or Upload)
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={form.a_plus_content?.company_logo || ''}
+                                onChange={(e) => setForm({
+                                  ...form,
+                                  a_plus_content: { ...form.a_plus_content, company_logo: e.target.value }
+                                })}
+                                placeholder="https://... or upload logo"
+                                className="flex-1 text-xs px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#161616] text-neutral-900 dark:text-white focus:outline-none focus:border-brand-500"
+                              />
+                              <label className="cursor-pointer px-3 py-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0">
+                                <Camera size={13} />
+                                <span>{uploadingAPlusIndex === 'logo' ? '...' : 'Upload'}</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  disabled={uploadingAPlusIndex === 'logo'}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleAPlusImageUpload(f, 'logo');
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Modules List */}
+                        <div className="space-y-3 pt-2 border-t border-neutral-100 dark:border-neutral-800/60">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                              Story Modules ({(form.a_plus_content?.modules || []).length})
+                            </p>
+                            <span className="text-[11px] text-neutral-400">
+                              Combine hero banners, feature spotlights & infographics
+                            </span>
+                          </div>
+
+                          {(!form.a_plus_content?.modules || form.a_plus_content.modules.length === 0) ? (
+                            <div className="text-center py-6 px-4 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-lg">
+                              <p className="text-xs text-neutral-500 mb-1">No A+ content modules added yet.</p>
+                              <p className="text-[11px] text-neutral-400">Click a button below to add your first marketing storytelling module.</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {form.a_plus_content.modules.map((mod: any, idx: number) => (
+                                <div key={mod.id || idx} className="p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-[#141414] space-y-3">
+                                  <div className="flex items-center justify-between border-b border-neutral-200/60 dark:border-neutral-800/60 pb-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold">
+                                        #{idx + 1}
+                                      </span>
+                                      <span className="text-xs font-bold text-neutral-900 dark:text-white capitalize">
+                                        {mod.type === 'hero_banner' && 'Hero Banner'}
+                                        {mod.type === 'feature_right' && 'Feature Spotlight (Image Left)'}
+                                        {mod.type === 'feature_left' && 'Feature Spotlight (Text Left)'}
+                                        {mod.type === 'infographic' && 'Infographic Showcase'}
+                                        {mod.type === 'claim_banner' && 'Brand Claim / Guarantee'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        disabled={idx === 0}
+                                        onClick={() => moveAPlusModule(idx, 'up')}
+                                        className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-white disabled:opacity-30 text-xs"
+                                        title="Move Up"
+                                      >
+                                        ▲
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={idx === form.a_plus_content.modules.length - 1}
+                                        onClick={() => moveAPlusModule(idx, 'down')}
+                                        className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-white disabled:opacity-30 text-xs"
+                                        title="Move Down"
+                                      >
+                                        ▼
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeAPlusModule(idx)}
+                                        className="p-1 text-red-500 hover:text-red-700"
+                                        title="Remove Module"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Module form fields depending on type */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {mod.type !== 'claim_banner' && (
+                                      <div className="sm:col-span-2 space-y-1.5">
+                                        <label className="block text-[11px] font-semibold text-neutral-600 dark:text-neutral-400">
+                                          Image (Banner or Visual Graphic)
+                                        </label>
+                                        <div className="flex gap-2">
+                                          <input
+                                            type="text"
+                                            value={mod.image || ''}
+                                            onChange={(e) => updateAPlusModule(idx, 'image', e.target.value)}
+                                            placeholder="Image URL (or click Upload)"
+                                            className="flex-1 text-xs px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] text-neutral-900 dark:text-white"
+                                          />
+                                          <label className="cursor-pointer px-2.5 py-1.5 bg-neutral-200/70 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 rounded-md text-xs font-semibold flex items-center gap-1 shrink-0">
+                                            <Camera size={12} />
+                                            <span>{uploadingAPlusIndex === idx ? 'Uploading...' : 'Upload'}</span>
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              className="hidden"
+                                              disabled={uploadingAPlusIndex === idx}
+                                              onChange={(e) => {
+                                                const f = e.target.files?.[0];
+                                                if (f) handleAPlusImageUpload(f, idx);
+                                              }}
+                                            />
+                                          </label>
+                                        </div>
+                                        {mod.image && (
+                                          <div className="mt-1 h-24 max-w-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-black/10 relative">
+                                            <img src={mod.image} alt="Preview" className="w-full h-full object-cover" />
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {mod.type !== 'infographic' && (
+                                      <>
+                                        <div>
+                                          <label className="block text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 mb-1">
+                                            Badge / Eyebrow (Optional)
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={mod.badge || ''}
+                                            onChange={(e) => updateAPlusModule(idx, 'badge', e.target.value)}
+                                            placeholder="e.g. ADVANCED SPECIFICATION"
+                                            className="w-full text-xs px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] text-neutral-900 dark:text-white"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 mb-1">
+                                            Headline
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={mod.headline || ''}
+                                            onChange={(e) => updateAPlusModule(idx, 'headline', e.target.value)}
+                                            placeholder="e.g. Precision Engineering"
+                                            className="w-full text-xs px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] text-neutral-900 dark:text-white"
+                                          />
+                                        </div>
+                                        <div className="sm:col-span-2">
+                                          <label className="block text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 mb-1">
+                                            Description / Body
+                                          </label>
+                                          <textarea
+                                            rows={2}
+                                            value={mod.body || ''}
+                                            onChange={(e) => updateAPlusModule(idx, 'body', e.target.value)}
+                                            placeholder="Provide descriptive details, engineering highlights, materials, or features..."
+                                            className="w-full text-xs px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] text-neutral-900 dark:text-white"
+                                          />
+                                        </div>
+                                      </>
+                                    )}
+
+                                    {mod.type === 'infographic' && (
+                                      <div className="sm:col-span-2">
+                                        <label className="block text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 mb-1">
+                                          Caption / Headline (Optional)
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={mod.headline || ''}
+                                          onChange={(e) => updateAPlusModule(idx, 'headline', e.target.value)}
+                                          placeholder="e.g. Exploded View & Component Architecture"
+                                          className="w-full text-xs px-2.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] text-neutral-900 dark:text-white"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Add Module Buttons */}
+                          <div className="pt-2 flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mr-1">Add Module:</span>
+                            <button
+                              type="button"
+                              onClick={() => addAPlusModule('hero_banner')}
+                              className="px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold flex items-center gap-1 transition"
+                            >
+                              <Plus size={12} /> Hero Banner
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => addAPlusModule('feature_right')}
+                              className="px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold flex items-center gap-1 transition"
+                            >
+                              <Plus size={12} /> Feature (Image Left)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => addAPlusModule('feature_left')}
+                              className="px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold flex items-center gap-1 transition"
+                            >
+                              <Plus size={12} /> Feature (Image Right)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => addAPlusModule('infographic')}
+                              className="px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold flex items-center gap-1 transition"
+                            >
+                              <Plus size={12} /> Infographic
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => addAPlusModule('claim_banner')}
+                              className="px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold flex items-center gap-1 transition"
+                            >
+                              <Plus size={12} /> Claim Banner
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Step 2 Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-neutral-200 dark:border-neutral-800">
                     <div className="flex items-center gap-2">
@@ -1613,14 +2051,27 @@ const DashboardProducts: React.FC = () => {
                         Save as Draft
                       </button>
                     </div>
-                    <button 
-                      type="button" 
-                      disabled={!canProceedStep2} 
-                      onClick={() => setWizardStep(3)}
-                      className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
-                    >
-                      Next: Specifications <ArrowRight size={14} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {editingId && (
+                        <button 
+                          type="button" 
+                          disabled={submitting || !canSubmit} 
+                          onClick={(e) => handleSubmitWithProgress(e, false)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition shadow-sm flex items-center gap-1.5"
+                          title="Save and update listing immediately"
+                        >
+                          <Check size={14} /> {submitting ? 'Updating...' : 'Update Product'}
+                        </button>
+                      )}
+                      <button 
+                        type="button" 
+                        disabled={!canProceedStep2} 
+                        onClick={() => setWizardStep(3)}
+                        className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
+                      >
+                        Next: Specifications <ArrowRight size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2141,14 +2592,27 @@ const DashboardProducts: React.FC = () => {
                         Save as Draft
                       </button>
                     </div>
-                    <button 
-                      type="button" 
-                      disabled={!canProceedStep3} 
-                      onClick={() => setWizardStep(4)}
-                      className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
-                    >
-                      Next: Pricing & Stock <ArrowRight size={14} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {editingId && (
+                        <button 
+                          type="button" 
+                          disabled={submitting || !canSubmit} 
+                          onClick={(e) => handleSubmitWithProgress(e, false)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition shadow-sm flex items-center gap-1.5"
+                          title="Save and update listing immediately"
+                        >
+                          <Check size={14} /> {submitting ? 'Updating...' : 'Update Product'}
+                        </button>
+                      )}
+                      <button 
+                        type="button" 
+                        disabled={!canProceedStep3} 
+                        onClick={() => setWizardStep(4)}
+                        className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
+                      >
+                        Next: Pricing & Stock <ArrowRight size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2499,14 +2963,27 @@ const DashboardProducts: React.FC = () => {
                         Save as Draft
                       </button>
                     </div>
-                    <button 
-                      type="button" 
-                      disabled={!canProceedStep4} 
-                      onClick={() => setWizardStep(5)}
-                      className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
-                    >
-                      Next: Review <ArrowRight size={14} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {editingId && (
+                        <button 
+                          type="button" 
+                          disabled={submitting || !canSubmit} 
+                          onClick={(e) => handleSubmitWithProgress(e, false)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition shadow-sm flex items-center gap-1.5"
+                          title="Save and update listing immediately"
+                        >
+                          <Check size={14} /> {submitting ? 'Updating...' : 'Update Product'}
+                        </button>
+                      )}
+                      <button 
+                        type="button" 
+                        disabled={!canProceedStep4} 
+                        onClick={() => setWizardStep(5)}
+                        className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-black font-bold rounded-lg text-xs transition flex items-center gap-1.5"
+                      >
+                        Next: Review <ArrowRight size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2579,6 +3056,23 @@ const DashboardProducts: React.FC = () => {
                         <div>
                           <p className="text-xs font-bold text-neutral-900 dark:text-white">Request for Quote (RFQ)</p>
                           <p className="text-[11px] text-neutral-500">Buyers must request a custom price quote.</p>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-[#111111] rounded-lg border border-neutral-200 dark:border-neutral-800 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={form.has_a_plus_content} 
+                          onChange={(e) => setForm({...form, has_a_plus_content: e.target.checked})} 
+                          className="w-4 h-4 rounded text-brand-500 focus:ring-brand-500" 
+                        />
+                        <div>
+                          <p className="text-xs font-bold text-neutral-900 dark:text-white">A+ Content (From the Manufacturer)</p>
+                          <p className="text-[11px] text-neutral-500">
+                            {form.has_a_plus_content 
+                              ? `Enabled with ${(form.a_plus_content?.modules || []).length} module(s). Configurable in Step 2.` 
+                              : 'Enhance your listing with rich visual storytelling and brand modules.'}
+                          </p>
                         </div>
                       </label>
                     </div>
@@ -2672,6 +3166,11 @@ const DashboardProducts: React.FC = () => {
                       {product.stock === 0 ? 'Out' : product.stock <= 3 ? 'Low' : 'In Stock'}
                     </span>
                   )}
+                  {Boolean(product.has_a_plus_content) && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border shrink-0 bg-transparent text-purple-600 dark:text-purple-400 border-purple-500/40">
+                      A+ Content
+                    </span>
+                  )}
                 </div>
 
                 {/* Row 2: Price, Cost, Stock & Quick Edit */}
@@ -2719,7 +3218,7 @@ const DashboardProducts: React.FC = () => {
                 <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto scrollbar-none">
                   <button
                     type="button"
-                    onClick={() => navigate(`/dashboard/promotions?tab=sponsored&new=true&product=${product.id}`)}
+                    onClick={() => navigate(`/dashboard/promotions?tab=sponsored&new=true&product=${product.id}`, { state: { boostedProduct: product } })}
                     className="px-2 py-1 text-[11px] font-bold text-brand-600 dark:text-brand-400 bg-transparent hover:bg-brand-500 hover:text-black dark:hover:text-black border border-brand-500/50 rounded-lg transition inline-flex items-center gap-1 shrink-0"
                     title="Boost / Sponsor this product"
                   >

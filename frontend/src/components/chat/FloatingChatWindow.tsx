@@ -566,7 +566,7 @@ export const FloatingChatWindow: React.FC<FloatingChatWindowProps> = ({ convId, 
                 }
               }}
               placeholder={t('type_a_message', 'Type a message...')}
-              className="w-full pr-7 pl-3 py-1.5 text-xs border border-gray-200/60 dark:border-neutral-800/50 rounded-full bg-gray-100/50 dark:bg-neutral-900/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/30 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
+              className="w-full pr-7 pl-3 py-1.5 text-base md:text-xs border border-gray-200/60 dark:border-neutral-800/50 rounded-full bg-gray-100/50 dark:bg-neutral-900/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/30 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600 touch-manipulation"
             />
             <button 
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}

@@ -171,6 +171,11 @@ const MobileBottomNav = () => {
     return () => window.removeEventListener('savedItemsChanged', handleSavedChange);
   }, [isAuthenticated]);
 
+  // Hide mobile bottom navigation bar when inside an active chat thread
+  // to avoid overlapping the chat input or virtual keyboard
+  const isChatThread = /^\/messages\/\d+/.test(location.pathname);
+  if (isChatThread) return null;
+
   return (
     <>
       {/* --- Overlay Backdrop --- */}

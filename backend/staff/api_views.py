@@ -977,3 +977,133 @@ class StaffSellerApplicationViewSet(viewsets.ModelViewSet):
         log_audit(request.user, 'seller_upgrade_rejected', f"Rejected seller upgrade application for user {application.user.username}. Reason: {rejection_reason}", target_user=application.user, request=request)
         return Response({'status': 'rejected'})
 
+
+class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
+    from marketplace.models import SellerSiteVisit
+    from marketplace.serializers import SellerSiteVisitSerializer
+    serializer_class = SellerSiteVisitSerializer
+    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+
+    def get_queryset(self):
+        from marketplace.models import SellerSiteVisit
+        queryset = SellerSiteVisit.objects.select_related('user', 'visited_by', 'reviewed_by').all()
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param.lower())
+        search = self.request.query_params.get('search')
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(business_name__icontains=search) |
+                Q(user__username__icontains=search) |
+                Q(contact_phone__icontains=search) |
+                Q(address__icontains=search)
+            )
+        return queryset.order_by('-created_at')
+
+    def perform_create(self, serializer):
+        user_id = self.request.data.get('user_id') or self.request.data.get('user')
+        username = self.request.data.get('username')
+        target_user = None
+        if user_id:
+            target_user = User.objects.filter(id=user_id).first()
+        elif username:
+            target_user = User.objects.filter(username__iexact=username).first()
+
+        if not target_user:
+            raise serializers.ValidationError({'user': 'A valid customer user must be specified for this site visit.'})
+
+        site_visit = serializer.save(
+            user=target_user,
+            visited_by=self.request.user,
+            status='pending_review'
+        )
+        log_audit(
+            self.request.user,
+            'site_visit_submitted',
+            f"Staff {self.request.user.username} submitted physical site visit for {target_user.username} ({site_visit.business_name})",
+            target_user=target_user,
+            request=self.request
+        )
+
+    @decorators.action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        if not (request.user.is_superuser or request.user.has_perm('marketplace.can_verify_requests') or request.user.is_staff):
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        visit = self.get_object()
+        if visit.status != 'pending_review':
+            return Response({'error': 'Site visit has already been processed'}, status=status.HTTP_400_BAD_REQUEST)
+
+        visit.status = 'approved'
+        visit.reviewed_by = request.user
+        visit.reviewed_at = timezone.now()
+        visit.save()
+
+        log_audit(
+            request.user,
+            'site_visit_approved',
+            f"Approved physical site verification for user {visit.user.username} ({visit.business_name})",
+            target_user=visit.user,
+            request=request
+        )
+        return Response({'status': 'approved'})
+
+    @decorators.action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        if not (request.user.is_superuser or request.user.has_perm('marketplace.can_verify_requests') or request.user.is_staff):
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        visit = self.get_object()
+        if visit.status != 'pending_review':
+            return Response({'error': 'Site visit has already been processed'}, status=status.HTTP_400_BAD_REQUEST)
+
+        rejection_reason = request.data.get('reason', '')
+        visit.status = 'rejected'
+        visit.reviewed_by = request.user
+        visit.reviewed_at = timezone.now()
+        visit.rejection_reason = rejection_reason
+        visit.save()
+
+        log_audit(
+            request.user,
+            'site_visit_rejected',
+            f"Rejected physical site verification for user {visit.user.username}. Reason: {rejection_reason}",
+            target_user=visit.user,
+            request=request
+        )
+        return Response({'status': 'rejected'})
+
+    @decorators.action(detail=False, methods=['get'], url_path='candidate-users')
+    def candidate_users(self, request):
+        q = request.query_params.get('q', '').strip()
+        users_qs = User.objects.filter(is_active=True)
+        if q:
+            from django.db.models import Q
+            users_qs = users_qs.filter(
+                Q(username__icontains=q) |
+                Q(email__icontains=q) |
+                Q(first_name__icontains=q) |
+                Q(last_name__icontains=q) |
+                Q(profile__phone_number__icontains=q)
+            )
+        else:
+            users_qs = users_qs.order_by('-date_joined')[:20]
+
+        data = []
+        for u in users_qs[:30]:
+            phone = getattr(u.profile, 'phone_number', '') if hasattr(u, 'profile') else ''
+            tier = getattr(u.profile, 'tier', 'customer') if hasattr(u, 'profile') else 'customer'
+            is_loc_ver = getattr(u.profile, 'is_location_verified', False) if hasattr(u, 'profile') else False
+            data.append({
+                'id': u.id,
+                'username': u.username,
+                'email': u.email,
+                'phone': phone,
+                'tier': tier,
+                'is_location_verified': is_loc_ver,
+            })
+        return Response(data)
+
+
+

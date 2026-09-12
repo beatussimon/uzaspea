@@ -415,12 +415,6 @@ const subscribeToWebPush = async () => {
       if (typeof window !== 'undefined' && 'Notification' in window) {
         if (Notification.permission === 'granted') {
           subscribeToWebPush();
-        } else if (Notification.permission === 'default') {
-          Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-              subscribeToWebPush();
-            }
-          }).catch(() => {});
         }
       }
     } else {

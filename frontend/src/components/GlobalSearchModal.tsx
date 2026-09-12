@@ -14,6 +14,8 @@ import { ensureArray } from '../utils/arrayUtils';
 import LocationFilter from './LocationFilter';
 import { useUserLocation } from '../context/LocationContext';
 import VerifiedBadge from './VerifiedBadge';
+import NetworkErrorState from './common/NetworkErrorState';
+import { classifyApiError, ClassifiedError } from '../utils/errorUtils';
 
 // In-memory filter for seller-scoped search (0ms instant response)
 const filterSellerProductsInMemory = (
@@ -111,6 +113,8 @@ const GlobalSearchModal: React.FC = () => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<ClassifiedError | null>(null);
+  const [retryTrigger, setRetryTrigger] = useState(0);
   
   // Filters State
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -377,18 +381,29 @@ const GlobalSearchModal: React.FC = () => {
         promises.push(Promise.resolve({ data: { results: [] } }));
       }
       promises.push(
-        api.get('/api/products/', { params: productParams, signal: abortController.signal }).catch(() => ({ data: { results: [] } }))
+        api.get('/api/products/', { params: productParams, signal: abortController.signal })
       );
 
-      Promise.all(promises).then(([profileRes, productRes]) => {
+      Promise.allSettled(promises).then(([profileOutcome, productOutcome]) => {
         if (abortController.signal.aborted) return;
-        const profiles = sellerScope ? [] : (profileRes.data.results || profileRes.data || []).map((p: any) => ({ ...p, type: 'account' }));
-        const products = (productRes.data.results || []).map((p: any) => ({ ...p, type: 'product' }));
-        const sortedProducts = [...products].sort((a: any, b: any) => (b.is_sponsored ? 1 : 0) - (a.is_sponsored ? 1 : 0));
-        
-        setSuggestions([...profiles, ...sortedProducts]);
-        setTotalCount(productRes.data.count ?? (products.length > 0 ? products.length : 0));
-        setIsSearching(false);
+
+        if (productOutcome.status === 'fulfilled') {
+          const productRes = productOutcome.value;
+          const profileRes = profileOutcome.status === 'fulfilled' ? profileOutcome.value : { data: { results: [] } };
+          const profiles = sellerScope ? [] : (profileRes.data.results || profileRes.data || []).map((p: any) => ({ ...p, type: 'account' }));
+          const products = (productRes.data.results || []).map((p: any) => ({ ...p, type: 'product' }));
+          const sortedProducts = [...products].sort((a: any, b: any) => (b.is_sponsored ? 1 : 0) - (a.is_sponsored ? 1 : 0));
+          
+          setSuggestions([...profiles, ...sortedProducts]);
+          setTotalCount(productRes.data.count ?? (products.length > 0 ? products.length : 0));
+          setSearchError(null);
+          setIsSearching(false);
+        } else {
+          const classified = classifyApiError(productOutcome.reason);
+          setSearchError(classified);
+          setSuggestions([]);
+          setIsSearching(false);
+        }
       }).catch(() => {
         if (!abortController.signal.aborted) {
           setIsSearching(false);
@@ -400,7 +415,7 @@ const GlobalSearchModal: React.FC = () => {
       clearTimeout(timer);
       abortController.abort();
     };
-  }, [query, category, subcategory, brand, minPrice, maxPrice, condition, sortBy, sellerScope, vehicleId, oemPartNumber, specFilters, searchPrefs, userLocation.coords]);
+  }, [query, category, subcategory, brand, minPrice, maxPrice, condition, sortBy, sellerScope, vehicleId, oemPartNumber, specFilters, searchPrefs, userLocation.coords, retryTrigger]);
 
   const buildQueryString = (overrides?: { category?: string; subcategory?: string; query?: string; clearSeller?: boolean }) => {
     const params = new URLSearchParams();
@@ -494,7 +509,7 @@ const GlobalSearchModal: React.FC = () => {
                   enterKeyHint="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={sellerScope ? `Search @${sellerScope.username}'s products...` : t('search_placeholder', 'Search products, categories, or brands...')}
+                  placeholder={sellerScope ? `Search @${sellerScope.username}'s products...` : t('search_placeholder', 'Search products, part numbers, brands...')}
                   className="w-full h-14 sm:h-16 px-10 text-center bg-transparent text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-600 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 !ring-0 !outline-none !shadow-none border-0 shadow-none"
                   style={{ outline: 'none', boxShadow: 'none' }}
                 />
@@ -624,20 +639,22 @@ const GlobalSearchModal: React.FC = () => {
                 )}
 
                 {/* Auto Parts / Vehicle Filters */}
-                {(activeRootCategory?.slug?.startsWith('vehicle') || activeRootCategory?.slug === 'vehicles' || activeRootCategory?.slug === 'vehicles-automotive' || activeRootCategory?.slug === 'auto-parts') && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                    <VehicleSelector 
-                      category={category}
-                      subcategory={subcategory}
-                      onVehicleSelect={setVehicleId} 
-                      selectedVehicleId={vehicleId} 
-                    />
+                {(activeRootCategory?.slug?.startsWith('vehicle') || activeRootCategory?.slug === 'vehicles' || activeRootCategory?.slug === 'vehicles-automotive' || activeRootCategory?.slug === 'auto-parts' || !category || oemPartNumber) && (
+                  <motion.div initial={{ opacity: 0, height: 'auto' }} animate={{ opacity: 1, height: 'auto' }}>
+                    {(activeRootCategory?.slug?.startsWith('vehicle') || activeRootCategory?.slug === 'vehicles' || activeRootCategory?.slug === 'vehicles-automotive' || activeRootCategory?.slug === 'auto-parts') && (
+                      <VehicleSelector 
+                        category={category}
+                        subcategory={subcategory}
+                        onVehicleSelect={setVehicleId} 
+                        selectedVehicleId={vehicleId} 
+                      />
+                    )}
                     
                     <div className="mt-4 mb-2">
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">OEM Part Number</label>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">OEM / Part Number</label>
                       <input 
                         type="text" 
-                        placeholder="e.g. 04465-42180" 
+                        placeholder="e.g. OEM-78484, 04465-42180" 
                         value={oemPartNumber} 
                         onChange={(e) => setOemPartNumber(e.target.value)} 
                         className="w-full px-3 py-2.5 text-sm border-0 ring-1 ring-inset ring-neutral-200 dark:ring-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 transition-shadow" 
@@ -781,17 +798,19 @@ const GlobalSearchModal: React.FC = () => {
                       </div>
 
                       {/* Auto Parts / Vehicle Filters (Mobile) */}
-                      {(activeRootCategory?.slug?.startsWith('vehicle') || activeRootCategory?.slug === 'vehicles' || activeRootCategory?.slug === 'vehicles-automotive' || activeRootCategory?.slug === 'auto-parts') && (
+                      {(activeRootCategory?.slug?.startsWith('vehicle') || activeRootCategory?.slug === 'vehicles' || activeRootCategory?.slug === 'vehicles-automotive' || activeRootCategory?.slug === 'auto-parts' || !category || oemPartNumber) && (
                         <div className="space-y-3 pt-2">
-                          <VehicleSelector 
-                            category={category}
-                            subcategory={subcategory}
-                            onVehicleSelect={setVehicleId} 
-                            selectedVehicleId={vehicleId} 
-                          />
+                          {(activeRootCategory?.slug?.startsWith('vehicle') || activeRootCategory?.slug === 'vehicles' || activeRootCategory?.slug === 'vehicles-automotive' || activeRootCategory?.slug === 'auto-parts') && (
+                            <VehicleSelector 
+                              category={category}
+                              subcategory={subcategory}
+                              onVehicleSelect={setVehicleId} 
+                              selectedVehicleId={vehicleId} 
+                            />
+                          )}
                           <input 
                             type="text" 
-                            placeholder="OEM Part Number (e.g. 04465-42180)" 
+                            placeholder="OEM / Part Number (e.g. OEM-78484, 04465-42180)" 
                             value={oemPartNumber} 
                             onChange={(e) => setOemPartNumber(e.target.value)} 
                             className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-xl bg-white dark:bg-neutral-800 dark:text-white outline-none focus:border-neutral-900 dark:focus:border-neutral-300" 
@@ -1039,8 +1058,13 @@ const GlobalSearchModal: React.FC = () => {
                                           </span>
                                         )}
                                       </p>
-                                      <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate flex items-center gap-1">
-                                        {item.category_name}
+                                      <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate flex items-center gap-1.5">
+                                        <span>{item.category_name}</span>
+                                        {item.oem_part_number && (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200/60 dark:border-neutral-700/60" title={`OEM Part: ${item.oem_part_number}`}>
+                                            OEM: {item.oem_part_number}
+                                          </span>
+                                        )}
                                         {item.condition && (
                                           <span className="opacity-50">
                                             • {item.condition.toLowerCase() === 'new' ? t('new', 'MPYA') : item.condition.toLowerCase() === 'used' ? t('used', 'IMETUMIKA') : item.condition.toLowerCase() === 'refurbished' ? t('refurbished', 'Iliyokarabatiwa') : item.condition}
@@ -1093,6 +1117,18 @@ const GlobalSearchModal: React.FC = () => {
                             );
                           })}
                         </div>
+                      </div>
+                    ) : searchError && searchError.isNetworkOrServer ? (
+                      <div className="py-8 px-4 flex justify-center">
+                        <NetworkErrorState
+                          compact
+                          error={searchError}
+                          onRetry={() => {
+                            setSearchError(null);
+                            setRetryTrigger((c) => c + 1);
+                          }}
+                          className="max-w-md w-full"
+                        />
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center py-12 text-center">
