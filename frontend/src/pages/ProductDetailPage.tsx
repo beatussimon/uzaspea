@@ -16,12 +16,14 @@ import { useAuth } from '../context/AuthContext';
 import { useSearch } from '../context/SearchContext';
 import { ProductTabs } from '../components/ProductTabs';
 import SimilarProductsSection from '../components/SimilarProductsSection';
+import YouMightAlsoLikeSection from '../components/YouMightAlsoLikeSection';
 import SafeImage from '../components/SafeImage';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { Skeleton } from '../components/Skeleton';
 import { timeAgo } from '../utils/timeAgo';
 import { fetchProductCached, getCachedProduct, seedProductsCache } from '../utils/productCache';
+import { recordProductView } from '../utils/recentViews';
 import { useMessages } from '../context/MessageContext';
 import SEO from '../components/SEO';
 import { createProductInquiryPayload, parseMessageContent } from '../utils/messageParser';
@@ -81,6 +83,7 @@ interface ProductData {
   image?: string;
   similar_products?: any[];
   has_more_similar?: boolean;
+  recommended_products?: any[];
 }
 
 export interface ProductInspectionEvent {
@@ -743,9 +746,15 @@ const ProductDetailPage: React.FC = () => {
         setLiked(prodData.is_liked || false);
         setQuantity(parseFloat(prodData.minimum_order_quantity) || 1);
         
-        // Seed bundled similar products into memory/session cache
+        // Seed bundled similar & recommended products into memory/session cache
         if (Array.isArray(prodData?.similar_products) && prodData.similar_products.length > 0) {
           seedProductsCache(prodData.similar_products);
+        }
+        if (Array.isArray(prodData?.recommended_products) && prodData.recommended_products.length > 0) {
+          seedProductsCache(prodData.recommended_products);
+        }
+        if (prodData?.id) {
+          recordProductView(prodData.id);
         }
 
         // Immediate variants extraction from product payload
@@ -2043,12 +2052,21 @@ const ProductDetailPage: React.FC = () => {
           )}
         </div>
 
-        {/* ═══ ROW 2 COL 1 (Desktop) / AFTER LOCATION (Mobile): Similar Products ═══ */}
+        {/* ═══ ROW 2 COL 1 (Desktop) / AFTER LOCATION (Mobile): Recommendations & Similar Products ═══ */}
         <div 
           ref={similarProductsColRef}
           onWheel={handleRow2Wheel}
           className="w-full max-w-full lg:col-start-1 lg:row-start-2 bg-white dark:bg-[#18191a] text-gray-900 dark:text-white p-5 sm:p-6 lg:p-0 border-t border-gray-200 dark:border-neutral-800 lg:h-full lg:overflow-y-auto"
         >
+          {/* Section 1: You Might Also Like */}
+          <YouMightAlsoLikeSection 
+            key={`rec-${product.id}`}
+            product={product}
+            currentProductId={product.id}
+            isDesktop={isDesktop}
+          />
+
+          {/* Section 2: Similar Products (and Section 3: A+ Content) */}
           <SimilarProductsSection 
             key={product.id}
             product={product}

@@ -183,16 +183,26 @@ else:
         }
     }
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [REDIS_URL]},
-    },
-}
+if _in_test:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        },
+    }
 
 # Also configure Celery to use same Redis
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_TASK_PUBLISH_RETRY = False
+if 'test' in sys.argv:
+    CELERY_TASK_ALWAYS_EAGER = True
 
 # FIX DEVOPS-02: use Postgres in production, sqlite only as dev fallback
 import dj_database_url

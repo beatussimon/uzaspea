@@ -567,5 +567,7 @@
   "error_load_more_failed": "Imeshindwa kupakia bidhaa zaidi. Bonyeza kujaribu tena.",
   "offline_banner_text": "Uko nje ya mtandao. Bidhaa na taarifa haziwezi kupakiwa.",
   "online_restored_text": "Muunganisho umerejea. Umerudi mtandaoni!",
-  "refresh": "Pakia Upya"
+  "refresh": "Pakia Upya",
+  "you_might_also_like": "Huenda Pia Ukapenda",
+  "you_might_also_like_desc": "Mapendekezo kulingana na bidhaa hii"
 }

@@ -14,6 +14,12 @@ class Warehouse(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['is_active']),
+        ]
+
     def __str__(self):
         return f"{self.name} ({self.code})"
 

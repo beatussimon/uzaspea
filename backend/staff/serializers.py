@@ -139,25 +139,85 @@ class UserManagementSerializer(serializers.ModelSerializer):
 class PaymentConfirmationSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     tier_name = serializers.CharField(source='tier.name', read_only=True)
+    phone_number = serializers.CharField(source='user.profile.phone_number', read_only=True, default='')
+    whatsapp_number = serializers.CharField(source='user.profile.whatsapp_number', read_only=True, default='')
+    email = serializers.CharField(source='user.email', read_only=True, default='')
+    location = serializers.CharField(source='user.profile.location', read_only=True, default='')
+    full_name = serializers.SerializerMethodField()
+    store_url = serializers.SerializerMethodField()
+    active_products_count = serializers.SerializerMethodField()
 
     class Meta:
         model = PaymentConfirmation
         fields = [
-            'id', 'user', 'username', 'tier', 'tier_name', 'amount',
-            'reference', 'proof', 'status', 'created_at'
+            'id', 'user', 'username', 'full_name', 'tier', 'tier_name', 'amount',
+            'reference', 'proof', 'status', 'created_at', 'phone_number',
+            'whatsapp_number', 'email', 'location', 'store_url', 'active_products_count'
         ]
+
+    def get_full_name(self, obj):
+        if not obj.user:
+            return ""
+        name = f"{obj.user.first_name} {obj.user.last_name}".strip()
+        return name or obj.user.username
+
+    def get_store_url(self, obj):
+        return f"/{obj.user.username}" if obj.user else ""
+
+    def get_active_products_count(self, obj):
+        if not obj.user:
+            return 0
+        return getattr(obj.user, 'products', None).filter(is_available=True).count() if hasattr(obj.user, 'products') else 0
 
 
 class StaffCommissionPaymentSerializer(serializers.ModelSerializer):
     seller_username = serializers.CharField(source='invoice.seller.username', read_only=True)
+    seller_phone = serializers.CharField(source='invoice.seller.profile.phone_number', read_only=True, default='')
+    seller_whatsapp = serializers.CharField(source='invoice.seller.profile.whatsapp_number', read_only=True, default='')
+    seller_email = serializers.CharField(source='invoice.seller.email', read_only=True, default='')
+    seller_location = serializers.CharField(source='invoice.seller.profile.location', read_only=True, default='')
+    seller_full_name = serializers.SerializerMethodField()
+    seller_store_url = serializers.SerializerMethodField()
     invoice_year = serializers.IntegerField(source='invoice.year', read_only=True)
     invoice_month = serializers.IntegerField(source='invoice.month', read_only=True)
+    total_order_amount = serializers.DecimalField(source='invoice.total_order_amount', max_digits=12, decimal_places=2, read_only=True, default=0)
+    order_count = serializers.IntegerField(source='invoice.order_count', read_only=True, default=0)
+    total_commission = serializers.DecimalField(source='invoice.total_commission', max_digits=12, decimal_places=2, read_only=True, default=0)
+    subscription_fee = serializers.DecimalField(source='invoice.subscription_fee', max_digits=12, decimal_places=2, read_only=True, default=0)
+    total_amount_due = serializers.DecimalField(source='invoice.total_amount_due', max_digits=12, decimal_places=2, read_only=True, default=0)
+    due_date = serializers.DateField(source='invoice.due_date', read_only=True, default=None)
+    invoice_status = serializers.CharField(source='invoice.status', read_only=True, default='')
+    days_overdue = serializers.SerializerMethodField()
     reviewed_by_username = serializers.CharField(source='reviewed_by.username', read_only=True, default=None)
 
     class Meta:
         model = CommissionPayment
         fields = [
-            'id', 'invoice', 'seller_username', 'invoice_year', 'invoice_month',
-            'amount', 'transaction_id', 'receipt_screenshot', 'status', 
-            'rejection_reason', 'submitted_at', 'reviewed_by_username', 'reviewed_at'
+            'id', 'invoice', 'seller_username', 'seller_full_name', 'seller_store_url',
+            'seller_phone', 'seller_whatsapp', 'seller_email', 'seller_location',
+            'invoice_year', 'invoice_month', 'total_order_amount', 'order_count',
+            'total_commission', 'subscription_fee', 'total_amount_due', 'due_date',
+            'invoice_status', 'days_overdue', 'amount', 'transaction_id',
+            'receipt_screenshot', 'status', 'rejection_reason', 'submitted_at',
+            'reviewed_by_username', 'reviewed_at'
         ]
+
+    def get_seller_full_name(self, obj):
+        seller = getattr(getattr(obj, 'invoice', None), 'seller', None)
+        if not seller:
+            return ""
+        name = f"{seller.first_name} {seller.last_name}".strip()
+        return name or seller.username
+
+    def get_seller_store_url(self, obj):
+        seller = getattr(getattr(obj, 'invoice', None), 'seller', None)
+        return f"/{seller.username}" if seller else ""
+
+    def get_days_overdue(self, obj):
+        due_date = getattr(getattr(obj, 'invoice', None), 'due_date', None)
+        if due_date:
+            from django.utils import timezone
+            today = timezone.now().date()
+            if today > due_date:
+                return (today - due_date).days
+        return 0

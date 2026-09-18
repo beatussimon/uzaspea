@@ -25,7 +25,7 @@ from .models import (
     Brand, ReferenceProduct, PasswordResetRequest, ReservedUsername
 )
 from .serializers import (
-    ProductSerializer, CategorySerializer, ProductReviewSerializer, 
+    ProductSerializer, ProductListSerializer, CategorySerializer, ProductReviewSerializer, 
     ProductCommentSerializer, OrderSerializer, PaymentSerializer, UserProfileSerializer,
     NotificationSerializer, ConversationSerializer, MessageSerializer,
     SavedSearchSerializer, PriceAlertSerializer, DisputeSerializer,
@@ -169,6 +169,11 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().prefetch_related('images', 'likes', 'fitments', 'variants')
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ProductListSerializer
+        return ProductSerializer
     
     def get_permissions(self):
         if self.action == 'create':
@@ -250,7 +255,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         # Base queryset with annotations
         base = Product.objects.annotate(
-            annotated_avg_rating=avg_rating_subquery,
+            annotated_avg_rating=Coalesce(avg_rating_subquery, Value(0.0, output_field=models.FloatField())),
             annotated_like_count=Coalesce(like_count_subquery, Value(0)),
             annotated_is_liked=is_liked_expr,
             annotated_has_inspection=has_inspection_expr,
@@ -262,7 +267,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             'brand', 'brand__created_by',
             'reference_product', 'reference_product__brand', 'reference_product__category', 'reference_product__created_by'
         ).prefetch_related(
-            'images', 'inspections', 'inspections__report', 'fitments', 'price_tiers'
+            'images', 'variants', 'inspections', 'inspections__report', 'fitments', 'price_tiers'
         )
         
         # FIX: Ensure detail actions (delete/edit) don't get blocked by list filters
@@ -803,6 +808,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             data = serializer.data
 
             # Preload similar products for instant display without extra client roundtrips
+            similar_items = []
             try:
                 similar_items = self._get_similar_products(instance, request, limit=12)
                 data['similar_products'] = ProductSerializer(
@@ -814,6 +820,25 @@ class ProductViewSet(viewsets.ModelViewSet):
                 logging.getLogger(__name__).warning("Failed to preload similar products: %s", e)
                 data['similar_products'] = []
                 data['has_more_similar'] = False
+
+            # Preload 'You Might Also Like' recommendations
+            try:
+                from .recommendation_service import RecommendationEngine
+                similar_ids = [p.id for p in similar_items] if similar_items else []
+                recommended_items = RecommendationEngine.get_recommendations(
+                    target_product=instance,
+                    user=request.user,
+                    limit=8,
+                    exclude_ids=similar_ids,
+                    request=request
+                )
+                data['recommended_products'] = ProductSerializer(
+                    recommended_items, many=True, context=self.get_serializer_context()
+                ).data
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Failed to preload recommended products: %s", e)
+                data['recommended_products'] = []
 
             cache.set(cache_key, data, timeout=180)
 
@@ -832,10 +857,29 @@ class ProductViewSet(viewsets.ModelViewSet):
         image_file = request.FILES.get('image')
         if not image_file:
             return Response({'error': 'No image file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Enforce strict file extension whitelist
+        raw_ext = image_file.name.rsplit('.', 1)[-1].lower() if '.' in image_file.name else ''
+        allowed_extensions = {'jpg', 'jpeg', 'png', 'webp'}
+        if raw_ext not in allowed_extensions:
+            return Response({'error': 'Invalid file extension. Only JPG, PNG, and WebP images are allowed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Deep magic byte & structural verification via Pillow
+        from PIL import Image
+        try:
+            img = Image.open(image_file)
+            img.verify()
+            if img.format not in ['JPEG', 'PNG', 'WEBP']:
+                return Response({'error': 'Image format signature does not match permitted types.'}, status=status.HTTP_400_BAD_REQUEST)
+            image_file.seek(0)
+        except Exception:
+            return Response({'error': 'Corrupt or illegitimate image file.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Normalize extension based on verified format
+        canonical_ext = {'JPEG': 'jpg', 'PNG': 'png', 'WEBP': 'webp'}.get(img.format, 'jpg')
         from django.core.files.storage import default_storage
         import uuid
-        ext = image_file.name.split('.')[-1] if '.' in image_file.name else 'jpg'
-        filename = f"a_plus_content/{uuid.uuid4().hex[:12]}.{ext}"
+        filename = f"a_plus_content/{uuid.uuid4().hex[:12]}.{canonical_ext}"
         saved_path = default_storage.save(filename, image_file)
         url = default_storage.url(saved_path)
         return Response({'url': url}, status=status.HTTP_201_CREATED)
@@ -1690,6 +1734,16 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def update(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct updating of orders is prohibited. Use explicit workflow actions.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct updating of orders is prohibited. Use explicit workflow actions.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct deletion of orders is prohibited to maintain audit trails and transaction integrity.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def get_permissions(self):
         if self.action == 'pos_checkout':
@@ -1700,6 +1754,14 @@ class OrderViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return [OrderCreateThrottle()]
         return super().get_throttles()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        user = getattr(self.request, 'user', None)
+        if user and user.is_authenticated:
+            from uzachuo.permissions import get_effective_sellers
+            context['effective_sellers'] = get_effective_sellers(user, required_permission='manage_orders') or get_effective_sellers(user, required_permission='manage_products') or [user.id]
+        return context
 
     def get_queryset(self):
         user = self.request.user
@@ -1741,7 +1803,20 @@ class OrderViewSet(viewsets.ModelViewSet):
             excluded = exclude_statuses.split(',')
             qs = qs.exclude(status__in=excluded)
             
-        return qs.prefetch_related('orderitem_set__product', 'timeline_events', 'payments').order_by('-order_date')
+        return qs.select_related(
+            'user', 'user__profile', 'promo_code'
+        ).prefetch_related(
+            'orderitem_set__product__category__parent',
+            'orderitem_set__product__seller__profile',
+            'orderitem_set__product__images',
+            'orderitem_set__variant',
+            'timeline_events',
+            'payments',
+            'shipments__driver',
+            'warehouse_transfers',
+            'linked_reviews__user__profile',
+            'linked_reviews__product',
+        ).order_by('-order_date')
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -1906,8 +1981,23 @@ class OrderViewSet(viewsets.ModelViewSet):
         if new_state in ['DELIVERED', 'COMPLETED']:
             delivery_code = request.data.get('delivery_code')
             if order.delivery_code:
+                from django.core.cache import cache
+                user_key = f"order_delivery_fails:{order.id}:{request.user.id}"
+                lock_key = f"order_delivery_lock:{order.id}:{request.user.id}"
+                if cache.get(lock_key):
+                    return Response({'error': 'Too many failed delivery code verification attempts. Verification locked for 15 minutes.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
                 if not delivery_code or str(delivery_code).strip() != str(order.delivery_code).strip():
-                    return Response({'error': 'Invalid pickup/delivery code. Please check the code with the customer.'}, status=status.HTTP_400_BAD_REQUEST)
+                    fails = (cache.get(user_key) or 0) + 1
+                    if fails >= 5:
+                        cache.set(lock_key, True, timeout=900)
+                        cache.delete(user_key)
+                        return Response({'error': 'Too many failed delivery code attempts. Verification locked for 15 minutes.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+                    cache.set(user_key, fails, timeout=900)
+                    return Response({'error': f'Invalid pickup/delivery code. ({5 - fails} attempts remaining). Please check the code with the customer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Reset fail count on success
+                cache.delete(user_key)
             new_state = 'COMPLETED'
             notes = (notes + " Verified by secure collection code.") if notes else "Verified by secure collection code."
 
@@ -2483,7 +2573,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         approved_param = self.request.query_params.get('approved', None)
         search = self.request.query_params.get('search') or self.request.query_params.get('q')
 
-        qs = Review.objects.select_related('user', 'product').all()
+        qs = Review.objects.select_related('user', 'user__profile', 'product').all()
         if not self.request.user.is_staff:
             if self.request.user.is_authenticated:
                 qs = qs.filter(Q(approved=True) | Q(user=self.request.user))
@@ -2590,6 +2680,16 @@ class CommentViewSet(viewsets.ModelViewSet):
 class PaymentViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def update(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct updating of payment records is prohibited.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct updating of payment records is prohibited.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct deletion of payment records is prohibited to maintain financial audit trails.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def get_queryset(self):
         user = self.request.user
@@ -3075,9 +3175,19 @@ class ForgotPasswordRequestView(APIView):
 
         ident_hash = hashlib.sha256(norm_identifier.encode('utf-8')).hexdigest()[:32]
 
-        # IP address extraction (leftmost IP from X-Forwarded-For if behind reverse proxy)
-        xff = request.META.get('HTTP_X_FORWARDED_FOR')
-        client_ip = xff.split(',')[0].strip() if xff else (request.META.get('REMOTE_ADDR') or '127.0.0.1')
+        # Secure IP address extraction: prefer Cloudflare CF-Connecting-IP,
+        # fallback to X-Real-IP, rightmost entry from X-Forwarded-For, or REMOTE_ADDR
+        client_ip = (
+            request.META.get('HTTP_CF_CONNECTING_IP') or
+            request.META.get('HTTP_X_REAL_IP')
+        )
+        if not client_ip:
+            xff = request.META.get('HTTP_X_FORWARDED_FOR')
+            if xff:
+                ips = [ip.strip() for ip in xff.split(',') if ip.strip()]
+                client_ip = ips[-1] if ips else None
+        if not client_ip:
+            client_ip = request.META.get('REMOTE_ADDR') or '127.0.0.1'
         ip_hash = hashlib.sha256(client_ip.encode('utf-8')).hexdigest()[:16]
 
         email_cache_key = f"pwd_reset_rate:ident:{ident_hash}"
@@ -3595,7 +3705,29 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     lookup_field = 'user__username'
 
     def get_queryset(self):
-        return UserProfile.objects.select_related('user').prefetch_related('store_images')
+        from django.db.models import Subquery, OuterRef, Avg, Count, Value
+        from django.db.models.functions import Coalesce
+        from .models import Review
+        return UserProfile.objects.select_related('user').prefetch_related('store_images').annotate(
+            annotated_seller_avg=Coalesce(
+                Subquery(
+                    Review.objects.filter(product__seller_id=OuterRef('user_id'), approved=True)
+                    .values('product__seller')
+                    .annotate(avg=Avg('rating'))
+                    .values('avg')[:1]
+                ),
+                Value(0.0)
+            ),
+            annotated_seller_count=Coalesce(
+                Subquery(
+                    Review.objects.filter(product__seller_id=OuterRef('user_id'), approved=True)
+                    .values('product__seller')
+                    .annotate(cnt=Count('id'))
+                    .values('cnt')[:1]
+                ),
+                Value(0)
+            )
+        )
 
     def get_object(self):
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
@@ -4125,6 +4257,10 @@ class PriceAlertViewSet(viewsets.ModelViewSet):
 class DisputeViewSet(viewsets.ModelViewSet):
     serializer_class = DisputeSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def destroy(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct deletion of disputes is prohibited. Resolve or close disputes instead.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def get_queryset(self):
         user = self.request.user
@@ -4272,7 +4408,7 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated(), IsSellerOrAbove()]
+        return [permissions.IsAuthenticated(), IsSellerOrAbove(), IsOwnerOrStaff()]
 
     def get_queryset(self):
         product_id = self.request.query_params.get('product')
@@ -4310,21 +4446,31 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         from django.core.cache import cache
+        from rest_framework import exceptions
         product = serializer.validated_data['product']
-        if product.seller != self.request.user and not self.request.user.is_staff:
-            from rest_framework import serializers as drf_serializers
-            raise drf_serializers.ValidationError('You do not own this product.')
+        if product.seller != self.request.user and not (self.request.user.is_staff or self.request.user.is_superuser):
+            raise exceptions.PermissionDenied('You do not own this product.')
         serializer.save()
         cache.delete(f"product:detail:{product.id}")
 
     def perform_update(self, serializer):
         from django.core.cache import cache
+        from rest_framework import exceptions
+        variant = serializer.instance
+        if variant.product.seller != self.request.user and not (self.request.user.is_staff or self.request.user.is_superuser):
+            raise exceptions.PermissionDenied('You do not own this product.')
+        new_product = serializer.validated_data.get('product')
+        if new_product and new_product.seller != self.request.user and not (self.request.user.is_staff or self.request.user.is_superuser):
+            raise exceptions.PermissionDenied('Cannot reassign variant to a product you do not own.')
         variant = serializer.save()
         if variant.product_id:
             cache.delete(f"product:detail:{variant.product_id}")
 
     def perform_destroy(self, instance):
         from django.core.cache import cache
+        from rest_framework import exceptions
+        if instance.product.seller != self.request.user and not (self.request.user.is_staff or self.request.user.is_superuser):
+            raise exceptions.PermissionDenied('You do not own this product.')
         pid = instance.product_id
         super().perform_destroy(instance)
         if pid:
@@ -4377,40 +4523,69 @@ class TrendingAnalyticsView(APIView):
 
         # 5. Trending Products
         from django.db.models.functions import Coalesce
-        from decimal import Decimal
-        from django.db.models import DecimalField
+        from django.db.models import Subquery, OuterRef, Avg, Value
+        from .serializers import ProductListSerializer
 
         weekly_order_ids = Order.objects.filter(
             order_date__gte=seven_days_ago,
             status__in=['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED']
         ).values_list('id', flat=True)
         
-        # Simple two-step process to avoid complex annotation errors
-        trending_products = Product.objects.select_related('category', 'seller').prefetch_related('images', 'likes').filter(is_available=True)
-        
-        # We can sort by simple attributes and then limit to 8
-        trending_products = trending_products.annotate(
-            like_count=Count('likes', distinct=True)
+        avg_rating_sq = Subquery(
+            Review.objects.filter(product=OuterRef('pk'), approved=True)
+            .values('product')
+            .annotate(avg=Avg('rating'))
+            .values('avg')[:1]
+        )
+        like_count_sq = Subquery(
+            Like.objects.filter(product=OuterRef('pk'))
+            .values('product')
+            .annotate(cnt=Count('id'))
+            .values('cnt')[:1]
+        )
+        base_trending = (
+            Product.objects.filter(is_available=True, is_draft=False)
+            .select_related('category', 'category__parent', 'seller', 'seller__profile')
+            .prefetch_related('images', 'variants', 'price_tiers')
+            .annotate(
+                annotated_avg_rating=Coalesce(avg_rating_sq, Value(0.0)),
+                annotated_like_count=Coalesce(like_count_sq, Value(0)),
+                annotated_is_liked=Value(False),
+                annotated_has_inspection=Value(False),
+                annotated_inspection_verdict=Value(''),
+                annotated_is_verified=Value(False),
+            )
         )
         
         # Top sellers based on order items
-        order_items = OrderItem.objects.filter(order__in=weekly_order_ids).values('product_id').annotate(qty=Sum('quantity'))
-        sales_dict = {item['product_id']: item['qty'] for item in order_items}
+        top_order_items = (
+            OrderItem.objects.filter(order__in=weekly_order_ids)
+            .values('product_id')
+            .annotate(qty=Sum('quantity'))
+            .order_by('-qty')[:8]
+        )
+        top_seller_ids = [item['product_id'] for item in top_order_items]
         
-        top_sellers_qs = list(trending_products)
-        top_sellers_qs.sort(key=lambda p: (sales_dict.get(p.id, 0), p.like_count, p.created_at), reverse=True)
-        top_sellers_qs = top_sellers_qs[:8]
+        if top_seller_ids:
+            top_sellers_qs = list(base_trending.filter(id__in=top_seller_ids))
+            id_order = {pid: idx for idx, pid in enumerate(top_seller_ids)}
+            top_sellers_qs.sort(key=lambda p: id_order.get(p.id, 999))
+            if len(top_sellers_qs) < 8:
+                fill_qs = list(base_trending.exclude(id__in=top_seller_ids).order_by('-created_at')[:8 - len(top_sellers_qs)])
+                top_sellers_qs.extend(fill_qs)
+        else:
+            top_sellers_qs = list(base_trending.order_by('-created_at')[:8])
+
+        most_saved_qs = list(base_trending.order_by('-annotated_like_count', '-created_at')[:8])
+        newest_trending_qs = list(base_trending.order_by('-created_at')[:8])
         
-        most_saved_qs = trending_products.order_by('-like_count', '-created_at')[:8]
-        newest_trending_qs = trending_products.order_by('-created_at', '-like_count')[:8]
-        
-        top_sellers_serialized = ProductSerializer(
+        top_sellers_serialized = ProductListSerializer(
             top_sellers_qs, many=True, context={'request': request}
         ).data
-        most_saved_serialized = ProductSerializer(
+        most_saved_serialized = ProductListSerializer(
             most_saved_qs, many=True, context={'request': request}
         ).data
-        newest_trending_serialized = ProductSerializer(
+        newest_trending_serialized = ProductListSerializer(
             newest_trending_qs, many=True, context={'request': request}
         ).data
 
@@ -4431,8 +4606,8 @@ class TrendingAnalyticsView(APIView):
             "trending_products": trending_dict
         }
 
-        # Cache for 1 minute (60 seconds) to avoid hammering the DB
-        cache.set(cache_key, result, 60)
+        # Cache for 15 minutes (900 seconds) to avoid hammering the DB
+        cache.set(cache_key, result, 900)
 
         return Response(result)
 
@@ -4624,6 +4799,16 @@ class UserPaymentConfirmationViewSet(viewsets.ModelViewSet):
     from .serializers import UserPaymentConfirmationSerializer
     serializer_class = UserPaymentConfirmationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def update(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct updating of payment proofs is prohibited.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct updating of payment proofs is prohibited.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct deletion of payment proofs is prohibited.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def get_queryset(self):
         from .models import PaymentConfirmation

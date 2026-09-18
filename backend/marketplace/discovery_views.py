@@ -5,9 +5,10 @@ from django.db.models import Avg, Count, Exists, OuterRef, Subquery, Value, Bool
 from django.db.models.functions import Coalesce, Cos, Sin, ACos, Radians, Greatest, Least
 from django.utils import timezone
 
+from django.core.cache import cache
 from .models import Product, Category, Like, Review, SponsoredListing
 from inspections.models import InspectionRequest, InspectionReport
-from .serializers import ProductSerializer
+from .serializers import ProductListSerializer
 
 
 def get_base_product_queryset(user=None):
@@ -56,7 +57,7 @@ def get_base_product_queryset(user=None):
     )
 
     return Product.objects.annotate(
-        annotated_avg_rating=avg_rating_subquery,
+        annotated_avg_rating=Coalesce(avg_rating_subquery, Value(0.0, output_field=FloatField())),
         annotated_like_count=Coalesce(like_count_subquery, Value(0)),
         annotated_is_liked=is_liked_expr,
         annotated_has_inspection=has_inspection_expr,
@@ -68,7 +69,7 @@ def get_base_product_queryset(user=None):
         'brand', 'brand__created_by',
         'reference_product', 'reference_product__brand', 'reference_product__category', 'reference_product__created_by'
     ).prefetch_related(
-        'images', 'inspections', 'inspections__report', 'fitments', 'price_tiers'
+        'images', 'variants', 'fitments', 'price_tiers'
     ).filter(is_available=True, stock__gt=0, is_draft=False)
 
 
@@ -253,8 +254,21 @@ class DiscoveryFeedView(APIView):
                 "section_id": section_id,
                 "page": page,
                 "has_more": len(section_items) >= page_size,
-                "products": ProductSerializer(section_items, many=True, context={'request': request}).data
+                "products": ProductListSerializer(section_items, many=True, context={'request': request}).data
             })
+
+        # Check cache for standard initial load without specific location filters
+        is_standard_feed = not any([
+            request.query_params.get('lat'),
+            request.query_params.get('lng'),
+            request.query_params.get('region'),
+            request.query_params.get('location_mode')
+        ])
+        cache_key = f"discovery_feed_{active_gender}"
+        if is_standard_feed:
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                return Response(cached_data)
 
         # Full Discovery Feed Initial Load
         filtered_qs = apply_location_filters(base_qs, request)
@@ -282,7 +296,7 @@ class DiscoveryFeedView(APIView):
             "gender_active": active_gender,
             "has_gender_toggle": False,
             "see_more_url": fashion_see_more,
-            "products": ProductSerializer(fashion_products, many=True, context={'request': request}).data
+            "products": ProductListSerializer(fashion_products, many=True, context={'request': request}).data
         })
 
         # 2. Section: "For Your Car" (Automotive & Spare Parts)
@@ -295,7 +309,7 @@ class DiscoveryFeedView(APIView):
             "subtitle": "Essential spare parts, vehicle accessories & automobiles",
             "category_slug": auto_cat.slug if auto_cat else "vehicles",
             "see_more_url": f"/products?category={auto_cat.slug if auto_cat else 'vehicles'}",
-            "products": ProductSerializer(auto_products, many=True, context={'request': request}).data
+            "products": ProductListSerializer(auto_products, many=True, context={'request': request}).data
         })
 
         # 3. Section: "Brand New Deals in Phones" (Phones & Gadgets)
@@ -308,7 +322,7 @@ class DiscoveryFeedView(APIView):
             "subtitle": "Smartphones, mobile accessories & hot electronic gadgets",
             "category_slug": phone_cat.slug if phone_cat else "electronics",
             "see_more_url": f"/products?category={phone_cat.slug if phone_cat else 'electronics'}",
-            "products": ProductSerializer(phone_products, many=True, context={'request': request}).data
+            "products": ProductListSerializer(phone_products, many=True, context={'request': request}).data
         })
 
         # 4. Section: "View More in Home & Living"
@@ -322,7 +336,7 @@ class DiscoveryFeedView(APIView):
                 "subtitle": "Popular furnishings, kitchen electronics & home appliances",
                 "category_slug": home_cat.slug if home_cat else "home-garden-furniture",
                 "see_more_url": f"/products?category={home_cat.slug if home_cat else 'home-garden-furniture'}",
-                "products": ProductSerializer(home_products, many=True, context={'request': request}).data
+                "products": ProductListSerializer(home_products, many=True, context={'request': request}).data
             })
 
         # 5. Section: "Fresh Picks" (Latest across all categories)
@@ -334,23 +348,31 @@ class DiscoveryFeedView(APIView):
             "subtitle": "Just listed verified products in Tanzania",
             "category_slug": "",
             "see_more_url": "/products?sort_by=newest",
-            "products": ProductSerializer(fresh_products, many=True, context={'request': request}).data
+            "products": ProductListSerializer(fresh_products, many=True, context={'request': request}).data
         })
 
-        return Response({
+        result_payload = {
             "status": "success",
             "sections": sections
-        })
+        }
+        if is_standard_feed:
+            cache.set(cache_key, result_payload, timeout=600)
+
+        return Response(result_payload)
 
 
 class CategoryRecommendationsView(APIView):
     """
-    Returns closest related products for a given category.
-    Used for interleaving recommendations after row 2/3 of category listings.
+    Returns closest related products for a given category or product context.
+    Uses multi-stage candidate retrieval, ranking, and diversification.
     """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        from .models import Product
+        from .recommendation_service import RecommendationEngine
+
+        product_id = request.query_params.get('product_id')
         cat_slug = request.query_params.get('category')
         exclude_param = request.query_params.get('exclude', '')
         limit = int(request.query_params.get('limit', 24))
@@ -362,74 +384,38 @@ class CategoryRecommendationsView(APIView):
                 if item.isdigit():
                     exclude_ids.append(int(item))
 
-        base_qs = get_base_product_queryset(request.user)
-        if exclude_ids:
-            base_qs = base_qs.exclude(id__in=exclude_ids)
+        target_prod = None
+        if product_id and product_id.isdigit():
+            target_prod = Product.objects.filter(id=int(product_id), is_available=True).first()
 
-        if not cat_slug:
-            recommended = base_qs.order_by('-annotated_avg_rating', '-annotated_like_count')[:limit]
-            return Response({
-                "category": None,
-                "title": "You Might Also Like",
-                "subtitle": "Popular picks across the market",
-                "products": ProductSerializer(recommended, many=True, context={'request': request}).data
-            })
+        cat = None
+        if cat_slug:
+            cat = Category.objects.filter(slug=cat_slug).first()
+            if not cat:
+                cat = Category.objects.filter(name__icontains=cat_slug).first()
 
-        cat = Category.objects.filter(slug=cat_slug).first()
-        if not cat:
-            cat = Category.objects.filter(name__icontains=cat_slug).first()
-
-        if not cat:
-            recommended = base_qs.order_by('-created_at')[:limit]
-            return Response({
-                "category": cat_slug,
-                "title": "You Might Also Like",
-                "subtitle": "Popular picks across the market",
-                "products": ProductSerializer(recommended, many=True, context={'request': request}).data
-            })
-
-        # Related Category Strategy:
-        # 1. If subcategory: look for sibling categories in the same parent
-        # 2. If top category (or if siblings have no products): pick another active top-level category
-        products = []
-        related_name = None
-
-        if cat.parent:
-            siblings = Category.objects.filter(parent=cat.parent).exclude(id=cat.id)
-            sib_desc = []
-            for s in siblings:
-                sib_desc.extend(s.get_descendants(include_self=True))
-            sib_qs = base_qs.filter(category__in=sib_desc).order_by('-created_at')
-            if sib_qs.count() >= 4:
-                products = list(sib_qs[:limit])
-                first_sib = siblings.first()
-                related_name = first_sib.name if first_sib else cat.parent.name
-
-        if not products:
-            current_root_id = cat.parent_id if cat.parent else cat.id
-            other_roots = Category.objects.filter(parent__isnull=True).exclude(id=current_root_id)
-            for other in other_roots:
-                desc = other.get_descendants(include_self=True)
-                other_qs = base_qs.filter(category__in=desc).order_by('-created_at')
-                if other_qs.count() >= 4:
-                    products = list(other_qs[:limit])
-                    related_name = other.name
-                    break
-
-        if not products:
-            current_desc = cat.get_descendants(include_self=True)
-            any_qs = base_qs.exclude(category__in=current_desc).order_by('-created_at')
-            products = list(any_qs[:limit])
-            related_name = "Trending Items"
+        recs = RecommendationEngine.get_recommendations(
+            target_product=target_prod,
+            user=request.user,
+            category_slug=cat.slug if cat else cat_slug,
+            limit=limit,
+            exclude_ids=exclude_ids,
+            request=request
+        )
 
         title = "You Might Also Like"
-        subtitle = f"Popular in {related_name}" if related_name else "Related items you might like"
+        if target_prod:
+            subtitle = "Recommended for you based on this product"
+        elif cat:
+            subtitle = f"Recommended picks in {cat.name}"
+        else:
+            subtitle = "Popular picks tailored for you"
 
         return Response({
-            "category": cat.slug,
-            "category_name": cat.name,
-            "related_category_name": related_name,
+            "product_id": target_prod.id if target_prod else None,
+            "category": cat.slug if cat else cat_slug,
+            "category_name": cat.name if cat else None,
             "title": title,
             "subtitle": subtitle,
-            "products": ProductSerializer(products[:limit], many=True, context={'request': request}).data
+            "products": ProductListSerializer(recs, many=True, context={'request': request}).data
         })

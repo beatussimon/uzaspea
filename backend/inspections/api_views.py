@@ -26,7 +26,10 @@ from .serializers import (
 from .pricing import calculate_bill
 
 
-from uzachuo.permissions import IsSuperUser, IsStaffMember, has_staff_permission, IsAssignedInspectorOrStaff
+from uzachuo.permissions import (
+    IsSuperUser, IsStaffMember, has_staff_permission,
+    IsAssignedInspectorOrStaff, HasInspectionManagerPermission
+)
 
 
 def notify(user, notification_type, message, request_obj=None):
@@ -151,6 +154,13 @@ class InspectionCategoryViewSet(viewsets.ModelViewSet):
         return super().get_queryset()
 
     def list(self, request, *args, **kwargs):
+        from django.core.cache import cache
+        all_param = request.query_params.get('all')
+        cache_key = f'inspection_categories_list_{all_param}'
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
         # Fetch all active categories in a single query
         all_cats = list(InspectionCategory.objects.filter(is_active=True))
         
@@ -187,15 +197,47 @@ class InspectionCategoryViewSet(viewsets.ModelViewSet):
         else:
             roots = [cat for cat in all_cats if cat.parent_id is None]
             
+        # Batch query historical bill rates across categories in 1 query
+        from django.db.models import Avg
+        bills = (
+            InspectionBill.objects.filter(
+                request__status__in=['published', 'deposit_paid', 'in_progress', 'submitted', 'qa_review']
+            )
+            .values('request__category_id')
+            .annotate(avg_base=Avg('base_rate'))
+        )
+        cat_direct_avg = {b['request__category_id']: b['avg_base'] for b in bills}
+
+        price_map = {}
+        for cat in all_cats:
+            cat_ids = [cat.id]
+            queue = [cat.id]
+            while queue:
+                cid = queue.pop(0)
+                for child in children_map.get(cid, []):
+                    cat_ids.append(child.id)
+                    queue.append(child.id)
+            rates = [float(cat_direct_avg[cid]) for cid in cat_ids if cid in cat_direct_avg and cat_direct_avg[cid]]
+            seed_price = float(cat.base_price or 50000)
+            if rates:
+                avg_val = sum(rates) / len(rates)
+                computed = round((avg_val * 0.7) + (seed_price * 0.3), -2)
+                price_map[cat.id] = computed
+            else:
+                price_map[cat.id] = seed_price
+
         # Pass maps in context
         context = self.get_serializer_context()
         context.update({
             'children_map': children_map,
             'path_map': path_map,
+            'price_map': price_map,
         })
         
         serializer = self.get_serializer(roots, many=True, context=context)
-        return Response(serializer.data)
+        data = serializer.data
+        cache.set(cache_key, data, 7200)
+        return Response(data)
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -236,8 +278,10 @@ class ChecklistTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = ChecklistTemplateSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'for_category', 'add_item']:
+        if self.action in ['list', 'retrieve', 'for_category']:
             return [permissions.IsAuthenticated()]
+        if self.action == 'add_item':
+            return [permissions.IsAuthenticated(), (IsSuperUser | HasInspectionManagerPermission)()]
         return [IsSuperUser()]
 
     @decorators.action(detail=False, methods=['get'], url_path='for-category/(?P<category_id>[^/.]+)')
@@ -356,6 +400,10 @@ class InspectorProfileViewSet(viewsets.ModelViewSet):
 
 class InspectionRequestViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'put', 'patch', 'head', 'options']
+
+    def destroy(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct deletion of inspection requests is prohibited to preserve audit, billing, and fraud records.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def get_permissions(self):
         if self.action in ['prefill_marketplace', 'verify']:
@@ -740,12 +788,25 @@ class InspectionRequestViewSet(viewsets.ModelViewSet):
 class InspectionPaymentViewSet(viewsets.ModelViewSet):
     serializer_class = InspectionPaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def update(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct updating of payment records is prohibited.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response({'detail': 'Direct updating of payment records is prohibited.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response({'detail': 'Deletion of payment records is prohibited to preserve financial audit trail.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def get_queryset(self):
         user = self.request.user
+        base_qs = InspectionPayment.objects.select_related(
+            'request', 'request__client', 'request__client__profile', 'confirmed_by'
+        )
         if user.is_superuser or has_staff_permission(user, 'can_manage_inspections'):
-            return InspectionPayment.objects.all().order_by('-created_at')
-        return InspectionPayment.objects.filter(request__client=user).order_by('-created_at')
+            return base_qs.all().order_by('-created_at')
+        return base_qs.filter(request__client=user).order_by('-created_at')
 
     def perform_create(self, serializer):
         request_obj = serializer.validated_data['request']
@@ -1026,10 +1087,18 @@ class InspectionReportViewSet(viewsets.ModelViewSet):
         can_manage = has_staff_permission(user, 'can_manage_inspections')
         explicit_all = self.request.query_params.get('all') == 'true'
 
-        if is_superuser or (can_manage and (explicit_all or self.action != 'list')):
-            return InspectionReport.objects.all()
+        base_qs = InspectionReport.objects.select_related(
+            'request', 'request__bill', 'submitted_by', 'approved_by'
+        ).prefetch_related(
+            'responses__checklist_item',
+            'request__assignments__inspector__user',
+            'request__payments'
+        )
 
-        return InspectionReport.objects.filter(
+        if is_superuser or (can_manage and (explicit_all or self.action != 'list')):
+            return base_qs.all()
+
+        return base_qs.filter(
             Q(request__client=user) | Q(request__assignments__inspector__user=user, request__assignments__is_active=True)
         )
 
@@ -1224,9 +1293,10 @@ class ChecklistResponseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        base_qs = ChecklistResponse.objects.select_related('checklist_item')
         if user.is_superuser or has_staff_permission(user, 'can_manage_inspections'):
-            return ChecklistResponse.objects.all()
-        return ChecklistResponse.objects.filter(
+            return base_qs.all()
+        return base_qs.filter(
             Q(report__request__assignments__inspector__user=user, report__request__assignments__is_active=True) |
             Q(report__request__client=user)
         )
@@ -1342,7 +1412,7 @@ class InspectionNotificationViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return InspectionNotification.objects.filter(user=self.request.user)
+        return InspectionNotification.objects.filter(user=self.request.user).select_related('related_request')
 
     @decorators.action(detail=True, methods=['post'], url_path='mark-read')
     def mark_read(self, request, pk=None):
@@ -1369,7 +1439,11 @@ class InspectionNotificationViewSet(viewsets.ReadOnlyModelViewSet):
 class FraudFlagViewSet(viewsets.ModelViewSet):
     serializer_class = FraudFlagSerializer
     permission_classes = [permissions.IsAuthenticated]
-    queryset = FraudFlag.objects.all().order_by('-created_at')
+    queryset = FraudFlag.objects.select_related('request').order_by('-created_at')
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def destroy(self, request, *args, **kwargs):
+        return Response({'detail': 'Deletion of fraud flags is prohibited to preserve integrity of investigations.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def get_queryset(self):
         user = self.request.user

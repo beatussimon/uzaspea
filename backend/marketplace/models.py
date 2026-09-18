@@ -360,6 +360,8 @@ class Product(models.Model):
             models.Index(fields=['is_available', 'stock']),
             models.Index(fields=['condition']),
             models.Index(fields=['is_draft', 'seller', '-created_at']),
+            models.Index(fields=['is_available', 'is_draft', 'stock', 'category', '-created_at']),
+            models.Index(fields=['is_available', 'is_draft', 'stock', 'brand', '-created_at']),
         ]
 
     def save(self, *args, **kwargs):
@@ -668,6 +670,13 @@ class Order(models.Model):
         self.total_amount = max(Decimal('0.00'), total - discount) + self.shipping_fee
         self.save(update_fields=['total_amount'])
 
+    class Meta:
+        ordering = ['-order_date']
+        indexes = [
+            models.Index(fields=['status', '-order_date']),
+            models.Index(fields=['user', '-order_date']),
+        ]
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='orderitem_set')
@@ -693,6 +702,11 @@ class TrackingEvent(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['order', 'created_at']),
+        ]
+
     def __str__(self):
         return f"Tracking {self.order.id} -> {self.status}"
 
@@ -715,6 +729,13 @@ class Payment(models.Model):
     status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='PENDING_VERIFICATION')
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['order', '-created_at']),
+        ]
 
     def __str__(self):
         return f"Payment {self.id} for Order #{self.order_id if self.order else 'Sub'} ({self.status})"
@@ -1030,6 +1051,9 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_read', '-created_at']),
+        ]
 
     def __str__(self):
         return f'{self.user.username}: {self.title}'
@@ -1063,40 +1087,15 @@ def push_notification(user, notification_type, title, message, link=''):
     except Exception as e:
         logger.warning(f'WS notification broadcast failed for user {user.id}: {e}')  # FIX MED-05
         
-    # Also trigger Web Push for offline delivery
+    # Also trigger Web Push asynchronously via Celery for offline delivery
     try:
-        from pywebpush import webpush, WebPushException
-        subscriptions = user.push_subscriptions.all()
-        if subscriptions.exists() and hasattr(settings, 'WEBPUSH_VAPID_PRIVATE_KEY'):
-            webpush_payload = json.dumps({
-                'title': title,
-                'message': message,
-                'url': link
-            })
-            for sub in subscriptions:
-                try:
-                    webpush(
-                        subscription_info={
-                            "endpoint": sub.endpoint,
-                            "keys": {
-                                "p256dh": sub.p256dh,
-                                "auth": sub.auth
-                            }
-                        },
-                        data=webpush_payload,
-                        vapid_private_key=settings.WEBPUSH_VAPID_PRIVATE_KEY,
-                        vapid_claims={"sub": getattr(settings, 'WEBPUSH_VAPID_CLAIMS', {}).get("sub", "mailto:admin@sokonimax.com")}
-                    )
-                except WebPushException as e:
-                    # If subscription is expired/invalid, remove it
-                    if e.response and e.response.status_code in [404, 410]:
-                        sub.delete()
-                    else:
-                        logger.error(f'Web Push failed: {e}')
-    except ImportError:
-        logger.warning('pywebpush is not installed. Skipping web push notification.')
+        from marketplace.tasks import send_webpush_notification_task
+        send_webpush_notification_task.apply_async(
+            args=[user.id, title, message, link],
+            retry=False
+        )
     except Exception as e:
-        logger.error(f'Error sending web push: {e}')
+        logger.warning(f'Could not dispatch web push background task: {e}')
 
     return n
 
@@ -1529,6 +1528,9 @@ def invalidate_product_cache(sender, instance, **kwargs):
         try:
             cache.delete_pattern("*views.decorators.cache*")
             cache.delete_pattern(f"*product:{instance.slug}*")
+            cache.delete_pattern(f"*product:detail:{instance.id}*")
+            cache.delete_pattern(f"*recs:*:{instance.id}:*")
+            cache.delete_pattern("recs:v2:*")
         except Exception:
             cache.clear()
     else:
@@ -1540,6 +1542,9 @@ def invalidate_category_cache(sender, instance, **kwargs):
     if hasattr(cache, 'delete_pattern'):
         try:
             cache.delete_pattern("*views.decorators.cache*")
+            if instance.slug:
+                cache.delete_pattern(f"*recs:*:*:{instance.slug}:*")
+            cache.delete_pattern("recs:v2:*")
         except Exception:
             cache.clear()
     else:
@@ -1906,6 +1911,7 @@ class ProductVehicleFitment(models.Model):
         indexes = [
             models.Index(fields=['product']),
             models.Index(fields=['vehicle']),
+            models.Index(fields=['vehicle', 'product']),
         ]
 
     def __str__(self):
