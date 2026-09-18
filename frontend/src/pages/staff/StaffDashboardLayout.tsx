@@ -25,6 +25,10 @@ import WarehouseStaffLayout from './warehouse/WarehouseStaffLayout';
 import LogisticsManager from './logistics/LogisticsManager';
 import StaffTasks from './StaffTasks';
 import { DashboardMobileDrawer } from '../../components/layout/DashboardMobileDrawer';
+import { SubscriptionAnalytics } from './subscriptions/SubscriptionAnalytics';
+import { OverdueSubscribersList } from './subscriptions/OverdueSubscribersList';
+import { CommissionAnalytics } from './commissions/CommissionAnalytics';
+import { OverdueCommissionsList } from './commissions/OverdueCommissionsList';
 
 // ============ Types ============
 interface StaffTask {
@@ -475,8 +479,10 @@ export const SubscriptionConfirmation: React.FC = () => {
   }, [filter]);
 
   useEffect(() => {
-    fetchItems(1, true);
-  }, [fetchItems]);
+    if (filter !== 'overdue') {
+      fetchItems(1, true);
+    }
+  }, [fetchItems, filter]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -532,6 +538,7 @@ export const SubscriptionConfirmation: React.FC = () => {
 
   const filterTabs = [
     { key: 'pending', label: 'Pending Verification' },
+    { key: 'overdue', label: 'Overdue' },
     { key: 'approved', label: 'Approved' },
     { key: 'rejected', label: 'Rejected' },
   ];
@@ -548,6 +555,9 @@ export const SubscriptionConfirmation: React.FC = () => {
         </div>
       </header>
 
+      {/* Analytics Overview */}
+      <SubscriptionAnalytics />
+
       {/* Filter Pills & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
@@ -558,9 +568,11 @@ export const SubscriptionConfirmation: React.FC = () => {
                 key={tab.key}
                 type="button"
                 onClick={() => setFilter(tab.key)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                   isActive
                     ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : tab.key === 'overdue'
+                    ? 'bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 border border-red-500/30'
                     : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
                 }`}
               >
@@ -570,20 +582,24 @@ export const SubscriptionConfirmation: React.FC = () => {
           })}
         </div>
 
-        <div className="relative min-w-[240px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search username, reference..."
-            className="input pl-8 py-1.5 text-xs w-full"
-          />
-        </div>
+        {filter !== 'overdue' && (
+          <div className="relative min-w-[240px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search username, reference..."
+              className="input pl-8 py-1.5 text-xs w-full"
+            />
+          </div>
+        )}
       </div>
 
-      {/* List */}
-      {loading ? (
+      {/* Content Rendering */}
+      {filter === 'overdue' ? (
+        <OverdueSubscribersList />
+      ) : loading ? (
         <CardGridSkeleton count={6} cols={3} />
       ) : filteredItems.length === 0 ? (
         <EmptyState
@@ -598,7 +614,18 @@ export const SubscriptionConfirmation: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white">@{item.username}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-gray-900 dark:text-white">@{item.username}</h3>
+                      <a
+                        href={item.store_url || `/${item.username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+                      >
+                        <span>Store</span>
+                        <ExternalLink size={10} />
+                      </a>
+                    </div>
                     <p className="text-xs text-gray-400 font-mono mt-0.5">Ref: {item.reference}</p>
                   </div>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-500/10 text-brand-500 border border-brand-500/20 uppercase">
@@ -616,6 +643,25 @@ export const SubscriptionConfirmation: React.FC = () => {
                     <span className="text-gray-400 dark:text-gray-500 font-normal">Submitted</span>
                     <span className="text-gray-700 dark:text-gray-300 font-medium">{fmtDate(item.created_at)}</span>
                   </div>
+
+                  {item.phone_number && (
+                    <div className="flex justify-between items-center pt-1 border-t border-surface-border/40">
+                      <span className="text-gray-400 dark:text-gray-500 font-normal">Phone</span>
+                      <a
+                        href={`tel:${item.phone_number}`}
+                        className="font-mono text-gray-700 dark:text-gray-300 hover:text-brand-600 flex items-center gap-1"
+                      >
+                        <Phone size={11} /> {item.phone_number}
+                      </a>
+                    </div>
+                  )}
+
+                  {item.location && (
+                    <div className="flex justify-between items-center text-[11px] text-gray-400">
+                      <span className="flex items-center gap-1"><MapPin size={10} /> Location</span>
+                      <span>{item.location}</span>
+                    </div>
+                  )}
                 </div>
 
                 {item.proof && (
@@ -1603,8 +1649,10 @@ export const CommissionPaymentsManager: React.FC = () => {
   }, [filter]);
 
   useEffect(() => {
-    fetchItems(1, true);
-  }, [fetchItems]);
+    if (filter !== 'OVERDUE') {
+      fetchItems(1, true);
+    }
+  }, [fetchItems, filter]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -1661,6 +1709,7 @@ export const CommissionPaymentsManager: React.FC = () => {
 
   const filterTabs = [
     { key: 'PENDING', label: 'Pending Verification' },
+    { key: 'OVERDUE', label: 'Overdue' },
     { key: 'APPROVED', label: 'Approved' },
     { key: 'REJECTED', label: 'Rejected' },
   ];
@@ -1677,6 +1726,9 @@ export const CommissionPaymentsManager: React.FC = () => {
         </div>
       </header>
 
+      {/* Analytics Overview */}
+      <CommissionAnalytics />
+
       {/* Filter Pills & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
@@ -1687,9 +1739,11 @@ export const CommissionPaymentsManager: React.FC = () => {
                 key={tab.key}
                 type="button"
                 onClick={() => setFilter(tab.key)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                   isActive
                     ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : tab.key === 'OVERDUE'
+                    ? 'bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 border border-red-500/30'
                     : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
                 }`}
               >
@@ -1699,20 +1753,24 @@ export const CommissionPaymentsManager: React.FC = () => {
           })}
         </div>
 
-        <div className="relative min-w-[240px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search seller, Tx ID..."
-            className="input pl-8 py-1.5 text-xs w-full"
-          />
-        </div>
+        {filter !== 'OVERDUE' && (
+          <div className="relative min-w-[240px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search seller, Tx ID..."
+              className="input pl-8 py-1.5 text-xs w-full"
+            />
+          </div>
+        )}
       </div>
 
-      {/* List */}
-      {loading ? (
+      {/* Content Rendering */}
+      {filter === 'OVERDUE' ? (
+        <OverdueCommissionsList />
+      ) : loading ? (
         <CardGridSkeleton count={6} cols={3} />
       ) : filteredItems.length === 0 ? (
         <EmptyState
@@ -1727,7 +1785,18 @@ export const CommissionPaymentsManager: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white text-base">@{item.seller_username}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-gray-900 dark:text-white text-base">@{item.seller_username}</h3>
+                      <a
+                        href={item.seller_store_url || `/${item.seller_username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+                      >
+                        <span>Store</span>
+                        <ExternalLink size={10} />
+                      </a>
+                    </div>
                     <p className="text-xs text-gray-400 font-mono">Invoice: {item.invoice_year}/{item.invoice_month}</p>
                     <p className="text-xs text-gray-400 font-mono">Tx ID: {item.transaction_id || '—'}</p>
                   </div>
@@ -1744,6 +1813,33 @@ export const CommissionPaymentsManager: React.FC = () => {
                     <span className="text-gray-400 dark:text-gray-500 font-normal">Submitted At</span>
                     <span className="text-gray-700 dark:text-gray-300">{fmtDate(item.submitted_at)}</span>
                   </div>
+
+                  {item.total_order_amount > 0 && (
+                    <div className="flex justify-between items-center text-[11px] text-gray-400">
+                      <span>Sales in Cycle</span>
+                      <span>TZS {parseFloat(item.total_order_amount || '0').toLocaleString()} ({item.order_count || 0} orders)</span>
+                    </div>
+                  )}
+
+                  {item.seller_phone && (
+                    <div className="flex justify-between items-center pt-1 border-t border-surface-border/40">
+                      <span className="text-gray-400 dark:text-gray-500 font-normal">Seller Phone</span>
+                      <a
+                        href={`tel:${item.seller_phone}`}
+                        className="font-mono text-gray-700 dark:text-gray-300 hover:text-brand-600 flex items-center gap-1"
+                      >
+                        <Phone size={11} /> {item.seller_phone}
+                      </a>
+                    </div>
+                  )}
+
+                  {item.seller_location && (
+                    <div className="flex justify-between items-center text-[11px] text-gray-400">
+                      <span className="flex items-center gap-1"><MapPin size={10} /> Location</span>
+                      <span>{item.seller_location}</span>
+                    </div>
+                  )}
+
                   {item.rejection_reason && (
                     <div className="pt-1 border-t border-surface-border/40 text-red-500">
                       <span className="font-medium">Reason:</span> {item.rejection_reason}

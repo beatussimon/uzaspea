@@ -7,3 +7,6 @@ http:
         address: "http://backend:8000/api/auth/verify-superuser/"
         authResponseHeaders:
           - "X-Forwarded-User"
+    gzip-compress:
+      compress:
+        minResponseBodyBytes: 1024

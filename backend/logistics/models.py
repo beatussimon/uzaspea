@@ -76,6 +76,13 @@ class Shipment(models.Model):
                     shipment=self, driver=self.driver, defaults={'amount': amount}
                 )
 
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['order', '-created_at']),
+        ]
+
     def __str__(self):
         return f"Shipment for Order #{self.order_id} ({self.status})"
 

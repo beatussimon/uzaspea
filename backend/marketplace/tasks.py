@@ -133,3 +133,56 @@ def check_price_alerts():
             alert.triggered_at = timezone.now()
             alert.is_active = False
             alert.save(update_fields=['triggered_at', 'is_active'])
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=5)
+def send_webpush_notification_task(self, user_id, title, message, url=''):
+    """Offloads Web Push HTTP dispatch to Celery background workers."""
+    import json
+    import logging
+    from django.conf import settings
+    from django.contrib.auth import get_user_model
+    
+    logger = logging.getLogger(__name__)
+    User = get_user_model()
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return
+        
+    subscriptions = list(user.push_subscriptions.all())
+    if not subscriptions or not hasattr(settings, 'WEBPUSH_VAPID_PRIVATE_KEY'):
+        return
+
+    try:
+        from pywebpush import webpush, WebPushException
+        webpush_payload = json.dumps({
+            'title': title,
+            'message': message,
+            'url': url
+        })
+        vapid_private_key = settings.WEBPUSH_VAPID_PRIVATE_KEY
+        vapid_claims = {"sub": getattr(settings, 'WEBPUSH_VAPID_CLAIMS', {}).get("sub", "mailto:admin@sokonimax.com")}
+        for sub in subscriptions:
+            try:
+                webpush(
+                    subscription_info={
+                        "endpoint": sub.endpoint,
+                        "keys": {
+                            "p256dh": sub.p256dh,
+                            "auth": sub.auth
+                        }
+                    },
+                    data=webpush_payload,
+                    vapid_private_key=vapid_private_key,
+                    vapid_claims=vapid_claims
+                )
+            except WebPushException as e:
+                if e.response and e.response.status_code in [404, 410]:
+                    sub.delete()
+                else:
+                    logger.warning(f'Web Push delivery failed for sub {sub.id}: {e}')
+    except ImportError:
+        logger.warning('pywebpush not installed, skipping push delivery.')
+    except Exception as e:
+        logger.error(f'Web Push task error: {e}')

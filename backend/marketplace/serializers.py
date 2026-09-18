@@ -639,8 +639,8 @@ class ProductSerializer(serializers.ModelSerializer):
         return False
 
     def get_avg_rating(self, obj):
-        if hasattr(obj, 'annotated_avg_rating') and obj.annotated_avg_rating is not None:
-            return int(obj.annotated_avg_rating)
+        if hasattr(obj, 'annotated_avg_rating'):
+            return int(obj.annotated_avg_rating or 0)
         return obj.average_rating()
 
     def get_like_count(self, obj):
@@ -702,6 +702,99 @@ class ProductSerializer(serializers.ModelSerializer):
             if i.status == 'published':
                 return getattr(i, 'report', None) and i.report.verdict
         return None
+ 
+ 
+class ProductListSerializer(serializers.ModelSerializer):
+    """
+    High-performance, card-optimized serializer for product feeds, search lists, and discovery.
+    Eliminates N+1 queries by reading from annotated fields and prefetched images/variants/tiers.
+    """
+    seller_username = serializers.CharField(source='seller.username', read_only=True)
+    seller_full_name = serializers.SerializerMethodField()
+    seller_tier = serializers.CharField(source='seller.profile.tier', read_only=True, default='free')
+    seller_verified = serializers.BooleanField(source='seller.profile.is_verified', read_only=True, default=False)
+    seller_profile_picture = serializers.SerializerMethodField()
+
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_slug = serializers.CharField(source='category.slug', read_only=True)
+    category_parent_name = serializers.CharField(source='category.parent.name', read_only=True, default=None)
+    category_parent_slug = serializers.CharField(source='category.parent.slug', read_only=True, default=None)
+
+    images = ProductImageSerializer(many=True, read_only=True)
+    variants = ProductVariantSerializer(many=True, read_only=True)
+    price_tiers = ProductPriceTierSerializer(many=True, read_only=True)
+
+    avg_rating = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
+    weekly_sales = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+    is_verified = serializers.BooleanField(read_only=True)
+    is_sponsored = serializers.SerializerMethodField()
+    has_inspection = serializers.SerializerMethodField()
+    inspection_verdict = serializers.SerializerMethodField()
+    distance = serializers.FloatField(read_only=True, required=False, allow_null=True)
+
+    class Meta:
+        model = Product
+        fields = [
+            'id', 'name', 'slug', 'sku', 'description', 'price', 'buying_price', 'sale_price', 'stock',
+            'is_available', 'is_draft', 'unit_of_measure', 'minimum_order_quantity', 'price_tiers', 'variants',
+            'category', 'category_name', 'category_slug', 'category_parent_name', 'category_parent_slug',
+            'seller', 'seller_username', 'seller_full_name', 'seller_verified', 'seller_tier', 'seller_profile_picture',
+            'condition', 'requires_quote',
+            'avg_rating', 'like_count', 'weekly_sales', 'is_liked', 'images',
+            'is_verified', 'has_inspection', 'inspection_verdict', 'is_sponsored',
+            'location_name', 'latitude', 'longitude', 'distance', 'created_at',
+            'weight_kg', 'size'
+        ]
+
+    def get_seller_full_name(self, obj):
+        if obj.seller:
+            name = f"{obj.seller.first_name} {obj.seller.last_name}".strip()
+            return name if name else None
+        return None
+
+    def get_seller_profile_picture(self, obj):
+        if hasattr(obj.seller, 'profile') and obj.seller.profile.profile_picture:
+            return obj.seller.profile.profile_picture.url
+        return None
+
+    def get_is_liked(self, obj):
+        if hasattr(obj, 'annotated_is_liked'):
+            return obj.annotated_is_liked
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(user=request.user).exists()
+        return False
+
+    def get_avg_rating(self, obj):
+        if hasattr(obj, 'annotated_avg_rating'):
+            return int(obj.annotated_avg_rating or 0)
+        return obj.average_rating()
+
+    def get_like_count(self, obj):
+        if hasattr(obj, 'annotated_like_count'):
+            return obj.annotated_like_count
+        return obj.likes.count()
+
+    def get_weekly_sales(self, obj):
+        if hasattr(obj, 'weekly_sales'):
+            return obj.weekly_sales
+        return getattr(obj, 'sales_count', 0)
+
+    def get_is_sponsored(self, obj):
+        return getattr(obj, 'annotated_is_sponsored', False)
+
+    def get_has_inspection(self, obj):
+        if hasattr(obj, 'annotated_has_inspection'):
+            return obj.annotated_has_inspection
+        return any(i.status == 'published' for i in obj.inspections.all())
+
+    def get_inspection_verdict(self, obj):
+        if hasattr(obj, 'annotated_inspection_verdict'):
+            return obj.annotated_inspection_verdict
+        return None
+
 
 class ProductReviewSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
@@ -817,24 +910,32 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     def get_catalog_price(self, obj):
         try:
+            base = float(obj.product.price) if (obj.product and obj.product.price) else 0.0
             if obj.variant:
-                if hasattr(obj.variant, 'final_price'):
-                    return float(obj.variant.final_price)
-                if hasattr(obj.variant, 'price_adjustment'):
-                    base = float(obj.product.price) if (obj.product and obj.product.price) else 0
-                    return base + float(obj.variant.price_adjustment or 0)
-            if obj.product and obj.product.price:
-                return float(obj.product.price)
+                adj = float(obj.variant.price_adjustment or 0.0)
+                return base + adj
+            if base > 0:
+                return base
         except Exception:
             pass
         return None
 
     def get_has_review(self, obj):
+        # If order prefetched linked_reviews, check in-memory
+        order = getattr(obj, 'order', None)
+        if order and hasattr(order, 'linked_reviews'):
+            return any(r.product_id == obj.product_id for r in order.linked_reviews.all())
         from .models import Review
         # Check if a review exists for this product and this specific order
         return Review.objects.filter(product=obj.product, order=obj.order).exists()
 
     def get_review(self, obj):
+        order = getattr(obj, 'order', None)
+        if order and hasattr(order, 'linked_reviews'):
+            for r in order.linked_reviews.all():
+                if r.product_id == obj.product_id:
+                    return ProductReviewSerializer(r, context=self.context).data
+            return None
         from .models import Review
         review = Review.objects.filter(product=obj.product, order=obj.order).first()
         if review:
@@ -842,9 +943,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
         return None
 
     def get_product_image(self, obj):
-        img = obj.product.images.first()
-        if img:
-            return img.image.url
+        if obj.product:
+            imgs = list(obj.product.images.all())
+            if imgs:
+                return imgs[0].image.url
         return None
 
 class PromoCodeSerializer(serializers.ModelSerializer):
@@ -925,7 +1027,12 @@ class OrderSerializer(serializers.ModelSerializer):
             'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount', 'promo_code_details',
             'negotiation_data', 'is_bulk_order'
         ]
-        read_only_fields = ['user', 'total_amount']
+        read_only_fields = ['user', 'total_amount', 'status']
+
+    def validate_shipping_fee(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Shipping fee cannot be negative.")
+        return value
 
     def validate(self, data):
         """HIGH-4: Cross-validate fulfillment_type and shipping_method."""
@@ -989,8 +1096,10 @@ class OrderSerializer(serializers.ModelSerializer):
         return data
 
     def get_logistics_info(self, obj):
-        shipment = obj.shipments.order_by('-created_at').first()
-        transfer = obj.warehouse_transfers.order_by('-created_at').first()
+        shipments = list(obj.shipments.all())
+        transfers = list(obj.warehouse_transfers.all())
+        shipment = shipments[0] if shipments else None
+        transfer = transfers[0] if transfers else None
         
         departure_date = None
         expected_arrival = None
@@ -1016,30 +1125,27 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_buyer_contact(self, obj):
         try:
-            profile = obj.user.profile
+            profile = getattr(obj.user, 'profile', None)
             return {
-                'phone': profile.phone_number,
+                'phone': profile.phone_number if profile else '',
                 'full_name': f"{obj.user.first_name} {obj.user.last_name}".strip()
             }
         except Exception:
             return None
 
     def get_seller_contacts(self, obj):
-        sellers = set()
-        for item in obj.orderitem_set.all():
-            sellers.add(item.product.seller)
-        
         contacts = []
-        for seller in sellers:
-            try:
-                profile = seller.profile
+        seen = set()
+        for item in obj.orderitem_set.all():
+            seller = item.product.seller if item.product else None
+            if seller and seller.id not in seen:
+                seen.add(seller.id)
+                profile = getattr(seller, 'profile', None)
                 contacts.append({
                     'username': seller.username,
-                    'phone': profile.phone_number,
+                    'phone': profile.phone_number if profile else '',
                     'full_name': f"{seller.first_name} {seller.last_name}".strip()
                 })
-            except Exception:
-                pass
         return contacts
 
     def get_has_vehicles(self, obj):
@@ -1073,12 +1179,21 @@ class OrderSerializer(serializers.ModelSerializer):
                 if origin_code and dest_code:
                     from warehouses.models import Warehouse, HistoricalRoutePricing
                     try:
-                        orig_wh = Warehouse.objects.filter(code=origin_code).first()
-                        dest_wh = Warehouse.objects.filter(code=dest_code).first()
+                        wh_cache = self.context.setdefault('_warehouse_cache', {})
+                        if origin_code not in wh_cache:
+                            wh_cache[origin_code] = Warehouse.objects.filter(code=origin_code).first()
+                        if dest_code not in wh_cache:
+                            wh_cache[dest_code] = Warehouse.objects.filter(code=dest_code).first()
+                        orig_wh = wh_cache[origin_code]
+                        dest_wh = wh_cache[dest_code]
                         if orig_wh and dest_wh:
-                            hrp = HistoricalRoutePricing.objects.filter(
-                                origin_warehouse=orig_wh, destination_warehouse=dest_wh
-                            ).first()
+                            route_cache = self.context.setdefault('_route_cache', {})
+                            route_key = (orig_wh.id, dest_wh.id)
+                            if route_key not in route_cache:
+                                route_cache[route_key] = HistoricalRoutePricing.objects.filter(
+                                    origin_warehouse=orig_wh, destination_warehouse=dest_wh
+                                ).first()
+                            hrp = route_cache[route_key]
                             if hrp and hrp.data_points > 0:
                                 d_info['estimated_shipping_fee'] = float(hrp.average_cost)
                                 d_info['is_historical_estimate'] = True
@@ -1090,10 +1205,14 @@ class OrderSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'user') and not request.user.is_anonymous:
             user = request.user
             if not (user.is_staff or user.is_superuser or instance.user == user):
-                from uzachuo.permissions import get_effective_sellers
-                sellers = get_effective_sellers(user, required_permission='manage_orders') or get_effective_sellers(user, required_permission='manage_products') or [user.id]
+                sellers = self.context.get('effective_sellers')
+                if sellers is None:
+                    from uzachuo.permissions import get_effective_sellers
+                    sellers = get_effective_sellers(user, required_permission='manage_orders') or get_effective_sellers(user, required_permission='manage_products') or [user.id]
+                    if isinstance(self.context, dict):
+                        self.context['effective_sellers'] = sellers
                 all_items = list(instance.orderitem_set.all())
-                filtered_items = [item for item in all_items if item.product.seller_id in sellers]
+                filtered_items = [item for item in all_items if item.product and item.product.seller_id in sellers]
                 ret['items'] = OrderItemSerializer(filtered_items, many=True, context=self.context).data
         return ret
 
@@ -1101,11 +1220,15 @@ class OrderSerializer(serializers.ModelSerializer):
         items = list(obj.orderitem_set.all())
         if not request or not hasattr(request, 'user') or request.user.is_anonymous:
             return items
-        from uzachuo.permissions import get_effective_sellers
-        sellers = get_effective_sellers(request.user, required_permission='manage_orders') or get_effective_sellers(request.user)
-        filtered_items = [item for item in items if item.product.seller_id in sellers]
+        sellers = self.context.get('effective_sellers')
+        if sellers is None:
+            from uzachuo.permissions import get_effective_sellers
+            sellers = get_effective_sellers(request.user, required_permission='manage_orders') or get_effective_sellers(request.user)
+            if hasattr(self, 'context') and isinstance(self.context, dict):
+                self.context['effective_sellers'] = sellers
+        filtered_items = [item for item in items if item.product and item.product.seller_id in sellers]
         if not filtered_items:
-            filtered_items = [item for item in items if item.product.seller_id == request.user.id]
+            filtered_items = [item for item in items if item.product and item.product.seller_id == request.user.id]
         if not filtered_items:
             filtered_items = items
         return filtered_items
@@ -1430,13 +1553,22 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return ''
 
     def get_seller_rating(self, obj):
+        if hasattr(obj, 'annotated_seller_avg') and hasattr(obj, 'annotated_seller_count'):
+            return {
+                'average': round(float(obj.annotated_seller_avg or 0), 1),
+                'count': int(obj.annotated_seller_count or 0),
+            }
         return obj.seller_rating  # FIX B-14
 
     def get_is_following(self, obj):
         request = self.context.get('request')
         if request and request.user and request.user.is_authenticated:
-            from .models import Follow
-            return Follow.objects.filter(follower=request.user, following=obj).exists()
+            if '_following_ids' not in self.context:
+                from .models import Follow
+                self.context['_following_ids'] = set(
+                    Follow.objects.filter(follower=request.user).values_list('following_id', flat=True)
+                )
+            return obj.id in self.context['_following_ids']
         return False
 
     def to_representation(self, instance):
@@ -2053,6 +2185,7 @@ class PasswordResetRequestStaffSerializer(serializers.ModelSerializer):
     dispatched_by_username = serializers.CharField(source='dispatched_by.username', read_only=True, default=None)
     reset_url = serializers.SerializerMethodField()
     email_draft = serializers.SerializerMethodField()
+    token = serializers.SerializerMethodField()
     is_active = serializers.SerializerMethodField()
 
     class Meta:
@@ -2065,6 +2198,10 @@ class PasswordResetRequestStaffSerializer(serializers.ModelSerializer):
             'ip_address', 'user_agent', 'is_active'
         ]
         read_only_fields = fields
+
+    def get_token(self, obj):
+        # Mask raw token in staff serialization for security
+        return '••••••••'
 
     def get_user_full_name(self, obj):
         return obj.user.get_full_name() or obj.user.username
@@ -2086,11 +2223,17 @@ class PasswordResetRequestStaffSerializer(serializers.ModelSerializer):
 
     def get_reset_url(self, obj):
         request = self.context.get('request')
-        return obj.get_reset_url(request=request)
+        user = getattr(request, 'user', None)
+        if user and user.is_superuser:
+            return obj.get_reset_url(request=request)
+        return None
 
     def get_email_draft(self, obj):
         request = self.context.get('request')
-        return obj.get_email_draft(request=request)
+        user = getattr(request, 'user', None)
+        if user and user.is_superuser:
+            return obj.get_email_draft(request=request)
+        return None
 
     def get_is_active(self, obj):
         return obj.is_active()

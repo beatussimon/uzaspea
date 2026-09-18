@@ -56,7 +56,7 @@ class BillingTestCase(TestCase):
             due_date=datetime.date(2026, 7, 5)
         )
         self.assertEqual(invoice.total_commission, Decimal("5000.00"))
-        self.assertEqual(str(invoice), "seller Invoice - 2026/06 (UNPAID)")
+        self.assertEqual(str(invoice), "seller Invoice - 2026/06 (UNPAID) - Due: 5000.00")
         
         payment = CommissionPayment.objects.create(
             invoice=invoice,

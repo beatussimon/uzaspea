@@ -1,7 +1,10 @@
+import logging
 from rest_framework import viewsets, permissions, status, views
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 from rest_framework.exceptions import ValidationError
 from .models import Shipment, DeliveryOption, PickupCode, LocationPing, DriverPayment
 from .serializers import ShipmentSerializer, DeliveryOptionSerializer, LocationPingSerializer, DriverPaymentSerializer
@@ -32,10 +35,10 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         user = self.request.user
         is_staff = user.is_superuser or (hasattr(user, 'staff_profile') and user.staff_profile.is_active)
         queryset = Shipment.objects.select_related(
-            'order', 'driver', 'order__user'
+            'order', 'driver', 'driver__profile', 'order__user', 'order__user__profile'
         ).prefetch_related(
             'order__orderitem_set__product__category__parent'
-        ).all()
+        ).order_by('-created_at')
         
         status_param = self.request.query_params.get('status')
         order_param = self.request.query_params.get('order')
@@ -304,17 +307,20 @@ class ShipmentViewSet(viewsets.ModelViewSet):
         from asgiref.sync import async_to_sync
         channel_layer = get_channel_layer()
         if channel_layer:
-            async_to_sync(channel_layer.group_send)(
-                f'shipment_tracking_{shipment.id}',
-                {
-                    'type': 'shipment_ping',
-                    'shipment_id': shipment.id,
-                    'lat': ping.lat,
-                    'lng': ping.lng,
-                    'recorded_at': ping.recorded_at.isoformat(),
-                    'source': ping.source
-                }
-            )
+            try:
+                async_to_sync(channel_layer.group_send)(
+                    f'shipment_tracking_{shipment.id}',
+                    {
+                        'type': 'shipment_ping',
+                        'shipment_id': shipment.id,
+                        'lat': ping.lat,
+                        'lng': ping.lng,
+                        'recorded_at': ping.recorded_at.isoformat(),
+                        'source': ping.source
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"GPS ping websocket broadcast failed: {e}")
 
         return Response({
             'status': 'success',

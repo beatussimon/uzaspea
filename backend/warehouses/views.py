@@ -6,7 +6,8 @@ from .models import Warehouse, WarehouseIntake, WarehouseTransfer, WarehouseStaf
 from .serializers import WarehouseSerializer, WarehouseIntakeSerializer, WarehouseTransferSerializer, WarehouseStaffAssignmentSerializer
 from marketplace.models import Order
 from marketplace.services import OrderStateMachine
-from uzachuo.permissions import IsStaffMember, has_staff_permission
+from django.core.cache import cache
+from uzachuo.permissions import IsStaffMember, IsWarehouseStaff, has_staff_permission
 
 
 def user_can_access_warehouse(user, warehouse):
@@ -23,14 +24,14 @@ class IsSuperUser(permissions.BasePermission):
         return bool(request.user and request.user.is_superuser)
 
 class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Warehouse.objects.filter(is_active=True)
+    queryset = Warehouse.objects.select_related('region').filter(is_active=True)
     serializer_class = WarehouseSerializer
     pagination_class = None
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.IsAuthenticated()]
-        return [permissions.IsAuthenticated(), IsStaffMember()]
+        return [permissions.IsAuthenticated(), IsWarehouseStaff()]
 
     @action(detail=True, methods=['get'], url_path='pending-intakes')
     def pending_intakes(self, request, pk=None):
@@ -287,7 +288,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
 
 class WarehouseIntakeViewSet(viewsets.ModelViewSet):
     serializer_class = WarehouseIntakeSerializer
-    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+    permission_classes = [permissions.IsAuthenticated, IsWarehouseStaff]
 
     def get_queryset(self):
         user = self.request.user
@@ -500,7 +501,7 @@ class WarehouseIntakeViewSet(viewsets.ModelViewSet):
 
 class WarehouseTransferViewSet(viewsets.ModelViewSet):
     serializer_class = WarehouseTransferSerializer
-    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+    permission_classes = [permissions.IsAuthenticated, IsWarehouseStaff]
 
     def get_queryset(self):
         queryset = WarehouseTransfer.objects.select_related('source_warehouse', 'destination_warehouse', 'order', 'transfer_by').all()
@@ -604,23 +605,37 @@ class WarehouseStaffAssignmentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsSuperUser]
 
 class PickupVerifyView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsStaffMember]
+    permission_classes = [permissions.IsAuthenticated, IsWarehouseStaff]
 
     def post(self, request, *args, **kwargs):
         code_str = request.data.get('code')
         if not code_str:
             return Response({'error': 'Verification code is required'}, status=status.HTTP_400_BAD_REQUEST)
         
+        user_key = f"pickup_verify_fails:{request.user.id}"
+        lock_key = f"pickup_verify_lock:{request.user.id}"
+        if cache.get(lock_key):
+            return Response({'error': 'Too many failed pickup code verification attempts. Verification locked for 15 minutes.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
         from logistics.models import PickupCode
         with transaction.atomic():
             try:
                 pickup_code = PickupCode.objects.select_for_update().get(code=code_str)
             except PickupCode.DoesNotExist:
-                return Response({'error': 'Invalid verification code'}, status=status.HTTP_400_BAD_REQUEST)
+                fails = (cache.get(user_key) or 0) + 1
+                if fails >= 5:
+                    cache.set(lock_key, True, timeout=900)
+                    cache.delete(user_key)
+                    return Response({'error': 'Too many failed verification attempts. Verification locked for 15 minutes.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+                cache.set(user_key, fails, timeout=900)
+                return Response({'error': f'Invalid verification code. ({5 - fails} attempts remaining)'}, status=status.HTTP_400_BAD_REQUEST)
             
             if pickup_code.is_used:
                 return Response({'error': 'This code has already been used'}, status=status.HTTP_400_BAD_REQUEST)
             
+            # Reset fail count on success
+            cache.delete(user_key)
+
             pickup_code.is_used = True
             pickup_code.used_at = timezone.now()
             pickup_code.verified_by = request.user

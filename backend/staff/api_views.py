@@ -756,13 +756,192 @@ class PaymentConfirmationViewSet(viewsets.ModelViewSet):
         log_audit(request.user, 'subscription_rejected', f"Rejected subscription payment for user {payment.user.username}", target_user=payment.user, request=request)
         return Response({'status': 'rejected'})
 
+    @decorators.action(detail=False, methods=['get'])
+    def overdue(self, request):
+        from marketplace.models import Subscription, SubscriptionTier
+        from billing.models import MonthlyInvoice
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        now = timezone.now()
+        today = now.date()
+        q = request.query_params.get('q', '').strip().lower()
+
+        # Exclude users who already have a pending PaymentConfirmation (awaiting review)
+        pending_user_ids = set(PaymentConfirmation.objects.filter(status='pending').values_list('user_id', flat=True))
+
+        # Exclude users with currently active, unexpired subscriptions
+        active_user_ids = set(Subscription.objects.filter(is_active=True, end_date__gt=now).values_list('user_id', flat=True))
+
+        # Find candidate users who should be paying subscription fees
+        candidate_user_ids = set()
+        expired_sub_users = Subscription.objects.exclude(tier__isnull=True).values_list('user_id', flat=True)
+        candidate_user_ids.update(expired_sub_users)
+
+        tier_users = User.objects.filter(profile__tier__in=['seller_pro', 'business']).values_list('id', flat=True)
+        candidate_user_ids.update(tier_users)
+
+        inv_sub_users = MonthlyInvoice.objects.filter(
+            subscription_fee__gt=0,
+            status__in=[MonthlyInvoice.Status.UNPAID, MonthlyInvoice.Status.OVERDUE]
+        ).values_list('seller_id', flat=True)
+        candidate_user_ids.update(inv_sub_users)
+
+        overdue_user_ids = candidate_user_ids - active_user_ids - pending_user_ids
+
+        users = (
+            User.objects
+            .filter(id__in=overdue_user_ids)
+            .select_related('profile')
+            .prefetch_related('subscriptions__tier', 'products')
+        )
+
+        results = []
+        for u in users:
+            name = f"{u.first_name} {u.last_name}".strip()
+            phone = getattr(getattr(u, 'profile', None), 'phone_number', '') or ''
+            if q and (q not in u.username.lower() and q not in name.lower() and q not in phone.lower()):
+                continue
+
+            latest_sub = u.subscriptions.exclude(tier__isnull=True).order_by('-start_date').first()
+            tier = latest_sub.tier if latest_sub else None
+            tier_name = tier.name if tier else ('Business' if getattr(getattr(u, 'profile', None), 'tier', '') == 'business' else 'Seller Pro')
+            tier_price = float(tier.price) if tier and tier.price else (79000.0 if getattr(getattr(u, 'profile', None), 'tier', '') == 'business' else 29000.0)
+
+            end_date = latest_sub.end_date if latest_sub else None
+            if end_date:
+                days_overdue = (now - end_date).days if now > end_date else 0
+                status_label = 'OVERDUE' if days_overdue > 0 else 'DUE_SOON'
+            else:
+                days_overdue = (today - u.date_joined.date()).days
+                status_label = 'OVERDUE'
+
+            active_products_count = u.products.filter(is_available=True).count()
+            orders_count = getattr(u, 'seller_orders', None).count() if hasattr(u, 'seller_orders') else 0
+
+            results.append({
+                'user_id': u.id,
+                'username': u.username,
+                'full_name': name or u.username,
+                'store_url': f"/{u.username}",
+                'phone_number': phone,
+                'whatsapp_number': getattr(getattr(u, 'profile', None), 'whatsapp_number', '') or '',
+                'email': u.email or '',
+                'location': getattr(getattr(u, 'profile', None), 'location', '') or '',
+                'tier_name': tier_name,
+                'amount_due': tier_price,
+                'end_date': end_date.isoformat() if end_date else None,
+                'days_overdue': max(days_overdue, 1),
+                'status': status_label,
+                'active_products_count': active_products_count,
+                'orders_count': orders_count,
+            })
+
+        results.sort(key=lambda x: x['days_overdue'], reverse=True)
+
+        page = self.paginate_queryset(results)
+        if page is not None:
+            return self.get_paginated_response(page)
+        return Response({'results': results, 'count': len(results)})
+
+    @decorators.action(detail=False, methods=['get'])
+    def analytics(self, request):
+        from marketplace.models import Subscription, SubscriptionTier
+        from django.db.models import Sum, Count
+        from django.contrib.auth import get_user_model
+        import datetime
+        User = get_user_model()
+        now = timezone.now()
+        today = now.date()
+
+        approved_qs = PaymentConfirmation.objects.filter(status='approved')
+        total_revenue = float(approved_qs.aggregate(t=Sum('amount'))['t'] or 0.0)
+
+        first_day_month = today.replace(day=1)
+        this_month_revenue = float(approved_qs.filter(created_at__date__gte=first_day_month).aggregate(t=Sum('amount'))['t'] or 0.0)
+
+        active_subscribers = Subscription.objects.filter(is_active=True, end_date__gt=now).count()
+
+        pending_qs = PaymentConfirmation.objects.filter(status='pending')
+        pending_count = pending_qs.count()
+        pending_amount = float(pending_qs.aggregate(t=Sum('amount'))['t'] or 0.0)
+
+        pending_user_ids = set(pending_qs.values_list('user_id', flat=True))
+        active_user_ids = set(Subscription.objects.filter(is_active=True, end_date__gt=now).values_list('user_id', flat=True))
+        all_candidate_ids = set(Subscription.objects.exclude(tier__isnull=True).values_list('user_id', flat=True))
+        all_candidate_ids.update(User.objects.filter(profile__tier__in=['seller_pro', 'business']).values_list('id', flat=True))
+        overdue_ids = all_candidate_ids - active_user_ids - pending_user_ids
+        overdue_count = len(overdue_ids)
+        overdue_potential_revenue = overdue_count * 29000.0
+
+        total_sub_base = active_subscribers + overdue_count
+        compliance_rate = round((active_subscribers / total_sub_base * 100), 1) if total_sub_base > 0 else 100.0
+
+        monthly_trend = []
+        for i in range(5, -1, -1):
+            year = today.year
+            month = today.month - i
+            while month <= 0:
+                month += 12
+                year -= 1
+            m_start = datetime.date(year, month, 1)
+            if month == 12:
+                m_end = datetime.date(year + 1, 1, 1)
+            else:
+                m_end = datetime.date(year, month + 1, 1)
+
+            month_label = m_start.strftime("%b %Y")
+            m_approved = approved_qs.filter(created_at__date__gte=m_start, created_at__date__lt=m_end)
+            m_rev = float(m_approved.aggregate(t=Sum('amount'))['t'] or 0.0)
+            m_cnt = m_approved.count()
+
+            monthly_trend.append({
+                'month': month_label,
+                'revenue': m_rev,
+                'confirmations': m_cnt,
+            })
+
+        tier_breakdown = []
+        for t in SubscriptionTier.objects.filter(is_active=True):
+            sub_count = Subscription.objects.filter(tier=t, is_active=True, end_date__gt=now).count()
+            t_rev = float(approved_qs.filter(tier=t).aggregate(t=Sum('amount'))['t'] or 0.0)
+            tier_breakdown.append({
+                'tier_name': t.name,
+                'tier_level': t.tier_level,
+                'subscribers': sub_count,
+                'total_revenue': t_rev,
+                'price': float(t.price or 0.0),
+            })
+
+        status_distribution = [
+            {'name': 'Active & Paid', 'count': active_subscribers, 'color': '#10b981'},
+            {'name': 'Pending Review', 'count': pending_count, 'color': '#3b82f6'},
+            {'name': 'Overdue / Expired', 'count': overdue_count, 'color': '#ef4444'},
+            {'name': 'Rejected', 'count': PaymentConfirmation.objects.filter(status='rejected').count(), 'color': '#6b7280'},
+        ]
+
+        return Response({
+            'kpis': {
+                'total_revenue': total_revenue,
+                'this_month_revenue': this_month_revenue,
+                'active_subscribers': active_subscribers,
+                'pending_count': pending_count,
+                'pending_amount': pending_amount,
+                'overdue_count': overdue_count,
+                'overdue_potential_revenue': overdue_potential_revenue,
+                'compliance_rate': compliance_rate,
+            },
+            'monthly_trend': monthly_trend,
+            'tier_breakdown': tier_breakdown,
+            'status_distribution': status_distribution,
+        })
+
 
 class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
     serializer_class = StaffCommissionPaymentSerializer
     permission_classes = [permissions.IsAuthenticated, IsStaffMember]
 
     def get_queryset(self):
-        qs = CommissionPayment.objects.select_related('invoice__seller', 'reviewed_by').all().order_by('-submitted_at')
+        qs = CommissionPayment.objects.select_related('invoice__seller__profile', 'reviewed_by').all().order_by('-submitted_at')
         status_filter = self.request.query_params.get('status')
         if status_filter:
             # Note: models define STATUS_CHOICES as uppercase strings like 'PENDING'
@@ -811,6 +990,183 @@ class StaffCommissionPaymentViewSet(viewsets.ModelViewSet):
 
         log_audit(request.user, 'commission_rejected', f"Rejected commission payment of {payment.amount} from seller {payment.invoice.seller.username}. Reason: {reason}", target_user=payment.invoice.seller, request=request)
         return Response({'status': 'REJECTED', 'rejection_reason': reason})
+
+    @decorators.action(detail=False, methods=['get'])
+    def overdue(self, request):
+        from billing.models import MonthlyInvoice
+        from django.db.models import Q
+        today = timezone.now().date()
+        q = request.query_params.get('q', '').strip().lower()
+
+        # Find invoices that have pending CommissionPayment submissions (they are under review)
+        pending_invoice_ids = set(CommissionPayment.objects.filter(status='PENDING').values_list('invoice_id', flat=True))
+
+        # Query overdue or unpaid invoices with commission/amount due > 0
+        invoices = (
+            MonthlyInvoice.objects
+            .filter(
+                Q(status=MonthlyInvoice.Status.OVERDUE) |
+                Q(status=MonthlyInvoice.Status.UNPAID, due_date__lt=today) |
+                (Q(status=MonthlyInvoice.Status.UNPAID) & (Q(total_commission__gt=0) | Q(total_amount_due__gt=0)))
+            )
+            .exclude(id__in=pending_invoice_ids)
+            .select_related('seller__profile')
+            .prefetch_related('seller__products')
+            .order_by('-due_date')
+        )
+
+        results = []
+        for inv in invoices:
+            seller = inv.seller
+            name = f"{seller.first_name} {seller.last_name}".strip()
+            phone = getattr(getattr(seller, 'profile', None), 'phone_number', '') or ''
+            period = f"{inv.year}/{inv.month:02d}"
+
+            if q and (q not in seller.username.lower() and q not in name.lower() and q not in phone.lower() and q not in period):
+                continue
+
+            days_overdue = (today - inv.due_date).days if inv.due_date and today > inv.due_date else 0
+            active_products = seller.products.filter(is_available=True).count()
+
+            results.append({
+                'id': inv.id,
+                'seller_id': seller.id,
+                'seller_username': seller.username,
+                'seller_full_name': name or seller.username,
+                'store_url': f"/{seller.username}",
+                'phone_number': phone,
+                'whatsapp_number': getattr(getattr(seller, 'profile', None), 'whatsapp_number', '') or '',
+                'email': seller.email or '',
+                'location': getattr(getattr(seller, 'profile', None), 'location', '') or '',
+                'invoice_year': inv.year,
+                'invoice_month': inv.month,
+                'invoice_period': period,
+                'total_order_amount': float(inv.total_order_amount or 0.0),
+                'order_count': inv.order_count,
+                'total_commission': float(inv.total_commission or 0.0),
+                'subscription_fee': float(inv.subscription_fee or 0.0),
+                'total_amount_due': float(inv.total_amount_due or 0.0),
+                'due_date': inv.due_date.isoformat() if inv.due_date else None,
+                'days_overdue': max(days_overdue, 0),
+                'status': inv.status,
+                'active_products_count': active_products,
+            })
+
+        results.sort(key=lambda x: (x['days_overdue'], x['total_amount_due']), reverse=True)
+
+        page = self.paginate_queryset(results)
+        if page is not None:
+            return self.get_paginated_response(page)
+        return Response({'results': results, 'count': len(results)})
+
+    @decorators.action(detail=False, methods=['get'])
+    def analytics(self, request):
+        from billing.models import MonthlyInvoice, CommissionPayment
+        from django.db.models import Sum, Count, Q
+        import datetime
+        today = timezone.now().date()
+
+        # Total Commission Collected
+        paid_invoices = MonthlyInvoice.objects.filter(status=MonthlyInvoice.Status.PAID)
+        total_collected = float(paid_invoices.aggregate(t=Sum('total_commission'))['t'] or 0.0)
+
+        # This month collected
+        first_day_month = today.replace(day=1)
+        this_month_invoices = paid_invoices.filter(created_at__date__gte=first_day_month)
+        this_month_collected = float(this_month_invoices.aggregate(t=Sum('total_commission'))['t'] or 0.0)
+
+        # Outstanding / Overdue
+        pending_invoice_ids = set(CommissionPayment.objects.filter(status='PENDING').values_list('invoice_id', flat=True))
+        overdue_invoices = MonthlyInvoice.objects.filter(
+            Q(status=MonthlyInvoice.Status.OVERDUE) |
+            Q(status=MonthlyInvoice.Status.UNPAID, due_date__lt=today) |
+            (Q(status=MonthlyInvoice.Status.UNPAID) & Q(total_commission__gt=0))
+        ).exclude(id__in=pending_invoice_ids)
+        total_outstanding = float(overdue_invoices.aggregate(t=Sum('total_amount_due'))['t'] or 0.0)
+        overdue_count = overdue_invoices.count()
+
+        # Pending review
+        pending_payments = CommissionPayment.objects.filter(status='PENDING')
+        pending_review_count = pending_payments.count()
+        pending_review_amount = float(pending_payments.aggregate(t=Sum('amount'))['t'] or 0.0)
+
+        # Total invoiced & collection rate
+        all_invoices = MonthlyInvoice.objects.all()
+        total_invoiced = float(all_invoices.aggregate(t=Sum('total_commission'))['t'] or 0.0)
+        collection_rate = round((total_collected / total_invoiced * 100), 1) if total_invoiced > 0 else 100.0
+
+        # Average commission per seller
+        active_sellers_count = MonthlyInvoice.objects.values('seller').distinct().count()
+        avg_commission = round(total_collected / active_sellers_count, 2) if active_sellers_count > 0 else 0.0
+
+        # Monthly Trend (last 6 months)
+        monthly_trend = []
+        for i in range(5, -1, -1):
+            year = today.year
+            month = today.month - i
+            while month <= 0:
+                month += 12
+                year -= 1
+            m_start = datetime.date(year, month, 1)
+            month_label = m_start.strftime("%b %Y")
+
+            m_invoices = MonthlyInvoice.objects.filter(year=year, month=month)
+            m_invoiced = float(m_invoices.aggregate(t=Sum('total_commission'))['t'] or 0.0)
+            m_collected = float(m_invoices.filter(status=MonthlyInvoice.Status.PAID).aggregate(t=Sum('total_commission'))['t'] or 0.0)
+            m_orders = int(m_invoices.aggregate(t=Sum('order_count'))['t'] or 0)
+
+            monthly_trend.append({
+                'month': month_label,
+                'invoiced': m_invoiced,
+                'collected': m_collected,
+                'orders_count': m_orders,
+            })
+
+        # Status distribution
+        unpaid_count = MonthlyInvoice.objects.filter(status=MonthlyInvoice.Status.UNPAID).count()
+        unpaid_amount = float(MonthlyInvoice.objects.filter(status=MonthlyInvoice.Status.UNPAID).aggregate(t=Sum('total_amount_due'))['t'] or 0.0)
+        paid_count = paid_invoices.count()
+        paid_amount = float(paid_invoices.aggregate(t=Sum('total_amount_due'))['t'] or 0.0)
+        overdue_stat_count = MonthlyInvoice.objects.filter(status=MonthlyInvoice.Status.OVERDUE).count()
+        overdue_stat_amount = float(MonthlyInvoice.objects.filter(status=MonthlyInvoice.Status.OVERDUE).aggregate(t=Sum('total_amount_due'))['t'] or 0.0)
+
+        status_distribution = [
+            {'name': 'Paid / Settled', 'count': paid_count, 'amount': paid_amount, 'color': '#10b981'},
+            {'name': 'Pending Review', 'count': pending_review_count, 'amount': pending_review_amount, 'color': '#3b82f6'},
+            {'name': 'Overdue', 'count': overdue_stat_count, 'amount': overdue_stat_amount, 'color': '#ef4444'},
+            {'name': 'Unpaid', 'count': unpaid_count, 'amount': unpaid_amount, 'color': '#f59e0b'},
+        ]
+
+        # Top Debtors
+        top_debtors_qs = overdue_invoices.order_by('-total_amount_due')[:5]
+        top_debtors = []
+        for inv in top_debtors_qs:
+            top_debtors.append({
+                'seller_username': inv.seller.username,
+                'store_url': f"/{inv.seller.username}",
+                'phone_number': getattr(getattr(inv.seller, 'profile', None), 'phone_number', '') or '',
+                'amount_due': float(inv.total_amount_due or 0.0),
+                'commission': float(inv.total_commission or 0.0),
+                'period': f"{inv.year}/{inv.month:02d}",
+                'days_overdue': (today - inv.due_date).days if inv.due_date and today > inv.due_date else 0,
+            })
+
+        return Response({
+            'kpis': {
+                'total_collected': total_collected,
+                'this_month_collected': this_month_collected,
+                'total_outstanding': total_outstanding,
+                'overdue_count': overdue_count,
+                'pending_review_count': pending_review_count,
+                'pending_review_amount': pending_review_amount,
+                'collection_rate': collection_rate,
+                'avg_commission_per_seller': avg_commission,
+                'total_invoiced': total_invoiced,
+            },
+            'monthly_trend': monthly_trend,
+            'status_distribution': status_distribution,
+            'top_debtors': top_debtors,
+        })
 
 
 class CanManageUsers(permissions.BasePermission):

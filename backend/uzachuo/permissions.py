@@ -24,7 +24,21 @@ class IsSuperUser(permissions.BasePermission):
         return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
 
 class IsStaffMember(permissions.BasePermission):
-    """Active staff members or superusers, or warehouse staff/managers."""
+    """Active platform staff members or superusers."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser or request.user.is_staff:
+            return True
+        try:
+            if request.user.staff_profile.is_active:
+                return True
+        except AttributeError:
+            pass
+        return False
+
+class IsWarehouseStaff(permissions.BasePermission):
+    """Active staff, superusers, or users assigned to a warehouse."""
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
@@ -38,6 +52,18 @@ class IsStaffMember(permissions.BasePermission):
             
         from warehouses.models import WarehouseStaffAssignment
         return WarehouseStaffAssignment.objects.filter(user=request.user).exists()
+
+class CanManageUsers(permissions.BasePermission):
+    """Allows superusers or staff with can_manage_users permission."""
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and (user.is_superuser or has_staff_permission(user, 'can_manage_users')))
+
+class HasInspectionManagerPermission(permissions.BasePermission):
+    """Allows access to superusers or staff with can_manage_inspections."""
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and (user.is_superuser or has_staff_permission(user, 'can_manage_inspections')))
 
 class IsAssignedInspectorOrStaff(permissions.BasePermission):
     """
@@ -201,6 +227,8 @@ class IsOwnerOrStaff(permissions.BasePermission):
             return True
             
         owner = getattr(obj, 'user', getattr(obj, 'seller', getattr(obj, 'client', None)))
+        if not owner and hasattr(obj, 'product'):
+            owner = getattr(obj.product, 'seller', None)
         if owner == user:
             return True
 

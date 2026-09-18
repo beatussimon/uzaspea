@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Star, MessageSquare, CheckCircle2, CornerDownRight, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
@@ -76,10 +76,76 @@ const UserAvatar = ({
   );
 };
 
+const getScrollContainer = (el: HTMLElement | null): HTMLElement | Window => {
+  if (!el || typeof window === 'undefined') return window;
+  let parent = el.parentElement;
+  while (parent) {
+    const style = window.getComputedStyle(parent);
+    if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+      return parent;
+    }
+    parent = parent.parentElement;
+  }
+  return window;
+};
+
+const getElementScrollTop = (targetEl: HTMLElement | null, container: HTMLElement | Window): number => {
+  if (!targetEl) return 0;
+  if (container instanceof HTMLElement) {
+    return targetEl.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+  }
+  return targetEl.getBoundingClientRect().top + window.scrollY;
+};
+
 export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsername }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'reviews' | 'comments'>('reviews');
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const tabScrollPositions = useRef<Record<'reviews' | 'comments', number | null>>({
+    reviews: null,
+    comments: null,
+  });
+  const targetScrollRef = useRef<number | null>(null);
+
+  const handleTabChange = (newTab: 'reviews' | 'comments') => {
+    if (newTab === activeTab) return;
+    const container = getScrollContainer(sectionRef.current);
+    const currentScroll = container instanceof HTMLElement ? container.scrollTop : window.scrollY;
+    tabScrollPositions.current[activeTab] = currentScroll;
+
+    const saved = tabScrollPositions.current[newTab];
+    let target: number;
+    if (saved !== null) {
+      target = saved;
+    } else {
+      target = getElementScrollTop(sectionRef.current, container);
+    }
+
+    targetScrollRef.current = target;
+    setActiveTab(newTab);
+  };
+
+  useLayoutEffect(() => {
+    if (targetScrollRef.current !== null) {
+      const target = targetScrollRef.current;
+      targetScrollRef.current = null;
+      const container = getScrollContainer(sectionRef.current);
+      if (container instanceof HTMLElement) {
+        container.scrollTop = target;
+      } else {
+        window.scrollTo({ top: target, behavior: 'instant' });
+      }
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    tabScrollPositions.current = {
+      reviews: null,
+      comments: null,
+    };
+    targetScrollRef.current = null;
+  }, [productId]);
 
   // Reviews state & pagination
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -318,23 +384,20 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
   };
 
   return (
-    <div className="w-full">
+    <div ref={sectionRef} className="w-full">
       {/* Standardized Tabs Navigation - Sticky */}
-      <div className="lg:sticky lg:top-0 z-20 bg-white dark:bg-[#18191a] lg:px-6 lg:pt-6 pb-3 border-b border-neutral-200 dark:border-neutral-800 mb-6 flex items-center gap-8">
+      <div className="lg:sticky lg:top-0 z-20 bg-white dark:bg-[#18191a] lg:px-6 pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 flex items-center gap-8">
         <button
-          className={`pb-3.5 text-sm font-bold tracking-tight transition-all relative flex items-center gap-2 ${
+          type="button"
+          className={`pb-2 tracking-tight transition-colors duration-150 relative flex items-center gap-2 cursor-pointer text-sm sm:text-base font-medium ${
             activeTab === 'reviews'
-              ? 'text-neutral-900 dark:text-white'
-              : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'
+              ? 'text-gray-900 dark:text-white'
+              : 'text-gray-400 hover:text-gray-700 dark:text-neutral-400 dark:hover:text-neutral-200'
           }`}
-          onClick={() => setActiveTab('reviews')}
+          onClick={() => handleTabChange('reviews')}
         >
           <span>{t('reviews_tab', 'Reviews')}</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-            activeTab === 'reviews' 
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900' 
-              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400'
-          }`}>
+          <span className="text-[10px] sm:text-xs font-normal px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 shrink-0">
             {reviewsCount}
           </span>
           {activeTab === 'reviews' && (
@@ -343,19 +406,16 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
         </button>
 
         <button
-          className={`pb-3.5 text-sm font-bold tracking-tight transition-all relative flex items-center gap-2 ${
+          type="button"
+          className={`pb-2 tracking-tight transition-colors duration-150 relative flex items-center gap-2 cursor-pointer text-sm sm:text-base font-medium ${
             activeTab === 'comments'
-              ? 'text-neutral-900 dark:text-white'
-              : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'
+              ? 'text-gray-900 dark:text-white'
+              : 'text-gray-400 hover:text-gray-700 dark:text-neutral-400 dark:hover:text-neutral-200'
           }`}
-          onClick={() => setActiveTab('comments')}
+          onClick={() => handleTabChange('comments')}
         >
-          <span>{t('comments_tab', 'Q&A & Comments')}</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-            activeTab === 'comments' 
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900' 
-              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400'
-          }`}>
+          <span>{t('comments_tab', 'Comments')}</span>
+          <span className="text-[10px] sm:text-xs font-normal px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 shrink-0">
             {commentsCount}
           </span>
           {activeTab === 'comments' && (
@@ -368,7 +428,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
       <div className="lg:px-6 lg:pb-6">
         {/* ================= REVIEWS TAB ================= */}
         {activeTab === 'reviews' && (
-          <div className="animate-fade-in space-y-6">
+          <div className="space-y-6">
             {/* Overall Rating Summary Bar */}
             {reviews.length > 0 && (
               <div className="py-2 flex flex-col sm:flex-row items-center sm:items-stretch gap-6">
@@ -503,7 +563,7 @@ export const ProductTabs: React.FC<ProductTabsProps> = ({ productId, sellerUsern
 
         {/* ================= COMMENTS TAB ================= */}
         {activeTab === 'comments' && (
-          <div className="animate-fade-in space-y-6">
+          <div className="space-y-6">
             {/* YouTube-style Comment Composer */}
             <div className="flex gap-3.5 items-center pb-2">
               <UserAvatar 

@@ -70,6 +70,7 @@ services:
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend.middlewares=gzip-compress@file"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
     deploy:
       resources:

@@ -39,9 +39,13 @@ class InspectionCategorySerializer(serializers.ModelSerializer):
         ]
 
     def get_dynamic_base_price(self, obj):
+        price_map = self.context.get('price_map')
+        if price_map and obj.id in price_map:
+            return float(price_map[obj.id])
         try:
             from .pricing import get_category_intelligent_base_price
-            return float(get_category_intelligent_base_price(obj))
+            children_map = self.context.get('children_map')
+            return float(get_category_intelligent_base_price(obj, children_map=children_map))
         except Exception:
             return float(obj.base_price or 50000)
 
@@ -58,6 +62,15 @@ class InspectionCategorySerializer(serializers.ModelSerializer):
         if path_map is not None:
             return path_map.get(obj.id, obj.name)
         return obj.get_full_path()
+
+
+class InspectionCategorySlimSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InspectionCategory
+        fields = [
+            'id', 'name', 'slug', 'level', 'parent', 'description',
+            'base_price', 'required_inspector_level', 'is_active',
+        ]
 
 
 class ChecklistItemSerializer(serializers.ModelSerializer):
@@ -82,7 +95,7 @@ class ChecklistTemplateSerializer(serializers.ModelSerializer):
 class InspectorProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     full_name = serializers.SerializerMethodField()
-    certified_categories = InspectionCategorySerializer(many=True, read_only=True)
+    certified_categories = InspectionCategorySlimSerializer(many=True, read_only=True)
     certified_category_ids = serializers.PrimaryKeyRelatedField(
         many=True, queryset=InspectionCategory.objects.all(),
         source='certified_categories', write_only=True, required=False
@@ -307,10 +320,23 @@ class InspectionReportSerializer(serializers.ModelSerializer):
         if user:
             if user.is_superuser or has_staff_permission(user, 'can_manage_inspections'):
                 is_staff_or_inspector = True
-            elif hasattr(instance, 'request') and instance.request and instance.request.assignments.filter(inspector__user=user, is_active=True).exists():
-                is_staff_or_inspector = True
+            elif hasattr(instance, 'request') and instance.request:
+                assignments = list(instance.request.assignments.all())
+                if any(a.is_active and a.inspector and a.inspector.user_id == user.id for a in assignments):
+                    is_staff_or_inspector = True
 
-        is_paid = is_request_fully_paid(instance.request) if hasattr(instance, 'request') else False
+        if is_staff_or_inspector:
+            is_paid = True
+        elif hasattr(instance, 'request') and instance.request:
+            payments = list(instance.request.payments.all())
+            is_paid = any(p.stage == 'balance' and p.status == 'approved' for p in payments)
+            if not is_paid and hasattr(instance.request, 'bill') and instance.request.bill:
+                has_deposit = any(p.stage == 'deposit' and p.status == 'approved' for p in payments)
+                if has_deposit and instance.request.bill.remaining_balance <= 0:
+                    is_paid = True
+        else:
+            is_paid = False
+
         data['is_unlocked'] = bool(is_paid or is_staff_or_inspector)
 
         # REDACT IF UNPAID CLIENT

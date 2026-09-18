@@ -28,7 +28,7 @@ DEPOSIT_RATE = Decimal('0.30')                # 30% of total as deposit
 REINSPECTION_COVERAGE_RATE = Decimal('0.10')  # 10% of total
 
 
-def get_category_intelligent_base_price(category):
+def get_category_intelligent_base_price(category, children_map=None):
     """
     Computes a market-calibrated base rate for a category by averaging historical
     actual base rates from completed/approved bills in this category (or subcategories).
@@ -48,12 +48,20 @@ def get_category_intelligent_base_price(category):
     try:
         from inspections.models import InspectionBill
         cat_ids = [category.id]
-        queue = [category]
-        while queue:
-            curr = queue.pop(0)
-            for child in curr.children.all():
-                cat_ids.append(child.id)
-                queue.append(child)
+        if children_map is not None:
+            queue = [category.id]
+            while queue:
+                cid = queue.pop(0)
+                for child in children_map.get(cid, []):
+                    cat_ids.append(child.id)
+                    queue.append(child.id)
+        else:
+            queue = [category]
+            while queue:
+                curr = queue.pop(0)
+                for child in curr.children.all():
+                    cat_ids.append(child.id)
+                    queue.append(child)
 
         avg_res = InspectionBill.objects.filter(
             request__category_id__in=cat_ids,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import api from '../api';
@@ -15,6 +15,27 @@ export interface SimilarProductsSectionProps {
   product?: any;
 }
 
+const getScrollContainer = (el: HTMLElement | null): HTMLElement | Window => {
+  if (!el || typeof window === 'undefined') return window;
+  let parent = el.parentElement;
+  while (parent) {
+    const style = window.getComputedStyle(parent);
+    if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+      return parent;
+    }
+    parent = parent.parentElement;
+  }
+  return window;
+};
+
+const getElementScrollTop = (targetEl: HTMLElement | null, container: HTMLElement | Window): number => {
+  if (!targetEl) return 0;
+  if (container instanceof HTMLElement) {
+    return targetEl.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+  }
+  return targetEl.getBoundingClientRect().top + window.scrollY;
+};
+
 export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
   currentProductId,
   categorySlug,
@@ -25,6 +46,52 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
 }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'similar' | 'a_plus'>('similar');
+  const sectionRef = useRef<HTMLElement>(null);
+  const tabScrollPositions = useRef<Record<'similar' | 'a_plus', number | null>>({
+    similar: null,
+    a_plus: null,
+  });
+  const targetScrollRef = useRef<number | null>(null);
+
+  const handleTabChange = (newTab: 'similar' | 'a_plus') => {
+    if (newTab === activeTab) return;
+    const container = getScrollContainer(sectionRef.current);
+    const currentScroll = container instanceof HTMLElement ? container.scrollTop : window.scrollY;
+    tabScrollPositions.current[activeTab] = currentScroll;
+
+    const saved = tabScrollPositions.current[newTab];
+    let target: number;
+    if (saved !== null) {
+      target = saved;
+    } else {
+      // First time opening this tab: align cleanly with the section's sticky top
+      target = getElementScrollTop(sectionRef.current, container);
+    }
+
+    targetScrollRef.current = target;
+    setActiveTab(newTab);
+  };
+
+  useLayoutEffect(() => {
+    if (targetScrollRef.current !== null) {
+      const target = targetScrollRef.current;
+      targetScrollRef.current = null;
+      const container = getScrollContainer(sectionRef.current);
+      if (container instanceof HTMLElement) {
+        container.scrollTop = target;
+      } else {
+        window.scrollTo({ top: target, behavior: 'instant' });
+      }
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    tabScrollPositions.current = {
+      similar: null,
+      a_plus: null,
+    };
+    targetScrollRef.current = null;
+  }, [currentProductId]);
 
   const categoryTarget = categorySlug || categoryName || '';
   const pageSize = 12;
@@ -227,18 +294,18 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
   }
 
   return (
-    <section className={`w-full ${className}`}>
-      {/* Sticky pinned header - sits flush at top: 0 with matching border-b and height */}
-      <div className="lg:sticky lg:top-0 z-20 bg-white dark:bg-[#18191a] lg:px-6 lg:pt-6 border-b border-neutral-200 dark:border-neutral-800 mb-6 flex items-center gap-8">
+    <section ref={sectionRef} className={`w-full ${className}`}>
+      {/* Sticky pinned header */}
+      <div className="lg:sticky lg:top-0 z-20 bg-white dark:bg-[#18191a] lg:px-6 pt-4 lg:pt-5 pb-2 mb-3 sm:mb-4 flex items-center gap-8">
         {hasAPlus && isDesktop ? (
           <>
             <button
               type="button"
-              onClick={() => setActiveTab('similar')}
-              className={`pb-3.5 tracking-tight transition-all relative flex items-center cursor-pointer ${
+              onClick={() => handleTabChange('similar')}
+              className={`pb-2 tracking-tight transition-colors duration-150 relative flex items-center cursor-pointer text-sm sm:text-base font-medium ${
                 activeTab === 'similar'
-                  ? 'text-base sm:text-lg font-extrabold text-gray-900 dark:text-white'
-                  : 'text-xs sm:text-sm font-semibold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                  ? 'text-gray-900 dark:text-white'
+                  : 'text-gray-400 hover:text-gray-700 dark:text-neutral-400 dark:hover:text-neutral-200'
               }`}
             >
               <span>{t('similar_products', 'Similar Products')}</span>
@@ -249,11 +316,11 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveTab('a_plus')}
-              className={`pb-3.5 tracking-tight transition-all relative flex items-center cursor-pointer ${
+              onClick={() => handleTabChange('a_plus')}
+              className={`pb-2 tracking-tight transition-colors duration-150 relative flex items-center cursor-pointer text-sm sm:text-base font-medium ${
                 activeTab === 'a_plus'
-                  ? 'text-base sm:text-lg font-extrabold text-gray-900 dark:text-white'
-                  : 'text-xs sm:text-sm font-semibold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                  ? 'text-gray-900 dark:text-white'
+                  : 'text-gray-400 hover:text-gray-700 dark:text-neutral-400 dark:hover:text-neutral-200'
               }`}
             >
               <span>{product?.a_plus_content?.headline || t('from_the_manufacturer', 'From the manufacturer')}</span>
@@ -263,7 +330,7 @@ export const SimilarProductsSection: React.FC<SimilarProductsSectionProps> = ({
             </button>
           </>
         ) : (
-          <h2 className="text-base sm:text-lg font-extrabold text-gray-900 dark:text-white tracking-tight leading-none pb-3.5">
+          <h2 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white tracking-tight leading-none pb-2">
             {t('similar_products', 'Similar Products')}
           </h2>
         )}

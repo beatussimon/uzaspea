@@ -567,5 +567,7 @@
   "error_load_more_failed": "Failed to load more products. Tap to retry.",
   "offline_banner_text": "You're offline. Products and content cannot be updated.",
   "online_restored_text": "Connection restored. You're back online!",
-  "refresh": "Refresh"
+  "refresh": "Refresh",
+  "you_might_also_like": "You Might Also Like",
+  "you_might_also_like_desc": "Recommendations based on this product"
 }

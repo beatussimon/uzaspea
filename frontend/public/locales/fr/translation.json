@@ -563,5 +563,7 @@
   "error_load_more_failed": "Échec du chargement d'autres produits. Appuyez pour réessayer.",
   "offline_banner_text": "Vous êtes hors ligne. Les produits et les contenus ne peuvent pas être mis à jour.",
   "online_restored_text": "Connexion rétablie. Vous êtes de nouveau en ligne !",
-  "refresh": "Actualiser"
+  "refresh": "Actualiser",
+  "you_might_also_like": "Vous pourriez aussi aimer",
+  "you_might_also_like_desc": "Recommandations basées sur ce produit"
 }

@@ -3,6 +3,7 @@ import api from '../../api';
 import { apiCache } from '../../utils/apiCache';
 import ProductCard from '../ProductCard';
 import { ProductCardSkeleton } from '../Skeleton';
+import { getRecentProductIdsParam } from '../../utils/recentViews';
 
 interface CategoryRecommendationShelfProps {
   category: string;
@@ -49,7 +50,12 @@ export const CategoryRecommendationShelf: React.FC<CategoryRecommendationShelfPr
     }
 
     setLoading(true);
-    const params: Record<string, any> = { category, limit: Math.max(maxProducts, 24) };
+    const recentIds = getRecentProductIdsParam();
+    const params: Record<string, any> = {
+      category,
+      limit: Math.max(maxProducts, 24),
+      ...(recentIds ? { recent_ids: recentIds } : {}),
+    };
     if (excludeIds.length > 0) {
       params.exclude = excludeIds.slice(0, 10).join(',');
     }
