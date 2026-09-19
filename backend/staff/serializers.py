@@ -124,16 +124,22 @@ class UserManagementSerializer(serializers.ModelSerializer):
     is_verified = serializers.BooleanField(source='profile.is_verified', read_only=True)
     is_inspector = serializers.SerializerMethodField()
     inspector_level = serializers.CharField(source='inspector_profile.level', read_only=True, default=None)
+    permissions = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'is_active', 'is_staff', 'is_superuser',
-            'tier', 'is_verified', 'is_inspector', 'inspector_level'
+            'tier', 'is_verified', 'is_inspector', 'inspector_level', 'permissions'
         ]
 
     def get_is_inspector(self, obj):
         return hasattr(obj, 'inspector_profile')
+
+    def get_permissions(self, obj):
+        if not hasattr(obj, 'staff_permissions'):
+            return []
+        return list(obj.staff_permissions.filter(is_active=True).values_list('permission', flat=True))
 
 
 class PaymentConfirmationSerializer(serializers.ModelSerializer):

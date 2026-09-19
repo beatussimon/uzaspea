@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Plus, CheckCircle2, Clock, Play, XCircle, UserCircle, Search,
   Layers, Kanban, List, ChevronRight, X, User,
@@ -425,9 +426,9 @@ const StaffTasks: React.FC = () => {
       )}
 
       {/* Task Detail Modal */}
-      {selectedTask && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4" onClick={() => setSelectedTask(null)}>
-          <div className="card max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
+      {selectedTask && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setSelectedTask(null)}>
+          <div className="card max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-start">
               <div>
                 <div className="flex gap-2 mb-1.5">
@@ -505,13 +506,14 @@ const StaffTasks: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Create Task Modal */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4" onClick={() => setCreateModalOpen(false)}>
-          <div className="card max-w-md w-full max-h-[90vh] overflow-y-auto p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      {isCreateModalOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setCreateModalOpen(false)}>
+          <div className="card max-w-md w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center pb-2 border-b border-surface-border dark:border-surface-dark-border">
               <h3 className="font-bold text-base text-gray-900 dark:text-white">Create New Task</h3>
               <button onClick={() => setCreateModalOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -576,7 +578,8 @@ const StaffTasks: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

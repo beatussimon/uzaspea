@@ -30,9 +30,6 @@ export function useStatusBar() {
   useEffect(() => {
     // Determine the current context
     const isLandingPage = location.pathname === '/';
-    const isDashboard = location.pathname.startsWith('/dashboard') || 
-                        location.pathname.startsWith('/staff') ||
-                        location.pathname.startsWith('/inspector');
     
     // We only update the theme-color if a modal isn't open
     const isModalOpen = !!(location.state as any)?.backgroundLocation;
@@ -66,14 +63,7 @@ export function useStatusBar() {
       return () => document.removeEventListener('scroll', handleScroll, { capture: true } as any);
 
     } else {
-      let targetColor = '';
-      if (isDashboard) {
-        targetColor = isDark ? '#050505' : '#f9fafb';
-      } else {
-        // Standard pages
-        targetColor = isDark ? '#050505' : '#fafafa';
-      }
-      updateMetaTag(targetColor);
+      updateMetaTag('#000000');
     }
 
   }, [location.pathname, isDark, location.state]);

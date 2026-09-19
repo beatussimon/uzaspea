@@ -1923,6 +1923,24 @@ class SellerSiteVisitSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['visited_by', 'visited_by_username', 'reviewed_by', 'reviewed_by_username', 'reviewed_at', 'created_at', 'updated_at']
 
+    def to_internal_value(self, data):
+        if hasattr(data, '_mutable'):
+            data = data.copy()
+        elif hasattr(data, 'copy'):
+            data = data.copy()
+        if 'user_id' in data and 'user' not in data:
+            if hasattr(data, 'setlist'):
+                data.setlist('user', data.getlist('user_id'))
+            else:
+                data['user'] = data['user_id']
+        for field_name in ['latitude', 'longitude']:
+            if field_name in data and (data[field_name] == '' or data[field_name] is None):
+                if hasattr(data, 'setlist'):
+                    data.setlist(field_name, [])
+                else:
+                    data.pop(field_name, None)
+        return super().to_internal_value(data)
+
 
 class TeamMemberSerializer(serializers.ModelSerializer):
     username = serializers.CharField(write_only=True)

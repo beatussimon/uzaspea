@@ -7,6 +7,7 @@ from decimal import Decimal
 from staff.models import StaffProfile, StaffPermission, Task, TaskCategory
 from staff.serializers import TaskSerializer
 from uzachuo.permissions import has_staff_permission, IsStaffMember
+from marketplace.models import SellerSiteVisit, UserProfile
 
 User = get_user_model()
 
@@ -191,3 +192,88 @@ class StaffPaymentAndCommissionOverdueTestCase(APITestCase):
         self.assertIn('monthly_trend', res_analytics.data)
         self.assertIn('status_distribution', res_analytics.data)
         self.assertIn('top_debtors', res_analytics.data)
+
+
+class SiteVisitRBACTestCase(TestCase):
+    def setUp(self):
+        # Normal customer / seller
+        self.seller = User.objects.create_user(username="test_seller", password="password")
+        UserProfile.objects.get_or_create(user=self.seller, defaults={'full_name': 'Test Store Owner'})
+
+        # Field staff without permission
+        self.field_staff_noperm = User.objects.create_user(username="field_noperm", password="password", is_staff=True)
+        StaffProfile.objects.create(user=self.field_staff_noperm, is_active=True)
+
+        # Field staff with can_conduct_site_visits
+        self.field_staff = User.objects.create_user(username="field_staff", password="password", is_staff=True)
+        StaffProfile.objects.create(user=self.field_staff, is_active=True)
+        StaffPermission.objects.create(user=self.field_staff, permission='can_conduct_site_visits', is_active=True)
+
+        # Admin with can_verify_requests
+        self.admin_user = User.objects.create_user(username="admin_user", password="password", is_staff=True)
+        StaffProfile.objects.create(user=self.admin_user, is_active=True)
+        StaffPermission.objects.create(user=self.admin_user, permission='can_verify_requests', is_active=True)
+
+        # Superuser
+        self.superuser = User.objects.create_user(username="super_user", password="password", is_staff=True, is_superuser=True)
+        StaffProfile.objects.create(user=self.superuser, is_active=True)
+
+    def test_record_site_visit_permission_enforcement(self):
+        # Field staff WITHOUT can_conduct_site_visits is denied
+        self.client.force_login(self.field_staff_noperm)
+        payload = {
+            'user': self.seller.id,
+            'business_name': 'Kariakoo Tech Hub',
+            'contact_person': 'Juma Ali',
+            'contact_phone': '+255711999888',
+            'address': 'Msimbazi St, Kariakoo',
+            'region': 'Dar es Salaam',
+            'district': 'Ilala',
+            'latitude': -6.816244,
+            'longitude': 39.278912,
+            'staff_notes': 'Verified storefront and counter',
+        }
+        res = self.client.post('/api/staff/site-visits/', payload, content_type='application/json')
+        self.assertEqual(res.status_code, 403)
+
+        # Field staff WITH can_conduct_site_visits succeeds
+        self.client.force_login(self.field_staff)
+        res = self.client.post('/api/staff/site-visits/', payload, content_type='application/json')
+        self.assertEqual(res.status_code, 201)
+        visit_id = res.data['id']
+        visit = SellerSiteVisit.objects.get(id=visit_id)
+        self.assertEqual(visit.status, 'pending_review')
+        self.assertEqual(visit.visited_by, self.field_staff)
+
+        # Field staff CANNOT approve or reject (separation of duties)
+        res_approve = self.client.post(f'/api/staff/site-visits/{visit_id}/approve/')
+        self.assertEqual(res_approve.status_code, 403)
+
+        # Admin with can_verify_requests CAN approve
+        self.client.force_login(self.admin_user)
+        res_admin_approve = self.client.post(f'/api/staff/site-visits/{visit_id}/approve/')
+        self.assertEqual(res_admin_approve.status_code, 200)
+        visit.refresh_from_db()
+        self.assertEqual(visit.status, 'approved')
+        self.assertEqual(visit.reviewed_by, self.admin_user)
+
+    def test_toggle_permission_action(self):
+        # Non-admin / normal field staff cannot toggle permission
+        self.client.force_login(self.field_staff)
+        toggle_url = f'/api/staff/users/{self.field_staff_noperm.id}/toggle_permission/'
+        res = self.client.post(toggle_url, {'permission': 'can_conduct_site_visits'}, content_type='application/json')
+        self.assertEqual(res.status_code, 403)
+
+        # Superuser can toggle permission to grant
+        self.client.force_login(self.superuser)
+        res = self.client.post(toggle_url, {'permission': 'can_conduct_site_visits'}, content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['active'])
+        self.assertTrue(StaffPermission.objects.filter(user=self.field_staff_noperm, permission='can_conduct_site_visits', is_active=True).exists())
+
+        # Superuser toggles again to revoke
+        res = self.client.post(toggle_url, {'permission': 'can_conduct_site_visits'}, content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.data['active'])
+        self.assertFalse(StaffPermission.objects.filter(user=self.field_staff_noperm, permission='can_conduct_site_visits', is_active=True).exists())
+
