@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Phone, MessageSquare, ExternalLink, Copy, Check,
-  AlertTriangle, MapPin, ShoppingBag, Search,
-  Calendar, FileText
+  AlertTriangle, Search, FileText
 } from 'lucide-react';
 import api from '../../../api';
 import toast from 'react-hot-toast';
-import { Spinner } from '../../../components/ui/Spinner';
 import { EmptyState } from '../../../components/ui/EmptyState';
-import { Button } from '../../../components/ui/Button';
+import { TableSkeleton } from '../../../components/Skeleton';
 
 export interface OverdueCommissionInvoice {
   id: number;
@@ -68,7 +66,7 @@ export const OverdueCommissionsList: React.FC = () => {
     }
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    toast.success('Phone number copied to clipboard');
+    toast.success('Phone number copied');
     setTimeout(() => setCopiedId(null), 2500);
   };
 
@@ -89,10 +87,10 @@ export const OverdueCommissionsList: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Search Header */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
-            <AlertTriangle size={16} />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface-card dark:bg-[#0A0A0A] p-4 rounded-card border border-surface-border">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
+            <AlertTriangle size={18} />
           </div>
           <div>
             <h2 className="text-sm font-bold text-gray-900 dark:text-white">
@@ -104,185 +102,169 @@ export const OverdueCommissionsList: React.FC = () => {
           </div>
         </div>
 
-        <div className="relative min-w-[240px]">
+        <div className="relative min-w-[260px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search seller, period, phone..."
-            className="input pl-8 py-1.5 text-xs w-full"
+            className="input pl-8 py-1.5 text-xs w-full bg-surface-muted/50 dark:bg-black"
           />
         </div>
       </div>
 
-      {/* Debtors List Grid */}
+      {/* Table Layout */}
       {loading ? (
-        <div className="py-12 flex justify-center items-center text-gray-500 text-sm">
-          <Spinner size="md" className="mr-2" /> Loading overdue invoices...
-        </div>
+        <TableSkeleton rows={6} cols={7} />
       ) : items.length === 0 ? (
         <EmptyState
           icon={FileText}
           title="No overdue commission invoices"
-          description={search ? 'No invoices match your search query.' : 'All seller commission invoices are settled or currently under review!'}
+          description={search ? 'No invoices match your search query.' : 'All seller commission invoices are settled or currently under review.'}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {items.map((item) => {
-            const hasPhone = !!(item.phone_number || item.whatsapp_number);
-            const callNumber = item.phone_number || item.whatsapp_number;
-            const waUrl = getWhatsAppLink(item);
+        <div className="card overflow-hidden border border-surface-border p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-surface-border bg-surface-muted/50 dark:bg-black text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  <th className="px-5 py-3">Seller / Store</th>
+                  <th className="px-4 py-3">Invoice Period</th>
+                  <th className="px-4 py-3">Overdue Status</th>
+                  <th className="px-4 py-3">Sales in Cycle</th>
+                  <th className="px-4 py-3">Amount Due</th>
+                  <th className="px-4 py-3">Contact</th>
+                  <th className="px-5 py-3 text-right">Outreach</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-border">
+                {items.map((item) => {
+                  const hasPhone = !!(item.phone_number || item.whatsapp_number);
+                  const callNumber = item.phone_number || item.whatsapp_number;
+                  const waUrl = getWhatsAppLink(item);
 
-            return (
-              <div
-                key={item.id}
-                className="card p-5 flex flex-col justify-between space-y-4 border border-red-500/20 hover:border-red-500/40 transition shadow-xs"
-              >
-                <div className="space-y-3">
-                  {/* Header: Seller & Period */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-gray-900 dark:text-white text-base truncate">
-                          @{item.seller_username}
-                        </h3>
-                        {item.seller_full_name && item.seller_full_name !== item.seller_username && (
-                          <span className="text-xs text-gray-500 truncate">
-                            ({item.seller_full_name})
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <a
-                          href={item.store_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline"
-                        >
-                          <span>Visit Store</span>
-                          <ExternalLink size={12} />
-                        </a>
-                        {item.location && (
-                          <span className="text-gray-400 text-xs flex items-center gap-0.5">
-                            <MapPin size={11} /> {item.location}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
-                        {item.days_overdue > 0 ? `${item.days_overdue} days overdue` : 'Due Today'}
-                      </span>
-                      <p className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-1">
-                        Cycle: {item.invoice_period}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Financial Breakdown */}
-                  <div className="bg-surface-muted/50 dark:bg-[#151515] p-3 rounded-xl space-y-2 text-xs border border-surface-border/40">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500 dark:text-gray-400">Total Amount Due:</span>
-                      <span className="font-black text-red-600 dark:text-red-400 text-base">
-                        TZS {Number(item.total_amount_due || 0).toLocaleString()}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center pt-1 border-t border-surface-border/30">
-                      <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                        <ShoppingBag size={12} /> Sales in Period:
-                      </span>
-                      <span className="font-semibold text-gray-800 dark:text-gray-200">
-                        TZS {Number(item.total_order_amount || 0).toLocaleString()} ({item.order_count} orders)
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-500 dark:text-gray-400">Commission Portion:</span>
-                      <span className="font-medium text-gray-700 dark:text-gray-300">
-                        TZS {Number(item.total_commission || 0).toLocaleString()}
-                      </span>
-                    </div>
-
-                    {item.subscription_fee > 0 && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400">Subscription Fee:</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">
-                          TZS {Number(item.subscription_fee || 0).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-center pt-1 border-t border-surface-border/30 text-[11px] text-gray-400">
-                      <span className="flex items-center gap-1"><Calendar size={11} /> Invoice Due Date:</span>
-                      <span>{item.due_date ? new Date(item.due_date).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                  </div>
-
-                  {/* Direct Contact Phone & WhatsApp Info */}
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between bg-surface-card dark:bg-[#121212] p-2 rounded-lg border border-surface-border/40">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Phone size={13} className="text-brand-500 shrink-0" />
-                        <span className="font-mono font-medium text-gray-900 dark:text-gray-100 truncate">
-                          {callNumber || 'No phone provided'}
-                        </span>
-                      </div>
-                      {hasPhone && (
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(callNumber, item.id)}
-                          className="p-1 rounded hover:bg-surface-muted text-gray-400 hover:text-gray-700 dark:hover:text-white transition flex items-center gap-1 text-[11px] font-medium"
-                          title="Copy phone number"
-                        >
-                          {copiedId === item.id ? (
-                            <><Check size={12} className="text-emerald-500" /> Copied</>
-                          ) : (
-                            <><Copy size={12} /> Copy</>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Outreach Action Toolbar */}
-                <div className="flex gap-2 pt-2 border-t border-surface-border/40">
-                  {hasPhone ? (
-                    <>
-                      <a
-                        href={waUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition"
-                      >
-                        <MessageSquare size={14} />
-                        <span>WhatsApp Invoice</span>
-                      </a>
-                      <a
-                        href={`tel:${callNumber}`}
-                        className="inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg bg-surface-muted hover:bg-surface-border/40 text-gray-800 dark:text-gray-200 border border-surface-border/60 transition"
-                      >
-                        <Phone size={14} />
-                        <span>Call</span>
-                      </a>
-                    </>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled
-                      className="w-full text-xs text-gray-400"
+                  return (
+                    <tr
+                      key={item.id}
+                      className="hover:bg-surface-muted/40 dark:hover:bg-white/[0.02] transition"
                     >
-                      No contact phone available
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                      {/* Seller / Store */}
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-gray-900 dark:text-white">
+                            @{item.seller_username}
+                          </span>
+                          <a
+                            href={item.store_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-500 hover:text-brand-400 p-0.5"
+                            title="Visit store"
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
+                        <div className="text-gray-400 text-[11px] mt-0.5">
+                          {item.seller_full_name && item.seller_full_name !== item.seller_username ? `${item.seller_full_name} • ` : ''}
+                          {item.location || 'Tanzania'}
+                        </div>
+                      </td>
+
+                      {/* Invoice Period */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className="font-mono font-medium text-gray-800 dark:text-gray-200">
+                          {item.invoice_period}
+                        </span>
+                        {item.due_date && (
+                          <div className="text-gray-400 text-[10px] mt-0.5">
+                            Due {new Date(item.due_date).toLocaleDateString()}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Overdue Status */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                          {item.days_overdue > 0 ? `${item.days_overdue} days` : 'Due Today'}
+                        </span>
+                      </td>
+
+                      {/* Sales in Cycle */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <div className="font-semibold text-gray-800 dark:text-gray-200">
+                          TZS {Number(item.total_order_amount || 0).toLocaleString()}
+                        </div>
+                        <div className="text-gray-400 text-[11px] mt-0.5">
+                          {item.order_count} completed orders
+                        </div>
+                      </td>
+
+                      {/* Amount Due */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className="font-black text-rose-600 dark:text-rose-400 font-mono text-sm">
+                          TZS {Number(item.total_amount_due || 0).toLocaleString()}
+                        </span>
+                        <div className="text-gray-400 text-[10px] mt-0.5">
+                          Comm: TZS {Number(item.total_commission || 0).toLocaleString()}
+                          {item.subscription_fee > 0 && ` + Sub: TZS ${Number(item.subscription_fee).toLocaleString()}`}
+                        </div>
+                      </td>
+
+                      {/* Contact */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        {hasPhone ? (
+                          <div className="flex items-center gap-1.5 font-mono text-xs text-gray-700 dark:text-gray-300">
+                            <span>{callNumber}</span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(callNumber, item.id)}
+                              className="text-gray-400 hover:text-gray-200 transition p-1 rounded hover:bg-surface-muted"
+                              title="Copy number"
+                            >
+                              {copiedId === item.id ? (
+                                <Check size={12} className="text-emerald-500" />
+                              ) : (
+                                <Copy size={12} />
+                              )}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs italic">No phone</span>
+                        )}
+                      </td>
+
+                      {/* Outreach */}
+                      <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                        {hasPhone ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <a
+                              href={waUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-xs"
+                            >
+                              <MessageSquare size={13} />
+                              <span>WhatsApp</span>
+                            </a>
+                            <a
+                              href={`tel:${callNumber}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-surface-muted hover:bg-surface-border text-gray-700 dark:text-gray-300 border border-surface-border transition"
+                            >
+                              <Phone size={13} />
+                              <span>Call</span>
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

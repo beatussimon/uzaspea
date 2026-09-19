@@ -1267,6 +1267,54 @@ class UserManagementViewSet(viewsets.ModelViewSet):
             'is_superuser': user.is_superuser
         })
 
+    @decorators.action(detail=True, methods=['post'])
+    def toggle_permission(self, request, pk=None):
+        if not (request.user.is_superuser or has_staff_permission(request.user, 'can_manage_users')):
+            return Response({'error': 'Permission denied: only administrators can manage staff permissions'}, status=status.HTTP_403_FORBIDDEN)
+
+        user = self.get_object()
+        if not user.is_staff and not user.is_superuser:
+            return Response({'error': 'Permissions can only be assigned to staff members.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        permission = request.data.get('permission')
+        valid_perms = [p[0] for p in StaffPermission.PERMISSION_TYPES]
+        if permission not in valid_perms:
+            return Response({'error': f'Invalid permission key. Valid options: {valid_perms}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        enable = request.data.get('enable')
+        existing = StaffPermission.objects.filter(user=user, permission=permission).first()
+        if enable is None:
+            enable = not (existing.is_active if existing else False)
+        else:
+            enable = bool(enable)
+
+        if existing:
+            existing.is_active = enable
+            existing.granted_by = request.user
+            existing.save()
+        else:
+            StaffPermission.objects.create(
+                user=user,
+                permission=permission,
+                granted_by=request.user,
+                is_active=enable
+            )
+
+        log_audit(
+            request.user,
+            'permission_changed',
+            f"{'Granted' if enable else 'Revoked'} {permission} for staff user {user.username}",
+            target_user=user,
+            request=request
+        )
+        active_perms = list(user.staff_permissions.filter(is_active=True).values_list('permission', flat=True))
+        return Response({
+            'status': 'success',
+            'permission': permission,
+            'is_active': enable,
+            'permissions': active_perms
+        })
+
 
 class ProductModerationViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.select_related('seller', 'category').all()
@@ -1343,8 +1391,15 @@ class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         from marketplace.models import SellerSiteVisit
         queryset = SellerSiteVisit.objects.select_related('user', 'visited_by', 'reviewed_by').all()
+
+        # Non-admin staff can only see their own submitted visits unless they have can_verify_requests
+        mine = self.request.query_params.get('mine')
+        can_verify = self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_verify_requests')
+        if mine in ['true', 'True', '1'] or not can_verify:
+            queryset = queryset.filter(visited_by=self.request.user)
+
         status_param = self.request.query_params.get('status')
-        if status_param:
+        if status_param and status_param != 'all':
             queryset = queryset.filter(status=status_param.lower())
         search = self.request.query_params.get('search')
         if search:
@@ -1358,6 +1413,9 @@ class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-created_at')
 
     def perform_create(self, serializer):
+        if not (self.request.user.is_superuser or has_staff_permission(self.request.user, 'can_conduct_site_visits') or self.request.user.is_staff):
+            raise serializers.ValidationError({'detail': 'You do not have permission to conduct store site visits.'})
+
         user_id = self.request.data.get('user_id') or self.request.data.get('user')
         username = self.request.data.get('username')
         target_user = None
@@ -1384,8 +1442,9 @@ class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        if not (request.user.is_superuser or request.user.has_perm('marketplace.can_verify_requests') or request.user.is_staff):
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        can_verify = request.user.is_superuser or has_staff_permission(request.user, 'can_verify_requests')
+        if not can_verify:
+            return Response({'error': 'Permission denied: only verification admins can approve store site visits'}, status=status.HTTP_403_FORBIDDEN)
 
         visit = self.get_object()
         if visit.status != 'pending_review':
@@ -1407,8 +1466,9 @@ class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
-        if not (request.user.is_superuser or request.user.has_perm('marketplace.can_verify_requests') or request.user.is_staff):
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        can_verify = request.user.is_superuser or has_staff_permission(request.user, 'can_verify_requests')
+        if not can_verify:
+            return Response({'error': 'Permission denied: only verification admins can reject store site visits'}, status=status.HTTP_403_FORBIDDEN)
 
         visit = self.get_object()
         if visit.status != 'pending_review':
@@ -1433,31 +1493,28 @@ class StaffSellerSiteVisitViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=False, methods=['get'], url_path='candidate-users')
     def candidate_users(self, request):
         q = request.query_params.get('q', '').strip()
-        users_qs = User.objects.filter(is_active=True)
-        if q:
-            from django.db.models import Q
-            users_qs = users_qs.filter(
-                Q(username__icontains=q) |
-                Q(email__icontains=q) |
-                Q(first_name__icontains=q) |
-                Q(last_name__icontains=q) |
-                Q(profile__phone_number__icontains=q)
-            )
-        else:
-            users_qs = users_qs.order_by('-date_joined')[:20]
+        if len(q) < 2:
+            return Response([])
+
+        from django.db.models import Q
+        users_qs = User.objects.filter(is_active=True).select_related('profile').filter(
+            Q(username__icontains=q) |
+            Q(email__icontains=q) |
+            Q(first_name__icontains=q) |
+            Q(last_name__icontains=q) |
+            Q(profile__phone_number__icontains=q)
+        ).order_by('-date_joined')[:20]
 
         data = []
-        for u in users_qs[:30]:
-            phone = getattr(u.profile, 'phone_number', '') if hasattr(u, 'profile') else ''
-            tier = getattr(u.profile, 'tier', 'customer') if hasattr(u, 'profile') else 'customer'
-            is_loc_ver = getattr(u.profile, 'is_location_verified', False) if hasattr(u, 'profile') else False
+        for u in users_qs:
+            profile = getattr(u, 'profile', None)
             data.append({
                 'id': u.id,
                 'username': u.username,
                 'email': u.email,
-                'phone': phone,
-                'tier': tier,
-                'is_location_verified': is_loc_ver,
+                'phone': profile.phone_number if profile else '',
+                'tier': profile.tier if profile else 'customer',
+                'is_location_verified': profile.is_location_verified if profile else False,
             })
         return Response(data)
 

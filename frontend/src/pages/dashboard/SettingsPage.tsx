@@ -1,96 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import { 
     User, Lock, Bell, X, Upload, CheckCircle2, Smartphone, Sliders, 
-    ChevronLeft, ShieldCheck, HelpCircle, ExternalLink, ChevronDown, 
-    MapPin, Sparkles, ChevronsUpDown
+    ChevronLeft, ShieldCheck, ExternalLink, MapPin, Sparkles, HelpCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useUserRoles } from '../../context/AuthContext';
 
-interface CollapsibleCardProps {
-    id: string;
-    icon: React.ReactNode;
-    iconBgClass?: string;
-    title: string;
-    subtitle: string;
-    badge?: React.ReactNode;
-    isOpen: boolean;
-    onToggle: () => void;
-    children: React.ReactNode;
-}
-
-const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
-    id,
-    icon,
-    iconBgClass = 'bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300',
-    title,
-    subtitle,
-    badge,
-    isOpen,
-    onToggle,
-    children
-}) => {
-    return (
-        <div 
-            id={id} 
-            className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 shadow-xs hover:border-gray-200 dark:hover:border-neutral-700 transition-all overflow-hidden scroll-mt-24"
-        >
-            <button
-                type="button"
-                onClick={onToggle}
-                className="w-full p-4 sm:p-5 flex items-center justify-between text-left group transition-colors hover:bg-gray-50/70 dark:hover:bg-neutral-800/30 cursor-pointer"
-                aria-expanded={isOpen}
-            >
-                <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 pr-2">
-                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${iconBgClass}`}>
-                        {icon}
-                    </div>
-                    <div className="min-w-0">
-                        <h2 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white truncate">
-                            {title}
-                        </h2>
-                        <p className="text-xs text-gray-500 dark:text-neutral-400 line-clamp-1 mt-0.5">
-                            {subtitle}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                    {badge}
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white group-hover:bg-gray-100 dark:group-hover:bg-neutral-800 transition-all">
-                        <ChevronDown size={18} className={`transition-transform duration-250 ease-out ${isOpen ? 'rotate-180' : ''}`} />
-                    </div>
-                </div>
-            </button>
-
-            <AnimatePresence initial={false}>
-                {isOpen && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: [0.04, 0.62, 0.23, 0.98] }}
-                        className="overflow-hidden"
-                    >
-                        <div className="p-5 sm:p-6 pt-2 border-t border-gray-100 dark:border-neutral-800/80">
-                            {children}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
-};
-
 const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const roles = useUserRoles();
     const isCustomer = roles.isPureCustomer;
     const username = localStorage.getItem('username') || '';
+
+    const initialTab = searchParams.get('tab') || 'profile';
+    const [activeTab, setActiveTab] = useState<string>(initialTab);
+
+    const handleTabChange = (tabKey: string) => {
+        setActiveTab(tabKey);
+        setSearchParams({ tab: tabKey }, { replace: true });
+    };
 
     const [profile, setProfile] = useState<any>({});
     const [siteVisitStatus, setSiteVisitStatus] = useState<any>(null);
@@ -113,45 +45,6 @@ const SettingsPage: React.FC = () => {
     const [passwordRequestPending, setPasswordRequestPending] = useState(false);
     const [passwordMaskedEmail, setPasswordMaskedEmail] = useState('');
     const [saving, setSaving] = useState(false);
-
-    // Collapsible Accordion State
-    const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
-        const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-        return {
-            profile: isDesktop,
-            notifications: false,
-            security: false,
-            location: false,
-            subscription: false,
-            features: false,
-        };
-    });
-
-    const toggleSection = (key: string) => {
-        setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
-    };
-
-    const areAllOpen = Object.values(openSections).every(Boolean);
-
-    const toggleAll = () => {
-        const next = !areAllOpen;
-        setOpenSections({
-            profile: next,
-            notifications: next,
-            security: next,
-            location: next,
-            subscription: next,
-            features: next,
-        });
-    };
-
-    const scrollToSection = (sectionKey: string) => {
-        setOpenSections(prev => ({ ...prev, [sectionKey]: true }));
-        const el = document.getElementById(`section-${sectionKey}`);
-        if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    };
 
     // Subscription Upgrade State
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -297,483 +190,454 @@ const SettingsPage: React.FC = () => {
         }
     };
 
-    // Quick navigation list definition
     const navItems = [
         { 
             key: 'profile', 
-            label: isCustomer ? 'Profile Information' : 'Store Profile & Links', 
-            icon: <User size={15} />,
-            statusDot: form.phone_number ? (
-                <span className="w-2 h-2 rounded-full bg-emerald-500" title="Complete" />
-            ) : (
-                <span className="w-2 h-2 rounded-full bg-amber-400" title="Incomplete" />
-            )
+            label: isCustomer ? 'Profile Information' : 'Store Profile', 
+            icon: User 
         },
         { 
             key: 'notifications', 
-            label: 'Push Notifications', 
-            icon: <Bell size={15} />,
-            statusDot: pushPermission === 'granted' ? (
-                <span className="w-2 h-2 rounded-full bg-emerald-500" title="Active" />
-            ) : (
-                <span className="w-2 h-2 rounded-full bg-neutral-400" title="Not enabled" />
-            )
+            label: 'Notifications', 
+            icon: Bell 
         },
         { 
             key: 'security', 
             label: 'Password & Security', 
-            icon: <Lock size={15} />,
-            statusDot: passwordRequestPending ? (
-                <span className="w-2 h-2 rounded-full bg-blue-500" title="Pending" />
-            ) : (
-                <span className="w-2 h-2 rounded-full bg-emerald-500" title="Protected" />
-            )
+            icon: Lock 
         },
         ...(!isCustomer ? [
             { 
                 key: 'location', 
-                label: 'Business Location', 
-                icon: <MapPin size={15} />,
-                statusDot: profile.is_location_verified ? (
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" title="Verified" />
-                ) : (
-                    <span className="w-2 h-2 rounded-full bg-neutral-400" title="Pending" />
-                )
+                label: 'Store Location', 
+                icon: MapPin 
             },
             { 
                 key: 'subscription', 
-                label: 'Subscription & Tier', 
-                icon: <Sparkles size={15} />,
-                statusDot: (
-                    <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase">
-                        {profile.tier || 'Free'}
-                    </span>
-                )
+                label: 'Plan & Subscription', 
+                icon: Sparkles 
             },
             { 
                 key: 'features', 
                 label: 'Store Features', 
-                icon: <Sliders size={15} />,
-                statusDot: form.show_product_requests ? (
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" title="Enabled" />
-                ) : (
-                    <span className="w-2 h-2 rounded-full bg-neutral-400" title="Disabled" />
-                )
+                icon: Sliders 
             },
         ] : []),
     ];
 
     return (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 pb-20 space-y-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 space-y-6">
             {/* Header Area */}
-            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-gray-100 dark:border-neutral-800">
+            <header className="flex items-center justify-between pb-4 border-b border-neutral-800">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
                             onClick={() => navigate(-1)}
-                            className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition -ml-1.5 p-1 rounded-lg inline-flex items-center cursor-pointer"
+                            className="text-neutral-400 hover:text-white transition -ml-1 p-1 rounded-lg inline-flex items-center cursor-pointer"
                             title="Back"
                         >
                             <ChevronLeft size={20} />
                         </button>
-                        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+                        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                             {isCustomer ? 'Account Settings' : 'Store & Account Settings'}
                         </h1>
                         {!isCustomer && profile.tier && (
-                            <span className="hidden sm:inline-flex ml-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+                            <span className="hidden sm:inline-flex ml-2 px-2.5 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider bg-neutral-800 text-brand-400 border border-neutral-700">
                                 {profile.tier}
                             </span>
                         )}
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-neutral-400 ml-6">
+                    <p className="text-xs text-neutral-400 ml-7">
                         {isCustomer
                             ? 'Manage your personal profile, notifications, and security preferences.'
-                            : 'Manage your storefront, contact info, coordinates, plan, and discovery tools.'}
+                            : 'Manage your store profile, verified location, subscription plan, and features.'}
                     </p>
-                </div>
-
-                {/* Mobile / Compact Global Expand/Collapse Toggle */}
-                <div className="flex items-center gap-2 self-start sm:self-auto ml-6 sm:ml-0">
-                    <button
-                        type="button"
-                        onClick={toggleAll}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-neutral-800 text-xs font-semibold text-gray-700 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition cursor-pointer shadow-2xs"
-                    >
-                        <ChevronsUpDown size={14} />
-                        <span>{areAllOpen ? 'Collapse All' : 'Expand All'}</span>
-                    </button>
                 </div>
             </header>
 
-            {/* Main Layout Grid: Desktop 2-Column Sidebar + Content Canvas */}
-            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:gap-8 items-start">
+            {/* Mobile Horizontal Navigation Tabs */}
+            <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar border-b border-neutral-800">
+                {navItems.map(item => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.key;
+                    return (
+                        <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => handleTabChange(item.key)}
+                            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                                isActive
+                                    ? 'bg-neutral-800 text-white font-semibold'
+                                    : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                            }`}
+                        >
+                            <Icon size={14} className={isActive ? 'text-white' : 'text-neutral-500'} />
+                            <span>{item.label}</span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Main Layout Grid: Desktop Sidebar + Content Pane */}
+            <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-8 items-start">
                 
-                {/* ═══ DESKTOP STICKY SIDEBAR (lg+ only) ═══ */}
-                <div className="hidden lg:block space-y-4 sticky top-20">
-                    {/* User Profile Card Snapshot */}
-                    <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5 shadow-xs">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-brand-500/20 to-brand-600/10 text-brand-600 dark:text-brand-400 font-bold text-lg flex items-center justify-center border border-brand-500/20 shrink-0">
+                {/* Desktop Sticky Sidebar */}
+                <div className="hidden lg:block space-y-6 sticky top-20">
+                    {/* User Identity Snapshot */}
+                    <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/40 space-y-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-full bg-neutral-800 text-neutral-200 font-bold text-sm flex items-center justify-center border border-neutral-700 shrink-0">
                                 {(username || 'U').charAt(0).toUpperCase()}
                             </div>
-                            <div className="min-w-0">
-                                <h3 className="font-bold text-sm text-gray-900 dark:text-white truncate">
+                            <div className="min-w-0 flex-1">
+                                <h3 className="font-semibold text-sm text-white truncate">
                                     {profile.store_name || username || 'My Account'}
                                 </h3>
-                                <p className="text-xs text-gray-400 dark:text-neutral-500 font-mono truncate">
+                                <p className="text-xs text-neutral-500 font-mono truncate">
                                     @{username}
                                 </p>
                             </div>
                         </div>
 
-                        <div className="mt-3.5 pt-3.5 border-t border-gray-100 dark:border-neutral-800 flex flex-wrap gap-1.5">
-                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300">
+                        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-neutral-800/80">
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">
                                 {isCustomer ? 'Customer' : 'Seller Store'}
                             </span>
                             {!isCustomer && (
-                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800/60 capitalize">
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-neutral-800 text-brand-400 capitalize">
                                     {profile.tier || 'Free'} Tier
                                 </span>
                             )}
                             {profile.is_location_verified && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1">
-                                    <CheckCircle2 size={10} /> Verified
+                                <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-neutral-800 text-emerald-400 flex items-center gap-1">
+                                    <CheckCircle2 size={11} /> Verified
                                 </span>
                             )}
                         </div>
                     </div>
 
-                    {/* Quick Navigation Menu */}
-                    <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 p-2 shadow-xs space-y-0.5">
-                        <div className="px-3 py-2 text-[10px] font-bold text-gray-400 dark:text-neutral-500 uppercase tracking-wider">
-                            Settings Sections
-                        </div>
+                    {/* Navigation Menu */}
+                    <nav className="space-y-1">
                         {navItems.map(item => {
-                            const isOpen = openSections[item.key];
+                            const Icon = item.icon;
+                            const isActive = activeTab === item.key;
                             return (
                                 <button
                                     key={item.key}
                                     type="button"
-                                    onClick={() => scrollToSection(item.key)}
-                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                                        isOpen 
-                                            ? 'bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-white font-bold' 
-                                            : 'text-gray-600 dark:text-neutral-400 hover:bg-gray-50 dark:hover:bg-neutral-800/50 hover:text-gray-900 dark:hover:text-white'
+                                    onClick={() => handleTabChange(item.key)}
+                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer text-left ${
+                                        isActive
+                                            ? 'bg-neutral-800 text-white font-semibold'
+                                            : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
                                     }`}
                                 >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                        <span className={isOpen ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-neutral-500'}>
-                                            {item.icon}
-                                        </span>
-                                        <span className="truncate">{item.label}</span>
-                                    </div>
-                                    {item.statusDot}
+                                    <Icon size={15} className={isActive ? 'text-white' : 'text-neutral-500'} />
+                                    <span>{item.label}</span>
                                 </button>
                             );
                         })}
-                    </div>
+                    </nav>
+
+                    {/* Subtle "Sell on SokoniMax" Verification Card for Customers */}
+                    {isCustomer && (
+                        <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/30 space-y-2">
+                            <div className="text-xs font-semibold text-white">
+                                Sell on SokoniMax
+                            </div>
+                            {siteVisitStatus?.can_upgrade || profile?.is_location_verified ? (
+                                <div className="space-y-1.5">
+                                    <p className="text-xs text-neutral-400 leading-relaxed">
+                                        Your physical store has been verified by staff.
+                                    </p>
+                                    <Link
+                                        to="/upgrade"
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+                                    >
+                                        Set up your store &rarr;
+                                    </Link>
+                                </div>
+                            ) : siteVisitStatus?.status === 'pending_review' ? (
+                                <div className="space-y-1.5">
+                                    <p className="text-xs text-neutral-400 leading-relaxed">
+                                        Store visit submitted. Awaiting admin review.
+                                    </p>
+                                    <Link
+                                        to="/help?tab=site-verification"
+                                        className="inline-flex items-center gap-1 text-xs font-medium text-brand-400 hover:underline"
+                                    >
+                                        View verification status &rarr;
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="space-y-1.5">
+                                    <p className="text-xs text-neutral-400 leading-relaxed">
+                                        Physical store verification is required before opening a seller account.
+                                    </p>
+                                    <Link
+                                        to="/help?tab=site-verification"
+                                        className="inline-flex items-center gap-1 text-xs font-medium text-brand-400 hover:underline"
+                                    >
+                                        Learn about verification &rarr;
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                {/* ═══ COLLAPSIBLE ACCORDION CARDS (Mobile & Desktop Main Canvas) ═══ */}
-                <div className="space-y-4">
+                {/* Main Content Pane */}
+                <div className="bg-neutral-900/40 rounded-2xl border border-neutral-800 p-6 sm:p-8">
                     
-                    {/* 1. Profile Information Card */}
-                    <CollapsibleCard
-                        id="section-profile"
-                        icon={<User size={18} />}
-                        iconBgClass="bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300"
-                        title={isCustomer ? 'Profile Information' : 'Store Profile & Details'}
-                        subtitle={isCustomer ? 'Personal details and contact info' : 'Store bio, contact info, and website'}
-                        badge={
-                            form.phone_number ? (
-                                <span className="text-[11px] font-medium text-gray-600 dark:text-neutral-300 bg-gray-100 dark:bg-neutral-800 px-2.5 py-0.5 rounded-full font-mono">
-                                    {form.phone_number}
-                                </span>
-                            ) : (
-                                <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-2 py-0.5 rounded-full">
-                                    Incomplete
-                                </span>
-                            )
-                        }
-                        isOpen={!!openSections.profile}
-                        onToggle={() => toggleSection('profile')}
-                    >
-                        <div className="space-y-4 pt-1">
-                            {/* Bio */}
-                            <div className="space-y-1.5">
-                                <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">
-                                    {isCustomer ? 'Bio' : 'Store Bio'}
-                                </label>
-                                <textarea
-                                    value={form.bio}
-                                    onChange={e => setForm({ ...form, bio: e.target.value })}
-                                    rows={3}
-                                    placeholder={isCustomer ? "Tell us a bit about yourself..." : "Describe your store, products, and services..."}
-                                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition resize-none"
-                                />
+                    {/* 1. Profile Tab */}
+                    {activeTab === 'profile' && (
+                        <div className="space-y-6">
+                            <div className="border-b border-neutral-800 pb-4">
+                                <h2 className="text-base font-semibold text-white">
+                                    {isCustomer ? 'Profile Information' : 'Store Profile & Details'}
+                                </h2>
+                                <p className="text-xs text-neutral-400 mt-1">
+                                    {isCustomer
+                                        ? 'Update your personal details, bio, and contact information.'
+                                        : 'Update your public storefront description, contact details, and social links.'}
+                                </p>
                             </div>
 
-                            {/* Phone & Location */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-5">
+                                {/* Bio */}
                                 <div className="space-y-1.5">
-                                    <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">
-                                        Phone Number
+                                    <label className="block text-xs font-semibold text-neutral-300">
+                                        {isCustomer ? 'Bio' : 'Store Bio'}
                                     </label>
-                                    <input
-                                        type="tel"
-                                        value={form.phone_number}
-                                        onChange={e => setForm({ ...form, phone_number: e.target.value })}
-                                        placeholder="+255..."
-                                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                                    <textarea
+                                        value={form.bio}
+                                        onChange={e => setForm({ ...form, bio: e.target.value })}
+                                        rows={3}
+                                        placeholder={isCustomer ? "Tell us a bit about yourself..." : "Describe your store, products, and specialties..."}
+                                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-500 transition resize-none"
                                     />
                                 </div>
-                                {isCustomer && (
+
+                                {/* Phone & Location */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
-                                        <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">
-                                            Location / City
+                                        <label className="block text-xs font-semibold text-neutral-300">
+                                            Phone Number
                                         </label>
                                         <input
-                                            type="text"
-                                            value={form.location}
-                                            onChange={e => setForm({ ...form, location: e.target.value })}
-                                            placeholder="e.g. Dar es Salaam"
-                                            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                                            type="tel"
+                                            value={form.phone_number}
+                                            onChange={e => setForm({ ...form, phone_number: e.target.value })}
+                                            placeholder="+255..."
+                                            className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-500 transition"
                                         />
                                     </div>
-                                )}
-                            </div>
-
-                            {/* Seller Links */}
-                            {!isCustomer && (
-                                <>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {isCustomer && (
                                         <div className="space-y-1.5">
-                                            <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">
-                                                Website URL
-                                            </label>
-                                            <input
-                                                type="url"
-                                                value={form.website}
-                                                onChange={e => setForm({ ...form, website: e.target.value })}
-                                                placeholder="https://..."
-                                                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">
-                                                Instagram Handle
+                                            <label className="block text-xs font-semibold text-neutral-300">
+                                                Location / City
                                             </label>
                                             <input
                                                 type="text"
-                                                value={form.instagram_username}
-                                                onChange={e => setForm({ ...form, instagram_username: e.target.value })}
-                                                placeholder="@username"
-                                                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                                                value={form.location}
+                                                onChange={e => setForm({ ...form, location: e.target.value })}
+                                                placeholder="e.g. Dar es Salaam"
+                                                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-500 transition"
                                             />
                                         </div>
-                                    </div>
+                                    )}
+                                </div>
 
-                                    {/* Social Media Links Responsive Grid */}
-                                    <div className="pt-3 border-t border-gray-100 dark:border-neutral-800 space-y-3">
-                                        <div>
-                                            <h3 className="text-xs font-semibold text-gray-900 dark:text-white">Social Media Channels</h3>
-                                            <p className="text-2xs text-gray-400 dark:text-neutral-500">Provide direct communication links for your buyers</p>
+                                {/* Seller Links */}
+                                {!isCustomer && (
+                                    <>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="block text-xs font-semibold text-neutral-300">
+                                                    Website URL
+                                                </label>
+                                                <input
+                                                    type="url"
+                                                    value={form.website}
+                                                    onChange={e => setForm({ ...form, website: e.target.value })}
+                                                    placeholder="https://..."
+                                                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-500 transition"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="block text-xs font-semibold text-neutral-300">
+                                                    Instagram Handle
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={form.instagram_username}
+                                                    onChange={e => setForm({ ...form, instagram_username: e.target.value })}
+                                                    placeholder="@username"
+                                                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-500 transition"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {[
-                                                { key: 'whatsapp_number', label: 'WhatsApp', type: 'tel', placeholder: '+255712345678' },
-                                                { key: 'facebook_url', label: 'Facebook URL', type: 'url', placeholder: 'https://facebook.com/...' },
-                                                { key: 'tiktok_username', label: 'TikTok', type: 'text', placeholder: '@username' },
-                                                { key: 'twitter_username', label: 'X (Twitter)', type: 'text', placeholder: '@username' },
-                                                { key: 'youtube_url', label: 'YouTube URL', type: 'url', placeholder: 'https://youtube.com/...' },
-                                                { key: 'linkedin_url', label: 'LinkedIn URL', type: 'url', placeholder: 'https://linkedin.com/in/...' },
-                                            ].map(field => (
-                                                <div key={field.key} className="space-y-1">
-                                                    <label className="block text-2xs font-semibold text-gray-600 dark:text-neutral-400">{field.label}</label>
-                                                    <input
-                                                        type={field.type}
-                                                        value={(form as any)[field.key]}
-                                                        onChange={e => setForm({ ...form, [field.key]: e.target.value })}
-                                                        placeholder={field.placeholder}
-                                                        className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
 
-                            <div className="flex justify-end pt-3">
-                                <Button
-                                    onClick={handleProfileSave}
-                                    disabled={saving}
-                                    loading={saving}
-                                    size="sm"
-                                    className="rounded-xl px-6 font-semibold text-xs cursor-pointer shadow-xs"
-                                >
-                                    Save Profile
-                                </Button>
+                                        {/* Social Channels */}
+                                        <div className="pt-4 border-t border-neutral-800/80 space-y-3">
+                                            <div>
+                                                <h3 className="text-xs font-semibold text-white">Social Channels</h3>
+                                                <p className="text-xs text-neutral-500 mt-0.5">Links displayed on your store profile for customer inquiries</p>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                {[
+                                                    { key: 'whatsapp_number', label: 'WhatsApp', type: 'tel', placeholder: '+255712345678' },
+                                                    { key: 'facebook_url', label: 'Facebook URL', type: 'url', placeholder: 'https://facebook.com/...' },
+                                                    { key: 'tiktok_username', label: 'TikTok', type: 'text', placeholder: '@username' },
+                                                    { key: 'twitter_username', label: 'X (Twitter)', type: 'text', placeholder: '@username' },
+                                                    { key: 'youtube_url', label: 'YouTube URL', type: 'url', placeholder: 'https://youtube.com/...' },
+                                                    { key: 'linkedin_url', label: 'LinkedIn URL', type: 'url', placeholder: 'https://linkedin.com/in/...' },
+                                                ].map(field => (
+                                                    <div key={field.key} className="space-y-1">
+                                                        <label className="block text-xs font-medium text-neutral-400">{field.label}</label>
+                                                        <input
+                                                            type={field.type}
+                                                            value={(form as any)[field.key]}
+                                                            onChange={e => setForm({ ...form, [field.key]: e.target.value })}
+                                                            placeholder={field.placeholder}
+                                                            className="w-full px-3 py-2 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-500 transition"
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className="flex justify-end pt-3 border-t border-neutral-800/80">
+                                    <Button
+                                        onClick={handleProfileSave}
+                                        disabled={saving}
+                                        loading={saving}
+                                        size="sm"
+                                        className="rounded-lg px-5 font-semibold text-xs cursor-pointer"
+                                    >
+                                        Save Profile
+                                    </Button>
+                                </div>
                             </div>
                         </div>
-                    </CollapsibleCard>
+                    )}
 
-                    {/* 2. Push Notifications Card */}
-                    <CollapsibleCard
-                        id="section-notifications"
-                        icon={<Bell size={18} />}
-                        iconBgClass="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
-                        title="Push Notifications"
-                        subtitle={isCustomer ? 'Order tracking & delivery alerts' : 'Instant order & buyer inquiry alerts'}
-                        badge={
-                            pushPermission === 'granted' ? (
-                                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                                    <CheckCircle2 size={11} /> Active
-                                </span>
-                            ) : pushPermission === 'denied' ? (
-                                <span className="text-[11px] font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full">
-                                    Blocked
-                                </span>
-                            ) : (
-                                <span className="text-[11px] font-medium text-gray-500 dark:text-neutral-400 bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">
-                                    Not enabled
-                                </span>
-                            )
-                        }
-                        isOpen={!!openSections.notifications}
-                        onToggle={() => toggleSection('notifications')}
-                    >
-                        <div className="pt-2">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-neutral-950/60 rounded-xl border border-gray-100 dark:border-neutral-800/80">
-                                <div>
-                                    <p className="text-xs font-semibold text-gray-900 dark:text-white">Browser Notifications</p>
-                                    <p className="text-2xs text-gray-500 dark:text-neutral-400 mt-0.5">
-                                        {pushPermission === 'granted' 
-                                            ? 'You will receive instant alerts directly in your browser.' 
-                                            : pushPermission === 'denied' 
-                                                ? 'Notifications are blocked in your browser settings. Please enable permissions to receive alerts.' 
-                                                : 'Enable notifications to get timely order updates even when the app is in the background.'}
+                    {/* 2. Notifications Tab */}
+                    {activeTab === 'notifications' && (
+                        <div className="space-y-6">
+                            <div className="border-b border-neutral-800 pb-4">
+                                <h2 className="text-base font-semibold text-white">Notifications</h2>
+                                <p className="text-xs text-neutral-400 mt-1">Configure how and when you receive order updates and messages.</p>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-neutral-800 bg-neutral-950/60">
+                                <div className="space-y-1">
+                                    <div className="text-xs font-semibold text-white">Browser Push Notifications</div>
+                                    <p className="text-xs text-neutral-400 max-w-md">
+                                        {pushPermission === 'granted'
+                                            ? 'Instant alerts are active directly in your browser.'
+                                            : pushPermission === 'denied'
+                                                ? 'Notifications are currently blocked in your browser settings.'
+                                                : 'Receive timely alerts for orders, deliveries, and messages when the app is in the background.'}
                                     </p>
                                 </div>
-                                {pushPermission !== 'granted' ? (
-                                    <Button
-                                        onClick={enablePushNotifications}
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={pushPermission === 'denied'}
-                                        className="text-xs rounded-xl shrink-0 cursor-pointer"
-                                    >
-                                        {pushPermission === 'denied' ? 'Notifications Blocked' : 'Enable Notifications'}
-                                    </Button>
-                                ) : (
-                                    <span className="text-2xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full flex items-center gap-1.5 shrink-0">
-                                        <CheckCircle2 size={12} /> Active
-                                    </span>
-                                )}
+                                <div>
+                                    {pushPermission === 'granted' ? (
+                                        <span className="text-xs font-medium text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5">
+                                            <CheckCircle2 size={13} /> Enabled
+                                        </span>
+                                    ) : (
+                                        <Button
+                                            onClick={enablePushNotifications}
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={pushPermission === 'denied'}
+                                            className="text-xs rounded-lg cursor-pointer"
+                                        >
+                                            {pushPermission === 'denied' ? 'Blocked in Browser' : 'Enable Notifications'}
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </CollapsibleCard>
+                    )}
 
-                    {/* 3. Password & Security Card */}
-                    <CollapsibleCard
-                        id="section-security"
-                        icon={<Lock size={18} />}
-                        iconBgClass="bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300"
-                        title="Password & Security"
-                        subtitle="Account credentials and protection"
-                        badge={
-                            passwordRequestPending ? (
-                                <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                                    Pending ⏳
-                                </span>
-                            ) : (
-                                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                                    <ShieldCheck size={11} /> Protected
-                                </span>
-                            )
-                        }
-                        isOpen={!!openSections.security}
-                        onToggle={() => toggleSection('security')}
-                    >
-                        <div className="pt-2">
+                    {/* 3. Security Tab */}
+                    {activeTab === 'security' && (
+                        <div className="space-y-6">
+                            <div className="border-b border-neutral-800 pb-4">
+                                <h2 className="text-base font-semibold text-white">Password & Security</h2>
+                                <p className="text-xs text-neutral-400 mt-1">Manage your password credentials and account protection.</p>
+                            </div>
+
                             {passwordRequestPending ? (
-                                <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 space-y-2.5">
-                                    <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-semibold text-xs">
-                                        <ShieldCheck size={18} />
-                                        <span>Password Change Request Pending Verification</span>
+                                <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-5 space-y-3">
+                                    <div className="flex items-center gap-2 text-white font-semibold text-xs">
+                                        <ShieldCheck size={16} className="text-brand-400" />
+                                        <span>Password Change Request Pending</span>
                                     </div>
-                                    <p className="text-xs text-gray-600 dark:text-neutral-300 leading-relaxed">
-                                        For enhanced security, an administrator will manually verify your request and email a single-use confirmation link to your registered email {passwordMaskedEmail ? (<span className="font-semibold text-gray-900 dark:text-white">({passwordMaskedEmail})</span>) : 'on file'}.
+                                    <p className="text-xs text-neutral-300 leading-relaxed">
+                                        An administrator is verifying your request. A confirmation link will be sent to your email on file {passwordMaskedEmail ? (<span className="text-white font-mono">({passwordMaskedEmail})</span>) : ''}.
                                     </p>
-                                    <p className="text-[11px] text-gray-500 dark:text-neutral-400">
-                                        Your current password remains in effect until you click the link. The one-time link is strictly valid for 24 hours.
+                                    <p className="text-xs text-neutral-400">
+                                        Your current password remains active until confirmed. Confirmation links are strictly valid for 24 hours.
                                     </p>
-                                    <div className="flex items-center justify-between pt-2 border-t border-blue-500/15">
+                                    <div className="flex items-center justify-between pt-3 border-t border-neutral-800 text-xs">
                                         <button
                                             type="button"
                                             onClick={() => setPasswordRequestPending(false)}
-                                            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                            className="font-semibold text-brand-400 hover:underline cursor-pointer"
                                         >
                                             Submit another request
                                         </button>
-                                        <Link
-                                            to="/help"
-                                            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white"
-                                        >
-                                            Need help? Contact Support
+                                        <Link to="/help" className="text-neutral-400 hover:text-white flex items-center gap-1">
+                                            <HelpCircle size={13} />
+                                            <span>Contact Support</span>
                                             <ExternalLink size={12} />
                                         </Link>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="space-y-4">
+                                <div className="space-y-4 max-w-md">
                                     <div className="space-y-1.5">
-                                        <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">Current Password</label>
+                                        <label className="block text-xs font-semibold text-neutral-300">Current Password</label>
                                         <input
                                             type="password"
-                                            placeholder="Enter current password"
                                             value={passwords.old}
                                             onChange={e => setPasswords({ ...passwords, old: e.target.value })}
-                                            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
+                                            placeholder="Enter current password"
+                                            className="w-full px-3.5 py-2 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-500 transition"
                                         />
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div className="space-y-1.5">
-                                            <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">New Password</label>
-                                            <input
-                                                type="password"
-                                                placeholder="Min. 8 characters"
-                                                value={passwords.new1}
-                                                onChange={e => setPasswords({ ...passwords, new1: e.target.value })}
-                                                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <label className="block text-xs font-semibold text-gray-700 dark:text-neutral-300">Confirm New Password</label>
-                                            <input
-                                                type="password"
-                                                placeholder="Re-type new password"
-                                                value={passwords.new2}
-                                                onChange={e => setPasswords({ ...passwords, new2: e.target.value })}
-                                                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-neutral-600 transition"
-                                            />
-                                        </div>
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-semibold text-neutral-300">New Password</label>
+                                        <input
+                                            type="password"
+                                            value={passwords.new1}
+                                            onChange={e => setPasswords({ ...passwords, new1: e.target.value })}
+                                            placeholder="Min. 8 characters"
+                                            className="w-full px-3.5 py-2 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-500 transition"
+                                        />
                                     </div>
-
-                                    <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-gray-100 dark:border-neutral-800">
-                                        <Link
-                                            to="/help"
-                                            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white"
-                                        >
-                                            <HelpCircle size={13} />
-                                            <span>Suspect unauthorized activity? Contact Support</span>
-                                        </Link>
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-semibold text-neutral-300">Confirm New Password</label>
+                                        <input
+                                            type="password"
+                                            value={passwords.new2}
+                                            onChange={e => setPasswords({ ...passwords, new2: e.target.value })}
+                                            placeholder="Re-type new password"
+                                            className="w-full px-3.5 py-2 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-brand-500 transition"
+                                        />
+                                    </div>
+                                    <div className="pt-2">
                                         <Button
                                             onClick={handlePasswordChange}
                                             loading={passwordChanging}
                                             size="sm"
-                                            className="rounded-xl px-5 font-semibold text-xs self-end sm:self-auto cursor-pointer shadow-xs"
+                                            className="rounded-lg px-5 font-semibold text-xs cursor-pointer"
                                         >
                                             Request Password Change
                                         </Button>
@@ -781,202 +645,114 @@ const SettingsPage: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                    </CollapsibleCard>
-
-                    {/* 4. Business Location Card (Sellers only) */}
-                    {!isCustomer && (
-                        <CollapsibleCard
-                            id="section-location"
-                            icon={<MapPin size={18} />}
-                            iconBgClass="bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300"
-                            title="Business Location"
-                            subtitle="Physical store address & GPS coordinates"
-                            badge={
-                                profile.is_location_verified ? (
-                                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                                        <CheckCircle2 size={11} /> Verified
-                                    </span>
-                                ) : (
-                                    <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-2 py-0.5 rounded-full">
-                                        Pending Review
-                                    </span>
-                                )
-                            }
-                            isOpen={!!openSections.location}
-                            onToggle={() => toggleSection('location')}
-                        >
-                            <div className="space-y-4 pt-2">
-                                <p className="text-xs text-gray-500 dark:text-neutral-400">
-                                    Your store location is pinned via GPS during official staff verification visits to protect buyers from fraud. Updates can only be requested via administration.
-                                </p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-neutral-950/60 rounded-xl border border-gray-100 dark:border-neutral-800/80">
-                                    <div>
-                                        <span className="text-[11px] text-gray-400 dark:text-neutral-500 uppercase tracking-wider font-semibold block">
-                                            Location Address
-                                        </span>
-                                        <span className="text-sm font-semibold text-gray-900 dark:text-white mt-1 block">
-                                            {profile.location || 'Not set'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[11px] text-gray-400 dark:text-neutral-500 uppercase tracking-wider font-semibold block">
-                                            GPS Coordinates
-                                        </span>
-                                        <span className="text-sm font-semibold font-mono text-gray-900 dark:text-white mt-1 block">
-                                            {profile.latitude && profile.longitude
-                                                ? `${Number(profile.latitude).toFixed(6)}, ${Number(profile.longitude).toFixed(6)}`
-                                                : 'Registered via GPS'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </CollapsibleCard>
                     )}
 
-                    {/* 5. Subscription & Tier Card (Sellers only) */}
-                    {!isCustomer && (
-                        <CollapsibleCard
-                            id="section-subscription"
-                            icon={<Sparkles size={18} />}
-                            iconBgClass="bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300"
-                            title="Subscription & Plan"
-                            subtitle="Current tier membership & listing limits"
-                            badge={
-                                <span className="text-[11px] font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800 px-2.5 py-0.5 rounded-full capitalize">
-                                    {profile.tier || 'Free'}
-                                </span>
-                            }
-                            isOpen={!!openSections.subscription}
-                            onToggle={() => toggleSection('subscription')}
-                        >
-                            <div className="pt-2">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-neutral-950/60 rounded-xl border border-gray-100 dark:border-neutral-800/80">
-                                    <div>
-                                        <p className="text-2xs font-semibold text-gray-400 dark:text-neutral-500 uppercase tracking-wider">Active Plan</p>
-                                        <h3 className="font-bold text-base capitalize text-gray-900 dark:text-white mt-0.5">{profile.tier || 'Free'}</h3>
-                                        <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1 max-w-md">
-                                            {profile.tier === 'free' && 'Upgrade to list more products and access priority discovery placement.'}
-                                            {profile.tier === 'seller_pro' && 'Active Seller Pro membership with expanded catalogue limits.'}
-                                            {profile.tier === 'business' && 'Active Business enterprise membership with verified status and maximum reach.'}
-                                        </p>
-                                    </div>
-                                    {profile.tier !== 'business' && (
-                                        <Button 
-                                            onClick={handleOpenUpgrade} 
-                                            size="sm" 
-                                            className="rounded-xl text-xs font-semibold shrink-0 cursor-pointer shadow-xs"
-                                        >
-                                            Upgrade Plan
-                                        </Button>
-                                    )}
+                    {/* 4. Store Location Tab (Seller only) */}
+                    {!isCustomer && activeTab === 'location' && (
+                        <div className="space-y-6">
+                            <div className="border-b border-neutral-800 pb-4">
+                                <h2 className="text-base font-semibold text-white">Store Location & Coordinates</h2>
+                                <p className="text-xs text-neutral-400 mt-1">Verified physical store coordinates collected during staff inspection.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 rounded-xl border border-neutral-800 bg-neutral-950/60">
+                                <div className="space-y-1">
+                                    <span className="text-xs text-neutral-400 font-medium block">Physical Address</span>
+                                    <span className="text-sm font-semibold text-white block">{profile.location || 'Not set'}</span>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-xs text-neutral-400 font-medium block">GPS Coordinates</span>
+                                    <span className="text-sm font-semibold font-mono text-white block">
+                                        {profile.latitude && profile.longitude ? (
+                                            <a
+                                                href={`https://www.google.com/maps?q=${profile.latitude},${profile.longitude}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-brand-400 hover:underline"
+                                            >
+                                                {Number(profile.latitude).toFixed(6)}, {Number(profile.longitude).toFixed(6)}
+                                            </a>
+                                        ) : (
+                                            'Registered via GPS during site visit'
+                                        )}
+                                    </span>
                                 </div>
                             </div>
-                        </CollapsibleCard>
+
+                            <p className="text-xs text-neutral-500">
+                                To update your verified store location or coordinates, submit a request via administration.
+                            </p>
+                        </div>
                     )}
 
-                    {/* 6. Store Features Card (Sellers only) */}
-                    {!isCustomer && (
-                        <CollapsibleCard
-                            id="section-features"
-                            icon={<Sliders size={18} />}
-                            iconBgClass="bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300"
-                            title="Store Features"
-                            subtitle="Public discovery & interactive buyer request tools"
-                            badge={
-                                form.show_product_requests ? (
-                                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
-                                        Requests On
-                                    </span>
-                                ) : (
-                                    <span className="text-[11px] font-medium text-gray-500 dark:text-neutral-400 bg-gray-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">
-                                        Off
-                                    </span>
-                                )
-                            }
-                            isOpen={!!openSections.features}
-                            onToggle={() => toggleSection('features')}
-                        >
-                            <div className="space-y-4 pt-2">
-                                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-neutral-950/60 rounded-xl border border-gray-100 dark:border-neutral-800/80">
-                                    <div className="pr-4">
-                                        <p className="text-xs font-semibold text-gray-900 dark:text-white">Coming Soon & Customer Requests</p>
-                                        <p className="text-2xs text-gray-500 dark:text-neutral-400 mt-0.5">
-                                            Show the "Coming Soon / Requested" tab on your public store profile so buyers can vote on upcoming items and submit custom requests.
-                                        </p>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                                        <input
-                                            type="checkbox"
-                                            checked={form.show_product_requests}
-                                            onChange={e => setForm(prev => ({ ...prev, show_product_requests: e.target.checked }))}
-                                            className="sr-only peer"
-                                        />
-                                        <div className="w-10 h-5.5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-black dark:peer-checked:bg-white dark:peer-checked:after:border-neutral-800"></div>
-                                    </label>
-                                </div>
+                    {/* 5. Subscription Tab (Seller only) */}
+                    {!isCustomer && activeTab === 'subscription' && (
+                        <div className="space-y-6">
+                            <div className="border-b border-neutral-800 pb-4">
+                                <h2 className="text-base font-semibold text-white">Plan & Subscription</h2>
+                                <p className="text-xs text-neutral-400 mt-1">Manage your active seller tier membership and listing limits.</p>
+                            </div>
 
-                                <div className="flex justify-end pt-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl border border-neutral-800 bg-neutral-950/60">
+                                <div className="space-y-1">
+                                    <div className="text-xs text-neutral-400 font-medium">Active Plan</div>
+                                    <div className="text-base font-bold text-white capitalize">{profile.tier || 'Free'} Tier</div>
+                                    <p className="text-xs text-neutral-400 max-w-md">
+                                        {profile.tier === 'free' && 'Upgrade to list more products and receive priority search placement.'}
+                                        {profile.tier === 'seller_pro' && 'Seller Pro membership with expanded catalogue limits.'}
+                                        {profile.tier === 'business' && 'Business enterprise tier with verified seller badge and priority reach.'}
+                                    </p>
+                                </div>
+                                {profile.tier !== 'business' && (
                                     <Button
-                                        onClick={handleProfileSave}
-                                        disabled={saving}
-                                        loading={saving}
+                                        onClick={handleOpenUpgrade}
                                         size="sm"
-                                        className="rounded-xl px-5 font-semibold text-xs cursor-pointer shadow-xs"
+                                        className="rounded-lg text-xs font-semibold shrink-0 cursor-pointer"
                                     >
-                                        Save Feature Settings
+                                        Upgrade Plan
                                     </Button>
-                                </div>
+                                )}
                             </div>
-                        </CollapsibleCard>
+                        </div>
                     )}
 
-                    {/* Customer Seller Opportunity Link */}
-                    {isCustomer && (
-                        <div className="pt-6 pb-2 text-center">
-                            {siteVisitStatus?.can_upgrade || profile?.is_location_verified ? (
-                                <div className="inline-flex flex-col items-center gap-1.5 p-4 rounded-2xl border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/20 max-w-md mx-auto">
-                                    <Link
-                                        to="/upgrade"
-                                        className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors"
-                                    >
-                                        <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                                            Site Verified ✓
-                                        </span>
-                                        <span>Want to sell on SokoniMax? Proceed to Upgrade &rarr;</span>
-                                    </Link>
-                                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                                        Your physical premises have been verified. Select your tier to complete store setup.
+                    {/* 6. Features Tab (Seller only) */}
+                    {!isCustomer && activeTab === 'features' && (
+                        <div className="space-y-6">
+                            <div className="border-b border-neutral-800 pb-4">
+                                <h2 className="text-base font-semibold text-white">Store Features</h2>
+                                <p className="text-xs text-neutral-400 mt-1">Configure interactive features and public customer request tools.</p>
+                            </div>
+
+                            <div className="flex items-center justify-between p-5 rounded-xl border border-neutral-800 bg-neutral-950/60">
+                                <div className="pr-4 space-y-1">
+                                    <div className="text-xs font-semibold text-white">Coming Soon & Customer Requests</div>
+                                    <p className="text-xs text-neutral-400 max-w-lg">
+                                        Show the "Coming Soon / Requested" tab on your public storefront so buyers can vote on upcoming inventory and submit custom product requests.
                                     </p>
                                 </div>
-                            ) : siteVisitStatus?.status === 'pending_review' ? (
-                                <div className="inline-flex flex-col items-center gap-1.5 p-4 rounded-2xl border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/40 dark:bg-amber-950/20 max-w-md mx-auto">
-                                    <Link
-                                        to="/help?tab=site-verification"
-                                        className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 dark:hover:text-amber-200 transition-colors"
-                                    >
-                                        <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
-                                            Visit Under Admin Review ⏳
-                                        </span>
-                                        <span>Want to sell on SokoniMax? View Verification Status &rarr;</span>
-                                    </Link>
-                                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                                        Staff has submitted your physical store visit. Awaiting admin review.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="inline-flex flex-col items-center gap-1.5 p-4 rounded-2xl border border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 max-w-md mx-auto shadow-2xs">
-                                    <Link
-                                        to="/help?tab=site-verification"
-                                        className="text-xs text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-bold transition-colors inline-flex items-center gap-1"
-                                    >
-                                        <span>Want to sell on SokoniMax? (Site Verification Required)</span>
-                                        <span>&rarr;</span>
-                                    </Link>
-                                    <p className="text-[11px] text-neutral-400 dark:text-neutral-500 max-w-sm mx-auto">
-                                        To protect buyers and prevent scams, all stores must complete an in-person physical verification visit by our staff before upgrading.
-                                    </p>
-                                </div>
-                            )}
+                                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.show_product_requests}
+                                        onChange={e => setForm(prev => ({ ...prev, show_product_requests: e.target.checked }))}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-10 h-5.5 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:bg-white peer-checked:after:translate-x-full peer-checked:after:border-neutral-800 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white peer-checked:after:bg-black after:border-neutral-600 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all"></div>
+                                </label>
+                            </div>
+
+                            <div className="flex justify-end pt-2">
+                                <Button
+                                    onClick={handleProfileSave}
+                                    disabled={saving}
+                                    loading={saving}
+                                    size="sm"
+                                    className="rounded-lg px-5 font-semibold text-xs cursor-pointer"
+                                >
+                                    Save Feature Settings
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -984,19 +760,19 @@ const SettingsPage: React.FC = () => {
 
             {/* Upgrade Plan Modal */}
             {showUpgradeModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-                    <div className="bg-white dark:bg-[#121212] rounded-2xl max-w-lg w-full p-5 shadow-2xl relative border border-gray-100 dark:border-neutral-800 animate-scale-in my-8">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-neutral-950 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border border-neutral-800 animate-scale-in my-8">
                         <button 
                             type="button"
                             onClick={() => { setShowUpgradeModal(false); setSelectedTier(null); }} 
-                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition p-1 rounded-lg cursor-pointer"
+                            className="absolute top-5 right-5 text-neutral-400 hover:text-white transition p-1 rounded-lg cursor-pointer"
                         >
                             <X size={18} />
                         </button>
                         
-                        <div className="border-b border-gray-100 dark:border-neutral-800 pb-3 mb-4">
-                            <h3 className="text-base font-bold text-gray-900 dark:text-white">Upgrade Subscription Plan</h3>
-                            <p className="text-2xs text-gray-400">Choose a premium tier to expand your product limits and gain priority placement</p>
+                        <div className="border-b border-neutral-800 pb-3 mb-4">
+                            <h3 className="text-base font-bold text-white">Upgrade Subscription Plan</h3>
+                            <p className="text-xs text-neutral-400">Choose a premium tier to expand product limits and unlock features</p>
                         </div>
 
                         {loadingUpgradeData ? (
@@ -1007,76 +783,76 @@ const SettingsPage: React.FC = () => {
                             <div className="space-y-4 text-xs">
                                 {!selectedTier ? (
                                     <div className="space-y-3">
-                                        <p className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Choose a Plan:</p>
+                                        <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Choose a Plan:</p>
                                         <div className="grid grid-cols-1 gap-2.5">
                                             {tiers.map((t: any) => (
                                                 <div 
                                                     key={t.id} 
                                                     onClick={() => setSelectedTier(t)} 
-                                                    className="p-3.5 rounded-xl border border-gray-200 dark:border-neutral-800 hover:border-brand-500 dark:hover:border-brand-500 cursor-pointer transition flex justify-between items-center bg-gray-50/50 dark:bg-neutral-950/40"
+                                                    className="p-3.5 rounded-xl border border-neutral-800 hover:border-brand-500 cursor-pointer transition flex justify-between items-center bg-neutral-900/60"
                                                 >
                                                     <div>
-                                                        <h4 className="font-bold text-gray-900 dark:text-white capitalize text-xs">{t.name} Plan</h4>
-                                                        <p className="text-3xs text-gray-400 mt-0.5">{t.benefits || 'Premium store features'}</p>
-                                                        <p className="text-3xs text-gray-500 font-bold mt-1">Duration: {t.duration} Days</p>
+                                                        <h4 className="font-bold text-white capitalize text-xs">{t.name} Plan</h4>
+                                                        <p className="text-xs text-neutral-400 mt-0.5">{t.benefits || 'Premium store features'}</p>
+                                                        <p className="text-xs text-neutral-500 font-medium mt-1">Duration: {t.duration} Days</p>
                                                     </div>
                                                     <div className="text-right shrink-0">
-                                                        <p className="font-extrabold text-brand-600 dark:text-brand-400 text-xs">TSh {Number(t.price).toLocaleString()}</p>
+                                                        <p className="font-bold text-brand-400 text-xs">TSh {Number(t.price).toLocaleString()}</p>
                                                     </div>
                                                 </div>
                                             ))}
                                             {tiers.length === 0 && (
-                                                <p className="text-xs text-gray-400 text-center py-4">No subscription tiers available.</p>
+                                                <p className="text-xs text-neutral-400 text-center py-4">No subscription tiers available.</p>
                                             )}
                                         </div>
                                     </div>
                                 ) : (
                                     <form onSubmit={handleUpgradeSubmit} className="space-y-3">
-                                        <div className="flex items-center justify-between p-3 bg-brand-500/10 border border-brand-500/20 rounded-xl">
+                                        <div className="flex items-center justify-between p-3 bg-neutral-900 border border-neutral-800 rounded-xl">
                                             <div>
-                                                <p className="text-3xs text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider">Selected Plan</p>
-                                                <h4 className="font-extrabold text-gray-900 dark:text-white capitalize text-xs">{selectedTier.name} ({selectedTier.duration} Days)</h4>
+                                                <p className="text-xs text-brand-400 font-semibold uppercase tracking-wider">Selected Plan</p>
+                                                <h4 className="font-bold text-white capitalize text-xs">{selectedTier.name} ({selectedTier.duration} Days)</h4>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-3xs text-gray-400 uppercase">Total Price</p>
-                                                <p className="font-extrabold text-brand-600 dark:text-brand-400 text-xs">TSh {Number(selectedTier.price).toLocaleString()}</p>
+                                                <p className="text-xs text-neutral-400 uppercase">Total</p>
+                                                <p className="font-bold text-brand-400 text-xs">TSh {Number(selectedTier.price).toLocaleString()}</p>
                                             </div>
                                         </div>
 
                                         <button 
                                             type="button" 
                                             onClick={() => setSelectedTier(null)} 
-                                            className="text-2xs text-brand-600 dark:text-brand-400 hover:underline font-bold cursor-pointer"
+                                            className="text-xs text-brand-400 hover:underline font-medium cursor-pointer"
                                         >
                                             ← Choose a different plan
                                         </button>
 
                                         <div>
-                                            <p className="text-2xs font-bold text-gray-400 mb-2 uppercase tracking-wider">
-                                                Pay to these numbers:
+                                            <p className="text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wider">
+                                                Pay to official numbers:
                                             </p>
                                             {adminLipa.length === 0 ? (
                                                 <p className="text-xs text-amber-500">No official payment numbers configured. Please contact support.</p>
                                             ) : (
                                                 <div className="space-y-2">
                                                     {adminLipa.map((lipa: any) => (
-                                                        <div key={lipa.id} className="flex items-center gap-3 bg-gray-50 dark:bg-neutral-950 border border-gray-100 dark:border-neutral-800 rounded-xl p-2.5">
-                                                            <div className={`rounded-lg bg-white dark:bg-neutral-900 flex items-center justify-center overflow-hidden shrink-0 border border-gray-100 dark:border-neutral-800 ${lipa.network_logo ? 'w-16 h-8' : 'w-8 h-8'}`}>
+                                                        <div key={lipa.id} className="flex items-center gap-3 bg-neutral-900 border border-neutral-800 rounded-xl p-2.5">
+                                                            <div className={`rounded-lg bg-neutral-800 flex items-center justify-center overflow-hidden shrink-0 border border-neutral-700 ${lipa.network_logo ? 'w-16 h-8' : 'w-8 h-8'}`}>
                                                                 {lipa.network_logo ? (
                                                                     <img src={lipa.network_logo} alt={lipa.network_name} className="w-full h-full object-contain" />
                                                                 ) : (
-                                                                    <Smartphone size={16} className="text-emerald-500" />
+                                                                    <Smartphone size={16} className="text-emerald-400" />
                                                                 )}
                                                             </div>
                                                             <div className="min-w-0">
-                                                                <p className="text-3xs font-bold text-gray-400 uppercase leading-none">{lipa.network_name}</p>
-                                                                <p className="font-mono font-extrabold text-gray-900 dark:text-white text-xs mt-0.5">{lipa.number}</p>
-                                                                <p className="text-3xs text-gray-500 leading-none">{lipa.name}</p>
+                                                                <p className="text-xs font-bold text-neutral-400 uppercase leading-none">{lipa.network_name}</p>
+                                                                <p className="font-mono font-bold text-white text-xs mt-0.5">{lipa.number}</p>
+                                                                <p className="text-xs text-neutral-500 leading-none">{lipa.name}</p>
                                                             </div>
                                                             <button 
                                                                 type="button" 
                                                                 onClick={() => { navigator.clipboard.writeText(lipa.number); toast.success('Copied!'); }}
-                                                                className="ml-auto text-3xs py-0.5 px-2 border border-gray-200 dark:border-neutral-700 rounded hover:bg-white dark:hover:bg-neutral-800 transition cursor-pointer"
+                                                                className="ml-auto text-xs py-0.5 px-2 border border-neutral-700 rounded hover:bg-neutral-800 text-neutral-300 transition cursor-pointer"
                                                             >
                                                                 Copy
                                                             </button>
@@ -1088,22 +864,22 @@ const SettingsPage: React.FC = () => {
 
                                         <div className="space-y-2.5">
                                             <div>
-                                                <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wider">Transaction ID / Reference</label>
+                                                <label className="block text-xs font-semibold text-neutral-400 mb-1">Transaction ID / Reference</label>
                                                 <input 
                                                     type="text" 
                                                     required
                                                     value={refId} 
                                                     onChange={(e) => setRefId(e.target.value)}
                                                     placeholder="e.g. PP260618.1746"
-                                                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-xs font-mono"
+                                                    className="w-full px-3 py-2 rounded-xl border border-neutral-800 bg-neutral-900 text-xs font-mono text-white focus:outline-none focus:border-brand-500"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-2xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wider">Receipt Screenshot</label>
-                                                <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-200 dark:border-neutral-800 rounded-xl cursor-pointer hover:bg-gray-50/50 dark:hover:bg-neutral-950/50 transition">
+                                                <label className="block text-xs font-semibold text-neutral-400 mb-1">Receipt Screenshot</label>
+                                                <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-neutral-800 rounded-xl cursor-pointer hover:bg-neutral-900 transition">
                                                     <div className="flex flex-col items-center justify-center pt-2 pb-3">
-                                                        <Upload size={18} className="text-gray-400 mb-1" />
-                                                        <p className="text-2xs text-gray-500 dark:text-gray-400 text-center px-4">
+                                                        <Upload size={18} className="text-neutral-400 mb-1" />
+                                                        <p className="text-xs text-neutral-400 text-center px-4">
                                                             {proofFile ? proofFile.name : 'Click to upload screenshot proof'}
                                                         </p>
                                                     </div>
@@ -1116,7 +892,7 @@ const SettingsPage: React.FC = () => {
                                                 className="w-full py-2.5 font-bold flex items-center justify-center gap-1.5 rounded-xl cursor-pointer"
                                             >
                                                 <CheckCircle2 size={14} />
-                                                {submittingUpgrade ? 'Submitting Details...' : 'Submit Payment Details'}
+                                                {submittingUpgrade ? 'Submitting...' : 'Submit Payment Details'}
                                             </Button>
                                         </div>
                                     </form>

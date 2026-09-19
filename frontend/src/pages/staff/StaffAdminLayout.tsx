@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Shield, ScrollText,
@@ -7,7 +8,7 @@ import {
   CreditCard, Layers,
   ChevronLeft, ChevronRight, Search, Check, X,
   ArrowUpRight, BarChart2, DollarSign, KeyRound, ShieldAlert,
-  Headphones
+  Headphones, MapPin, ExternalLink
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import api from '../../api';
@@ -576,9 +577,9 @@ const PlatformUserExplorer: React.FC = () => {
       <div ref={sentinelRef} className="h-4" />
 
       {/* Inspector Modal */}
-      {showInspectorModal && inspectorUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setShowInspectorModal(false)}>
-          <div className="card max-w-sm w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      {showInspectorModal && inspectorUser && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowInspectorModal(false)}>
+          <div className="card max-w-sm w-full p-6 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-bold text-lg text-gray-900 dark:text-white">Promote to Inspector</h3>
             <p className="text-xs text-gray-500">Assign inspector credentials to @{inspectorUser.username}</p>
             <select className="input" value={inspectorLevel} onChange={(e) => setInspectorLevel(e.target.value)}>
@@ -592,13 +593,14 @@ const PlatformUserExplorer: React.FC = () => {
               <Button variant="default" size="sm" onClick={submitInspectorPromotion}>Promote</Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Role Modal */}
-      {showRoleModal && roleUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setShowRoleModal(false)}>
-          <div className="card max-w-sm w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      {showRoleModal && roleUser && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowRoleModal(false)}>
+          <div className="card max-w-sm w-full p-6 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-bold text-lg text-gray-900 dark:text-white">Modify Roles</h3>
             <p className="text-xs text-gray-500">Update system authorizations for @{roleUser.username}</p>
             <div className="space-y-2">
@@ -616,7 +618,8 @@ const PlatformUserExplorer: React.FC = () => {
               <Button variant="default" size="sm" onClick={submitRoleChange}>Save Privileges</Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -785,9 +788,9 @@ const EmployeeManager: React.FC = () => {
       )}
 
       {/* Onboard Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setShowAddModal(false)}>
-          <div className="card max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      {showAddModal && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowAddModal(false)}>
+          <div className="card max-w-md w-full p-6 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-bold text-lg text-gray-900 dark:text-white">Onboard Staff Member</h3>
             <form onSubmit={handleAddEmployee} className="space-y-4">
               <div>
@@ -808,7 +811,8 @@ const EmployeeManager: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -827,6 +831,7 @@ const PermissionMatrix: React.FC = () => {
     { key: 'can_manage_inspections', label: 'Inspections' },
     { key: 'can_manage_warehouse_intake', label: 'Warehouse Hub' },
     { key: 'can_manage_logistics', label: 'Logistics Fleet' },
+    { key: 'can_conduct_site_visits', label: 'Site Visits (Field)' },
   ];
 
   const fetchStaff = () => {
@@ -1088,6 +1093,530 @@ const AuditLogViewer: React.FC = () => {
   );
 };
 
+// ============ Store Site Verification Requests Review ============
+const AdminSiteVisitsReview: React.FC = () => {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('pending_review');
+  const [search, setSearch] = useState('');
+  const [gallery, setGallery] = useState<{
+    images: { url: string; label: string }[];
+    currentIndex: number;
+  } | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+
+  const openGallery = (item: any, initialUrl: string) => {
+    const images: { url: string; label: string }[] = [];
+    if (item.storefront_image) images.push({ url: item.storefront_image, label: 'Storefront' });
+    if (item.interior_image) images.push({ url: item.interior_image, label: 'Interior' });
+    if (item.document_image) images.push({ url: item.document_image, label: 'License / Document' });
+    const idx = images.findIndex((img) => img.url === initialUrl);
+    setGallery({ images, currentIndex: idx >= 0 ? idx : 0 });
+  };
+
+  useEffect(() => {
+    if (!gallery) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setGallery(null);
+      if (e.key === 'ArrowLeft') {
+        setGallery((prev) => {
+          if (!prev || prev.images.length <= 1) return prev;
+          const nextIndex = (prev.currentIndex - 1 + prev.images.length) % prev.images.length;
+          return { ...prev, currentIndex: nextIndex };
+        });
+      }
+      if (e.key === 'ArrowRight') {
+        setGallery((prev) => {
+          if (!prev || prev.images.length <= 1) return prev;
+          const nextIndex = (prev.currentIndex + 1) % prev.images.length;
+          return { ...prev, currentIndex: nextIndex };
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gallery]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || !gallery || gallery.images.length <= 1) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diffX = touchStartX.current - touchEndX;
+    if (Math.abs(diffX) > 40) {
+      if (diffX > 0) {
+        setGallery((prev) => {
+          if (!prev) return null;
+          return { ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length };
+        });
+      } else {
+        setGallery((prev) => {
+          if (!prev) return null;
+          return { ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length };
+        });
+      }
+    }
+    touchStartX.current = null;
+  };
+
+  const fetchVisits = useCallback(() => {
+    setLoading(true);
+    const query = filter === 'all' ? '' : `status=${filter}`;
+    api.get(`/api/staff/site-visits/?${query}`)
+      .then((res) => {
+        const data = res.data.results || res.data || [];
+        setItems(Array.isArray(data) ? data : []);
+      })
+      .catch(() => toast.error('Failed to load store site verification requests'))
+      .finally(() => setLoading(false));
+  }, [filter]);
+
+  useEffect(() => {
+    fetchVisits();
+  }, [fetchVisits]);
+
+  const handleApprove = async (id: number) => {
+    try {
+      setActionLoading(true);
+      await api.post(`/api/staff/site-visits/${id}/approve/`);
+      toast.success('Site verification approved! Merchant is now verified to upgrade.');
+      fetchVisits();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to approve site verification');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectingId) return;
+    if (!rejectReason.trim()) {
+      toast.error('Please enter a rejection reason for the applicant');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      await api.post(`/api/staff/site-visits/${rejectingId}/reject/`, { reason: rejectReason });
+      toast.success('Site verification request rejected.');
+      setRejectingId(null);
+      setRejectReason('');
+      fetchVisits();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to reject site verification');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const filteredItems = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.toLowerCase();
+    return items.filter((item) =>
+      (item.business_name || '').toLowerCase().includes(q) ||
+      (item.username || '').toLowerCase().includes(q) ||
+      (item.contact_phone || '').toLowerCase().includes(q) ||
+      (item.address || '').toLowerCase().includes(q) ||
+      (item.visited_by_username || '').toLowerCase().includes(q)
+    );
+  }, [items, search]);
+
+  const filterTabs = [
+    { key: 'pending_review', label: 'Pending Review' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+    { key: 'all', label: 'All Requests' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <span>Store Site Verification Requests</span>
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            Review physical store inspections conducted by field staff, inspect evidence & GPS, and approve merchant verification.
+          </p>
+        </div>
+      </header>
+
+      {/* Filter Tabs & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div data-horizontal-scroll="true" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {filterTabs.map((tab) => {
+            const isActive = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setFilter(tab.key)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  isActive
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search store, applicant, inspector..."
+            className="input pl-8 py-1.5 text-xs w-full"
+          />
+        </div>
+      </div>
+
+      {/* Content Rendering */}
+      {loading ? (
+        <TableSkeleton rows={6} cols={6} />
+      ) : filteredItems.length === 0 ? (
+        <EmptyState
+          icon={MapPin}
+          title={`No ${filter === 'all' ? '' : filter.replace('_', ' ')} site verification requests`}
+          description={search ? 'No requests match your search criteria.' : 'There are currently no verification requests in this queue.'}
+        />
+      ) : (
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-surface-muted/50 dark:bg-[#161616]/50 border-b border-surface-border text-xs font-semibold text-gray-500 dark:text-gray-400">
+                <tr>
+                  <th className="px-4 py-3">Store & Applicant</th>
+                  <th className="px-4 py-3">Physical Location & GPS</th>
+                  <th className="px-4 py-3">Inspector & Date</th>
+                  <th className="px-4 py-3 text-center">Evidence Photos</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-border text-xs">
+                {filteredItems.map((item) => {
+                  const locParts = [item.district, item.region].filter(Boolean);
+                  const locStr = locParts.join(', ');
+                  const showLocSubtext = locStr && !item.address?.toLowerCase().includes(locStr.toLowerCase());
+
+                  return (
+                    <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-white/[0.02] transition">
+                      <td className="px-4 py-3.5 align-top">
+                        <div className="font-bold text-gray-900 dark:text-white text-sm">
+                          {item.business_name}
+                        </div>
+                        <div className="text-gray-500 text-[11px] mt-0.5">
+                          Applicant: <span className="font-mono font-semibold text-gray-700 dark:text-gray-300">@{item.username}</span>
+                        </div>
+                        {item.contact_phone && (
+                          <div className="text-gray-400 text-[11px] font-mono mt-0.5">
+                            Phone: {item.contact_phone}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 align-top">
+                        <div className="text-gray-800 dark:text-gray-200 font-medium text-xs">
+                          {item.address}
+                        </div>
+                        {showLocSubtext && (
+                          <div className="text-gray-400 text-[11px]">
+                            {locStr}
+                          </div>
+                        )}
+                        {item.latitude && item.longitude && (
+                          <div className="mt-0.5">
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-mono text-gray-500 hover:text-brand-500 transition-colors"
+                              title="Open coordinates in Google Maps"
+                            >
+                              <MapPin size={10} className="shrink-0 text-brand-500" />
+                              <span>{Number(item.latitude).toFixed(4)}, {Number(item.longitude).toFixed(4)}</span>
+                              <ExternalLink size={9} className="shrink-0 opacity-60" />
+                            </a>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 align-top">
+                        <div className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
+                          @{item.visited_by_username || 'Staff'}
+                        </div>
+                        <div className="text-gray-400 text-[11px] mt-0.5">
+                          {new Date(item.created_at).toLocaleDateString()}
+                        </div>
+                        {item.staff_notes && (
+                          <div className="mt-1 text-gray-500 max-w-[220px] truncate text-[11px]" title={item.staff_notes}>
+                            Note: {item.staff_notes}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 align-top text-center">
+                        <div className="inline-flex items-center justify-center gap-2">
+                          {item.storefront_image && (
+                            <button
+                              type="button"
+                              onClick={() => openGallery(item, item.storefront_image)}
+                              className="relative w-8 h-8 rounded overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition"
+                              title="Storefront photo"
+                            >
+                              <img src={item.storefront_image} alt="Storefront" className="w-full h-full object-cover" />
+                            </button>
+                          )}
+                          {item.interior_image && (
+                            <button
+                              type="button"
+                              onClick={() => openGallery(item, item.interior_image)}
+                              className="relative w-8 h-8 rounded overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition"
+                              title="Interior photo"
+                            >
+                              <img src={item.interior_image} alt="Interior" className="w-full h-full object-cover" />
+                            </button>
+                          )}
+                          {item.document_image && (
+                            <button
+                              type="button"
+                              onClick={() => openGallery(item, item.document_image)}
+                              className="relative w-8 h-8 rounded overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition"
+                              title="License photo"
+                            >
+                              <img src={item.document_image} alt="License" className="w-full h-full object-cover" />
+                            </button>
+                          )}
+                          {!item.storefront_image && !item.interior_image && !item.document_image && (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 align-top text-center whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            item.status === 'approved'
+                              ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400'
+                              : item.status === 'rejected'
+                              ? 'bg-rose-500/10 text-rose-500 dark:text-rose-400'
+                              : 'bg-amber-500/10 text-amber-500 dark:text-amber-400'
+                          }`}
+                        >
+                          {item.status.replace('_', ' ')}
+                        </span>
+                        {item.rejection_reason && (
+                          <p className="text-[10px] text-rose-500 mt-1 max-w-[120px] truncate" title={item.rejection_reason}>
+                            {item.rejection_reason}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 align-top text-right whitespace-nowrap">
+                        {item.status === 'pending_review' ? (
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              disabled={actionLoading}
+                              onClick={() => handleApprove(item.id)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition disabled:opacity-50 cursor-pointer active:scale-95"
+                            >
+                              <Check size={13} />
+                              <span>Approve</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actionLoading}
+                              onClick={() => { setRejectingId(item.id); setRejectReason(''); }}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 border border-rose-200 dark:border-rose-900/50 shadow-xs transition disabled:opacity-50 cursor-pointer active:scale-95"
+                            >
+                              <X size={13} />
+                              <span>Reject</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">
+                            {item.reviewed_by_username ? `By @${item.reviewed_by_username}` : 'Processed'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Evidence Gallery Lightbox Modal */}
+      {gallery && gallery.images.length > 0 && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 select-none"
+          onClick={() => setGallery(null)}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Top Bar: Title, Counter & Close */}
+          <div
+            className="absolute top-0 inset-x-0 flex items-center justify-between px-6 py-4 z-20 text-white/90"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold tracking-wide">
+                {gallery.images[gallery.currentIndex]?.label}
+              </span>
+              {gallery.images.length > 1 && (
+                <span className="text-xs text-white/60 font-mono">
+                  ({gallery.currentIndex + 1} / {gallery.images.length})
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setGallery(null)}
+              className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              title="Close (Esc)"
+            >
+              <X size={22} />
+            </button>
+          </div>
+
+          {/* Left Navigation Arrow */}
+          {gallery.images.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setGallery((prev) => {
+                  if (!prev) return null;
+                  return { ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length };
+                });
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition z-20 cursor-pointer"
+              title="Previous photo (Left Arrow / Swipe Right)"
+            >
+              <ChevronLeft size={28} />
+            </button>
+          )}
+
+          {/* Center Image Container - Zero box boundary, pure edge-to-edge content */}
+          <div
+            className="relative flex items-center justify-center w-full h-full p-4 sm:p-12"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              key={gallery.images[gallery.currentIndex]?.url}
+              src={gallery.images[gallery.currentIndex]?.url}
+              alt={gallery.images[gallery.currentIndex]?.label}
+              className="max-w-full max-h-[82vh] object-contain select-none shadow-2xl"
+              draggable={false}
+            />
+          </div>
+
+          {/* Right Navigation Arrow */}
+          {gallery.images.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setGallery((prev) => {
+                  if (!prev) return null;
+                  return { ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length };
+                });
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition z-20 cursor-pointer"
+              title="Next photo (Right Arrow / Swipe Left)"
+            >
+              <ChevronRight size={28} />
+            </button>
+          )}
+
+          {/* Bottom Dots Indicator */}
+          {gallery.images.length > 1 && (
+            <div
+              className="absolute bottom-5 inset-x-0 flex items-center justify-center gap-2 z-20"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {gallery.images.map((img, i) => (
+                <button
+                  key={img.url}
+                  type="button"
+                  onClick={() => setGallery((prev) => prev ? { ...prev, currentIndex: i } : null)}
+                  className={`transition-all duration-200 rounded-full cursor-pointer ${
+                    i === gallery.currentIndex
+                      ? 'w-6 h-1.5 bg-white'
+                      : 'w-1.5 h-1.5 bg-white/40 hover:bg-white/70'
+                  }`}
+                  title={img.label}
+                />
+              ))}
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
+
+      {/* Reject Reason Modal */}
+      {rejectingId && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setRejectingId(null)}
+        >
+          <div
+            className="relative max-w-md w-full bg-white dark:bg-[#0A0A0A] p-6 rounded-2xl border border-surface-border shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">
+              Reject Store Site Verification
+            </h3>
+            <p className="text-xs text-gray-500">
+              Provide a clear reason for the rejection. This explanation will be delivered directly to the applicant so they can rectify discrepancies.
+            </p>
+            <form onSubmit={handleRejectSubmit} className="space-y-4">
+              <textarea
+                required
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. Storefront signage does not match registered business name, or shop was closed during inspection."
+                className="input w-full text-xs py-2"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRejectingId(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="default"
+                  size="sm"
+                  disabled={actionLoading}
+                  className="bg-rose-600 hover:bg-rose-700 text-white"
+                >
+                  Confirm Rejection
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
 // ============ Main Staff Admin Layout ============
 const StaffAdminLayout: React.FC = () => {
   const location = useLocation();
@@ -1111,11 +1640,12 @@ const StaffAdminLayout: React.FC = () => {
     { path: '/staff-admin/catalog-moderation', label: 'Brand & Catalog', icon: Layers },
     { path: '/staff-admin/reserved-usernames', label: 'Reserved Usernames', icon: ShieldAlert },
     { path: '/staff-admin/contact-settings', label: 'Contact & Socials', icon: Headphones },
+    { path: '/staff-admin/site-visits', label: 'Site Verifications', icon: MapPin },
     { path: '/staff', label: 'Staff Operations', icon: ArrowUpRight },
   ];
 
   return (
-    <div className="max-w-6xl mx-auto p-4 pb-24 lg:pb-6 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+    <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24 lg:pb-8 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
       {/* Mobile Slide-Over Navigation Drawer & Floating FAB Button */}
       <DashboardMobileDrawer
         title="Admin Control"
@@ -1196,6 +1726,7 @@ const StaffAdminLayout: React.FC = () => {
             <Route path="catalog-moderation" element={<CatalogModerationManager />} />
             <Route path="reserved-usernames" element={<ReservedUsernamesManager />} />
             <Route path="contact-settings" element={<PlatformContactSettingsManager />} />
+            <Route path="site-visits" element={<AdminSiteVisitsReview />} />
           </Routes>
         </main>
       </div>

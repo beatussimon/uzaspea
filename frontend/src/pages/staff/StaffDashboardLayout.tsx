@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, Megaphone, Activity,
   CheckCircle2, AlertTriangle, Shield, Star,
   CreditCard, FileText, Layers, MessageSquare, Send, Package, Truck,
   BarChart2, ChevronLeft, ChevronRight, Search, Eye, X, ArrowUpRight,
-  UserCircle, Clock, MapPin, Plus, ExternalLink, Phone, CheckCircle
+  UserCircle, Clock, MapPin, Plus, ExternalLink, Phone
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../../api';
@@ -17,9 +18,11 @@ import { KpiCard } from '../../components/ui/KpiCard';
 import {
   PageHeaderSkeleton,
   KpiGridSkeleton,
+  TableSkeleton,
   CardGridSkeleton,
   CardListSkeleton
 } from '../../components/Skeleton';
+import { RecordSiteVisitModal } from '../../components/staff/RecordSiteVisitModal';
 import StaffInspectionLayout from './inspections/StaffInspectionLayout';
 import WarehouseStaffLayout from './warehouse/WarehouseStaffLayout';
 import LogisticsManager from './logistics/LogisticsManager';
@@ -439,7 +442,7 @@ export const SubscriptionConfirmation: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [, setPage] = useState(1);
+  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -486,23 +489,21 @@ export const SubscriptionConfirmation: React.FC = () => {
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore || loadingMore || loading) return;
+    if (!sentinel || !hasMore || loadingMore || loading || items.length < 10) return;
 
     const obs = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          setPage((prev) => {
-            const nextPage = prev + 1;
-            fetchItems(nextPage);
-            return nextPage;
-          });
+          const nextPage = page + 1;
+          setPage(nextPage);
+          fetchItems(nextPage);
         }
       },
-      { rootMargin: '400px' }
+      { rootMargin: '100px' }
     );
     obs.observe(sentinel);
     return () => obs.disconnect();
-  }, [hasMore, loadingMore, loading, fetchItems]);
+  }, [hasMore, loadingMore, loading, page, items.length, fetchItems]);
 
   const handleVerify = async (id: number) => {
     try {
@@ -600,7 +601,7 @@ export const SubscriptionConfirmation: React.FC = () => {
       {filter === 'overdue' ? (
         <OverdueSubscribersList />
       ) : loading ? (
-        <CardGridSkeleton count={6} cols={3} />
+        <TableSkeleton rows={6} cols={7} />
       ) : filteredItems.length === 0 ? (
         <EmptyState
           icon={CreditCard}
@@ -608,89 +609,104 @@ export const SubscriptionConfirmation: React.FC = () => {
           description={search ? 'No requests match your search criteria.' : `There are currently no ${filter} upgrade requests.`}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="card p-5 flex flex-col justify-between space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-gray-900 dark:text-white">@{item.username}</h3>
-                      <a
-                        href={item.store_url || `/${item.username}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:underline"
-                      >
-                        <span>Store</span>
-                        <ExternalLink size={10} />
-                      </a>
-                    </div>
-                    <p className="text-xs text-gray-400 font-mono mt-0.5">Ref: {item.reference}</p>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-500/10 text-brand-500 border border-brand-500/20 uppercase">
-                    {item.tier_name}
-                  </span>
-                </div>
-
-                {/* Clean Unboxed Metadata */}
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400 dark:text-gray-500 font-normal">Amount</span>
-                    <span className="font-bold text-gray-900 dark:text-white">TZS {parseFloat(item.amount || '0').toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400 dark:text-gray-500 font-normal">Submitted</span>
-                    <span className="text-gray-700 dark:text-gray-300 font-medium">{fmtDate(item.created_at)}</span>
-                  </div>
-
-                  {item.phone_number && (
-                    <div className="flex justify-between items-center pt-1 border-t border-surface-border/40">
-                      <span className="text-gray-400 dark:text-gray-500 font-normal">Phone</span>
-                      <a
-                        href={`tel:${item.phone_number}`}
-                        className="font-mono text-gray-700 dark:text-gray-300 hover:text-brand-600 flex items-center gap-1"
-                      >
-                        <Phone size={11} /> {item.phone_number}
-                      </a>
-                    </div>
-                  )}
-
-                  {item.location && (
-                    <div className="flex justify-between items-center text-[11px] text-gray-400">
-                      <span className="flex items-center gap-1"><MapPin size={10} /> Location</span>
-                      <span>{item.location}</span>
-                    </div>
-                  )}
-                </div>
-
-                {item.proof && (
-                  <div
-                    onClick={() => setPreviewImage(item.proof)}
-                    className="relative group cursor-pointer overflow-hidden rounded-btn border border-surface-border/40 h-28 bg-surface-muted"
-                  >
-                    <img src={item.proof} alt="Receipt proof" className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                      <span className="text-white text-xs font-bold flex items-center gap-1.5">
-                        <Eye size={14} /> View Receipt
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-surface-muted/50 dark:bg-[#161616]/50 border-b border-surface-border text-xs font-semibold text-gray-500 dark:text-gray-400">
+                <tr>
+                  <th className="px-5 py-3">Seller</th>
+                  <th className="px-4 py-3 text-center">Plan</th>
+                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Payment Reference & Date</th>
+                  <th className="px-4 py-3 text-center">Receipt</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-border text-xs">
+                {filteredItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-white/[0.02] transition">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-900 dark:text-white">@{item.username}</span>
+                        <a
+                          href={item.store_url || `/${item.username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+                        >
+                          Store
+                        </a>
+                      </div>
+                      {item.phone_number && (
+                        <div className="text-gray-400 text-[11px] font-mono mt-0.5">
+                          {item.phone_number}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20 uppercase">
+                        {item.tier_name}
                       </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {filter === 'pending' && (
-                <div className="flex gap-2 pt-2 border-t border-surface-border/40">
-                  <Button variant="default" size="sm" onClick={() => handleVerify(item.id)} className="flex-1">
-                    Confirm Upgrade
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleReject(item.id)} className="flex-1 text-red-500 hover:text-red-600">
-                    Reject
-                  </Button>
-                </div>
-              )}
-            </div>
-          ))}
+                    </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <span className="font-black text-gray-900 dark:text-white font-mono">
+                        TZS {parseFloat(item.amount || '0').toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <div className="font-mono text-gray-700 dark:text-gray-300 font-medium">
+                        {item.reference || '—'}
+                      </div>
+                      <div className="text-gray-400 text-[11px] mt-0.5">
+                        {fmtDate(item.created_at)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      {item.proof ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewImage(item.proof)}
+                          className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-surface-muted hover:bg-brand-500/10 hover:text-brand-600 border border-surface-border transition cursor-pointer"
+                        >
+                          View Slip
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <Badge text={item.status || 'pending'} />
+                    </td>
+                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                      {filter === 'pending' ? (
+                        <div className="inline-flex items-center gap-2">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleVerify(item.id)}
+                            className="bg-brand-500 hover:bg-brand-400 text-black font-bold text-xs h-7 px-2.5 rounded-lg"
+                          >
+                            Confirm
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReject(item.id)}
+                            className="text-rose-500 hover:text-rose-600 border-rose-200 dark:border-rose-900/60 text-xs h-7 px-2.5 rounded-lg"
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs capitalize">{item.status || 'Processed'}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -699,15 +715,16 @@ export const SubscriptionConfirmation: React.FC = () => {
       <div ref={sentinelRef} className="h-4" />
 
       {/* Modal for image preview */}
-      {previewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[85vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition">
+      {previewImage && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-3xl max-h-[85vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition cursor-pointer">
               <X size={16} />
             </button>
             <img src={previewImage} alt="Payment Proof" className="max-w-full max-h-[80vh] object-contain rounded-btn" />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -956,10 +973,10 @@ export const SellerApplicationsManager: React.FC = () => {
       <div ref={sentinelRef} className="h-4" />
 
       {/* Document Preview Modal */}
-      {previewDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setPreviewDoc(null)}>
+      {previewDoc && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" onClick={() => setPreviewDoc(null)}>
           <div className="relative max-w-4xl max-h-[90vh] w-full bg-surface-card dark:bg-[#0A0A0A] p-4 rounded-card border border-surface-border overflow-auto" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setPreviewDoc(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition z-10">
+            <button onClick={() => setPreviewDoc(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition z-10 cursor-pointer">
               <X size={16} />
             </button>
             {previewDoc.match(/\.(jpeg|jpg|gif|png)$/i) ? (
@@ -968,7 +985,8 @@ export const SellerApplicationsManager: React.FC = () => {
               <iframe src={previewDoc} title="Document Preview" className="w-full h-[75vh] rounded-btn border border-surface-border" />
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -976,38 +994,74 @@ export const SellerApplicationsManager: React.FC = () => {
 
 // ============ Commission Payments ============
 
-// ============ Physical Store Site Visits Manager ============
-export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolean }> = ({ isSuper, canVerify }) => {
+// ============ Physical Store Site Visits Manager (Field Staff) ============
+export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolean }> = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('pending_review');
+  const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-
-  // New Visit Modal state
+  const [gallery, setGallery] = useState<{
+    images: { url: string; label: string }[];
+    currentIndex: number;
+  } | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [userQuery, setUserQuery] = useState('');
-  const [userCandidates, setUserCandidates] = useState<any[]>([]);
-  const [searchingUsers, setSearchingUsers] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const touchStartX = useRef<number | null>(null);
 
-  const [form, setForm] = useState({
-    business_name: '',
-    contact_person: '',
-    contact_phone: '',
-    address: '',
-    region: 'Dar es Salaam',
-    district: '',
-    latitude: '',
-    longitude: '',
-    staff_notes: '',
-  });
+  const openGallery = (item: any, initialUrl: string) => {
+    const images: { url: string; label: string }[] = [];
+    if (item.storefront_image) images.push({ url: item.storefront_image, label: 'Storefront' });
+    if (item.interior_image) images.push({ url: item.interior_image, label: 'Interior' });
+    if (item.document_image) images.push({ url: item.document_image, label: 'License / Document' });
+    const idx = images.findIndex((img) => img.url === initialUrl);
+    setGallery({ images, currentIndex: idx >= 0 ? idx : 0 });
+  };
 
-  const [storefrontFile, setStorefrontFile] = useState<File | null>(null);
-  const [interiorFile, setInteriorFile] = useState<File | null>(null);
-  const [documentFile, setDocumentFile] = useState<File | null>(null);
-  const [locating, setLocating] = useState(false);
+  useEffect(() => {
+    if (!gallery) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setGallery(null);
+      if (e.key === 'ArrowLeft') {
+        setGallery((prev) => {
+          if (!prev || prev.images.length <= 1) return prev;
+          const nextIndex = (prev.currentIndex - 1 + prev.images.length) % prev.images.length;
+          return { ...prev, currentIndex: nextIndex };
+        });
+      }
+      if (e.key === 'ArrowRight') {
+        setGallery((prev) => {
+          if (!prev || prev.images.length <= 1) return prev;
+          const nextIndex = (prev.currentIndex + 1) % prev.images.length;
+          return { ...prev, currentIndex: nextIndex };
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gallery]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || !gallery || gallery.images.length <= 1) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diffX = touchStartX.current - touchEndX;
+    if (Math.abs(diffX) > 40) {
+      if (diffX > 0) {
+        setGallery((prev) => {
+          if (!prev) return null;
+          return { ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length };
+        });
+      } else {
+        setGallery((prev) => {
+          if (!prev) return null;
+          return { ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length };
+        });
+      }
+    }
+    touchStartX.current = null;
+  };
 
   const fetchItems = useCallback(() => {
     setLoading(true);
@@ -1025,117 +1079,6 @@ export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolea
     fetchItems();
   }, [fetchItems]);
 
-  // Search candidate users when typing in modal
-  useEffect(() => {
-    if (!showModal || selectedUser) return;
-    const timer = setTimeout(() => {
-      setSearchingUsers(true);
-      api.get(`/api/staff/site-visits/candidate-users/?q=${encodeURIComponent(userQuery)}`)
-        .then((res) => setUserCandidates(res.data || []))
-        .catch(() => {})
-        .finally(() => setSearchingUsers(false));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [userQuery, showModal, selectedUser]);
-
-  const handleCaptureLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm(prev => ({
-          ...prev,
-          latitude: pos.coords.latitude.toFixed(6),
-          longitude: pos.coords.longitude.toFixed(6),
-        }));
-        toast.success('Current GPS coordinates captured!');
-        setLocating(false);
-      },
-      (err) => {
-        toast.error('Failed to capture location: ' + err.message);
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
-
-  const handleApprove = async (id: number) => {
-    try {
-      await api.post(`/api/staff/site-visits/${id}/approve/`);
-      toast.success('Site verification visit approved! User can now upgrade.');
-      fetchItems();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to approve site visit');
-    }
-  };
-
-  const handleReject = async (id: number) => {
-    const reason = prompt('Reason for rejection (will be sent to applicant):');
-    if (reason === null) return;
-    try {
-      await api.post(`/api/staff/site-visits/${id}/reject/`, { reason });
-      toast.success('Site visit marked as rejected');
-      fetchItems();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to reject site visit');
-    }
-  };
-
-  const handleSubmitNewVisit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser) return toast.error('Please select the customer/applicant user');
-    if (!form.business_name.trim()) return toast.error('Please enter the store / business name');
-    if (!form.address.trim()) return toast.error('Please enter the physical address');
-
-    setSubmitting(true);
-    const fd = new FormData();
-    fd.append('user_id', selectedUser.id);
-    fd.append('business_name', form.business_name);
-    if (form.contact_person) fd.append('contact_person', form.contact_person);
-    if (form.contact_phone) fd.append('contact_phone', form.contact_phone);
-    fd.append('address', form.address);
-    if (form.region) fd.append('region', form.region);
-    if (form.district) fd.append('district', form.district);
-    if (form.latitude) fd.append('latitude', form.latitude);
-    if (form.longitude) fd.append('longitude', form.longitude);
-    if (form.staff_notes) fd.append('staff_notes', form.staff_notes);
-    if (storefrontFile) fd.append('storefront_image', storefrontFile);
-    if (interiorFile) fd.append('interior_image', interiorFile);
-    if (documentFile) fd.append('document_image', documentFile);
-
-    try {
-      await api.post('/api/staff/site-visits/', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      toast.success('Physical site visit recorded successfully! Awaiting admin review.');
-      setShowModal(false);
-      setSelectedUser(null);
-      setUserQuery('');
-      setForm({
-        business_name: '',
-        contact_person: '',
-        contact_phone: '',
-        address: '',
-        region: 'Dar es Salaam',
-        district: '',
-        latitude: '',
-        longitude: '',
-        staff_notes: '',
-      });
-      setStorefrontFile(null);
-      setInteriorFile(null);
-      setDocumentFile(null);
-      fetchItems();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || err.response?.data?.user || 'Failed to record site visit');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const filteredItems = useMemo(() => {
     if (!search.trim()) return items;
     const q = search.toLowerCase();
@@ -1150,10 +1093,10 @@ export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolea
   }, [items, search]);
 
   const filterTabs = [
+    { key: 'all', label: 'All My Visits' },
     { key: 'pending_review', label: 'Pending Admin Review' },
     { key: 'approved', label: 'Approved' },
     { key: 'rejected', label: 'Rejected' },
-    { key: 'all', label: 'All Visits' },
   ];
 
   return (
@@ -1165,14 +1108,14 @@ export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolea
             <span>Physical Store Site Visits</span>
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Conduct in-person shop verifications, record physical evidence, and validate merchant credentials.
+            Conduct in-person shop verifications, record physical evidence, and submit for administrative review.
           </p>
         </div>
         <Button
           variant="default"
           size="sm"
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 rounded-xl"
+          className="bg-brand-500 hover:bg-brand-400 text-black font-bold flex items-center gap-2 rounded-xl cursor-pointer"
         >
           <Plus size={16} />
           <span>Record New Site Visit</span>
@@ -1189,7 +1132,7 @@ export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolea
                 key={tab.key}
                 type="button"
                 onClick={() => setFilter(tab.key)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                   isActive
                     ? 'bg-gray-900 text-white dark:bg-white dark:text-black shadow-xs'
                     : 'bg-surface-muted dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-surface-border dark:border-surface-dark-border'
@@ -1219,7 +1162,7 @@ export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolea
       ) : filteredItems.length === 0 ? (
         <EmptyState
           icon={MapPin}
-          title={`No ${filter === 'all' ? '' : filter} site visits`}
+          title={`No ${filter === 'all' ? '' : filter.replace('_', ' ')} site visits`}
           description={search ? 'No visits match your search query.' : 'There are currently no site visits recorded in this category.'}
         />
       ) : (
@@ -1286,8 +1229,8 @@ export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolea
                     <div className="grid grid-cols-3 gap-2">
                       {item.storefront_image && (
                         <div
-                          onClick={() => setPreviewImage(item.storefront_image)}
-                          className="relative aspect-video rounded-lg overflow-hidden border border-surface-border cursor-pointer group bg-neutral-100 dark:bg-neutral-800"
+                          onClick={() => openGallery(item, item.storefront_image)}
+                          className="relative aspect-video rounded-lg overflow-hidden cursor-pointer group bg-neutral-100 dark:bg-neutral-800"
                         >
                           <img src={item.storefront_image} alt="Storefront" className="w-full h-full object-cover group-hover:scale-105 transition" />
                           <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 py-0.5 rounded">Storefront</span>
@@ -1295,8 +1238,8 @@ export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolea
                       )}
                       {item.interior_image && (
                         <div
-                          onClick={() => setPreviewImage(item.interior_image)}
-                          className="relative aspect-video rounded-lg overflow-hidden border border-surface-border cursor-pointer group bg-neutral-100 dark:bg-neutral-800"
+                          onClick={() => openGallery(item, item.interior_image)}
+                          className="relative aspect-video rounded-lg overflow-hidden cursor-pointer group bg-neutral-100 dark:bg-neutral-800"
                         >
                           <img src={item.interior_image} alt="Interior" className="w-full h-full object-cover group-hover:scale-105 transition" />
                           <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 py-0.5 rounded">Interior</span>
@@ -1304,8 +1247,8 @@ export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolea
                       )}
                       {item.document_image && (
                         <div
-                          onClick={() => setPreviewImage(item.document_image)}
-                          className="relative aspect-video rounded-lg overflow-hidden border border-surface-border cursor-pointer group bg-neutral-100 dark:bg-neutral-800"
+                          onClick={() => openGallery(item, item.document_image)}
+                          className="relative aspect-video rounded-lg overflow-hidden cursor-pointer group bg-neutral-100 dark:bg-neutral-800"
                         >
                           <img src={item.document_image} alt="Document" className="w-full h-full object-cover group-hover:scale-105 transition" />
                           <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 py-0.5 rounded">License</span>
@@ -1334,271 +1277,125 @@ export const SiteVisitsManager: React.FC<{ isSuper?: boolean; canVerify?: boolea
                   <span>{new Date(item.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
-
-              {/* Action Buttons for Admin */}
-              {item.status === 'pending_review' && (canVerify || isSuper) && (
-                <div className="flex gap-2 pt-3 border-t border-surface-border">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => handleApprove(item.id)}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    <CheckCircle size={14} className="mr-1" />
-                    <span>Approve Site Visit</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleReject(item.id)}
-                    className="flex-1 text-red-500 hover:text-red-600 border-red-200 dark:border-red-900"
-                  >
-                    Reject
-                  </Button>
-                </div>
-              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* New Site Visit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs overflow-y-auto" onClick={() => setShowModal(false)}>
-          <div className="relative max-w-xl w-full bg-white dark:bg-[#0A0A0A] p-6 rounded-2xl border border-surface-border my-8 shadow-2xl space-y-5" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 p-1 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-white"
-            >
-              <X size={18} />
-            </button>
+      {/* Record Site Visit Modal */}
+      <RecordSiteVisitModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSuccess={fetchItems}
+      />
 
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <MapPin size={20} className="text-brand-500" />
-                <span>Record New Physical Site Visit</span>
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Enter inspected shop details, GPS coordinates, and capture photographic evidence for administrative review.
-              </p>
+      {/* Evidence Gallery Lightbox Modal */}
+      {gallery && gallery.images.length > 0 && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 select-none"
+          onClick={() => setGallery(null)}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Top Bar: Title, Counter & Close */}
+          <div
+            className="absolute top-0 inset-x-0 flex items-center justify-between px-6 py-4 z-20 text-white/90"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold tracking-wide">
+                {gallery.images[gallery.currentIndex]?.label}
+              </span>
+              {gallery.images.length > 1 && (
+                <span className="text-xs text-white/60 font-mono">
+                  ({gallery.currentIndex + 1} / {gallery.images.length})
+                </span>
+              )}
             </div>
 
-            <form onSubmit={handleSubmitNewVisit} className="space-y-4 text-xs">
-              {/* Target User Selection */}
-              <div>
-                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">
-                  Applicant Account (Customer User) *
-                </label>
-                {selectedUser ? (
-                  <div className="flex items-center justify-between p-2.5 bg-brand-500/10 border border-brand-500/30 rounded-xl">
-                    <div>
-                      <span className="font-bold text-gray-900 dark:text-white">@{selectedUser.username}</span>
-                      <span className="text-gray-500 text-[11px] block">{selectedUser.phone || selectedUser.email}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedUser(null)}
-                      className="text-xs text-brand-600 font-bold hover:underline"
-                    >
-                      Change
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="text"
-                        value={userQuery}
-                        onChange={(e) => setUserQuery(e.target.value)}
-                        placeholder="Search by username, phone, or email..."
-                        className="input pl-8 py-2 text-xs w-full"
-                      />
-                    </div>
-                    {searchingUsers && <p className="text-gray-400 text-[11px]">Searching users...</p>}
-                    <div className="max-h-36 overflow-y-auto border border-surface-border rounded-xl divide-y divide-surface-border">
-                      {userCandidates.map((u) => (
-                        <div
-                          key={u.id}
-                          onClick={() => { setSelectedUser(u); setUserCandidates([]); }}
-                          className="p-2 hover:bg-surface-muted/50 cursor-pointer flex items-center justify-between"
-                        >
-                          <div>
-                            <span className="font-bold text-gray-900 dark:text-white">@{u.username}</span>
-                            <span className="text-gray-500 text-[10px] block">{u.phone || u.email}</span>
-                          </div>
-                          <span className="text-[10px] font-semibold text-brand-500">Select</span>
-                        </div>
-                      ))}
-                      {userCandidates.length === 0 && !searchingUsers && (
-                        <p className="p-2 text-gray-400 text-center text-[11px]">Type to search active customer accounts</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Store & Contact Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Store / Business Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.business_name}
-                    onChange={(e) => setForm({ ...form, business_name: e.target.value })}
-                    placeholder="e.g., Mwananyamala Spares"
-                    className="input w-full py-1.5 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Contact Phone</label>
-                  <input
-                    type="text"
-                    value={form.contact_phone}
-                    onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
-                    placeholder="e.g., +255 712 345 678"
-                    className="input w-full py-1.5 text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Address */}
-              <div>
-                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Physical Store Address *</label>
-                <textarea
-                  required
-                  rows={2}
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  placeholder="Street, building name, shop number, or local landmark"
-                  className="input w-full py-1.5 text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Region</label>
-                  <input
-                    type="text"
-                    value={form.region}
-                    onChange={(e) => setForm({ ...form, region: e.target.value })}
-                    className="input w-full py-1.5 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">District</label>
-                  <input
-                    type="text"
-                    value={form.district}
-                    onChange={(e) => setForm({ ...form, district: e.target.value })}
-                    placeholder="e.g., Kinondoni"
-                    className="input w-full py-1.5 text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* GPS Capture */}
-              <div className="p-3 bg-surface-muted/40 dark:bg-neutral-900 rounded-xl space-y-2 border border-surface-border">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-800 dark:text-gray-200">On-Site GPS Capture</span>
-                  <button
-                    type="button"
-                    onClick={handleCaptureLocation}
-                    disabled={locating}
-                    className="btn-primary py-1 px-2.5 rounded-lg text-[11px] font-bold inline-flex items-center gap-1.5"
-                  >
-                    <MapPin size={12} />
-                    <span>{locating ? 'Capturing...' : 'Capture Current Location'}</span>
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Latitude (e.g., -6.7924)"
-                    value={form.latitude}
-                    onChange={(e) => setForm({ ...form, latitude: e.target.value })}
-                    className="input w-full py-1 text-xs"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Longitude (e.g., 39.2083)"
-                    value={form.longitude}
-                    onChange={(e) => setForm({ ...form, longitude: e.target.value })}
-                    className="input w-full py-1 text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Evidence Photos */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div>
-                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Storefront Photo</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setStorefrontFile(e.target.files?.[0] || null)}
-                    className="text-[11px] file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-surface-muted file:font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Interior / Stock</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setInteriorFile(e.target.files?.[0] || null)}
-                    className="text-[11px] file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-surface-muted file:font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Trade License / ID</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
-                    className="text-[11px] file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-surface-muted file:font-semibold"
-                  />
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Staff Field Observations</label>
-                <textarea
-                  rows={2}
-                  value={form.staff_notes}
-                  onChange={(e) => setForm({ ...form, staff_notes: e.target.value })}
-                  placeholder="Observations on signage presence, physical stock quantity, business authenticity..."
-                  className="input w-full py-1.5 text-xs"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-surface-border">
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="default" size="sm" loading={submitting}>
-                  Submit for Admin Review
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Image Preview Modal */}
-      {previewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-4xl max-h-[90vh] p-2 bg-black rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 text-white hover:bg-white/40 transition z-10"
+              type="button"
+              onClick={() => setGallery(null)}
+              className="p-2 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              title="Close (Esc)"
             >
-              <X size={16} />
+              <X size={22} />
             </button>
-            <img src={previewImage} alt="Site Visit Evidence" className="max-w-full max-h-[85vh] object-contain rounded-xl" />
           </div>
-        </div>
+
+          {/* Left Navigation Arrow */}
+          {gallery.images.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setGallery((prev) => {
+                  if (!prev) return null;
+                  return { ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length };
+                });
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition z-20 cursor-pointer"
+              title="Previous photo (Left Arrow / Swipe Right)"
+            >
+              <ChevronLeft size={28} />
+            </button>
+          )}
+
+          {/* Center Image Container - Zero box boundary, pure edge-to-edge content */}
+          <div
+            className="relative flex items-center justify-center w-full h-full p-4 sm:p-12"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              key={gallery.images[gallery.currentIndex]?.url}
+              src={gallery.images[gallery.currentIndex]?.url}
+              alt={gallery.images[gallery.currentIndex]?.label}
+              className="max-w-full max-h-[82vh] object-contain select-none shadow-2xl"
+              draggable={false}
+            />
+          </div>
+
+          {/* Right Navigation Arrow */}
+          {gallery.images.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setGallery((prev) => {
+                  if (!prev) return null;
+                  return { ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length };
+                });
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition z-20 cursor-pointer"
+              title="Next photo (Right Arrow / Swipe Left)"
+            >
+              <ChevronRight size={28} />
+            </button>
+          )}
+
+          {/* Bottom Dots Indicator */}
+          {gallery.images.length > 1 && (
+            <div
+              className="absolute bottom-5 inset-x-0 flex items-center justify-center gap-2 z-20"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {gallery.images.map((img, i) => (
+                <button
+                  key={img.url}
+                  type="button"
+                  onClick={() => setGallery((prev) => prev ? { ...prev, currentIndex: i } : null)}
+                  className={`transition-all duration-200 rounded-full cursor-pointer ${
+                    i === gallery.currentIndex
+                      ? 'w-6 h-1.5 bg-white'
+                      : 'w-1.5 h-1.5 bg-white/40 hover:bg-white/70'
+                  }`}
+                  title={img.label}
+                />
+              ))}
+            </div>
+          )}
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -1609,7 +1406,7 @@ export const CommissionPaymentsManager: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [, setPage] = useState(1);
+  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -1656,23 +1453,21 @@ export const CommissionPaymentsManager: React.FC = () => {
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore || loadingMore || loading) return;
+    if (!sentinel || !hasMore || loadingMore || loading || items.length < 10) return;
 
     const obs = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          setPage((prev) => {
-            const nextPage = prev + 1;
-            fetchItems(nextPage);
-            return nextPage;
-          });
+          const nextPage = page + 1;
+          setPage(nextPage);
+          fetchItems(nextPage);
         }
       },
-      { rootMargin: '400px' }
+      { rootMargin: '100px' }
     );
     obs.observe(sentinel);
     return () => obs.disconnect();
-  }, [hasMore, loadingMore, loading, fetchItems]);
+  }, [hasMore, loadingMore, loading, page, items.length, fetchItems]);
 
   const handleVerify = async (id: number) => {
     try {
@@ -1771,7 +1566,7 @@ export const CommissionPaymentsManager: React.FC = () => {
       {filter === 'OVERDUE' ? (
         <OverdueCommissionsList />
       ) : loading ? (
-        <CardGridSkeleton count={6} cols={3} />
+        <TableSkeleton rows={6} cols={7} />
       ) : filteredItems.length === 0 ? (
         <EmptyState
           icon={FileText}
@@ -1779,101 +1574,105 @@ export const CommissionPaymentsManager: React.FC = () => {
           description={search ? 'No payments match your search criteria.' : `There are no ${filter.toLowerCase()} commission payments.`}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="card p-5 flex flex-col justify-between space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-gray-900 dark:text-white text-base">@{item.seller_username}</h3>
-                      <a
-                        href={item.seller_store_url || `/${item.seller_username}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:underline"
-                      >
-                        <span>Store</span>
-                        <ExternalLink size={10} />
-                      </a>
-                    </div>
-                    <p className="text-xs text-gray-400 font-mono">Invoice: {item.invoice_year}/{item.invoice_month}</p>
-                    <p className="text-xs text-gray-400 font-mono">Tx ID: {item.transaction_id || '—'}</p>
-                  </div>
-                  <Badge text={item.status.toLowerCase()} />
-                </div>
-
-                {/* Clean Unboxed Metadata */}
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400 dark:text-gray-500 font-normal">Commission Amount</span>
-                    <span className="font-black text-gray-900 dark:text-white text-sm">TZS {parseFloat(item.amount || '0').toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400 dark:text-gray-500 font-normal">Submitted At</span>
-                    <span className="text-gray-700 dark:text-gray-300">{fmtDate(item.submitted_at)}</span>
-                  </div>
-
-                  {item.total_order_amount > 0 && (
-                    <div className="flex justify-between items-center text-[11px] text-gray-400">
-                      <span>Sales in Cycle</span>
-                      <span>TZS {parseFloat(item.total_order_amount || '0').toLocaleString()} ({item.order_count || 0} orders)</span>
-                    </div>
-                  )}
-
-                  {item.seller_phone && (
-                    <div className="flex justify-between items-center pt-1 border-t border-surface-border/40">
-                      <span className="text-gray-400 dark:text-gray-500 font-normal">Seller Phone</span>
-                      <a
-                        href={`tel:${item.seller_phone}`}
-                        className="font-mono text-gray-700 dark:text-gray-300 hover:text-brand-600 flex items-center gap-1"
-                      >
-                        <Phone size={11} /> {item.seller_phone}
-                      </a>
-                    </div>
-                  )}
-
-                  {item.seller_location && (
-                    <div className="flex justify-between items-center text-[11px] text-gray-400">
-                      <span className="flex items-center gap-1"><MapPin size={10} /> Location</span>
-                      <span>{item.seller_location}</span>
-                    </div>
-                  )}
-
-                  {item.rejection_reason && (
-                    <div className="pt-1 border-t border-surface-border/40 text-red-500">
-                      <span className="font-medium">Reason:</span> {item.rejection_reason}
-                    </div>
-                  )}
-                </div>
-
-                {item.receipt_screenshot && (
-                  <div
-                    onClick={() => setPreviewImage(item.receipt_screenshot)}
-                    className="relative group cursor-pointer overflow-hidden rounded-btn border border-surface-border/40 h-28 bg-surface-muted"
-                  >
-                    <img src={item.receipt_screenshot} alt="Receipt screenshot" className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                      <span className="text-white text-xs font-bold flex items-center gap-1.5">
-                        <Eye size={14} /> View Receipt
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-surface-muted/50 dark:bg-[#161616]/50 border-b border-surface-border text-xs font-semibold text-gray-500 dark:text-gray-400">
+                <tr>
+                  <th className="px-5 py-3">Seller & Invoice</th>
+                  <th className="px-4 py-3">Cycle Sales</th>
+                  <th className="px-4 py-3">Commission Due</th>
+                  <th className="px-4 py-3">Tx ID & Date</th>
+                  <th className="px-4 py-3 text-center">Receipt</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-border text-xs">
+                {filteredItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-surface-muted/30 dark:hover:bg-white/[0.02] transition">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-900 dark:text-white">@{item.seller_username}</span>
+                        <a
+                          href={item.seller_store_url || `/${item.seller_username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+                        >
+                          Store
+                        </a>
+                      </div>
+                      <div className="text-gray-400 text-[11px] font-mono mt-0.5">
+                        Cycle {item.invoice_year}/{item.invoice_month} {item.seller_phone ? `• ${item.seller_phone}` : ''}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <div className="font-semibold text-gray-800 dark:text-gray-200">
+                        TZS {parseFloat(item.total_order_amount || '0').toLocaleString()}
+                      </div>
+                      <div className="text-gray-400 text-[11px] mt-0.5">
+                        {item.order_count || 0} completed orders
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <span className="font-black text-gray-900 dark:text-white font-mono text-sm">
+                        TZS {parseFloat(item.amount || '0').toLocaleString()}
                       </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {filter === 'PENDING' && (
-                <div className="flex gap-2 pt-2 border-t border-surface-border/40">
-                  <Button variant="default" size="sm" onClick={() => handleVerify(item.id)} className="flex-1">
-                    Confirm Payment
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleReject(item.id)} className="flex-1 text-red-500 hover:text-red-600">
-                    Reject
-                  </Button>
-                </div>
-              )}
-            </div>
-          ))}
+                    </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <div className="font-mono text-gray-700 dark:text-gray-300 font-medium">
+                        {item.transaction_id || '—'}
+                      </div>
+                      <div className="text-gray-400 text-[11px] mt-0.5">
+                        {fmtDate(item.submitted_at)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      {item.receipt_screenshot ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewImage(item.receipt_screenshot)}
+                          className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-surface-muted hover:bg-brand-500/10 hover:text-brand-600 border border-surface-border transition cursor-pointer"
+                        >
+                          View Receipt
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <Badge text={item.status.toLowerCase()} />
+                    </td>
+                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                      {filter === 'PENDING' ? (
+                        <div className="inline-flex items-center gap-2">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleVerify(item.id)}
+                            className="bg-brand-500 hover:bg-brand-400 text-black font-bold text-xs h-7 px-2.5 rounded-lg"
+                          >
+                            Confirm
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReject(item.id)}
+                            className="text-rose-500 hover:text-rose-600 border-rose-200 dark:border-rose-900/60 text-xs h-7 px-2.5 rounded-lg"
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs capitalize">{item.status.toLowerCase()}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1882,15 +1681,16 @@ export const CommissionPaymentsManager: React.FC = () => {
       <div ref={sentinelRef} className="h-4" />
 
       {/* Modal for image preview */}
-      {previewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[85vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition">
+      {previewImage && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-3xl max-h-[85vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition cursor-pointer">
               <X size={16} />
             </button>
             <img src={previewImage} alt="Payment Proof" className="max-w-full max-h-[80vh] object-contain rounded-btn" />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -2350,15 +2150,16 @@ export const PromotionQueue: React.FC = () => {
       <div ref={sentinelRef} className="h-4" />
 
       {/* Preview Modal */}
-      {previewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs" onClick={() => setPreviewImage(null)}>
-          <div className="relative max-w-3xl max-h-[90vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition">
+      {previewImage && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-3xl max-h-[90vh] bg-surface-card dark:bg-[#0A0A0A] p-2 rounded-card border border-surface-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewImage(null)} className="absolute top-3 right-3 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition cursor-pointer">
               <X size={16} />
             </button>
             <img src={previewImage} alt="Receipt Full" className="max-w-full max-h-[80vh] object-contain rounded-btn" />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -3027,6 +2828,7 @@ const StaffDashboardLayout: React.FC = () => {
   const isInspectorOnly = !!data?.user?.is_inspector && !isSuper && perms.length === 0;
 
   const canVerify = perms.includes('can_verify_requests') || isSuper;
+  const canConductSiteVisits = perms.includes('can_conduct_site_visits') || canVerify || isSuper;
   const canModerate = perms.includes('can_moderate') || isSuper;
   const canApprove = perms.includes('can_approve_content') || isSuper;
   const canReviewPromo = perms.includes('can_review_promotions') || isSuper;
@@ -3043,7 +2845,7 @@ const StaffDashboardLayout: React.FC = () => {
     { path: '/staff/tasks', label: 'My Tasks', icon: ClipboardList },
     { path: '/staff/subscriptions', label: 'Subscriptions', icon: CreditCard, show: canVerify },
     { path: '/staff/seller-applications', label: 'Seller Upgrades', icon: Shield, show: canVerify },
-    { path: '/staff/site-visits', label: 'Site Visits', icon: MapPin, show: canVerify || isSuper },
+    { path: '/staff/site-visits', label: 'Site Visits', icon: MapPin, show: canConductSiteVisits },
     { path: '/staff/warehouse', label: 'Warehouse Intake', icon: Package, show: canManageWarehouse },
     { path: '/staff/logistics', label: 'Logistics Manager', icon: Truck, show: canManageLogistics },
     { path: '/staff/invoices', label: 'Commission Payments', icon: FileText, show: canVerify },
@@ -3056,7 +2858,7 @@ const StaffDashboardLayout: React.FC = () => {
   ].filter((item) => item.show === undefined || item.show);
 
   return (
-    <div className="max-w-6xl mx-auto p-4 pb-24 lg:pb-6 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
+    <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-24 lg:pb-8 flex flex-col gap-6 print:p-0 print:m-0 print:gap-0">
       {/* Mobile Slide-Over Navigation Drawer & Floating FAB Button */}
       <DashboardMobileDrawer
         title="Staff Operations"

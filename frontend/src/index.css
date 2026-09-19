@@ -14,10 +14,12 @@
     -moz-osx-font-smoothing: grayscale;
     overflow-x: clip;
     color-scheme: light;
+    background-color: #fafafa;
   }
 
   html.dark {
     color-scheme: dark;
+    background-color: #050505;
   }
 
   :root {

@@ -238,6 +238,7 @@ class StaffPermission(models.Model):
         ('can_manage_warehouse_intake', 'Manage Warehouse Intake'),
         ('can_manage_warehouse_transfers', 'Manage Warehouse Transfers'),
         ('can_manage_logistics', 'Manage Logistics'),
+        ('can_conduct_site_visits', 'Conduct Store Site Visits'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='staff_permissions')
