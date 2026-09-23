@@ -11,7 +11,7 @@ import { timeAgo } from '../utils/timeAgo';
 import { preloadProductDetail } from '../App';
 import { useUserLocation } from '../context/LocationContext';
 
-const TrendingMetricBadge = ({ product, metricType = 'auto' }: { product: any; metricType?: boolean | string }) => {
+const TrendingMetricBadge = ({ product, metricType = 'auto', compact = false }: { product: any; metricType?: boolean | string; compact?: boolean }) => {
   const { t } = useTranslation();
   const sales = product.weekly_sales || 0;
   const likes = product.like_count || 0;
@@ -38,14 +38,17 @@ const TrendingMetricBadge = ({ product, metricType = 'auto' }: { product: any; m
   }
 
   return (
-    <div className="flex items-center gap-1 text-[9px] font-black bg-white/95 dark:bg-gray-800/95 text-gray-800 dark:text-gray-200 h-8 px-2.5 rounded-full border border-orange-500/50 shadow-md uppercase tracking-wider w-fit">
+    <div className={compact
+      ? "flex items-center gap-1 text-[8px] sm:text-[9px] font-black bg-white/95 dark:bg-gray-800/95 text-gray-800 dark:text-gray-200 h-6 sm:h-7 px-1.5 sm:px-2 rounded-full border border-orange-500/50 shadow-md uppercase tracking-wider w-fit"
+      : "flex items-center gap-1 text-[9px] font-black bg-white/95 dark:bg-gray-800/95 text-gray-800 dark:text-gray-200 h-8 px-2.5 rounded-full border border-orange-500/50 shadow-md uppercase tracking-wider w-fit"
+    }>
       {icon}
       <span>{label}</span>
     </div>
   );
 };
 
-const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = false, showTrendingMetrics = false }: any) => {
+const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = false, showTrendingMetrics = false, compact = false }: any) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isInteractive, setIsInteractive] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -139,18 +142,18 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
           </span>
         </div>
       ) : (
-        <div className="absolute top-4 left-4 flex flex-col gap-4 z-10 pointer-events-none">
-          {showTrendingMetrics && <TrendingMetricBadge product={product} metricType={showTrendingMetrics} />}
+        <div className={compact ? "absolute top-2 left-2 sm:top-2.5 sm:left-2.5 flex flex-col gap-1 sm:gap-1.5 z-10 pointer-events-none" : "absolute top-4 left-4 flex flex-col gap-4 z-10 pointer-events-none"}>
+          {showTrendingMetrics && <TrendingMetricBadge product={product} metricType={showTrendingMetrics} compact={compact} />}
           {isSponsored && (
-            <span className="font-black text-sm uppercase tracking-wider leading-none w-fit text-brand-500 dark:text-brand-400">
+            <span className={compact ? "font-black text-[10px] sm:text-xs uppercase tracking-wider leading-none w-fit text-brand-500 dark:text-brand-400" : "font-black text-sm uppercase tracking-wider leading-none w-fit text-brand-500 dark:text-brand-400"}>
               {t('sponsored', 'Sponsored')}
             </span>
           )}
-          <span className={`font-black text-sm uppercase tracking-wider leading-none w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
+          <span className={`font-black ${compact ? 'text-xs sm:text-sm' : 'text-sm'} uppercase tracking-wider leading-none w-fit ${(product.condition || '').toLowerCase() === 'new' ? 'text-green-500' : 'text-gray-400'}`}>
             {getConditionLabel()}
           </span>
           {!product.requires_quote && product.old_price > product.price && (
-            <span className="h-7 px-2 rounded-full font-black text-[10px] uppercase flex items-center justify-center w-fit shadow-md bg-white/95 dark:bg-gray-800/95 border border-red-500 dark:border-red-500/50 text-red-500 dark:text-red-400">
+            <span className={compact ? "h-5 sm:h-6 px-1.5 sm:px-2 rounded-full font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center w-fit shadow-md bg-white/95 dark:bg-gray-800/95 border border-red-500 dark:border-red-500/50 text-red-500 dark:text-red-400" : "h-7 px-2 rounded-full font-black text-[10px] uppercase flex items-center justify-center w-fit shadow-md bg-white/95 dark:bg-gray-800/95 border border-red-500 dark:border-red-500/50 text-red-500 dark:text-red-400"}>
               -{Math.round(((product.old_price - product.price) / product.old_price) * 100)}%
             </span>
           )}
@@ -174,7 +177,7 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
           </button>
           
-          <div className={`absolute left-1/2 -translate-x-1/2 flex items-center gap-1 z-10 pointer-events-none ${viewMode === 'list' ? 'bottom-2' : 'bottom-28'}`}>
+          <div className={`absolute left-1/2 -translate-x-1/2 flex items-center gap-1 z-10 pointer-events-none ${viewMode === 'list' ? 'bottom-2' : (compact ? 'bottom-20 sm:bottom-28' : 'bottom-28')}`}>
             {images.map((_: any, i: number) => (
               <div 
                 key={i} 
@@ -188,7 +191,23 @@ const ProductImageCarousel = ({ product, viewMode, isSponsored, isTopFold = fals
   );
 };
 
-const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isTopFold = false, showTrendingMetrics = false }: { product: any; viewMode?: 'grid' | 'list'; isSponsored?: boolean; isTopFold?: boolean; showTrendingMetrics?: boolean | string }) => {
+const ProductCard = memo(({ 
+  product, 
+  viewMode = 'grid', 
+  isSponsored = false, 
+  isTopFold = false, 
+  showTrendingMetrics = false,
+  compact = false,
+  className = ''
+}: { 
+  product: any; 
+  viewMode?: 'grid' | 'list'; 
+  isSponsored?: boolean; 
+  isTopFold?: boolean; 
+  showTrendingMetrics?: boolean | string;
+  compact?: boolean;
+  className?: string;
+}) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -271,7 +290,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
 
   if (viewMode === 'list') {
     return (
-      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-500/60 dark:ring-yellow-500/40' : ''}`}>
+      <div className={`group relative card overflow-hidden flex flex-row items-center p-2 gap-4 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] ring-2 ring-yellow-500/60 dark:ring-yellow-500/40' : ''} ${className}`}>
         <Link 
           to={`/product/${product.slug}`} 
           {...bgState} 
@@ -352,8 +371,10 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
     );
   }
 
+  const sizingClasses = className ? className : 'min-h-[320px]';
+
   return (
-    <div className={`group relative card overflow-hidden flex flex-col h-full min-h-[320px] bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-500/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all`}>
+    <div className={`group relative card overflow-hidden flex flex-col h-full bg-white dark:bg-[#0A0A0A] border-2 ${isSponsored ? 'shadow-[0_0_15px_rgba(250,204,21,0.4)] dark:shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-500/60 dark:border-yellow-500/40' : 'border-surface-border dark:border-surface-dark-border'} hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-card-hover transition-all ${sizingClasses}`}>
       <Link 
         to={`/product/${product.slug}`} 
         {...bgState} 
@@ -363,43 +384,43 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
         onTouchStart={preloadProductDetail}
       >
         {/* Image Carousel — fixed height */}
-        <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} />
+        <ProductImageCarousel product={product} viewMode={viewMode} isSponsored={isSponsored} isTopFold={isTopFold} showTrendingMetrics={showTrendingMetrics} compact={compact} />
 
         {/* Card body */}
-        <div className="absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent">
+        <div className={compact ? "absolute bottom-0 left-0 right-0 p-1.5 sm:p-2.5 flex flex-col gap-1 sm:gap-1.5 z-10 bg-transparent" : "absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 bg-transparent"}>
           {/* Badges row */}
-          <div className="flex flex-wrap items-center gap-1">
+          {(product.oem_part_number || product.has_inspection) && (
             <div className="flex flex-wrap items-center gap-1">
               {product.oem_part_number && (
                  <div className="flex items-center text-[7.5px] text-neutral-700 dark:text-neutral-300 font-mono font-bold bg-white/95 dark:bg-black/95 px-1.5 py-0.5 rounded-card border border-gray-200/80 dark:border-white/10 whitespace-nowrap shrink-0 shadow-sm" title={`OEM Part: ${product.oem_part_number}`}>
-                   <span className="text-[7.5px]">OEM: {product.oem_part_number}</span>
+                   <span>OEM: {product.oem_part_number}</span>
                  </div>
               )}
               {product.has_inspection && (
                  <div className="flex items-center text-[7.5px] text-emerald-600 dark:text-emerald-400 font-black bg-emerald-50/95 dark:bg-emerald-900/90 px-1.5 py-0.5 rounded-card border border-emerald-100/50 dark:border-emerald-800/30 whitespace-nowrap shrink-0 shadow-sm" title={t('professionally_inspected', 'Professionally Inspected')}>
-                   <span className="uppercase tracking-widest text-[7.5px]">{t('inspected_label', 'Inspected ✓')}</span>
+                   <span className="uppercase tracking-widest">{t('inspected_label', 'Inspected ✓')}</span>
                  </div>
               )}
             </div>
-          </div>
+          )}
 
           {/* Product Name Bubble */}
-          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm">
-            <h3 className="font-bold text-xs text-gray-900 dark:text-white line-clamp-1 transition-colors">{product.name}</h3>
+          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm overflow-hidden">
+            <h3 className={`font-bold ${compact ? 'text-[10.5px] sm:text-xs' : 'text-xs'} text-gray-900 dark:text-white truncate transition-colors leading-tight`}>{product.name}</h3>
           </div>
           
           {/* Price Bubble */}
-          <div className="w-fit px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm flex items-baseline gap-1.5">
+          <div className="w-fit max-w-full px-2 py-0.5 rounded-card bg-white/95 dark:bg-[#0A0A0A]/95 border border-gray-100 dark:border-white/10 shadow-sm flex items-center gap-1.5 whitespace-nowrap overflow-hidden">
             {product.requires_quote ? (
-              <span className="font-black text-gray-900 dark:text-white text-sm">
+              <span className={`font-black text-gray-900 dark:text-white ${compact ? 'text-xs sm:text-sm' : 'text-sm'} truncate leading-tight`}>
                 {t('price_on_request', 'Price on Request')}
               </span>
             ) : (
               <>
                 {product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) && (
-                  <span className="text-[10px] text-gray-400 line-through font-medium">TSh {parseInt(product.price).toLocaleString()}</span>
+                  <span className="text-[10px] text-gray-400 line-through font-medium truncate shrink-0">TSh {parseInt(product.price).toLocaleString()}</span>
                 )}
-                <span className="font-black text-gray-900 dark:text-white text-sm">
+                <span className={`font-black text-gray-900 dark:text-white ${compact ? 'text-xs sm:text-sm' : 'text-sm'} truncate leading-tight`}>
                   TSh {parseInt(product.sale_price && parseFloat(product.sale_price) < parseFloat(product.price) ? product.sale_price : product.price).toLocaleString()}
                 </span>
               </>
@@ -409,7 +430,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
           {/* Seller Info Bubbles */}
           <div className="flex items-center gap-1 w-full overflow-x-auto no-scrollbar touch-pan-y overscroll-x-contain">
             {/* Seller Username Bubble */}
-            <div className="flex items-center gap-0.5 text-[8.5px] text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold">
+            <div className={`flex items-center gap-0.5 ${compact ? 'text-[7.5px] sm:text-[8.5px] max-w-[80px]' : 'text-[8.5px]'} text-gray-800 dark:text-gray-200 bg-white/95 dark:bg-black/95 border border-gray-100 dark:border-white/10 rounded-card px-1.5 py-0.5 shadow-sm shrink-0 font-bold sm:max-w-none`}>
               <span className="truncate">{product.seller_username || 'Seller'}</span>
               <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3 h-3 shrink-0" />
             </div>
@@ -417,7 +438,7 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
             {/* Location & Distance (simple subtle text, no nested card, no colored icons) */}
             {(product.location_name || distanceLabel) && (
               <span 
-                className="text-[8.5px] text-gray-500 dark:text-gray-400 font-medium truncate max-w-[70px] shrink-0"
+                className={`text-[8.5px] text-gray-500 dark:text-gray-400 font-medium truncate ${compact ? 'max-w-[55px]' : 'max-w-[70px]'} shrink-0`}
                 title={product.location_name ? (distanceLabel ? `${product.location_name} (${distanceLabel})` : product.location_name) : (distanceLabel || '')}
               >
                 {distanceLabel || product.location_name}
@@ -442,10 +463,10 @@ const ProductCard = memo(({ product, viewMode = 'grid', isSponsored = false, isT
       </Link>
 
       {/* Top overlay: Like */}
-      <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
-        <button onClick={handleLike} className={`h-8 px-2.5 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center gap-1.5 shadow-md transition-colors ${liked ? '  text-red-500 border border-red-500 dark:border-red-500/50' : '  text-gray-500 hover:text-red-500 border border-transparent'}`} title="Like">
-          <Heart size={14} className={liked ? 'fill-current' : ''} />
-          <span className="text-[10px] font-bold">{likeCount}</span>
+      <div className={compact ? "absolute top-2 right-2 sm:top-2.5 sm:right-2.5 flex flex-col gap-2 z-10" : "absolute top-2 right-2 flex flex-col gap-2 z-10"}>
+        <button onClick={handleLike} className={compact ? `h-6 sm:h-7 px-1.5 sm:px-2 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center gap-1 shadow-md transition-colors ${liked ? ' text-red-500 border border-red-500 dark:border-red-500/50' : ' text-gray-500 hover:text-red-500 border border-transparent'}` : `h-8 px-2.5 rounded-full bg-white/95 dark:bg-gray-800/95 flex items-center justify-center gap-1.5 shadow-md transition-colors ${liked ? ' text-red-500 border border-red-500 dark:border-red-500/50' : ' text-gray-500 hover:text-red-500 border border-transparent'}`} title="Like">
+          <Heart size={compact ? 12 : 14} className={liked ? 'fill-current' : ''} />
+          <span className={compact ? "text-[9px] sm:text-[10px] font-bold" : "text-[10px] font-bold"}>{likeCount}</span>
         </button>
       </div>
     </div>

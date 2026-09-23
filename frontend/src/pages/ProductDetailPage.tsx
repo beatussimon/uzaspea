@@ -1809,24 +1809,24 @@ const ProductDetailPage: React.FC = () => {
           {/* Merchant Trust & Info */}
           <div>
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">{t('seller_info', 'Seller Info')}</h3>
-            <div className="flex flex-col gap-3 bg-gray-50 dark:bg-[#242526] p-4 rounded-2xl border border-transparent">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-800 flex items-center justify-center shrink-0">
+            <div className="flex flex-col gap-3 bg-gray-50 dark:bg-[#242526] p-3.5 sm:p-4 rounded-2xl border border-transparent overflow-hidden w-full max-w-full">
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-800 flex items-center justify-center shrink-0">
                     {product.seller_profile_picture ? (
                       <img src={product.seller_profile_picture} alt={product.seller_username} className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-lg font-black text-gray-500 dark:text-gray-400 uppercase">
+                      <span className="text-base sm:text-lg font-black text-gray-500 dark:text-gray-400 uppercase">
                         {product.seller_username.charAt(0)}
                       </span>
                     )}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <Link to={`/${product.seller_username}`} className="text-base font-bold text-gray-900 dark:text-white hover:underline transition">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Link to={`/${product.seller_username}`} className="text-sm sm:text-base font-bold text-gray-900 dark:text-white hover:underline transition truncate">
                         {product.seller_full_name || product.seller_username}
                       </Link>
-                      <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3.5 h-3.5" />
+                      <VerifiedBadge tier={product.seller_tier} isVerified={product.seller_verified} className="w-3.5 h-3.5 shrink-0" />
                     </div>
                     <div className="flex items-center gap-1">
                       {product.avg_rating > 0 ? (
@@ -1847,7 +1847,7 @@ const ProductDetailPage: React.FC = () => {
               </div>
               
               {product.seller_username !== localStorage.getItem('username') && (
-                <div className="flex flex-col gap-2 mt-1">
+                <div className="flex flex-col gap-2 mt-1 w-full min-w-0">
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                     {t('send_seller_message', 'Send Seller a Message')}
                   </p>
@@ -1869,22 +1869,22 @@ const ProductDetailPage: React.FC = () => {
                       {t('view_message', 'View Message')}
                     </button>
                   ) : (
-                    <form onSubmit={handleDirectSendMessage} className="flex gap-2">
+                    <form onSubmit={handleDirectSendMessage} className="w-full min-w-0 flex items-center gap-2">
                       <input
                         type="text"
                         value={customMessage}
                         onChange={(e) => setCustomMessage(e.target.value)}
                         placeholder={t('quick_message_placeholder', 'Hi, is this still available?')}
-                        className="flex-1 bg-white dark:bg-[#18191a] border border-gray-200 dark:border-neutral-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 dark:focus:border-amber-400 transition-colors shadow-2xs"
+                        className="min-w-0 flex-1 bg-white dark:bg-[#18191a] border border-gray-200 dark:border-neutral-700 rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 dark:focus:border-amber-400 transition-colors shadow-2xs"
                       />
                       <button
                         type="submit"
                         disabled={isSendingMessage || !customMessage.trim()}
-                        className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-black text-sm font-extrabold transition-all shadow-sm active:scale-95 whitespace-nowrap cursor-pointer"
+                        className="shrink-0 flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-black text-xs sm:text-sm font-extrabold transition-all shadow-sm active:scale-95 whitespace-nowrap cursor-pointer"
                       >
                         {isSendingMessage ? (
                           <>
-                            <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                            <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                             <span>{t('sending', 'Sending...')}</span>
                           </>
                         ) : (
@@ -2056,7 +2056,7 @@ const ProductDetailPage: React.FC = () => {
         <div 
           ref={similarProductsColRef}
           onWheel={handleRow2Wheel}
-          className="w-full max-w-full lg:col-start-1 lg:row-start-2 bg-white dark:bg-[#18191a] text-gray-900 dark:text-white p-5 sm:p-6 lg:p-0 border-t border-gray-200 dark:border-neutral-800 lg:h-full lg:overflow-y-auto"
+          className="w-full max-w-full min-w-0 overflow-x-hidden lg:col-start-1 lg:row-start-2 bg-white dark:bg-[#18191a] text-gray-900 dark:text-white p-3.5 sm:p-6 lg:p-0 border-t border-gray-200 dark:border-neutral-800 lg:h-full lg:overflow-y-auto"
         >
           {/* Section 1: You Might Also Like */}
           <YouMightAlsoLikeSection 

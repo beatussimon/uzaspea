@@ -90,6 +90,55 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
     };
   }, []);
 
+  // Mouse drag-to-scroll for desktop & pointer swiping
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftStartRef = useRef(0);
+  const hasDraggedSignificantlyRef = useRef(false);
+  const [isPointerDown, setIsPointerDown] = useState(false);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Only primary button (left click or touch)
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    pauseAutoScrollTemporarily();
+    isDraggingRef.current = true;
+    startXRef.current = e.pageX;
+    scrollLeftStartRef.current = el.scrollLeft;
+    hasDraggedSignificantlyRef.current = false;
+    setIsPointerDown(true);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const dx = e.pageX - startXRef.current;
+    if (Math.abs(dx) > 6) {
+      hasDraggedSignificantlyRef.current = true;
+      pauseAutoScrollTemporarily();
+      // Smooth manual drag scrolling
+      el.scrollLeft = scrollLeftStartRef.current - dx;
+    }
+  };
+
+  const handlePointerUpOrCancel = () => {
+    isDraggingRef.current = false;
+    setIsPointerDown(false);
+  };
+
+  const handleClickCapture = (e: React.MouseEvent) => {
+    // Prevent accidental click/navigation if the user was dragging/swiping
+    if (hasDraggedSignificantlyRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      hasDraggedSignificantlyRef.current = false;
+    }
+  };
+
   // Section Infinite Scroll Fetcher
   const fetchNextPage = useCallback(() => {
     if (isFetchingRef.current || !hasMore || loadingMore || !id) return;
@@ -219,11 +268,8 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
   const scroll = (direction: 'left' | 'right') => {
     const el = scrollRef.current;
     if (!el) return;
-    const scrollAmount = el.clientWidth * 0.8;
-    el.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth',
-    });
+    const targetIdx = direction === 'left' ? Math.max(0, activeColIndex - 1) : Math.min(totalColumns - 1, activeColIndex + 1);
+    scrollToColumn(targetIdx);
   };
 
   const handleManualScroll = (direction: 'left' | 'right') => {
@@ -430,7 +476,15 @@ export const DiscoveryShelf: React.FC<DiscoveryShelfProps> = ({
             onTouchStart={pauseAutoScrollTemporarily}
             onTouchMove={pauseAutoScrollTemporarily}
             onWheel={handleWheel}
-            className="grid grid-rows-[repeat(2,auto)] grid-flow-col gap-3 sm:gap-4 md:gap-5 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1.5 pt-0.5 auto-cols-[100%] sm:auto-cols-[calc((100%-16px)/2)] lg:auto-cols-[calc((100%-40px)/3)] xl:auto-cols-[calc((100%-60px)/4)] 2xl:auto-cols-[calc((100%-80px)/5)] touch-pan-y overscroll-x-contain"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUpOrCancel}
+            onPointerCancel={handlePointerUpOrCancel}
+            onPointerLeave={handlePointerUpOrCancel}
+            onClickCapture={handleClickCapture}
+            className={`grid grid-rows-[repeat(2,auto)] grid-flow-col gap-3 sm:gap-4 md:gap-5 overflow-x-auto no-scrollbar pb-1.5 pt-0.5 auto-cols-[100%] sm:auto-cols-[calc((100%-16px)/2)] lg:auto-cols-[calc((100%-40px)/3)] xl:auto-cols-[calc((100%-60px)/4)] 2xl:auto-cols-[calc((100%-80px)/5)] touch-pan-y overscroll-x-contain select-none ${
+              isPointerDown ? 'cursor-grabbing snap-none' : 'cursor-grab snap-x snap-mandatory'
+            }`}
           >
             {displayProducts.map((product, idx) => (
               <div
