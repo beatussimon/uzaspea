@@ -264,8 +264,9 @@ export const ProductGridSkeleton: React.FC<{
 /**
  * Product Card Skeleton (Single item list or grid mode)
  */
-export const ProductCardSkeleton: React.FC<{ viewMode?: 'grid' | 'list'; className?: string }> = ({
+export const ProductCardSkeleton: React.FC<{ viewMode?: 'grid' | 'list'; compact?: boolean; className?: string }> = ({
   viewMode = 'grid',
+  compact = false,
   className = '',
 }) => {
   if (viewMode === 'list') {
@@ -284,15 +285,26 @@ export const ProductCardSkeleton: React.FC<{ viewMode?: 'grid' | 'list'; classNa
     );
   }
 
+  const sizingClasses = className ? className : 'min-h-[320px]';
+
   return (
-    <div className={cn('card overflow-hidden flex flex-col h-full bg-white dark:bg-gray-800 border border-surface-border dark:border-surface-dark-border', className)}>
-      <Skeleton className="aspect-[4/3] rounded-none" />
-      <div className="p-3.5 flex flex-col flex-1">
-        <Skeleton className="w-full h-4 mb-2 rounded" />
-        <Skeleton className="w-2/3 h-3 mb-4 rounded" />
-        <div className="mt-auto pt-2 flex justify-between items-center border-t border-surface-border/40 dark:border-surface-dark-border/40">
-          <Skeleton className="w-16 h-4 rounded" />
-          <Skeleton className="w-12 h-3 rounded" />
+    <div className={cn('relative card overflow-hidden flex flex-col h-full bg-gray-100 dark:bg-[#18191a] border border-surface-border dark:border-surface-dark-border', sizingClasses)}>
+      {/* Top overlay skeleton */}
+      <div className={compact ? "absolute top-2 left-2 right-2 flex items-center justify-between z-10 pointer-events-none" : "absolute top-4 left-4 right-4 flex items-center justify-between z-10 pointer-events-none"}>
+        <Skeleton className={compact ? "w-10 h-4 rounded-md" : "w-14 h-5 rounded-md"} />
+        <Skeleton className={compact ? "w-8 h-6 rounded-full" : "w-10 h-8 rounded-full"} />
+      </div>
+      {/* Center image placeholder shimmer */}
+      <div className="w-full h-full flex items-center justify-center">
+        <Skeleton className="w-12 h-12 rounded-xl opacity-40" />
+      </div>
+      {/* Bottom floating pills skeleton */}
+      <div className={compact ? "absolute bottom-0 left-0 right-0 p-1.5 sm:p-2.5 flex flex-col gap-1 sm:gap-1.5 z-10 pointer-events-none" : "absolute bottom-0 left-0 right-0 p-2.5 flex flex-col gap-1.5 z-10 pointer-events-none"}>
+        <Skeleton className="w-3/5 h-3.5 rounded-md" />
+        <Skeleton className="w-2/5 h-4.5 rounded-md" />
+        <div className="flex items-center gap-1">
+          <Skeleton className="w-12 h-3.5 rounded-md" />
+          <Skeleton className="w-8 h-3.5 rounded-md" />
         </div>
       </div>
     </div>

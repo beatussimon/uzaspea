@@ -250,16 +250,18 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
             isCollapsed ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-[1600px] opacity-100'
           }`}
         >
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
             {loading
               ? Array.from({ length: 4 }).map((_, idx) => (
-                  <ProductCardSkeleton key={`rec-skeleton-mobile-${idx}`} viewMode="grid" />
+                  <ProductCardSkeleton key={`rec-skeleton-mobile-${idx}`} viewMode="grid" compact className="aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[320px]" />
                 ))
               : visibleMobileProducts.map((prod) => (
                   <ProductCard
                     key={`rec-mob-${prod.id}`}
                     product={prod}
                     viewMode="grid"
+                    compact
+                    className="aspect-[4/5] sm:aspect-auto min-h-0 sm:min-h-[320px]"
                   />
                 ))}
           </div>
@@ -282,7 +284,7 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
                     key={`rec-skeleton-desktop-${idx}`}
                     className="w-[calc((100%-32px)/3)] min-w-[calc((100%-32px)/3)] max-w-[calc((100%-32px)/3)] shrink-0 snap-start"
                   >
-                    <ProductCardSkeleton viewMode="grid" />
+                    <ProductCardSkeleton viewMode="grid" className="min-h-[300px] md:min-h-[320px]" />
                   </div>
                 ))
               : visibleDesktopProducts.map((prod) => (
@@ -293,6 +295,7 @@ export const YouMightAlsoLikeSection: React.FC<YouMightAlsoLikeSectionProps> = (
                     <ProductCard
                       product={prod}
                       viewMode="grid"
+                      className="min-h-[300px] md:min-h-[320px]"
                     />
                   </div>
                 ))}
