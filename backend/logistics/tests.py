@@ -86,6 +86,61 @@ class DeliveryEngineTests(TestCase):
         self.assertEqual(std_quote['price'], 15000.0)
         self.assertTrue(std_quote['is_historical_estimate'])
 
+    def test_1km_historical_delivery_pricing_quote(self):
+        from rest_framework.test import APIClient
+        from marketplace.models import Order
+        from decimal import Decimal
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user1 = User.objects.create_user('testbuyer_geo', 'tb@test.com', 'password123')
+        
+        # Create an existing delivered order with shipping fee 6500 at coordinates (-6.7760, 39.1783)
+        Order.objects.create(
+            user=user1,
+            status='DELIVERED',
+            fulfillment_type='PLATFORM_DELIVERY',
+            shipping_method='DELIVERY',
+            shipping_fee=Decimal('6500.00'),
+            delivery_latitude=Decimal('-6.776000'),
+            delivery_longitude=Decimal('39.178300')
+        )
+
+        client = APIClient()
+
+        # Query 1: Exactly ~200 meters away -> should find historical price
+        res_near = client.post('/api/logistics/pricing/quote/', {
+            'end_lat': -6.7770,
+            'end_lng': 39.1790,
+            'fulfillment_type': 'PLATFORM_DELIVERY'
+        }, format='json')
+        self.assertEqual(res_near.status_code, 200)
+        data_near = res_near.json()
+        self.assertTrue(data_near['has_historical_price'])
+        self.assertEqual(data_near['price'], 6500.0)
+        self.assertEqual(len(data_near['quotes']), 1)
+
+        # Query 2: Far away (> 5 km away) -> should NOT find historical price, no synthetic quotes
+        res_far = client.post('/api/logistics/pricing/quote/', {
+            'end_lat': -6.8500,
+            'end_lng': 39.2800,
+            'fulfillment_type': 'PLATFORM_DELIVERY'
+        }, format='json')
+        self.assertEqual(res_far.status_code, 200)
+        data_far = res_far.json()
+        self.assertFalse(data_far['has_historical_price'])
+        self.assertIsNone(data_far['price'])
+        self.assertEqual(len(data_far['quotes']), 0)
+
+        # Query 3: Non-platform delivery (e.g. DIRECT_DELIVERY) -> returns no quotes
+        res_direct = client.post('/api/logistics/pricing/quote/', {
+            'end_lat': -6.7770,
+            'end_lng': 39.1790,
+            'fulfillment_type': 'DIRECT_DELIVERY'
+        }, format='json')
+        self.assertEqual(res_direct.status_code, 200)
+        self.assertFalse(res_direct.json()['has_historical_price'])
+        self.assertEqual(len(res_direct.json()['quotes']), 0)
+
 
 class PickupCodeTests(TestCase):
     def setUp(self):

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useUserRoles } from '../../context/AuthContext';
+import { SUPPORTED_COUNTRIES, getDefaultCountry, setDefaultCountry } from '../../services/addressService';
 
 const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -40,6 +41,7 @@ const SettingsPage: React.FC = () => {
         linkedin_url: '', 
         show_product_requests: true 
     });
+    const [defaultCountryCode, setDefaultCountryCode] = useState<string>(() => getDefaultCountry(username).code);
     const [passwords, setPasswords] = useState({ old: '', new1: '', new2: '' });
     const [passwordChanging, setPasswordChanging] = useState(false);
     const [passwordRequestPending, setPasswordRequestPending] = useState(false);
@@ -447,6 +449,30 @@ const SettingsPage: React.FC = () => {
                                             />
                                         </div>
                                     )}
+                                    <div className="space-y-1.5 sm:col-span-2">
+                                        <label className="block text-xs font-semibold text-neutral-300">
+                                            Default Order & Delivery Country
+                                        </label>
+                                        <select
+                                            value={defaultCountryCode}
+                                            onChange={(e) => {
+                                                const newCode = e.target.value;
+                                                setDefaultCountryCode(newCode);
+                                                setDefaultCountry(newCode, username);
+                                                toast.success('Default delivery country updated');
+                                            }}
+                                            className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-800 bg-neutral-950 text-xs text-white focus:outline-none focus:border-brand-500 transition"
+                                        >
+                                            {SUPPORTED_COUNTRIES.map((c) => (
+                                                <option key={c.code} value={c.code}>
+                                                    {c.flag} {c.name} ({c.dialCode})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[11px] text-neutral-500">
+                                            Sets your default phone dial code and destination country for checkout orders.
+                                        </p>
+                                    </div>
                                 </div>
 
                                 {/* Seller Links */}

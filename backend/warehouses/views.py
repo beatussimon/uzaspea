@@ -30,7 +30,7 @@ class WarehouseViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
-            return [permissions.IsAuthenticated()]
+            return [permissions.AllowAny()]
         return [permissions.IsAuthenticated(), IsWarehouseStaff()]
 
     @action(detail=True, methods=['get'], url_path='pending-intakes')

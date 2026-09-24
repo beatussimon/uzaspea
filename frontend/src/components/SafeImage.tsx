@@ -360,4 +360,5 @@ const SafeImage: React.FC<SafeImageProps> = ({
   );
 };
 
+export { SafeImage };
 export default SafeImage;

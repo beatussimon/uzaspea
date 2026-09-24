@@ -86,7 +86,7 @@ export const OrderActionToolbar: React.FC<OrderActionToolbarProps> = ({
         <a
           href={telLink}
           onClick={(e) => e.stopPropagation()}
-          className={`${btnClasses} bg-emerald-500/10 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/20`}
+          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 border-surface-border dark:border-surface-dark-border hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-emerald-500`}
           title={`Call ${phone}`}
         >
           <Phone size={size === 'sm' ? 13 : 15} className="text-emerald-500" />
@@ -101,7 +101,7 @@ export const OrderActionToolbar: React.FC<OrderActionToolbarProps> = ({
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className={`${btnClasses} bg-blue-500/10 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-500/20 hover:bg-blue-500/20`}
+          className={`${btnClasses} bg-white dark:bg-[#141414] text-gray-800 dark:text-gray-200 border-surface-border dark:border-surface-dark-border hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-blue-500`}
           title="Open directions in Google Maps"
         >
           <Navigation size={size === 'sm' ? 13 : 15} className="text-blue-500" />

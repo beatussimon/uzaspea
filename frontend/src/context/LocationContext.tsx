@@ -73,7 +73,13 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [location, setLocation] = useState<UserLocationData>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.address && (/^-?\d+\.\d+,\s*-?\d+\.\d+/.test(parsed.address) || /^GPS:/i.test(parsed.address))) {
+          parsed.address = parsed.district || parsed.city || 'Current Location';
+        }
+        return parsed;
+      }
     } catch {}
     return { coords: null, address: null, city: null, region: null, district: null };
   });
@@ -161,15 +167,16 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const res = await axios.get(`${API_BASE_URL}/api/reverse-geocode/?lat=${lat}&lng=${lng}`, { timeout: 6000 });
       const data = res.data;
+      const detectedCity = data.address?.city || data.address?.town || data.address?.municipality || data.address?.suburb || 'Dar es Salaam';
       return {
-        address: data.display_name || data.address?.road || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-        city: data.address?.city || data.address?.town || data.address?.municipality || data.address?.suburb || 'Dar es Salaam',
+        address: data.display_name || data.address?.road || data.address?.suburb || detectedCity,
+        city: detectedCity,
         region: data.address?.state || data.address?.region || 'Dar es Salaam',
         district: data.address?.county || data.address?.district || null,
       };
     } catch {
       return {
-        address: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        address: 'Current Location',
         city: 'Dar es Salaam',
         region: 'Dar es Salaam',
         district: null,
@@ -194,7 +201,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const geoDetails = await reverseGeocode(lat, lng);
           const newLocation: UserLocationData = {
             coords,
-            address: geoDetails.address || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+            address: geoDetails.address || geoDetails.city || 'Current Location',
             city: geoDetails.city || 'Dar es Salaam',
             region: geoDetails.region || 'Dar es Salaam',
             district: geoDetails.district || null,
@@ -237,7 +244,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 const geoDetails = await reverseGeocode(lat, lng);
                 const newLocation: UserLocationData = {
                   coords: { lat, lng },
-                  address: geoDetails.address || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+                  address: geoDetails.address || geoDetails.city || 'Current Location',
                   city: geoDetails.city || 'Dar es Salaam',
                   region: geoDetails.region || 'Dar es Salaam',
                   district: geoDetails.district || null,
