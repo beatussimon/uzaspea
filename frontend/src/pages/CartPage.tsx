@@ -179,8 +179,8 @@ const CartPage: React.FC = () => {
 
           return (
             <div key={merchant} className="card overflow-hidden border border-surface-border dark:border-surface-dark-border">
-              {/* Header with Merchant Info and Bulk Mode Toggle */}
-              <div className="p-4 bg-surface-muted dark:bg-[#111]/60 border-b border-surface-border dark:border-surface-dark-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Header with Merchant Info and Bulk Mode Toggle (No bottom divider) */}
+              <div className="p-4 bg-surface-muted dark:bg-[#111]/60 flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
                   <ShoppingBag size={16} className="text-brand-500 dark:text-brand-500 shrink-0" />
                   <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">
@@ -216,76 +216,101 @@ const CartPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Items List */}
-              <div className="p-4 space-y-4">
+              {/* Items List (No item dividers, fully responsive and mobile-optimized) */}
+              <div className="p-4 space-y-5">
                 {storeItems.map((item) => (
                   <div
                     key={item.productId}
-                    className="flex items-center gap-4 border-b border-surface-border dark:border-surface-dark-border pb-4 last:border-0 last:pb-0"
+                    className="flex items-start sm:items-center gap-3 sm:gap-4"
                   >
                     <Link to={`/product/${item.slug}`} className="shrink-0">
                       <SafeImage
                         src={item.image}
                         alt={item.name}
                         category={item.category}
-                        className="w-16 h-16 object-cover rounded-btn border border-surface-border dark:border-surface-dark-border"
+                        className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl border border-surface-border dark:border-surface-dark-border bg-neutral-100 dark:bg-neutral-900"
                       />
                     </Link>
 
-                    <div className="flex-1 min-w-0">
-                      <Link
-                        to={`/product/${item.slug}`}
-                        className="font-bold text-gray-900 dark:text-white truncate block hover:text-brand-500 dark:hover:text-brand-500 transition text-sm"
-                      >
-                        {item.name}
-                      </Link>
-                      <p className="text-brand-500 dark:text-brand-500 font-extrabold mt-1 text-sm">
-                        {item.requires_quote ? t('price_on_request', 'Price on Request') : `TSh ${item.price.toLocaleString()}`}
-                      </p>
-                      <p className="text-2xs font-bold text-gray-400 uppercase tracking-wide mt-0.5">
-                        {item.stock} {t('in_stock')}
-                      </p>
+                    <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+                      {/* Product Name, Price, and Stock */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <Link
+                            to={`/product/${item.slug}`}
+                            className="font-bold text-gray-900 dark:text-white line-clamp-1 hover:text-brand-500 dark:hover:text-brand-500 transition text-sm"
+                            title={item.name}
+                          >
+                            {item.name}
+                          </Link>
+                          {/* Mobile Trash Button */}
+                          <button
+                            onClick={() => removeFromCart(item.productId)}
+                            className="sm:hidden p-1 text-neutral-400 hover:text-red-500 transition shrink-0"
+                            title="Remove item"
+                            aria-label="Remove item"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+
+                        <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
+                          <span className="text-brand-500 dark:text-brand-500 font-extrabold text-sm whitespace-nowrap">
+                            {item.requires_quote ? t('price_on_request', 'Price on Request') : `TSh ${item.price.toLocaleString()}`}
+                          </span>
+                          <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wide">
+                            • {item.stock} {t('in_stock')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Quantity Stepper & Desktop Price/Trash */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3 mt-1 sm:mt-0">
+                        <div className="flex items-center gap-1 bg-surface-muted dark:bg-[#111] rounded-lg p-1 border border-surface-border dark:border-surface-dark-border">
+                          <button
+                            onClick={() => updateQuantity(item.productId, Math.max(0.01, item.quantity - 1))}
+                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white dark:hover:bg-neutral-800 transition text-gray-600 dark:text-gray-300"
+                            aria-label="Decrease quantity"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <input
+                            type="number"
+                            step="any"
+                            value={item.quantity}
+                            onChange={(e) => updateQuantity(item.productId, parseFloat(e.target.value) || 1)}
+                            className="w-10 text-center font-bold text-gray-900 dark:text-white text-xs bg-transparent border-none focus:outline-none focus:ring-0 p-0"
+                          />
+                          <button
+                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white dark:hover:bg-neutral-800 transition text-gray-600 dark:text-gray-300"
+                            aria-label="Increase quantity"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+
+                        <p className="font-extrabold text-gray-900 dark:text-white text-sm sm:w-28 text-right">
+                          {item.requires_quote ? '--' : `TSh ${(item.price * item.quantity).toLocaleString()}`}
+                        </p>
+
+                        {/* Desktop Trash Button */}
+                        <button
+                          onClick={() => removeFromCart(item.productId)}
+                          className="hidden sm:flex p-2 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition shrink-0"
+                          title="Remove item"
+                          aria-label="Remove item"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="flex items-center gap-2 bg-surface-muted dark:bg-[#111] rounded-btn p-1 border border-surface-border dark:border-surface-dark-border">
-                      <button
-                        onClick={() => updateQuantity(item.productId, Math.max(0.01, item.quantity - 1))}
-                        className="p-1 rounded-btn hover:bg-white dark:hover:bg-[#0A0A0A] transition shadow-sm text-gray-600 dark:text-gray-300"
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <input
-                        type="number"
-                        step="any"
-                        value={item.quantity}
-                        onChange={(e) => updateQuantity(item.productId, parseFloat(e.target.value) || 1)}
-                        className="w-12 text-center font-bold text-gray-900 dark:text-white text-xs bg-transparent border-none focus:outline-none focus:ring-0 p-0"
-                      />
-                      <button
-                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                        className="p-1 rounded-btn hover:bg-white dark:hover:bg-[#0A0A0A] transition shadow-sm text-gray-600 dark:text-gray-300"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-
-                    <p className="font-extrabold text-gray-900 dark:text-white w-28 text-right hidden sm:block text-sm">
-                      {item.requires_quote ? '--' : `TSh ${(item.price * item.quantity).toLocaleString()}`}
-                    </p>
-
-                    <button
-                      onClick={() => removeFromCart(item.productId)}
-                      className="p-2 text-red-500 hover:text-red-500 rounded-btn transition shrink-0 ml-2"
-                      title="Remove item"
-                    >
-                      <Trash2 size={16} />
-                    </button>
                   </div>
                 ))}
               </div>
 
-              {/* Bottom Footer Actions */}
-              <div className="bg-surface-muted dark:bg-[#111]/45 p-4 border-t border-surface-border dark:border-surface-dark-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Bottom Footer Actions (No top divider) */}
+              <div className="bg-surface-muted/60 dark:bg-[#111]/45 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 {isBulkMode && activeInvoice ? (
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Clock size={16} className="text-brand-500 shrink-0" />
@@ -312,7 +337,7 @@ const CartPage: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                   {/* When Invoicing Mode is ON */}
                   {isBulkMode ? (
                     <>
@@ -322,7 +347,7 @@ const CartPage: React.FC = () => {
                         onClick={() => handleMessageSeller(merchant, storeItems)}
                         disabled={messagingMerchant === merchant}
                         title={t('message_seller_about_order', 'Message Seller About This Order')}
-                        className="p-2 rounded-btn border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-brand-500 transition flex items-center justify-center"
+                        className="p-2.5 rounded-btn border border-surface-border dark:border-surface-dark-border bg-white dark:bg-[#161616] text-gray-600 dark:text-gray-400 hover:text-brand-500 transition flex items-center justify-center shrink-0"
                       >
                         <MessageSquare size={15} />
                       </button>
@@ -332,7 +357,7 @@ const CartPage: React.FC = () => {
                         <Button
                           onClick={() => setReviewInvoiceOrder(activeInvoice)}
                           size="sm"
-                          className="flex items-center gap-2 font-bold"
+                          className="w-full sm:w-auto flex items-center justify-center gap-2 font-bold"
                         >
                           <FileText size={14} />
                           {activeInvoice.status === 'INVOICE_GENERATED' ? t('review_invoice', 'Review Invoice') : t('view_invoice', 'View Invoice')}
@@ -341,7 +366,7 @@ const CartPage: React.FC = () => {
                         <Button
                           onClick={() => setRequestInvoiceMerchant(merchant)}
                           size="sm"
-                          className="flex items-center gap-1.5 font-bold"
+                          className="w-full sm:w-auto flex items-center justify-center gap-1.5 font-bold"
                         >
                           <FileText size={14} />
                           {t('request_invoice_btn', 'Request Invoice')}
@@ -353,7 +378,7 @@ const CartPage: React.FC = () => {
                     <Button
                       onClick={() => navigate(`/checkout?merchant=${encodeURIComponent(merchant)}`)}
                       size="sm"
-                      className="flex items-center gap-2 font-bold"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 font-bold"
                     >
                       {t('checkout')} @{merchant} <ArrowRight size={14} />
                     </Button>

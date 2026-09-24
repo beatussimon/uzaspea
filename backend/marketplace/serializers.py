@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from django.db import transaction  # FIX: C-01
-from django.db.models import F  # FIX: C-01
-from decimal import Decimal
+from django.db.models import F
+from django.db import transaction
+from decimal import Decimal, ROUND_HALF_UP
 from .models import (
     Product, Category, Review, ProductComment, Order, OrderItem, 
     Payment, PaymentConfirmation, TrackingEvent, UserProfile, Subscription, SubscriptionTier,
@@ -998,7 +998,24 @@ class PromoCodeSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class RoundedDecimalField(serializers.DecimalField):
+    """Safely round incoming floating-point coordinates to avoid DRF max_decimal_places errors."""
+    def to_internal_value(self, data):
+        if data is None or data == '':
+            return None
+        try:
+            d = Decimal(str(data))
+            if self.decimal_places is not None:
+                q = Decimal('10') ** -self.decimal_places
+                d = d.quantize(q, rounding=ROUND_HALF_UP)
+            return super().to_internal_value(d)
+        except Exception:
+            return super().to_internal_value(data)
+
+
 class OrderSerializer(serializers.ModelSerializer):
+    delivery_latitude = RoundedDecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True)
+    delivery_longitude = RoundedDecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True)
     items = OrderItemSerializer(source='orderitem_set', many=True, required=False)
     timeline_events = TrackingEventSerializer(many=True, read_only=True)
     payments = PaymentSerializer(many=True, read_only=True)
@@ -1022,6 +1039,7 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'buyer_username', 'order_date', 'total_amount', 'status',
             'shipping_method', 'fulfillment_type', 'shipping_fee', 'delivery_info',  # FIX: L-02 — include shipping fields
+            'delivery_latitude', 'delivery_longitude',
             'items', 'timeline_events', 'payments', 'seller_subtotal', 'delivery_code', 'shipments',
             'has_vehicles', 'buyer_contact', 'seller_contacts', 'seller_commission', 'seller_net_payout',
             'logistics_info', 'promo_code', 'promo_code_code', 'discount_amount', 'promo_code_details',
@@ -1063,8 +1081,24 @@ class OrderSerializer(serializers.ModelSerializer):
         # Region-based validation
         request = self.context.get('request')
         if request and request.method == 'POST' and self.initial_data.get('orderitem_set'):
-            buyer_region = data.get('delivery_info', {}).get('region', '').strip().lower()
-            
+            del_info = data.get('delivery_info') or {}
+            buyer_region = del_info.get('region', '').strip().lower()
+            addr_text = del_info.get('address', '').lower()
+
+            # Defense in depth: Check if address explicitly mentions another region
+            known_regions = [
+                'mwanza', 'arusha', 'dodoma', 'mbeya', 'morogoro', 'tanga',
+                'kilimanjaro', 'geita', 'iringa', 'kagera', 'katavi', 'kigoma',
+                'lindi', 'manyara', 'mara', 'mtwara', 'njombe', 'pwani', 'rukwa',
+                'ruvuma', 'shinyanga', 'simiyu', 'singida', 'songwe', 'tabora',
+                'zanzibar', 'dar es salaam'
+            ]
+            for reg in known_regions:
+                if reg in addr_text:
+                    if reg != 'dar es salaam' or not buyer_region:
+                        buyer_region = reg
+                    break
+
             # Find the first item to get the seller (assuming single-seller order or validating against first item)
             first_item = self.initial_data.get('orderitem_set', [])[0]
             if first_item:
@@ -1075,7 +1109,7 @@ class OrderSerializer(serializers.ModelSerializer):
                 try:
                     product = Product.objects.get(pk=product_id)
                     seller = product.seller
-                    
+
                     # Try to get seller's region from SellerApplication first, then UserProfile
                     seller_region = ''
                     app = seller.seller_applications.filter(status='approved').order_by('-created_at').first()
@@ -1083,7 +1117,7 @@ class OrderSerializer(serializers.ModelSerializer):
                         seller_region = app.business_region.strip().lower()
                     elif hasattr(seller, 'profile') and seller.profile.location:
                         seller_region = seller.profile.location.strip().lower()
-                        
+
                     if buyer_region and seller_region and buyer_region != seller_region:
                         # They are in different regions, ONLY PLATFORM_DELIVERY is allowed
                         if fulfillment_type != 'PLATFORM_DELIVERY':
@@ -1172,33 +1206,6 @@ class OrderSerializer(serializers.ModelSerializer):
                     d_info = {}
 
         if d_info and isinstance(d_info, dict):
-            ret['delivery_info'] = d_info
-            if not d_info.get('estimated_shipping_fee'):
-                origin_code = d_info.get('warehouse_code')
-                dest_code = d_info.get('destination_warehouse_code')
-                if origin_code and dest_code:
-                    from warehouses.models import Warehouse, HistoricalRoutePricing
-                    try:
-                        wh_cache = self.context.setdefault('_warehouse_cache', {})
-                        if origin_code not in wh_cache:
-                            wh_cache[origin_code] = Warehouse.objects.filter(code=origin_code).first()
-                        if dest_code not in wh_cache:
-                            wh_cache[dest_code] = Warehouse.objects.filter(code=dest_code).first()
-                        orig_wh = wh_cache[origin_code]
-                        dest_wh = wh_cache[dest_code]
-                        if orig_wh and dest_wh:
-                            route_cache = self.context.setdefault('_route_cache', {})
-                            route_key = (orig_wh.id, dest_wh.id)
-                            if route_key not in route_cache:
-                                route_cache[route_key] = HistoricalRoutePricing.objects.filter(
-                                    origin_warehouse=orig_wh, destination_warehouse=dest_wh
-                                ).first()
-                            hrp = route_cache[route_key]
-                            if hrp and hrp.data_points > 0:
-                                d_info['estimated_shipping_fee'] = float(hrp.average_cost)
-                                d_info['is_historical_estimate'] = True
-                    except Exception:
-                        pass
             ret['delivery_info'] = d_info
 
         request = self.context.get('request')
@@ -1313,7 +1320,7 @@ class OrderSerializer(serializers.ModelSerializer):
         # Extract items data from the source mapping
         items_data = validated_data.pop('orderitem_set', [])
 
-        # FIX: Auto-map region to warehouse
+        # FIX: Auto-map region to warehouse and extract coordinates
         delivery_info = validated_data.get('delivery_info') or {}
         if isinstance(delivery_info, dict):
             buyer_region = delivery_info.get('region', '').strip()
@@ -1327,6 +1334,20 @@ class OrderSerializer(serializers.ModelSerializer):
                         if wh:
                             delivery_info['destination_warehouse_code'] = wh.code
                             validated_data['delivery_info'] = delivery_info
+                except Exception:
+                    pass
+
+            if not validated_data.get('delivery_latitude') and delivery_info.get('lat') is not None:
+                try:
+                    q = Decimal('0.000001')
+                    validated_data['delivery_latitude'] = Decimal(str(delivery_info['lat'])).quantize(q, rounding=ROUND_HALF_UP)
+                except Exception:
+                    pass
+
+            if not validated_data.get('delivery_longitude') and delivery_info.get('lng') is not None:
+                try:
+                    q = Decimal('0.000001')
+                    validated_data['delivery_longitude'] = Decimal(str(delivery_info['lng'])).quantize(q, rounding=ROUND_HALF_UP)
                 except Exception:
                     pass
 

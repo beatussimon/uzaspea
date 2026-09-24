@@ -73,6 +73,17 @@
       font-size: 16px !important;
     }
   }
+
+  /* Suppress browser autofill colored rectangular background box */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: currentColor !important;
+    transition: background-color 5000s ease-in-out 0s;
+    box-shadow: inset 0 0 20px 20px transparent !important;
+  }
 }
 
 /* ========================================

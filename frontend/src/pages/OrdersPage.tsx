@@ -519,11 +519,11 @@ const OrdersPage: React.FC = () => {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
-                          <span className="text-[10px] font-black text-brand-600 uppercase tracking-widest bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-black text-brand-600 dark:text-brand-400 uppercase tracking-widest">
                             Order #{order.id}
                           </span>
                           {order.is_bulk_order && (
-                            <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700/50">
+                            <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest px-1.5 py-0.5 rounded border border-amber-500/40 bg-transparent">
                               Bulk Order
                             </span>
                           )}
@@ -566,7 +566,7 @@ const OrdersPage: React.FC = () => {
                   </div>
 
                   {/* Dedicated Action Strip */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100/80 dark:border-gray-700/40 gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                     <OrderActionToolbar
                       phone={order.seller_contacts?.[0]?.phone || null}
                       phoneLabel="Call Store"
@@ -589,7 +589,7 @@ const OrdersPage: React.FC = () => {
 
                 {/* Expanded Content */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-900/10">
+                  <div className="bg-gray-50/30 dark:bg-gray-900/10">
                     
                     
                     {/* Invoice Review & Bargain */}

@@ -339,13 +339,23 @@ class DeliveryQuoteView(views.APIView):
         start_lng = request.data.get('start_lng')
         end_lat = request.data.get('end_lat')
         end_lng = request.data.get('end_lng')
-        weight = request.data.get('weight', 1.0)
-        size = request.data.get('size', 'small')
+        fulfillment_type = request.data.get('fulfillment_type', 'PLATFORM_DELIVERY')
         origin_code = request.data.get('origin_code')
         destination_code = request.data.get('destination_code')
 
+        # If not handled by platform delivery, no platform delivery quote is provided
+        if fulfillment_type and fulfillment_type != 'PLATFORM_DELIVERY':
+            return Response({
+                'quotes': [],
+                'has_historical_price': False,
+                'price': None,
+                'message': 'No platform shipping fee. Handled directly with seller or self-pickup.'
+            })
+
         from warehouses.models import Warehouse, HistoricalRoutePricing
+        from marketplace.models import Order
         from decimal import Decimal
+        from .pricing import calculate_haversine_distance
 
         origin_wh = None
         dest_wh = None
@@ -354,38 +364,9 @@ class DeliveryQuoteView(views.APIView):
         if destination_code:
             dest_wh = Warehouse.objects.filter(code=destination_code, is_active=True).first()
 
-        if not origin_wh and start_lat is not None and start_lng is not None:
-            warehouses = Warehouse.objects.filter(is_active=True, latitude__isnull=False, longitude__isnull=False)
-            best_dist = float('inf')
-            for w in warehouses:
-                d = (float(w.latitude) - float(start_lat))**2 + (float(w.longitude) - float(start_lng))**2
-                if d < best_dist:
-                    best_dist = d
-                    origin_wh = w
-
-        if not dest_wh and end_lat is not None and end_lng is not None:
-            warehouses = Warehouse.objects.filter(is_active=True, latitude__isnull=False, longitude__isnull=False)
-            best_dist = float('inf')
-            for w in warehouses:
-                d = (float(w.latitude) - float(end_lat))**2 + (float(w.longitude) - float(end_lng))**2
-                if d < best_dist:
-                    best_dist = d
-                    dest_wh = w
-
-        hrp = None
-        if origin_wh and dest_wh:
-            hrp = HistoricalRoutePricing.objects.filter(
-                origin_warehouse=origin_wh,
-                destination_warehouse=dest_wh
-            ).first()
-
-        options = DeliveryOption.objects.filter(is_active=True)
-        quotes = []
-
         distance_km = None
         if start_lat is not None and start_lng is not None and end_lat is not None and end_lng is not None:
             try:
-                from .pricing import calculate_haversine_distance
                 distance_km = calculate_haversine_distance(
                     float(start_lat), float(start_lng),
                     float(end_lat), float(end_lng)
@@ -393,69 +374,89 @@ class DeliveryQuoteView(views.APIView):
             except Exception:
                 distance_km = None
 
-        if hrp and hrp.data_points > 0:
-            avg_cost = hrp.average_cost
-            speed_multipliers = {
-                'economy': Decimal('0.85'),
-                'standard': Decimal('1.00'),
-                'express': Decimal('1.25'),
-                'urgent': Decimal('1.60'),
-            }
-            if options.exists():
-                for opt in options:
-                    mult = speed_multipliers.get(opt.code.lower(), Decimal('1.00'))
-                    cost = max(Decimal('2000.00'), Decimal(str(round(float(avg_cost * mult) / 100) * 100)))
-                    quotes.append({
-                        'id': opt.id,
-                        'name': opt.name,
-                        'code': opt.code,
-                        'price': float(cost),
-                        'is_historical_estimate': True,
-                        'data_points': hrp.data_points
-                    })
-            else:
-                for code in ['economy', 'standard', 'express', 'urgent']:
-                    mult = speed_multipliers.get(code, Decimal('1.00'))
-                    cost = max(Decimal('2000.00'), Decimal(str(round(float(avg_cost * mult) / 100) * 100)))
-                    quotes.append({
-                        'id': None,
-                        'name': code.capitalize(),
-                        'code': code,
-                        'price': float(cost),
-                        'is_historical_estimate': True,
-                        'data_points': hrp.data_points
-                    })
-        else:
-            if not all([start_lat, start_lng, end_lat, end_lng]):
-                return Response({'error': 'Coordinates start_lat, start_lng, end_lat, and end_lng are required'}, status=status.HTTP_400_BAD_REQUEST)
+        # Check for historical deliveries within 1.0 km radius with confirmed shipping_fee > 0
+        matched_fees = []
+        if end_lat is not None and end_lng is not None:
+            try:
+                c_lat = float(end_lat)
+                c_lng = float(end_lng)
 
-            for opt in options:
-                cost = calculate_delivery_price(start_lat, start_lng, end_lat, end_lng, weight, size, opt.code)
-                quotes.append({
-                    'id': opt.id,
-                    'name': opt.name,
-                    'code': opt.code,
-                    'price': float(cost),
-                    'is_historical_estimate': False
+                past_orders = Order.objects.filter(
+                    fulfillment_type='PLATFORM_DELIVERY',
+                    shipping_fee__gt=Decimal('0.00'),
+                    delivery_latitude__isnull=False,
+                    delivery_longitude__isnull=False
+                ).exclude(
+                    status__in=['CART', 'CHECKOUT', 'CANCELLED', 'EXPIRED', 'DISPUTED']
+                ).values('shipping_fee', 'delivery_latitude', 'delivery_longitude')
+
+                for o in past_orders:
+                    o_lat = float(o['delivery_latitude'])
+                    o_lng = float(o['delivery_longitude'])
+                    d = calculate_haversine_distance(c_lat, c_lng, o_lat, o_lng)
+                    if d <= 1.0:
+                        matched_fees.append(float(o['shipping_fee']))
+            except (ValueError, TypeError):
+                pass
+
+        # If we have historical delivery within 1.0 km, return that exact area price
+        if matched_fees:
+            avg_fee = round(sum(matched_fees) / len(matched_fees))
+            quote = {
+                'id': 1,
+                'name': 'Standard',
+                'code': 'standard',
+                'price': float(avg_fee),
+                'is_historical_estimate': True,
+                'data_points': len(matched_fees),
+                'radius_km': 1.0
+            }
+            return Response({
+                'quotes': [quote],
+                'has_historical_price': True,
+                'price': float(avg_fee),
+                'data_points': len(matched_fees),
+                'distance_km': round(distance_km, 1) if distance_km is not None else None,
+                'distance_miles': round(distance_km * 0.621371, 1) if distance_km is not None else None,
+                'origin_warehouse': origin_wh.name if origin_wh else None,
+                'destination_warehouse': dest_wh.name if dest_wh else None,
+            })
+
+        # Backward compatibility for warehouse-to-warehouse route tests where origin_code/destination_code are specified without coordinates
+        if end_lat is None and end_lng is None and origin_wh and dest_wh:
+            hrp = HistoricalRoutePricing.objects.filter(
+                origin_warehouse=origin_wh,
+                destination_warehouse=dest_wh
+            ).first()
+            if hrp and hrp.data_points > 0:
+                quote = {
+                    'id': 1,
+                    'name': 'Standard',
+                    'code': 'standard',
+                    'price': float(hrp.average_cost),
+                    'is_historical_estimate': True,
+                    'data_points': hrp.data_points
+                }
+                return Response({
+                    'quotes': [quote],
+                    'has_historical_price': True,
+                    'price': float(hrp.average_cost),
+                    'data_points': hrp.data_points,
+                    'origin_warehouse': origin_wh.name,
+                    'destination_warehouse': dest_wh.name,
                 })
 
-            if not quotes:
-                for code in ['economy', 'standard', 'express', 'urgent']:
-                    cost = calculate_delivery_price(start_lat, start_lng, end_lat, end_lng, weight, size, code)
-                    quotes.append({
-                        'id': None,
-                        'name': code.capitalize(),
-                        'code': code,
-                        'price': float(cost),
-                        'is_historical_estimate': False
-                    })
-
+        # No historical price to this exact place / 1km radius:
+        # Return NO price. The price will be determined and input when package arrives at the warehouse.
         return Response({
-            'quotes': quotes,
+            'quotes': [],
+            'has_historical_price': False,
+            'price': None,
             'distance_km': round(distance_km, 1) if distance_km is not None else None,
             'distance_miles': round(distance_km * 0.621371, 1) if distance_km is not None else None,
             'origin_warehouse': origin_wh.name if origin_wh else None,
             'destination_warehouse': dest_wh.name if dest_wh else None,
+            'message': 'True price will be calculated and confirmed upon warehouse intake.'
         })
 
 
@@ -565,29 +566,29 @@ class CheckoutOptionsView(views.APIView):
         )
 
         if is_same_city:
-            # Same city/region: Offer all options including Direct Delivery
+            # Same city/region: Offer platform delivery, direct seller delivery, and pickups
             options.append({
-                'fulfillment_type': 'DIRECT_DELIVERY',
-                'name': 'Intercity Direct Delivery',
-                'description': 'Seller delivers the item directly to you within the same region.',
+                'fulfillment_type': 'PLATFORM_DELIVERY',
+                'name': 'Fulfilled by SokoniMax',
+                'description': 'Item verified at our local hub before secure delivery.',
                 'shipping_method': 'DELIVERY'
             })
             options.append({
-                'fulfillment_type': 'PLATFORM_DELIVERY',
-                'name': 'Fulfilled by Uzaspea',
-                'description': 'Item routes through our local warehouse for quality check before delivery.',
+                'fulfillment_type': 'DIRECT_DELIVERY',
+                'name': 'Direct Delivery by Seller',
+                'description': 'Seller delivers directly. Contact seller for delivery fee.',
                 'shipping_method': 'DELIVERY'
             })
             options.append({
                 'fulfillment_type': 'WAREHOUSE_PICKUP',
                 'name': 'Warehouse Pickup',
-                'description': 'Pick up your item securely from our local warehouse.',
+                'description': 'Pick up your package directly from our local hub.',
                 'shipping_method': 'PICKUP'
             })
             options.append({
                 'fulfillment_type': 'SELLER_PICKUP',
                 'name': 'Seller Pickup',
-                'description': 'Pick up your item directly from the seller.',
+                'description': 'Pick up directly from the seller.',
                 'shipping_method': 'PICKUP'
             })
         else:
@@ -601,16 +602,55 @@ class CheckoutOptionsView(views.APIView):
                     dest_name = dest_wh.region.name if dest_wh.region else 'Destination'
                     options.append({
                         'fulfillment_type': 'PLATFORM_DELIVERY',
-                        'name': 'Fulfilled by Uzaspea (Inter-region)',
-                        'description': f'Platform-managed delivery via our warehouse network from {origin_name} to {dest_name}.',
+                        'name': f'Fulfilled by SokoniMax (Inter-region)',
+                        'description': f'Platform transfer via our warehouse network from {origin_name} to {dest_name}.',
                         'shipping_method': 'DELIVERY'
+                    })
+                    options.append({
+                        'fulfillment_type': 'WAREHOUSE_PICKUP',
+                        'name': f'Pickup at {dest_name} Hub',
+                        'description': f'Collect directly from our regional warehouse hub in {dest_name}.',
+                        'shipping_method': 'PICKUP'
                     })
                 else:
                     options.append({
                         'fulfillment_type': 'PLATFORM_DELIVERY',
-                        'name': 'Fulfilled by Uzaspea',
-                        'description': 'Platform-managed delivery via our warehouse network.',
+                        'name': 'Fulfilled by SokoniMax',
+                        'description': 'Platform delivery via our warehouse network.',
                         'shipping_method': 'DELIVERY'
                     })
+                    options.append({
+                        'fulfillment_type': 'WAREHOUSE_PICKUP',
+                        'name': 'Regional Hub Pickup',
+                        'description': 'Collect directly from our regional warehouse hub.',
+                        'shipping_method': 'PICKUP'
+                    })
+
+        if not options:
+            # Safe default fulfillment options if destination warehouse is pending or unresolved
+            options.append({
+                'fulfillment_type': 'PLATFORM_DELIVERY',
+                'name': 'Fulfilled by SokoniMax',
+                'description': 'Item verified at our local hub before secure delivery.',
+                'shipping_method': 'DELIVERY'
+            })
+            options.append({
+                'fulfillment_type': 'DIRECT_DELIVERY',
+                'name': 'Direct Delivery by Seller',
+                'description': 'Seller delivers directly. Contact seller for delivery fee.',
+                'shipping_method': 'DELIVERY'
+            })
+            options.append({
+                'fulfillment_type': 'WAREHOUSE_PICKUP',
+                'name': 'Warehouse Pickup',
+                'description': 'Pick up your package directly from our local hub.',
+                'shipping_method': 'PICKUP'
+            })
+            options.append({
+                'fulfillment_type': 'SELLER_PICKUP',
+                'name': 'Seller Pickup',
+                'description': 'Pick up directly from the seller.',
+                'shipping_method': 'PICKUP'
+            })
 
         return Response({'options': options, 'is_same_city': is_same_city})
