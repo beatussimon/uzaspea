@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Heart, Star, X, Share2, Shield, MessageSquare, MapPin, 
   Clock, ChevronLeft, ChevronRight, ChevronDown, ShieldCheck, MoreVertical, Navigation, 
-  Search, AlertTriangle, ArrowUp
+  Search, AlertTriangle, ArrowUp, ShoppingBag
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -121,61 +121,8 @@ interface ProductVariant {
   image: string | null;
 }
 
-const COLOR_SWATCH_MAP: Record<string, string> = {
-  blue: '#2563eb',
-  navy: '#1e3a8a',
-  red: '#dc2626',
-  gray: '#6b7280',
-  grey: '#6b7280',
-  black: '#18181b',
-  white: '#f4f4f5',
-  green: '#16a34a',
-  yellow: '#eab308',
-  purple: '#9333ea',
-  pink: '#ec4899',
-  orange: '#ea580c',
-  brown: '#78350f',
-  beige: '#d4b996',
-  maroon: '#800000',
-  teal: '#0d9488',
-  cyan: '#06b6d4',
-  olive: '#65a30d',
-  gold: '#d97706',
-  silver: '#9ca3af',
-  khaki: '#c3b091',
-  cream: '#fffdd0',
-  charcoal: '#36454f',
-  burgundy: '#800020',
-};
 
-const getVariantColor = (name: string): string | null => {
-  if (!name) return null;
-  const parts = name.toLowerCase().split(/[\s\/\,\-]+/);
-  for (const p of parts) {
-    if (COLOR_SWATCH_MAP[p]) return COLOR_SWATCH_MAP[p];
-  }
-  return null;
-};
 
-const getVariantGridCols = (count: number): string => {
-  if (count <= 2) {
-    return 'grid-cols-2 sm:max-w-xs';
-  }
-  if (count === 3) {
-    return 'grid-cols-3 sm:max-w-sm';
-  }
-  if (count === 4) {
-    return 'grid-cols-4';
-  }
-  if (count === 5) {
-    return 'grid-cols-4 sm:grid-cols-5 xl:grid-cols-5';
-  }
-  if (count === 6) {
-    return 'grid-cols-3 sm:grid-cols-6 xl:grid-cols-6';
-  }
-  // 7 or more variations
-  return 'grid-cols-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-4 xl:grid-cols-5';
-};
 
 const formatUnit = (count: number, unit?: string) => {
   const raw = (unit || 'piece').trim();
@@ -484,6 +431,8 @@ const ProductDetailPage: React.FC = () => {
   const [liked, setLiked] = useState(initialProduct?.is_liked || false);
   const [likeCount, setLikeCount] = useState(initialProduct?.like_count || 0);
   const [quantity, setQuantity] = useState(parseFloat(initialProduct?.minimum_order_quantity) || 1);
+  const [stepperHover, setStepperHover] = useState<'minus' | 'plus' | null>(null);
+  const [stepperActive, setStepperActive] = useState<'minus' | 'plus' | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [variants, setVariants] = useState<ProductVariant[]>(
     initialProduct?.variants && Array.isArray(initialProduct.variants) ? initialProduct.variants : []
@@ -845,9 +794,114 @@ const ProductDetailPage: React.FC = () => {
       );
       if (idx !== -1) {
         setSelectedImage(idx);
+        return;
       }
     }
-  }, [images]);
+    const vIdx = variants.findIndex(item => item.id === v.id);
+    if (vIdx !== -1 && images[vIdx + 1]) {
+      setSelectedImage(vIdx + 1);
+    }
+  }, [images, variants]);
+
+  const normalizeSizeLabel = useCallback((raw: string): string => {
+    const lower = raw.trim().toLowerCase();
+    if (lower === 'small' || lower === 's') return 'S';
+    if (lower === 'medium' || lower === 'm') return 'M';
+    if (lower === 'large' || lower === 'l') return 'L';
+    if (lower === 'extra large' || lower === 'xl') return 'XL';
+    if (lower === 'xxl' || lower === '2xl') return 'XXL';
+    if (lower === '3xl' || lower === 'xxxl') return '3XL';
+    return raw.trim();
+  }, []);
+
+  const parseVariantSize = useCallback((name: string): string | null => {
+    if (!name) return null;
+    const parts = name.split('/').map(p => p.trim());
+    if (parts.length >= 2) {
+      return normalizeSizeLabel(parts[parts.length - 1]);
+    }
+    const sizeRegex = /^(xxs|xs|s|m|l|xl|xxl|2xl|3xl|4xl|small|medium|large|one\s*size|os|\d{1,3}(\.\d)?(cm|mm|in|us|uk|eu)?)$/i;
+    if (sizeRegex.test(name.trim())) {
+      return normalizeSizeLabel(name.trim());
+    }
+    return null;
+  }, [normalizeSizeLabel]);
+
+  const getCleanVariantName = useCallback((name: string): string => {
+    if (!name) return '';
+    if (name.includes('/')) {
+      const parts = name.split('/').map(p => p.trim());
+      return parts[0] || name;
+    }
+    return name;
+  }, []);
+
+  // Available size options across product and variants
+  const sizeOptions = useMemo(() => {
+    if (!product) return [];
+    const map = new Map<string, { size: string; stock: number }>();
+
+    // 1. From base product
+    if (product.size && product.size.trim()) {
+      const norm = normalizeSizeLabel(product.size);
+      map.set(norm, { size: norm, stock: product.stock });
+    }
+
+    // 2. From variants
+    variants.forEach(v => {
+      const s = parseVariantSize(v.name);
+      if (s) {
+        if (!map.has(s) || (v.stock > 0 && (map.get(s)?.stock || 0) <= 0)) {
+          map.set(s, { size: s, stock: v.stock });
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  }, [product, variants, normalizeSizeLabel, parseVariantSize]);
+
+  // Current selected size
+  const currentSelectedSize = useMemo(() => {
+    if (selectedVariant) {
+      const s = parseVariantSize(selectedVariant.name);
+      if (s) return s;
+    }
+    if (product?.size && product.size.trim()) {
+      return normalizeSizeLabel(product.size);
+    }
+    return sizeOptions[0]?.size || '';
+  }, [selectedVariant, product?.size, sizeOptions, normalizeSizeLabel, parseVariantSize]);
+
+  const handleSizeSelect = useCallback((newSize: string) => {
+    if (!product) return;
+    const baseSize = product.size ? normalizeSizeLabel(product.size) : null;
+
+    // Prioritize variant with matching color & newSize if current variant has color
+    if (selectedVariant && selectedVariant.name.includes('/')) {
+      const currentColor = selectedVariant.name.split('/')[0].trim().toLowerCase();
+      const sameColorVariant = variants.find(v => {
+        if (!v.name.includes('/')) return false;
+        const col = v.name.split('/')[0].trim().toLowerCase();
+        const sz = parseVariantSize(v.name);
+        return col === currentColor && sz === newSize;
+      });
+      if (sameColorVariant) {
+        handleSelectVariant(sameColorVariant);
+        return;
+      }
+    }
+
+    // Otherwise find any variant matching this size
+    const matchingVariant = variants.find(v => parseVariantSize(v.name) === newSize);
+    if (matchingVariant) {
+      handleSelectVariant(matchingVariant);
+      return;
+    }
+
+    if (baseSize === newSize) {
+      handleSelectVariant(null);
+    }
+  }, [product, selectedVariant, variants, handleSelectVariant, normalizeSizeLabel, parseVariantSize]);
 
   const handleLike = async () => {
     if (!product) return;
@@ -1019,6 +1073,12 @@ const ProductDetailPage: React.FC = () => {
     : product.price;
   const priceFormatted = parseInt(activePrice).toLocaleString();
   const brandName = product.brand_name || product.brand_details?.name || 'SokoniMax';
+
+  const isPureSizeVariantList = useMemo(() => {
+    if (variants.length === 0) return false;
+    const sizeRegex = /^(xxs|xs|s|m|l|xl|xxl|2xl|3xl|4xl|small|medium|large|one\s*size|os|\d{1,3}(\.\d)?(cm|mm|in|us|uk|eu)?)$/i;
+    return variants.every(v => sizeRegex.test(v.name.trim()));
+  }, [variants]);
 
   const productSchema: Record<string, any> = {
     "@context": "https://schema.org/",
@@ -1529,88 +1589,235 @@ const ProductDetailPage: React.FC = () => {
           {/* Variants */}
           {variants.length > 0 && (
             <div className="space-y-3 pt-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center justify-between gap-2 sm:gap-4 w-full pb-0.5 whitespace-nowrap">
+                {/* Left: Selected Variation Title */}
+                <div className="flex items-center gap-1.5 min-w-0 shrink">
                   <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">
                     {t('select_variation', 'Select Variation')}:
                   </span>
                   <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                    {selectedVariant ? selectedVariant.name : t('standard_variant', 'Standard')}
+                    {selectedVariant ? getCleanVariantName(selectedVariant.name) : t('standard_variant', 'Standard')}
                   </span>
                 </div>
-                {selectedVariant ? (
-                  <span className="text-[11px] text-gray-400 font-medium shrink-0 ml-2">
-                    {selectedVariant.stock > 0 ? (
-                      `${selectedVariant.stock} ${t('in_stock', 'in stock')}`
+
+                {/* Right: Size Selector (if available) & Stock / Out of Stock (Furthest Right) */}
+                <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 ml-auto">
+                  {/* Super Simple Size Option: Borderless, minimal space, zero huge rectangles */}
+                  {!isPureSizeVariantList && sizeOptions.length > 0 && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">
+                        {t('size', 'Size')}:
+                      </span>
+                      <div className="relative inline-flex items-center cursor-pointer group/size py-0.5">
+                        <select
+                          value={currentSelectedSize}
+                          onChange={(e) => handleSizeSelect(e.target.value)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          aria-label={t('size', 'Size')}
+                        >
+                          {sizeOptions.map(opt => {
+                            const matchingVar = variants.find(v => parseVariantSize(v.name) === opt.size);
+                            const optStock = (selectedVariant && parseVariantSize(selectedVariant.name) === opt.size)
+                              ? selectedVariant.stock
+                              : (matchingVar ? matchingVar.stock : opt.stock);
+                            const isOut = optStock <= 0;
+
+                            return (
+                              <option
+                                key={opt.size}
+                                value={opt.size}
+                                className="bg-white dark:bg-black text-gray-900 dark:text-white"
+                              >
+                                {opt.size} {isOut ? `(${t('out_of_stock', 'Out of stock')})` : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <span className="text-xs font-extrabold text-gray-900 dark:text-white group-hover/size:text-black dark:group-hover/size:white transition-colors">
+                          {currentSelectedSize}
+                        </span>
+                        <ChevronDown className="w-3.5 h-3.5 ml-1 text-gray-400 group-hover/size:text-gray-700 dark:group-hover/size:text-gray-200 pointer-events-none transition-colors" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Furthest Right: Explicit Stock / Out of Stock status */}
+                  <div className="shrink-0 text-right">
+                    {(selectedVariant ? selectedVariant.stock > 0 : product.stock > 0) ? (
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold whitespace-nowrap">
+                        {selectedVariant ? selectedVariant.stock : product.stock} {t('in_stock', 'in stock')}
+                      </span>
                     ) : (
-                      <span className="text-red-500 font-bold uppercase text-[10px]">{t('out_of_stock', 'Out of stock')}</span>
+                      <span className="text-xs font-black text-red-600 dark:text-red-500 uppercase tracking-wider whitespace-nowrap">
+                        {t('out_of_stock', 'Out of stock')}
+                      </span>
                     )}
-                  </span>
-                ) : (
-                  product.stock > 0 && (
-                    <span className="text-[11px] text-gray-400 font-medium shrink-0 ml-2">
-                      {product.stock} {t('in_stock', 'in stock')}
-                    </span>
-                  )
-                )}
+                  </div>
+                </div>
               </div>
                 
-              <div className={`grid ${getVariantGridCols(variants.length + 1)} gap-1.5 sm:gap-2 w-full py-0.5`}>
-                <button
-                  type="button"
-                  onClick={() => handleSelectVariant(null)}
-                  title={t('standard_variant', 'Standard')}
-                  className={`relative px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all border flex items-center justify-center gap-1 sm:gap-1.5 w-full min-w-0 bg-transparent ${
-                    !selectedVariant 
-                      ? 'border-2 border-gray-900 text-gray-900 dark:border-white dark:text-white font-bold' 
-                      : 'border-gray-200 dark:border-neutral-800 text-gray-600 dark:text-neutral-400 hover:border-gray-400 dark:hover:border-neutral-600'
-                  }`}
-                >
-                  <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border border-dashed border-gray-400 dark:border-neutral-500 shrink-0" />
-                  <span className="truncate">{t('standard_variant', 'Standard')}</span>
-                </button>
-
-                {variants.map(v => {
-                  const isSelected = selectedVariant?.id === v.id;
-                  const isOutOfStock = v.stock <= 0;
-                  const color = getVariantColor(v.name);
-
-                  return (
-                    <button
-                      key={v.id}
-                      type="button"
-                      disabled={isOutOfStock}
-                      onClick={() => handleSelectVariant(v)}
-                      title={`${v.name}${isOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
-                      className={`relative px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all border flex items-center justify-center gap-1 sm:gap-1.5 w-full min-w-0 bg-transparent ${
-                        isSelected
-                          ? 'border-2 border-gray-900 text-gray-900 dark:border-white dark:text-white font-bold'
-                          : isOutOfStock
-                            ? 'border-dashed border-gray-200 dark:border-neutral-800 text-gray-400 dark:text-neutral-600 opacity-60 cursor-not-allowed'
-                            : 'border-gray-200 dark:border-neutral-800 text-gray-600 dark:text-neutral-400 hover:border-gray-400 dark:hover:border-neutral-600'
+              {/* Variant Selector */}
+              {isPureSizeVariantList ? (
+                /* Simple Size Dropdown */
+                <div className="space-y-1.5 pt-1">
+                  <div className="relative w-full sm:max-w-xs">
+                    <select
+                      value={selectedVariant?.id || ''}
+                      onChange={(e) => {
+                        const id = Number(e.target.value);
+                        const found = variants.find(v => v.id === id);
+                        handleSelectVariant(found || null);
+                      }}
+                      className="w-full h-10 px-3.5 pr-10 bg-white dark:bg-[#000000] border border-neutral-300 dark:border-neutral-700 text-xs font-bold text-gray-900 dark:text-white rounded-none focus:outline-none focus:border-black dark:focus:border-white transition-colors cursor-pointer appearance-none"
+                    >
+                      <option value="" className="bg-white dark:bg-black text-gray-900 dark:text-white">
+                        {t('standard_variant', 'Standard')} {product.stock > 0 ? `(${product.stock} ${t('in_stock', 'in stock')})` : `(${t('out_of_stock', 'Out of stock')})`}
+                      </option>
+                      {variants.map(v => (
+                        <option key={v.id} value={v.id} disabled={v.stock <= 0} className="bg-white dark:bg-black text-gray-900 dark:text-white">
+                          {v.name} {v.stock > 0 ? `(${v.stock} ${t('in_stock', 'in stock')})` : `(${t('out_of_stock', 'Out of stock')})`}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+              ) : (
+                /* Visual Cards Shelf: Exactly matching media_1791024952903.png */
+                <div className="flex gap-2 sm:gap-3 w-full py-0.5">
+                  {/* Standard Base Variant Card */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectVariant(null)}
+                    title={`${t('standard_variant', 'Standard')}${product.stock <= 0 ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                    className={`group/vcard relative flex-1 min-w-0 flex flex-col items-center select-none outline-none rounded-none transition-all duration-200 ${
+                      product.stock <= 0 ? 'cursor-not-allowed' : 'cursor-pointer'
+                    }`}
+                  >
+                    {/* Super Contained Image: No cropping, No rounded corners, subtle gray shade & drop shadow for selected */}
+                    <div
+                      className={`relative w-full aspect-square sm:h-24 sm:w-full flex items-center justify-center rounded-none transition-all duration-200 ${
+                        !selectedVariant
+                          ? 'bg-neutral-200/90 dark:bg-neutral-800 shadow-md ring-1 ring-black/10 dark:ring-white/10'
+                          : product.stock <= 0
+                            ? 'bg-neutral-100/40 dark:bg-neutral-900/30'
+                            : 'bg-neutral-50/60 dark:bg-neutral-900/40 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
                       }`}
                     >
-                      {v.image ? (
+                      {product.images?.[0]?.image || (product as any).image ? (
                         <SafeImage
-                          src={v.image}
-                          alt={v.name}
-                          category="product"
-                          className={`w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full object-cover shrink-0 border border-black/10 ${isOutOfStock ? 'grayscale opacity-50' : ''}`}
+                          src={product.images?.[0]?.image || (product as any).image}
+                          alt={t('standard_variant', 'Standard')}
+                          category={product.category_name}
+                          containMode="contain"
+                          className={`w-full h-full max-h-full max-w-full object-contain p-1.5 transition-all ${
+                            product.stock <= 0 ? 'grayscale opacity-50' : 'opacity-100'
+                          }`}
                         />
-                      ) : color ? (
-                        <span
-                          className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0 border border-black/20 shadow-xs"
-                          style={{ backgroundColor: color }}
-                        />
-                      ) : null}
-                      <span className={`truncate ${isOutOfStock ? 'line-through' : ''}`}>{v.name}</span>
-                      {isOutOfStock && (
-                        <span className="text-[9px] sm:text-[10px] text-red-500 font-bold uppercase shrink-0 ml-0.5">({t('out_of_stock', 'Out')})</span>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                          <ShoppingBag size={20} />
+                        </div>
                       )}
-                    </button>
-                  );
-                })}
-              </div>
+
+                      {/* Explicit Out of Stock Text on Image (No rectangle/box, pure text) */}
+                      {product.stock <= 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
+                          <span className="text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-wider text-red-600 dark:text-red-500">
+                            {t('out_of_stock', 'Out of stock')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Variant Name Below */}
+                    <div className="w-full text-center mt-1.5 px-0.5">
+                      <span
+                        className={`text-[10.5px] sm:text-xs truncate block ${
+                          !selectedVariant
+                            ? 'text-gray-900 dark:text-white font-extrabold'
+                            : product.stock <= 0
+                              ? 'text-neutral-400 dark:text-neutral-500 line-through font-medium'
+                              : 'text-neutral-700 dark:text-neutral-300 font-semibold group-hover/vcard:text-black dark:group-hover/vcard:text-white'
+                        }`}
+                      >
+                        {t('standard_variant', 'Standard')}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Specific Variants */}
+                  {variants.map((v, idx) => {
+                    const isSelected = selectedVariant?.id === v.id;
+                    const isOutOfStock = v.stock <= 0;
+                    const fallbackImage = product.images?.[0]?.image || (product as any).image;
+                    const variantImg = v.image || (product.images && product.images[idx + 1]?.image) || fallbackImage;
+
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => handleSelectVariant(v)}
+                        title={`${v.name}${isOutOfStock ? ` (${t('out_of_stock', 'Out of stock')})` : ''}`}
+                        className={`group/vcard relative flex-1 min-w-0 flex flex-col items-center select-none outline-none rounded-none transition-all duration-200 ${
+                          isOutOfStock ? 'cursor-not-allowed' : 'cursor-pointer'
+                        }`}
+                      >
+                        {/* Super Contained Image: No cropping, No rounded corners, subtle gray shade & drop shadow for selected */}
+                        <div
+                          className={`relative w-full aspect-square sm:h-24 sm:w-full flex items-center justify-center rounded-none transition-all duration-200 ${
+                            isSelected
+                              ? 'bg-neutral-200/90 dark:bg-neutral-800 shadow-md ring-1 ring-black/10 dark:ring-white/10'
+                              : isOutOfStock
+                                ? 'bg-neutral-100/40 dark:bg-neutral-900/30'
+                                : 'bg-neutral-50/60 dark:bg-neutral-900/40 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60'
+                          }`}
+                        >
+                          {variantImg ? (
+                            <SafeImage
+                              src={variantImg}
+                              alt={v.name}
+                              category={product.category_name}
+                              containMode="contain"
+                              className={`w-full h-full max-h-full max-w-full object-contain p-1.5 transition-all ${
+                                isOutOfStock ? 'grayscale opacity-50' : 'opacity-100'
+                              }`}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                              <ShoppingBag size={20} />
+                            </div>
+                          )}
+
+                          {/* Explicit Out of Stock Text on Image (No rectangle/box, pure text) */}
+                          {isOutOfStock && (
+                            <div className="absolute inset-0 flex items-center justify-center p-1 pointer-events-none">
+                              <span className="text-[9.5px] sm:text-[10.5px] font-black uppercase tracking-wider text-red-600 dark:text-red-500">
+                                {t('out_of_stock', 'Out of stock')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Variant Name Below */}
+                        <div className="w-full text-center mt-1.5 px-0.5">
+                          <span
+                            className={`text-[10.5px] sm:text-xs truncate block ${
+                              isSelected
+                                ? 'text-gray-900 dark:text-white font-extrabold'
+                                : isOutOfStock
+                                  ? 'text-neutral-400 dark:text-neutral-500 line-through font-medium'
+                                  : 'text-neutral-700 dark:text-neutral-300 font-semibold group-hover/vcard:text-black dark:group-hover/vcard:text-white'
+                            }`}
+                          >
+                            {getCleanVariantName(v.name)}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1676,27 +1883,63 @@ const ProductDetailPage: React.FC = () => {
               ) : (
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   {/* Quantity Stepper */}
-                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-full bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0 h-10 select-none">
+                  <div className="relative flex items-center border border-gray-200 dark:border-neutral-700 rounded-full bg-gray-50 dark:bg-gray-900 overflow-hidden shrink-0 h-10 select-none isolate">
+                    {/* Directional Soft Gray Gradient: Originates at the exact center (50%) of the whole button and flows in the direction of the hover */}
+                    <div 
+                      className={`absolute inset-0 pointer-events-none transition-opacity duration-200 ${
+                        stepperHover === 'minus'
+                          ? 'opacity-100 bg-gradient-to-l from-transparent from-50% via-gray-200/60 to-gray-200 dark:via-neutral-800/60 dark:to-neutral-700'
+                          : stepperHover === 'plus'
+                            ? 'opacity-100 bg-gradient-to-r from-transparent from-50% via-gray-200/60 to-gray-200 dark:via-neutral-800/60 dark:to-neutral-700'
+                            : 'opacity-0'
+                      }`} 
+                    />
+                    {stepperActive && (
+                      <div 
+                        className={`absolute inset-0 pointer-events-none transition-opacity duration-100 ${
+                          stepperActive === 'minus'
+                            ? 'opacity-100 bg-gradient-to-l from-transparent from-50% via-gray-300/70 to-gray-300 dark:via-neutral-700/70 dark:to-neutral-600'
+                            : 'opacity-100 bg-gradient-to-r from-transparent from-50% via-gray-300/70 to-gray-300 dark:via-neutral-700/70 dark:to-neutral-600'
+                        }`} 
+                      />
+                    )}
+
                     <button 
                       type="button"
                       onClick={() => setQuantity(Math.max(parseFloat(product.minimum_order_quantity || '1'), quantity - 1))} 
-                      className="w-9 h-full flex items-center justify-center hover:bg-gray-200/60 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-300 font-bold text-sm cursor-pointer"
+                      onMouseEnter={() => setStepperHover('minus')}
+                      onMouseLeave={() => { setStepperHover(null); setStepperActive(null); }}
+                      onMouseDown={() => setStepperActive('minus')}
+                      onMouseUp={() => setStepperActive(null)}
+                      onTouchStart={() => setStepperActive('minus')}
+                      onTouchEnd={() => setStepperActive(null)}
+                      className={`relative z-10 w-10 h-full flex items-center justify-center font-bold text-base cursor-pointer transition-colors duration-150 shrink-0 ${
+                        stepperHover === 'minus' ? 'text-black dark:text-white' : 'text-gray-700 dark:text-gray-300'
+                      }`}
                       aria-label="Decrease quantity"
                     >
-                      −
+                      <span className="transition-transform duration-100 active:scale-75 select-none leading-none">−</span>
                     </button>
-                    <div className="flex items-center justify-center border-x border-gray-200 dark:border-gray-700 px-3.5 min-w-[3.8rem] h-full">
-                      <span className="font-bold text-xs text-gray-900 dark:text-white whitespace-nowrap">
+                    <div className="relative z-10 flex items-center justify-center px-1.5 w-[4.8rem] h-full shrink-0 pointer-events-none">
+                      <span className="font-bold text-xs text-gray-900 dark:text-white whitespace-nowrap text-center truncate">
                         {quantity} {formatUnit(quantity, product.unit_of_measure)}
                       </span>
                     </div>
                     <button 
                       type="button"
                       onClick={() => setQuantity(Math.min((selectedVariant ? selectedVariant.stock : product.stock), quantity + 1))} 
-                      className="w-9 h-full flex items-center justify-center hover:bg-gray-200/60 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-300 font-bold text-sm cursor-pointer"
+                      onMouseEnter={() => setStepperHover('plus')}
+                      onMouseLeave={() => { setStepperHover(null); setStepperActive(null); }}
+                      onMouseDown={() => setStepperActive('plus')}
+                      onMouseUp={() => setStepperActive(null)}
+                      onTouchStart={() => setStepperActive('plus')}
+                      onTouchEnd={() => setStepperActive(null)}
+                      className={`relative z-10 w-10 h-full flex items-center justify-center font-bold text-base cursor-pointer transition-colors duration-150 shrink-0 ${
+                        stepperHover === 'plus' ? 'text-black dark:text-white' : 'text-gray-700 dark:text-gray-300'
+                      }`}
                       aria-label="Increase quantity"
                     >
-                      +
+                      <span className="transition-transform duration-100 active:scale-75 select-none leading-none">+</span>
                     </button>
                   </div>
 
