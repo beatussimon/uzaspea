@@ -1527,7 +1527,7 @@ const ProductDetailPage: React.FC = () => {
                     to={product.category_parent_slug && product.category_parent_slug !== product.category_slug
                       ? `/products?category=${product.category_parent_slug}&subcategory=${product.category_slug || product.category_name}`
                       : `/products?category=${product.category_slug || product.category_name}`} 
-                    className="font-bold uppercase tracking-widest text-brand-500 dark:text-brand-500 hover:text-brand-500 dark:hover:text-brand-500 transition-colors"
+                    className="font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                   >
                     {product.category_name}
                   </Link>
