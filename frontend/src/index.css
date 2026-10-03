@@ -14,12 +14,12 @@
     -moz-osx-font-smoothing: grayscale;
     overflow-x: clip;
     color-scheme: light;
-    background-color: #fafafa;
+    background-color: #ffffff;
   }
 
   html.dark {
     color-scheme: dark;
-    background-color: #050505;
+    background-color: #000000;
   }
 
   :root {
@@ -32,22 +32,12 @@
   body {
     @apply font-sans text-gray-900 transition-colors duration-300;
     overflow-x: clip;
-    background-color: #fafafa;
-    background-image: 
-      radial-gradient(at 40% 20%, rgba(240, 240, 240, 1) 0px, transparent 50%),
-      radial-gradient(at 80% 0%, rgba(245, 245, 245, 1) 0px, transparent 50%),
-      radial-gradient(at 0% 50%, rgba(235, 235, 235, 1) 0px, transparent 50%);
-    background-attachment: fixed;
+    background-color: #ffffff;
   }
 
   .dark body {
     @apply text-gray-100;
-    background-color: #050505;
-    background-image: 
-      radial-gradient(at 40% 20%, rgba(15, 15, 15, 1) 0px, transparent 50%),
-      radial-gradient(at 80% 0%, rgba(20, 20, 20, 1) 0px, transparent 50%),
-      radial-gradient(at 0% 50%, rgba(10, 10, 10, 1) 0px, transparent 50%);
-    background-attachment: fixed;
+    background-color: #000000;
   }
 
   h1, h2, h3, h4, h5, h6 {

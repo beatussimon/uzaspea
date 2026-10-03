@@ -38,7 +38,7 @@ export function useStatusBar() {
     if (isLandingPage) {
       // Landing page hero is dark, regardless of theme
       const startColor = '#000000';
-      const endColor = isDark ? '#050505' : '#fafafa';
+      const endColor = isDark ? '#000000' : '#ffffff';
       
       const handleScroll = () => {
          const snapContainer = document.querySelector('.snap-container') as HTMLElement;

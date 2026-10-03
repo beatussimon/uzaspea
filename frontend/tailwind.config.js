@@ -20,10 +20,10 @@ export default {
         info: colors.blue,
         surface: {
           DEFAULT: '#ffffff',
-          muted: '#f9fafb',
+          muted: '#ffffff',
           border: '#c4c4c4',        // Balanced border: not too stark, not too subtle
           dark: '#000000',          // True black
-          'dark-muted': '#0a0a0a',  // Very dark gray
+          'dark-muted': '#000000',  // Pure black
           'dark-border': '#404040', // Balanced dark border (neutral-700 equivalent)
         },
       },
