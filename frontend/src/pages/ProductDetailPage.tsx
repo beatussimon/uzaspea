@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Heart, Star, X, Share2, Shield, MessageSquare, MapPin, 
   Clock, ChevronLeft, ChevronRight, ChevronDown, ShieldCheck, MoreVertical, Navigation, 
-  Search, AlertTriangle, ArrowUp, ShoppingBag
+  Search, AlertTriangle, ArrowUp, ShoppingBag, Truck, Tag, Shirt, Laptop
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -161,6 +161,14 @@ const formatQtyNum = (num: number | string | undefined | null) => {
   const n = parseFloat(String(num));
   if (isNaN(n)) return '0';
   return Number.isInteger(n) ? String(n) : String(n);
+};
+
+const getCategoryIcon = (categoryName?: string | null, parentCategoryName?: string | null) => {
+  const cat = `${parentCategoryName || ''} ${categoryName || ''}`.toLowerCase();
+  if (cat.includes('vehicle') || cat.includes('boat') || cat.includes('car') || cat.includes('auto') || cat.includes('truck') || cat.includes('motorcycle')) return Truck;
+  if (cat.includes('electronic') || cat.includes('phone') || cat.includes('computer') || cat.includes('laptop')) return Laptop;
+  if (cat.includes('fashion') || cat.includes('cloth') || cat.includes('apparel') || cat.includes('shirt') || cat.includes('shoe') || cat.includes('sweater')) return Shirt;
+  return Tag;
 };
 
 // ===== Fullscreen Image Lightbox =====
@@ -1516,74 +1524,77 @@ const ProductDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Category, Brand & Condition Metadata Line */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium">
-              {product.category_parent_slug && product.category_parent_slug !== product.category_slug && (
-                <>
-                  <Link 
-                    to={`/products?category=${product.category_parent_slug}`} 
-                    className="font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 hover:text-brand-500 dark:hover:text-brand-500 transition-colors"
-                  >
-                    {product.category_parent_name || product.category_parent_slug}
-                  </Link>
-                  <span className="text-neutral-300 dark:text-neutral-700">/</span>
-                </>
-              )}
-              <Link 
-                to={product.category_parent_slug && product.category_parent_slug !== product.category_slug
-                  ? `/products?category=${product.category_parent_slug}&subcategory=${product.category_slug || product.category_name}`
-                  : `/products?category=${product.category_slug || product.category_name}`} 
-                className="font-bold uppercase tracking-widest text-brand-500 dark:text-brand-500 hover:text-brand-500 dark:hover:text-brand-500 transition-colors"
-              >
-                {product.category_name}
-              </Link>
+            {/* Metadata Rows: Exactly matching mockup */}
+            {(() => {
+              const CategoryIcon = getCategoryIcon(product.category_name, product.category_parent_name);
+              return (
+                <div className="flex flex-col gap-1.5 pt-0.5">
+                  {/* Row 1: Left = Subcategory, Brand & Condition; Right = Location */}
+                  <div className="flex items-center justify-between gap-3 text-xs flex-wrap sm:flex-nowrap">
+                    {/* Left side: Icon, Subcategory, Brand & Condition */}
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      <CategoryIcon size={14} className="text-neutral-400 dark:text-neutral-400 shrink-0" />
+                      
+                      <Link 
+                        to={product.category_parent_slug && product.category_parent_slug !== product.category_slug
+                          ? `/products?category=${product.category_parent_slug}&subcategory=${product.category_slug || product.category_name}`
+                          : `/products?category=${product.category_slug || product.category_name}`} 
+                        className="font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                      >
+                        {product.category_name}
+                      </Link>
 
-              {/* Integrated Brand */}
-              {(product.brand_details || product.brand_name) && (
-                <>
-                  <span>•</span>
-                  <Link
-                    to={`/products?brand=${product.brand_details?.slug || (product.brand_name || '').toLowerCase().replace(/\s+/g, '-')}`}
-                    className="font-bold uppercase tracking-widest text-gray-800 dark:text-gray-200 hover:text-brand-500 dark:hover:text-brand-400 transition-colors"
-                  >
-                    {product.brand_details?.name || product.brand_name}
-                  </Link>
-                </>
-              )}
+                      {/* Integrated Brand */}
+                      {(product.brand_details || product.brand_name) && (
+                        <>
+                          <span className="text-neutral-300 dark:text-neutral-700">•</span>
+                          <Link
+                            to={`/products?brand=${product.brand_details?.slug || (product.brand_name || '').toLowerCase().replace(/\s+/g, '-')}`}
+                            className="font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                          >
+                            {product.brand_details?.name || product.brand_name}
+                          </Link>
+                        </>
+                      )}
 
-              <span>•</span>
-              <span className={`px-1.5 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider ${
-                (product.condition || '').toLowerCase() === 'new' 
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' 
-                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-              }`}>
-                {(product.condition || '').toLowerCase() === 'new'
-                  ? t('new', 'MPYA')
-                  : (product.condition || '').toLowerCase() === 'used'
-                    ? t('used', 'IMETUMIKA')
-                    : (product.condition || '').toLowerCase() === 'refurbished'
-                      ? t('refurbished', 'Iliyokarabatiwa')
-                      : product.condition}
-              </span>
-              {product.location_name && (
-                <>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <MapPin size={12} className="text-gray-400" />
-                    {product.location_name}
-                  </span>
-                </>
-              )}
-              {product.created_at && (
-                <>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Clock size={12} className="text-gray-400" />
-                    {timeAgo(product.created_at)}
-                  </span>
-                </>
-              )}
-            </div>
+                      {product.condition && (
+                        <span className={`ml-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider inline-flex items-center shadow-xs ${
+                          (product.condition || '').toLowerCase() === 'new' 
+                            ? 'bg-emerald-600 text-white' 
+                            : (product.condition || '').toLowerCase() === 'used'
+                              ? 'bg-neutral-600 text-white dark:bg-neutral-700'
+                              : 'bg-neutral-600 text-white'
+                        }`}>
+                          {(product.condition || '').toLowerCase() === 'new'
+                            ? t('new', 'MPYA')
+                            : (product.condition || '').toLowerCase() === 'used'
+                              ? t('used', 'IMETUMIKA')
+                              : (product.condition || '').toLowerCase() === 'refurbished'
+                                ? t('refurbished', 'Iliyokarabatiwa')
+                                : product.condition}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Right side: Location */}
+                    {product.location_name && (
+                      <div className="inline-flex items-center gap-1 text-xs text-neutral-400 dark:text-neutral-400 shrink-0 ml-auto sm:ml-0">
+                        <MapPin size={13} className="text-neutral-400 dark:text-neutral-400 shrink-0" />
+                        <span>{product.location_name}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Row 2: Relative timestamp on the left */}
+                  {product.created_at && (
+                    <div className="inline-flex items-center gap-1 text-xs text-neutral-400 dark:text-neutral-400">
+                      <Clock size={13} className="text-neutral-400 dark:text-neutral-400 shrink-0" />
+                      <span>{timeAgo(product.created_at)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Variants */}
